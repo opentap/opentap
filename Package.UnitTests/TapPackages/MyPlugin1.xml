@@ -1,0 +1,17 @@
+﻿<?xml version="1.0"?>
+<ArrayOfPackages>
+  <Package Version="1.0.0" Name="MyPlugin1" Configuration="" InfoLink="" xmlns="http://keysight.com/schemas/TAP/Package">
+    <Dependencies>
+      <PackageDependency Package="Tap" Version="^7.0.605" />
+    </Dependencies>
+    <Description >This is my TAP plugin package.</Description>
+    <PackageRepositoryUrl>C:\Users\steholst\Source\Repos\tap2\bin\Debug\TapPlugins\MyPlugin1.TapPlugin</PackageRepositoryUrl>
+    <Files>
+      <File Path="Tap.Plugins.MyPlugin1.dll" Obfuscate="false" UseVersion="false">
+        <Plugins>
+          <Plugin>Tap.Plugins.MyPlugin1.Step</Plugin>
+        </Plugins>
+      </File>
+    </Files>
+  </Package>
+</ArrayOfPackages>

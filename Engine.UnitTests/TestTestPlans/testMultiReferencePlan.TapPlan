@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="Keysight.Tap.TestPlan" Locked="False" Version="7.4.0.0">
+  <Steps>
+    <TestStep type="Keysight.Tap.Plugins.BasicSteps.TestPlanReference" Id="9e59e644-8857-4de4-bc28-1031eef7cb39" Version="7.4.0.0">
+      <Enabled>True</Enabled>
+      <Filepath>TestTestPlans/testReferencedPlan2.TapPlan</Filepath>
+      <MaskEntries>
+        <ExternalParameterEntryData>
+          <Name>RefPlan</Name>
+          <Value type="Keysight.Tap.MacroString">&lt;TestPlanDir&gt;/testReferencedPlan3.TapPlan</Value>
+        </ExternalParameterEntryData>
+        <ExternalParameterEntryData>
+          <Name>Resulting Verdict</Name>
+          <Value type="OpenTap.Verdict">Pass</Value>
+        </ExternalParameterEntryData>
+      </MaskEntries>
+      <Name>Test Plan Reference</Name>
+      <prop1>Pass</prop1>
+      <RefPlan>&lt;TestPlanDir&gt;/testReferencedPlan3.TapPlan</RefPlan>
+      <StepMapping />
+    </TestStep>
+    <TestStep type="Keysight.Tap.Plugins.BasicSteps.TestPlanReference" Id="330229bd-f309-4f5e-a0bc-932839e77159" Version="7.4.0.0">
+      <Enabled>True</Enabled>
+      <Filepath>TestTestPlans/testReferencedPlan2.TapPlan</Filepath>
+      <MaskEntries>
+        <ExternalParameterEntryData>
+          <Name>RefPlan</Name>
+          <Value type="Keysight.Tap.MacroString">TestTestPlans/testReferencedPlan.TapPlan</Value>
+        </ExternalParameterEntryData>
+        <ExternalParameterEntryData>
+          <Name>Resulting Verdict</Name>
+          <Value type="OpenTap.Verdict">Pass</Value>
+        </ExternalParameterEntryData>
+      </MaskEntries>
+      <Name>Test Plan Reference</Name>
+      <prop1>Pass</prop1>
+      <RefPlan>TestTestPlans/testReferencedPlan.TapPlan</RefPlan>
+      <StepMapping>
+        <GuidMapping>
+          <Guid1>92a74277-e96b-479f-913f-aa57b30a99dc</Guid1>
+          <Guid2>fcb3d794-57c8-4cf6-9f4c-c9adbe9a5100</Guid2>
+        </GuidMapping>
+        <GuidMapping>
+          <Guid1>57305dd3-fce4-4aff-929a-5d02d2579920</Guid1>
+          <Guid2>af0137a4-0b0b-4197-ace4-ef2387b395a4</Guid2>
+        </GuidMapping>
+      </StepMapping>
+    </TestStep>
+    <TestStep type="Keysight.Tap.Plugins.BasicSteps.TestPlanReference" Id="dd2e64ae-8852-4c3f-b4b2-68177ec3baa2" Version="7.4.0.0">
+      <Enabled>True</Enabled>
+      <Filepath>TestTestPlans/testReferencedPlan2.TapPlan</Filepath>
+      <MaskEntries>
+        <ExternalParameterEntryData>
+          <Name>RefPlan</Name>
+          <Value type="Keysight.Tap.MacroString">TestTestPlans/testReferencedPlan.TapPlan</Value>
+        </ExternalParameterEntryData>
+        <ExternalParameterEntryData>
+          <Name>Resulting Verdict</Name>
+          <Value type="OpenTap.Verdict">Pass</Value>
+        </ExternalParameterEntryData>
+      </MaskEntries>
+      <Name>Test Plan Reference</Name>
+      <prop1>Inconclusive</prop1>
+      <RefPlan>TestTestPlans/testReferencedPlan.TapPlan</RefPlan>
+      <StepMapping>
+        <GuidMapping>
+          <Guid1>92a74277-e96b-479f-913f-aa57b30a99dc</Guid1>
+          <Guid2>411d4907-9d46-4311-92bc-fb974274b93b</Guid2>
+        </GuidMapping>
+        <GuidMapping>
+          <Guid1>57305dd3-fce4-4aff-929a-5d02d2579920</Guid1>
+          <Guid2>194565ab-6abf-46c3-8a95-27d8641dbb36</Guid2>
+        </GuidMapping>
+      </StepMapping>
+    </TestStep>
+    <TestStep type="Keysight.Tap.Plugins.BasicSteps.IfStep" Id="257ae676-3cbe-4d25-87bd-3332f72c0131" Version="7.4.0.0">
+      <Action>RunChildren</Action>
+      <ChildTestSteps>
+        <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.VerdictStep" Id="0ecfd6f4-1857-4957-8ac3-9b7d9baa0994" Version="7.4.0.0">
+          <ChildTestSteps />
+          <Enabled>True</Enabled>
+          <Name>Set Verdict (1)</Name>
+          <RequestAbort>False</RequestAbort>
+          <VerdictOutput>Pass</VerdictOutput>
+        </TestStep>
+      </ChildTestSteps>
+      <Enabled>True</Enabled>
+      <InputVerdict>
+        <PropertyName>Keysight.Tap.TestStep, Keysight.Tap.Engine, Version=7.4.0.0, Culture=neutral, PublicKeyToken=null|Verdict</PropertyName>
+        <Step type="OpenTap.Engine.UnitTests.TestTestSteps.VerdictStep">194565ab-6abf-46c3-8a95-27d8641dbb36</Step>
+      </InputVerdict>
+      <Name>If Verdict</Name>
+      <TargetVerdict>Inconclusive</TargetVerdict>
+    </TestStep>
+  </Steps>
+</TestPlan>

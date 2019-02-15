@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<PlatformSettings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <LogBufferMode>Stream_To_File</LogBufferMode>
+  <SessionLogPath>SessionLogs/SessionLog &lt;Date&gt;.txt</SessionLogPath>
+  <AbortTestPlan />
+  <RemoteAddress>10.10.10.10</RemoteAddress>
+  <RemotePort>10101</RemotePort>
+  <RemoteTestBenchEnabled>true</RemoteTestBenchEnabled>
+  <OperatorName>SomeOperator</OperatorName>
+  <StationName>Somepc</StationName>
+</PlatformSettings>

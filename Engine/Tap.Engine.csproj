@@ -1,0 +1,58 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RuntimeFrameworkVersion>2.1.0</RuntimeFrameworkVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <LangVersion>7.2</LangVersion>
+    <AssemblyOriginatorKeyFile>Keysight.Tap.snk</AssemblyOriginatorKeyFile>
+    <AssemblyName>OpenTap</AssemblyName>
+    <RootNamespace>OpenTap</RootNamespace>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <Configurations>Debug;Release;Linux</Configurations>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <OutputPath>..\..\bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE;KEYSIGHT_INTERNAL</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <OutputPath>..\..\bin\Release\</OutputPath>
+    <DebugType>pdbonly</DebugType>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DocumentationFile>..\..\bin\Release\Keysight.Tap.Engine.xml</DocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Linux'">
+    <OutputPath>..\..\bin\Release\</OutputPath>
+    <DebugType>pdbonly</DebugType>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DocumentationFile>..\..\bin\Release\Keysight.Tap.Engine.xml</DocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="ScpiInstrumentVisaDiscovery.cs" />
+    <Compile Remove="Licensing\*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
+    <PackageReference Include="System.Collections.Immutable" Version="1.5.0" />
+    <PackageReference Include="System.Reflection.Metadata" Version="1.6.0" />
+    <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
+    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.1" />
+    <PackageReference Include="System.ValueTuple" Version="4.5.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
+
+  <Import Project="..\Shared\Tap.Shared.projitems" Label="Shared" />
+
+</Project>

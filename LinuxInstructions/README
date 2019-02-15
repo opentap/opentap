@@ -1,0 +1,32 @@
+----- TAP 2018 ----------------------------------------------------------------
+
+--- Prerequisites
+ - Ubuntu (16.04)
+ - .NET Core 2.0
+   To install follow instructions here:
+   https://www.microsoft.com/net/learn/get-started/linuxubuntu
+
+--- Automatic installation
+ - Run the command "sh INSTALL.sh"
+
+--- Manual installation
+ - Unzip the TAPLinux.TapPackage file. This is a normal ZIP file.
+ - Set directory permission as being read-write in the TAP directory. This is
+   needed for package installation and session log output.
+
+--- Usage
+The two main executables are "Keysight.Tap.Cli" and
+"Keysight.Tap.PackageManager". If you ran the automatic install script
+these should be callable straight away. Otherwise you should call:
+"dotnet Keysight.Tap.Cli.dll <arguments>"
+
+--- Licensing
+To use TAP on Linux you need to have a running FlexLM license server with
+KS8400A/KS8000A license(s) installed. This can be set up using the Keysight
+FLO tool.
+
+In Linux you should set the LM_LICENSE_FILE environment variable like you
+would on a Windows machine.
+
+You could for example add something like `export LM_LICENSE_FILE=@Hostname`
+to your .bash_rc file.

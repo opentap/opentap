@@ -1,0 +1,13 @@
+﻿<?xml version="1.0"?>
+<Package Name="TestWithDependencies" Version="2.3.0+9b084a8" xmlns="http://keysight.com/schemas/TAP/Package">
+  <Dependencies>
+    <PackageDependency Package="XSeries" Version="2.3.2+ab29327" />
+    <PackageDependency Package="Test" Version="0.5.48+a9e2ce5" />
+  </Dependencies>
+  <Files>
+    <File Path="TapPlugin.XSignalAnalyzer.dll" Obfuscate="true" UseVersion="true">
+    </File>
+    <File Path="TapPlugin.XSignalSource.dll" Obfuscate="true" UseVersion="false">
+    </File>
+  </Files>
+</Package>

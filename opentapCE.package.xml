@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package Name="OpenTAP" xmlns="http://opentap.io/schemas/package" InfoLink="http://www.keysight.com/find/TAP" Version="$(GitVersion)" OS="Windows" Architecture="x64">
+  <Description>OpenTAP contains the core components of the software. It includes the TAP Engine, CLI and a plugin manager that finds and handles plugins (test steps, DUT and Instrument interfaces, etc.). OpenTAP also controls test plan (list of test steps) execution and provides access to functionality offered by the plugins. This covers logging functionality, result handling (database) and instrument communication (user-developed hardware drivers, for example).
+    <Status>Released</Status>
+    <Organisation>Keysight Technologies</Organisation>
+  </Description>
+  <Files>
+    <File Path="OpenTap.dll" Obfuscate="false" Sign="Keysight Technologies, Inc." SetAssemblyInfo="Version,Configuration"/>
+    <File Path="Packages/OpenTAP/OpenTap.Cli.dll" Obfuscate="false" Sign="Keysight Technologies, Inc." SetAssemblyInfo="Version,Configuration"/>
+    <File Path="OpenTap.Package.dll" Obfuscate="false" Sign="Keysight Technologies, Inc." SetAssemblyInfo="Version,Configuration"/>
+    <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" Obfuscate="false" Sign="Keysight Technologies, Inc." SetAssemblyInfo="Version,Configuration"/>
+    <File Path="tap.exe" Obfuscate="false" Sign="Keysight Technologies, Inc." SetAssemblyInfo="Version,Configuration"/>
+    <File Path="LICENSE.txt" Obfuscate="false" SourcePath="..\..\opentap\LICENSE.txt"/>
+    
+
+    <File Path="Dependencies\LibGit2Sharp.0.25.0.0\git2-4aecb64.dll" SourcePath="lib\win32\x64\git2-4aecb64.dll" Obfuscate="false" />
+    <File Path="Dependencies\LibGit2Sharp.0.25.0.0\LICENSE.txt" SourcePath="..\..\packages\LibGit2Sharp.0.25.4\App_Readme\LICENSE.md" Obfuscate="false" />
+
+    <File Path="Dependencies\Mono.Cecil.0.10.1.0\LICENSE.txt" SourcePath="..\..\opentap\Mono.Cecil.License.txt" Obfuscate="false" />
+    <File Path="Dependencies\System.Runtime.InteropServices.RuntimeInformation.4.0.2.0\System.Runtime.InteropServices.RuntimeInformation.dll" Obfuscate="false" SourcePath="System.Runtime.InteropServices.RuntimeInformation.dll"/>
+
+<File Path="Dependencies/Microsoft.CodeAnalysis.2.10.0.0/LICENSE.txt"           SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/Microsoft.CodeAnalysis.CSharp.2.10.0.0/LICENSE.txt"    SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/Microsoft.CSharp.4.0.4.0/LICENSE.txt"                  SourcePath="..\..\packages\System.ValueTuple.4.5.0\LICENSE.txt" Obfuscate="false" />
+<File Path="Dependencies/netstandard.2.0.0.0/LICENSE.txt"                       SourcePath="..\..\packages\System.ValueTuple.4.5.0\LICENSE.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Collections.4.0.11.0/LICENSE.txt"               SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Collections.Concurrent.4.0.11.0/LICENSE.txt"    SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Collections.Immutable.1.2.3.0/LICENSE.txt"      SourcePath="..\..\packages\System.ValueTuple.4.5.0\LICENSE.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Diagnostics.Debug.4.0.11.0/LICENSE.txt"         SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Diagnostics.Tools.4.0.1.0/LICENSE.txt"          SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Globalization.4.0.11.0/LICENSE.txt"             SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.IO.4.1.2.0/LICENSE.txt"                         SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.IO.Compression.4.2.0.0/LICENSE.txt"             SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.IO.FileSystem.4.0.3.0/LICENSE.txt"              SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.IO.FileSystem.Primitives.4.0.3.0/LICENSE.txt"   SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Linq.4.1.2.0/LICENSE.txt"                       SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Linq.Expressions.4.1.2.0/LICENSE.txt"           SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Reflection.4.1.2.0/LICENSE.txt"                 SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Reflection.Extensions.4.0.1.0/LICENSE.txt"      SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Reflection.Metadata.1.4.3.0/LICENSE.txt"        SourcePath="..\..\packages\System.ValueTuple.4.5.0\LICENSE.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Reflection.Primitives.4.0.1.0/LICENSE.txt"      SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Resources.ResourceManager.4.0.1.0/LICENSE.txt"  SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Runtime.4.1.2.0/LICENSE.txt"                    SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Runtime.CompilerServices.Unsafe.4.0.4.0/LICENSE.txt" SourcePath="..\..\packages\System.ValueTuple.4.5.0\LICENSE.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Runtime.Extensions.4.1.2.0/LICENSE.txt"         SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Runtime.InteropServices.4.1.2.0/LICENSE.txt"    SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Runtime.Numerics.4.0.1.0/LICENSE.txt"           SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Security.Cryptography.Algorithms.4.3.0.0/LICENSE.txt" SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Security.Cryptography.Primitives.4.0.2.0/LICENSE.txt" SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Text.Encoding.4.0.11.0/LICENSE.txt"             SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Text.Encoding.Extensions.4.0.11.0/LICENSE.txt"  SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Threading.4.0.11.0/LICENSE.txt"                 SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Threading.Tasks.4.0.11.0/LICENSE.txt"           SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Threading.Tasks.Extensions.4.2.0.0/LICENSE.txt" SourcePath="..\..\packages\System.ValueTuple.4.5.0\LICENSE.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Threading.Tasks.Parallel.4.0.1.0/LICENSE.txt"   SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.ValueTuple.4.0.3.0/LICENSE.txt"                 SourcePath="..\..\packages\System.ValueTuple.4.5.0\LICENSE.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Xml.ReaderWriter.4.1.1.0/LICENSE.txt"           SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Xml.XDocument.4.0.11.0/LICENSE.txt"             SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+<File Path="Dependencies/System.Xml.XPath.XDocument.4.1.0.0/LICENSE.txt"        SourcePath="..\..\opentap\dotnet_library_license.txt" Obfuscate="false" />
+  </Files>
+</Package>

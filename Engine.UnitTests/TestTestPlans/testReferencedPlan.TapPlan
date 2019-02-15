@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="Keysight.Tap.TestPlan" Locked="False" Version="7.4.0.0">
+  <Steps>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.VerdictStep" Id="57305dd3-fce4-4aff-929a-5d02d2579920" Version="7.4.0.0">
+      <ChildTestSteps />
+      <Enabled>True</Enabled>
+      <Name>Set Verdict</Name>
+      <RequestAbort>False</RequestAbort>
+      <VerdictOutput external="Resulting Verdict">Pass</VerdictOutput>
+    </TestStep>
+  </Steps>
+</TestPlan>

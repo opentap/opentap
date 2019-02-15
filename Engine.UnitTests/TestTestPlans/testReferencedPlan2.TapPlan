@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="Keysight.Tap.TestPlan" Locked="False" Version="7.4.0.0">
+  <Steps>
+    <TestStep type="Keysight.Tap.Plugins.BasicSteps.TestPlanReference" Id="92a74277-e96b-479f-913f-aa57b30a99dc" Version="7.4.0.0">
+      <Enabled>True</Enabled>
+      <Filepath external="RefPlan">TestTestPlans\testReferencedPlan.TapPlan</Filepath>
+      <Name>Test Plan Reference</Name>
+      <prop0 external="Resulting Verdict">Pass</prop0>
+      <StepMapping />
+    </TestStep>
+  </Steps>
+</TestPlan>

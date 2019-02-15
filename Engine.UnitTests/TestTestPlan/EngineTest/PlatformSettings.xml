@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PlatformSettings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <UseFileStreams>false</UseFileStreams>
+  <SystemLogPath>SystemLogs/SysLog &lt;Date&gt;.txt</SystemLogPath>
+  <BlockShutdown>false</BlockShutdown>
+  <ResultWritePriority>DeferredBackground</ResultWritePriority>
+  <RemoteAddress>127.0.0.1</RemoteAddress>
+  <RemotePort>7300</RemotePort>
+  <IsRemote>false</IsRemote>
+  <UseExperimentalFeatures>false</UseExperimentalFeatures>
+</PlatformSettings>

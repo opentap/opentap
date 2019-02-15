@@ -1,0 +1,89 @@
+<?xml version="1.0"?>
+<TestPlan xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Name="EngineTest.TapPlan*" Locked="false">
+  <Steps>
+    <TestStep type="TapPlugin.BasicSteps.FixedCountLoop">
+      <ChildTestSteps>
+        <TestStep type="TapPlugin.BasicSteps.ParallelStep">
+          <ChildTestSteps>
+            <TestStep type="TapPlugin.TestTestSteps.SineResults">
+              <ChildTestSteps />
+              <Enabled>True</Enabled>
+              <Name>Sinewave Results</Name>
+              <NumberOfResults>50</NumberOfResults>
+              <ResultName>Sine</ResultName>
+              <UpperLimit>20</UpperLimit>
+            </TestStep>
+          </ChildTestSteps>
+          <Enabled>True</Enabled>
+          <Name>Parallel</Name>
+        </TestStep>
+      </ChildTestSteps>
+      <Enabled>True</Enabled>
+      <LoopCount>1000</LoopCount>
+      <Name>Fixed Count Loop</Name>
+    </TestStep>
+    <TestStep type="TapPlugin.BasicSteps.FixedCountLoop">
+      <ChildTestSteps>
+        <TestStep type="TapPlugin.BasicSteps.ParallelStep">
+          <ChildTestSteps>
+            <TestStep type="TapPlugin.TestTestSteps.SineResults">
+              <ChildTestSteps />
+              <Enabled>True</Enabled>
+              <Name>Sinewave Results</Name>
+              <NumberOfResults>50</NumberOfResults>
+              <ResultName>Sine</ResultName>
+              <UpperLimit>20</UpperLimit>
+            </TestStep>
+          </ChildTestSteps>
+          <Enabled>True</Enabled>
+          <Name>Parallel</Name>
+        </TestStep>
+      </ChildTestSteps>
+      <Enabled>True</Enabled>
+      <LoopCount>1000</LoopCount>
+      <Name>Fixed Count Loop (1)</Name>
+    </TestStep>
+    <TestStep type="Tap.Engine.UnitTests.Result1DTest">
+      <ChildTestSteps />
+      <Duration>0</Duration>
+      <Enabled>True</Enabled>
+      <Name>Result1DTest</Name>
+      <NResults>100</NResults>
+    </TestStep>
+    <TestStep type="TapPlugin.TestTestSteps.SineResults">
+      <ChildTestSteps />
+      <Enabled>True</Enabled>
+      <Name>Sinewave Results (1)</Name>
+      <NumberOfResults>50</NumberOfResults>
+      <ResultName>Sine</ResultName>
+      <UpperLimit>20</UpperLimit>
+    </TestStep>
+    <TestStep type="TapPlugin.TestTestSteps.VerdictStep">
+      <ChildTestSteps />
+      <Enabled>True</Enabled>
+      <EndVerdict>Pass</EndVerdict>
+      <Name>Verdict Step</Name>
+    </TestStep>
+    <TestStep type="TapPlugin.BasicSteps.IfStep">
+      <Action>RunChildren</Action>
+      <ChildTestSteps>
+        <TestStep type="TapPlugin.TestTestSteps.StepException">
+          <ChildTestSteps />
+          <CrashState>Run</CrashState>
+          <Enabled>True</Enabled>
+          <Name>Step Exception</Name>
+        </TestStep>
+      </ChildTestSteps>
+      <Enabled>True</Enabled>
+      <Name>If (1)</Name>
+      <TargetStepName>Verdict Step (Tests\Verdict Step)</TargetStepName>
+      <TargetVerdict>Fail</TargetVerdict>
+    </TestStep>
+    <TestStep type="TapPlugin.TestTestSteps.DutConnectionTest">
+      <ChildTestSteps />
+      <Dut>0</Dut>
+      <Enabled>True</Enabled>
+      <Name>DUT connection Test</Name>
+    </TestStep>
+  </Steps>
+</TestPlan>

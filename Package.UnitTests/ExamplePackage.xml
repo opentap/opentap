@@ -1,0 +1,31 @@
+﻿<?xml version="1.0"?>
+<Package Name="XSeries" Version="3.0.21.c28f29f" xmlns="http://keysight.com/schemas/TAP/Package">
+    <Description>This is my TAP plugin package.</Description>
+    <Dependencies>
+        <PackageDependency Package="Tap" Version="3.0.48.af828a5" />
+    </Dependencies>
+    <Files>
+        <File Path="TapPlugin.XSignalAnalyzer.dll" Obfuscate="true" UseVersion="true">
+            <Plugins>
+                <Plugin>TapPlugin.XSignalAnalyzer.XsaCore</Plugin>
+                <Plugin>TapPlugin.XSignalAnalyzer.E6640</Plugin>
+                <Plugin>TapPlugin.XSignalAnalyzer.E6650</Plugin>
+                <Plugin>TapPlugin.XSignalAnalyzer.E6607</Plugin>
+                <Plugin>TapPlugin.XSignalAnalyzer.N9020A</Plugin>
+                <Plugin>TapPlugin.XSignalAnalyzer.LoadModeTest</Plugin>
+                <Plugin>TapPlugin.XSignalAnalyzer.ModulationAnalysisStep</Plugin>
+                <Plugin>TapPlugin.XSignalAnalyzer.OccupiedBandwidthStep</Plugin>
+                <Plugin>TapPlugin.XSignalAnalyzer.MeasureChannelPower</Plugin>
+                <Plugin>TapPlugin.XSignalAnalyzer.XsaUploadFile</Plugin>
+            </Plugins>
+        </File>
+        <File Path="TapPlugin.XSignalSource.dll" Obfuscate="true" UseVersion="false">
+            <Plugins>
+                <Plugin>TapPlugin.XSignalSource.M9381A</Plugin>
+                <Plugin>TapPlugin.XSignalSource.N5182A</Plugin>
+                <Plugin>TapPlugin.XSignalSource.RealTimeAwgnStep</Plugin>
+                <Plugin>TapPlugin.XSignalSource.XsgPlayArb</Plugin>
+            </Plugins>
+        </File>
+    </Files>
+</Package>

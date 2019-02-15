@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="Keysight.Tap.TestPlan" Name="Untitled.TapPlan" Version="7.0.1098.0" Locked="False">
+  <Steps>
+    <TestStep type="Keysight.Tap.Plugins.BasicSteps.SweepLoop" Version="7.0.1098.0" Id="22430922-2835-416c-b266-8d019bd7714d">
+      <ChildTestSteps>
+        <TestStep type="Keysight.Tap.Plugins.BasicSteps.DialogStep" Version="7.0.1098.0" Id="554c69f1-9257-4596-88f4-bd4a43cf88d8">
+          <Buttons>OkCancel</Buttons>
+          <ChildTestSteps />
+          <DefaultAnswer>False</DefaultAnswer>
+          <Enabled>True</Enabled>
+          <Message>Message</Message>
+          <Name>Dialog</Name>
+          <NegativeAnswer>Not_Set</NegativeAnswer>
+          <PositiveAnswer>Not_Set</PositiveAnswer>
+          <Timeout>5</Timeout>
+          <Title>Title</Title>
+          <UseTimeout>False</UseTimeout>
+        </TestStep>
+        <TestStep type="Keysight.Tap.Plugins.BasicSteps.DelayStep" Version="7.0.1098.0" Id="a42eac27-d4b1-4181-b338-8131f4877da5">
+          <ChildTestSteps />
+          <DelaySecs>0.1</DelaySecs>
+          <Enabled>True</Enabled>
+          <Name>Delay</Name>
+        </TestStep>
+      </ChildTestSteps>
+      <CrossPlan>Within_Run</CrossPlan>
+      <Enabled>True</Enabled>
+      <Name>Sweep Loop</Name>
+      <SweepParameters>
+        <SweepParam type="Keysight.Tap.Plugins.BasicSteps.SweepParam">
+          <IsEnabled>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+          </IsEnabled>
+          <Name>Message</Name>
+          <PropertyNames>
+            <AnonymousList>Message</AnonymousList>
+          </PropertyNames>
+          <TypeName>System.String</TypeName>
+          <Values type="System.String[]">
+            <AnonymousList>1</AnonymousList>
+            <AnonymousList>2</AnonymousList>
+            <AnonymousList>3</AnonymousList>
+            <AnonymousList>4</AnonymousList>
+            <AnonymousList>5</AnonymousList>
+            <AnonymousList>6</AnonymousList>
+            <AnonymousList>1</AnonymousList>
+            <AnonymousList>2</AnonymousList>
+            <AnonymousList>3</AnonymousList>
+            <AnonymousList>4</AnonymousList>
+          </Values>
+        </SweepParam>
+        <SweepParam type="Keysight.Tap.Plugins.BasicSteps.SweepParam">
+          <IsEnabled>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+          </IsEnabled>
+          <Name>Buttons</Name>
+          <PropertyNames>
+            <AnonymousList>Buttons</AnonymousList>
+          </PropertyNames>
+          <TypeName>Keysight.Tap.Plugins.BasicSteps.InputButtons</TypeName>
+          <Values type="Keysight.Tap.Plugins.BasicSteps.InputButtons[]">
+            <InputButtons type="Keysight.Tap.Plugins.BasicSteps.InputButtons">OkCancel</InputButtons>
+            <InputButtons type="Keysight.Tap.Plugins.BasicSteps.InputButtons">YesNo</InputButtons>
+            <InputButtons type="Keysight.Tap.Plugins.BasicSteps.InputButtons">OkCancel</InputButtons>
+            <InputButtons type="Keysight.Tap.Plugins.BasicSteps.InputButtons">YesNo</InputButtons>
+            <InputButtons type="Keysight.Tap.Plugins.BasicSteps.InputButtons">OkCancel</InputButtons>
+            <InputButtons type="Keysight.Tap.Plugins.BasicSteps.InputButtons">YesNo</InputButtons>
+            <InputButtons type="Keysight.Tap.Plugins.BasicSteps.InputButtons">OkCancel</InputButtons>
+            <InputButtons type="Keysight.Tap.Plugins.BasicSteps.InputButtons">YesNo</InputButtons>
+            <InputButtons type="Keysight.Tap.Plugins.BasicSteps.InputButtons">OkCancel</InputButtons>
+            <InputButtons type="Keysight.Tap.Plugins.BasicSteps.InputButtons">YesNo</InputButtons>
+          </Values>
+        </SweepParam>
+        <SweepParam type="Keysight.Tap.Plugins.BasicSteps.SweepParam">
+          <IsEnabled>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+            <Boolean type="System.Boolean">True</Boolean>
+          </IsEnabled>
+          <Name>Time Delay</Name>
+          <PropertyNames>
+            <AnonymousList>Time Delay</AnonymousList>
+          </PropertyNames>
+          <TypeName>System.Double</TypeName>
+          <Values type="System.Double[]">1, 0, 0, 0, 0, 1, 0, 0, 0, 1</Values>
+        </SweepParam>
+      </SweepParameters>
+    </TestStep>
+  </Steps>
+</TestPlan>

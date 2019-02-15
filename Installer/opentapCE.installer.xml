@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package Version="$(GitVersion)" Name="OpenTAP Community Edition" OS="Windows" Architecture="x64" Class="bundle" FileType="tappackage" xmlns="http://opentap.io/schemas/package">
+  <Dependencies>
+    <PackageDependency Package="OpenTAP"/>
+  </Dependencies>
+
+  <Description>OpenTAP provides powerful, flexible and extensible test sequence and test plan creation.
+   <Status>Released</Status>
+   <Organisation>Keysight Technologies</Organisation>
+  </Description>
+
+  <Extensions>
+    <Installer>
+      <ID>0D8A32D8-2873-4EAC-85F0-CAF8A090D03A</ID>
+
+      <Name>OpenTAP 9</Name>
+      <DefaultInstallDir>OpenTAP</DefaultInstallDir>
+      <Publisher>Keysight Technologies</Publisher>
+      <URL>http://opentap.io</URL>
+
+      <ExeName>tap.exe</ExeName>
+      <TopImage>LogoTop.bmp</TopImage>
+      <SideImage>LogoSide.bmp</SideImage>
+      <EULA>None</EULA>
+    </Installer>
+  </Extensions>
+</Package>

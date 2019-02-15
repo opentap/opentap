@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="Keysight.Tap.TestPlan" Locked="False" Version="7.4.0.0">
+  <Steps>
+    <TestStep type="Keysight.Tap.Plugins.BasicSteps.ParallelStep" Id="42fcbb19-88a0-4e24-820e-ddef3fc153dd" Version="7.4.0.0">
+      <ChildTestSteps>
+        <TestStep type="Keysight.Tap.Plugins.BasicSteps.SequenceStep" Id="c01bd306-e599-473e-8381-32f72638f644" Version="7.4.0.0">
+          <ChildTestSteps>
+            <TestStep type="Keysight.Tap.Plugins.BasicSteps.DelayStep" Id="b6bb535f-3c58-4e3d-8074-c4dfef7fea16" Version="7.4.0.0">
+              <ChildTestSteps />
+              <DelaySecs>0.02</DelaySecs>
+              <Enabled>True</Enabled>
+              <Name>Delay</Name>
+            </TestStep>
+            <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.VerdictStep" Id="0ea93a0d-4d19-430d-9f44-cb764fac99ea" Version="7.4.0.0">
+              <ChildTestSteps />
+              <Enabled>True</Enabled>
+              <Name>Set Verdict</Name>
+              <RequestAbort>False</RequestAbort>
+              <VerdictOutput>Pass</VerdictOutput>
+            </TestStep>
+          </ChildTestSteps>
+          <Enabled>True</Enabled>
+          <Name>Sequence</Name>
+        </TestStep>
+        <TestStep type="Keysight.Tap.Plugins.BasicSteps.RepeatStep" Id="98f9d463-55b3-4495-9583-ba364de8b089" Version="7.4.0.0">
+          <Action>Until</Action>
+          <ChildTestSteps>
+            <TestStep type="Keysight.Tap.Plugins.BasicSteps.DelayStep" Id="c8f79393-7bb3-486a-a5ee-2d8c8fe62cf1" Version="7.4.0.0">
+              <ChildTestSteps />
+              <DelaySecs>0.001</DelaySecs>
+              <Enabled>True</Enabled>
+              <Name>Delay</Name>
+            </TestStep>
+            <TestStep type="Keysight.Tap.Plugins.BasicSteps.DelayStep" Id="eb46f8b6-c8b6-495c-9bc5-16d9802ca4f9" Version="7.4.0.0">
+              <ChildTestSteps />
+              <DelaySecs>0.001</DelaySecs>
+              <Enabled>True</Enabled>
+              <Name>Delay (1)</Name>
+            </TestStep>
+            <TestStep type="Keysight.Tap.Plugins.BasicSteps.DelayStep" Id="2650d583-065d-4b7c-b54b-3ba7a69f1e51" Version="7.4.0.0">
+              <ChildTestSteps />
+              <DelaySecs>0.001</DelaySecs>
+              <Enabled>True</Enabled>
+              <Name>Delay (2)</Name>
+            </TestStep>
+            <TestStep type="Keysight.Tap.Plugins.BasicSteps.DelayStep" Id="6fe934cc-4a83-47c1-a5e4-c9565936c50b" Version="7.4.0.0">
+              <ChildTestSteps />
+              <DelaySecs>0.001</DelaySecs>
+              <Enabled>True</Enabled>
+              <Name>Delay (3)</Name>
+            </TestStep>
+          </ChildTestSteps>
+          <Count>3</Count>
+          <Enabled>True</Enabled>
+          <MaxCount>
+            <IsEnabled>False</IsEnabled>
+            <Value>3</Value>
+          </MaxCount>
+          <Name>Repeat</Name>
+          <TargetStep type="OpenTap.Engine.UnitTests.TestTestSteps.VerdictStep">0ea93a0d-4d19-430d-9f44-cb764fac99ea</TargetStep>
+          <TargetVerdict>Pass</TargetVerdict>
+        </TestStep>
+      </ChildTestSteps>
+      <Enabled>True</Enabled>
+      <Name>Parallel</Name>
+    </TestStep>
+  </Steps>
+</TestPlan>

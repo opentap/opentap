@@ -1,0 +1,6 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Package Name="Test3" xmlns="http://keysight.com/schemas/TAP/Package">
+  <Files>
+    <File Path="OpenTap.Package.UnitTests.dll" Obfuscate="false" UseVersion="true"></File>
+  </Files>
+</Package>

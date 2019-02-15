@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Package Name="Test" Version="1.2.3-alpha+test" xmlns="http://opentap.io/schemas/package">
+  <Description>
+    Everything goes here <Status> tags </Status>.
+  </Description>
+  <Dependencies>
+    <Package Name="DepName" Version="4.3.2+depBuild" />
+  </Dependencies>
+  <Files>
+    <File Path="OpenTap.dll" Obfuscate="false" SetAssemblyInfo="Version">
+      <IgnoreDependency>System.Reflection.Metadata</IgnoreDependency>
+    </File>
+  </Files>
+  <PackageActionExtensions>
+    <ActionStep ActionName="install" ExeFile="chmod" Arguments="+x tap"  />
+  </PackageActionExtensions>
+</Package>

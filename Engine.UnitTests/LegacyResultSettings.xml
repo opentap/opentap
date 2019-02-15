@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ArrayOfResultListener xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <ResultListener xsi:type="LogResultListener">
+    <FilePath xsi:type="FileSystemPath">SomePath.txt</FilePath>
+    <FilterOptions>Verbose Info Errors</FilterOptions>
+  </ResultListener>
+</ArrayOfResultListener>

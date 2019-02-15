@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <RuntimeFrameworkVersion>2.1.0</RuntimeFrameworkVersion>
+    <OutputPath>..\..\bin\NetStd\</OutputPath>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AssemblyName>tap</AssemblyName>
+    <RootNamespace>tap</RootNamespace>
+    <LangVersion>7.2</LangVersion>
+    <Configurations>Debug;Release</Configurations>
+    <RuntimeIdentifiers>linux-x64</RuntimeIdentifiers>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Engine\Tap.Engine.NetStd.csproj" />
+  </ItemGroup>
+</Project>

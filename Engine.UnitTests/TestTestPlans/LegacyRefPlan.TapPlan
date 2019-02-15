@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="Keysight.Tap.TestPlan" Locked="False" Version="7.4.256.0">
+  <Steps>
+    <TestStep type="Keysight.Tap.Plugins.BasicSteps.TestPlanReference" Id="0045d990-3524-44a0-8b4b-7274dbc748b7" Version="7.4.256.0">
+      <DynamicDataContents>TestTestPlans\testReferencedPlan.TapPlan</DynamicDataContents>
+      <Enabled>True</Enabled>
+      <Name>Test Plan Reference</Name>
+      <prop0>Pass</prop0>
+    </TestStep>
+    <TestStep type="Keysight.Tap.Plugins.BasicSteps.TestPlanReference" Id="ee93c335-59f3-48c8-9e2b-21199f14ba59" Version="7.4.256.0">
+      <DynamicDataContents>&lt;Guids&gt;57305dd3-fce4-4aff-929a-5d02d2579920,c8675fab-6641-4840-b2a5-b66e7a9acb98&lt;/Guids&gt;TestTestPlans\testReferencedPlan.TapPlan</DynamicDataContents>
+      <Enabled>True</Enabled>
+      <Name>Test Plan Reference (1)</Name>
+      <prop0>Pass</prop0>
+    </TestStep>
+    <TestStep type="Keysight.Tap.Plugins.BasicSteps.TestPlanReference" Id="d06d2a70-e8aa-45bc-b783-f71cd7f59b2a" Version="7.4.256.0">
+      <DynamicDataContents>&lt;Guids&gt;57305dd3-fce4-4aff-929a-5d02d2579920,b1990f32-329a-46e2-b862-9bf625d6a8e8&lt;/Guids&gt;TestTestPlans\testReferencedPlan.TapPlan</DynamicDataContents>
+      <Enabled>True</Enabled>
+      <Name>Test Plan Reference (2)</Name>
+      <prop0>Pass</prop0>
+    </TestStep>
+    <TestStep type="Keysight.Tap.Plugins.BasicSteps.TestPlanReference" Id="4bf89d2a-7ee6-41bc-8072-ec3d5bef4677" Version="7.4.256.0">
+      <DynamicDataContents>&lt;Guids&gt;57305dd3-fce4-4aff-929a-5d02d2579920,43b8e19f-1b1a-438f-a93f-2ad75fb57939&lt;/Guids&gt;TestTestPlans\testReferencedPlan.TapPlan</DynamicDataContents>
+      <Enabled>True</Enabled>
+      <Name>Test Plan Reference (3)</Name>
+      <prop0>Pass</prop0>
+    </TestStep>
+  </Steps>
+</TestPlan>

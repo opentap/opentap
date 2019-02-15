@@ -1,0 +1,88 @@
+body
+{
+    font-family: 'Segoe UI',Verdana,Arial;
+    font-size: 10pt;
+}
+
+body
+{    
+    margin-top: 8px;
+    margin-bottom: 8px;
+    margin-left: 0px;
+    margin-right: 0px;
+}
+
+pre
+{
+    margin: 0;
+    font-size: 1em;
+}
+
+.code
+{
+    font-family:    Monospace, Courier New, Courier;
+}
+
+/* Link coloring */
+a:visited, a.PopupLink:visited
+{
+    color: #891518;
+}
+
+.contents a:visited 
+{
+    color: #891518;
+}
+
+
+a:link, a.PopupLink, a.PopupLink:link
+{
+    color: #e90029;
+}
+
+a {
+    color: #e90029;
+}
+
+/* Horizontal rule */
+hr
+{
+    background: #d0d0d0;
+}
+
+table, caption, td , th{
+  font-size: 10pt;
+  font-weight: inherit;
+  font-style: inherit;
+  font-variant: inherit;
+}
+
+/* Headings */
+h1
+{
+    font-size: 1.538em;
+}
+
+h2, .SectionHeading
+{
+    font-size: 1.538em;
+}
+
+h3, .SectionHeading
+{
+    font-weight: bold;
+}
+
+#titlearea {
+    background: #555555;
+}
+
+#projectname {
+    color: #949494;
+    font: 175% Verdana, Arial;
+}
+
+#projectbrief {
+    color: #FFF;
+
+}

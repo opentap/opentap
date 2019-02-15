@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ArrayOfResultListener xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <ResultListener xsi:type="LogResultListener">
+    <FilePath xsi:type="FileSystemPath">results/&lt;Date&gt;-&lt;Verdict&gt;.txt</FilePath>
+    <FilterOptions>Verbose Info Warnings Errors</FilterOptions>
+  </ResultListener>
+  <ResultListener xsi:type="ResultListenerValidator" />
+  <ResultListener xsi:type="ResultListenerValidator" />
+</ArrayOfResultListener>

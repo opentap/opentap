@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Package Name="Test2" Version="1.2.3+4" xmlns="http://keysight.com/schemas/TAP/Package">
+  <Files>
+    <File Path="OpenTap.Plugins.BasicSteps.dll" Obfuscate="false" UseVersion="true"></File>
+	<File Path="OpenTap.Package.UnitTests.dll" Obfuscate="false" UseVersion="true"></File>
+  </Files>
+</Package>

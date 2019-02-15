@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <MSBuildAllProjects>$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
+    <HasSharedItems>true</HasSharedItems>
+    <SharedGUID>11c58bd2-45e5-4a19-ae43-073b689fdb43</SharedGUID>
+  </PropertyGroup>
+  <PropertyGroup Label="Configuration">
+    <Import_RootNamespace>Tap.Shared</Import_RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)ArgumentsParser.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ConsoleTraceListener.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)CountedHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ExecutorInterop.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)FileSystemHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ICliActionExtensions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)License\LicenseParser.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)License\LicenseScanner.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)License\LicenseTree.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)MurMurHash3.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PathUtils.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ReflectionHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ShortTimeSpan.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)VersionChecker.cs" />
+  </ItemGroup>
+</Project>

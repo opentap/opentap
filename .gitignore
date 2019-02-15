@@ -1,0 +1,14 @@
+[Oo]bj
+[Bb]in
+*.suo
+*.tss
+/packages/
+*.user
+TestResults/
+*.dat
+.vs/
+
+# Temp files from git merges:
+*.orig
+
+TestResult.xml

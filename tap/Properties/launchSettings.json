@@ -1,0 +1,19 @@
+{
+  "profiles": {
+    "tap (Install Demo)": {
+      "commandName": "Project",
+      "commandLineArgs": "install Demonstration -r plugins.tap.aalborg.keysight.com -v -f"
+    },
+    "tap (list)": {
+      "commandName": "Project",
+      "commandLineArgs": "package list -v"
+    },
+    "tap (gitversion)": {
+      "commandName": "Project",
+      "commandLineArgs": "gitversion"
+    },
+    "tap (commands)": {
+      "commandName": "Project"
+    }
+  }
+}

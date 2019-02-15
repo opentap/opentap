@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="Keysight.Tap.TestPlan" Locked="False" Version="7.4.0.0">
+  <Steps>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.VerdictStep" Id="57305dd3-fce4-4aff-929a-5d02d2579920" Version="7.4.0.0">
+      <ChildTestSteps />
+      <Enabled>True</Enabled>
+      <Name>Set Verdict</Name>
+      <RequestAbort>False</RequestAbort>
+      <VerdictOutput external="Resulting Verdict">Pass</VerdictOutput>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.VerdictStep" Id="f9e04bdc-54eb-40de-b5bc-6ffda1de74e5" Version="7.4.0.0">
+      <ChildTestSteps />
+      <Enabled>True</Enabled>
+      <Name>Set Verdict (1)</Name>
+      <RequestAbort>False</RequestAbort>
+      <VerdictOutput external="Resulting Verdict">Pass</VerdictOutput>
+    </TestStep>
+    <TestStep type="Keysight.Tap.Plugins.BasicSteps.LogStep" Id="1448ae12-4a74-406d-91f1-1cc4bd62c735" Version="7.4.0.0">
+      <ChildTestSteps />
+      <Enabled>True</Enabled>
+      <LogMessage>AHOY!</LogMessage>
+      <Name>Log Output</Name>
+      <Severity>Info</Severity>
+    </TestStep>
+  </Steps>
+</TestPlan>

@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<TestPlan xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" Name="test.TapPlan" Locked="false">
+  <Steps>
+    <TestStep type="Keysight.Tap.Plugins.BasicSteps.DelayStep">
+      <ChildTestSteps />
+      <DelaySecs>0.01</DelaySecs>
+      <Enabled>True</Enabled>
+      <Id>cc5e35f4-82e2-4190-b45b-9070d04808f8</Id>
+      <Name>Delay</Name>
+    </TestStep>
+    <TestStep type="Keysight.Tap.Plugins.BasicSteps.DelayStep">
+      <ChildTestSteps />
+      <DelaySecs>0.01</DelaySecs>
+      <Enabled>True</Enabled>
+      <Id>cc5e35f4-82e2-4190-b45b-9070d04808f8</Id>
+      <Name>Delay</Name>
+    </TestStep>
+    <TestStep type="Keysight.Tap.Plugins.BasicSteps.DelayStep">
+      <ChildTestSteps />
+      <DelaySecs>0.01</DelaySecs>
+      <Enabled>True</Enabled>
+      <Id>cc5e35f4-82e2-4190-b45b-9070d04808f8</Id>
+      <Name>Delay</Name>
+    </TestStep>
+    <TestStep type="Keysight.Tap.Plugins.BasicSteps.DelayStep">
+      <ChildTestSteps />
+      <DelaySecs>0.01</DelaySecs>
+      <Enabled>True</Enabled>
+      <Id>cc5e35f4-82e2-4190-b45b-9070d04808f8</Id>
+      <Name>Delay</Name>
+    </TestStep>
+    <TestStep type="Keysight.Tap.Plugins.BasicSteps.DelayStep">
+      <ChildTestSteps />
+      <DelaySecs>0.01</DelaySecs>
+      <Enabled>True</Enabled>
+      <Id>cc5e35f4-82e2-4190-b45b-9070d04808f8</Id>
+      <Name>Delay</Name>
+    </TestStep>
+  </Steps>
+</TestPlan>
