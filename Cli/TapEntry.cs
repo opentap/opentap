@@ -17,6 +17,63 @@ namespace OpenTap.Cli
     /// </summary>
     internal class TapEntry
     {
+        internal static class TapInitializer
+        {
+            /// <summary>
+            /// We need this SimpleTapAssemblyResolver to resolve netstandard.dll. We need to resolve netstandard.dll to be able to load OpenTAP, which is a .netstandard project
+            /// After we load OpenTAP, we can safely remove this simple resolver and let TapAssemblyResolver in OpenTAP resolve dependencies.
+            /// </summary>
+            internal class SimpleTapAssemblyResolver
+            {
+                private List<string> assemblies { get; set; }
+
+                public SimpleTapAssemblyResolver()
+                {
+                    string curAssemblyFolder = new Uri(Assembly.GetExecutingAssembly().CodeBase).LocalPath;
+                    string currentDir = Path.GetDirectoryName(curAssemblyFolder);
+                    assemblies = Directory.EnumerateFiles(currentDir, "*.*", SearchOption.AllDirectories)
+                        .Where(s => s.EndsWith(".dll", StringComparison.InvariantCultureIgnoreCase) || s.EndsWith(".exe", StringComparison.InvariantCultureIgnoreCase))
+                        .ToList();
+                }
+
+                internal Assembly Resolve(object sender, ResolveEventArgs args)
+                {
+                    // Ignore missing resources
+                    if (args.Name.Contains(".resources"))
+                        return null;
+
+                    string filename = args.Name.Split(',')[0].ToLower();
+                    string assembly = assemblies.FirstOrDefault(s => Path.GetFileNameWithoutExtension(s).ToLower() == filename);
+
+                    // check for assemblies already loaded
+                    Assembly loadedAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.FullName == args.Name);
+                    if (loadedAssembly != null)
+                        return loadedAssembly;
+
+                    if (!string.IsNullOrWhiteSpace(assembly))
+                        return Assembly.LoadFrom(assembly);
+
+                    Console.Error.WriteLine($"Asked to resolve {filename}, but couldn't");
+                    return null;
+                }
+            }
+
+            private static readonly SimpleTapAssemblyResolver tapAssemblyResolver = new SimpleTapAssemblyResolver();
+            internal static void Initialize()
+            {
+                AppDomain.CurrentDomain.AssemblyResolve += tapAssemblyResolver.Resolve;
+                ContinueInitialization();
+            }
+
+            internal static void ContinueInitialization()
+            {
+                // We only needed the resolver to get into this method (requires OpenTAP, which requires netstandard)
+                // Remove so we avoid race condition with OpenTap AssemblyResolver.
+                AppDomain.CurrentDomain.AssemblyResolve -= tapAssemblyResolver.Resolve;
+                PluginManager.SearchAsync();
+            }
+        }
+
         private class CommandLineSplit
         {
             public string App { get; private set; }

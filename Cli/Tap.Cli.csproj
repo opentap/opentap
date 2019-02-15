@@ -41,5 +41,4 @@
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
   </ItemGroup>
   <Import Project="..\Shared\Tap.Shared.projitems" Label="Shared" />
-  <Import Project="..\..\Tap.Gui.Shared\Tap.Gui.Shared.projitems" Label="Shared" />
 </Project>
