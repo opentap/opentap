@@ -5,7 +5,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 namespace OpenTap
 {
 
@@ -19,15 +18,19 @@ namespace OpenTap
         /// </summary>
         public string Name { get; private set; }
 
-        Dictionary<ITestStep, List<PropertyInfo>> Properties;
+        Dictionary<ITestStep, List<IMemberInfo>> properties;
         TestPlan plan;
+        /// <summary> Maps test step to member infos. </summary>
+        public IEnumerable<KeyValuePair<ITestStep, IEnumerable<IMemberInfo>>> Properties
+            => properties.Select(x => new KeyValuePair<ITestStep, IEnumerable<IMemberInfo>>(x.Key, x.Value));
+
 
         /// <summary>
         /// Gets the list of PropertyInfos associated with this mask entry.
         /// </summary>
-        public IEnumerable<PropertyInfo> PropertyInfos
+        public IEnumerable<IMemberInfo> PropertyInfos
         {
-            get { return Properties.SelectMany(x => x.Value).Distinct(); }
+            get { return properties.SelectMany(x => x.Value).Distinct(); }
         }
 
         /// <summary>
@@ -37,43 +40,65 @@ namespace OpenTap
         {
             get
             {
-                if (Properties.Count == 0) return 0;
-                var item = Properties.First();
+                if (properties.Count == 0) return 0;
+                var item = properties.First();
                 return item.Value.First().GetValue(item.Key);
             }
             set
             {
-                var str = StringConvertProvider.GetString(value);
-                foreach (ITestStep step in Properties.Keys)
+                bool strConvertSuccess = false;
+                string str = null;
+                strConvertSuccess = StringConvertProvider.TryGetString(value, out str);
+
+                TapSerializer serializer = null;
+                string serialized = null;
+                if (!strConvertSuccess)
+                {
+                    serializer = new TapSerializer();
+                    try
+                    {
+                        
+                        serialized = serializer.SerializeToString(value);
+                    }
+                    catch
+                    {
+
+                    }
+                }
+
+                foreach (ITestStep step in properties.Keys)
                 {
 
-                    foreach (PropertyInfo prop in Properties[step])
+                    foreach (IMemberInfo prop in properties[step])
                     {
-                        object _value = value;
-                        bool assignable = false;
-                        if (_value == null && prop.PropertyType.IsValueType == false)
+                        try
                         {
-                            assignable = true;
-                        }
-                        else if(_value == null && prop.PropertyType.IsValueType)
-                        {
-                            try
+                            object setVal = value;
+                            if (strConvertSuccess)
                             {
-                                // Treat null as a default value
-                                _value = Activator.CreateInstance(prop.PropertyType); 
-                            }catch
-                            {
-                                continue; // Dont know what to do then.
+                                if (StringConvertProvider.TryFromString(str, prop.TypeDescriptor, step, out setVal) == false)
+                                    setVal = value;
                             }
-                        }else
-                        {
-                            assignable = _value.GetType().DescendsTo(prop.PropertyType);
-                        }
+                            else if(serialized != null)
+                            {
+                                try
+                                {
+                                    setVal = serializer.DeserializeFromString(serialized);
+                                }
+                                catch
+                                {
 
-                        if(str != null && (!assignable || prop.PropertyType.IsValueType == false))
-                            _value = StringConvertProvider.FromString(str, prop.PropertyType, step);
-                        if(_value != null)
-                            prop.SetValue(step, _value); // This will throw an exception if it is not assignable.
+                                }
+                            }
+                            prop.SetValue(step, setVal); // This will throw an exception if it is not assignable.
+
+                        }
+                        catch
+                        {
+                            object _value = value;
+                            if (_value != null)
+                                prop.SetValue(step, _value); // This will throw an exception if it is not assignable.
+                        }
                     }
                     step.OnPropertyChanged("");
                 }
@@ -84,7 +109,7 @@ namespace OpenTap
         {
             var steps = Utils.FlattenHeirarchy(plan.ChildTestSteps, step => step.ChildTestSteps).ToHashSet();
 
-            Properties = Properties.Where(props => steps.Contains(props.Key)).ToDictionary(k => k.Key, v => v.Value);
+            properties = properties.Where(props => steps.Contains(props.Key)).ToDictionary(k => k.Key, v => v.Value);
         }
 
         /// <summary>
@@ -92,13 +117,13 @@ namespace OpenTap
         /// </summary>
         /// <param name="stepGuid"></param>
         /// <returns></returns>
-        public List<PropertyInfo> GetProperties(ITestStep stepGuid)
+        public List<IMemberInfo> GetProperties(ITestStep stepGuid)
         {
             if (stepGuid == null)
                 throw new ArgumentNullException("stepGuid");
-            if (!Properties.ContainsKey(stepGuid))
+            if (!properties.ContainsKey(stepGuid))
                 return null;
-            return Properties[stepGuid];
+            return properties[stepGuid];
         }
 
         /// <summary>Constructor for the ExternalParameter.</summary>
@@ -108,7 +133,7 @@ namespace OpenTap
         {
             this.plan = Plan;
             this.Name = Name;
-            Properties = new Dictionary<ITestStep, List<PropertyInfo>>();
+            properties = new Dictionary<ITestStep, List<IMemberInfo>>();
         }
 
         /// <summary>
@@ -116,24 +141,24 @@ namespace OpenTap
         /// </summary>
         /// <param name="stepId"></param>
         /// <param name="property"></param>
-        public void Add(ITestStep stepId, PropertyInfo property)
+        public void Add(ITestStep stepId, IMemberInfo property)
         {
             if (stepId == null)
                 throw new ArgumentNullException("stepId");
             if (property == null)
                 throw new ArgumentNullException("property");
-            foreach (var prop in Properties.SelectMany(p => p.Value))
+            foreach (var prop in properties.SelectMany(p => p.Value))
             {
                 // enum, numbers, others
-                Type t1 = prop.PropertyType;
-                Type t2 = property.PropertyType;
-                if (t1 != t2)
+                ITypeInfo t1 = prop.TypeDescriptor;
+                ITypeInfo t2 = property.TypeDescriptor;
+                if (object.Equals(t1, t2) == false)
                     throw new Exception("External properties with same name has to be of same type.");
             }
-            if (Properties.ContainsKey(stepId))
-                Properties[stepId].Add(property);
+            if (properties.ContainsKey(stepId))
+                properties[stepId].Add(property);
             else
-                Properties[stepId] = new List<PropertyInfo> { property };
+                properties[stepId] = new List<IMemberInfo> { property };
         }
 
         /// <summary>
@@ -144,7 +169,7 @@ namespace OpenTap
         {
             if (stepId == null)
                 throw new ArgumentNullException("stepId");
-            Properties.Remove(stepId);
+            properties.Remove(stepId);
         }
     }
 
@@ -166,22 +191,23 @@ namespace OpenTap
         {
             this.plan = plan;
         }
+        
 
         /// <summary> Adds a step property to the external test plan parameters.</summary>
         /// <param name="step"></param>
         /// <param name="propertyInfo"></param>
         /// <param name="Name"></param>
-        public ExternalParameter Add(ITestStep step, PropertyInfo propertyInfo, string Name = null)
+        public ExternalParameter Add(ITestStep step, IMemberInfo propertyInfo, string Name = null)
         {
             if (step == null)
                 throw new ArgumentNullException("step");
             if (propertyInfo == null) // As it otherwise won't raise exception right away.
                 throw new ArgumentNullException("propertyInfo");
             var et = Find(step, propertyInfo);
-            if (et != null)
-            {
-                throw new Exception(string.Format("Property {0} could not be found on step {1}", propertyInfo, step));
-            }
+            //if (et != null)
+            //{
+            //    throw new Exception(string.Format("Property {0} could not be found on step {1}", propertyInfo, step));
+            //}
             if (Name == null)
             {
                 Name = propertyInfo.GetDisplayAttribute().Name.Trim();
@@ -210,7 +236,7 @@ namespace OpenTap
         /// <param name="step"></param>
         /// <param name="propertyInfo"></param>
         /// <param name="Name"></param>
-        public void Remove(ITestStep step, PropertyInfo propertyInfo, string Name = null)
+        public void Remove(ITestStep step, IMemberInfo propertyInfo, string Name = null)
         {
             if (step == null)
                 throw new ArgumentNullException("step");
@@ -260,7 +286,7 @@ namespace OpenTap
         /// <param name="step"></param>
         /// <param name="property"></param>
         /// <returns></returns>
-        public ExternalParameter Find(ITestStep step, PropertyInfo property)
+        public ExternalParameter Find(ITestStep step, IMemberInfo property)
         {
             if (step == null)
                 throw new ArgumentNullException("step");

@@ -44,14 +44,6 @@ namespace OpenTap.Package
         }
     }
 
-    public class TransformArgument
-    {
-        [XmlAttribute]
-        public string Name { get; set; }
-        [XmlAttribute]
-        public string Value { get; set; }
-    }
-
     /// <summary>
     /// Information about a file in a package. 
     /// </summary>
@@ -100,28 +92,6 @@ namespace OpenTap.Package
         public string RelativeDestinationPath { get; set; }
 
         /// <summary>
-        /// If .NET assembly, whether to obfuscate on build.
-        /// </summary>
-        [XmlAttribute("Obfuscate")]
-        [DefaultValue(false)]
-        public bool DoObfuscate { get; set; }
-
-        /// <summary>
-        /// The name of the certificate to sign the file with before packaging.
-        /// If not set the file will not be signed by this step, but might be signed by a license injection tool if that's used.
-        /// </summary>
-        [XmlAttribute("Sign")]
-        [DefaultValue(null)]
-        public string Sign { get; set; }
-
-        /// <summary>
-        /// Whether the version of this assembly is used to calculate package version.
-        /// </summary>
-        [XmlAttribute("UseVersion")]
-        [DefaultValue(false)]
-        public bool UseVersion { get; set; } = false;
-
-        /// <summary>
         /// The contained plugin types.
         /// </summary>
         [DefaultValue(null)]
@@ -132,12 +102,6 @@ namespace OpenTap.Package
         /// </summary>
         [XmlElement(ElementName = "IgnoreDependency")]
         public List<string> IgnoredDependencies { get; set; }
-
-        /// <summary>
-        /// Arguments to (extensible) IPackageFileTransforms such as obfuscators and signtools
-        /// </summary>
-        [XmlElement(ElementName = "TransformArgument")]
-        public List<TransformArgument> TransformArguments { get; set; }
 
         /// <summary>
         /// Custom data meant for consumption by <see cref="ICustomPackageAction"/> plugins.
@@ -158,24 +122,13 @@ namespace OpenTap.Package
         public string LicenseRequired { get; set; }
 
         /// <summary>
-        /// Indicates what parts of the assembly information should be updated during packaging.
-        /// </summary>
-        [XmlAttribute("SetAssemblyInfo")]
-        public string SetAssemblyInfo { get; set; }
-
-        /// <summary>
         /// Creates a new instance of PackageFile.
         /// </summary>
         public PackageFile()
         {
-            DoObfuscate = false;
-            Sign = null;
-
             DependentAssemblyNames = new List<AssemblyData>();
             Plugins = new List<PluginFile>();
             IgnoredDependencies = new List<string>();
-
-            TransformArguments = new List<TransformArgument>();
             CustomData = new List<ICustomPackageData>();
         }
     }
@@ -190,8 +143,6 @@ namespace OpenTap.Package
         /// Name of the package to which this dependency reffers.
         /// </summary>
         public string Name { get; private set; }
-
-        internal string RawVersion;
 
         /// <summary>
         /// Specifying requirements to the version of the package. Never null.
@@ -429,17 +380,16 @@ namespace OpenTap.Package
         /// Writes this package definition to a file.
         /// </summary>
         /// <param name="stream"></param>
-        public void SaveTo(Stream stream, bool minify = false)
+        public void SaveTo(Stream stream)
         {
             new TapSerializer().Serialize(stream, this);
-            return;
         }
 
         /// <summary>
         /// Writes this package definition to a file.
         /// </summary>
         /// <param name="stream"></param>
-        public static void SaveManyTo(Stream stream, IEnumerable<PackageDef> packages, bool minify = false)
+        public static void SaveManyTo(Stream stream, IEnumerable<PackageDef> packages)
         {
             XDocument xdoc = new XDocument();
             var root = new XElement("ArrayOfPackages");
@@ -450,7 +400,7 @@ namespace OpenTap.Package
                 {
                     try
                     {
-                        package.SaveTo(str, minify);
+                        package.SaveTo(str);
                         str.Seek(0, 0);
                         var pkgElement = XElement.Load(str);
                         root.Add(pkgElement);
@@ -697,7 +647,7 @@ namespace OpenTap.Package
         public static CpuArchitecture HostArchitecture { get { return hostPlatform; } }
 
         /// <summary>
-        /// Returns the architecture that the TAP Base was compiled for, or the best guess it can give based on the current host architecture and process state.
+        /// Returns the architecture that the OpenTAP was compiled for, or the best guess it can give based on the current host architecture and process state.
         /// </summary>
         public static CpuArchitecture GuessBaseArchitecture
         {

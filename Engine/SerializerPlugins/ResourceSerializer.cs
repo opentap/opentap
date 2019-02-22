@@ -22,9 +22,10 @@ namespace OpenTap.Plugins
         public override double Order { get { return 1; } }
 
         /// <summary> Deserialization implementation. </summary>
-        public override bool Deserialize( XElement elem, Type t, Action<object> setter)
+        public override bool Deserialize( XElement elem, ITypeInfo _t, Action<object> setter)
         {
-            if ( t.DescendsTo(typeof(IResource)) && ComponentSettingsList.HasContainer(t))
+            var t = (_t as CSharpTypeInfo)?.Type;
+            if (t != null && t.DescendsTo(typeof(IResource)) && ComponentSettingsList.HasContainer(t))
             {
                 var srcattr = elem.Attribute("Source");
                 string src = null;
@@ -101,7 +102,7 @@ namespace OpenTap.Plugins
         HashSet<object> checkRentry = new HashSet<object>();
         
         /// <summary> Serialization implementation. </summary>
-        public override bool Serialize( XElement elem, object obj, Type expectedType)
+        public override bool Serialize( XElement elem, object obj, ITypeInfo expectedType)
         {            
             if (obj == null) return false;
 

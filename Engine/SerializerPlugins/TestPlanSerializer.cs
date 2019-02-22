@@ -16,39 +16,53 @@ namespace OpenTap.Plugins
 
         HashSet<XElement> currentNode = new HashSet<XElement>();
         internal TestPlan Plan { get; private set; }
-        /// <summary> Deserialization implementation. </summary>
-        public override bool Deserialize( XElement node, Type t, Action<object> setter)
+
+        /// <summary>
+        /// Deserializes a test plan from XML.
+        /// </summary>
+        /// <param name="element"></param>
+        /// <param name="_t"></param>
+        /// <param name="setter"></param>
+        /// <returns></returns>
+        public override bool Deserialize(XElement element, ITypeInfo _t, Action<object> setter)
         {
-            if (t != typeof(TestPlan))
+            if (_t.IsA(typeof(TestPlan)) == false)
                 return false;
             var prevPlan = Plan;
             Plan = new TestPlan { Path = Serializer.ReadPath };
             try
             {
-                return TryDeserializeObject(node, t, setter, Plan);
+                return TryDeserializeObject(element, _t, setter, Plan);
             }
             finally
             {
                 Plan = prevPlan;
             }
+
         }
 
-        /// <summary> Serialization implementation. </summary>
-        public override bool Serialize( XElement node, object obj, Type expectedType)
+        /// <summary>
+        /// Serializes an object to XML.
+        /// </summary>
+        /// <param name="element"></param>
+        /// <param name="obj"></param>
+        /// <param name="expectedType"></param>
+        /// <returns></returns>
+        public override bool Serialize(XElement element, object obj, ITypeInfo expectedType)
         {
-            if (obj is TestPlan == false || currentNode.Contains(node))
+            if (obj is TestPlan == false || currentNode.Contains(element))
                 return false;
             var prevPlan = Plan;
             Plan = (TestPlan)obj;
-            currentNode.Add(node);
+            currentNode.Add(element);
             try
             {
-                return Serializer.Serialize(node, obj);
+                return Serializer.Serialize(element, obj);
             }
             finally
             {
                 Plan = prevPlan;
-                currentNode.Remove(node);
+                currentNode.Remove(element);
             }
         }
     }

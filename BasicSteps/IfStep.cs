@@ -40,12 +40,23 @@ namespace OpenTap.Plugins.BasicSteps
             InputVerdict = new Input<Verdict>();
         }
 
+        class Request
+        {
+            public string Name => "Continue?";
+            [Browsable(true)]
+            [Layout(LayoutMode.FullRow)]
+            public string Message { get; private set; } = "Continue?";
+            [Submit]
+            [Layout(LayoutMode.FloatBottom)]
+            public WaitForInputResult1 Response { get; set; }
+        }
+
         public override void Run()
         {
             // Get the targetStep
             if (InputVerdict == null)
                 throw new ArgumentException("Could not locate target test step");
-            var req = new PlatformRequest<WaitForInputResult1>() { Message = "Continue?" };
+            
             if (InputVerdict.Value == TargetVerdict)
             {
                 switch (Action)
@@ -57,15 +68,15 @@ namespace OpenTap.Plugins.BasicSteps
                     case IfStepAction.AbortTestPlan:
                         Log.Info("Condition is true, aborting TestPlan run.");
                         string msg = String.Format("TestPlan aborted by \"If\" Step ({2} of {0} was {1})", InputVerdict.Step.Name, InputVerdict.Value, InputVerdict.PropertyName);
-                        throw new TestPlan.AbortException(msg);
+                        PlanRun.MainThread.Abort();
+                        break;
                     case IfStepAction.WaitForUser:
                         Log.Info("Condition is true, waiting for user input.");
-                        var res = PlatformInteraction.WaitForInput(new List<IPlatformRequest> { req }, TimeSpan.Zero).First();
-                        var r = (WaitForInputResult1)res.Response;
-                        if (r == WaitForInputResult1.No)
+                        var req = new Request();
+                        UserInput.Request(req, TimeSpan.MaxValue, false);
+                        if (req.Response == WaitForInputResult1.No)
                         {
-                            GetParent<TestPlan>().RequestAbort();
-                            TestPlan.Sleep();
+                            PlanRun.MainThread.Abort();
                         }
                         break;
                     case IfStepAction.BreakLoop:

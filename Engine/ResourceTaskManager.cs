@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Reflection;
+using System.Collections.Concurrent;
 
 namespace OpenTap
 {
@@ -150,7 +151,7 @@ namespace OpenTap
             var resources = new ResourceDependencyAnalyzer().GetAllResources(source.ToList(), out bool analysisError);
             if (analysisError)
             {
-                throw new TestPlan.AbortException("Error while analyzing dependencies between resources.");
+                throw new OperationCanceledException("Error while analyzing dependencies between resources.");
             }
             return resources;
         }
@@ -164,13 +165,10 @@ namespace OpenTap
     public class ResourceTaskManager : IResourceManager
     {
         private static readonly TraceSource log = Log.CreateSource("Resources");
-
-        private ManualResetEvent openInitiated = new ManualResetEvent(false);
-
-
+        
         List<ResourceNode> openedResources = new List<ResourceNode>();
         private LockManager lockManager;
-        Dictionary<IResource, Task> openTasks;
+        ConcurrentDictionary<IResource, Task> openTasks;
 
         /// <summary>
         /// This event is triggered when a resource is opened. The event may block in which case the resource will remain open for the entire call.
@@ -183,7 +181,7 @@ namespace OpenTap
         public ResourceTaskManager()
         {
             lockManager = new LockManager();
-            openTasks = new Dictionary<IResource, Task>();
+            openTasks = new ConcurrentDictionary<IResource, Task>();
         }
 
         internal static TraceSource GetLogSource(IResource res)
@@ -221,7 +219,6 @@ namespace OpenTap
             if (cancellationToken == null) cancellationToken = CancellationToken.None;
             try
             {
-                openInitiated.WaitOne();
                 foreach (var target in targets)
                     openTasks[target].Wait(cancellationToken);
             }
@@ -257,9 +254,6 @@ namespace OpenTap
         /// </summary>
         private void CloseAllResources()
         {
-            // if OpenAllAsync() was never called, set the event here to stop threads that called WaitFor...() from hanging forever.
-            openInitiated.Set();
-
             Dictionary<IResource, List<IResource>> dependencies = openedResources.ToDictionary(r => r.Resource, r => new List<IResource>()); // this dictionary will hold resources with dependencies (keys) and what resources depend on them (values)
             foreach (var n in openedResources)
                 foreach (var dep in n.StrongDependencies)
@@ -310,40 +304,33 @@ namespace OpenTap
         void beginOpenResoureces(List<ResourceNode> resources, CancellationToken cancellationToken)
         {
             lockManager.BeforeOpen(resources, cancellationToken);
-
-            try
+            
+            // Check null resources
+            if (resources.Any(res => res.Resource == null))
             {
-                // Check null resources
-                if (resources.Any(res => res.Resource == null))
+                EnabledSteps.ForEach(step => step.CheckResources());
+
+                // Now check resources since we know one of them should have a null resource
+                resources.ForEach(res =>
                 {
-                    EnabledSteps.ForEach(step => step.CheckResources());
-
-                    // Now check resources since we know one of them should have a null resource
-                    resources.ForEach(res =>
-                    {
-                        if (res.StrongDependencies.Contains(null) || res.WeakDependencies.Contains(null))
-                            throw new Exception(String.Format("Resource property not set on resource {0}. Please configure resource.", res.Resource));
-                    });
-                }
-                else
-                {
-                    // Open all resources asynchroniously
-                    Task wait = new Task(() => { }); // This task is not started yet, so it's used as an awaitable semaphore.
-                    foreach (ResourceNode r in resources)
-                    {
-                        if (openTasks.ContainsKey(r.Resource)) continue;
-
-                        openedResources.Add(r);
-
-                        // async used to avoid blocking the thread while waiting for tasks.
-                        openTasks[r.Resource] = OpenResource(r, wait);
-                    }
-                    wait.Start();
-                }
+                    if (res.StrongDependencies.Contains(null) || res.WeakDependencies.Contains(null))
+                        throw new Exception(String.Format("Resource property not set on resource {0}. Please configure resource.", res.Resource));
+                });
             }
-            finally
+            else
             {
-                openInitiated.Set(); // always set the event so callers to WaitFor...() does not hang indefinitely 
+                // Open all resources asynchroniously
+                Task wait = new Task(() => { }); // This task is not started yet, so it's used as an awaitable semaphore.
+                foreach (ResourceNode r in resources)
+                {
+                    if (openTasks.ContainsKey(r.Resource)) continue;
+
+                    openedResources.Add(r);
+
+                    // async used to avoid blocking the thread while waiting for tasks.
+                    openTasks[r.Resource] = OpenResource(r, wait);
+                }
+                wait.Start();
             }
         }
 
@@ -363,16 +350,8 @@ namespace OpenTap
                     {
                         var testplan = item as TestPlan;
                         var resources = ResourceManagerUtils.GetResourceNodes(StaticResources.Cast<object>().Concat(EnabledSteps));
-                        try
-                        {
-                            testplan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
 
-                        }catch(Exception e)
-                        {
-                            // this happens if there is no license.
-                            planRun.PromptWaitHandle.SetException(e);
-                            throw;
-                        }
+                        testplan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
 
                         // Proceed to open resources in case they have been changed or closed since last opening/executing the testplan.
                         if (resources.Any(r => openTasks.ContainsKey(r.Resource) == false)) // TODO: this only checks if some have been closed.
@@ -383,15 +362,8 @@ namespace OpenTap
                     if (item is TestPlan)
                     {
                         var testplan = item as TestPlan;
-                        try
-                        {
-                            var resources = ResourceManagerUtils.GetResourceNodes(StaticResources.Cast<object>().Concat(EnabledSteps));
-                            beginOpenResoureces(resources, cancellationToken);
-                        }
-                        finally
-                        {
-                            openInitiated.Set();
-                        }
+                        var resources = ResourceManagerUtils.GetResourceNodes(StaticResources.Cast<object>().Concat(EnabledSteps));
+                        beginOpenResoureces(resources, cancellationToken);
                     }
                     break;
                 case Stage.Run:
@@ -610,6 +582,10 @@ namespace OpenTap
         {
             toOpen.RemoveAll(x => x.Resource == null);
 
+            lock (resourceLock)
+                foreach (var extra in toOpen)
+                    if (!resources.ContainsKey(extra.Resource))
+                        resources[extra.Resource] = new ResourceInfo(extra);
 
             try
             {
@@ -674,15 +650,16 @@ namespace OpenTap
                 case Stage.Open:
                 case Stage.Execute:
                     {
-                        var resources = ResourceManagerUtils.GetResourceNodes(StaticResources.Concat<object>(EnabledSteps));
+                        var resources = ResourceManagerUtils.GetResourceNodes(StaticResources);
 
-                        lock (resourceLock)
-                            foreach (var resource in resources)
-                            {
-                                
-                                if (!this.resources.ContainsKey(resource.Resource))
-                                    this.resources[resource.Resource] = new ResourceInfo(resource);
-                            }
+                        if (item is TestPlan plan)
+                        {
+                            plan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
+                        }
+
+                        if (resources.All(r => r.Resource.IsConnected))
+                            return;
+
                         // Call ILockManagers before checking for null
                         try
                         {
@@ -693,19 +670,6 @@ namespace OpenTap
                             lock (resourceWithBeforeOpenCalled)
                             {
                                 resourceWithBeforeOpenCalled.AddRange(resources);
-                            }
-                        }
-                        if (item is TestPlan plan && stage == Stage.Execute)
-                        {
-                            try
-                            {
-                                plan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
-                            }
-                            catch(Exception e)
-                            {
-                                // happens if there is no license
-                                planRun.PromptWaitHandle.SetException(e);
-                                throw;
                             }
                         }
 
@@ -724,7 +688,7 @@ namespace OpenTap
                         }
                         finally
                         {
-                            OpenResources(resources.Where(x => StaticResources.Contains(x.Resource)).ToList(), cancellationToken);
+                            OpenResources(resources, cancellationToken);
                         }
                         break;
                     }
@@ -747,7 +711,9 @@ namespace OpenTap
                                 resourceWithBeforeOpenCalled.AddRange(resources);
                             }
                         }
-                        
+                        var plan = step.GetParent<TestPlan>();
+                        plan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
+
                         try
                         {
                             // Check null resources
@@ -778,6 +744,7 @@ namespace OpenTap
                             
                             OpenResources(resources, cancellationToken);
                         }
+                        WaitHandle.WaitAny(new[] { planRun.PromptWaitHandle, planRun.MainThread.AbortToken.WaitHandle });
                     }
                     break;
             }

@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenTap.Package.Ipc;
 
 namespace OpenTap.Package
 {
@@ -57,7 +58,7 @@ namespace OpenTap.Package
             foreach (var file in package_files)
             {
                 var package = installedPackageMemorizer.Invoke(file);
-                if(package != null && !plugins.Any(s => s.Name == package.Name))
+                if (package != null && !plugins.Any(s => s.Name == package.Name))
                 {
                     package.Location = file;
                     plugins.Add(package);
@@ -76,7 +77,7 @@ namespace OpenTap.Package
             var opentap = GetPackages()?.FirstOrDefault(p => p.Name == "OpenTAP");
             if (opentap == null)
                 log.Warning($"Could not find OpenTAP in {TapPath}.");
-            
+
             return opentap;
         }
 
@@ -103,5 +104,81 @@ namespace OpenTap.Package
             }
             return null;
         }
+
+        #region Package Change IPC
+        /// <summary>
+        /// Maintains a running number that increments whenever a plugin is installed.
+        /// </summary>
+        private class ChangeId : SharedState
+        {
+            public ChangeId(string dir) : base(".package_definitions_change_ID", dir)
+            {
+
+            }
+
+            public long GetChangeId()
+            {
+                return Read<long>(0);
+            }
+
+            public void SetChangeId(long value)
+            {
+                Write(0, value);
+            }
+
+            public static async Task WaitForChange()
+            {
+                var changeId = new ChangeId(Path.GetDirectoryName(typeof(SharedState).Assembly.Location));
+                var id = changeId.GetChangeId();
+                while (changeId.GetChangeId() == id)
+                    await Task.Delay(500);
+            }
+
+            public static void WaitForChangeBlocking()
+            {
+                var changeId = new ChangeId(Path.GetDirectoryName(typeof(SharedState).Assembly.Location));
+                var id = changeId.GetChangeId();
+                while (changeId.GetChangeId() == id)
+                    Thread.Sleep(500);
+            }
+        }
+
+        internal void AnnouncePackageChange()
+        {
+            using (var changeId = new ChangeId(this.TapPath))
+                changeId.SetChangeId(changeId.GetChangeId() + 1);
+        }
+
+        private bool IsMonitoringPackageChange = false;
+        private void MonitorPackageChange()
+        {
+            if (!IsMonitoringPackageChange)
+            {
+                IsMonitoringPackageChange = true;
+                TapThread.Start(() =>
+                {
+                    while (true)
+                    {
+                        ChangeId.WaitForChangeBlocking();
+                        PackageChanged();
+                    }
+                });
+            }
+        }
+
+        private Action PackageChanged;
+        public event Action PackageChangedEvent
+        {
+            add
+            {
+                MonitorPackageChange();
+                PackageChanged += value;
+            }
+            remove
+            {
+                PackageChanged -= value;
+            }
+        }
+        #endregion
     }
 }

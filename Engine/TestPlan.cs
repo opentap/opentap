@@ -20,66 +20,15 @@ namespace OpenTap
     /// </summary>
     public partial class TestPlan : INotifyPropertyChanged, ITestStepParent
     {
-        #region Nested Types
-        /// <summary>
-        /// Exception that can be thrown by TestStep code to abort execution of the TestPlan immediately
-        /// (other exceptions cause the TestPlan to skip to next TestStep in the plan).
-        /// </summary>
-        public class AbortException : Exception
-        {
-            /// <summary>
-            /// Gets or sets the TestStep that caused the exception.
-            /// </summary>
-            public ITestStep Step { get; set; }
-
-            bool setVerdict; // explicit to avoid obsolete warnings.
-
-            /// <summary>
-            /// Whether or no to set the verdict to Aborted when caught.
-            /// </summary>
-            [Obsolete("This is no longer being used by test plan execution. To be removed in 9.0.")]
-            public bool SetVerdict { get { return setVerdict; } set { setVerdict = value; } }
-
-            /// <summary>
-            /// Aborts the execution of the TestPlan.
-            /// </summary>
-            /// <param name="step">Inputs the TestStepBase step.</param>
-            /// <param name="message">Inputs the message.</param>
-            /// <param name="inner">Inputs the inner exception.</param>
-            /// <param name="setVerdict">If true (the default), this exception will also cause the verdict of the currently executing TestStep to become TestStep.RunVerdict.Aborted </param>
-            public AbortException(ITestStep step, string message, Exception inner, bool setVerdict = true)
-                : base(message, inner)
-            {
-                Step = step;
-                this.setVerdict = setVerdict;
-            }
-            /// <summary>
-            /// Aborts the execution of the TestPlan.
-            /// </summary>
-            /// <param name="message">Inputs the message.</param>
-            /// <param name="setVerdict">If true (the default), this exception will also cause the verdict of the currently executing TestStep to become TestStep.RunVerdict.Aborted </param>
-            public AbortException(string message, bool setVerdict = true)
-                : base(message)
-            {
-                this.setVerdict = setVerdict;
-            }
-        }
-
-
-        #endregion
-        internal static readonly TraceSource Log =  OpenTap.Log.CreateSource("TestPlan");
-        private CancellationTokenSource abortTokenSource = new CancellationTokenSource();
+        internal static readonly TraceSource Log = OpenTap.Log.CreateSource("TestPlan");        
         private TestStepList _Steps;
-
+        private ITestPlanRunMonitor[] monitors; // For locking/unlocking or generally monitoring test plan start/stop.
+        
         /// <summary>
         /// Field for external test plan parameters.
         /// </summary>
         [XmlIgnore]
         public ExternalParameters ExternalParameters { get; private set; }
-        /// <summary>
-        /// Gets the currently running <see cref="TestPlan"/>.
-        /// </summary>
-        internal static TestPlan CurrentlyRunningPlan { get; private set; }
 
         /// <summary>
         /// A collection of TestStepBase steps.
@@ -144,7 +93,7 @@ namespace OpenTap
                 return System.IO.Path.GetFileNameWithoutExtension(Path);
             }
         }
-        
+
         /// <summary>
         /// A synchronous event that allows breaking the execution of the TestPlan by blocking the TestPlan execution thread. 
         /// It is raised prior to executing the <see cref="TestStep.Run"/> method of each <see cref="TestStep"/> in the TestPlan. 
@@ -185,7 +134,7 @@ namespace OpenTap
             }
 
             //Just in case the user requested to abort
-            Sleep();
+            TapThread.ThrowIfAborted();
         }
 
         bool locked = false;
@@ -210,30 +159,21 @@ namespace OpenTap
             }
         }
 
-        private bool _IsRunning;
-        /// <summary>
-        /// True if this TestPlan is currently running.
-        /// </summary>
-        [XmlIgnore]
-        public System.Boolean IsRunning
+        TestPlanRun _currentRun;
+        TestPlanRun CurrentRun
         {
-
-            get { return _IsRunning; }
-            private set
+            set
             {
-                if (value)
-                    CurrentlyRunningPlan = this;
-                else
-                    CurrentlyRunningPlan = null;
-                _IsRunning = value;
-                OnPropertyChanged("IsRunning");
+                _currentRun = value;
+                OnPropertyChanged(nameof(IsRunning));
             }
+            get => _currentRun;
         }
 
-        /// <summary>
-        /// A cancellationtoken that represents a user abort.
-        /// </summary>
-        public CancellationToken AbortToken { get { return abortTokenSource.Token; } }
+
+
+        /// <summary> True if this TestPlan is currently running. </summary>
+        public bool IsRunning => CurrentRun != null;
 
         /// <summary> </summary>
         public TestPlan()
@@ -242,116 +182,7 @@ namespace OpenTap
             _Steps.Parent = this;
             ExternalParameters = new ExternalParameters(this);
         }
-
-        // Abort to specify why the test plan run was aborted. In case it is because of an error.
-        string abortReason = null;
-
-        /// <summary>
-        /// Requests to abort the test plan execution.
-        /// </summary>
-        public void RequestAbort()
-        {
-            RequestAbort(null);
-        }
-
-        /// <summary> RequestAbort where it's possible to declare the reason. </summary>
-        /// <param name="reason">The reason for abort. Can be null.</param>
-        internal void RequestAbort(string reason)
-        {
-            abortReason = reason ?? "Aborted by user";
-            Log.Info("Test plan abort requested...");
-            abortTokenSource.Cancel();
-        }
-
-        /// <summary>
-        /// Aborts the TestPlan execution if someone has requested this using <see cref="RequestAbort()"/>
-        /// </summary>
-        private void abortIfRequested()
-        {
-            if (abortTokenSource.IsCancellationRequested)
-            {
-                throw new AbortException(abortReason);
-            }
-        }
-
-        /// <summary>
-        /// Waits the specified number of milliseconds (like <see cref="System.Threading.Thread.Sleep(int)"/>) and also continuously 
-        /// checks whether an abort has been requested.
-        /// </summary>
-        /// <param name="milliSeconds">Number of milliseconds to wait.</param>
-        public static void Sleep(int milliSeconds = 0)
-        {
-            if (milliSeconds == 0)
-            {
-                var plan = CurrentlyRunningPlan;
-                if (plan != null && plan.abortAllowed)
-                {
-                    plan.abortIfRequested();
-                }
-            }
-            else
-            {
-                Sleep(TimeSpan.FromMilliseconds(milliSeconds));
-            }
-        }
-
-        /// <summary>
-        /// Like Sleep(int) but with a timespan instead;
-        /// </summary>
-        /// <param name="timeSpan"></param>
-        public static void Sleep(TimeSpan timeSpan)
-        {
-            {
-                var plan = CurrentlyRunningPlan;
-                if (plan != null && plan.abortAllowed)
-                {
-                    plan.abortIfRequested();
-                }
-            }
-            if (timeSpan <= TimeSpan.Zero)
-                return;
-
-            TimeSpan min(TimeSpan a, TimeSpan b)
-            {
-                return a < b ? a : b;
-            }
-            TimeSpan shortTime = TimeSpan.FromMilliseconds(100);
-            TimeSpan longTime = TimeSpan.FromHours(1); 
-            var sw = Stopwatch.StartNew();
-
-            while(true)
-            {
-                var timeleft = timeSpan - sw.Elapsed;
-                if (timeleft <= TimeSpan.Zero)
-                    break;
-
-                var plan = CurrentlyRunningPlan;
-                if (plan != null && plan.abortAllowed)
-                {
-                    // if plan.abortAllowed is false, the token might be canceled,
-                    // but we still cannot abort, so in that case we need to default to Thread.Sleep
-                    plan.abortTokenSource.Token.WaitHandle.WaitOne(min(timeleft, longTime));
-                    plan.abortIfRequested();
-                }
-                else
-                     Thread.Sleep(min(timeleft, shortTime));
-            }
-            {
-                var plan = CurrentlyRunningPlan;
-                if (plan != null && plan.abortAllowed)
-                {
-                    plan.abortIfRequested();
-                }
-            }
-        }
-
-        /// <summary>
-        /// True if the test plan is aborted.
-        /// </summary>
-        public static bool Aborted { get { if (CurrentlyRunningPlan != null) return CurrentlyRunningPlan.AbortToken.IsCancellationRequested; else return false; } }
-
-        bool abortAllowed = false;
-
+        
         #region Load/Save TestPlan
         /// <summary>
         /// Saves this TestPlan to a stream.
@@ -419,6 +250,16 @@ namespace OpenTap
             }
         }
 
+        class PlanLoadError
+        {
+            [Browsable(true)]
+            [Layout(LayoutMode.FullRow)]
+            public string Message { get; private set; } = "Parts of the test plan did not load correctly. See the log for more details.\n\nDo you want to ignore these errors and use a corrupt test plan?";
+            public string Name { get; private set; } = "Errors occured while loading test plan.";
+            [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+            [Submit]
+            public PlanLoadErrorResponse Response { get; set; } = PlanLoadErrorResponse.Ignore;
+        }
 
         /// <summary>
         /// Load a TestPlan.
@@ -431,14 +272,13 @@ namespace OpenTap
             if (stream == null)
                 throw new ArgumentNullException("stream");
             var serializer = new TapSerializer();
-            var plan = (TestPlan) serializer.Deserialize(stream, type: typeof(TestPlan), path: path);
+            var plan = (TestPlan)serializer.Deserialize(stream, type: typeof(TestPlan), path: path);
             var errors = serializer.Errors;
             if (errors.Any())
             {
-                //var lst = new List<IPlatformRequest>();
-                var req = new PlatformRequest<PlanLoadErrorResponse>() { Message = "Parts of the test plan did not load correctly. See the log for more details.\n\nDo you want to ignore these errors and use a corrupt test plan?", Response = PlanLoadErrorResponse.Ignore };
-                var resp = PlatformInteraction.WaitForInput(new List<IPlatformRequest> { req }, TimeSpan.MaxValue, PlatformInteraction.RequestType.Custom, Title: "Errors occured while loading test plan.");
-                var respValue = (PlanLoadErrorResponse)resp.First().Response;
+                var err = new PlanLoadError();
+                UserInput.Request(err, TimeSpan.MaxValue, false);
+                var respValue = err.Response;
                 if (respValue == PlanLoadErrorResponse.Abort)
                 {
                     throw new PlanLoadException(string.Join("\n", errors));
@@ -446,7 +286,7 @@ namespace OpenTap
             }
             return plan;
         }
-        
+
         /// <summary>
         /// Reload a TestPlan transferring the current execution state of the current plan to the new one.
         /// </summary>
@@ -459,7 +299,7 @@ namespace OpenTap
             if (this.IsRunning)
                 throw new InvalidOperationException("Cannot reload while running.");
             var serializer = new TapSerializer();
-            var plan = (TestPlan) serializer.Deserialize(filestream, type: typeof(TestPlan), path: Path);
+            var plan = (TestPlan)serializer.Deserialize(filestream, type: typeof(TestPlan), path: Path);
             plan.currentExecutionState = this.currentExecutionState;
             plan.Path = this.Path;
             return plan;
@@ -517,8 +357,10 @@ namespace OpenTap
 
         /// <summary> The directory where the test plan is stored.</summary>
         [MetaData(macroName: "TestPlanDir")]
-        public string Directory {
-            get {
+        public string Directory
+        {
+            get
+            {
                 try
                 {
                     return string.IsNullOrWhiteSpace(Path) ? null : System.IO.Path.GetDirectoryName(Path);
@@ -528,7 +370,8 @@ namespace OpenTap
                     // probably an invalid path.
                     return null;
                 }
-            } }
+            }
+        }
     }
 
     /// <summary>

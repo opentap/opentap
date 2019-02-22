@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
-<Package Name="Test" xmlns="http://keysight.com/schemas/TAP/Package">
+<Package Name="Test" xmlns="http://opentap.io/schemas/package">
   <Files>
-    <File Path="package_NoBinFiles.xml" Obfuscate="false" UseVersion="false"></File>
+    <File Path="package_NoBinFiles.xml"/>
   </Files>
 </Package>

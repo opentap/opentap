@@ -374,7 +374,14 @@ namespace OpenTap
                 if (loaded != null)
                     return loaded;
             }
-            return System.Type.GetType(typeName);
+
+            if (typeName.Contains(","))
+            {
+                var x = locateType(typeName.Split(',')[0]);
+                if (x != null) return x;
+            }
+
+            return Type.GetType(typeName);
         }
 
         /// <summary>

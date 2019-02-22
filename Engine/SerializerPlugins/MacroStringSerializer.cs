@@ -12,9 +12,9 @@ namespace OpenTap.Plugins
     public class MacroStringSerializer : TapSerializerPlugin
     {
         /// <summary> Tries to deserialize a MacroString. This is just a simple string value XML element, but it tries to find the step context for the MacroString.</summary>
-        public override bool Deserialize( XElement node, Type t, Action<object> setter)
+        public override bool Deserialize( XElement node, ITypeInfo t, Action<object> setter)
         {
-            if (t != typeof(MacroString)) return false;
+            if (t.IsA(typeof(MacroString)) == false) return false;
             string text = node.Value;
             var obj = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
             if (obj != null)
@@ -30,7 +30,7 @@ namespace OpenTap.Plugins
         }
 
         /// <summary> Serializes a MacroString. it just sets the text as the value. MacroString should be compatible with string in XML.</summary>
-        public override bool Serialize( XElement node, object obj, Type expectedType)
+        public override bool Serialize( XElement node, object obj, ITypeInfo expectedType)
         {
             if (obj is MacroString == false) return false;
             node.SetValue(((MacroString)obj).Text);

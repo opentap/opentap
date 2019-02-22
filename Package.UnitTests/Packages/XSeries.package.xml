@@ -1,7 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
-<Package Name="XSeries" Version="2.4.0+b084a8" xmlns="http://keysight.com/schemas/TAP/Package">
+<Package Name="XSeries" Version="2.4.0+b084a8" xmlns="http://opentap.io/schemas/package">
   <Files>
-    <File Path="TapPlugin.XSignalAnalyzer.dll" Obfuscate="true" UseVersion="true">
+    <File Path="TapPlugin.XSignalAnalyzer.dll">
+      <UseVersion/>
+      <ObfuscateWithDotfuscator/>
       <Plugins>
         <Plugin>TapPlugin.XSignalAnalyzer.XsaCore</Plugin>
         <Plugin>TapPlugin.XSignalAnalyzer.XSequencer</Plugin>
@@ -15,7 +17,9 @@
         <Plugin>TapPlugin.XSignalAnalyzer.MeasureChannelPower</Plugin>
       </Plugins>
     </File>
-    <File Path="TapPlugin.XSignalSource.dll" Obfuscate="true" UseVersion="false">
+    <File Path="TapPlugin.XSignalSource.dll">
+      <UseVersion/>
+      <ObfuscateWithDotfuscator/>
       <Plugins>
         <Plugin>TapPlugin.XSignalSource.XsgCore</Plugin>
         <Plugin>TapPlugin.XSignalSource.M9381A</Plugin>

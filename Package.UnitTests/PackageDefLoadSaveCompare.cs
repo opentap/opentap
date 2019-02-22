@@ -82,7 +82,8 @@ namespace OpenTap.Package.UnitTests
             string input = @"<?xml version='1.0' encoding='utf-8'?>
 <Package Name='Test' Version='1.2.3-alpha+test' Architecture='AnyCPU' OS='' xmlns='http://opentap.io/schemas/package'>
     <Files>
-        <File Path='OpenTap.dll' SetAssemblyInfo='Version'>
+        <File Path='OpenTap.dll'>
+            <SetAssemblyInfo Attributes='Version'/>
         </File>
     </Files>
 </Package>";
@@ -105,7 +106,8 @@ namespace OpenTap.Package.UnitTests
             <PackageDependency Package='DepName' Version='4.3.2'/>
         </Dependencies>
         <Files>
-            <File Path='OpenTap.dll' SetAssemblyInfo='Version'>
+            <File Path='OpenTap.dll'>
+                <SetAssemblyInfo Attributes='Version'/>
                 <IgnoreDependency > System.Reflection.Metadata </IgnoreDependency>
             </File>
         </Files>

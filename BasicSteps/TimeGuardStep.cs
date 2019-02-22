@@ -37,10 +37,8 @@ namespace OpenTap.Plugins.BasicSteps
             Exception exception = null;
             SemaphoreSlim sem = new SemaphoreSlim(0);
             SemaphoreSlim semStarted = new SemaphoreSlim(0);
-            Thread thread = null;
-            TapThread.Start(() =>
+            TapThread thread = TapThread.Start(() =>
             {
-                thread = Thread.CurrentThread;
                 semStarted.Release();
                 try
                 {
@@ -59,46 +57,39 @@ namespace OpenTap.Plugins.BasicSteps
             bool timedOut = false;
             bool isInBreak = false;
 
-            var plan = this.GetParent<TestPlan>();
+            var plan = GetParent<TestPlan>();
             semStarted.Wait();
-            try
+            while (!sem.Wait(10))
             {
-                while (!sem.Wait(10))
-                {
-                    bool breakStatus = plan.IsInBreak;
-                    if (isInBreak && !breakStatus)
-                        sw.Start();
-                    else if ((!isInBreak) && breakStatus)
-                        sw.Stop();
-                    isInBreak = breakStatus;
+                bool breakStatus = plan.IsInBreak;
+                if (isInBreak && !breakStatus)
+                    sw.Start();
+                else if ((!isInBreak) && breakStatus)
+                    sw.Stop();
+                isInBreak = breakStatus;
 
-                    if (sw.Elapsed.TotalSeconds > this.Timeout && plan.IsInBreak == false)
-                    {
-                        timedOut = true;
-                        thread.Abort();
-                        thread.Join(100);
-                    }
+                if (sw.Elapsed.TotalSeconds > this.Timeout && plan.IsInBreak == false)
+                {
+                    timedOut = true;
+                    thread.Abort();
+                    sem.Wait();
+                    break;
                 }
             }
-            catch (ThreadAbortException ex)
-            {
-                thread.Abort();
-                thread.Join();
-                throw ex;
-            }
+            
 
             // If timeout occured and we stop on timeout.
             if (timedOut && StopOnTimeout)
             {
-                throw new TestPlan.AbortException("The Time Guard step reached the timeout and aborted the test plan.");
+                throw new OperationCanceledException("The Time Guard step reached the timeout and aborted the test plan.");
             }
             // If time out did not occur, but an exception was thrown inside one of the child steps.
             if (timedOut == false && exception != null)
             {
-                if (exception is TestPlan.AbortException)
+                if (exception is OperationCanceledException)
                 {
                     UpgradeVerdict(Verdict.Aborted);
-                    throw new TestPlan.AbortException("A step inside the Time Guard was aborted.");
+                    throw new OperationCanceledException("A step inside the Time Guard was aborted.");
                 }
                 else
                     throw new AggregateException(exception);

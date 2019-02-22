@@ -50,12 +50,15 @@ namespace OpenTap.Engine.UnitTests
             plan.ChildTestSteps.Add(logStep2);
             plan.ChildTestSteps.Add(fileStep);
             plan.ChildTestSteps.Add(fileStep2);
-            plan.ExternalParameters.Add(delayStep1, delayStep1.GetType().GetProperty("DelaySecs"));
-            plan.ExternalParameters.Add(delayStep2, delayStep2.GetType().GetProperty("DelaySecs"), "Time Delay");
-            plan.ExternalParameters.Add(logStep, logStep.GetType().GetProperty("Severity"), Name: "Severity");
-            plan.ExternalParameters.Add(logStep2, logStep2.GetType().GetProperty("Severity"), Name: "Severity");
-            plan.ExternalParameters.Add(fileStep, fileStep.GetType().GetProperty("PathToThing"), Name: "Path1");
-            plan.ExternalParameters.Add(fileStep2, fileStep2.GetType().GetProperty("PathToThing"), Name: "Path1");
+            var delayInfo = TypeInfo.GetTypeInfo(delayStep1);
+            var logInfo = TypeInfo.GetTypeInfo(logStep);
+            var fileStepInfo = TypeInfo.GetTypeInfo(fileStep);
+            plan.ExternalParameters.Add(delayStep1, delayInfo.GetMember("DelaySecs"));
+            plan.ExternalParameters.Add(delayStep2, delayInfo.GetMember("DelaySecs"), "Time Delay");
+            plan.ExternalParameters.Add(logStep, logInfo.GetMember("Severity"), Name: "Severity");
+            plan.ExternalParameters.Add(logStep2, logInfo.GetMember("Severity"), Name: "Severity");
+            plan.ExternalParameters.Add(fileStep, fileStepInfo.GetMember("PathToThing"), Name: "Path1");
+            plan.ExternalParameters.Add(fileStep2, fileStepInfo.GetMember("PathToThing"), Name: "Path1");
             for (int j = 0; j < 5; j++)
             {
                 for (double x = 0.01; x < 10; x += 3.14)

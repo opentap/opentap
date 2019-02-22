@@ -58,8 +58,9 @@ namespace OpenTap.Package
                 else
                     return ExecutePackageActionSteps(package, force);
             }
-            catch
+            catch (Exception ex)
             {
+                log.Error(ex.Message);
                 return ActionResult.Error;
             }
         }
@@ -73,6 +74,9 @@ namespace OpenTap.Package
                 if (step.ActionName != ActionName)
                     continue;
 
+                if (File.Exists(step.ExeFile) == false)
+                    throw new Exception($"Could not find file '{step.ExeFile}' from ActionStep '{step.ActionName}'.");
+                
                 // Upgrade to ok output
                 res = ActionResult.Ok;
 
@@ -82,34 +86,46 @@ namespace OpenTap.Package
 
                 pi.CreateNoWindow = step.CreateNoWindow;
 
-                Process p;
-                if (step.UseShellExecute)
+                try
                 {
-                    pi.UseShellExecute = true;
+                    Process p;
+                    if (step.UseShellExecute)
+                    {
+                        pi.UseShellExecute = true;
 
-                    p = Process.Start(pi);
+                        p = Process.Start(pi);
+                    }
+                    else
+                    {
+                        pi.RedirectStandardOutput = true;
+                        pi.RedirectStandardError = true;
+                        pi.UseShellExecute = false;
+
+                        p = Process.Start(pi);
+
+                        p.ErrorDataReceived += (s, e) =>
+                        {
+                            if (!string.IsNullOrEmpty(e.Data)) log.Error(e.Data);
+                        };
+                        p.OutputDataReceived += (s, e) =>
+                        {
+                            if (!string.IsNullOrEmpty(e.Data)) log.Debug(e.Data);
+                        };
+
+                        p.BeginErrorReadLine();
+                        p.BeginOutputReadLine();
+                    }
+
+                    p.WaitForExit();
+
+                    if (p.ExitCode != 0)
+                        throw new Exception($"Failed to run command. Exitcode: {p.ExitCode}");
                 }
-                else
+                catch (Exception e)
                 {
-                    pi.RedirectStandardOutput = true;
-                    pi.RedirectStandardError = true;
-                    pi.UseShellExecute = false;
-
-                    p = Process.Start(pi);
-
-                    p.ErrorDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) log.Error(e.Data); };
-                    p.OutputDataReceived += (s, e) => { if (!string.IsNullOrEmpty(e.Data)) log.Debug(e.Data); };
-
-                    p.BeginErrorReadLine();
-                    p.BeginOutputReadLine();
-                }
-
-                p.WaitForExit();
-
-                if (p.ExitCode != 0)
-                {
-                    log.Error("Failed to run command. Exitcode: {0}", p.ExitCode);
-
+                    log.Error(e.Message);
+                    log.Debug(e);
+                    
                     if (!force)
                         throw new Exception("Failed to run package action.");
                 }
@@ -203,7 +219,7 @@ namespace OpenTap.Package
             }
 
 
-            CustomPackageActionHelper.RunCustomActions(package, PackageActionStage.Install);
+            CustomPackageActionHelper.RunCustomActions(package, PackageActionStage.Install, new CustomPackageActionArgs(null, false));
 
             
             return package;
@@ -345,7 +361,7 @@ namespace OpenTap.Package
 
             try
             {
-                CustomPackageActionHelper.RunCustomActions(package, PackageActionStage.Uninstall, force);
+                CustomPackageActionHelper.RunCustomActions(package, PackageActionStage.Uninstall, new CustomPackageActionArgs(null, force));
             }
             catch (Exception ex)
             {

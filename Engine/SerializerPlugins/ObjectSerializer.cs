@@ -12,18 +12,51 @@ using System.Xml.Serialization;
 using System.ComponentModel;
 using System.Runtime.ExceptionServices;
 using System.Collections;
+using System.Xml;
 
 namespace OpenTap.Plugins
 {
+
+    /// <summary>
+    /// Species a TAP Serializer plugin.
+    /// </summary>
+    [Display("Serializer")]
+    public interface ITapSerializerPlugin : ITapPlugin
+    {
+        
+        /// <summary>
+        /// Called as part for the deserialization chain. Returns false if it cannot serialize the XML element.  
+        /// </summary>
+        /// <param name="node"></param>
+        /// <param name="t"></param>
+        /// <param name="setter"></param>
+        /// <returns></returns>
+        bool Deserialize(XElement node, ITypeInfo t, Action<object> setter);
+        /// <summary>
+        /// Called as part for the serialization chain. Returns false if it cannot serialize the XML element.  
+        /// </summary>
+        /// <param name="node">The output XML element.</param>
+        /// <param name="obj">The object being deserialized.</param>
+        /// <param name="expectedType">The expected type from deserialization.</param>
+        /// <returns>return true if the object could be serialized.</returns>
+        bool Serialize(XElement node, object obj, ITypeInfo expectedType);
+
+        /// <summary>
+        /// Priority of the serializer. Defines the order in which the serializers are used. Default is 0.  
+        /// </summary>
+        double Order { get; }
+    }
+
     /// <summary>
     /// Default object serializer.
     /// </summary>
-    public class ObjectSerializer : TapSerializerPlugin
+    public class ObjectSerializer : TapSerializerPlugin, ITapSerializerPlugin
     {
         /// <summary>
-        /// Gets the property currently being serialized.
+        /// Gets the member currently being serialized.
         /// </summary>
-        public PropertyInfo Property { get; private set; }
+        public IMemberInfo CurrentMember { get; private set; }
+
 
         /// <summary>
         /// Specifies order. Minimum order should  be -1 as this is the most basic serializer.  
@@ -45,51 +78,56 @@ namespace OpenTap.Plugins
         /// <param name="newobj"></param>
         /// <param name="logWarnings">Whether warning messages should be emitted in case of missing properties.</param>
         /// <returns>True on success.</returns>
-        public virtual bool TryDeserializeObject(XElement element, Type t, Action<object> setter, object newobj = null, bool logWarnings = true)
+        public virtual bool TryDeserializeObject(XElement element, ITypeInfo t, Action<object> setter, object newobj = null, bool logWarnings = true)
         {
-            if (t.IsClass == false)
-                return false;
+            
             if (element.IsEmpty && !element.HasAttributes)
             {
                 setter(null);
                 return true;
             }
             if (newobj == null)
+            {
                 try
                 {
-                    newobj = Activator.CreateInstance(t);
+                    newobj = t.CreateInstance(Array.Empty<object>());
+                    t = TypeInfo.GetTypeInfo(newobj);
                 }
                 catch (TargetInvocationException ex)
                 {
-                    
+
                     if (ex.InnerException is System.ComponentModel.LicenseException)
-                        throw new Exception(string.Format("Could not create an instance of '{0}': {1}", t.GetDisplayAttribute().Name, ex.InnerException.Message));
+                        throw new Exception(string.Format("Could not create an instance of '{0}': {1}", t.GetAttribute<DisplayAttribute>().Name, ex.InnerException.Message));
                     else
                     {
                         ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
                     }
                 }
+            }
             
             var prevobj = Object;
-            Object = newobj;
-
-            var properties = t.GetMemberData().Where(x => x.HasAttribute<XmlIgnoreAttribute>() == false).ToArray();
+            Object = newobj;    
+            var t2 = t;
+            if (newobj == null)
+                throw new ArgumentNullException("newobj");
+            var properties = t2.GetMembers().Where(x => x.HasAttribute<XmlIgnoreAttribute>() == false).ToArray();
             try
             {
                 
                 foreach (var prop in properties)
                 {
-                    var p = prop.Property;
-                    if (p == null) continue;
                     var attr = prop.GetAttribute<XmlAttributeAttribute>();
                     if (attr == null) continue;
-                    var attr_value = element.Attribute(string.IsNullOrWhiteSpace(attr.AttributeName) ? prop.Info.Name : attr.AttributeName);
-                    if (attr_value != null)
+                    var name = string.IsNullOrWhiteSpace(attr.AttributeName) ? prop.Name : attr.AttributeName;
+                    var attr_value = element.Attribute(XmlConvert.EncodeLocalName(name));
+                    var p = prop as CSharpMemberInfo;
+
+                    if (p != null && attr_value != null && p.Member is PropertyInfo csprop)
                     {
                         try
                         {
-                            var value = readContentInternal(p.PropertyType, false, () => attr_value.Value, element);
-                            p.SetValue(newobj, value, null);
+                            var value = readContentInternal(csprop.PropertyType, false, () => attr_value.Value, element);
+                            p.SetValue(newobj, value);
                             
                         }
                         catch (Exception e)
@@ -102,76 +140,133 @@ namespace OpenTap.Plugins
                         }
                     }
                 }
-                var props = properties.ToLookup(x => x.GetCustomAttributes<XmlElementAttribute>().FirstOrDefault()?.ElementName ?? x.Info.Name);
-                foreach (var element2 in element.Elements().ToArray())
+                var props = properties.ToLookup(x => x.GetAttributes<XmlElementAttribute>().FirstOrDefault()?.ElementName ?? x.Name);
+                var elements = element.Elements().ToArray();
+                HashSet<XElement> visited = new HashSet<XElement>();
+                double order = 0;
+                
+                while (visited.Count != elements.Length)
                 {
-                    MemberData property = null;
-                    var propertyMatches = props[element2.Name.LocalName];
-                    
-                    int hits = 0;
-                    foreach(var p in propertyMatches)
-                    {
-                        var prop = p.Property;
-                        if (prop.CanWrite && prop.GetSetMethod() != null || p.HasAttribute<XmlIgnoreAttribute>())
-                        {
-                            property = p;
-                            hits++;
-                        }
-                    }
-                    
-                    if (0 == hits)
-                    {
-                        try
-                        {
-                            property = t.GetMemberData(element2.Name.LocalName);
-                        }
-                        catch { }
-                        if (property == null || property.Property.CanWrite == false || property.Property.GetSetMethod() == null)
-                        {
-                            if (logWarnings)
-                                Log.Warning(element2, "Unable to set property '{0}'. The property does not exist.", element2.Name.LocalName);
-                            continue;
-                        }
-                        hits = 1;
-                    }
-                    if (hits > 1)
-                        Log.Warning(element2, "Multiple properties named '{0}' are available to the serializer in '{1}' this might give issues in serialization.", element2.Name.LocalName, t.GetDisplayAttribute().Name);
+                    double nextOrder = 1000;
+                    // since the object might be dynamically adding properties as other props are added.
+                    // we need to iterate a bit. Example: Test Plan Reference.
 
-                    var prev = Property;
-                    Property = property.Property;
-                    try
+                    int found = visited.Count;
+                    foreach (var element2 in elements)
                     {
-                        if (Property.HasAttribute<XmlIgnoreAttribute>()) // This property shouldn't have been in the file in the first place, but in case it is (because of a change or a bug), we shouldn't try to set it. (E.g. SweepLoopRange.SweepStep)
-                            if (!Property.HasAttribute<BrowsableAttribute>()) // In the special case we assume that this is some compatibility property that still needs to be set if present in the XML. (E.g. TestPlanReference.DynamicDataContents)
-                                continue;
-                        
-                        if (Property.PropertyType.HasInterface<IList>() && Property.PropertyType.IsGenericType && Property.HasAttribute<XmlElementAttribute>()) 
+                        if (visited.Contains(element2)) continue;
+                        IMemberInfo property = null;
+                        var name = XmlConvert.DecodeName(element2.Name.LocalName);
+                        var propertyMatches = props[name];
+
+                        int hits = 0;
+                        foreach (var p in propertyMatches)
                         {
-                            // Special case to mimic old .NET XmlSerializer behavior
-                            var list = (IList)Property.GetValue(newobj);
-                            Action<object> setValue = x => list.Add(x);
-                            Serializer.Deserialize(element2, setValue, Property.PropertyType.GetGenericArguments().First());
+                            if (p.Writable || p.HasAttribute<XmlIgnoreAttribute>())
+                            {
+                                property = p;
+                                hits++;
+                            }
+                        }
+
+                        if (0 == hits)
+                        {
+                            try
+                            {
+
+                                if (property == null)
+                                    property = t2.GetMember(name);
+                                if (property == null)
+                                    property = t2.GetMembers().FirstOrDefault(x => x.Name == name);
+                            }
+                            catch { }
+                            if (property == null || property.Writable == false)
+                            {
+                                continue;
+                            }
+                            hits = 1;
+                        }
+                        if (hits > 1)
+                            Log.Warning(element2, "Multiple properties named '{0}' are available to the serializer in '{1}' this might give issues in serialization.", element2.Name.LocalName, t.GetAttribute<DisplayAttribute>().Name);
+                        
+                        if (property.GetAttribute<SerializationOrderAttribute>() is SerializationOrderAttribute orderAttr)
+                        {
+                            if(order < orderAttr.Order)
+                            {
+                                if (orderAttr.Order < nextOrder)
+                                {
+                                    nextOrder = orderAttr.Order;
+                                }
+                                continue;
+                            }
                         }
                         else
                         {
-                            Action<object> setValue = x => property.Property.SetValue(newobj, x);
-                            Serializer.Deserialize(element2, setValue, Property.PropertyType);
+                            nextOrder = order;
                         }
-                    }
-                    catch (Exception e)
-                    {
-                        if (logWarnings)
+                        visited.Add(element2);
+                        var prev = CurrentMember;
+                        CurrentMember = property;
+                        try
                         {
-                            Log.Warning(element2, "Unable to set property '{0}'.", Property.Name);
-                            Log.Warning("Error was: \"{0}\".", e.Message);
-                            Log.Debug(e);
-                        }
-                    }
-                    finally
-                    {
-                        Property = prev;
-                    }
+                            if (CurrentMember.HasAttribute<XmlIgnoreAttribute>()) // This property shouldn't have been in the file in the first place, but in case it is (because of a change or a bug), we shouldn't try to set it. (E.g. SweepLoopRange.SweepStep)
+                                if (!CurrentMember.HasAttribute<BrowsableAttribute>()) // In the special case we assume that this is some compatibility property that still needs to be set if present in the XML. (E.g. TestPlanReference.DynamicDataContents)
+                                    continue;
 
+                            Action go = null;
+                            if (property is CSharpMemberInfo mem && mem.Member is PropertyInfo Property && Property.PropertyType.HasInterface<IList>() && Property.PropertyType.IsGenericType && Property.HasAttribute<XmlElementAttribute>())
+                            {
+                                // Special case to mimic old .NET XmlSerializer behavior
+                                var list = (IList)Property.GetValue(newobj);
+                                Action<object> setValue = x => list.Add(x);
+                                go = () => Serializer.Deserialize(element2, setValue, Property.PropertyType.GetGenericArguments().First());
+                            }
+                            else
+                            {
+                                Action<object> setValue = x => property.SetValue(newobj, x);
+                                go = () => Serializer.Deserialize(element2, setValue, property.TypeDescriptor);
+                            }
+                            bool delay = CurrentMember.HasAttribute<DelayDeserializeAttribute>();
+                            if (delay)
+                            {
+                                Serializer.DeferLoad(go);
+                            }
+                            else
+                            {
+                                go();
+                            }
+                        }
+                        catch (Exception e)
+                        {
+                            if (logWarnings)
+                            {
+                                Log.Warning(element2, "Unable to set property '{0}'.", CurrentMember.Name);
+                                Log.Warning("Error was: \"{0}\".", e.Message);
+                                Log.Debug(e);
+                            }
+                        }
+                        finally
+                        {
+                            CurrentMember = prev;
+                        }
+
+                    }
+                    if (found == visited.Count && order == nextOrder)
+                    {
+                        if (logWarnings && visited.Count < elements.Length)
+                        {
+                            // print a warning message if the element could not be deserialized.
+                            foreach (var elem in elements)
+                            {
+                                if (visited.Contains(elem)) continue;
+                                var message = string.Format("Unable to read element '{0}'. The property does not exist.", elem.Name.LocalName);
+                                Serializer.PushError(elem, message);
+                            }
+                        }
+                        break;
+                    }
+                    order = nextOrder;
+                    
                 }
                 setter(newobj);
             }
@@ -357,23 +452,31 @@ namespace OpenTap.Plugins
             }
         }
 
+        // for detecting cycles in object serialization.
+        HashSet<object> cycleDetetionSet = new HashSet<object>();
+
+        bool AlwaysG17DoubleFormat = false;
+        
         /// <summary>
-        /// Implementation on deserializer for generic objects.
+        /// Deserializes an object from XML.
         /// </summary>
         /// <param name="element"></param>
         /// <param name="t"></param>
         /// <param name="setter"></param>
         /// <returns></returns>
-        public override bool Deserialize(XElement element, Type t, Action<object> setter)
+        public override bool Deserialize(XElement element, ITypeInfo t, Action<object> setter)
         {
             object result = null;
             try
             {
-                object obj = readContentInternal(t, false, () => element.Value, element);
-                if (obj != null)
+                if (t is CSharpTypeInfo ctd)
                 {
-                    setter(obj);
-                    return true;
+                    object obj = readContentInternal(ctd.Type, false, () => element.Value, element);
+                    if (obj != null)
+                    {
+                        setter(obj);
+                        return true;
+                    }
                 }
             }
             catch
@@ -383,11 +486,13 @@ namespace OpenTap.Plugins
             }
             try
             {
+
                 if (TryDeserializeObject(element, t, x => result = x))
                 {
                     setter(result);
                     return true;
                 }
+
             }
             catch (Exception)
             {
@@ -396,23 +501,39 @@ namespace OpenTap.Plugins
             }
             return false;
         }
-        
-        // for detecting cycles in object serialization.
-        HashSet<object> cycleDetetionSet = new HashSet<object>();
-
-        bool AlwaysG17DoubleFormat = false;
-
+        static bool isValidXmlString(string str)
+        {
+            int len = str.Length;
+            for(int i = 0; i < len; i++)
+            {
+                char c = str[i];
+                if (XmlConvert.IsXmlChar(c))
+                    continue;
+                else if(i < len - 1)
+                {
+                    char c2 = str[i + 1];
+                    if(XmlConvert.IsXmlSurrogatePair(c2, c))
+                        continue;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
         /// <summary>
-        /// Implementation on serializer for generic objects.
+        /// Serializes an object to XML.
         /// </summary>
         /// <param name="elem"></param>
         /// <param name="obj"></param>
-        /// <param name="type"></param>
+        /// <param name="expectedType"></param>
         /// <returns></returns>
-        public override bool Serialize(XElement elem, object obj, Type type)
+        public override bool Serialize(XElement elem, object obj, ITypeInfo expectedType)
         {
             if (obj == null)
                 return true;
+            
             object prevObj = Object;
             // If cycleDetectorLut already contains an element, we've been here before.
             // Note the cycleDetectorLut adds and removes the obj later if it is not already in it.
@@ -464,114 +585,106 @@ namespace OpenTap.Plugins
 
                 if (obj is string str) // handled separately due to "case char c" from above.
                 {
-                    try
+                    // This will throw an XmlException if the string contains invalid XML chars.
+                    // If thats the case we base64 encode it.
+                    if (isValidXmlString(str))
                     {
-                        // This will throw an XmlException if the string contains invalid XML chars.
-                        // If thats the case we base64 encode it.
-                        System.Xml.XmlConvert.VerifyXmlChars(str);
                         elem.Value = str;
                     }
-                    catch (System.Xml.XmlException)
+                    else
                     {
                         var subelem = new XElement("Base64", Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(str)));
                         elem.Add(subelem);
                     }
                     return true;
                 }
-                if(type == typeof(bool))
-                {
-                    elem.Value = (bool)obj ? "true": "false"; // must be lower case for old XmlSerializer to work
-                    return true;
-                }
 
-                if (type.IsEnum || type.IsPrimitive || type.IsValueType)
-                {   
+                if (expectedType is CSharpTypeInfo type && (type.Type.IsEnum || type.Type.IsPrimitive || type.Type.IsValueType))
+                {
+                    if (type.Type == typeof(bool))
+                    {
+                        elem.Value = (bool)obj ? "true" : "false"; // must be lower case for old XmlSerializer to work
+                        return true;
+                    }
                     elem.Value = Convert.ToString(obj, CultureInfo.InvariantCulture);
                     return true;
                 }
                 
-                var properties = type.GetMemberData().Where(x => x.HasAttribute<XmlIgnoreAttribute>() == false).ToArray();
-                foreach (MemberData prop in properties)
+                var _type = TypeInfo.GetTypeInfo(obj);
+                var properties = _type.GetMembers().Where(x => x.HasAttribute<XmlIgnoreAttribute>() == false).ToArray();
+                foreach (IMemberInfo prop in properties)
                 {
-                    if (prop.Property is PropertyInfo info)
+                    var attr = prop.GetAttribute<XmlAttributeAttribute>();
+                    if (attr != null)
                     {
-                        var attr = prop.GetAttribute<XmlAttributeAttribute>();
-                        if (attr != null)
-                        {
-                            var defaultAttr = prop.GetAttribute<DefaultValueAttribute>();
-                            var val = info.GetValue(obj);
-                            if (defaultAttr != null &&  object.Equals(defaultAttr.Value,val))
-                                continue;
-                            string valStr = Convert.ToString(val, CultureInfo.InvariantCulture);
-                            if(info.PropertyType == typeof(bool))
-                                valStr = (bool)val ? "true" : "false"; // must be lower case for old XmlSerializer to work
-                            elem.SetAttributeValue(string.IsNullOrWhiteSpace(attr.AttributeName) ? info.Name : attr.AttributeName, valStr);
-                        }
+                        var val = prop.GetValue(obj);
+                        var defaultAttr = prop.GetAttribute<DefaultValueAttribute>();
+                        var name = string.IsNullOrWhiteSpace(attr.AttributeName) ? prop.Name : attr.AttributeName;
+                        if (defaultAttr != null && object.Equals(defaultAttr.Value, val))
+                            continue;
+                        string valStr = Convert.ToString(val, CultureInfo.InvariantCulture);
+                        if (val is bool b)
+                            valStr = b ? "true" : "false"; // must be lower case for old XmlSerializer to work
+                        elem.SetAttributeValue(XmlConvert.EncodeLocalName(name), valStr);
                     }
                 }
-                
+
                 var xmlTextProp = properties.FirstOrDefault(p => p.HasAttribute<XmlTextAttribute>());
                 if (xmlTextProp != null)
                 { // XmlTextAttribute support
-                    var textvalue = xmlTextProp.Property.GetValue(obj, null);
+                    var textvalue = xmlTextProp.GetValue(obj);
                     if (textvalue != null)
                     {
-                        var oldProp = Property;
-                        Property = xmlTextProp.Property;
                         Serializer.Serialize(elem, textvalue);
-                        Property = oldProp;
                     }
                 }
                 else
                 {
-                    foreach (MemberData subProp in properties)
+                    foreach (IMemberInfo subProp in properties)
                     {
-                        if (subProp.Property is PropertyInfo p)
+                        if (subProp.Readable && subProp.Writable && null == subProp.GetAttribute<XmlAttributeAttribute>())
                         {
-                            if (p.CanRead && p.CanWrite && null != p.GetSetMethod() && null == subProp.GetAttribute<XmlAttributeAttribute>())
+                            var oldProp = CurrentMember;
+                            CurrentMember = subProp;
+                            try
                             {
-                                var oldProp = Property;
-                                Property = p;
-                                try
-                                {
-                                    object val = p.GetValue(obj, null);
+                                object val = subProp.GetValue(obj);
                                     if (val != null)
                                     {
                                         var enu = val as IEnumerable;
                                         if (enu != null && enu.GetEnumerator().MoveNext() == false) // the value is an empty IEnumerable
                                         {
-                                            var defaultAttr = p.GetAttribute<DefaultValueAttribute>();
+                                            var defaultAttr = subProp.GetAttribute<DefaultValueAttribute>();
                                             if (defaultAttr != null && defaultAttr.Value == null)
                                                 continue;
                                         }
-                                        var attr = p.GetAttribute<XmlElementAttribute>();
-                                        if (p.PropertyType.HasInterface<IList>() && p.PropertyType.IsGenericType && attr != null)
+                                        var attr = subProp.GetAttribute<XmlElementAttribute>();
+                                        if (subProp.TypeDescriptor is CSharpTypeInfo cst && cst.Type.HasInterface<IList>() && cst.Type.IsGenericType && attr != null)
                                         {
                                             // Special case to mimic old .NET XmlSerializer behavior
                                             foreach (var item in enu)
                                             {
-                                                XElement elem2 = new XElement(attr.ElementName ?? p.Name);
-                                                Serializer.Serialize(elem2, item, p.PropertyType.GetGenericArguments().First());
+                                                XElement elem2 = new XElement(attr.ElementName ?? subProp.Name);
+                                                Serializer.Serialize(elem2, item, CSharpTypeInfo.Create(cst.Type.GetGenericArguments().First()));
                                                 elem.Add(elem2);
                                             }
                                         }
                                         else
                                         {
-                                            XElement elem2 = new XElement(p.Name);
-                                            Serializer.Serialize(elem2, val, p.PropertyType);
+                                            XElement elem2 = new XElement(subProp.Name);
+                                            Serializer.Serialize(elem2, val, subProp.TypeDescriptor);
                                             elem.Add(elem2);
                                         }
                                     }
-                                }
-                                catch (Exception e)
-                                {
-                                    Log.Warning("Unable to serialize property '{0}'.", p.Name);
-                                    Log.Debug(e);
-                                }
-                                finally
-                                {
-                                    Property = oldProp;
-                                }
+                            }
+                            catch (Exception e)
+                            {
+                                Log.Warning("Unable to serialize property '{0}'.", subProp.Name);
+                                Log.Debug(e);
+                            }
+                            finally
+                            {
+                                CurrentMember = oldProp;
                             }
                         }
                     }

@@ -21,3 +21,4 @@ using System.Runtime.CompilerServices;
 [assembly: Guid("61d47ad5-96fe-4090-bc4d-3614c253bd25")]
 
 [assembly: InternalsVisibleTo("OpenTap.UnitTests")]
+[assembly: InternalsVisibleTo("OpenTap.Sdk.Commands")]

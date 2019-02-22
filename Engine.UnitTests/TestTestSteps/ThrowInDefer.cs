@@ -24,7 +24,7 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
         {
             Results.Defer(() =>
             {
-                TestPlan.Sleep(WaitMs);
+                TapThread.Sleep(WaitMs);
                 if (Throw)
                     throw new InvalidOperationException("Intentional");
                 else

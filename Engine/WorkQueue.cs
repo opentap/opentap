@@ -173,6 +173,7 @@ namespace OpenTap
                     if (thing == 0 && !addSemaphore.Wait(0))
                         goto retry;
                     bool ok = thing == 0;
+                    
                     if (!ok)
                     {
                         if (cancel.IsCancellationRequested == false && longRunning) continue;
@@ -209,7 +210,7 @@ namespace OpenTap
                 // #4246: this is incredibly rare, but can happen if millions of results are pushed at once.
                 //        the solution is to just slow a bit down when it happens.
                 //        100 ms sleep is OK, because it needs to do around 1M things before it's idle.
-                TestPlan.Sleep(100);
+                TapThread.Sleep(100);
             }
             Interlocked.Increment(ref countdown);
             workItems.Enqueue(f);

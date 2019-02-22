@@ -105,5 +105,33 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsFalse(SemanticVersion.Parse("2.2.2-rc") == SemanticVersion.Parse("1.2.3-rc"));
         }
 
+        /// <summary>
+        /// This tests the <see cref="SemanticVersion.CompareTo"/> method against paragraph 11 in the semver spec (https://semver.org/)
+        /// The TestCases includes all the examples given in that paragraph
+        /// </summary>
+        [TestCase("1.0.0", "2.0.0")]
+        [TestCase("1.0.0", "20.0.0")]
+        [TestCase("20.0.0", "20.200.0")]
+        [TestCase("2.0.0", "2.1.0")]
+        [TestCase("2.1.0", "2.1.1")]
+        [TestCase("1.0.0-alpha", "1.0.0")]
+        [TestCase("1.0.0-alpha", "1.0.0-alpha.1")]
+        [TestCase("1.0.0-alpha.1", "1.0.0-alpha.beta")]
+        [TestCase("1.0.0-alpha.beta", "1.0.0-beta")]
+        [TestCase("1.0.0-beta", "1.0.0-beta.2")]
+        [TestCase("1.0.0-beta.2", "1.0.0-beta.11")]
+        [TestCase("1.0.0-beta.11", "1.0.0-rc.1")]
+        [TestCase("1.0.0-rc.1", "1.1.0-beta.11")]
+        [TestCase("1.0.0-rc.1", "1.0.0")]
+        [TestCase("1.0.0-rc.1", "1.1.0-beta.11+123")]
+        [TestCase("1.0.0-rc.1", "1.0.0+csad")]
+        public void VersionPrecedenceTest(string lower, string higher)
+        {
+            var lowerVersion = SemanticVersion.Parse(lower);
+            var higherVersion = SemanticVersion.Parse(higher);
+            
+            Assert.AreEqual(2.CompareTo(1), higherVersion.CompareTo(lowerVersion));
+            Assert.AreEqual(1.CompareTo(2), lowerVersion.CompareTo(higherVersion));
+        }
     }
 }

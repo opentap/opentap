@@ -26,15 +26,22 @@ namespace OpenTap.Package
         }
     }
 
+    [Display("ObfuscateWithDotfuscator")]
+    public class DotfuscatorData : ICustomPackageData
+    {
+    }
+
     /// <summary>
     /// For obfuscation of .NET DLLs when used with the packager.
     /// </summary>
     [Display("Built-in Dotfuscator runner")]
-    public class Dotfuscator : IPackageObfuscator
+    public class Dotfuscator : ICustomPackageAction
     {
         protected readonly static TraceSource log =  OpenTap.Log.CreateSource("Dotfuscator");
 
         const string dotfuscatorCompanyFolder = "PreEmptive Solutions";
+
+        public PackageActionStage ActionStage => PackageActionStage.Create;
 
         internal static IEnumerable<ObfuscatorInput> CreateInputs(IEnumerable<string> sr)
         {
@@ -95,21 +102,25 @@ namespace OpenTap.Package
 
             return path;
         }
-        public bool CanTransform(PackageDef package)
+
+        public int Order()
         {
-            return SearchForDotfuscator() != null;
+            return 10;
         }
 
-        public bool Transform(string tempDir, PackageDef package)
+        public bool Execute(PackageDef package, CustomPackageActionArgs customActionArgs)
         {
-            if (!CanTransform(package))
+            if (!package.Files.Any(s => s.HasCustomData<DotfuscatorData>()))
                 return false;
-            
+
+            if (SearchForDotfuscator() == null)
+                throw new InvalidOperationException($"Unable to obfuscate using obfuscator. Obfuscator tool not found.");
+
             var dotfuscatorFiles = new List<string>();
             var extraDirs = new List<string>() { Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) };
             foreach (PackageFile file in package.Files)
             {
-                if (!file.DoObfuscate)
+                if (!file.HasCustomData<DotfuscatorData>())
                 {
                     extraDirs.Add(Path.GetDirectoryName(Path.GetFullPath(file.FileName)));
                     continue;
@@ -118,59 +129,23 @@ namespace OpenTap.Package
                 dotfuscatorFiles.Add(fullPath);
             }
 
-            string dotfuscatedOutput = Path.Combine(tempDir, "Dotfuscated");
+            string dotfuscatedOutput = Path.Combine(customActionArgs.TemporaryDirectory, "Dotfuscated");
 
             var programPath = SearchForDotfuscator();
-            
+
             if (programPath == null) throw new Exception("Could not find Dotfuscator");
 
             var dotfuscatorInputs = CreateInputs(dotfuscatorFiles);
-            
+
             var filePaths = dotfuscatorInputs.Select(f => Path.GetDirectoryName(Path.GetFullPath(f.RelativePath))).Concat(extraDirs).Distinct().ToArray();
 
             string inArgs = "/in:" + String.Join(",", dotfuscatorInputs.Select(file => (file.IsPublic ? "+" : "-") + '"' + file.RelativePath + '"'));
             string outArg = "/out:" + dotfuscatedOutput;
             string allArgs = String.Join(" ", new string[] { inArgs, "/honor:on /smart:on /rename:on /strip:on /keep:namespace -enha:on -cont:high -prune:off", outArg, GetConfigFilename(filePaths) });
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = programPath,
-                Arguments = allArgs,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                RedirectStandardInput = true,
-                CreateNoWindow = true
-            };
-            log.Debug("Running {0} {1}", programPath, allArgs);
-            var dotfuscatorProcess = Process.Start(startInfo);
 
-            StringBuilder stdOut = new StringBuilder();
-            StringBuilder stdErr = new StringBuilder();
+            log.Debug("Running Dotfuscator... (This might take a while)");
+            int exitCode = ProgramHelper.RunProgram(programPath, allArgs);
 
-            dotfuscatorProcess.OutputDataReceived += (s, e) =>
-            {
-                if (e.Data != null) { log.Debug(e.Data); stdOut.AppendLine(e.Data); }
-            };
-
-            dotfuscatorProcess.ErrorDataReceived += (s, e) =>
-            {
-                if (e.Data != null) { log.Error(e.Data); stdErr.AppendLine(e.Data); }
-            };
-
-            dotfuscatorProcess.BeginErrorReadLine();
-            dotfuscatorProcess.BeginOutputReadLine();
-
-            dotfuscatorProcess.WaitForExit();
-
-            if (dotfuscatorProcess.ExitCode != 0)
-            {
-                var ex = new Exception("Error during obfuscation: " + dotfuscatorProcess.ExitCode);
-
-                ex.Data["StdOut"] = stdOut.ToString();
-                ex.Data["StdErr"] = stdErr.ToString();
-
-                throw ex;
-            }
             var dotfuscatedFiles = Directory.EnumerateFiles(dotfuscatedOutput).ToList();
 
             foreach (string dotfuscatedFile in dotfuscatedFiles)
@@ -180,12 +155,11 @@ namespace OpenTap.Package
                 inputFile.FileName = dotfuscatedFile;
             }
 
+            foreach (PackageFile file in package.Files)
+            {
+                file.RemoveCustomData<DotfuscatorData>();
+            }
             return true;
-        }
-
-        public double GetOrder(PackageDef package)
-        {
-            return 10;
         }
     }
 }

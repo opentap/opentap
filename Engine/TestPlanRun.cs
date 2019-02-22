@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -66,24 +67,16 @@ namespace OpenTap
         [DataMember]
         public bool FailedToStart { get; set; }
 
-        /// <summary>
-        /// A cancellationtoken that represents a user abort.
-        /// </summary>
-        public CancellationToken AbortToken { get { return this.plan.AbortToken; } }
-
-        /// <summary>
-        /// The currently running TestPlanRun.
-        /// Null when accessed from threads other than the TestPlan thread, or threads started from the TestPlan thread using <see cref="TapThread.Start"/>.
-        /// </summary>
-        public static TestPlanRun Current => TestPlan.executingPlanRun.LocalValue;
+        /// <summary> The thread that started the test plan. Use this to abort the plan thread. </summary>
+        public TapThread MainThread { get; private set; }
         
         #region Internal Members used by the TestPlan
 
         internal IList<IResultListener> ResultListeners;
 
-        internal TaskCompletionSource<int> PromptWaitHandle = new TaskCompletionSource<int>();
+        internal ManualResetEvent PromptWaitHandle = new ManualResetEvent(false);
         /// <summary> delegates for resetting values set during ResourcePromptTasks.</summary>
-        internal List<Action> ResourcePromptReset { get; set; }
+        internal ConcurrentStack<Action> ResourcePromptReset { get; set; } = new ConcurrentStack<Action>();
 
         /// <summary> Gets if the plan should be aborted on fail verdicts.</summary>
         internal bool AbortOnStepFail { get; } = EngineSettings.Current.AbortTestPlan.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail);
@@ -221,34 +214,12 @@ namespace OpenTap
                 {
                     kw.Value.Wait();
                 }
-                if (TestPlan.Aborted)
+                if (TapThread.Current.AbortToken.IsCancellationRequested)
                     UpgradeVerdict(Verdict.Aborted);
             }
         }
 
-        internal TestPlanRun(TestPlanRun original, DateTime startTime, long startTimeStamp)
-        {
-            this.FailedToStart = false;
-            resultWorkers = original.resultWorkers;
-            
-            this.Parameters = original.Parameters; // set Parameters before setting Verdict.
-            this.Verdict = Verdict.NotSet;
-            this.ResultListeners = original.ResultListeners;
-            foreach(var resultListener in ResultListeners)
-            {
-                resultWorkers[resultListener] = new WorkQueue(WorkQueue.Options.LongRunning | WorkQueue.Options.TimeAveraging, resultListener);
-            }
-            
-            this.ResourceManager = original.ResourceManager;
-            this.StartTime = startTime;
-            this.StartTimeStamp = startTimeStamp;
-            this.IsCompositeRun = original.IsCompositeRun;
-            Id = original.Id;
-            serializePlanTask = original.serializePlanTask;
-            TestPlanXml = original.TestPlanXml;
-            TestPlanName = original.TestPlanName;
-            this.plan = original.plan;
-        }
+        
 
         /// <summary>
         /// Returns the number of threads queued.
@@ -387,6 +358,17 @@ namespace OpenTap
         #endregion
 
         /// <summary>
+        /// Waits for the given resources to become opened.
+        /// </summary>
+        /// <param name="cancel"></param>
+        /// <param name="resources"></param>
+        public void WaitForResourcesOpened(CancellationToken cancel, params IResource[] resources)
+        {
+            ResourceManager.WaitUntilResourcesOpened(cancel, resources);
+        }
+
+        #region constructors
+        /// <summary>
         /// Starts tasks to open resources. All referenced instruments and duts as well as supplied resultListeners to the plan.
         /// </summary>
         /// <param name="plan">Property Plan</param>
@@ -415,6 +397,7 @@ namespace OpenTap
             {
                 throw new ArgumentNullException("plan");
             }
+            MainThread = TapThread.Current;
             this.FailedToStart = false;
             resultWorkers = new Dictionary<IResultListener, WorkQueue>();
             this.IsCompositeRun = isCompositeRun;
@@ -472,27 +455,31 @@ namespace OpenTap
             this.plan = plan;
         }
 
-        /// <summary> Request to abort the test plan represented by this. </summary>
-        public void RequestAbort()
+        internal TestPlanRun(TestPlanRun original, DateTime startTime, long startTimeStamp)
         {
-            this.plan.RequestAbort();
+            MainThread = TapThread.Current;
+            this.FailedToStart = false;
+            resultWorkers = original.resultWorkers;
+
+            this.Parameters = original.Parameters; // set Parameters before setting Verdict.
+            this.Verdict = Verdict.NotSet;
+            this.ResultListeners = original.ResultListeners;
+            foreach (var resultListener in ResultListeners)
+            {
+                resultWorkers[resultListener] = new WorkQueue(WorkQueue.Options.LongRunning | WorkQueue.Options.TimeAveraging, resultListener);
+            }
+
+            this.ResourceManager = original.ResourceManager;
+            this.StartTime = startTime;
+            this.StartTimeStamp = startTimeStamp;
+            this.IsCompositeRun = original.IsCompositeRun;
+            Id = original.Id;
+            serializePlanTask = original.serializePlanTask;
+            TestPlanXml = original.TestPlanXml;
+            TestPlanName = original.TestPlanName;
+            this.plan = original.plan;
         }
-        
-        /// <summary> Abort the test plan run due to a specified reason. </summary>
-        /// <param name="reason"></param>
-        public void RequestAbort(string reason)
-        {
-            this.plan.RequestAbort(reason);
-        }
-        
-        /// <summary>
-        /// Waits for the given resources to become opened.
-        /// </summary>
-        /// <param name="cancel"></param>
-        /// <param name="resources"></param>
-        public void WaitForResourcesOpened(CancellationToken cancel, params IResource[] resources)
-        {
-            ResourceManager.WaitUntilResourcesOpened(cancel, resources);
-        }
+        #endregion
+
     }
 }

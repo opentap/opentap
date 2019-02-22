@@ -91,9 +91,9 @@ namespace OpenTap.Package
     {
         public override double Order { get { return 5; } }
 
-        public override bool Deserialize(XElement node, Type t, Action<object> setter)
+        public override bool Deserialize(XElement node, ITypeInfo t, Action<object> setter)
         {
-            if (t == typeof(PackageVersion[]))
+            if (t.IsA(typeof(PackageVersion[])))
             {
                 var list = new List<PackageVersion>();
                 foreach (var element in node.Elements())
@@ -102,7 +102,7 @@ namespace OpenTap.Package
                 setter(list.ToArray());
                 return true;
             }
-            if (t == typeof(PackageVersion))
+            if (t.IsA(typeof(PackageVersion)))
             {
                 setter(DeserializePackageVersion(node));
                 return true;
@@ -110,7 +110,7 @@ namespace OpenTap.Package
             return false;
         }
 
-        public override bool Serialize(XElement node, object obj, Type expectedType)
+        public override bool Serialize(XElement node, object obj, ITypeInfo expectedType)
         {
             return false;
         }

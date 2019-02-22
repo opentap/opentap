@@ -14,18 +14,6 @@ using System.Threading;
 
 namespace OpenTap.Package
 {
-    public enum Obfuscator
-    {
-        [Display("None")]
-        None,
-        [Display("Dotfuscator")]
-        Dotfuscator,
-        [Display("Obfuscar")]
-        Obfuscar,
-        [Display("Any")]
-        Any
-    }
-
     [Display("create", Group: "package", Description: "Creates a package based on an XML description file.")]
     public class PackageCreateAction : PackageAction
     {
@@ -38,9 +26,6 @@ namespace OpenTap.Package
         [CommandLineArgument("project-directory", Description = "The directory containing the GIT repo.\nUsed to get values for version/branch macros.")]
         public string ProjectDir { get; set; }
 
-        [CommandLineArgument("obfuscator", Description = "Specify which .Net obfuscator to use.")]
-        public Obfuscator Obfuscator { get; set; }
-
         [CommandLineArgument("out", Description = "Path to the output file.", ShortName = "o")]
         public string[] OutputPaths { get; set; }
 
@@ -49,7 +34,6 @@ namespace OpenTap.Package
 
         public PackageCreateAction()
         {
-            Obfuscator = Obfuscator.Dotfuscator;
             ProjectDir = Directory.GetCurrentDirectory();
         }
 
@@ -64,20 +48,14 @@ namespace OpenTap.Package
                     throw new ArgumentException("Pre Release tag must be a series of dot separated identifies that contain only letters, numbers and hyphens '[0-9A-Za-z-]'.");
             }
 
-            if ((OutputPaths == null) || (OutputPaths.Length == 0))
-                return Process(null);
-
-            foreach (var OutputPath in OutputPaths)
-            {
-                var result = Process(OutputPath);
+                var result = Process(OutputPaths);
 
                 if (result != 0)
                     return result;
-            }
             return 0;
         }
 
-        private int Process(string OutputPath)
+        private int Process(string[] OutputPaths)
         {
             try
             {
@@ -104,25 +82,7 @@ namespace OpenTap.Package
                         return 5;
                     }
                     
-                    if (OutputPath == "xml")
-                        OutputPath = PackageDef.GetPackageDefinitionInstallPath(pkg);
 
-                    if (Path.GetExtension(OutputPath) == ".xml")
-                    {
-                        pkg.updateVersion(ProjectDir, PreRelease);
-                        if (pkg.Version == null)
-                            log.Warning("Package version is empty");
-                        else
-                            log.Info("Package version is {0}", pkg.Version);
-
-                        pkg.PruneInformation();
-
-                        if(!String.IsNullOrWhiteSpace(Path.GetDirectoryName(OutputPath)))
-                            Directory.CreateDirectory(Path.GetDirectoryName(OutputPath)); // if PackageDef.PackageDefDirectory does not exist, the line below can fail
-                        using (var stream = File.Create(OutputPath))
-                            pkg.SaveTo(stream);
-                        return 0; // return now, outputting only the transformed xml
-                    }
                 }
                 catch (AggregateException aex)
                 {
@@ -145,15 +105,35 @@ namespace OpenTap.Package
                 
                 var tmpFile = Path.GetTempFileName();
                 
-                pkg.CreatePackage(tmpFile, ProjectDir, false, PreRelease, Obfuscator);
+                pkg.CreatePackage(tmpFile, ProjectDir, false, PreRelease);
 
-                if (String.IsNullOrEmpty(OutputPath))
-                    OutputPath = GetRealFilePath(pkg.Name, pkg.Version.ToString(), DefaultEnding);
+                if (OutputPaths == null || OutputPaths.Length == 0)
+                    OutputPaths = new string[1] { "" };
 
-                Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(OutputPath)));
+                foreach (var outputPath in OutputPaths)
+                {
+                    var path = outputPath;
 
-                Utils.FileCopy(tmpFile, OutputPath);
-                log.Info("TAP plugin package '{0}' containing '{1}' successfully created.", OutputPath, pkg.Name);
+                    if (path.EndsWith(".xml"))
+                    {
+                        File.Delete(path);
+                        using (FileStream fs = new FileStream(path, FileMode.CreateNew))
+                        {
+                            pkg.SaveTo(fs);
+                        }
+                        log.Info("TAP plugin package definition '{0}' for '{1}' successfully created.", path, pkg.Name);
+                        continue;
+                    }
+
+                    if (String.IsNullOrEmpty(path))
+                        path = GetRealFilePath(pkg.Name, pkg.Version.ToString(), DefaultEnding);
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)));
+
+                    ProgramHelper.FileCopy(tmpFile, path);
+                    log.Info("TAP plugin package '{0}' containing '{1}' successfully created.", path, pkg.Name);
+                }
+
             }
             catch (ArgumentException ex)
             {

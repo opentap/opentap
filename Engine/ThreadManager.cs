@@ -20,29 +20,28 @@ namespace OpenTap
         /// </summary>
         Queued,
         /// <summary>
-        /// A thread is currently processing the work.
+        /// Work is currently being processed.
         /// </summary>
         Running,
         /// <summary>
-        /// The work has completed.
+        /// Work has completed.
         /// </summary>
         Completed
     }
 
     /// <summary>
-    /// Represents a item of work in the <see cref="ThreadManager"/>. Also allows access to the Parent <see cref="TapThread"/> (the one that <see cref="TapThread.Start"/>ed the work represented by this object)
+    /// Represents a item of work in the <see cref="ThreadManager"/>. Also allows access to the Parent <see cref="TapThread"/> (the thread that initially called<see cref="TapThread.Start"/>)
     /// </summary>
     public class TapThread
     {
+        #region fields
         static ThreadManager manager = new ThreadManager();
+        Action action;
+        readonly CancellationTokenSource abortTokenSource;
+        static readonly TraceSource Log = OpenTap.Log.CreateSource("TapThread");
+        #endregion
 
-        /// <summary> Enqueue an action to be executed asynchroniously. </summary>
-        /// <param name="f"></param>
-        public static TapThread Start(Action f)
-        {
-            return manager.Enqueue(f);
-        }
-
+        #region properties
         /// <summary>
         /// The currently running TapThread
         /// </summary>
@@ -50,28 +49,167 @@ namespace OpenTap
         {
             get
             {
-                if (ThreadManager.ThreadKey == null) ThreadManager.ThreadKey = new TapThread(null, null);
+                if (ThreadManager.ThreadKey == null)
+                {
+                    ThreadManager.ThreadKey = new TapThread(null, null);
+                }
                 return ThreadManager.ThreadKey;
             }
         }
 
-        internal Action action;
-
-        /// <summary>
-        /// the <see cref="TapThread"/> that <see cref="Start"/>ed the work represented by this TapThread.
-        /// </summary>
-        public readonly TapThread Parent;
-
         /// <summary>
         /// The execution status of the work
         /// </summary>
-        public TapThreadStatus Status { get; internal set; }
+        public TapThreadStatus Status { get; private set; }
 
+        /// <summary>
+        /// The abort token for this thread. Provides an interface to check the cancellation status of the current thread. Note, the status of this token is inherited from parent threads.
+        /// </summary>
+        public CancellationToken AbortToken => abortTokenSource.Token;
+
+        /// <summary>
+        /// The parent <see cref="TapThread">TapThread</see> that started this thread. In case it is null, then it is 
+        /// not a managed <see cref="TapThread">TapThread</see>.
+        /// </summary>
+        public TapThread Parent { get; private set; }
+        #endregion
+
+        #region ctor
         internal TapThread(TapThread parent, Action action)
         {
             this.action = action;
             Parent = parent;
             Status = TapThreadStatus.Queued;
+            if (parent is TapThread parentThread)
+            {
+                // Create a new cancellation token source and link it to the thread's parent abort token.
+                abortTokenSource = CancellationTokenSource.CreateLinkedTokenSource(parentThread.abortTokenSource.Token);
+            }
+            else
+            {
+                // Create a new cancellation token source in case this thread has not TapThread parent.
+                abortTokenSource = new CancellationTokenSource();
+            }
+        }
+
+        /// <summary> </summary>
+        ~TapThread()
+        {
+            abortTokenSource.Dispose();
+        }
+        #endregion
+
+        /// <summary>
+        /// Aborts the execution of this current instance of the <see cref="TapThread">TapThread</see>.
+        /// </summary>
+        public void Abort()
+        {
+            Abort(null);
+        }
+
+        /// <summary>
+        /// Aborts the execution of this current instance of the <see cref="TapThread">TapThread</see> with a
+        /// specified reason.
+        /// <param name="reason">Thea reason to abort.</param>
+        /// </summary>
+        internal void Abort(string reason)
+        {
+            Log.Debug("Thread abort requested.");
+            abortTokenSource.Cancel();
+            if (Current.AbortToken.IsCancellationRequested)
+            {
+                // Check if the aborted thread is the current thread or a parent of it.
+                // if so then throw.
+                var trd = Current;
+                while(trd != null)
+                {
+                    if (this == trd)
+                    {
+                        if(reason != null)
+                            throw new OperationCanceledException(reason, Current.AbortToken);
+                        else
+                            Current.AbortToken.ThrowIfCancellationRequested();
+                    }
+                    trd = trd.Parent;
+                }
+            }
+        }
+
+        /// <summary> Enqueue an action to be executed asynchroniously. </summary>
+        /// <param name="action">The action to be executed.</param>
+        public static TapThread Start(Action action)
+        {
+            if (action == null)
+                throw new ArgumentNullException(nameof(action), "Action to be executed cannot be null.");
+            return manager.Enqueue(action);
+        }
+
+        /// <summary>
+        ///  Blocks the current thread until the current System.Threading.WaitHandle receives 
+        ///  a signal, using a 32-bit signed integer to specify the time interval in milliseconds.
+        /// </summary>
+        /// <param name="millisecondsTimeout">The number of milliseconds to wait, or 0 by default.</param>
+        public static void Sleep(int millisecondsTimeout)
+        {
+            Sleep(TimeSpan.FromMilliseconds(millisecondsTimeout));
+        }
+
+        /// <summary> Throws an OperationCancelledException if the current TapThread has been aborted. This is the same as calling TapThread.Current.AbortToken.ThrowIfCancellationRequested(). </summary>
+        public static void ThrowIfAborted()
+        {
+            Current.AbortToken.ThrowIfCancellationRequested();
+        }
+
+        /// <summary> Blocks the current thread for a specified amount of time. Will throw an OperationCancelledException if the 
+        /// thread is aborted during this time.</summary>
+        /// <param name="timeSpan">A System.TimeSpan that represents the number of milliseconds to wait.</param>
+        public static void Sleep(TimeSpan timeSpan)
+        {
+            var cancellationToken = Current.AbortToken;
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (timeSpan <= TimeSpan.Zero)
+                return;
+
+            TimeSpan min(TimeSpan a, TimeSpan b)
+            {
+                return a < b ? a : b;
+            }
+
+            TimeSpan longTime = TimeSpan.FromHours(1);
+            var sw = Stopwatch.StartNew();
+
+            while (true)
+            {
+                var timeleft = timeSpan - sw.Elapsed;
+                if (timeleft <= TimeSpan.Zero)
+                    break;
+
+                // if plan.abortAllowed is false, the token might be canceled,
+                // but we still cannot abort, so in that case we need to default to Thread.Sleep
+
+                if (cancellationToken.WaitHandle.WaitOne(min(timeleft, longTime)))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+            }
+        }
+
+        internal void Process()
+        {
+            if (action == null) throw new InvalidOperationException("TapThread cannot be executed twice.");
+            Status = TapThreadStatus.Running;
+            try
+            {
+                action();
+            }
+            finally
+            {
+                Status = TapThreadStatus.Completed;
+                // set action to null to signal that it has been processed.
+                // also to allow GC to clean up closures.
+                action = null; 
+            }
         }
     }
 
@@ -181,57 +319,53 @@ namespace OpenTap
 
                 while (cancelSrc.IsCancellationRequested == false)
                 {
+                    int state = WaitHandle.WaitAny(handles, timeout);
+                    if (state == WaitHandle.WaitTimeout)
+                    {
+                        if (ThreadCount < idleThreadCount)
+                            continue;
+                        break;
+                    }
+                    freeWorkSemaphore.Wait(0); // decrement the semaphore - It's not done through WaitAny.
+                    if (workQueue.Count == 0)
+                        continue; // Someone already handled the work. go back to sleep.
+
+                    // once resumed, crunch as much as possible.
+                    // this will reduce latency and cause some threads to wake up just to go to sleep again.
+                    Interlocked.Decrement(ref freeWorkers);
                     try
                     {
-                        int state = WaitHandle.WaitAny(handles, timeout);
-                        if (state == WaitHandle.WaitTimeout)
+                        while (cancelSrc.IsCancellationRequested == false && workQueue.TryDequeue(out TapThread work))
                         {
-                            if (ThreadCount < idleThreadCount)
-                                continue;
-                            break;
-                        }
-                        freeWorkSemaphore.Wait(0); // decrement the semaphore - It's not done through WaitAny.
-                        if (workQueue.Count == 0)
-                            continue; // Someone already handled the work. go back to sleep.
-
-                        // once resumed, crunch as much as possible.
-                        // this will reduce latency and cause some threads to wake up just to go to sleep again.
-
-                        Interlocked.Decrement(ref freeWorkers);
-                        try
-                        {
-                            while (cancelSrc.IsCancellationRequested == false && workQueue.TryDequeue(out TapThread work))
+                            try
                             {
-                                try
-                                {
-                                    ThreadKey = work;
-                                    ThreadKey.Status = TapThreadStatus.Running;
-                                    work.action();
-                                    
-                                }
-                                finally
-                                {
-                                    ThreadKey.Status = TapThreadStatus.Completed;
-                                    ThreadKey = null;
-                                }
+                                ThreadKey = work;
+                                work.Process();
+                            }
+                            finally
+                            {
+                                ThreadKey = null;
                             }
                         }
-                        finally
-                        {
-                            Interlocked.Increment(ref freeWorkers);
-                        }
                     }
-                    catch
+                    finally
                     {
-                        throw;
+                        Interlocked.Increment(ref freeWorkers);
                     }
                 }
             }
-            catch (Exception e)
+            catch (OperationCanceledException)
+            {
+
+            }
+            catch (ThreadAbortException)
+            {
+                // Can be throws when the application exits.
+            }
+            catch (Exception)
             {
                 // exceptions should be handled at the 'work' level.
-                if((e is ThreadAbortException) == false)
-                    Debug.Fail("Exception unhandled in worker thread.");
+                Debug.Fail("Exception unhandled in worker thread.");
             }
             finally
             {
@@ -265,7 +399,7 @@ namespace OpenTap
         {
             get
             {
-                var identifier = TapThread.Current;
+                TapThread identifier = TapThread.Current;
                 while (identifier != null)
                 {
                     if (threadObjects.TryGetValue(identifier, out var value))
@@ -280,6 +414,7 @@ namespace OpenTap
                 if (threadObjects.TryGetValue(identifier, out var _))
                     threadObjects.Remove(identifier);
                 threadObjects.Add(identifier, value);
+
             }
         }
     }

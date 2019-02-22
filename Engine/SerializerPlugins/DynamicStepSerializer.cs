@@ -15,29 +15,52 @@ namespace OpenTap.Plugins
     {
         /// <summary> The order of this serializer. </summary>
         public override double Order { get { return new TestStepSerializer().Order + 1; } }
+        
+
+        /// <summary>
+        /// Serializes a dynamic step.
+        /// </summary>
+        /// <param name="elem"></param>
+        /// <param name="obj"></param>
+        /// <param name="expectedType"></param>
+        /// <returns></returns>
+        public override bool Serialize(XElement elem, object obj, ITypeInfo expectedType)
+        {
+            if (obj is IDynamicStep == false) return false;
+            if (serializing.Contains(elem)) return false;
+            var step = (IDynamicStep)obj;
+
+            try
+            {
+                serializing.Add(elem);
+                return Serializer.Serialize(elem, obj, expectedType);
+            }
+            finally
+            {
+                serializing.Remove(elem);
+                elem.SetAttributeValue("type", step.GetStepFactoryType().FullName);
+            }
+        }
 
         HashSet<XElement> currentNode = new HashSet<XElement>();
         /// <summary> Deserialization implementation. </summary>
-        public override bool Deserialize(XElement elem, Type t, Action<object> setter)
+        public override bool Deserialize(XElement elem, ITypeInfo t, Action<object> setter)
         {
-            if (t.HasInterface<IDynamicStep>() == false)
+            if (t.DescendsTo(typeof(IDynamicStep)) == false)
                 return false;
             
             try
             {
-                IDynamicStep step = (IDynamicStep)Activator.CreateInstance(t);
+                IDynamicStep step = (IDynamicStep)t.CreateInstance(Array.Empty<object>());
                 Serializer.Register(step);
                 var toIgnore = new HashSet<string>();
 
-                TryDeserializeObject(elem, step.GetType(), setter, step, logWarnings: false);
+                TryDeserializeObject(elem, TypeInfo.GetTypeInfo(step), setter, step, logWarnings: false);
                 
-
                 ITestStep genStep = step.GetStep();
-                if(genStep != step)
-                    Serializer.Register(genStep);
                 bool res = true;
                 if (elem.IsEmpty == false)
-                    res = TryDeserializeObject(elem, genStep.GetType(), setter, genStep, logWarnings: false);
+                    res = TryDeserializeObject(elem, TypeInfo.GetTypeInfo(genStep), setter, genStep, logWarnings: false);
                 else
                     setter(genStep);
                 Serializer.GetSerializer<TestStepSerializer>().FixupStep(genStep, true);
@@ -54,24 +77,6 @@ namespace OpenTap.Plugins
         
         const int testStepSizeThreshCompress = 4096;
         HashSet<XElement> serializing = new HashSet<XElement>();
-        /// <summary> Serialization implementation. </summary>
-        public override bool Serialize(XElement elem, object obj, Type expectedType)
-        {
-            if (obj is IDynamicStep == false) return false;
-            if (serializing.Contains(elem)) return false;
-            var step = (IDynamicStep)obj;
-            
-            try
-            {
-                serializing.Add(elem);
-                return Serializer.Serialize(elem, obj, expectedType);
-            }
-            finally
-            {
-                serializing.Remove(elem);
-                elem.SetAttributeValue("type", step.GetStepFactoryType().FullName);
-            }
-        }
     }
 
 }

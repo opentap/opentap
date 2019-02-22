@@ -7,7 +7,7 @@
     <Description >This is my TAP plugin package.</Description>
     <PackageRepositoryUrl>C:\Users\steholst\Source\Repos\tap2\bin\Debug\TapPlugins\MyPlugin1.TapPlugin</PackageRepositoryUrl>
     <Files>
-      <File Path="Tap.Plugins.MyPlugin1.dll" Obfuscate="false" UseVersion="false">
+      <File Path="Tap.Plugins.MyPlugin1.dll">
         <Plugins>
           <Plugin>Tap.Plugins.MyPlugin1.Step</Plugin>
         </Plugins>

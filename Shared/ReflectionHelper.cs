@@ -245,6 +245,14 @@ namespace OpenTap
                         {
                             if (iface.GetGenericTypeDefinition() == otherType)
                                 return true;
+                        }   
+                    }
+                    if (t.IsInterface)
+                    {
+                        if (t.IsGenericType)
+                        {
+                            if (t.GetGenericTypeDefinition() == otherType)
+                                return true;
                         }
                     }
                 }

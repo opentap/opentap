@@ -11,6 +11,7 @@ using System.Text;
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.Serialization;
+using OpenTap.Plugins;
 
 namespace OpenTap
 {
@@ -22,6 +23,23 @@ namespace OpenTap
         /// Called when the object has been deserialized.
         /// </summary>
         void OnDeserialized();
+    }
+
+    /// <summary> Indicates that a property should be deserialized after everything else. </summary>
+    [AttributeUsage(AttributeTargets.Property)]
+    public class DelayDeserializeAttribute : Attribute
+    {
+
+    }
+
+    /// <summary>
+    /// Can be used to control the order of the serialization of members.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Property)]
+    public class SerializationOrderAttribute : Attribute
+    {
+        /// <summary> The order in which the member will be serialized. Higher order, means it will be serialized later. Minimum value is 0, which is the order of unmarked elements.</summary>
+        public double Order { get; set; }
     }
 
     /// <summary>
@@ -77,8 +95,16 @@ namespace OpenTap
             var node1 = document.Elements().First();
             object serialized = null;
             this.ReadPath = path;
-            Deserialize(node1, x => serialized = x, t: type);
-            
+            var prevSer = CurrentSerializer.Value;
+            CurrentSerializer.Value = this;
+            try
+            {
+                Deserialize(node1, x => serialized = x, type);
+            }
+            finally
+            {
+                CurrentSerializer.Value = prevSer;
+            }
             if (autoFlush)
                 Flush();
             return serialized;
@@ -146,12 +172,12 @@ namespace OpenTap
             return Deserialize(XDocument.Load(file, LoadOptions.SetLineInfo), type: type, autoFlush: flush, path: file);
         }
 
-        TapSerializerPlugin[] serializers;
-        readonly Stack<TapSerializerPlugin> activeSerializers = new Stack<TapSerializerPlugin>(32);
+        object[] serializers;
+        readonly Stack<object> activeSerializers = new Stack<object>(32);
         /// <summary>
         /// The stack of serializers. Changes during serialization depending on the order of serializers used.
         /// </summary>
-        public IEnumerable<TapSerializerPlugin> SerializerStack { get { return activeSerializers; } }
+        public IEnumerable<TapSerializerPlugin> SerializerStack => activeSerializers.OfType<TapSerializerPlugin>();
 
         /// <summary>
         /// True if errors should be ignored.
@@ -178,8 +204,31 @@ namespace OpenTap
         {
             var previousValue = CurrentSerializer.Value;
             CurrentSerializer.Value = this;
-            serializers = PluginManager.GetPlugins<TapSerializerPlugin>().Select(Activator.CreateInstance)
-                .Cast<TapSerializerPlugin>().ToArray().OrderByDescending(x => x.Order).ToArray();
+
+            var plugins = PluginManager.GetPlugins<ITapSerializerPlugin>();
+            serializers = plugins.Select(x =>
+            {
+                try
+                {
+                    return Activator.CreateInstance(x);
+                }
+                catch
+                {
+                    return null;
+                }
+            }).ToArray();
+
+            var values = serializers.Select(x =>
+            {
+                switch (x)
+                {
+                    case ITapSerializerPlugin p: return -p.Order;
+                    default: return 1000;
+                }
+            }).ToArray();
+
+            Array.Sort(values, serializers, 0, values.Length);
+
             CurrentSerializer.Value = previousValue;
         }
 
@@ -215,35 +264,49 @@ namespace OpenTap
         /// <returns></returns>
         public bool Deserialize(XElement element, Action<object> setter, Type t = null)
         {
-            var typeattribute = element.Attribute("type");
+            return Deserialize(element, setter, t != null ? CSharpTypeInfo.Create(t) : null);
+        }
 
+        /// <summary>
+        /// Deserializes an object from XML.
+        /// </summary>
+        /// <param name="element"></param>
+        /// <param name="setter"></param>
+        /// <param name="t"></param>
+        /// <returns></returns>
+        public bool Deserialize(XElement element, Action<object> setter, ITypeInfo t)
+        {
+            var typeattribute = element.Attribute("type");
             if (typeattribute != null)
             {   // if a specific type is given by the element use that.
                 // If it cannot be found fall back on previous value.
                 // This can happen if LocateType cannot find it, eg. private type.
-                var newtype = PluginManager.LocateType(typeattribute.Value);
-                if (newtype != null)
+                var t2 = TypeInfo.GetTypeInfo(typeattribute.Value);
+                
+                if (t2 != null)
                 {
-                    t = newtype;
+                    t = t2;
                 }
                 else
                 {
                     var message = string.Format("Unable to locate type '{0}'. Are you missing a plugin?", typeattribute.Value);
                     log.Warning(element, message);
                     PushError(element, message);
-                    if(t == null)
+                    if (t == null)
                         return false;
                 }
             }
-            if (t == null) t = typeof(object);
+            if (t == null) t = CSharpTypeInfo.Create(typeof(object));
             foreach (var serializer in serializers)
             {
                 try
                 {
                     activeSerializers.Push(serializer);
-                    if (serializer.Deserialize(element, t, setter))
-                        return true;
-
+                    if (serializer is ITapSerializerPlugin ser2)
+                    {
+                        if (ser2.Deserialize(element, t, setter))
+                            return true;
+                    }
                 }
                 finally
                 {
@@ -301,26 +364,40 @@ namespace OpenTap
             }
         }
         
+
         /// <summary>
-        /// Serializes an object to an XElement.
+        /// Serializes an object to XML.
         /// </summary>
         /// <param name="elem"></param>
         /// <param name="obj"></param>
         /// <param name="expectedType"></param>
         /// <returns></returns>
-        public bool Serialize(XElement elem, object obj, Type expectedType = null)
+        public bool Serialize(XElement elem, object obj, ITypeInfo expectedType = null)
         {
-            Type type = obj != null ? obj.GetType() : expectedType;
-            if (type != expectedType)
-                elem.SetAttributeValue("type", type.FullName);
+            ITypeInfo type = null;
+            if(obj != null)
+            {
+                type = TypeInfo.GetTypeInfo(obj);
+            }
+            if (Object.Equals(type, expectedType) == false && type != null)
+                elem.SetAttributeValue("type", type.Name);
 
             foreach (var serializer in serializers)
             {
                 try
                 {
                     activeSerializers.Push(serializer);
-                    if (serializer.Serialize(elem, obj, type))
-                        return true;
+                    if(serializer is ITapSerializerPlugin ser)
+                    {
+                        if (ser.Serialize(elem, obj, type))
+                            return true;
+                    }
+                    else if(serializer is TapSerializerPlugin ser2)
+                    {
+
+                        if (ser2.Serialize(elem, obj, type))
+                            return true;
+                    }
                 }
                 finally
                 {
@@ -328,6 +405,7 @@ namespace OpenTap
                 }
             }
             return false;
+
         }
 
         internal static string MakeValidXmlName(string name)
@@ -414,7 +492,7 @@ namespace OpenTap
         {
             TapSerializer serializer = null;
             serializerSteps.TryGetValue(@object, out serializer);
-            return serializer;
+            return serializer ?? CurrentSerializer.Value;
         }
 
         /// <summary> The path where the current file is being loaded from. This might be null in cases where it's being loaded from a stream.</summary>

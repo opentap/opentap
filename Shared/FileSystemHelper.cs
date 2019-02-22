@@ -83,55 +83,6 @@ namespace OpenTap
             return Path.Combine(System.IO.Path.GetTempPath(), Path.GetRandomFileName());
         }
 
-        static string WildcardToRegex(string pattern)
-        {
-            return "^" + Regex.Escape(pattern).
-                Replace("\\*", ".*").
-                Replace("\\?", ".") + "$";
-        }
-
-        public static IEnumerable<string> ExpandWildcards(string path)
-        {
-            if (path == null)
-                throw new ArgumentNullException("path");
-            var splitted = path.Split('\\');
-            if (splitted.Last().Contains('*'))
-            {
-                string dir = String.Join("\\", splitted.Take(splitted.Length - 1));
-                var reg = new Regex(WildcardToRegex(splitted.Last()));
-                try
-                {
-                    var files = Directory.GetFiles(dir, "*")
-                        .Where(file =>
-                        {
-                            var name = Path.GetFileName(file);
-                            return reg.Match(name).Success;
-                        });
-                    return files;
-                }
-                catch (DirectoryNotFoundException)
-                {
-                    Console.WriteLine(String.Format("Directory {0} not found", dir));
-                }
-                return new string[0];
-
-            }
-            else if (File.GetAttributes(path).HasFlag(FileAttributes.Directory))
-            {
-                return Directory.GetFiles(path);
-            }
-            else
-            {
-                return new string[] { path };
-            }
-        }
-
-        public static void CheckPathIsRelative(string path)
-        {
-            if (Path.IsPathRooted(path))
-                throw new ArgumentException("Paths must be relative.");
-        }
-
         /// <summary>
         /// Compares two paths to get the relative between base and end. The string has to be a standard file system string like "C:\Program Files\...".
         /// </summary>

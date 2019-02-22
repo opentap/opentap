@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -17,9 +18,14 @@ namespace OpenTap.Package
     {
         readonly static TraceSource log =  OpenTap.Log.CreateSource("PackageAction");
 
-        private class DepRequest : PlatformRequest<bool>
+        private class DepRequest
         {
+            [Browsable(true)]
+            [Layout(LayoutMode.FullRow)]
+            public string Message => message;
+            internal string message;
             internal string PackageName { get; set; }
+            public bool Response { get; set; }
         }
 
         internal static PackageDef FindPackage(PackageSpecifier packageReference, bool force, string installDir)
@@ -230,19 +236,20 @@ namespace OpenTap.Package
                     }
                     else if (askToIncludeDependencies)
                     {
-                        //log.Debug($"Force is not set, asking user to install dependencies.");
                         var pkgs = new List<DepRequest>();
 
                         foreach (var package in resolver.MissingDependencies)
                         {
-                            pkgs.Add(new DepRequest { PackageName = package.Name, Message = string.Format("{0} {1}", package.Name, package.Version), Response = true });
+                            // Handle each package at a time.
+                            DepRequest req = null;
+                            pkgs.Add(req = new DepRequest { PackageName = package.Name, message = string.Format("{0} {1}", package.Name, package.Version), Response = true });
+                            UserInput.Request(req, TimeSpan.MaxValue, true);
                         }
-
-                        var resp = PlatformInteraction.WaitForInput(pkgs.Cast<IPlatformRequest>().ToList(), TimeSpan.MaxValue, PlatformInteraction.RequestType.CustomModal, "Also install these dependencies?").OfType<DepRequest>().ToList();
+                        
 
                         foreach (var pkg in resolver.MissingDependencies)
                         {
-                            var res = resp.FirstOrDefault(r => r.PackageName == pkg.Name);
+                            var res = pkgs.FirstOrDefault(r => r.PackageName == pkg.Name);
 
                             if ((res != null) && res.Response)
                             {

@@ -17,6 +17,8 @@
     <OutputPath>..\..\bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE;KEYSIGHT_INTERNAL</DefineConstants>
     <Optimize>false</Optimize>
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
@@ -49,6 +51,6 @@
   </Target>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <PackageReference Include="EnvDTE" Version="8.0.2"/>
+    <PackageReference Include="EnvDTE" Version="8.0.2" />
   </ItemGroup>
 </Project>

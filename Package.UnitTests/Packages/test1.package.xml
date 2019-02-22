@@ -1,6 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
-<Package Name="Test1" Version="1.2.3+4"  xmlns="http://keysight.com/schemas/TAP/Package">
+<Package Name="Test1" Version="1.2.3+4"  xmlns="http://opentap.io/schemas/package">
   <Files>
-    <File Path="nunit.framework.dll" Obfuscate="false" UseVersion="true"></File>
+    <File Path="nunit.framework.dll">
+    	<UseVersion/>
+    </File>
   </Files>
 </Package>

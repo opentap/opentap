@@ -468,7 +468,7 @@ namespace OpenTap.Package.SetAsmInfo
                 if (!IL.Assemble(tmpIL, tmpDest, isDLL, Path.ChangeExtension(tmpIL, "res")))
                     throw new Exception(string.Format("Failed to assemble IL code."));
 
-                Utils.FileCopy(tmpDest, filename);
+                ProgramHelper.FileCopy(tmpDest, filename);
 
                 File.Delete(tmpDest);
                 File.Delete(tmpIL);

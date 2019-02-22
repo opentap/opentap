@@ -25,7 +25,7 @@ namespace OpenTap.Plugins
             /// <summary>
             /// The external param property.
             /// </summary>
-            public PropertyInfo Property;
+            public IMemberInfo Property;
             /// <summary>
             ///  The name of the external test plan parameter.
             /// </summary>
@@ -47,7 +47,7 @@ namespace OpenTap.Plugins
         public readonly Dictionary<string, string> PreloadedValues = new Dictionary<string, string>();
 
         /// <summary> Deserialization implementation. </summary>
-        public override bool Deserialize( XElement elem, Type t, Action<object> setter)
+        public override bool Deserialize( XElement elem, ITypeInfo t, Action<object> setter)
         {
             if (currentNode.Contains(elem)) return false;
             
@@ -61,7 +61,7 @@ namespace OpenTap.Plugins
                 currentNode.Add(elem);
                 try
                 {
-                    UnusedExternalParamData.Add(new ExternalParamData { Object = (ITestStep)stepSerializer.Object, Property = stepSerializer.Property, Name = attr.Value });
+                    UnusedExternalParamData.Add(new ExternalParamData { Object = (ITestStep)stepSerializer.Object, Property = stepSerializer.CurrentMember, Name = attr.Value });
                     return Serializer.Deserialize(elem, setter, t);
                 }
                 finally
@@ -73,7 +73,7 @@ namespace OpenTap.Plugins
             currentNode.Add(elem);
             try
             {
-                var prop = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault().Property;
+                var prop = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault().CurrentMember;
                 var extParam = planSerializer.Plan.ExternalParameters.Add((ITestStep)stepSerializer.Object, prop, attr.Value);
                 
                 bool ok = Serializer.Deserialize(elem, setter, t);
@@ -95,13 +95,13 @@ namespace OpenTap.Plugins
         }
 
         /// <summary> Serialization implementation. </summary>
-        public override bool Serialize( XElement elem, object obj, Type expectedType)
+        public override bool Serialize( XElement elem, object obj, ITypeInfo expectedType)
         {
             if (currentNode.Contains(elem)) return false;
             
 
             ObjectSerializer objSerializer = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
-            if (objSerializer == null || objSerializer.Property == null || false == objSerializer.Object is ITestStep)
+            if (objSerializer == null || objSerializer.CurrentMember == null || false == objSerializer.Object is ITestStep)
                 return false;
             ITestStep step = (ITestStep)objSerializer.Object;
             TestPlan plan = null;
@@ -114,7 +114,7 @@ namespace OpenTap.Plugins
             if (plan == null)
                 return false;
             
-            var external = plan.ExternalParameters.Find(objSerializer.Object as ITestStep, objSerializer.Property);
+            var external = plan.ExternalParameters.Find(objSerializer.Object as ITestStep, objSerializer.CurrentMember);
             if(external != null)
             {
                 elem.SetAttributeValue("external", external.Name);

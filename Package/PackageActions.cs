@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -37,16 +38,7 @@ namespace OpenTap.Package
         }
 
         /// <summary>
-        /// Get the named mutex used to lock the TAP installation directory (the dir that we are executing from) while it is beeing changed.
-        /// </summary>
-        /// <returns></returns>
-        public static Mutex GetMutex()
-        {
-            return GetMutex(GetLocalInstallationDir());
-        }
-
-        /// <summary>
-        /// Get the named mutex used to lock the specified TAP installation directory while it is beeing changed.
+        /// Get the named mutex used to lock the specified TAP installation directory while it is being changed.
         /// </summary>
         /// <param name="target">The TAP installation directory</param>
         /// <returns></returns>
@@ -504,7 +496,7 @@ namespace OpenTap.Package
 
             if (packages.Any(p => p.Files.Any(f => f.FileName.ToLower().EndsWith("OpenTap.dll"))))
             {
-                log.Error("TAP Base cannot be uninstalled.");
+                log.Error("OpenTAP cannot be uninstalled.");
                 return false;
             }
 
@@ -516,9 +508,10 @@ namespace OpenTap.Package
                     string.Join(" and ", packages.Select(p => p.Name)),
                     string.Join("\n", packagesWithIssues.Select(p => p.Name + " " + p.Version)));
 
-                var resp = PlatformInteraction.WaitForInput(new List<IPlatformRequest> { new PlatformRequest<bool> { Message = question + "\nContinue?", Response = true } }, TimeSpan.MaxValue, PlatformInteraction.RequestType.CustomModal);
+                var req = new ContinueRequest { message = question + "\nContinue?", Response = true };
+                UserInput.Request(req, TimeSpan.MaxValue, true);
 
-                return (bool)resp.Single().Response;
+                return req.Response;
             }
             else
             {
@@ -532,6 +525,15 @@ namespace OpenTap.Package
                 return true;
             }
         }
+    }
+
+    class ContinueRequest
+    {
+        [Browsable(true)]
+        public string Message => message;
+        internal string message;
+        public string Name { get; private set; } = "Continue?";
+        public bool Response { get; set; }
     }
 
     [Display("test", Group: "package", Description: "Runs tests on one or more packages.")]

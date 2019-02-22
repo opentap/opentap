@@ -18,9 +18,9 @@ namespace OpenTap.Plugins
             get { return 2; }
         }
         /// <summary> Deserialization implementation. </summary>
-        public override bool Deserialize(XElement elem, Type t, Action<object> setResult)
+        public override bool Deserialize(XElement elem, ITypeInfo t, Action<object> setResult)
         {
-            if (t != typeof(TestStepList)) return false;
+            if (t.IsA(typeof(TestStepList)) == false) return false;
             var steps = new TestStepList();
             foreach (var subnode in elem.Elements())
             {
@@ -55,7 +55,7 @@ namespace OpenTap.Plugins
         }
 
         /// <summary> Serialization implementation. </summary>
-        public override bool Serialize( XElement elem, object target, Type expectedType)
+        public override bool Serialize( XElement elem, object target, ITypeInfo expectedType)
         {
             if(target is TestStepList)
             {

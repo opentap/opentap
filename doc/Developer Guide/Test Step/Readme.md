@@ -4,7 +4,7 @@ Test Step
 A test step plugin is developed by extending the **TestStep** base class. As you develop test steps, Keysight recommends the following:
 
 -	Isolate each test step into a single .cs file, with a name similar to the display name. This makes the code easy to find, and focused on a single topic. 
--	Use **Testplan.Sleep()** for sleep statements. This makes it possible for the user to abort the test plan during the sleep state.
+-	Use **TapThread.Sleep()** for sleep statements. This makes it possible for the user to abort the test plan during the sleep state.
 
 ## Default Implementation
 
@@ -215,11 +215,11 @@ To log duration, overloads of the `Debug()`, `Info()`, `Warning()` and `Error()`
 ```csharp
 // The Log can accept a Stopwatch Object to be used for timing analysis
 Stopwatch sw1 = Stopwatch.StartNew();
-TestPlan.Sleep(100);
+TapThread.Sleep(100);
 Log.Info(sw1, "Info from Run");
 
 Stopwatch sw2 = Stopwatch.StartNew();
-TestPlan.Sleep(200);
+TapThread.Sleep(200);
 Log.Error(sw2, "Error from step");
 ```
 This will result in a log message containing the event text and a time duration tag enclosed in square brackets. 
@@ -230,13 +230,13 @@ This will result in a log message containing the event text and a time duration 
 The time duration tags make it possible to do more advanced post timing analysis. The Timing Analyzer tool visualizes the timing of all log messages with time stamps. 
 
 ### Exception Logging
-Errors that occur during test step execution prevent the step from finishing. If an exception is thrown in a test step run method, it will abort the execution of the test step. The exception will be caught by the TestPlan and it will move on to executing the next step.
+Errors are generally expressed as exceptions. Exceptions thrown during test step execution prevents the step from finishing. If an exception is thrown in a test step run method, it will abort the execution of the test step. The exception will be caught by the TestPlan and it will gracefully stop the plan, unless configured continue in the Engine Settings.
 
-If a test step fails, the TestStep can abort the entire TestPlan by throwing a **TestPlan.AbortException**, as shown here:
-```csharp
-throw new TestPlan.AbortException("I forced abort", true); 
-```
+A step can abort the test plan run by calling `PlanRun.MainThread.Abort();`, but it is generally best to let the user decide whether to stop on errors or not.
+
 A message is written to the log when a step throws an exception. The log message contains information on source file and line number if debugging symbols (.pdb files) are available and **Settings > GUI > Show Source Code Links** is enabled.
+
+If an unexpected exception is caught by plugin code its stacktrace can be logged by calling `Log.Debug(exception)` to provide useful debugging information. The exception message should generally be logged using `Log.Error`, to show the user that something has gone wrong.
 
 ### TraceBar
 The **TraceBar** is a utility class used to display log results and verdicts in the **Log** panel. If an upper and lower limit is available, the TraceBar visually displays the one-dimensional high-low limit sets in a log-friendly graphic:

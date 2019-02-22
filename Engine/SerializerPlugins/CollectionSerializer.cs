@@ -20,9 +20,10 @@ namespace OpenTap.Plugins
         internal IList CurrentSettingsList;
 
         /// <summary> Deserialization implementation. </summary>
-        public override bool Deserialize( XElement element, Type t, Action<object> setResult)
+        public override bool Deserialize( XElement element, ITypeInfo _t, Action<object> setResult)
         {
-            if (!t.DescendsTo(typeof(IEnumerable)) || t == typeof(string)) return false;
+            var t = (_t as CSharpTypeInfo)?.Type;
+            if (t == null || !t.DescendsTo(typeof(IEnumerable)) || t == typeof(string)) return false;
             string colName = element.Name.LocalName;
 
 
@@ -206,7 +207,7 @@ namespace OpenTap.Plugins
         
         internal HashSet<object> ComponentSettingsSerializing = new HashSet<object>();
         /// <summary> Serialization implementation. </summary>
-        public override bool Serialize( XElement elem, object sourceObj, Type expectedType)
+        public override bool Serialize( XElement elem, object sourceObj, ITypeInfo expectedType)
         {
             if (sourceObj is IEnumerable == false || sourceObj is string) return false;
             IEnumerable sourceEnumerable = (IEnumerable)sourceObj;
@@ -230,7 +231,7 @@ namespace OpenTap.Plugins
                         ComponentSettingsSerializing.Add(obj);
                     try
                     {
-                        Serializer.Serialize(step, obj, expectedType: genericTypeArg);
+                        Serializer.Serialize(step, obj, expectedType: CSharpTypeInfo.Create(genericTypeArg));
                     }
                     finally
                     {

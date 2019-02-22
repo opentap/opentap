@@ -5,9 +5,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Globalization;
 using System.IO;
 
 namespace OpenTap
@@ -156,9 +153,9 @@ namespace OpenTap
 
 #region Searching
     /// <summary>
-    /// The operation for <see cref="SearchComparison"/>.
+    /// The operation for <see cref="SearchParameterValue"/>.
     /// </summary>
-    public enum ComparisonOp
+    public enum ComparisonOperator
     {
         /// <summary>Two specified values must be the same.</summary>
         Equal,
@@ -184,9 +181,9 @@ namespace OpenTap
     }
 
     /// <summary>
-    /// Operation for <see cref="SearchBinaryOp"/>.
+    /// Operation for <see cref="SearchCombinator"/>.
     /// </summary>
-    public enum BinOp
+    public enum LogicalOperator
     {
         /// <summary>
         /// Specifies that both conditions must be satisfied.
@@ -201,96 +198,121 @@ namespace OpenTap
     /// <summary>
     /// The basic search operand from which the other search operands are derived. 
     /// </summary>
-    public abstract class SearchOp
+    public abstract class SearchOperand
     {
     }
 
-    /// <summary>
-    /// Matches all children of the specified parents.
-    /// </summary>
-    public class SearchChildOfOp : SearchOp
+    /// <summary> Matches all children of the specified parents. </summary>
+    public class SearchChildrenOf : SearchOperand
     {
         /// <summary>
         /// The list of elements to match the children of.
         /// </summary>
         public List<IData> Parents { get; set; }
+
+        /// <summary> Matches all children of the specified parents. </summary>
+        /// <param name="parents"></param>
+        public SearchChildrenOf(List<IData> parents)
+        {
+            Parents = parents;
+        }
     }
 
     /// <summary>
     /// Matches the last test plan run.
     /// </summary>
-    public class SearchLastRun : SearchOp
+    public class SearchLastRun : SearchOperand
     {
         /// <summary>
         /// Number of the last runs to select.
         /// </summary>
-        public int Count { get; set; }
+        public int Count { get; }
 
         /// <summary>
         /// Matches the last test plan run.
         /// </summary>
-        public SearchLastRun()
+        public SearchLastRun(int count = 1)
         {
-            Count = 1;
+            Count = count;
         }
     }
 
-    /// <summary>
-    /// A binary operation between two other operations.
-    /// </summary>
-    public class SearchBinaryOp : SearchOp
+    /// <summary> A binary operation between two other operations. </summary>
+    public class SearchCombinator : SearchOperand
     {
         /// <summary>
         /// Left-side operand.  
         /// </summary>
-        public SearchOp A { get; set; }
+        public SearchOperand A { get; }
 
         /// <summary>
         /// Operation to perform.  
         /// </summary>
-        public BinOp Op { get; set; }
+        public LogicalOperator Operator { get; }
 
         /// <summary>
         /// Right-side operand.  
         /// </summary>
-        public SearchOp B { get; set; }
+        public SearchOperand B { get; }
+
+        /// <summary> A binary operation between two other operations. </summary>
+        public SearchCombinator(SearchOperand a, LogicalOperator logicalOperator, SearchOperand b)
+        {
+            A = a;
+            Operator = logicalOperator;
+            B = b;
+        }
     }
 
     /// <summary>
     /// Comparison between a named parameter and a value.
     /// </summary>
-    public class SearchComparison : SearchOp
+    public class SearchParameterValue : SearchOperand
     {
         /// <summary>
         /// Scope of the parameter to match ("", "plan", or "step").  
         /// </summary>
-        public string Scope { get; set; }
+        public string Scope { get; }
 
         /// <summary>
         /// GroupName of the parameter to match (leave empty to match any group).  
         /// </summary>
-        public string Group { get; set; }
+        public string Group { get;}
 
         /// <summary>
         /// Name of the parameter to match.  
         /// </summary>
-        public string Parameter { get; set; }
+        public string Parameter { get;}
 
         /// <summary>
         /// Operation to perform.  
         /// </summary>
-        public ComparisonOp Op { get; set; }
+        public ComparisonOperator CompareOperator { get;}
 
         /// <summary>
         /// Value to compare against the right-side value.  
         /// </summary>
-        public IConvertible Value { get; set; }
+        public IConvertible Value { get; }
+        /// <summary> Comparison between a named parameter and a value. </summary>
+        /// <param name="parameter"></param>
+        /// <param name="compareOperator"></param>
+        /// <param name="value"></param>
+        /// <param name="group"></param>
+        /// <param name="scope"></param>
+        public SearchParameterValue(string parameter, ComparisonOperator compareOperator, IConvertible value, string group = "", string scope = "")
+        {
+            Parameter = parameter;
+            CompareOperator = compareOperator;
+            Value = value;
+            Group = group;
+            Scope = scope;
+        }
     }
 
     /// <summary>
     /// Comparison between a named parameter and a value.
     /// </summary>
-    public class SearchRange : SearchOp
+    public class SearchRange : SearchOperand
     {
         /// <summary>
         /// The scope of the parameter to match. Could be "plan" or "step".
@@ -324,9 +346,9 @@ namespace OpenTap
         public bool GetChildren { get; set; }
 
         /// <summary>
-        /// The tree of <see cref="SearchOp"/> conditions to match for.  
+        /// The tree of <see cref="SearchOperand"/> conditions to match for.  
         /// </summary>
-        public SearchOp Comparison { get; set; }
+        public SearchOperand Operation { get; set; }
 
         /// <summary>
         /// Condition that will match all elements in the result store.  
@@ -334,7 +356,7 @@ namespace OpenTap
         /// <returns></returns>
         public static SearchCondition All()
         {
-            return new SearchCondition { GetChildren = true, GetParents = true, Comparison = null };
+            return new SearchCondition { GetChildren = true, GetParents = true, Operation = null };
         }
 
         /// <summary>
@@ -343,7 +365,7 @@ namespace OpenTap
         /// <param name="testPlanRunIds"></param>
         public static SearchCondition ChildrenOf(IEnumerable<IData> testPlanRunIds)
         {
-            return new SearchCondition { Comparison = new SearchChildOfOp { Parents = testPlanRunIds.ToList() }, GetChildren = true, GetParents = false };
+            return new SearchCondition { Operation = new SearchChildrenOf(testPlanRunIds.ToList()), GetChildren = true, GetParents = false };
         }
 
         /// <summary>
@@ -352,7 +374,7 @@ namespace OpenTap
         /// <returns></returns>
         public static SearchCondition LastRun()
         {
-            return new SearchCondition { GetChildren = true, GetParents = true, Comparison = new SearchLastRun() };
+            return new SearchCondition { GetChildren = true, GetParents = true, Operation = new SearchLastRun() };
         }
     }
     #endregion
@@ -559,29 +581,17 @@ namespace OpenTap
         /// <summary>
         /// Add a TestPlan parameter to a number of TestPlans.
         /// </summary>
-        void AddTestplanRunParameter(IEnumerable<IData> PlanRunIDs, string Group, string ParameterName, IConvertible Value);
+        void AddTestPlanRunParameter(IEnumerable<IData> PlanRunIDs, string Group, string ParameterName, IConvertible Value);
 
         /// <summary>
         /// Delete a TestPlan parameter from a number of TestPlans.
         /// </summary>
-        void DeleteTestplanRunParameter(IEnumerable<IData> PlanRunIDs, string Group, string ParameterName, IConvertible Value);
+        void DeleteTestPlanRunParameter(IEnumerable<IData> PlanRunIDs, string Group, string ParameterName, IConvertible Value);
 
         /// <summary>
-        /// Get distinct TestPlan parameter values ordered by popularity (number of uses). Optionally limited to Limit values.
+        /// Get distinct TestPlan parameter values ordered by popularity (number of uses). Optionally limited to Limit values, scope and group.
         /// </summary>
-        IEnumerable<string> GetTestplanParameterValues(string ParameterName, int Limit = -1);
-    }
-
-    /// <summary>
-    /// Interface to support querying parameter values with optional scoping.
-    /// </summary>
-    public interface IResultTagging2 : IResultTagging
-    {
-
-        /// <summary>
-        /// Get distinct TestPlan parameter values ordered by popularity (number of uses). Optionally limited to Limit values.
-        /// </summary>
-        IEnumerable<string> GetTestplanParameterValues(string Scope, string Group, string ParameterName, int Limit = -1);
+        IEnumerable<string> GetTestPlanRunParameterValues(string ParameterName, string Scope = "", string Group = "", int Limit = -1);
     }
 
     /// <summary>

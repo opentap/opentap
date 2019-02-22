@@ -13,18 +13,34 @@ namespace OpenTap
     [AttributeUsage(AttributeTargets.Property)]
     public class AvailableValuesAttribute : Attribute
     {
-        /// <summary>
-        /// Gets or sets the property containing the available values.
-        /// </summary>
+        /// <summary> Gets the name of the property with available values.</summary>
         public string PropertyName { get; private set; }
 
         /// <summary>
         /// Creates a new AvailableValuesAttribute that points to a property by name.
         /// </summary>
-        /// <param name="propertyName">The property name pointing to the available values.</param>
+        /// <param name="propertyName">The name of the property with the possible values.</param>
         public AvailableValuesAttribute(string propertyName)
         {
             PropertyName = propertyName;
+        }
+    }
+    /// <summary>
+    /// Marks that a property can be selected from a list in the UI.
+    /// Points to another property that contains the list of suggested values.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Property)]
+    public class SuggestedValuesAttribute : Attribute
+    {
+        /// <summary> Gets the name of the property with suggested values.</summary>
+        public readonly string PropertyName;
+        /// <summary>
+        /// Creates a new SuggestedValuesAttribute that points to a property by name.
+        /// </summary>
+        /// <param name="propertyName">The name of the property with the suggested values.</param>
+        public SuggestedValuesAttribute(string propertyName)
+        {
+            this.PropertyName = propertyName;
         }
     }
 }

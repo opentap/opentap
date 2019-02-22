@@ -154,14 +154,14 @@ namespace OpenTap
         internal string TestStepPath;
         
         private ManualResetEventSlim completedEvent = new ManualResetEventSlim(false);
-
+        
         /// <summary>
         /// Waits for the teststep run to be entirely done. This includes any deferred processing.
         /// </summary>
-        public void WaitForCompletion(CancellationToken cancellationToken)
+        public void WaitForCompletion()
         {
             if (completedEvent.IsSet) return;
-            var waits = new[] { completedEvent.WaitHandle, cancellationToken.WaitHandle };
+            var waits = new[] { completedEvent.WaitHandle, TapThread.Current.AbortToken.WaitHandle };
             WaitHandle.WaitAny(waits);
         }
 

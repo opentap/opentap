@@ -276,7 +276,7 @@ namespace OpenTap.Engine.UnitTests
         }
         public override void Run()
         {
-            TestPlan.Sleep((int)(1000 * Duration));
+            TapThread.Sleep((int)(1000 * Duration));
             for (double i = 0; i < NResults; i++)
             {
                 Results.Publish("UnitTest", new List<string> { "Channel", "Power [dBm]" }, Math.Sin(i)/*,Math.Cos(i)*/);

@@ -27,7 +27,7 @@ namespace OpenTap.Plugins.BasicSteps
         
         public override void Run()
         {
-            TestPlan.Sleep(Time.FromSeconds(DelaySecs));
+            TapThread.Sleep(Time.FromSeconds(DelaySecs));
         }
     }
 }

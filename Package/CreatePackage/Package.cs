@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.Globalization;
 using Tap.Shared;
 using System.Runtime.InteropServices;
+using System.Xml.Serialization;
 
 namespace OpenTap.Package
 {
@@ -28,7 +29,7 @@ namespace OpenTap.Package
         {
             if (def.Plugins == null || !def.Plugins.Any())
             {
-                if (File.Exists(def.FileName))
+                if (File.Exists(def.FileName) && IsAssembly(def.FileName))
                 {
                     try
                     {
@@ -41,14 +42,18 @@ namespace OpenTap.Package
 
                         if (!PluginManager.DirectoriesToSearch.Any(sd => dir.StartsWith(sd)))
                         {
+                            log.Debug($"DirectoriesToSearch did not contain {dir}. Searching again.");
                             PluginManager.DirectoriesToSearch.Add(dir);
                             PluginManager.SearchAsync(); // start a (new) search
                         }
 
                         var searchedAssemblies = PluginManager.GetSearchedAssemblies();
                         AssemblyData assembly = searchedAssemblies.FirstOrDefault(a => PathUtils.AreEqual(a.Location, fullPath));
+
                         if (assembly == null && PluginManager.DirectoriesToSearch.Any(sd => fullPath.StartsWith(sd)))
                         {
+                            log.Debug($"Assembly '{fullPath}' was not found. Searching again.");
+
                             // The file is in the search dir but was not searched, 
                             // it was probably added after we searched, try searching again
                             PluginManager.SearchAsync(); // start a (new) search
@@ -106,6 +111,20 @@ namespace OpenTap.Package
             }
         }
 
+        private static bool IsAssembly(string fullPath)
+        {
+            try
+            {
+                AssemblyName testAssembly = AssemblyName.GetAssemblyName(fullPath);
+                return true;
+            }
+
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
         /// <summary>
         /// Load from an XML package definition file. 
         /// This file is not expected to have info about the plugins in it, so this method will enumerate the plugins inside each dll by loading them.
@@ -114,13 +133,13 @@ namespace OpenTap.Package
         {
             PackageDef.ValidateXml(xmlFilePath);
             var pkgDef = PackageDef.FromXmlFile(xmlFilePath);
-            if(pkgDef.Files.Any(f => f.UseVersion && !String.IsNullOrEmpty(f.SetAssemblyInfo)))
-                throw new InvalidDataException("A file cannot specify SetAssemblyInfo and UseVersion=true at the same time.");
+            if(pkgDef.Files.Any(f => f.HasCustomData<UseVersionData>() && f.HasCustomData<SetAssemblyInfoData>() && !String.IsNullOrEmpty(f.GetCustomData<SetAssemblyInfoData>().Attributes)))
+                throw new InvalidDataException("A file cannot specify <SetAssemblyInfo/> and <UseVersion/> at the same time.");
 
             var excludeAdd = pkgDef.Files.Where(file => file.IgnoredDependencies != null).SelectMany(file => file.IgnoredDependencies).Distinct().ToList();
 
             List<Exception> exceptions = new List<Exception>();
-            if (findDependencies || (pkgDef.Version == null && pkgDef.Files.Any(pf => pf.UseVersion))) // if this is an xml file that has already been through Tap.Package to have its dependencies, version, etc. set, then there is no need for the files to be there now.
+            if (findDependencies || (pkgDef.Version == null && pkgDef.Files.Any(pf => pf.HasCustomData<UseVersionData>()))) // if this is an xml file that has already been through Tap.Package to have its dependencies, version, etc. set, then there is no need for the files to be there now.
             {
                 foreach (PackageFile item in pkgDef.Files)
                 {
@@ -159,7 +178,7 @@ namespace OpenTap.Package
                             if (!File.Exists(destPath))
                             {
                                 Directory.CreateDirectory(Path.GetDirectoryName(destPath));
-                                Utils.FileCopy(file.FileName, destPath);
+                                ProgramHelper.FileCopy(file.FileName, destPath);
                             }
                         }
                         catch
@@ -236,7 +255,7 @@ namespace OpenTap.Package
             
             if (pkg.RawVersion == null)
             {
-                foreach (var file in pkg.Files.Where(file => file.UseVersion))
+                foreach (var file in pkg.Files.Where(file => file.HasCustomData<UseVersionData>()))
                 {
                     pkg.Version = PluginManager.GetSearchedAssemblies().FirstOrDefault(a => Path.GetFullPath(a.Location) == Path.GetFullPath(file.FileName)).SemanticVersion;
                     break;
@@ -408,7 +427,7 @@ namespace OpenTap.Package
                                 if (!File.Exists(destPath))
                                 {
                                     Directory.CreateDirectory(Path.GetDirectoryName(destPath));
-                                    Utils.FileCopy(foundAsm.Location, destPath);
+                                    ProgramHelper.FileCopy(foundAsm.Location, destPath);
                                 }
 
                                 packageAssemblies.Invalidate(pkg);
@@ -427,62 +446,13 @@ namespace OpenTap.Package
             while (foundNew);
         }
 
-        private static void runFileTransform(string tempDir, PackageDef pkg, Type transformType)
-        {
-            var transforms = new List<IPackageFileTransform>();
-
-            if(transformType.IsInterface)
-                transforms = PluginManager.GetPlugins(transformType).Select(s => Activator.CreateInstance(s) as IPackageFileTransform).ToList();
-            else if(transformType.IsClass)
-                transforms = PluginManager.GetPlugins<IPackageFileTransform>().Select(s => Activator.CreateInstance(s) as IPackageFileTransform).Where(p => p.GetType() == transformType).ToList();
-
-            if (transforms.Count < 1)
-                throw new Exception($"No {transformType} plugins installed.");
-            
-            foreach (IPackageFileTransform transform in transforms.OrderBy(o => o.GetOrder(pkg)))
-            {
-                bool canTranform = false;
-                string transformName = transform.GetType().GetDisplayAttribute().Name;
-                try
-                {
-                    canTranform = transform.CanTransform(pkg);
-                }
-                catch(Exception ex)
-                {
-                    log.Debug(ex);
-                }
-                if (!canTranform)
-                {
-                    log.Debug($"Cannot transform {pkg.Name} with {transformName}");
-                    continue;
-                }
-
-                Stopwatch timer = Stopwatch.StartNew();
-                try
-                {
-                    if (transform.Transform(tempDir, pkg))
-                    {
-                        log.Debug(timer, $"Transformed {pkg.Name} with {transformName}");
-                        return;
-                    }
-                }
-                catch
-                {
-                    log.Warning(timer, $"{transformName} thew an exception. While trying to transform {pkg.Name}.");
-                    throw;
-                }
-                log.Warning(timer, $"{transformName} failed to transfor {pkg.Name}.");
-            }
-            throw new Exception($"No {transformType} plugins could transform {pkg.Name}.");
-        }
-
         /// <summary>
         /// Creates a *.TapPlugin package file from the definition in this PackageDef.
         /// </summary>
         /// <param name="path">Output file path.</param>
         /// <param name="path">Project directory.</param>
         /// <param name="skipObfuscation">Override to disable all obfuscation.</param>
-        static public void CreatePackage(this PackageDef pkg, string path, string projectDir, bool skipObfuscation = false, string prereleaseOverride = null, Obfuscator obfuscator = Obfuscator.Any)
+        static public void CreatePackage(this PackageDef pkg, string path, string projectDir, bool skipObfuscation = false, string prereleaseOverride = null)
         {
             foreach (PackageFile file in pkg.Files)
             {
@@ -493,7 +463,14 @@ namespace OpenTap.Package
                 }
             }
 
-            if (skipObfuscation) obfuscator = Obfuscator.None;
+            if (skipObfuscation)
+            {
+                foreach (PackageFile file in pkg.Files)
+                {
+                    file.RemoveCustomData<DotfuscatorData>();
+                    file.RemoveCustomData<ObfuscarData>();
+                }
+            }
 
             string tempDir = Path.GetTempPath() + Path.GetRandomFileName();
             Directory.CreateDirectory(tempDir);
@@ -506,14 +483,11 @@ namespace OpenTap.Package
                 
                 UpdateVersionInfo(tempDir, pkg.Files, pkg.Version);
 
-                if (!pkg.Files.All(file => string.IsNullOrWhiteSpace(file.LicenseRequired)))
-                    runFileTransform(tempDir, pkg, typeof(IPackageLicenseInjector));
+                // License Inject
+                // Obfuscate
+                // Sign
+                CustomPackageActionHelper.RunCustomActions(pkg, PackageActionStage.Create, new CustomPackageActionArgs(tempDir, false));
 
-                Obfuscate(tempDir, pkg, obfuscator);
-
-                if (pkg.Files.Any(s => !string.IsNullOrWhiteSpace(s.Sign)))
-                    runFileTransform(tempDir, pkg, typeof(IPackageSigner));
-                
                 log.Info("Creating TAP package.");
                 pkg.Compress(path, pkg.Files);
             }
@@ -523,9 +497,16 @@ namespace OpenTap.Package
             }
         }
 
+        [Display("SetAssemblyInfo")]
+        public class SetAssemblyInfoData : ICustomPackageData
+        {
+            [XmlAttribute]
+            public string Attributes { get; set; }
+        }
+
         private static void UpdateVersionInfo(string tempDir, List<PackageFile> files, SemanticVersion version)
         {
-            var features = files.Where(f => !string.IsNullOrEmpty(f.SetAssemblyInfo)).SelectMany(f => f.SetAssemblyInfo.Split(',').Select(str => str.Trim().ToLower())).Distinct().ToHashSet();
+            var features = files.Where(f => f.HasCustomData<SetAssemblyInfoData>()).SelectMany(f => f.GetCustomData<SetAssemblyInfoData>().Attributes.Split(',').Select(str => str.Trim().ToLower())).Distinct().ToHashSet();
 
             if (!features.Any())
                 return;
@@ -537,10 +518,10 @@ namespace OpenTap.Package
                 updateMethod = SetAsmInfo.UpdateMethod.Mono;
             foreach (var file in files)
             {
-                if (string.IsNullOrEmpty(file.SetAssemblyInfo))
+                if (!file.HasCustomData<SetAssemblyInfoData>())
                     continue;
 
-                var toSet = file.SetAssemblyInfo.Split(',').Select(str => str.Trim().ToLower()).Distinct().ToHashSet();
+                var toSet = file.GetCustomData<SetAssemblyInfoData>().Attributes.Split(',').Select(str => str.Trim().ToLower()).Distinct().ToHashSet();
 
                 if (!toSet.Any())
                     continue;
@@ -569,7 +550,7 @@ namespace OpenTap.Package
                     }
 
                     Directory.CreateDirectory(Path.GetDirectoryName(tempName));
-                    Utils.FileCopy(file.FileName, tempName);
+                    ProgramHelper.FileCopy(file.FileName, tempName);
                     file.FileName = tempName;
                 }
 
@@ -583,6 +564,7 @@ namespace OpenTap.Package
                 }
 
                 SetAsmInfo.SetAsmInfo.SetInfo(file.FileName, fVersionShort, fVersionShort, fVersion, updateMethod);
+                file.RemoveCustomData<SetAssemblyInfoData>();
             }
             log.Info(timer,"Updated assembly version info using {0} method.", updateMethod);
         }
@@ -593,38 +575,9 @@ namespace OpenTap.Package
             {
                 if(!string.IsNullOrWhiteSpace(file.LicenseRequired))
                     file.LicenseRequired = LicenseBase.FormatFriendly(file.LicenseRequired);
-                file.TransformArguments = null;
             }
         }
 
-        /// <summary>
-        /// Tries to obfuscate the .NET DLLs in inputfiles. Throws an exception if Dotfuscator is not installed.
-        /// </summary>
-        static void Obfuscate(string tempDir, PackageDef package, Obfuscator obfuscator)
-        {
-            if(!package.Files.Any(s => s.DoObfuscate))
-            {
-                log.Info("No files require obfuscation. Skipping.");
-                return;
-            }
-
-            switch (obfuscator)
-            {
-                case Obfuscator.Dotfuscator:
-                    runFileTransform(tempDir, package, typeof(Dotfuscator));
-                    break;
-                case Obfuscator.Obfuscar:
-                    runFileTransform(tempDir, package, typeof(Obfuscar));
-                    break;
-                case Obfuscator.Any:
-                    runFileTransform(tempDir, package, typeof(IPackageObfuscator));
-                    break;
-                case Obfuscator.None:
-                    log.Info("Skipping obfuscation.");
-                    return;
-            }
-        }
-        
         /// <summary>
         /// Compresses the files to a zip package.
         /// </summary>
@@ -656,34 +609,4 @@ namespace OpenTap.Package
             }
         }
     }
-
-    public class DependencyNotInstalledException : Exception
-    {
-        /// <summary>
-        /// The dependency that could not be found
-        /// </summary>
-        public PackageDependency MissingDependency { get; set; }
-
-        /// <summary>
-        /// The package with the dependency which could not be found
-        /// </summary>
-        public PackageDef Package { get; set; }
-
-        /// <summary>
-        /// Initializes a new instance of the DependencyNotInstalledException class.
-        /// </summary>
-        public DependencyNotInstalledException(PackageDef pkg, PackageDependency dependency)
-            : base(String.Format("Package '{0}' depends on '{1}' which is not installed.", pkg.Name, dependency.Name))
-        {
-            Package = pkg;
-            MissingDependency = dependency;
-        }
-        public DependencyNotInstalledException(PackageDef pkg, PackageDependency dependency, string message)
-            : base(message)
-        {
-            Package = pkg;
-            MissingDependency = dependency;
-        }
-    }
-    
 }

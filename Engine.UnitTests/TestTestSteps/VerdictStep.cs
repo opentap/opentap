@@ -25,7 +25,7 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
         {
             UpgradeVerdict(VerdictOutput);
             if (RequestAbort)
-                throw new TestPlan.AbortException("Verdict Step requested to abort the test plan execution.");
+                PlanRun.MainThread.Abort("Verdict Step requested to abort the test plan execution.");
         }
     }
 }

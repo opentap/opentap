@@ -10,7 +10,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
-using static OpenTap.PlatformInteraction;
 
 namespace OpenTap.Cli
 {
@@ -94,9 +93,7 @@ namespace OpenTap.Cli
         /// </summary>
         private static readonly TraceSource log = Log.CreateSource("Main");
         private static TestPlan Plan;
-        private static Mutex PlatformDialogMutex = new Mutex(false);
-
-
+        
 
         internal static int Exit(ExitStatus status)
         {
@@ -114,17 +111,7 @@ namespace OpenTap.Cli
         /// </summary>
         /// <returns></returns>
         public int Execute(CancellationToken cancellationToken)
-        {
-            // Register handler when action is cancelled.
-            cancellationToken.Register(() =>
-            {
-                if (Plan != null)
-                {
-                    log.Warning("Aborting...");
-                    Plan.RequestAbort();
-                }
-            });
-            
+        {   
             List<ResultParameter> metaData = new List<ResultParameter>();
             HandleMetadata(metaData);
 
@@ -168,7 +155,7 @@ namespace OpenTap.Cli
 
             if (!NonInteractive)
             {
-                WaitForInput += HandlePlatformInteractions;
+                UserInput.SetInterface(new CliUserInputInterface());
             }
 
 
@@ -234,7 +221,7 @@ namespace OpenTap.Cli
                 return Exit(ExitStatus.Ok);
             }
 
-            Verdict verdict = TestPlanRunner.RunPlanForDut(Plan, metaData);
+            Verdict verdict = TestPlanRunner.RunPlanForDut(Plan, metaData, cancellationToken);
 
             if (verdict == Verdict.Inconclusive)
                 return Exit(ExitStatus.TestPlanInconclusive);
@@ -256,6 +243,7 @@ namespace OpenTap.Cli
                 values.AddRange(External);
             if (TryExternal.Length > 0)
                 values.AddRange(TryExternal);
+            Plan = new TestPlan();
 
             foreach (var externalParam in values)
             {
@@ -348,107 +336,6 @@ namespace OpenTap.Cli
                 throw new ArgumentException();
         }
 
-        private static List<IPlatformRequest> HandlePlatformInteractions(List<IPlatformRequest> requests, TimeSpan timeout, RequestType requestType = RequestType.Custom, string title = "")
-        {
-            if (requests == null)
-            {
-                throw new ArgumentNullException("reqs");
-            }
-
-            if (requests.Count == 0)
-            {
-                return requests;
-            }
-
-            if (requests.Any(x => x == null))
-            {
-                throw new InvalidOperationException("A platform request cannot be null");
-            }
-
-            if (timeout == TimeSpan.Zero)
-            {
-                if (!PlatformDialogMutex.WaitOne())
-                {
-                    return requests;
-                }
-            }
-            else
-            {
-                if (!PlatformDialogMutex.WaitOne(timeout))
-                {
-                    return requests;
-                }
-            }
-
-            try
-            {
-                Thread.Sleep(500);
-                log.Flush();
-                if (string.IsNullOrWhiteSpace(title) == false)
-                {
-                    Console.WriteLine();
-                    Console.WriteLine("-- {0} --", title);
-                }
-                foreach (IPlatformRequest message in requests)
-                {
-                    start:
-                    string[] split = (message.Message ?? "").Split('\\');
-                    Console.WriteLine("Waiting for input: '{0}'", string.Join(" ", split.Select(s => s.Trim())));
-                    if (message.ResponseType.IsEnum)
-                    {
-                        Console.WriteLine("Expects one of: {0}", string.Join(", ", Enum.GetNames(message.ResponseType)));
-                    }
-                    DateTime TimeoutTime = DateTime.Now + (timeout == TimeSpan.Zero ? TimeSpan.FromDays(1000) : timeout);
-                    string read = AwaitReadline(TimeoutTime).Trim();
-                    try
-                    {
-                        if (message.ResponseType.IsEnum)
-                        {
-                            Enum response;
-                            bool ok = tryParseEnumString(read, message.ResponseType, out response);
-                            if (ok)
-                            {
-                                Console.WriteLine("{0}", response);
-                                message.Response = response;
-                            }
-                            else
-                            {
-                                throw new FormatException(string.Format("Unable to parse '{0}'", read));
-                            }
-                        }
-                        else
-                        {
-                            message.Response = StringConvertProvider.FromString(read, message.ResponseType, null);
-                            Console.WriteLine("{0}", message.Response);
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        Console.WriteLine("Unable to parse '{0}' as a '{1}'", read, message.ResponseType);
-                        if (message.ResponseType.IsEnum)
-                        {
-                            Console.WriteLine("Please write one of the following:");
-                            string[] names = Enum.GetNames(message.ResponseType);
-                            Array values = Enum.GetValues(message.ResponseType);
-                            for (int i = 0; i < names.Length; i++)
-                            {
-                                Console.WriteLine("* {0} ({1})", names[i], (int)values.GetValue(i));
-                            }
-
-                            Console.WriteLine();
-                        }
-                        goto start;
-                    }
-                }
-
-            }
-            finally
-            {
-                PlatformDialogMutex.ReleaseMutex();
-            }
-
-            return requests;
-        }
 
         private static string AwaitReadline(DateTime TimeOut)
         {
@@ -471,7 +358,7 @@ namespace OpenTap.Cli
                 }
                 else
                 {
-                    TestPlan.Sleep(20);
+                    TapThread.Sleep(20);
                 }
             }
 

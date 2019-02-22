@@ -144,12 +144,22 @@ namespace OpenTap
         [Browsable(false)]
         public string Version
         {
-            get { return this.GetType().Assembly.GetSemanticVersion().ToString(); }
+            get { return this.GetType().Assembly?.GetSemanticVersion().ToString(); }
             set
             {
-                var installedVersion = this.GetType().Assembly.GetSemanticVersion();
+                var installedVersion = this.GetType().Assembly?.GetSemanticVersion();
+                if (installedVersion == null)
+                {
+                    Log.Warning("Could not get assembly version");
+                    return;
+                }
                 if(SemanticVersion.TryParse(value, out SemanticVersion createdVersion))
                 {
+                    if (createdVersion == null)
+                    {
+                        Log.Warning("Could not get created version");
+                        return;
+                    }
                     if (!createdVersion.IsCompatible(installedVersion))
                     {
                         Log.Warning("Test plan file specified version {0} of step '{1}', but version {2} is installed, compatibility issues may occur.", createdVersion, Name, installedVersion);
@@ -424,7 +434,7 @@ namespace OpenTap
         protected TestStepRun RunChildStep(ITestStep childStep, IEnumerable<ResultParameter> attachedParameters = null)
         {
             var steprun = this.RunChildStep(childStep, PlanRun, StepRun, attachedParameters);
-            Results.Defer(() => steprun.WaitForCompletion(PlanRun.AbortToken));
+            Results.Defer(() => steprun.WaitForCompletion());
             return steprun;
         }
 
@@ -597,7 +607,7 @@ namespace OpenTap
                     {
                         runs.Add(run);
                     }
-                    TestPlan.Sleep();
+                    TapThread.ThrowIfAborted();
                 }
             }
             finally
@@ -611,7 +621,7 @@ namespace OpenTap
                         {
                             foreach (var run in runs)
                             {
-                                run.WaitForCompletion(currentPlanRun.AbortToken);
+                                run.WaitForCompletion();
 
                                 if (run.Verdict > Step.Verdict)
                                     Step.Verdict = run.Verdict;
@@ -622,7 +632,7 @@ namespace OpenTap
                     {
                         foreach (var run in runs)
                         {
-                            run.WaitForCompletion(currentPlanRun.AbortToken);
+                            run.WaitForCompletion();
 
                             if (run.Verdict > Step.Verdict)
                                 Step.Verdict = run.Verdict;
@@ -662,14 +672,14 @@ namespace OpenTap
             {
                 step.Results.Defer(() =>
                 {
-                    run.WaitForCompletion(currentPlanRun.AbortToken);
+                    run.WaitForCompletion();
                     if (run.Verdict > Step.Verdict)
                         Step.Verdict = run.Verdict;
                 });
             }
             else
             {
-                run.WaitForCompletion(currentPlanRun.AbortToken);
+                run.WaitForCompletion();
                 if (run.Verdict > Step.Verdict)
                     Step.Verdict = run.Verdict;
             }
@@ -699,12 +709,11 @@ namespace OpenTap
             if ((Step.Verdict == Verdict.Fail && planRun.AbortOnStepFail) || (Step.Verdict == Verdict.Error && planRun.AbortOnStepError))
             {
                 TestPlan.Log.Warning("TAP is currently configured to abort run on verdict {0}. This can be changed in Engine Settings.", Step.Verdict);
-                planRun.RequestAbort(String.Format("Verdict of '{0}' was '{1}'.", Step.Name, Step.Verdict));
-                throw new TestPlan.AbortException(String.Format("Verdict of '{0}' was '{1}'.", Step.Name, Step.Verdict), false);
+                TapThread.Current.Abort(String.Format("Verdict of '{0}' was '{1}'.", Step.Name, Step.Verdict));
             }
             else  if (Step.Verdict == Verdict.Aborted)
             {
-                throw new TestPlan.AbortException(String.Format("Verdict of '{0}' was 'Abort'.", Step.Name), false);
+                throw new OperationCanceledException(String.Format("Verdict of '{0}' was 'Abort'.", Step.Name), TapThread.Current.AbortToken);
             }
             else
             {
@@ -720,13 +729,13 @@ namespace OpenTap
                 // if its not already the case.
                 var prevRun = Step.StepRun;
                 if (prevRun != null)
-                    prevRun.WaitForCompletion(planRun.AbortToken);
+                    prevRun.WaitForCompletion();
                 Debug.Assert(Step.StepRun == null);
             }
 
             Step.Verdict = Verdict.NotSet;
-            
-            TestPlan.Sleep();
+
+            TapThread.ThrowIfAborted();
             if (!Step.Enabled)
                 throw new Exception("Step not enabled."); // Do not run step if it has been disabled
             planRun.ThrottleResultPropagation();
@@ -747,7 +756,7 @@ namespace OpenTap
 
             // Signal step is going to execute
             planRun.ExecutionHooks.ForEach(eh => eh.BeforeTestStepExecute(Step));
-            planRun.ResourceManager.BeginStep(planRun, Step, Stage.Run, planRun.AbortToken);
+            planRun.ResourceManager.BeginStep(planRun, Step, Stage.Run, TapThread.Current.AbortToken);
 
             TestPlan.Log.Info(stepPath + " started.");
 
@@ -755,7 +764,7 @@ namespace OpenTap
             // since OfferBreak requires a TestStepRun, this has to be re-instantiated.
             var swatch = Stopwatch.StartNew();
 
-            TestPlan.Sleep(); // if an OfferBreak handler called TestPlan.Abort, abort now.
+            TapThread.ThrowIfAborted(); // if an OfferBreak handler called TestPlan.Abort, abort now.
             stepRun.StartStepRun(); // set verdict to running, set Timestamp.
 
             IResultSource resultSource = null;
@@ -767,6 +776,7 @@ namespace OpenTap
                     resultSource = (Step as TestStep).Results = new ResultSource(stepRun, planRun);
 
                 Step.Run();
+                TapThread.ThrowIfAborted();
                 //checkStepFailure(Step, planRun);
             }
             catch (ThreadAbortException)
@@ -775,7 +785,7 @@ namespace OpenTap
                     Step.Verdict = Verdict.Aborted;
                 throw;
             }
-            catch(TestPlan.AbortException)
+            catch(OperationCanceledException)
             {
                 if(Step.Verdict < Verdict.Aborted)
                     Step.Verdict = Verdict.Aborted;
@@ -818,7 +828,7 @@ namespace OpenTap
                             throw;
                         }
 
-                        if (e is TestPlan.AbortException e2)
+                        if (e is OperationCanceledException e2)
                         {
                             TestPlan.Log.Info("Stopping TestPlan. {0}", e2.Message);
                             if (Step.Verdict < Verdict.Aborted)

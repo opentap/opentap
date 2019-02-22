@@ -48,8 +48,11 @@ namespace tap
             }
 
 #if DEBUG && !NETCOREAPP
-            Console.WriteLine("Attaching Debugger.");
-            VisualStudioHelper.AttemptDebugAttach();
+            if (args.Contains("-v"))
+            {
+                Console.WriteLine("Attaching Debugger.");
+                VisualStudioHelper.AttemptDebugAttach();
+            }
 #endif
 
             var type = asm.GetType(entrypoint);

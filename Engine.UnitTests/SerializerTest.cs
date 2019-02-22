@@ -910,7 +910,6 @@ namespace OpenTap.Engine.UnitTests
 
                 // The last step is a SetVerdict step, which points into the last TestPlanReferenceStep.
                 // inside that there should be a SetVerdict that results in an inconclusive verdict.
-
                 var run = plan.Execute();
                 Assert.AreEqual(13, run.StepsWithPrePlanRun.Count);
                 Assert.AreEqual(13, pl.StepRuns.Count);
@@ -923,6 +922,7 @@ namespace OpenTap.Engine.UnitTests
             }
         }
         [Test]
+        [Ignore("support for 7.x test plans is dropped.")]
         public void LoadLegacyTestPlanReference()
         {
             var ser = new TapSerializer();
@@ -1326,7 +1326,7 @@ namespace OpenTap.Engine.UnitTests
             sw1.ChildTestSteps.Add(sw2);
             sw2.ChildTestSteps.Add(ds);
 
-            sw1.SweepParameters.Add(new SweepParam(new System.Reflection.PropertyInfo[] { sw2.GetType().GetProperty("CrossPlan") }, SweepLoop.SweepBehaviour.Across_Runs, SweepLoop.SweepBehaviour.Within_Run));
+            sw1.SweepParameters.Add(new SweepParam(new IMemberInfo[] { TypeInfo.GetTypeInfo(sw2).GetMember("CrossPlan") }, SweepLoop.SweepBehaviour.Across_Runs, SweepLoop.SweepBehaviour.Within_Run));
 
             var str = new TapSerializer().SerializeToString(tp);
             var tp2 = (TestPlan)new TapSerializer().DeserializeFromString(str);
@@ -1541,8 +1541,8 @@ namespace OpenTap.Engine.UnitTests
                 ListStep step3 = new ListStep();
 
 
-                var someNumberProp = typeof(ListStep).GetProperty("SomeNumber");
-                var doublesProp = typeof(ListStep).GetProperty("Doubles");
+                var someNumberProp = CSharpTypeInfo.Create(typeof(ListStep)).GetMember("SomeNumber");
+                var doublesProp = CSharpTypeInfo.Create(typeof(ListStep)).GetMember("Doubles");
 
                 step1.Load();
                 step3.Load();
@@ -1617,7 +1617,8 @@ namespace OpenTap.Engine.UnitTests
                     memstr.Position = 0;
                     var deserializer = new TapSerializer();
                     var instruments = (IList)deserializer.Deserialize(memstr);
-                    Assert.AreEqual(refDut, instruments.OfType<RefInstrument>().FirstOrDefault().Dut);
+                    var refdut2 = instruments.OfType<RefInstrument>().FirstOrDefault().Dut;
+                    Assert.AreEqual(refDut, refdut2);
                 }
 
                 using (var memstr = new MemoryStream())
@@ -1641,7 +1642,7 @@ namespace OpenTap.Engine.UnitTests
                 DynamicStepTest dynstep = new DynamicStepTest() { NewData = "Hello" + new string('A', 50) };
                 DynamicStepTest dynstep2 = new DynamicStepTest() { NewData = "Hello" + new string('B', 5000) };
 
-                var someNumberProp = typeof(ListStep).GetProperty("SomeNumber");
+                var someNumberProp = CSharpTypeInfo.Create(typeof(ListStep)).GetMember("SomeNumber");
 
                 step1.Load();
                 step3.Load();
@@ -1774,6 +1775,7 @@ namespace OpenTap.Engine.UnitTests
         /// Between 7.0 and 7.2 we did major changes to serialization.
         /// </summary>
         [Test]
+        [Ignore("We are not currently backwards compatible with TAP 7.")]
         public void LoadSweepForTap70()
         {
             var serialized = (TestPlan)new TapSerializer().DeserializeFromFile("TestTestPlans/tap70_sweep_loop.TapPlan");
@@ -1877,7 +1879,7 @@ namespace OpenTap.Engine.UnitTests
         void testStringConvert(object value)
         {
             var strfmt = StringConvertProvider.GetString(value);
-            var reparse = StringConvertProvider.FromString(strfmt, value.GetType(), null);
+            var reparse = StringConvertProvider.FromString(strfmt, CSharpTypeInfo.Create(value.GetType()), null);
             DynObjectAssertEqual(value, reparse);
         }
 
@@ -1929,7 +1931,7 @@ namespace OpenTap.Engine.UnitTests
             testStringConvert(new EngineSettings.AbortTestPlanType[] { EngineSettings.AbortTestPlanType.Step_Error, EngineSettings.AbortTestPlanType.Step_Error | EngineSettings.AbortTestPlanType.Step_Fail });
             testStringConvert(new double[] { 1, 2, 3, 4, 7, 8, 9, 0 });
             testStringConvert(new List<int> { 1, 2, 3, 4, 7, 8, 9, 0 });
-            var reparse = (Verdict)StringConvertProvider.FromString("pass", typeof(Verdict), null);
+            var reparse = (Verdict)StringConvertProvider.FromString("pass", CSharpTypeInfo.Create(typeof(Verdict)), null);
             Assert.AreEqual(Verdict.Pass, reparse);
         }
 

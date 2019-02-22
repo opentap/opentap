@@ -39,7 +39,8 @@ namespace OpenTap.Engine.UnitTests
             TestPlanRunner.SetSettingsDir("Default");
             TestPlan plan = new TestPlan();
             plan.Steps.Add(new CliTestStep());
-            TestPlanRunner.RunPlanForDut(plan, new List<ResultParameter>());
+            CancellationTokenSource cts = new CancellationTokenSource();
+            TestPlanRunner.RunPlanForDut(plan, new List<ResultParameter>(), cts.Token);
         }
 
         [Test]
@@ -48,7 +49,7 @@ namespace OpenTap.Engine.UnitTests
             var setVerdict = new OpenTap.Engine.UnitTests.TestTestSteps.VerdictStep();
             TestPlan plan = new TestPlan();
             plan.Steps.Add(setVerdict);
-            plan.ExternalParameters.Add(setVerdict, setVerdict.GetType().GetProperty("VerdictOutput"),"verdict");
+            plan.ExternalParameters.Add(setVerdict, TypeInfo.GetTypeInfo(setVerdict).GetMember("VerdictOutput"),"verdict");
             plan.Save("verdictPlan.TapPlan");
             var fileName = CreateCsvTestFile(new string[] { "verdict" }, new object[] { "pass" });
             {

@@ -119,7 +119,7 @@ namespace OpenTap.Plugins.BasicSteps
             OnPropertyChanged("IterationInfo");
             var AdditionalParams = new List<ResultParameter> { new ResultParameter("", "Iteration", this.iteration) };
             var runs = RunChildSteps(AdditionalParams, BreakLoopRequested).ToList();
-            runs.ForEach(r => r.WaitForCompletion(PlanRun.AbortToken));
+            runs.ForEach(r => r.WaitForCompletion());
             return getCurrentVerdict();
         }
 

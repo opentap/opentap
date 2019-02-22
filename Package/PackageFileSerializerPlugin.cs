@@ -7,13 +7,13 @@ using System.Linq;
 using System.Xml.Linq;
 using System.Xml.Serialization;
 
-namespace OpenTap.PackageManager
+namespace OpenTap.Package
 {
     public class PackageFileSerializerPlugin : TapSerializerPlugin
     {
-        public override bool Deserialize(XElement node, Type t, Action<object> setter)
+        public override bool Deserialize(XElement node, ITypeInfo t, Action<object> setter)
         {
-            if (node.Name.LocalName == "File" && t == typeof(PackageFile))
+            if (node.Name.LocalName == "File" && t.IsA(typeof(PackageFile)))
             {
                 PackageFile packageFile = new PackageFile();
 
@@ -27,24 +27,6 @@ namespace OpenTap.PackageManager
                         case "SourcePath":
                             packageFile.SourcePath = attr.Value;
                             break;
-                        case "DoObfuscate":
-                            if (bool.TryParse(attr.Value, out bool doObfuscate))
-                            {
-                                packageFile.DoObfuscate = doObfuscate;
-                            }
-                            break;
-                        case "Sign":
-                            packageFile.Sign = attr.Value;
-                            break;
-                        case "UseVersion":
-                            if (bool.TryParse(attr.Value, out bool useVersion))
-                            {
-                                packageFile.UseVersion = useVersion;
-                            }
-                            break;
-                        case "SetAssemblyInfo":
-                            packageFile.SetAssemblyInfo = attr.Value;
-                            break;
                         case "LicenseRequired":
                             packageFile.LicenseRequired = attr.Value;
                             break;
@@ -55,14 +37,6 @@ namespace OpenTap.PackageManager
 
                 foreach (XElement elm in node.Elements())
                 {
-                    if (elm.Name.LocalName == "TransformArgument")
-                    {
-                        TransformArgument argument = new TransformArgument();
-                        Serializer.Deserialize(elm, o => argument = (TransformArgument)o, argument.GetType());
-                        packageFile.TransformArguments.Add(argument);
-                        continue;
-                    }
-
                     if (elm.Name.LocalName == "Plugins")
                     {
                         List<PluginFile> pluginFiles = new List<PluginFile>();
@@ -86,7 +60,8 @@ namespace OpenTap.PackageManager
                             Log.Warning($"Detected multiple plugins able to handle XMl tag {elm.Name.LocalName}. Unexpected behavior may occur.");
 
                         ICustomPackageData p = handlingPlugins.FirstOrDefault();
-                        Serializer.Deserialize(elm, o => p = (ICustomPackageData)o, p.GetType());
+                        if(elm.HasAttributes || !elm.IsEmpty)
+                            Serializer.Deserialize(elm, o => p = (ICustomPackageData)o, p.GetType());
                         packageFile.CustomData.Add(p);
                         continue;
                     }
@@ -101,14 +76,14 @@ namespace OpenTap.PackageManager
             return false;
         }
 
-        public override bool Serialize(XElement node, object obj, Type expectedType)
+        public override bool Serialize(XElement node, object obj, ITypeInfo expectedType)
         {
-            if (expectedType != typeof(PackageFile))
+            if (expectedType.IsA(typeof(PackageFile)) == false)
             {
                 return false;
             }
 
-            foreach (System.Reflection.PropertyInfo prop in typeof(PackageFile).GetProperties().Where(s => !s.HasAttribute<XmlIgnoreAttribute>()))
+            foreach (IMemberInfo prop in expectedType.GetMembers().Where(s => !s.HasAttribute<XmlIgnoreAttribute>()))
             {
                 object val = prop.GetValue(obj);
                 string name = prop.Name;
@@ -140,7 +115,7 @@ namespace OpenTap.PackageManager
                 if (name == "Plugins")
                 {
                     XElement plugins = new XElement("Plugins");
-                    Serializer.Serialize(plugins, val, prop.PropertyType);
+                    Serializer.Serialize(plugins, val, prop.TypeDescriptor);
                     node.Add(plugins);
                     continue;
                 }
@@ -162,21 +137,8 @@ namespace OpenTap.PackageManager
                         foreach (ICustomPackageData action in packageActions)
                         {
                             XElement xAction = new XElement(action.GetType().GetDisplayAttribute().Name);
-                            Serializer.Serialize(xAction, action, action.GetType());
+                            Serializer.Serialize(xAction, action, TypeInfo.GetTypeInfo(action));
                             node.Add(xAction);
-                        }
-                    }
-                    continue;
-                }
-                if (name == "TransformArguments")
-                {
-                    if (val is List<TransformArgument> tArgs)
-                    {
-                        foreach (TransformArgument tArg in tArgs)
-                        {
-                            XElement xTransArg = new XElement("TransformArgument");
-                            xTransArg.SetAttributeValue("Name", tArg.Name);
-                            xTransArg.SetAttributeValue("Value", tArg.Value);
                         }
                     }
                     continue;

@@ -114,6 +114,73 @@ namespace OpenTap
         }
 
         /// <summary>
+        /// Returns tru if a member is enabled.
+        /// </summary>
+        /// <param name="property"></param>
+        /// <param name="instance"></param>
+        /// <param name="dependentProp"></param>
+        /// <param name="dependentValue"></param>
+        /// <param name="hidden"></param>
+        /// <returns></returns>
+        public static bool IsEnabled(IMemberInfo property, object instance,
+            out IMemberInfo dependentProp, out IComparable dependentValue, out bool hidden)
+        {
+            if (property == null)
+                throw new ArgumentNullException("property");
+            if (instance == null)
+                throw new ArgumentNullException("instance");
+            ITypeInfo instanceType = TypeInfo.GetTypeInfo(instance);
+            var dependencyAttrs = property.GetAttributes<EnabledIfAttribute>();
+            dependentProp = null;
+            dependentValue = 0;
+            hidden = false;
+            bool enabled = true;
+            foreach (var at in dependencyAttrs)
+            {
+                bool newEnabled = true;
+                dependentProp = instanceType.GetMember(at.PropertyName);
+
+                if (dependentProp == null)
+                {
+                    // We cannot be sure that the step developer has used this attribute correctly
+                    // (could just be a typo in the (weakly typed) property name), thus we need to 
+                    // provide a good error message that leads the developer to where the error is.
+                    log.Warning("Could not find property '{0}' on '{1}'. EnabledIfAttribute can only refer to properties of the same class as the property it is decorating.", at.PropertyName, instanceType.Name);
+                    enabled = false;
+                    return false;
+                }
+
+                var depValue = dependentProp.GetValue(instance);
+                dependentValue = depValue as IComparable;
+                try
+                {
+                    if (depValue is IEnabled)
+                    {
+                        var isEnabled = ((IEnabled)depValue).IsEnabled;
+                        if (!at.PropertyValues.Any(testValue => testValue.CompareTo(isEnabled) == 0))
+                        {
+                            newEnabled = false;
+                        }
+                    }
+                    else if (!at.PropertyValues.Any(testValue => testValue.CompareTo(depValue) == 0) && dependentValue != null)
+                    {
+                        newEnabled = false;
+
+                    }
+                }
+                catch (ArgumentException)
+                {
+                    // CompareTo throws ArgumentException when obj is not the same type as this instance.
+                    newEnabled = false;
+                }
+                if (!newEnabled && at.HideIfDisabled)
+                    hidden = true;
+                enabled &= newEnabled;
+            }
+            return enabled;
+        }
+
+        /// <summary>
         /// Checks whether a given property is enabled according to the <see cref="EnabledIfAttribute"/>.
         /// </summary>
         /// <param name="dependentProp">The dependent property.</param>

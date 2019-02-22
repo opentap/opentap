@@ -14,6 +14,8 @@ using OpenTap.Plugins.BasicSteps;
 using System.Reflection;
 using System;
 using System.Threading;
+using static OpenTap.Package.PackageDefExt;
+using OpenTap.Package.CreatePackage;
 
 namespace OpenTap.Package.UnitTests
 {
@@ -71,8 +73,8 @@ namespace OpenTap.Package.UnitTests
 
             CollectionAssert.IsNotEmpty(pkg.Files);
             Assert.AreEqual("OpenTap.dll", pkg.Files[0].FileName);
-            Assert.AreEqual(false, pkg.Files[0].DoObfuscate);
-            Assert.AreEqual("Version", pkg.Files[0].SetAssemblyInfo);
+            Assert.AreEqual(false, pkg.Files[0].HasCustomData<DotfuscatorData>());
+            Assert.AreEqual("Version", pkg.Files[0].GetCustomData<SetAssemblyInfoData>().Attributes);
 
             CollectionAssert.IsNotEmpty(pkg.PackageActionExtensions);
             Assert.AreEqual("chmod", pkg.PackageActionExtensions[0].ExeFile);
@@ -91,9 +93,9 @@ namespace OpenTap.Package.UnitTests
             PackageDef pkg = PackageDefExt.FromXmlFile(inputFilename);
             //Assert.AreEqual(inputFilename, pkg.FileName);
 
-            Assert.AreEqual(false, pkg.Files[0].DoObfuscate);
-            Assert.AreEqual(true, pkg.Files[0].UseVersion);
-            Assert.AreEqual("Test 123,./", pkg.Files[0].Sign);
+            Assert.AreEqual(false, pkg.Files[0].HasCustomData<DotfuscatorData>());
+            Assert.AreEqual(true, pkg.Files[0].HasCustomData<UseVersionData>());
+            Assert.AreEqual("Test 123,./", pkg.Files[0].GetCustomData<SignData>().Certificate);
         }
 
         [Test]
@@ -145,11 +147,11 @@ namespace OpenTap.Package.UnitTests
 
             PackageDef pkg = PackageDefExt.FromXmlFile(inputFilename);
 
-            pkg.Files[0].DoObfuscate = true;
+            pkg.Files[0].CustomData.Add(new ObfuscarData());
 
             try
             {
-                pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory(), obfuscator: Obfuscator.Obfuscar);
+                pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory());
                 Assert.IsTrue(File.Exists(outputFilename));
             }
             finally
@@ -175,7 +177,7 @@ namespace OpenTap.Package.UnitTests
             Directory.CreateDirectory(tmpDir1);
             Directory.CreateDirectory(Path.GetDirectoryName(tmpPath2));
 
-            pkg.Files[0].DoObfuscate = true;
+            pkg.Files[0].CustomData.Add(new ObfuscarData());
 
             foreach (PackageFile item in pkg.Files)
             {
@@ -186,11 +188,13 @@ namespace OpenTap.Package.UnitTests
             }
 
             File.Copy("Keysight.Ccl.Licensing.Api.dll", tmpPath2, true);
-            pkg.Files.Add(new PackageFile { FileName = tmpPath2, DoObfuscate = false, UseVersion = false, RelativeDestinationPath = tmpPath2 });
+            PackageFile packageFile = new PackageFile { FileName = tmpPath2, RelativeDestinationPath = tmpPath2 };
+            packageFile.CustomData.Add(new UseVersionData());
+            pkg.Files.Add(packageFile);
 
             try
             {
-                pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory(), obfuscator: Obfuscator.Obfuscar);
+                pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory());
                 Assert.IsTrue(File.Exists(outputFilename));
             }
             finally
@@ -212,11 +216,11 @@ namespace OpenTap.Package.UnitTests
 
                 PackageDef pkg = PackageDefExt.FromXmlFile(inputFilename);
 
-                pkg.Files[0].DoObfuscate = true;
+                pkg.Files[0].CustomData.Add(new DotfuscatorData());
 
                 try
                 {
-                    pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory(), obfuscator: Obfuscator.Dotfuscator);
+                    pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory());
                     Assert.IsTrue(File.Exists(outputFilename));
                 }
                 catch(Exception ex)
@@ -251,7 +255,7 @@ namespace OpenTap.Package.UnitTests
                 Directory.CreateDirectory(tmpDir1);
                 Directory.CreateDirectory(Path.GetDirectoryName(tmpPath2));
 
-                pkg.Files[0].DoObfuscate = true;
+                pkg.Files[0].CustomData.Add(new DotfuscatorData());
 
                 foreach (PackageFile item in pkg.Files)
                 {
@@ -262,11 +266,13 @@ namespace OpenTap.Package.UnitTests
                 }
 
                 File.Copy("Keysight.Ccl.Licensing.Api.dll", tmpPath2, true);
-                pkg.Files.Add(new PackageFile { FileName = tmpPath2, DoObfuscate = false, UseVersion = false, RelativeDestinationPath = tmpPath2 });
+                PackageFile packageFile = new PackageFile { FileName = tmpPath2, RelativeDestinationPath = tmpPath2 };
+                packageFile.CustomData.Add(new UseVersionData());
+                pkg.Files.Add(packageFile);
 
                 try
                 {
-                    pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory(), obfuscator: Obfuscator.Dotfuscator);
+                    pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory());
                     Assert.IsTrue(File.Exists(outputFilename));
                 }
                     catch(Exception ex)
@@ -298,7 +304,7 @@ namespace OpenTap.Package.UnitTests
 
             foreach (PackageFile item in pkg.Files)
             {
-                item.Sign = "Keysight Technologies, Inc.";
+                item.CustomData.Add(new SignData() { Certificate = "Keysight Technologies, Inc." });
             }
 
 
@@ -564,20 +570,12 @@ namespace OpenTap.Package.UnitTests
         {
             string inputFilename = "Packages/CheckDependencies_MissingDep.xml";
 
-            try
-            {
-                //PackageDependencyExt.CheckDependencies(inputFilename);
-                var xseries = PackageDef.FromXmlFile(Path.Combine(PackageDef.PackageDefDirectory, "XSeries.package.xml"));
-                PackageDef.ValidateXml(inputFilename);
-                var missing = PackageDef.FromXmlFile(inputFilename);
-                var tree = DependencyAnalyzer.BuildAnalyzerContext(new List<PackageDef> { xseries, missing });
-                Assert.IsTrue(tree.GetIssues(missing).Any(issue => issue.IssueType == DependencyIssueType.Missing));
-            }
-            catch (DependencyNotInstalledException ex)
-            {
-                StringAssert.Contains("Dependency2", ex.MissingDependency.Name);
-                return;
-            }
+            //PackageDependencyExt.CheckDependencies(inputFilename);
+            var xseries = PackageDef.FromXmlFile(Path.Combine(PackageDef.PackageDefDirectory, "XSeries.package.xml"));
+            PackageDef.ValidateXml(inputFilename);
+            var missing = PackageDef.FromXmlFile(inputFilename);
+            var tree = DependencyAnalyzer.BuildAnalyzerContext(new List<PackageDef> { xseries, missing });
+            Assert.IsTrue(tree.GetIssues(missing).Any(issue => issue.IssueType == DependencyIssueType.Missing));
             //Assert.Fail("CheckDependencies should have thrown an exception");
         }
 
@@ -636,7 +634,7 @@ namespace OpenTap.Package.UnitTests
 @"<?xml version='1.0' encoding='utf-8' ?>
 <Package Name='Invalid' xmlns='http://keysight.com/schemas/TAP/Package'>
   <Files>
-    <File Path='Tap.Engine.dll' Obfuscate='false' UseVersion='true'></File>
+    <File Path='Tap.Engine.dll' Obfuscate='false'><UseVersion/></File>
   </Files>
   <FileName>This should not be there<FileName/>
 </Package>");
@@ -668,7 +666,9 @@ namespace OpenTap.Package.UnitTests
             string pkgContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <Package Name=""BasicSteps"" xmlns=""http://keysight.com/schemas/TAP/Package"">
  <Files>
-  <File Path=""__BASICSTEPS_DLL__"" Obfuscate=""false"" UseVersion=""true""/>
+  <File Path=""__BASICSTEPS_DLL__"" Obfuscate=""false"">
+    <UseVersion/>
+  </File>
  </Files>
 </Package>
 ".Replace("__BASICSTEPS_DLL__", Path.GetFileName(typeof(DelayStep).Assembly.Location));
@@ -714,7 +714,7 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void TestCliPackaging()
         {
-            var p = Process.Start("tap.exe", "package create \"Packages/package.xml\" --obfuscator none -v");
+            var p = Process.Start("tap.exe", "package create \"Packages/package.xml\" -v");
             p.WaitForExit();
             Assert.AreEqual(0, p.ExitCode);
             var plugins = Directory.EnumerateFiles(".");

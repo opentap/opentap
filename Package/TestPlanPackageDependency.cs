@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -35,16 +36,30 @@ namespace OpenTap.Package
 
         public bool WritePackageDependencies { get; set; } = true;
 
+        class InstallNeedPackage
+        {
+            public string Name { get; private set; } = "Install needed package?";
+            [Browsable(false)]
+            public string Message { get; set; }
+            [Browsable(true)]
+            [Layout(LayoutMode.FullRow)]
+            public string Msg => Message;
+            [Submit]
+            [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+            public UserRequest Response { get; set; }
+        }
+
         // not used at the moment. Consider for TAP 8.6.
         void interactiveInstallPackage(string name, SemanticVersion version)
         {
-            var resp = PlatformInteraction.WaitForInput(
-                            new List<IPlatformRequest>() { new PlatformRequest<UserRequest>() { Message = string.Format("Install package \"{0}\" version {1}?", name, version.ToString()), Response = UserRequest.Ignore } }, TimeSpan.Zero,
-                            PlatformInteraction.RequestType.CustomModal, "Install needed package?");
+            InstallNeedPackage req = new InstallNeedPackage() {
+                Message = string.Format("Install package \"{0}\" version {1}?", name, version.ToString()),
+                Response = UserRequest.Ignore };
+            UserInput.Request(req, TimeSpan.MaxValue, true);
 
             Log.Info("Installing package \"{0}\".", name);
 
-            if (((UserRequest)resp.First().Response) == UserRequest.Install)
+            if (req.Response == UserRequest.Install)
             {
                 var ins = new PackageInstallAction() { Packages = new[] { name }, ForceInstall = true, Version = version.ToString() };
                 try
@@ -68,7 +83,7 @@ namespace OpenTap.Package
             }
         }
 
-        public override bool Deserialize(XElement element, Type t, Action<object> setter)
+        public override bool Deserialize(XElement element, ITypeInfo t, Action<object> setter)
         {
             var dep = element.Element(PackageDependenciesName);
             if (dep == null) return false;
@@ -120,9 +135,10 @@ namespace OpenTap.Package
             return false;
         }
 
-        static string getAssemblyLocation(Type x)
+        static string getAssemblyLocation(ITypeInfo _x)
         {
-            if(x.Assembly != null && x.Assembly.IsDynamic == false)
+            
+            if(_x is CSharpTypeInfo xx && xx.Type is Type x && x.Assembly != null && x.Assembly.IsDynamic == false)
             {
                 try
                 {
@@ -137,9 +153,9 @@ namespace OpenTap.Package
             return null;
         }
 
-        readonly HashSet<Type> allTypes = new HashSet<Type>();
+        readonly HashSet<ITypeInfo> allTypes = new HashSet<ITypeInfo>();
         XElement endnode;
-        public override bool Serialize(XElement elem, object obj, Type type)
+        public override bool Serialize(XElement elem, object obj, ITypeInfo type)
         {
             //if (type == typeof(PackageDef))
             //    return false; // TODO: fix this in a less hacky way
@@ -181,7 +197,7 @@ namespace OpenTap.Package
                 }
                 return ok;
             }
-            return Serializer.Serialize(elem, obj, type);
+            return false;
         }
     }
 }

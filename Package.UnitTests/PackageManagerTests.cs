@@ -27,8 +27,7 @@ namespace OpenTap.Package.UnitTests
         {
             EngineSettings.LoadWorkingDirectory(System.IO.Path.GetDirectoryName(typeof(TestStep).Assembly.Location));
             PluginManager.SearchAsync().Wait();
-            // this should put the log file just outside the project folder
-            SessionLogs.Initialize(string.Format("..\\..\\..\\..\\Tap.PackageManager.UnitTests {0}.TapLog", DateTime.Now.ToString("HH-mm-ss.fff")));
+            SessionLogs.Initialize(string.Format("Tap.Package.UnitTests {0}.TapLog", DateTime.Now.ToString("HH-mm-ss.fff")));
         }
 
         [OneTimeTearDown]

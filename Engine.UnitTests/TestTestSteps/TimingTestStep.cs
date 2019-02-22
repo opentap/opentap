@@ -29,19 +29,19 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
         public override void PrePlanRun()
         {
             base.PrePlanRun();
-            TestPlan.Sleep(TimeSpan.FromSeconds(PreRunDelay));
+            TapThread.Sleep(TimeSpan.FromSeconds(PreRunDelay));
         }
 
         public override void Run()
         {
-            TestPlan.Sleep(TimeSpan.FromSeconds(RunDelay));
-            Results.Defer(() => TestPlan.Sleep(TimeSpan.FromSeconds(DeferDelay)));
+            TapThread.Sleep(TimeSpan.FromSeconds(RunDelay));
+            Results.Defer(() => TapThread.Sleep(TimeSpan.FromSeconds(DeferDelay)));
         }
 
         public override void PostPlanRun()
         {
             base.PostPlanRun();
-            TestPlan.Sleep(TimeSpan.FromSeconds(PostRunDelay));
+            TapThread.Sleep(TimeSpan.FromSeconds(PostRunDelay));
         }
     }
 }

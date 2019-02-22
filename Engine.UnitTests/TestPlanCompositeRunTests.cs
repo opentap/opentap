@@ -344,7 +344,7 @@ namespace OpenTap.Engine.UnitTests
             public override void Open()
             {
                 base.Open();
-                TestPlan.Sleep(50);
+                TapThread.Sleep(50);
                 isOpen = true;
                 Log.Info(Name + " Opened.");
             }

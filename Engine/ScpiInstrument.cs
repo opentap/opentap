@@ -313,7 +313,8 @@ namespace OpenTap
             {
                 short ifType = 0;
                 short partNumber = 0;
-                RaiseError2(Visa.viParseRsrc(visa_resource, str, ref ifType, ref partNumber));
+                var error = Visa.viParseRsrc(visa_resource, str, ref ifType, ref partNumber);
+                if (error < 0) return false;
                 return true;
             }
             catch (Exception)
@@ -1110,7 +1111,7 @@ namespace OpenTap
                 throw new IOException("Not connected.");
 
             OnActivity();
-            //TestPlan.Sleep(); // Just giving the TestPlan a chance to abort if it has been requested to do so
+            //TapThread.Sleep(); // Just giving the TestPlan a chance to abort if it has been requested to do so
             try
             {
                 Stopwatch timer = Stopwatch.StartNew();
@@ -1156,7 +1157,7 @@ namespace OpenTap
             if (!IsConnected)
                 throw new IOException("Not connected.");
             OnActivity();
-            //TestPlan.Sleep(); // Just giving the TestPlan a chance to abort if it has been requested to do so
+            //TapThread.Sleep(); // Just giving the TestPlan a chance to abort if it has been requested to do so
             try
             {
                 Stopwatch timer = Stopwatch.StartNew();
@@ -1203,7 +1204,7 @@ namespace OpenTap
             if (!IsConnected)
                 throw new IOException("Not connected.");
             OnActivity();
-            //TestPlan.Sleep(); // Just giving the TestPlan a chance to abort if it has been requested to do so
+            //TapThread.Sleep(); // Just giving the TestPlan a chance to abort if it has been requested to do so
             try
             {
 

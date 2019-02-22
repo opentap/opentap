@@ -16,9 +16,9 @@ namespace OpenTap.Plugins
         public override double Order { get { return 3; } }
 
         /// <summary> Deserialization implementation. </summary>
-        public override bool Deserialize( XElement element, Type t, Action<object> setter)
+        public override bool Deserialize( XElement element, ITypeInfo t, Action<object> setter)
         {
-            if (t.HasInterface<IConstResourceProperty>())
+            if (t.DescendsTo(typeof(IConstResourceProperty)))
             {
                 if (element.IsEmpty) return true; // Dont do anything with a <port/>
                 var name = element.Attribute("Name");
@@ -46,7 +46,7 @@ namespace OpenTap.Plugins
                      
                      foreach(var resProp in resource.GetConstProperties())
                      {
-                         if(resProp.GetType().DescendsTo(t) && resProp.Name == name.Value)
+                         if(TypeInfo.GetTypeInfo(resProp).DescendsTo(t) && resProp.Name == name.Value)
                          {
                              setter(resProp);
                              return;
@@ -63,7 +63,7 @@ namespace OpenTap.Plugins
         /// </summary>
         HashSet<object> checkRentry = new HashSet<object>();
         /// <summary> Serialization implementation. </summary>
-        public override bool Serialize( XElement elem, object obj, Type expectedType)
+        public override bool Serialize( XElement elem, object obj, ITypeInfo expectedType)
         {
             if (obj is IConstResourceProperty == false) return false;
             if (checkRentry.Contains(obj)) return false;
@@ -79,7 +79,7 @@ namespace OpenTap.Plugins
 
                     XElement device = new XElement("Device");
                     device.SetAttributeValue("type", settings.GetType().Name);
-                    if (Serializer.Serialize(device, port.Device, port.GetType()))
+                    if (Serializer.Serialize(device, port.Device, CSharpTypeInfo.Create(port.GetType())))
                     {
                         elem.Add(device);
                     }

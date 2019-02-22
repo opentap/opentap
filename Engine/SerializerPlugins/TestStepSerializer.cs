@@ -69,7 +69,7 @@ namespace OpenTap.Plugins
         }
         
         /// <summary> Deserialization implementation. </summary>
-        public override bool Deserialize( XElement elem, Type t, Action<object> setResult)
+        public override bool Deserialize( XElement elem, ITypeInfo t, Action<object> setResult)
         {
 
             if(t.DescendsTo(typeof(ITestStep)))
@@ -82,7 +82,14 @@ namespace OpenTap.Plugins
                         Serializer.DeferLoad(() =>
                         {
                             if (stepLookup.ContainsKey(stepGuid))
+                            {
                                 setResult(stepLookup[stepGuid]);
+                            }
+                            else
+                            {
+                                Log.Warning("Unable to find referenced step {0}", stepGuid);
+                            }
+                                
                         });
                         return true;
                     }
@@ -97,7 +104,7 @@ namespace OpenTap.Plugins
                         if (Serializer.Deserialize(elem, x => step = (ITestStep)x, t))
                         {
                             setResult(step);
-                            FixupStep(step, false);
+                            FixupStep(step, true);
                             return true;
                         }
                     }finally
@@ -114,7 +121,7 @@ namespace OpenTap.Plugins
         HashSet<XElement> currentNode = new HashSet<XElement>();
         
         /// <summary> Serialization implementation. </summary>
-        public override bool Serialize( XElement elem, object obj, Type expectedType)
+        public override bool Serialize( XElement elem, object obj, ITypeInfo expectedType)
         {
             if (false == obj is ITestStep) return false;
             if (currentNode.Contains(elem)) return false;
@@ -122,7 +129,7 @@ namespace OpenTap.Plugins
             var objp = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
 
             
-            if (objp != null && objp.Object != null && objp.Property.PropertyType.DescendsTo(typeof(ITestStep)))
+            if (objp != null && objp.Object != null && objp.CurrentMember.TypeDescriptor.DescendsTo(typeof(ITestStep)))
             {
                 elem.Value = ((ITestStep)obj).Id.ToString();
                 return true;

@@ -227,7 +227,7 @@ namespace OpenTap
                 if (int.TryParse(id1, out v1) && int.TryParse(id2, out v2))
                 {
                     if (v1 != v2)
-                        return v1 - v2;
+                        return v1.CompareTo(v2);
                 }
                 else
                 {

@@ -121,8 +121,8 @@ namespace OpenTap.Package
                 return;
             }
 
-            using (var changeId = new ChangeId(TapDir))
-                changeId.SetChangeId(changeId.GetChangeId() + 1);
+            Installation installation = new Installation(TapDir);
+            installation.AnnouncePackageChange();
         }
 
         internal void UninstallThread()
@@ -187,8 +187,7 @@ namespace OpenTap.Package
                 return false;
             }
 
-            using (var changeId = new ChangeId(TapDir))
-                changeId.SetChangeId(changeId.GetChangeId() + 1);
+            new Installation(TapDir).AnnouncePackageChange();
 
             return true;
         }

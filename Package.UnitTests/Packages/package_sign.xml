@@ -1,6 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <Package Name="Test" xmlns="http://tap.aalborg.keysight.com/PackageSchema">
   <Files>
-    <File Path="OpenTap.dll" Obfuscate="false" UseVersion="true" Sign="Test 123,./"></File>
+    <File Path="OpenTap.dll">
+      <UseVersion/>
+      <Sign Certificate="Test 123,./"/>
+    </File>
   </Files>
 </Package>

@@ -36,7 +36,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="ScpiInstrumentVisaDiscovery.cs" />
     <Compile Remove="Licensing\*" />
   </ItemGroup>
 

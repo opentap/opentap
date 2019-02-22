@@ -11,6 +11,7 @@ using System.Reflection;
 using System.Xml.Serialization;
 using System.Data;
 using OpenTap;
+using System.Collections;
 
 namespace OpenTap.Plugins.BasicSteps
 {
@@ -59,9 +60,13 @@ namespace OpenTap.Plugins.BasicSteps
 
         #region Settings
 
+        public bool SweepParametersEnabled => sweepParameters.Count > 0;
+
         List<SweepParam> sweepParameters = new List<SweepParam>();
 
         [Display("Sweep Parameters", Order: 1, Description: "Select the child steps parameters that you want to sweep and configure their values.")]
+        [EnabledIf(nameof(SweepParametersEnabled), true)]
+        [DelayDeserialize]
         public List<SweepParam> SweepParameters
         {
             get { return sweepParameters; }
@@ -71,8 +76,19 @@ namespace OpenTap.Plugins.BasicSteps
                 Iteration = 0;
 
                 sweepParameters = value;
-                sanitizeSweepParams();
+                //sanitizeSweepParams();
                 OnPropertyChanged("SweepParameters");
+            }
+        }
+
+        [XmlIgnore]
+        [Browsable(true)]
+        public IEnumerable<IMemberInfo> SweepMembers
+        {
+            //TODO: remove this placeholder, when we can add properties dynamically.
+            get => Enumerable.Empty<IMemberInfo>();
+            set {
+                
             }
         }
 
@@ -117,7 +133,7 @@ namespace OpenTap.Plugins.BasicSteps
         public SweepLoop()
         {
             SweepParameters = new List<SweepParam>();
-            Rules.Add(() => string.IsNullOrWhiteSpace(validateSweep()), validateSweep, "SweepParameters");
+            //Rules.Add(() => string.IsNullOrWhiteSpace(validateSweep()), validateSweep, nameof(SweepParameters));
 
             ChildTestSteps.ChildStepsChanged += childStepsChanged;
             PropertyChanged += SweepLoop_PropertyChanged;
@@ -125,7 +141,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         void SweepLoop_PropertyChanged(object sender, PropertyChangedEventArgs e)
         {
-            if(e.PropertyName == "ChildTestSteps")
+            if(e.PropertyName == nameof(ChildTestSteps))
                 ChildTestSteps.ChildStepsChanged += childStepsChanged;
         }
 
@@ -142,15 +158,15 @@ namespace OpenTap.Plugins.BasicSteps
             List<Exception> ex = null;
             foreach (ITestStep childTestStep in childTestSteps)
             {
-                Type childType = childTestStep.GetType();
+                ITypeInfo childType = TypeInfo.GetTypeInfo(childTestStep);
 
-                foreach (PropertyInfo property in sweepParameter.PropertyInfos)
+                foreach (var prop in sweepParameter.PropertyInfos)
                 {
-                    PropertyInfo paramProp = childType.GetProperty(property.Name);
+                    IMemberInfo paramProp = childType.GetMember(prop.Name);
                     try
                     {
-                        if (paramProp == property)
-                            paramProp.SetValue(childTestStep, val, null);
+                        if (object.Equals(paramProp, sweepParameter.Property))
+                            paramProp.SetValue(childTestStep, val);
                     }catch(TargetInvocationException e)
                     {
                         if (ex == null)
@@ -171,51 +187,29 @@ namespace OpenTap.Plugins.BasicSteps
             }
             return ex;
         }
-        
-        static Dictionary<SweepParam, List<ITestStep>> getTargetSteps(List<SweepParam> sweepParameters, TestStepList childTestSteps)
-        {
-            Dictionary<SweepParam, List<ITestStep>> o = new Dictionary<SweepParam, List<ITestStep>>();
-            foreach (var sweepParam in sweepParameters)
-                o[sweepParam] = new List<ITestStep>();
-            var allsteps = Utils.FlattenHeirarchy(childTestSteps, x => x is TestPlanReference ? Enumerable.Empty<ITestStep>() : x.ChildTestSteps);
-            var alltypes = allsteps.Select(x => x.GetType()).Distinct();
-            var typeToStep = allsteps.ToLookup(x => x.GetType());
-            foreach (var type in alltypes)
-            {
-                var steps = typeToStep[type];
-                var applicableSweeps = sweepParameters.Where(x => x.PropertyInfos.Any(y => type.DescendsTo(y.DeclaringType))).ToArray();
-                foreach (var sweep in applicableSweeps)
-                    o[sweep].AddRange(steps);
-            }
-            return o;
-        }
 
-        public Dictionary<SweepParam, List<ITestStep>> GetTargetSteps()
+        Dictionary<ITestStep, Tuple<IMemberInfo, object>> getSweepParameterValues(SweepParam sweepParameter, TestStepList childTestSteps)
         {
-            return getTargetSteps(SweepParameters, ChildTestSteps);
-        }
-
-        Dictionary<ITestStep, Tuple<PropertyInfo, object>> getSweepParameterValues(SweepParam sweepParameter, TestStepList childTestSteps)
-        {
-            Dictionary<ITestStep, Tuple<PropertyInfo, object>> values = new Dictionary<ITestStep, Tuple<PropertyInfo, object>>();
+            Dictionary<ITestStep, Tuple<IMemberInfo, object>> values = new Dictionary<ITestStep, Tuple<IMemberInfo, object>>();
             populateChildParameters(values, sweepParameter, childTestSteps);
             return values;
         }
 
-        static void populateChildParameters(Dictionary<ITestStep, Tuple<PropertyInfo, object>> values, SweepParam sweepParameter, TestStepList childTestSteps)
+        static void populateChildParameters(Dictionary<ITestStep, Tuple<IMemberInfo, object>> values, SweepParam sweepParameter, TestStepList childTestSteps)
         {
             foreach (ITestStep childTestStep in childTestSteps)
             {
-                Type stepType = childTestStep.GetType();
-                foreach (PropertyInfo property in sweepParameter.PropertyInfos)
+                ITypeInfo stepType = TypeInfo.GetTypeInfo(childTestStep);
+                foreach (IMemberInfo property in sweepParameter.PropertyInfos)
                 {
-                    PropertyInfo paramProp = stepType.GetProperty(property.Name);
-                    if (paramProp == property)
-                        values[childTestStep] = new Tuple<PropertyInfo, object>(paramProp, paramProp.GetValue(childTestStep, null));
+                    IMemberInfo paramProp = stepType.GetMember(property.Name);
+                    if (object.Equals(paramProp, property))
+                        values[childTestStep] = new Tuple<IMemberInfo, object>(paramProp, paramProp.GetValue(childTestStep));
                 }
-
+                // TODO: do we want this hack??
                 if (false == stepType.DescendsTo(typeof(TestPlanReference)))
                     populateChildParameters(values, sweepParameter, childTestStep.ChildTestSteps);
+                    
             }
         }
 
@@ -313,31 +307,37 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 for (int i = 0; i < SweepParameters.Count; i++)
                     foreach (var kvp in oldParams[i])
-                        kvp.Value.Item1.SetValue(kvp.Key, kvp.Value.Item2, null);
+                        kvp.Value.Item1.SetValue(kvp.Key, kvp.Value.Item2);
             }
         }
 
         public string ValidateChildSteps(SweepParam sweepParameter, TestStepList childTestSteps)
         {
-            foreach (ITestStep childTestStep in childTestSteps)
+            if (sweepParameter.PropertyInfos == null)
+                return "";
+            
+            string iterate_child_steps(TestStepList stepList)
             {
-                Type stepType = childTestStep.GetType();
-                foreach (PropertyInfo property in sweepParameter.PropertyInfos)
+                foreach (ITestStep childTestStep in stepList)
                 {
-                    PropertyInfo paramProp = stepType.GetProperty(property.Name);
-                    if (paramProp == property)
-                        return paramProp.ToString();
-                }
-
-                if (false == stepType.DescendsTo(typeof(TestPlanReference)) && childTestStep.ChildTestSteps.Count > 0)
-                {
+                    if (childTestStep.IsReadOnly == false)
+                    {
+                        ITypeInfo stepType = TypeInfo.GetTypeInfo(childTestStep);
+                        foreach (IMemberInfo property in sweepParameter.PropertyInfos)
+                        {
+                            IMemberInfo paramProp = stepType.GetMember(property.Name);
+                            if (object.Equals(paramProp, property))
+                                return paramProp.ToString();
+                        }
+                    }
                     var param = ValidateChildSteps(sweepParameter, childTestStep.ChildTestSteps);
                     if (param != null)
                         return param;
                 }
+                return null;
             }
 
-            return null;
+            return iterate_child_steps(childTestSteps);
         }
         
         public override void PrePlanRun()
@@ -346,9 +346,9 @@ namespace OpenTap.Plugins.BasicSteps
                 sweepParameters = new List<SweepParam>();
 
             if (sweepParameters.Count == 0)
-                throw new ArgumentException("No parameters selected to sweep");
+                throw new InvalidOperationException("No parameters selected to sweep");
             if (sweepParameters[0].IsEnabled == null || sweepParameters[0].IsEnabled.Count(x => x) == 0)
-                throw new ArgumentException("No values selected to sweep");
+                throw new InvalidOperationException("No values selected to sweep");
         }
         
         void printException(AggregateException ex)
@@ -424,7 +424,7 @@ namespace OpenTap.Plugins.BasicSteps
                     Log.Info(logMessage.ToString());
                     var runs = RunChildSteps(AdditionalParams, BreakLoopRequested).ToList();
                     if (BreakLoopRequested.IsCancellationRequested) break;
-                    runs.ForEach(r => r.WaitForCompletion(PlanRun.AbortToken));
+                    runs.ForEach(r => r.WaitForCompletion());
                 }
 
                 Iteration = 0;
@@ -432,7 +432,7 @@ namespace OpenTap.Plugins.BasicSteps
                 // Restore values from before the run
                 for (int i = 0; i < SweepParameters.Count; i++)
                     foreach (var kvp in oldParams[i])
-                        kvp.Value.Item1.SetValue(kvp.Key, kvp.Value.Item2, null);
+                        kvp.Value.Item1.SetValue(kvp.Key, kvp.Value.Item2);
                 affectedSteps.ForEach(step => step.OnPropertyChanged(""));
             }
         }
@@ -442,115 +442,16 @@ namespace OpenTap.Plugins.BasicSteps
         /// </summary>
         void sanitizeSweepParams()
         {
-            if(SweepParameters != null)
-                SweepParameters.RemoveIf(x => x.Type == null);
-            List<SweepParam> itemsToRemove = null;
-            List<SweepParam> itemsToAdd = null;
             var steps = Utils.FlattenHeirarchy(ChildTestSteps, step => step is TestPlanReference ? null : step.ChildTestSteps);
-            var properties = steps
-                .Select(s => s.GetType()).Distinct()
-                .SelectMany(t => t.GetProperties()).Distinct()
-                .Where(x => x.CanWrite && x.CanRead && x.GetSetMethod() != null && x.GetGetMethod() != null && x.IsBrowsable())
-                .ToArray();
-            // name -> property lookup
-            var namePropLookup = properties.ToLookup(prop => Tuple.Create(prop.GetDisplayAttribute().GetFullName().Trim(), prop.PropertyType), prop => prop);
-            var namePropLookupLegacy = properties.ToLookup(prop => Tuple.Create(prop.GetDisplayAttribute().Name.Trim(), prop.PropertyType), prop => prop);
+            var superLookup = steps.Select(x => new { Type = TypeInfo.GetTypeInfo(x), Step = x })
+                .SelectMany(tp => tp.Type.GetMembers().Select(mem => new { Step = tp.Step, Member = mem }))
+                .ToLookup(x => x.Member.GetDisplayAttribute().GetFullName().Trim(), x => x);
             
-            foreach(var sweepParam in SweepParameters)
+            foreach (var param in SweepParameters)
             {
-                var tuple = Tuple.Create(sweepParam.Name.Trim(), sweepParam.Type);
-                if (namePropLookup.Contains(tuple))
-                {
-                    sweepParam.PropertyInfos = namePropLookup[tuple].ToArray();
-                    continue;
-                };
-                if (namePropLookupLegacy.Contains(tuple))
-                { // time to upgrade...
-                    if (itemsToAdd == null) itemsToAdd = new List<SweepParam>();
-
-                    var props = namePropLookupLegacy[tuple];
-                    var modernized = props.GroupBy(prop => Tuple.Create(prop.GetDisplayAttribute().GetFullName(), prop.PropertyType));
-                    if (itemsToRemove == null) itemsToRemove = new List<SweepParam>();
-                    itemsToRemove.Add(sweepParam);
-                    foreach (var grp in modernized)
-                    {
-                        try {
-                            var newsweep = new SweepParam(grp);
-                            newsweep.Resize(sweepParam.Values.Length);
-                            if (newsweep.Type == sweepParam.Type)
-                            {
-                                Array.Copy(sweepParam.Values, newsweep.Values, newsweep.Values.Length);
-                            }
-                            else
-                            {
-
-                                for (int i = 0; i < sweepParam.Values.Length; i++)
-                                    newsweep.Values.SetValue(Convert.ChangeType(sweepParam.Values.GetValue(i), newsweep.Type), i);
-                            }
-
-                            newsweep.PropertyInfos = grp.ToArray();
-                            itemsToAdd.Add(newsweep);
-                        }
-                        catch
-                        {
-
-                        }
-                    }
-                }
-            }
-
-            var nullParameters = SweepParameters.Where(p => p.Property == null).ToArray();
-
-            foreach (var param in nullParameters)
-            {
-                var name = param.PropertyNames.FirstOrDefault(x => namePropLookup.Contains(Tuple.Create(x, param.Type)));
-                if (name != null)
-                {
-                    param.PropertyInfos = namePropLookup[Tuple.Create(name, param.Type)].ToArray();
-                }
-                else
-                {
-                    var tp = Tuple.Create(param.Name, param.Type);
-                    name = namePropLookupLegacy.Contains(tp) ? namePropLookupLegacy[tp].FirstOrDefault().Name : null;
-                    if (name == null)
-                    {
-                        if (itemsToRemove == null || itemsToRemove.Contains(param) == false)
-                        {
-                            Log.Warning("Unable to find a property for '{0}'. Removing from list.", param.Name);
-                            if (itemsToRemove == null) itemsToRemove = new List<SweepParam>();
-                            itemsToRemove.Add(param);
-                        }
-                    }
-                    else
-                    {
-                        if (param.Property == null)
-                        {
-                            param.PropertyInfos = namePropLookupLegacy[Tuple.Create(name, param.Type)].ToArray();
-                        }
-                    }
-                }
-            }
-            if (itemsToRemove != null && itemsToRemove.Count > 0)
-            {
-                foreach (var item in itemsToRemove)
-                    sweepParameters.Remove(item);;
-            }
-            if (itemsToAdd != null && itemsToAdd.Count > 0)
-            {
-                foreach (var item in itemsToAdd)
-                    sweepParameters.Add(item);
-            }
-
-            if (sweepParameters.Count != 0)
-            {
-                var maxCnt = sweepParameters.Max(x => x.IsEnabled != null ? Math.Max(x.IsEnabled.Length, x.Values.Length) : x.Values.Length);
-                for (int i = 0; i < sweepParameters.Count; i++)
-                {
-                    if (sweepParameters[i].Values.Length < maxCnt)
-                    {
-                        sweepParameters[i].Resize(maxCnt);
-                    }
-                }
+                var super = superLookup[param.Name.Trim()];
+                param.PropertyInfos = super.Select(x => x.Member).ToArray();
+                param.DefaultValue = super.Select(x => x.Member.GetValue(x.Step)).FirstOrDefault();
             }
         }
 
@@ -580,35 +481,544 @@ namespace OpenTap.Plugins.BasicSteps
         }
     }
 
+    public class BasicStepsAnnotator : IAnnotator
+    {
+        class SweepParamsAnnotation : IMultiSelect, IAvailableValuesAnnotation, IOwnedAnnotation
+        {
+            [Display("Select All")]
+            class AllItems
+            {
+                public override string ToString()
+                {
+                    return "Select All";
+                }
+            }
+
+            object[] selectedValues;
+
+
+            IEnumerable available = Array.Empty<object>();
+            public IEnumerable AvailableValues => available;
+
+            public IEnumerable Selected
+            {
+                get => selectedValues;
+                set => selectedValues = value.Cast<object>().ToArray();
+            }
+
+            public void Read(object source)
+            {
+                List<object> allItems = new List<object>();
+                allItems.Add(new AllItems());
+                available = allItems;
+
+                Dictionary<IMemberInfo, object> members = new Dictionary<IMemberInfo, object>();
+                getPropertiesForItem((ITestStep)source, members);
+                foreach(var member in members)
+                {
+                    var anot = AnnotationCollection.Create(null, member.Key);
+                    var access = anot.Get<ReadOnlyMemberAnnotation>();
+                    var rmember = anot.Get<IMemberAnnotation>().Member;
+                    if (rmember != null && rmember.Writable)
+                    {
+                        if (access == null || (!access.IsReadOnly && access.IsVisible))
+                        {
+                            bool? browsable = rmember.GetAttribute<BrowsableAttribute>()?.Browsable;
+                            if (browsable == false) continue;
+                            if(browsable == null)
+                            {
+                                if (rmember.GetAttribute<XmlIgnoreAttribute>() != null)
+                                    continue;
+                            }
+                            allItems.Add(member.Key);
+                        }
+                    }
+                }
+
+                foreach(var swe in (source as SweepLoop).SweepParameters)
+                {
+                    if (members.TryGetValue(swe.Property, out object value))
+                        swe.DefaultValue = value;
+                }
+
+                Selected = (source as SweepLoop).SweepParameters.Select(x => x.Property).ToArray();
+            }
+
+            void getPropertiesForItem(ITestStep step, Dictionary<IMemberInfo, object> members)
+            {
+                foreach (ITestStep cs in step.ChildTestSteps)
+                {
+                    foreach(var member in TypeInfo.GetTypeInfo(cs).GetMembers())
+                    {
+                        if (members.ContainsKey(member) == false)
+                        {
+                            members.Add(member, member.GetValue(cs));
+                        }
+                    }
+                    getPropertiesForItem(cs, members);
+                }
+            }
+
+            public void Write(object source)
+            {
+                var otherMember = fac.ParentAnnotation.Get<IMembersAnnotation>().Members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member.Name == nameof(SweepLoop.SweepParameters));
+                var sweepPrams = otherMember.Get<IObjectValueAnnotation>().Value as List<SweepParam>;
+                HashSet<SweepParam> found = new HashSet<SweepParam>();
+                int initCount = sweepPrams.FirstOrDefault()?.Values.Length ?? 0;
+                Dictionary<IMemberInfo, object> members = null;
+                foreach (var _mem in selectedValues)
+                {
+                    if (_mem is AllItems) continue;
+                    var mem = (IMemberInfo)_mem;
+
+                    var existing = sweepPrams.Find(x => x.PropertyInfos.Contains(mem));
+                    if (existing != null)
+                    {
+                        found.Add(existing);
+                        continue;
+                    }
+                    var new2 = new SweepParam(new IMemberInfo[] { mem });
+                    found.Add(new2);
+                    if (members == null)
+                    {
+                        members = new Dictionary<IMemberInfo, object>();
+                        getPropertiesForItem((TestStep)source, members);
+                    }
+                    if (members.TryGetValue(mem, out object val))
+                        new2.DefaultValue = val;
+                    sweepPrams.Add(new2);
+                    if(new2.Values.Length != initCount)
+                        new2.Resize(initCount);
+                }
+                sweepPrams.RemoveIf(x => found.Contains(x) == false);
+                otherMember.Read(source);
+            }
+
+            AnnotationCollection fac;
+
+            public SweepParamsAnnotation(AnnotationCollection fac)
+            {
+                this.fac = fac;
+            }
+        }
+
+        class SweepRow
+        {
+            public int Test { get; set; }
+            public List<SweepParam> lst;
+            public int index;
+            public SweepRow(List<SweepParam> lst, int index){
+                this.lst = lst;
+                this.index = index;
+            }
+        }
+
+        class ValueAnnotation : IObjectValueAnnotation, IOwnedAnnotation
+        {
+            
+            public object Value { get; set; }
+
+            public SweepParam Param;
+            public int Index;
+
+            public void Read(object source)
+            {
+                int index = Math.Min(Param.Values.Length - 1, Index);
+                Value = index == -1 ? Param.DefaultValue : Param.Values[index];
+            }
+
+            public void Write(object source)
+            {
+                if(Index >= Param.Values.Length)
+                {
+                    Param.Resize(Index + 1);
+                }
+                Param.Values[Index] = Value;
+            }
+        }
+        class SweepParamsMembers : IMembersAnnotation, IOwnedAnnotation
+        {
+            List<AnnotationCollection> _members = null;
+            public IEnumerable<AnnotationCollection> Members {
+                get{
+                    if (_members != null) return _members;
+                    var step2 = annotation?.ParentAnnotation.Get<SweepParamsAggregation>();
+                    var r = step2.RowAnnotations;
+                    var row = annotation.Get<IObjectValueAnnotation>().Value as SweepRow;
+                    var p = row.lst;
+
+                    var allsteps = r.SelectMany(x => x.Value).Distinct().ToArray();
+                    var superAnnotation = AnnotationCollection.Annotate(allsteps);
+                    var allMembers = superAnnotation.Get<IMembersAnnotation>().Members.ToArray();
+                    List<AnnotationCollection> lst = new List<AnnotationCollection>(p.Count);
+                    var members = r.Keys.ToHashSet();
+                    var subSet = allMembers.Where(x => members.Contains(x.Get<IMemberAnnotation>()?.Member)).ToArray();
+                    for(int i = 0; i < p.Count; i++)
+                    {
+                        var p2 = p[i].Property;
+                        var sub = subSet.First(x => x.Get<IMemberAnnotation>().Member == p2);
+                        var v = new ValueAnnotation { Param = p[i], Index = row.index };
+                        v.Read(null);
+                        sub.Add(v);
+                        
+                        lst.Add(sub);
+                    }
+                    
+                    return (_members = lst);
+                }
+
+            }
+
+            AnnotationCollection annotation;
+            public SweepParamsMembers(AnnotationCollection annotation)
+            {
+                this.annotation = annotation;
+            }
+
+            public void Read(object source)
+            {
+                if (_members != null)
+                    _members.ForEach(x => x.Read(source));
+            }
+
+            public void Write(object source)
+            {
+                if (_members != null)
+                    _members.ForEach(x => x.Write(source));
+            }
+        }
+
+        class SweepParamsAggregation : ICollectionAnnotation, IOwnedAnnotation
+        {
+            
+            AnnotationCollection fac;
+            public SweepParamsAggregation(AnnotationCollection fac)
+            {
+                this.fac = fac;
+            }
+
+            Dictionary<IMemberInfo, List<object>> rowAnnotations = new Dictionary<IMemberInfo, List<object>>();
+
+            public Dictionary<IMemberInfo, List<object>> RowAnnotations
+            {
+                get
+                {
+                    if (rowAnnotations.Count == 0)
+                    {
+
+                        var loop = fac.ParentAnnotation.Get<IObjectValueAnnotation>().Value as SweepLoop;
+                        var steps = loop.RecursivelyGetChildSteps(TestStepSearch.All).ToArray();
+                        var properties = steps.Select(x => TypeInfo.GetTypeInfo(x).GetMembers()).ToArray();
+                        rowAnnotations = new Dictionary<IMemberInfo, List<object>>();
+                        var swparams = fac.Get<IObjectValueAnnotation>().Value as List<SweepParam>;
+                        foreach (var param in swparams)
+                        {
+                            rowAnnotations.Add(param.Property, new List<object>());
+
+                        }
+
+                        for (int i = 0; i < properties.Length; i++)
+                        {
+                            foreach(var property in properties[i])
+                            {
+                                if (rowAnnotations.ContainsKey(property) == false)
+                                    continue;
+
+                                rowAnnotations[property].Add(steps[i]);
+                            }
+                        }
+
+                    }
+                    return rowAnnotations;
+                }
+            }
+
+            public IEnumerable<AnnotationCollection> AnnotatedElements
+            {
+                get
+                {
+                    var lst = new List<AnnotationCollection>(count);
+                    for(int i = 0; i < count; i++)
+                    {
+                        lst.Add(annotation(i));
+                    }
+                    return lst;
+                }
+                set {
+                    count = value.Count();
+                }
+            }
+
+            
+            public AnnotationCollection NewElement()
+            {
+                return annotation(count);
+            }
+
+            Dictionary<int, AnnotationCollection> annotations = new Dictionary<int, AnnotationCollection>();
+
+            AnnotationCollection annotation(int index)
+            {
+                var sparams = (List<SweepParam>)fac.Get<IObjectValueAnnotation>().Value;
+                var param = new SweepRow(sparams, index) { Test = index };
+                var a= fac.AnnotateSub(TypeInfo.GetTypeInfo(param), param);
+                annotations[index] = a;
+                return a;
+            }
+
+            int count = 0;
+            public void Read(object source)
+            {
+                var sparams = (List<SweepParam>)fac.Get<IObjectValueAnnotation>().Value;
+                count = sparams.FirstOrDefault()?.Values.Length ?? 0;
+                rowAnnotations.Clear();
+                annotations.Clear();
+            }
+
+            public void Write(object source)
+            {
+                var sparams = (List<SweepParam>)fac.Get<IObjectValueAnnotation>().Value;
+                {
+                    foreach(var param in sparams)
+                    {
+                        param.Resize(count);
+                    }
+                }
+                foreach(var a in annotations)
+                {
+                    a.Value.Write();
+                }
+            }
+        }
+
+        class SweepRangeMembersAnnotation : IMultiSelect, IAvailableValuesAnnotation, IOwnedAnnotation, IStringValueAnnotation
+        {
+            class AllItems
+            {
+                public override string ToString()
+                {
+                    return "Select All";
+                }
+            }
+
+            object[] selectedValues = Array.Empty<object>();
+
+
+            IEnumerable available = Array.Empty<object>();
+            public IEnumerable AvailableValues => available;
+
+            public IEnumerable Selected
+            {
+                get => selectedValues;
+                set => selectedValues = value.Cast<object>().ToArray();
+            }
+            public string Value
+            {
+                get => String.Join<object>(",", Selected as IEnumerable<object>);
+                set => throw new NotSupportedException();
+            }
+
+            public void Read(object source)
+            {
+                List<object> allItems = new List<object>();
+                allItems.Add(new AllItems());
+                available = allItems;
+
+                Dictionary<IMemberInfo, object> members = new Dictionary<IMemberInfo, object>();
+                getPropertiesForItem((ITestStep)source, members);
+                foreach (var member in members)
+                {
+                    var anot = AnnotationCollection.Create(null, member.Key);
+                    var access = anot.Get<ReadOnlyMemberAnnotation>();
+                    var rmember = anot.Get<IMemberAnnotation>().Member;
+                    if (rmember != null)
+                    {
+                        if (access == null || (!access.IsReadOnly && access.IsVisible))
+                        {
+                            bool? browsable = rmember.GetAttribute<BrowsableAttribute>()?.Browsable;
+                            if (browsable == false) continue;
+                            if (browsable == null)
+                            {
+                                if (rmember.GetAttribute<XmlIgnoreAttribute>() != null)
+                                    continue;
+                            }
+                            allItems.Add(member.Key);
+                        }
+                    }
+                }
+
+                Selected = (source as SweepLoopRange).SweepProperties.ToArray();
+            }
+
+            void getPropertiesForItem(ITestStep step, Dictionary<IMemberInfo, object> members)
+            {
+                foreach (ITestStep cs in step.ChildTestSteps)
+                {
+                    foreach (var member in TypeInfo.GetTypeInfo(cs).GetMembers())
+                    {
+                        if (members.ContainsKey(member) == false)
+                        {
+                            members.Add(member, member.GetValue(cs));
+                        }
+                    }
+                    getPropertiesForItem(cs, members);
+                }
+            }
+
+            public void Write(object source)
+            {
+                var sweepPrams = fac.Get<IObjectValueAnnotation>().Value as List<IMemberInfo>;
+                HashSet<IMemberInfo> found = new HashSet<IMemberInfo>();
+                foreach (var _mem in selectedValues)
+                {
+                    if (_mem is AllItems) continue;
+                    var mem = (IMemberInfo)_mem;
+                    found.Add(mem);
+                }
+                fac.Get<IObjectValueAnnotation>().Value = found.ToList();
+            }
+
+            AnnotationCollection fac;
+
+            public SweepRangeMembersAnnotation(AnnotationCollection fac)
+            {
+                this.fac = fac;
+            }
+        }
+
+        public double Priority => 5;
+
+        public void Annotate(AnnotationResolver resolver)
+        {
+
+            var annotation = resolver.Annotations;
+            var mem = annotation.Get<IMemberAnnotation>();
+            if(mem != null && mem.Member.TypeDescriptor is CSharpTypeInfo cst)
+            {
+                if (mem.Member.DeclaringType.DescendsTo(typeof(SweepLoop)))
+                {
+                    if (cst.Type.DescendsTo(typeof(IEnumerable)))
+                    {
+                        var elem = cst.Type.GetEnumerableElementType();
+                        if (elem == typeof(IMemberInfo))
+                        {
+                            annotation.Add(new SweepParamsAnnotation(annotation));
+                        }
+                        if (elem == typeof(SweepParam))
+                        {
+                            annotation.Add(new SweepParamsAggregation(annotation));
+                        }
+                    }
+                }else if (mem.Member.DeclaringType.DescendsTo(typeof(SweepLoopRange)))
+                {
+                    if (cst.Type.DescendsTo(typeof(IEnumerable)))
+                    {
+                        var elem = cst.Type.GetEnumerableElementType();
+                        if (elem == typeof(IMemberInfo))
+                        {
+                            annotation.Add(new SweepRangeMembersAnnotation(annotation));
+                        }
+                    }
+                }
+            }
+            var reflect = annotation.Get<IReflectionAnnotation>();
+            if (reflect?.ReflectionInfo is CSharpTypeInfo type)
+            {
+                if(type.Type == typeof(SweepRow))
+                {
+                    annotation.Add(new SweepParamsMembers(annotation));
+                }
+            }
+        }
+    }
+
+    class AggregatedMembersAnnotation : IMembersAnnotation, IForwardedAnnotations, IOwnedAnnotation
+    {
+        public IEnumerable<AnnotationCollection> Members { get; set; }
+        
+        public IEnumerable<AnnotationCollection> Forwarded { get; set; }
+
+        public void Read(object source)
+        {
+            foreach (var mem in Members)
+                mem.Read(source);
+            foreach (var mem in Forwarded)
+                mem.Read();
+        }
+
+        public void Write(object source)
+        {
+            foreach (var mem in Members)
+                mem.Write(source);
+            foreach(var mem in Forwarded)
+                mem.Write();
+        }
+    }
+    
+    public class TestPlanReferenceAnnotator2 : IAnnotator
+    {
+        public double Priority => 20;
+        class SubAvailable : IAvailableValuesAnnotation
+        {
+            public IEnumerable AvailableValues => throw new NotImplementedException();
+        }
+
+        class SubSuggested : ISuggestedValuesAnnotation
+        {
+            AnnotationCollection subcol;
+            public SubSuggested(AnnotationCollection subcol)
+            {
+                this.subcol = subcol;
+            }
+            public IEnumerable SuggestedValues => subcol.Get<ISuggestedValuesAnnotation>().SuggestedValues;
+        }
+
+        public void Annotate(AnnotationResolver resolver)
+        {
+            var annotation = resolver.Annotations;
+            ISuggestedValuesAnnotation suggested = annotation.Get<ISuggestedValuesAnnotation>();
+            IAvailableValuesAnnotation avail = annotation.Get<IAvailableValuesAnnotation>();
+            if (avail != null || suggested != null)
+            {
+                var obj = annotation.ParentAnnotation?.Get<IObjectValueAnnotation>().Value as TestPlanReference;
+                if (obj == null) return;
+                var member = annotation.Get<IMemberAnnotation>()?.Member as ExpandedMemberData;
+                // an IAvailableValuesAnnotation inside of a TestPlanReference.
+                if(member != null)
+                {
+                    var subannotation = AnnotationCollection.Annotate(member.ExternalParameter.Properties.Select(x => x.Key).ToArray());
+                    var subMembers = subannotation.Get<IMembersAnnotation>();
+                    var suggesteda = subMembers.Members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member == member.ExternalParameter.PropertyInfos.First());
+                    if(suggesteda != null && suggesteda.Get<ISuggestedValuesAnnotation>() != null)
+                    {
+                        resolver.Annotations.Add(new SubSuggested(suggesteda));
+                    }
+                }
+
+            }
+        }
+    }
+
     public class SweepParam
     {
         public String Name { get; set; }
-        public Array Values { get; set; }
+        object[] _values = Array.Empty<object>();
+        public object[] Values { get => _values; set => _values = value; }
         [XmlIgnore]
-        public Type Type
+        public object DefaultValue;
+        [XmlIgnore]
+        public ITypeInfo Type
         {
-            get { return Values == null ? null : Values.GetType().GetElementType(); }
-            internal protected set
-            {
-                if (Values != null && Values.GetType().GetElementType() != value)
-                    throw new NotSupportedException("Cannot dynamically change type of Sweep Parameter");
-                Values = Array.CreateInstance(value, 0);
-            }
+            get { return Property?.TypeDescriptor; }
         }
-        // TypeName useful for serialization.
-        public string TypeName
-        {
-            get { return Type.FullName; }
-            private set { Type = PluginManager.LocateType(value); }
-        }
-
+        
         /// <summary>
         /// Gets or sets if the parameter is enabled.
         /// </summary>
         public bool[] IsEnabled { get; set; }
         
         [XmlIgnore]
-        public PropertyInfo[] PropertyInfos { get; set; }
+        public IMemberInfo[] PropertyInfos { get; set; }
         
         /// <summary>
         /// A list of the Properties that this parameters represents. 
@@ -618,7 +1028,7 @@ namespace OpenTap.Plugins.BasicSteps
         /// The property from where attributes are pulled.
         /// </summary>
         
-        public PropertyInfo Property { get { return PropertyInfos == null ? null : PropertyInfos.FirstOrDefault(); } }
+        public IMemberInfo Property { get { return PropertyInfos == null ? null : PropertyInfos.FirstOrDefault(); } }
 
         /// <summary>
         /// Default constructor. Used by serializer.
@@ -631,21 +1041,19 @@ namespace OpenTap.Plugins.BasicSteps
         /// Initializes a new instance of the SweepParam class. For use when programatically creating a <see cref="SweepLoop"/>
         /// </summary>
         /// <param name="prop">Property to sweep. This should be one of the properties on one of the childsteps of the <see cref="SweepLoop"/>.</param>
-        public SweepParam(IEnumerable<PropertyInfo> props, params object[] values) : this()
+        public SweepParam(IEnumerable<IMemberInfo> props, params object[] values) : this()
         {
             if (props.Count() < 1)
                 throw new ArgumentException("Must contain at least one PropertyInfo", "props");
 
-            Type = props.First().PropertyType;
-            if (!props.All(p => p.PropertyType == Type))
-                throw new ArgumentException("All sweep properties must be of the same type", "props");
-
             Name = props.First().GetDisplayAttribute().GetFullName();
             PropertyInfos = props.Distinct().ToArray();
             PropertyNames = PropertyInfos.Select(prop => prop.GetDisplayAttribute().GetFullName()).ToArray();
+            if (!props.All(p => object.Equals(p.TypeDescriptor, Type)))
+                throw new ArgumentException("All sweep properties must be of the same type", "props");
             if (values != null && values.Length > 0)
             {
-                Values = Array.CreateInstance(Type, values.Length);
+                Array.Resize(ref _values, values.Length);
                 values.CopyTo(Values, 0);
                 IsEnabled = values.Select(item => true).ToArray();
             }
@@ -658,15 +1066,32 @@ namespace OpenTap.Plugins.BasicSteps
 
         public void Resize(int newCount)
         {
-            if (Values.Length == newCount)
+            int oldCount = Values.Length;
+            if (oldCount == newCount)
                 return;
+
             var oldValues = Values;
-            Values = Array.CreateInstance(Type, newCount);
+            Array.Resize(ref _values, newCount);
+            for (int i = oldCount; i < newCount; i++)
+            {
+                if (i == 0)
+                {
+                    _values.SetValue(DefaultValue, i);
+                }
+                else
+                {
+                    _values.SetValue(_values.GetValue(i - 1), i);
+                }
+            }
             var copyAmount = Math.Min(newCount, oldValues.Length);
             Array.Copy(oldValues, Values, copyAmount);
             bool[] isEnabled = IsEnabled;
             Array.Resize(ref isEnabled, newCount);
             IsEnabled = isEnabled;
+            for (int i = oldCount; i < newCount; i++)
+            {
+                isEnabled[i] = true;
+            }
         }
     }
 }

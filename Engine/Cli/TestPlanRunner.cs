@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 
 namespace OpenTap.Cli
 {
@@ -14,10 +15,10 @@ namespace OpenTap.Cli
     {
         private static readonly TraceSource log = Log.CreateSource("Main");
         
-        public static Verdict RunPlanForDut(TestPlan Plan, List<ResultParameter> metadata)
+        public static Verdict RunPlanForDut(TestPlan Plan, List<ResultParameter> metadata, CancellationToken cancellationToken)
         {
             Plan.PrintTestPlanRunSummary = true;
-            return Plan.Execute(ResultSettings.Current, metadata).Verdict;
+            return Plan.ExecuteAsync(ResultSettings.Current, metadata, null, cancellationToken).Result.Verdict;
         }
 
         public static void SetSettingsDir(string dir)

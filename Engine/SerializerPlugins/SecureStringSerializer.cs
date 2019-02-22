@@ -91,9 +91,9 @@ namespace OpenTap.Plugins
         /// <param name="targetType"></param>
         /// <param name="setResult"></param>
         /// <returns></returns>
-        public override bool Deserialize(XElement node, Type targetType, Action<object> setResult)
+        public override bool Deserialize(XElement node, ITypeInfo targetType, Action<object> setResult)
         {
-            if (targetType != typeof(System.Security.SecureString)) return false;
+            if (targetType.IsA(typeof(System.Security.SecureString)) == false) return false;
             string valueString = node.Value;
             var result = new System.Security.SecureString();
             setResult(result);
@@ -117,7 +117,7 @@ namespace OpenTap.Plugins
         /// <param name="obj"></param>
         /// <param name="expectedType"></param>
         /// <returns></returns>
-        public override bool Serialize(XElement elem, object obj, Type expectedType)
+        public override bool Serialize(XElement elem, object obj, ITypeInfo expectedType)
         {
             if (obj is System.Security.SecureString == false) return false;
             var sec = (System.Security.SecureString)obj;

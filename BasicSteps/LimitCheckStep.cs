@@ -15,15 +15,19 @@ namespace OpenTap.Plugins.BasicSteps
         /// <summary> Implementation of input type restrictions. This returns true if its a number type. </summary>
         /// <param name="concreteType"></param>
         /// <returns></returns>
-        public override bool SupportsType(Type concreteType)
+        public override bool SupportsType(ITypeInfo concreteType)
         {
-            if (!base.SupportsType(concreteType)) return false;
-            if (concreteType.IsEnum) return false;
+            if (concreteType is CSharpTypeInfo cst)
+            {
+                if (!base.SupportsType(concreteType)) return false;
+                if (cst.Type.IsEnum) return false;
 
-            if (concreteType.IsNumeric())
-                return true;
-            else
-                return false;
+                if (cst.Type.IsNumeric())
+                    return true;
+                else
+                    return false;
+            }
+            return false;
         }
     }
 

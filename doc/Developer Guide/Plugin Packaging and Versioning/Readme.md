@@ -173,12 +173,13 @@ TAP now supports two different obfuscators: Preemptive Software Dotfuscator (off
 Obfuscar requires the `Obfuscar.Console.exe` tool to be located in the working directory, or in a directory pointed to by an environment variable `%OBFUSCAR_PATH%`.
 
 ## Versioning
-The TAP executables and TAP packages are versioned independently and should use semantic versioning (see definition [here](https://semver.org/)). TAP versions are of the form **X**.**Y**.**Z**+**W**, where:
+The TAP executables and TAP packages are versioned independently and should use semantic versioning (see definition [here](https://semver.org/)). Versions are of the form **X**.**Y**.**Z**-**A**+**B**, where:
 
 - X is the major version number, incremented upon changes that **break** backwards-compatibility.
--	Y is the minor version number, incremented upon backwards-compatible changes.
--	Z is the patch version, incremented upon every set of code changes. The patch version can include pre-release labels.
--	W is the metadata (e.g. Git short commit hash).
+- Y is the minor version number, incremented upon backwards-compatible changes.
+- Z is the patch version, incremented upon every set of code changes. The patch version can include pre-release labels.
+- A is an optional pre-release label.
+- B is optional metadata (e.g. Git short commit hash or branch name).
 
 It is possible to set the version of the *.TapPackage using one of the following methods:
 
@@ -188,29 +189,67 @@ It is possible to set the version of the *.TapPackage using one of the following
 
 ### Git Assisted Versioning
 
-The **$(GitVersion) Macro** can be used in the Version attribute of the Package and File element in package.xml. It enables using Git annotated tags to manage the versioning. Git supports two types of tags: Lightweight and Annotated. Git Assisted Versioning only works for  Annotated Tags. If the repository does not have any **Annotated Tags**, the macro expands to 0.0.0 when the TapPackage is built. Git assisted versioning follows semantic versioning with the **X**.**Y**.**Z**+**W** format (as described earlier). It enables you to build packages like follows, when `Version` is set to `$(GitVersion)` for the Package element in package.xml:
+The **$(GitVersion) Macro** can be used in the Version attribute of the Package and File element in package.xml. It follows semantic versioning with the **X**.**Y**.**Z**-**A**+**B** format (as described earlier). Git assisted versioning uses the Git repository history to automatically determine/increment prerelease versions. Git commits marked with annotated tags will be interpreted as release versions, and will not have any prerelease information added to their version numbers. Note that Git Assisted Versioning only recognizes Annotated Tags, not light weight tags. To determine the first three values of the version number, Git assisted versioning reads a `.gitverion` file in from the root of the repository (see example later in this section). To determine the prerelease label the git branch name is considered like this: 
 
-- **release**: The code is on a branch named "release" or "ship" (e.g. "release8x"). The format of the resulting package version is **X**.**Y**.**Z**+**W**. For example, if the last commit for "MyPackage" is marked with the `v1.0` Git annotated tag, MyPackage.1.0.0+c5317128.TapPackage is created. The metadata is set to the Git short commit hash (`c5317128`).
+- **beta**: The code is on a branch named "integration", "develop", "dev" or "master" (name configurable in `.gitversion` file). The version is marked with a "beta" pre-release identifier. A number **N** is also added denoting the commit count from the last change to the X, Y or Z parts of the version number (in the `.gitversion` file). The format of the resulting package version is X.Y.Z-**beta.N**+W. 
 
-- **rc**: The code is on a release candidate branch named "rc" (e.g. "rc8x"). The format of the resulting package version is **X**.**Y**.**Z**-**rc**+**W**. For example: MyPackage.1.0.0-rc+c5317128, where the patch version includes the "-rc" pre-release label.
+- **rc**: The code is on a branch named "release" (optionally followed by a "release series" number - e.g. "release8x") (name configurable in `.gitversion` file). When there is no tag on the current commit, this is just considered a release candidate, and is marked with an "rc" pre-release identifier. A number **M** is also added denoting the commit count from when this branch was last branched out from the default branch (e.g. rc.3). The format of the resulting package version is X.Y.Z-**rc.M**+B. 
 
-- **beta**: The code is on a pre-release candidate branch named "integration", "develop", "dev" or "master". The format of the resulting package version is **X**.**Y**.**Z**-**beta**+**W**. For example: MyPackage.1.0.0-beta+c5317128, where the patch version includes the "-beta" pre-release label.
+- **alpha**: Code is on an alpha/feature branch. All branches, which do not meet the above criteria, are considered as alpha/feature branches. On these branches, an "alpha" pre-release identifier is added along with both N and M as defined above. The format of the resulting package version is X.Y.Z-**alpha.N.M**+W.**BRANCH_NAME**. For example: 1.0.0-alpha+c5317128.456-FeatureBranch, where the branch name is appended to the metadata.
 
-- **alpha**: Code is on an alpha/feature branch. All branches, which do not meet the above criteria, are considered as alpha/feature branches. The format of the resulting package version is **X**.**Y**.**Z**-**alpha**+**W**.**BRANCH_NAME**. For example: MyPackage.1.0.0-alpha+c5317128.456-FeatureBranch, where the branch name is appended to the metadata.
-
-To add and push Annotated Tag to the latest commit, run the following command in your project folder:
+To add and push Annotated Tag to the latest commit (and create a release version), run the following command in your project folder:
 
   ```sh
   git tag -a v1.0 -m "version 1.0"
   git push --tags
   ```
 
-Annotated Tags can also be created in Visual Studio. This is done by including a tag message during tag creation. A Lightweight Tag, which TAP is not able to use for package versioning, is created if the tag message is left out.
+Annotated Tags can also be created in Visual Studio. This is done by including a tag message during tag creation. A Lightweight Tag, which Git Assisted Versioning will not consider, is created if the tag message is left out.
 
 The example above marks the latest commit as version 1.0. When the package is created, the major and minor version number of the package is set based on the tag. On subsequent commits, the build number (the third number) will automatically increment (1.0.1 , 1.0.2 , etc.). To increment the major or minor version number (first and second number), another Annotated Tag can be added.
 
+Example `.gitverion` file including options, their descriptions and default values:
+```sh
+# This file specifies the (first part of the) version number and some options used by the
+# "tap sdk gitverion" command and the $(gitversion) macro in package.xml
+
+# This is the version number that will be used. Prerelease numbers are calculated by 
+# counting git commits since the last change in this value.
+version = 1.0.1
+
+# A version is determined to be a "beta" prerelease if it originates from the default branch
+# The default branch is the first branch that matches the following regular expession.
+# Uncomment to change the default.
+#beta branch = integration
+
+# When specified multiple times later sprcifications of "beta branch" will only be tried
+# if earlier ones did not match any branches in the git repository
+#beta branch = develop
+#beta branch = dev
+#beta branch = master
+
+# A version is determined to be a "rc" prerelease if it originates from a branch that matches
+# the following regular expression.
+# Uncomment to change the default.
+#release branch = release[0-9x]*
+
+# A version is determined to be a release (no prerelease identifiers, just the version number
+# specified in this file), if it originates from a commit that has an annotated tag that matches
+# the following regular expression. (Note that the actual value of the tag is not used).
+# Uncomment to change the default.
+#release tag = v\d+\.\d+
+```
+
+To preview the version number that Git Assisted Versioning generates, you can use the command:
+
+  ```sh
+  tap sdk gitversion
+  ```
+
+This command can also be useful if you need the same version number elsewhere in your build script.
+
 ### Manual Versioning
-The version can be set manually, e.g. `Version="1.0.2"`. The version **must** follow semantic versioning.
+The version can be set manually, e.g. `Version="1.0.2"`. The version **must** follow the semantic versioning format.
 
 ### UseVersion Attribute
 The UseVersion attribute is specified for the File element in package.xml. The version of the TapPackage is set based on the version number in the AssemblyInfo.cs file. You can manually increment the version in AssemblyInfo.cs. The version **must** follow semantic versioning. For example, you can specify the version number like this in AssemblyInfo.cs for "MyPackage":

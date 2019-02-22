@@ -14,8 +14,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 using System.Xml.Linq;
-using System.Xml.Serialization;
 using Tap.Shared;
 
 namespace OpenTap.Package
@@ -229,6 +229,16 @@ namespace OpenTap.Package
                     return PackageDef.LoadManyFrom(stream).ToArray();
                 }
             }
+            catch (XmlException ex)
+            {
+                if (!IsSilent)
+                    log.Warning("Invalid xml from package repository at '{0}'.", defaultUrl);
+                else
+                    log.Debug("Invalid xml from package repository at '{0}'.", defaultUrl);
+                log.Debug(ex);
+                log.Debug("Redirected url '{0}'", Url);
+                log.Debug(xmlText);
+            }
             catch (Exception ex)
             {
                 if (!IsSilent)
@@ -236,6 +246,7 @@ namespace OpenTap.Package
                 else
                     log.Debug("Error reading from package repository at '{0}'.", defaultUrl);
                 log.Debug(ex);
+                log.Debug("Redirected url '{0}'", Url);
             }
             return new PackageDef[0];
         }
@@ -309,11 +320,21 @@ namespace OpenTap.Package
             
             cancellationToken.ThrowIfCancellationRequested();
             
-            using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(response)))
-            using (var tr = new StreamReader(ms))
+            try
             {
-                var root = XElement.Load(tr);
-                return root.Nodes().OfType<XElement>().Select(e => e.Value).ToArray();
+                using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(response)))
+                using (var tr = new StreamReader(ms))
+                {
+                    var root = XElement.Load(tr);
+                    return root.Nodes().OfType<XElement>().Select(e => e.Value).ToArray();
+                }
+            }
+            catch (XmlException)
+            {
+                log.Debug("Redirected url '{0}'", Url);
+                log.Debug(response);
+
+                throw new Exception($"Invalid xml from package repository at '{defaultUrl}'.");
             }
         }
 

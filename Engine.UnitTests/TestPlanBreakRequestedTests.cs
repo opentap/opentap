@@ -6,6 +6,7 @@ using System.Linq;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
 using OpenTap;
+using System.Threading;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -85,31 +86,32 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
-
-        private TestPlan testplanAbort;
         [Test]
         public void BreakAbortStepRunNull()
         {
-            testplanAbort = new TestPlan();
+            TestPlan testPlan = new TestPlan();
             SequenceStep step1 = new SequenceStep();
             SequenceStep step2 = new SequenceStep();
             SequenceStep step3 = new SequenceStep();
 
-            testplanAbort.Steps.Add(step1);
-            testplanAbort.Steps.Add(step2);
-            testplanAbort.Steps.Add(step3);
+            testPlan.Steps.Add(step1);
+            testPlan.Steps.Add(step2);
+            testPlan.Steps.Add(step3);
 
-            testplanAbort.BreakOffered += Testplan_BreakOffered2;
 
-            testplanAbort.Execute();
+            SemaphoreSlim sem = new SemaphoreSlim(0);
+            var tapThread = TapThread.Start(() =>
+            {
+                testPlan.Execute();
+                sem.Release();
+            });
 
-            foreach (var step in testplanAbort.Steps)
+            testPlan.BreakOffered += (s, e) => tapThread.Abort();
+            
+            sem.Wait();
+
+            foreach (var step in testPlan.Steps)
                 Assert.IsNull(step.StepRun);
-        }
-
-        private void Testplan_BreakOffered2(object sender, BreakOfferedEventArgs e)
-        {
-            testplanAbort.RequestAbort();
         }
 
         [Test]

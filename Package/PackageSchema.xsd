@@ -17,12 +17,8 @@
       <xs:any minOccurs="0" maxOccurs="unbounded" namespace="##any" processContents="lax" />
     </xs:sequence>
     
-    <xs:attribute name="Obfuscate" type="xs:boolean"/>
-    <xs:attribute name="Sign" type="xs:string" use="optional"/>
-    <xs:attribute name="UseVersion" type="xs:boolean"/>
     <xs:attribute name="Path" type="xs:string" use="required"/>
     <xs:attribute name="LicenseRequired" type="xs:string"/>
-    <xs:attribute name="SetAssemblyInfo" type="xs:string"/>
     <xs:attribute name="SourcePath" type="xs:string"/>
   </xs:complexType>
   

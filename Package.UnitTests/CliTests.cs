@@ -20,7 +20,6 @@ namespace OpenTap.Package.UnitTests
             foreach (var packageFile in definition.Files)
             {
                 File.CreateText(packageFile.FileName).Close();
-                packageFile.DoObfuscate = false;
             }
             string defFileName = "generated_package.xml";
             using (var stream = File.Create(defFileName))
@@ -300,9 +299,12 @@ namespace OpenTap.Package.UnitTests
         {
             int exitCode;
             // TODO: we need the --version part below because the release version of License Injector does not yet support TAP 9.x, when it does, we can remove it again.
-            string output = RunPackageCli("install \"License Injector\" -f -r http://packages.opentap.keysight.com --version \"8.2.21-alpha+c67db154\"", out exitCode);
+            string output = RunPackageCli("install \"License Injector\" -r http://packages.opentap.keysight.com --version \"-beta\" -f", out exitCode);
             Assert.AreEqual(0, exitCode, "Unexpected exit code: " + output);
             Assert.IsTrue(output.Contains("Installed License Injector"));
+            output = RunPackageCli("uninstall \"License Injector\" -f", out exitCode);
+            Assert.AreEqual(0, exitCode, "Unexpected exit code: " + output);
+            Assert.IsTrue(output.Contains("Uninstalled License Injector"));
         }
         
         [Test]

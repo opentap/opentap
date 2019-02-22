@@ -17,7 +17,7 @@ namespace OpenTap
         ITestStep Step { get; set; }
 
         /// <summary>   Describes the <see cref="OutputAttribute"/> property on the <see cref="Step"/> to which this Input is connected.   </summary>
-        PropertyInfo Property { get; set; }
+        IMemberInfo Property { get; set; }
     }
 
     /// <summary>
@@ -28,7 +28,7 @@ namespace OpenTap
         /// <summary> returns true if the concrete type is supported. </summary>
         /// <param name="concreteType"></param>
         /// <returns></returns>
-        bool SupportsType(Type concreteType);
+        bool SupportsType(ITypeInfo concreteType);
     }
 
     /// <summary>   
@@ -42,14 +42,14 @@ namespace OpenTap
         /// Describes the output property on the <see cref="Step"/> to which this Input is connected.  
         /// </summary>
         [XmlIgnore]
-        public PropertyInfo Property { get; set; }
+        public IMemberInfo Property { get; set; }
 
         /// <summary>   
         /// Gets or sets the name of the property to which this Input is connected. Used for serialization.  
         /// </summary>
         public string PropertyName
         {
-            get { return Property != null ? Property.DeclaringType.AssemblyQualifiedName + "|" + Property.Name : null; }
+            get { return Property != null ? Property.DeclaringType.Name + "|" + Property.Name : null; }
             set
             {
                 if (string.IsNullOrEmpty(value))
@@ -57,9 +57,9 @@ namespace OpenTap
                 else
                 {
                     string[] parts = value.Split('|');
-                    Type stepType = PluginManager.LocateType(parts.First().Split(',').First());
-
-                    Property = stepType.GetProperty(value.Split('|').Last());
+                    var typename = parts[0];
+                    ITypeInfo stepType = TypeInfo.GetTypeInfo(typename);
+                    Property = stepType.GetMember(parts[1]);
                 }
             }
         }
@@ -80,6 +80,7 @@ namespace OpenTap
                     {   
                         return;
                     }
+                    stepId = step.Id;
                     unbindStep();
                     List<ITestStepParent> parents = new List<ITestStepParent>();
                     var parent = step.Parent;
@@ -96,22 +97,32 @@ namespace OpenTap
             }
         }
 
-        ITestStep prevStep;
+        Guid stepId;
         void ChildTestSteps_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
             if(Step != null && e.OldItems != null && e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Remove)
             {
                 if (e.OldItems.Contains(step) || Step.GetParents().Any(e.OldItems.Contains))
                 {
-                    prevStep = step;
+                    stepId = Step.Id;
                     Step = null;
                 }
-            }else if(prevStep != null && e.NewItems != null && e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
+            }else if(e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
             {
-                if (e.NewItems.Contains(prevStep) || prevStep.GetParents().Any(e.NewItems.Contains))
-                { // if prevStep or one of its parents has been re-added it means the step was moved and not removed.
-                    Step = prevStep;
-                    prevStep = null;
+                if(Step != null)
+                  stepId = Step.Id;
+                Step = null;
+            }else  if(e.NewItems != null && e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
+            {
+                var steps = e.NewItems.OfType<ITestStep>();
+                var allSteps = Utils.FlattenHeirarchy(steps, x => x.ChildTestSteps).Distinct();
+                foreach(var step in allSteps)
+                {
+                    if(step.Id == stepId)
+                    {
+                        Step = step;
+                        return;
+                    }
                 }
             }
         }
@@ -129,9 +140,9 @@ namespace OpenTap
                 // Wait for the step to complete
                 var run = Step.StepRun;
                 var planRun = step.PlanRun;
-                if (run != null && planRun != null) run.WaitForCompletion(planRun.AbortToken);
+                if (run != null && planRun != null) run.WaitForCompletion();
 
-                return (T)Property.GetValue(Step, null);
+                return (T)Property.GetValue(Step);
             }
         }
         
@@ -160,7 +171,7 @@ namespace OpenTap
         /// <summary> Returns true if this input supports the concrete type. </summary>
         /// <param name="concreteType"></param>
         /// <returns></returns>
-        public virtual bool SupportsType(Type concreteType)
+        public virtual bool SupportsType(ITypeInfo concreteType)
         {
             return concreteType.DescendsTo(typeof(T));
         }

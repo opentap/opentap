@@ -5,7 +5,9 @@
         <PackageDependency Package="Tap" Version="3.0.48.af828a5" />
     </Dependencies>
     <Files>
-        <File Path="TapPlugin.XSignalAnalyzer.dll" Obfuscate="true" UseVersion="true">
+        <File Path="TapPlugin.XSignalAnalyzer.dll">
+          <UseVersion/>
+          <ObfuscateWithDotfuscator/>
             <Plugins>
                 <Plugin>TapPlugin.XSignalAnalyzer.XsaCore</Plugin>
                 <Plugin>TapPlugin.XSignalAnalyzer.E6640</Plugin>
@@ -19,7 +21,8 @@
                 <Plugin>TapPlugin.XSignalAnalyzer.XsaUploadFile</Plugin>
             </Plugins>
         </File>
-        <File Path="TapPlugin.XSignalSource.dll" Obfuscate="true" UseVersion="false">
+        <File Path="TapPlugin.XSignalSource.dll">
+          <ObfuscateWithDotfuscator/>
             <Plugins>
                 <Plugin>TapPlugin.XSignalSource.M9381A</Plugin>
                 <Plugin>TapPlugin.XSignalSource.N5182A</Plugin>

@@ -10,7 +10,7 @@
     },
     "tap (gitversion)": {
       "commandName": "Project",
-      "commandLineArgs": "gitversion"
+      "commandLineArgs": "sdk gitversion --dir c:\\git\\tapMerge\\ --log 20"
     },
     "tap (commands)": {
       "commandName": "Project"

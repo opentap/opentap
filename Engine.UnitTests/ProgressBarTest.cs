@@ -30,7 +30,7 @@ namespace OpenTap.Engine.UnitTests
             for (int i = Start; i < Fraction; i += Step)
             {
                 var watch = System.Diagnostics.Stopwatch.StartNew();
-                TestPlan.Sleep((int)(1000 * Sleep + rand.Next() % 100));
+                TapThread.Sleep((int)(1000 * Sleep + rand.Next() % 100));
                 Log.Debug("{2} [{0}/{1}]", i, Fraction, PreMessage);
             }
             Log.Debug("{1} [{0}/{0}] Completed", Fraction, PreMessage);

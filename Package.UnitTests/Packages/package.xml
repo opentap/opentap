@@ -7,7 +7,8 @@
     <Package Name="DepName" Version="4.3.2+depBuild" />
   </Dependencies>
   <Files>
-    <File Path="OpenTap.dll" Obfuscate="false" SetAssemblyInfo="Version">
+    <File Path="OpenTap.dll" >
+      <SetAssemblyInfo Attributes="Version"/>
       <IgnoreDependency>System.Reflection.Metadata</IgnoreDependency>
     </File>
   </Files>

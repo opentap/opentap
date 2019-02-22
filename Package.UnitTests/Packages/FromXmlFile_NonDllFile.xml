@@ -1,11 +1,14 @@
 ﻿<?xml version="1.0"?>
-<Package Name="TestWithDependencies" Version="2.3.0+9b084a8" xmlns="http://keysight.com/schemas/TAP/Package">
+<Package Name="TestWithDependencies" Version="2.3.0+9b084a8" xmlns="http://opentap.io/schemas/package">
   <Files>
-    <File Path="TapPlugin.XSignalAnalyzer.dll" Obfuscate="true" UseVersion="true">
+    <File Path="TapPlugin.XSignalAnalyzer.dll">
+      <UseVersion/>
+      <ObfuscateWithDotfuscator/>
     </File>
-    <File Path="TapPlugin.XSignalSource.dll" Obfuscate="true" UseVersion="false">
+    <File Path="TapPlugin.XSignalSource.dll">
+      <ObfuscateWithDotfuscator/>
     </File>
-    <File Path="FromXmlFile_NonDllFile.xml" Obfuscate="false" UseVersion="false">
+    <File Path="FromXmlFile_NonDllFile.xml">
     </File>
   </Files>
 </Package>

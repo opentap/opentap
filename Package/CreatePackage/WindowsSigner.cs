@@ -10,15 +10,26 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Serialization;
 
 namespace OpenTap.Package.CreatePackage
 {
+    [Display("Sign")]
+    public class SignData : ICustomPackageData
+    {
+        [XmlAttribute]
+        public string Certificate { get; set; }
+    }
+
     [Display("Built-in SignTool runner")]
-    public class WindowsSigner : IPackageSigner
+    public class WindowsSigner : ICustomPackageAction
     {
         private static string SigntoolPath = @"c:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Bin\signtool.exe";
+        private static OpenTap.TraceSource log = Log.CreateSource("Sign");
 
-        public bool CanTransform(PackageDef package)
+        public PackageActionStage ActionStage => PackageActionStage.Create;
+
+        private bool CanExecute()
         {
             if (!File.Exists(SigntoolPath))
             {
@@ -39,49 +50,53 @@ namespace OpenTap.Package.CreatePackage
             return File.Exists(SigntoolPath);
         }
 
-
-        public double GetOrder(PackageDef package)
+        public bool Execute(PackageDef package, CustomPackageActionArgs customArguments)
         {
-            return 0;
-        }
-
-
-        public bool Transform(string tempDir, PackageDef package)
-        {
-            if (!CanTransform(package))
+            if (!package.Files.Any(s => s.HasCustomData<SignData>()))
                 return false;
+
+            if (!CanExecute())
+                throw new InvalidOperationException($"Unable to sign. Signtool not found.");
 
 
             foreach (PackageFile packageFile in package.Files)
             {
-                if (string.IsNullOrEmpty(packageFile.Sign))
+                if (!packageFile.HasCustomData<SignData>())
                     continue;
 
+                SignData sign = packageFile.GetCustomData<SignData>();
+
                 var origFilename = Path.GetFileName(packageFile.RelativeDestinationPath);
-                var newFilename = Path.Combine(tempDir, "Signed", origFilename);
+                var newFilename = Path.Combine(customArguments.TemporaryDirectory, "Signed", origFilename);
                 Directory.CreateDirectory(Path.GetDirectoryName(newFilename));
 
                 int i = 1;
-                while (File.Exists(newFilename)) { 
-                    newFilename = Path.Combine(tempDir, "Signed", origFilename + i.ToString());
+                while (File.Exists(newFilename))
+                {
+                    newFilename = Path.Combine(customArguments.TemporaryDirectory, "Signed", origFilename + i.ToString());
                     i++;
                 }
 
-                Utils.FileCopy(packageFile.FileName, newFilename);
+                ProgramHelper.FileCopy(packageFile.FileName, newFilename);
 
-                string certificateName = packageFile.Sign;
+                string certificateName = sign.Certificate;
                 var args = string.Format("sign /a /n \"{1}\" /t http://timestamp.verisign.com/scripts/timstamp.dll \"{0}\"", newFilename, certificateName);
-                var ec = Utils.RunProgram(SigntoolPath, args);
+                var ec = ProgramHelper.RunProgram(SigntoolPath, args);
                 bool signed = ec == 0;
 
                 if (signed)
                     packageFile.FileName = newFilename;
                 else
-                {
-                    return false;
-                }
+                    throw new InvalidOperationException($"Unable to sign. Signtool returned exit code {ec}.");
+
+                packageFile.RemoveCustomData<SignData>();
             }
             return true;
+        }
+
+        public int Order()
+        {
+            return 1000;
         }
     }
 }

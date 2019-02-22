@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -846,7 +847,7 @@ namespace OpenTap
 
     internal static class AssemblyExtensions
     {
-        internal static Dictionary<Assembly, SemanticVersion> lookup = new Dictionary<Assembly, SemanticVersion>();
+        internal static ConcurrentDictionary<Assembly, SemanticVersion> lookup = new ConcurrentDictionary<Assembly, SemanticVersion>();
         internal static SemanticVersion GetSemanticVersion(this Assembly asm)
         {
             if (!lookup.ContainsKey(asm) || lookup[asm] == null)

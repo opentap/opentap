@@ -248,7 +248,7 @@ namespace OpenTap.Engine.UnitTests
             if (CrashResultPhase == ResultPhase.PlanRunStart)
             {
                 if (AbortPlan)
-                    planRun.RequestAbort();
+                    TapThread.Current.Abort();
                 else
                     throw new Exception("Intended");
             }
@@ -260,7 +260,7 @@ namespace OpenTap.Engine.UnitTests
             if (CrashResultPhase == ResultPhase.PlanRunCompleted)
             {
                 if (AbortPlan)
-                    planRun.RequestAbort();
+                    TapThread.Current.Abort();
                 else
                     throw new Exception("Intended");
             }
@@ -276,7 +276,7 @@ namespace OpenTap.Engine.UnitTests
             if (CrashResultPhase == ResultPhase.StepRunStart)
             {
                 if (AbortPlan)
-                    planrun.RequestAbort();
+                    TapThread.Current.Abort();
                 else
                     throw new Exception("Intended");
             }
@@ -287,7 +287,7 @@ namespace OpenTap.Engine.UnitTests
             if (CrashResultPhase == ResultPhase.StepRunCompleted)
             {
                 if (AbortPlan)
-                    planrun.RequestAbort();
+                    TapThread.Current.Abort();
                 else
                     throw new Exception("Intended");
             }
@@ -298,7 +298,7 @@ namespace OpenTap.Engine.UnitTests
             if (CrashResultPhase == ResultPhase.Result)
             {
                 if (AbortPlan)
-                    planrun.RequestAbort();
+                    TapThread.Current.Abort();
                 else
                     throw new Exception("Intended");
             }

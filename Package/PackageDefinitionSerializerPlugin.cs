@@ -18,14 +18,14 @@ namespace OpenTap.Package
     /// <summary>
     /// TapSerializerPlugin for <see cref="PackageDef"/>
     /// </summary>
-    public class PackageDefinitionSerializerPlugin : OpenTap.TapSerializerPlugin
+    public class PackageDefinitionSerializerPlugin : TapSerializerPlugin
     {
         /// <summary>
         /// Called as part for the deserialization chain. Returns false if it cannot serialize the XML element.  
         /// </summary>
-        public override bool Deserialize(XElement node, Type t, Action<object> setter)
+        public override bool Deserialize(XElement node, ITypeInfo t, Action<object> setter)
         {
-            if(node.Name.LocalName == "Package" && t == typeof(PackageDef))
+            if(node.Name.LocalName == "Package" && t.IsA(typeof(PackageDef)))
             {
                 var pkg = new PackageDef();
                 foreach (XAttribute attr in node.Attributes())
@@ -73,14 +73,14 @@ namespace OpenTap.Package
         /// <summary>
         /// Called as part for the serialization chain. Returns false if it cannot serialize the XML element.  
         /// </summary>
-        public override bool Serialize(XElement node, object obj, Type expectedType)
+        public override bool Serialize(XElement node, object obj, ITypeInfo expectedType)
         {
-            if (expectedType != typeof(PackageDef))
+            if (expectedType.IsA(typeof(PackageDef)) == false)
                 return false;
             XNamespace ns = "http://opentap.io/schemas/package";
             node.Name = ns + "Package";
             node.SetAttributeValue("type", null);
-            foreach (var prop in typeof(PackageDef).GetProperties(System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.Public))
+            foreach (var prop in expectedType.GetMembers())
             {
                 object val = prop.GetValue(obj);
                 if (false == val is string && val is IEnumerable && (val as IEnumerable).GetEnumerator().MoveNext() == false)
@@ -101,7 +101,7 @@ namespace OpenTap.Package
                         node.Add(ele);
                         break;
                     default:
-                        var xmlAttr = prop.GetCustomAttributes<XmlAttributeAttribute>().FirstOrDefault();
+                        var xmlAttr = prop.GetAttributes<XmlAttributeAttribute>().FirstOrDefault();
                         if (xmlAttr != null)
                         {
                             string name = prop.Name;
@@ -114,7 +114,7 @@ namespace OpenTap.Package
                             var elm = new XElement(prop.Name);
                             if (obj != null)
                             {
-                                Serializer.Serialize(elm, val, expectedType: prop.PropertyType);
+                                Serializer.Serialize(elm, val, expectedType: prop.TypeDescriptor);
                             }
                             void SetNs(XElement e)
                             {
@@ -149,18 +149,18 @@ namespace OpenTap.Package
         /// <summary>
         /// Called as part for the deserialization chain. Returns false if it cannot serialize the XML element.  
         /// </summary>
-        public override bool Deserialize(XElement node, Type t, Action<object> setter)
+        public override bool Deserialize(XElement node, ITypeInfo t, Action<object> setter)
         {
-            if (t == typeof(PackageDependency))
+            if (t.IsA(typeof(PackageDependency)))
             {
                 string name = null;
-                string rawVersion = null;
+                string version = null;
                 foreach (XAttribute attr in node.Attributes())
                 {
                     switch (attr.Name.LocalName)
                     {
                         case "Version":
-                            rawVersion = attr.Value;
+                            version = attr.Value;
                             break;
                         case "Package": // TAP 8.0 support
                         case "Name":
@@ -171,7 +171,7 @@ namespace OpenTap.Package
                             break;
                     }
                 }
-                setter.Invoke(new PackageDependency(name,ConvertVersion(rawVersion)));
+                setter.Invoke(new PackageDependency(name, ConvertVersion(version)));
                 return true;
             }
             return false;
@@ -205,20 +205,18 @@ namespace OpenTap.Package
         /// <summary>
         /// Called as part for the serialization chain. Returns false if it cannot serialize the XML element.  
         /// </summary>
-        public override bool Serialize(XElement node, object obj, Type expectedType)
+        public override bool Serialize(XElement node, object obj, ITypeInfo expectedType)
         {
-            if (expectedType != typeof(PackageDependency))
+            if (expectedType.IsA(typeof(PackageDependency)) == false)
                 return false;
             node.Name = "Package"; 
             node.Name = "PackageDependency"; // TODO: remove when server is updated (this is only here for support of the TAP 8.x Repository server that does not yet have a parser that can handle the new name)
             node.SetAttributeValue("type", null);
-            foreach (var prop in typeof(PackageDependency).GetProperties())
+            foreach (var prop in expectedType.GetMembers())
             {
                 object val = prop.GetValue(obj);
                 string name = prop.Name;
                 if (val == null)
-                    continue;
-                if (name == "RawVersion")
                     continue;
                 if (name == "Name")
                     name = "Package"; // TODO: remove when server is updated (this is only here for support of the TAP 8.x Repository server that does not yet have a parser that can handle the new name)

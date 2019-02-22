@@ -77,23 +77,32 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void TimeoutOperationTest()
         {
+            var sem = new System.Threading.Semaphore(0, 1);
+            TapThread.Start(() => sem.Release());
+            sem.WaitOne();
             {
                 bool calledAction = false;
-                var operation = TimeoutOperation.Create(TimeSpan.FromMilliseconds(1), () => calledAction = true);
-                System.Threading.Thread.Sleep(10);
+                var operation = TimeoutOperation.Create(TimeSpan.FromMilliseconds(1), () =>
+                {
+                    calledAction = true;
+                    sem.Release();
+                });
+                sem.WaitOne();
                 Assert.IsTrue(calledAction);
             }
             {
                 bool calledAction = false;
-                var operation = TimeoutOperation.Create(TimeSpan.FromMilliseconds(100), () => calledAction = true);
+                var operation = TimeoutOperation.Create(TimeSpan.FromMilliseconds(50), () => calledAction = true);
                 operation.Dispose();
                 Assert.IsFalse(calledAction);
             }
             {
                 bool calledAction = false;
-                var operation = TimeoutOperation.Create(TimeSpan.FromMilliseconds(1), () => calledAction = true);
+                var operation = TimeoutOperation.Create(TimeSpan.FromMilliseconds(1), () =>
+                {
+                    calledAction = true;
+                });
                 operation.Dispose();
-                System.Threading.Thread.Sleep(10);
                 Assert.IsFalse(calledAction);
             }
             {

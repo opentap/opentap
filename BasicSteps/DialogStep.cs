@@ -4,16 +4,15 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using OpenTap;
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.ComponentModel;
 
 namespace OpenTap.Plugins.BasicSteps
 {
     public enum InputButtons
     {
-        [Display("Ok / Cancel")]
+        [Display("Ok / Cancel", "Shows the OK and Cancel buttons")]
         OkCancel,
-        [Display("Yes / No")]
+        [Display("Yes / No", "Shows the Yes and No buttons")]
         YesNo
     }
 
@@ -31,10 +30,39 @@ namespace OpenTap.Plugins.BasicSteps
         Cancel = 2, Ok = 1
     }
 
+    class DialogRequest
+    {
+        public DialogRequest(string Title, string Message)
+        {
+            this.Name = Title;
+            this.Message = Message;
+        }
+        [Browsable(false)]
+        public string Name { get; set; }
+
+        [Layout(LayoutMode.FullRow, rowHeight: 5)]
+        [Browsable(true)]
+        public string Message { get; private set; }
+
+        [Browsable(false)]
+        public InputButtons Buttons { get; set; }
+
+        [Layout(LayoutMode.FloatBottom | LayoutMode.FullRow)]
+        [EnabledIf("Buttons", InputButtons.YesNo, HideIfDisabled = true)]
+        [Submit]
+        public WaitForInputResult1 Input1 { get; set; }
+
+        [Layout(LayoutMode.FloatBottom | LayoutMode.FullRow)]
+        [EnabledIf("Buttons", InputButtons.OkCancel, HideIfDisabled = true)]
+        [Submit]
+        public WaitForInputResult2 Input2 { get; set; }
+    }
+
     [Display("Dialog", Group: "Basic Steps", Description: "Used to interact with the user.")]
     public class DialogStep : TestStep
     {
         [Display("Message", Description: "The message shown to the user.", Order: 0.1)]
+        [Layout(LayoutMode.Normal, 2)]
         public string Message { get; set; }
         
         [Display("Title", "The title of the dialog box.", Order: 0)]
@@ -85,23 +113,23 @@ namespace OpenTap.Plugins.BasicSteps
         public override void Run()
         {
             Verdict answer = DefaultAnswer;
-
+            var req = new DialogRequest(Title, Message) { Buttons = Buttons };
             try
             {
                 var timeout = TimeSpan.FromSeconds(Timeout);
                 if (timeout == TimeSpan.Zero)
                     timeout = TimeSpan.FromSeconds(0.001);
+                if (UseTimeout == false)
+                    timeout = TimeSpan.MaxValue;
+                UserInput.Request(req, timeout, false);
+
                 if (Buttons == InputButtons.OkCancel)
                 {
-                    var input = new PlatformRequest<WaitForInputResult2> { Message = Message };
-                    var result = (PlatformRequest<WaitForInputResult2>)PlatformInteraction.WaitForInput(new List<IPlatformRequest> { input }, UseTimeout ? timeout : TimeSpan.Zero, Title: Title).First();
-                    answer = result.Response == WaitForInputResult2.Ok ? PositiveAnswer : NegativeAnswer;
+                    answer = req.Input2 == WaitForInputResult2.Ok ? PositiveAnswer : NegativeAnswer;
                 }
                 else
                 {
-                    var input = new PlatformRequest<WaitForInputResult1> { Message = Message };
-                    var result = (PlatformRequest<WaitForInputResult1>)PlatformInteraction.WaitForInput(new List<IPlatformRequest> { input }, UseTimeout ? timeout : TimeSpan.Zero, Title: Title).First();
-                    answer = result.Response == WaitForInputResult1.Yes ? PositiveAnswer : NegativeAnswer;
+                    answer = req.Input1 == WaitForInputResult1.Yes ? PositiveAnswer : NegativeAnswer;
                 }
             }
             catch (TimeoutException)
