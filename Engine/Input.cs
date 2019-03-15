@@ -17,7 +17,7 @@ namespace OpenTap
         ITestStep Step { get; set; }
 
         /// <summary>   Describes the <see cref="OutputAttribute"/> property on the <see cref="Step"/> to which this Input is connected.   </summary>
-        IMemberInfo Property { get; set; }
+        IMemberData Property { get; set; }
     }
 
     /// <summary>
@@ -28,7 +28,7 @@ namespace OpenTap
         /// <summary> returns true if the concrete type is supported. </summary>
         /// <param name="concreteType"></param>
         /// <returns></returns>
-        bool SupportsType(ITypeInfo concreteType);
+        bool SupportsType(ITypeData concreteType);
     }
 
     /// <summary>   
@@ -36,13 +36,13 @@ namespace OpenTap
     /// When used in a TestStep, Input value should always be set in the constructor.
     /// </summary>
     /// <typeparam name="T"> Generic type parameter. </typeparam>
-    public class Input<T> : ValidatingObject, IInput, IInputTypeRestriction
+    public class Input<T> : IInput, IInputTypeRestriction
     {
         /// <summary> 
         /// Describes the output property on the <see cref="Step"/> to which this Input is connected.  
         /// </summary>
         [XmlIgnore]
-        public IMemberInfo Property { get; set; }
+        public IMemberData Property { get; set; }
 
         /// <summary>   
         /// Gets or sets the name of the property to which this Input is connected. Used for serialization.  
@@ -58,7 +58,7 @@ namespace OpenTap
                 {
                     string[] parts = value.Split('|');
                     var typename = parts[0];
-                    ITypeInfo stepType = TypeInfo.GetTypeInfo(typename);
+                    ITypeData stepType = TypeData.GetTypeData(typename);
                     Property = stepType.GetMember(parts[1]);
                 }
             }
@@ -92,7 +92,6 @@ namespace OpenTap
                     }
                     
                     unbindStep = () => parents.ForEach(p => p.ChildTestSteps.CollectionChanged -= ChildTestSteps_CollectionChanged);
-                    OnPropertyChanged("Step");
                 }
             }
         }
@@ -149,7 +148,7 @@ namespace OpenTap
         /// <summary>Constructor for the Input class.</summary>
         public Input()
         {
-            Rules.Add(() => Step != null, "No input selected.", "Step");
+            
         }
         /// <summary> Compares one Input to another. </summary>
         /// <param name="obj"></param>
@@ -171,7 +170,7 @@ namespace OpenTap
         /// <summary> Returns true if this input supports the concrete type. </summary>
         /// <param name="concreteType"></param>
         /// <returns></returns>
-        public virtual bool SupportsType(ITypeInfo concreteType)
+        public virtual bool SupportsType(ITypeData concreteType)
         {
             return concreteType.DescendsTo(typeof(T));
         }

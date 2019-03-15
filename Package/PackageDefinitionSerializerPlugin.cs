@@ -7,6 +7,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -18,12 +19,12 @@ namespace OpenTap.Package
     /// <summary>
     /// TapSerializerPlugin for <see cref="PackageDef"/>
     /// </summary>
-    public class PackageDefinitionSerializerPlugin : TapSerializerPlugin
+    internal class PackageDefinitionSerializerPlugin : TapSerializerPlugin
     {
         /// <summary>
         /// Called as part for the deserialization chain. Returns false if it cannot serialize the XML element.  
         /// </summary>
-        public override bool Deserialize(XElement node, ITypeInfo t, Action<object> setter)
+        public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
         {
             if(node.Name.LocalName == "Package" && t.IsA(typeof(PackageDef)))
             {
@@ -36,6 +37,12 @@ namespace OpenTap.Package
                             pkg.RawVersion = attr.Value;
                             if (SemanticVersion.TryParse(attr.Value, out var semver))
                                 pkg.Version = semver;
+                            break;
+                        case "Date":
+                            if (DateTime.TryParse(attr.Value, out DateTime date))
+                                pkg.Date = date;
+                            else
+                                pkg.Date = DateTime.MinValue;
                             break;
                         case "Architecture":
                             pkg.Architecture = (CpuArchitecture)Enum.Parse(typeof(CpuArchitecture), attr.Value);
@@ -73,7 +80,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Called as part for the serialization chain. Returns false if it cannot serialize the XML element.  
         /// </summary>
-        public override bool Serialize(XElement node, object obj, ITypeInfo expectedType)
+        public override bool Serialize(XElement node, object obj, ITypeData expectedType)
         {
             if (expectedType.IsA(typeof(PackageDef)) == false)
                 return false;
@@ -92,6 +99,10 @@ namespace OpenTap.Package
                 {
                     case "RawVersion":
                         continue;
+                    case "Date":
+                        if(((DateTime)val) != DateTime.MinValue)
+                            node.SetAttributeValue("Date", ((DateTime)val).ToString(CultureInfo.InvariantCulture));
+                        break;
                     case "Description":
                         var mngr = new XmlNamespaceManager(new NameTable());
                         mngr.AddNamespace("", ns.NamespaceName); // or proper URL
@@ -144,12 +155,12 @@ namespace OpenTap.Package
     /// <summary>
     /// TapSerializerPlugin for <see cref="PackageDependency"/>
     /// </summary>
-    public class PackageDependencySerializerPlugin : OpenTap.TapSerializerPlugin
+    internal class PackageDependencySerializerPlugin : OpenTap.TapSerializerPlugin
     {
         /// <summary>
         /// Called as part for the deserialization chain. Returns false if it cannot serialize the XML element.  
         /// </summary>
-        public override bool Deserialize(XElement node, ITypeInfo t, Action<object> setter)
+        public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
         {
             if (t.IsA(typeof(PackageDependency)))
             {
@@ -177,13 +188,21 @@ namespace OpenTap.Package
             return false;
         }
 
-        internal static VersionSpecifier ConvertVersion(string Version)
+        private static VersionSpecifier ConvertVersion(string Version)
         {
             if (String.IsNullOrWhiteSpace(Version))
                 return VersionSpecifier.Any;
             if (VersionSpecifier.TryParse(Version, out var semver))
             {
-                return semver;
+                if (semver.MatchBehavior.HasFlag(VersionMatchBehavior.Exact))
+                    return semver;
+
+                return new VersionSpecifier(semver.Major,
+                    semver.Minor,
+                    semver.Patch,
+                    semver.PreRelease,
+                    semver.BuildMetadata, 
+                    VersionMatchBehavior.Compatible | VersionMatchBehavior.AnyPrerelease);
             }
             // For compatability (pre 9.0 packages may not have correctly formatted version numbers)
             var plugins = PluginManager.GetPlugins<IVersionConverter>();
@@ -205,7 +224,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Called as part for the serialization chain. Returns false if it cannot serialize the XML element.  
         /// </summary>
-        public override bool Serialize(XElement node, object obj, ITypeInfo expectedType)
+        public override bool Serialize(XElement node, object obj, ITypeData expectedType)
         {
             if (expectedType.IsA(typeof(PackageDependency)) == false)
                 return false;

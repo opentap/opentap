@@ -172,17 +172,16 @@ namespace OpenTap
             else
                 return string.Format("{0}{3}{1}{2}", final_string, level, unit ?? "", space);
         }
-
-        public static BigFloat Parse(string str, string unit, string format, CultureInfo culture)
+        static object parse(string str, string unit, string format, CultureInfo culture)
         {
             if (str == null)
-                throw new ArgumentNullException("str");
+                return new ArgumentNullException("str");
             if (unit == null)
-                throw new ArgumentNullException("unit");
+                return new ArgumentNullException("unit");
             if (format == null)
-                throw new ArgumentNullException("format");
+                return new ArgumentNullException("format");
             if (culture == null)
-                throw new ArgumentNullException("culture");
+                return new ArgumentNullException("culture");
 
             str = str.Trim();
 
@@ -203,7 +202,7 @@ namespace OpenTap
             str = str.TrimEnd();
             if (str.Length == 0)
             {
-                throw new FormatException("Invalid format");
+                return new FormatException("Invalid format");
             }
 
             char prefix = str[str.Length - 1];
@@ -252,13 +251,35 @@ namespace OpenTap
                         continue;
                     else
                     {
-                        throw new FormatException("Invalid binary format.");
+                        return new FormatException("Invalid binary format.");
                     }
                 }
                 return new BigFloat(v) * multiplier;
-
             }
-            return new BigFloat(str, culture) * multiplier;
+            var r = BigFloat.Parse(str, culture);
+            if (r is BigFloat bf)
+                return bf * multiplier;
+            return r;
+        }
+        public static BigFloat Parse(string str, string unit, string format, CultureInfo culture)
+        {
+            var result = parse(str, unit, format, culture);
+            if (result is BigFloat bf)
+                return bf;
+            else throw (Exception)result;
+        }
+
+        public static bool TryParse(string str, string unit, string format, CultureInfo culture, out BigFloat bf)
+        {
+            var result = parse(str, unit, format, culture);
+            if (result is BigFloat _bf)
+            {
+                bf = _bf;
+                return true;
+            }
+
+            return false;
+
         }
     }
 
@@ -424,6 +445,11 @@ namespace OpenTap
             if (enableFeatureFractions && trimmed.Contains('/'))
                 return trimmed.Split('/').Select(part => parseNumber(part.Trim())).Aggregate((x, y) => x * PreScaling / y);
             return UnitFormatter.Parse(trimmed, Unit ?? "", Format, culture) * PreScaling;
+        }
+
+        bool tryParseNumber(string trimmed, out BigFloat val)
+        {
+            return UnitFormatter.TryParse(trimmed, Unit ?? "", Format, culture, out val);
         }
 
         string parseBackNumber(BigFloat number)
@@ -655,6 +681,24 @@ namespace OpenTap
             {
                 throw new FormatException(string.Format("Unable to parse '{0}' to a {1}", str, t.Name));
             }
+        }
+
+        /// <summary>
+        /// Try to parse a single number from a string.
+        /// </summary>
+        /// <param name="str">the string to parse.</param>
+        /// <param name="t">the return type of value. must be numeric. </param>
+        /// <param name="val">resulting value. Null if parsing failed.</param>
+        /// <returns></returns>
+        public bool TryParseNumber(string str, Type t, out object val)
+        {
+            if(tryParseNumber(str, out BigFloat val2))
+            {
+                val = val2.ConvertTo(t);
+                return true;
+            }
+            val = null;
+            return false;
         }
 
         /// <summary>

@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,7 +18,7 @@ namespace OpenTap.Package
     public class FilePackageRepository : IPackageRepository
     {
         private static TraceSource log = Log.CreateSource("FilePackageRepository");
-        private const string TapPluginCache = ".TapPackageCache";
+        internal const string TapPluginCache = ".TapPackageCache";
         private static object cacheLock = new object();
 
         private List<string> allFiles = new List<string>();
@@ -46,13 +47,14 @@ namespace OpenTap.Package
             allFiles = Directory.GetFiles(Url).ToList();
             cancellationToken.ThrowIfCancellationRequested();
             allFiles.AddRange(GetAllFiles(Url, cancellationToken));
-            allPackages = GetAllPackages(allFiles, Url).ToArray();
+            allPackages = GetAllPackages(allFiles).ToArray();
 
-            var settings = PackageManagerSettings.Current;
+            var caches = PackageManagerSettings.Current.Repositories.Select(p => GetCache(p.Url).CacheFileName);
             foreach (var file in allFiles)
             {
-                if (Path.GetFileName(file).StartsWith(TapPluginCache) == false) continue;
-                if (settings.Repositories.Any(r => r.CacheFileName == file)) continue;
+                var filename = Path.GetFileName(file);
+                if (filename.StartsWith(TapPluginCache) == false) continue;
+                if (caches.Any(r => r == filename)) continue;
                 try
                 {
                     File.Delete(file);
@@ -173,8 +175,10 @@ namespace OpenTap.Package
             if (this.allPackages == null || this.allFiles == null) return null;
             
             // Filter packages
-            var openTapIdentifier = new PackageIdentifier("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString(), CpuArchitecture.Unknown, null);
+            var openTapIdentifier = new PackageIdentifier("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString(), CpuArchitecture.Unspecified, null);
             var packages = new List<PackageDef>();
+            compatibleWith = CheckCompatibleWith(compatibleWith);
+
             foreach (var package in allPackages)
             {
                 if (string.IsNullOrWhiteSpace(pid.Name) == false && (pid.Name != package.Name))
@@ -185,7 +189,6 @@ namespace OpenTap.Package
                     continue;
 
                 // Check if package dependencies are compatible
-                compatibleWith = CheckCompatibleWith(compatibleWith);
                 if (package.Dependencies.All(d => compatibleWith.All(r => IsCompatible(d, r))) == false)
                     continue;
 
@@ -220,7 +223,7 @@ namespace OpenTap.Package
             if (allPackages == null || allFiles == null) return null;
             
             List<PackageDef> latestPackages = new List<PackageDef>();
-            var openTapIdentifier = new PackageIdentifier("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString(), CpuArchitecture.Unknown, null);
+            var openTapIdentifier = new PackageIdentifier("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString(), CpuArchitecture.Unspecified, null);
 
             // Find updated packages
             foreach (var packageIdentifier in packages)
@@ -229,8 +232,8 @@ namespace OpenTap.Package
                     continue;
                 
                 var package = new PackageIdentifier(packageIdentifier);
-                
-                // Try finding a TAP package
+
+                // Try finding a OpenTAP package
                 var latest = allPackages
                     .Where(p => package.Equals(p))
                     .Where(p => p.Dependencies.All(dep => IsCompatible(dep, openTapIdentifier))).FirstOrDefault(p => p.Version != null && p.Version.CompareTo(package.Version) > 0);
@@ -244,7 +247,7 @@ namespace OpenTap.Package
         #endregion
         
         #region file system
-        private string CreatePackageCache(IEnumerable<PackageDef> packages, string path, int packageCount)
+        private void CreatePackageCache(IEnumerable<PackageDef> packages, FileRepositoryCache cache)
         {
             // Serialize all packages
             string xmlText;
@@ -255,15 +258,17 @@ namespace OpenTap.Package
                 xmlText = new StreamReader(stream).ReadToEnd();
             }
 
+            string currentDir = FileSystemHelper.GetCurrentInstallationDirectory();
+            // Delete existing cache
+            List<string> caches = Directory.GetFiles(currentDir, $"{TapPluginCache}.{cache.Hash}*").ToList();
+            caches.ForEach(File.Delete);
+            
             // Save cache
-            string fullPath = Path.Combine(Directory.GetCurrentDirectory(), 
-                string.Format("{0}.{1}.xml", TapPluginCache, Path.GetFileNameWithoutExtension(Path.GetRandomFileName())));
+            string fullPath = Path.Combine(currentDir, cache.CacheFileName);
             if (File.Exists(fullPath))
                 File.SetAttributes(fullPath, FileAttributes.Normal);
             File.WriteAllText(fullPath, xmlText);
             File.SetAttributes(fullPath, FileAttributes.Hidden);
-
-            return fullPath;
         }
         private List<string> GetAllFiles(string path, CancellationToken cancellationToken)
         {
@@ -330,66 +335,56 @@ namespace OpenTap.Package
 
             return allPackages.ToArray();
         }
-        private IEnumerable<PackageDef> GetAllPackages(List<string> allFiles, string packageRepository)
+        private List<PackageDef> GetAllPackages(List<string> allFiles)
         {
-            // Find repository settings
-            var settings = PackageManagerSettings.Current.Repositories.FirstOrDefault(r => r.Url == packageRepository);
+            // Get cache
+            var cache = GetCache();
 
             // Find TapPackages in repo
             var allFileInfos = allFiles.Select(f => new FileInfo(f)).Where(f => f.Extension.ToLower() == ".tapplugin" || f.Extension.ToLower() == ".tappackage" || f.Extension.ToLower() == ".tappackages").ToList();
 
-            IEnumerable<PackageDef> allPackages = null;
+            List<PackageDef> allPackages = null;
             lock (cacheLock)
             {
                 try
                 {
-                    if (settings != null && File.Exists(settings.CacheFileName))
+                    if (File.Exists(cache.CacheFileName))
                     {
-                        // Get count from cache file name. This is because allPackages will not include broken packages, but the repo might.
-                        int cacheCount = settings.CachePackageCount;
-
-                        // Load cache
-                        using (var str = File.OpenRead(settings.CacheFileName))
-                            allPackages = PackageDef.LoadManyFrom(str).ToList();
-
-                        // Check for any new files
-                        if (allFileInfos.Count() != cacheCount)
-                            allPackages = null;
-                        // Check if any files has been removed
-                        else if (allPackages.Any(p => !allFiles.Any(f => p.Location == f)))
-                            allPackages = null;
-
-                        // Check if the cache is the newest file
-                        if (allPackages != null && allFileInfos.Any() && (allFileInfos.Max(f => f.LastWriteTimeUtc) > new FileInfo(settings.CacheFileName).LastWriteTimeUtc))
-                            allPackages = null;
+                        if (allFileInfos.Count == cache.CachePackageCount)
+                        {
+                            // Load cache
+                            using (var str = File.OpenRead(cache.CacheFileName))
+                                allPackages = PackageDef.ManyFromXml(str).ToList();
+    
+                            // Check if any files has been replaced
+                            if (allPackages.Any(p => !allFiles.Any(f => p.Location == f)))
+                                allPackages = null;
+    
+                            // Check if the cache is the newest file
+                            if (allPackages != null && allFileInfos.Any() && (allFileInfos.Max(f => f.LastWriteTimeUtc) > new FileInfo(cache.CacheFileName).LastWriteTimeUtc))
+                                allPackages = null;
+                        }
                     }
                 }
                 catch (Exception ex)
                 {
-                    log.Warning("Error while reading package cache from '{0}'. Rebuilding cache.", settings.CacheFileName);
+                    log.Warning("Error while reading package cache from '{0}'. Rebuilding cache.", cache.CacheFileName);
                     log.Debug(ex);
                 }
 
                 if (allPackages == null)
                 {
                     // Get all packages
-                    allPackages = loadPackagesFromFile(allFileInfos);
+                    allPackages = loadPackagesFromFile(allFileInfos).ToList();
+                    cache.CachePackageCount = allFileInfos.Count;
 
                     // Create cache
-                    var path = CreatePackageCache(allPackages, packageRepository, allFileInfos.Count());
-
-                    if (settings != null)
-                    {
-                        settings.CacheFileName = path;
-                        settings.CachePackageCount = allFileInfos.Count();
-
-                        PackageManagerSettings.Current.Save();
-                    }
+                    CreatePackageCache(allPackages, cache);
                 }
             }
 
             // Order packages
-            allPackages = allPackages.OrderByDescending(p => p.Version);
+            allPackages = allPackages.OrderByDescending(p => p.Version).ToList();
 
             return allPackages;
         }
@@ -429,6 +424,31 @@ namespace OpenTap.Package
             
             return list?.ToArray();
         }
+
+        private FileRepositoryCache GetCache(string url = null)
+        {
+            var hash = MurMurHash3.Hash(url ?? Url).ToString();
+            var files = Directory.GetFiles(FileSystemHelper.GetCurrentInstallationDirectory(), $"{TapPluginCache}*");
+            var filePath = files.FirstOrDefault(f => f.Contains(hash));
+
+            if (File.Exists(filePath))
+            {
+                var matches = Regex.Split(Path.GetFileName(filePath), "\\.");
+
+                if (int.TryParse(matches[3], out int count))
+                    return new FileRepositoryCache() {Hash = hash, CachePackageCount = count};
+            }
+
+            return new FileRepositoryCache() {Hash = hash};
+        }
         #endregion
+    }
+
+    class FileRepositoryCache
+    {
+        public int CachePackageCount { get; set; }
+        public string Hash { get; set; }
+
+        public string CacheFileName => $"{FilePackageRepository.TapPluginCache}.{Hash}.{CachePackageCount}.xml";
     }
 }

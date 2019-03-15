@@ -4,9 +4,8 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace tap
 {
@@ -36,29 +35,21 @@ namespace tap
             }
             catch
             {
-                Console.WriteLine("Error finding TAP CLI. Please try reinstalling TAP.");
+                Console.WriteLine("Error finding OpenTAP CLI. Please try reinstalling OpenTAP.");
                 Environment.ExitCode = 7;
                 return;
             }
             if (asm == null)
             {
-                Console.WriteLine("Missing TAP CLI. Please try reinstalling TAP.");
+                Console.WriteLine("Missing OpenTAP CLI. Please try reinstalling OpenTAP.");
                 Environment.ExitCode = 8;
                 return;
             }
-
-#if DEBUG && !NETCOREAPP
-            if (args.Contains("-v"))
-            {
-                Console.WriteLine("Attaching Debugger.");
-                VisualStudioHelper.AttemptDebugAttach();
-            }
-#endif
-
+            
             var type = asm.GetType(entrypoint);
             var method = type.GetMethod("Go", BindingFlags.Static | BindingFlags.Public);
             method.Invoke(null, Array.Empty<object>());
         }
-
     }
+
 }

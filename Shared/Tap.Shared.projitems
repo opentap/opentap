@@ -9,6 +9,7 @@
     <Import_RootNamespace>Tap.Shared</Import_RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)OperatingSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SharedState.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ArgumentsParser.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />

@@ -20,6 +20,11 @@ namespace OpenTap.Package
 {
     public abstract class LockingPackageAction : PackageAction
     {
+        internal const string CommandLineArgumentRepositoryDescription = "Search this repository for packages instead of using\nsettings from 'Package Manager.xml'.";
+        internal const string CommandLineArgumentVersionDescription = "Version of the package. Prepend it with '^' to specify the latest compatible version. E.g. '^9.0.0'. By omitting '^' only the exact version will be matched.";
+        internal const string CommandLineArgumentOsDescription = "Override which OS to target.";
+        internal const string CommandLineArgumentArchitectureDescription = "Override which CPU to target.";
+
         /// <summary>
         /// Unlockes the package action to allow multiple running at the same time.
         /// </summary>
@@ -38,9 +43,9 @@ namespace OpenTap.Package
         }
 
         /// <summary>
-        /// Get the named mutex used to lock the specified TAP installation directory while it is being changed.
+        /// Get the named mutex used to lock the specified OpenTAP installation directory while it is being changed.
         /// </summary>
-        /// <param name="target">The TAP installation directory</param>
+        /// <param name="target">The OpenTAP installation directory</param>
         /// <returns></returns>
         public static Mutex GetMutex(string target)
         {
@@ -103,7 +108,7 @@ namespace OpenTap.Package
             {
                 if (Unlocked == false && !state.WaitOne(0))
                 {
-                    throw new ExitCodeException(5, "Cannot perform operation while another TAP Package Manager is running.");
+                    throw new ExitCodeException(5, "Cannot perform operation while another OpenTAP Package Manager is running.");
                 }
 
                 return LockedExecute(cancellationToken);
@@ -123,7 +128,9 @@ namespace OpenTap.Package
                     {
                         foreach (var pkgfile in package.Files)
                         {
-                            if (string.Compare(Path.GetFullPath(pkgfile.FileName), file, true) == 0)
+                            var filePath = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), pkgfile.FileName);
+                            
+                            if (string.Equals(filePath, file, StringComparison.OrdinalIgnoreCase))
                             {
                                 return package;
                             }
@@ -136,7 +143,20 @@ namespace OpenTap.Package
                 var pkg = findPackageWithFile(Path.GetFullPath(exec));
                 if (pkg == null)
                     return false;
-                var deps = OpenTap.Utils.FlattenHeirarchy(pkg.Dependencies, dep => (IEnumerable<PackageDependency>)packages.FirstOrDefault(x => x.Name == dep.Name)?.Dependencies ?? Array.Empty<PackageDependency>(), distinct: true);
+                var dependencies = pkg.Dependencies.ToList();
+
+                // when installing/uninstalling packages we might need to use custom package actions as well.
+                var extraDependencies = PluginManager.GetPlugins<ICustomPackageAction>().Select(t => t.Assembly.Location).Distinct().ToList();
+                foreach(var exDep in extraDependencies)
+                {
+                    var package = findPackageWithFile(exDep);
+                    if (package != null && !dependencies.Any(p => p.Name == package.Name)) { 
+                        dependencies.Add(new PackageDependency(package.Name, new VersionSpecifier(package.Version, VersionMatchBehavior.Compatible)));
+                    }
+                }
+
+                var deps = OpenTap.Utils.FlattenHeirarchy(dependencies, dep => (IEnumerable<PackageDependency>)packages.FirstOrDefault(x => x.Name == dep.Name && !dependencies.Any(s => s.Name == dep.Name))?.Dependencies ?? Array.Empty<PackageDependency>(), distinct: true);
+
                 if (false == deps.Any(x => x.Name == pkg.Name))
                 {
                     deps.Add(new PackageDependency(pkg.Name, new VersionSpecifier(pkg.Version, VersionMatchBehavior.Compatible)));
@@ -145,6 +165,8 @@ namespace OpenTap.Package
                 List<string> allFiles = new List<string>();
                 foreach (var d in deps)
                 {
+                    if (!packages.Any(p => p.Name == d.Name && d.Version.IsCompatible(p.Version)))
+                        throw new Exception($"Unable to run isolated. Cannot find needed dependency '{d.Name}'.");
                     var fs = packages.First(p => p.Name == d.Name && d.Version.IsCompatible(p.Version)).Files;
                     foreach (var file in fs)
                     {
@@ -168,7 +190,7 @@ namespace OpenTap.Package
 
                 foreach (var _loc in allFiles.Distinct())
                 {
-                    string loc = _loc;
+                    string loc = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), _loc);
                     if (!File.Exists(loc))
                     {
                         var name = Path.GetFileName(loc);
@@ -184,7 +206,7 @@ namespace OpenTap.Package
                         continue;
                     }
 
-                    var newloc = Path.Combine(tempFolder, loc);
+                    var newloc = Path.Combine(tempFolder, _loc);
                     OpenTap.FileSystemHelper.EnsureDirectory(newloc);
                     if (File.Exists(newloc)) continue;
                     File.Copy(loc, newloc);
@@ -192,7 +214,7 @@ namespace OpenTap.Package
 
                 { // tell TPM Server to start new app.
                     var loc = application ?? Assembly.GetEntryAssembly().Location;
-                    if (string.Compare(".dll", Path.GetExtension(loc), true) == 0)
+                    if (string.Equals(".dll", Path.GetExtension(loc), StringComparison.OrdinalIgnoreCase))
                     {  //.netcore wierdness.
                         loc = Path.ChangeExtension(loc, "exe");
                         if (File.Exists(loc) == false)
@@ -218,7 +240,7 @@ namespace OpenTap.Package
     [Display("list", Group: "package", Description: "List installed packages.")]
     public class PackageListAction : LockingPackageAction
     {
-        [CommandLineArgument("repository", Description = "Search this repository for packages instead of using\nsettings from 'Package Manager.xml'.", ShortName = "r")]
+        [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
         [CommandLineArgument("all", Description = "List all versions of a package when using the <Name> argument.", ShortName = "a")]
@@ -230,13 +252,13 @@ namespace OpenTap.Package
         [UnnamedCommandLineArgument("Name")]
         public string Name { get; set; }
 
-        [CommandLineArgument("version", Description = "Specify a version string that the package must be compatible with.\nTo specify a version that has to match exactly start the number with '!'. E.g. \"!8.1.319-beta\".")]
+        [CommandLineArgument("version", Description = CommandLineArgumentVersionDescription)]
         public string Version { get; set; }
 
-        [CommandLineArgument("os", Description = "Override which OS to target.")]
+        [CommandLineArgument("os", Description = CommandLineArgumentOsDescription)]
         public string OS { get; set; }
 
-        [CommandLineArgument("architecture", Description = "Override which CPU to target.")]
+        [CommandLineArgument("architecture", Description = CommandLineArgumentArchitectureDescription)]
         public CpuArchitecture Architecture { get; set; }
 
         public PackageListAction()
@@ -263,16 +285,17 @@ namespace OpenTap.Package
                 }
             }
 
-            if (Repository != null)
-            {
-                PackageManagerSettings.Current.Repositories.Clear();
-                PackageManagerSettings.Current.Repositories.AddRange(Repository.Select(rep => new PackageManagerSettings.RepositorySettingEntry { IsEnabled = true, Url = rep }));
-            }
+            List<IPackageRepository> repositories = new List<IPackageRepository>();
 
-            if (Target != null)
-                Directory.SetCurrentDirectory(Target);
+            if (Repository == null)
+                repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager));
+            else
+                repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
 
-            HashSet<PackageDef> installed = new Installation(Directory.GetCurrentDirectory()).GetPackages().ToHashSet();
+            if (Target == null)
+                Target = FileSystemHelper.GetCurrentInstallationDirectory();
+
+            HashSet<PackageDef> installed = new Installation(Target).GetPackages().ToHashSet();
 
             
             VersionSpecifier versionSpec = VersionSpecifier.Any;
@@ -284,7 +307,7 @@ namespace OpenTap.Package
             if (string.IsNullOrEmpty(Name))
             {
                 var packages = installed.ToList();
-                packages.AddRange(PackageRepositoryHelpers.GetPackagesFromAllRepos(new PackageSpecifier("", versionSpec, Architecture, OS)));
+                packages.AddRange(PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, new PackageSpecifier("", versionSpec, Architecture, OS)));
                 
                 if (Installed)
                     packages = packages.Where(p => installed.Any(i => i.Name == p.Name)).ToList();
@@ -299,7 +322,7 @@ namespace OpenTap.Package
                 if (All)
                 {
                     log.Info($"All available versions of '{Name}':\n");
-                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(Name);
+                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name);
                     var versionsCount = versions.Count;
                     if (versionsCount == 0) // No versions
                     {
@@ -321,12 +344,12 @@ namespace OpenTap.Package
                 else
                 {
                     var opentap = new Installation(Target).GetOpenTapPackage();
-                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(Name, opentap);
+                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name, opentap);
     
                     if (versions.Any() == false) // No compatible versions
                     {
                         log.Warning($"There are no compatible versions of '{Name}'.");
-                        versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(Name).ToList();
+                        versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name).ToList();
                         if (versions.Any())
                             log.Info($"There are {versions.Count} incompatible versions available. Use '--all' to show these.");
 
@@ -482,9 +505,9 @@ namespace OpenTap.Package
         {
             if (Force) return true;
 
-            var packages = packagePaths.Select(PackageDef.FromXmlFile).ToList();
+            var packages = packagePaths.Select(PackageDef.FromXml).ToList();
             var installed = new Installation(Target).GetPackages();
-            installed = installed.RemoveIf(i => !packages.Any(u => u.Name == i.Name && u.Version == i.Version));
+            installed.RemoveIf(i => packages.Any(u => u.Name == i.Name && u.Version == i.Version));
             var analyzer = DependencyAnalyzer.BuildAnalyzerContext(installed);
             var packagesWithIssues = new List<PackageDef>();
 
@@ -509,7 +532,7 @@ namespace OpenTap.Package
                     string.Join("\n", packagesWithIssues.Select(p => p.Name + " " + p.Version)));
 
                 var req = new ContinueRequest { message = question + "\nContinue?", Response = true };
-                UserInput.Request(req, TimeSpan.MaxValue, true);
+                UserInput.Request(req, true);
 
                 return req.Response;
             }

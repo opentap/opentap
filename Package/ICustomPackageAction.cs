@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Xml;
+using System.Xml.Linq;
 using System.Xml.Serialization;
 
 namespace OpenTap.Package
@@ -26,7 +28,7 @@ namespace OpenTap.Package
     }
 
     /// <summary>
-    /// Custom data elements in package.xml inside <File> elements, to be used for custom actions by <see cref="ICustomPackageAction"/> at predefined stages (<see cref="PackageActionStage"/>)
+    /// Custom data elements in package.xml inside File elements, to be used for custom actions by <see cref="ICustomPackageAction"/> at predefined stages (<see cref="PackageActionStage"/>)
     /// </summary>
     public interface ICustomPackageData : ITapPlugin
     {
@@ -46,7 +48,7 @@ namespace OpenTap.Package
 
 
     /// <summary>
-    /// Custom actions for <see cref="ICustomPackageData"/> inside <File> element in package.xml files, to be executed at predefined stages (<see cref="PackageActionStage"/>)
+    /// Custom actions for <see cref="ICustomPackageData"/> inside File element in package.xml files, to be executed at predefined stages (<see cref="PackageActionStage"/>)
     /// </summary>
     public interface ICustomPackageAction : ITapPlugin
     {
@@ -70,15 +72,24 @@ namespace OpenTap.Package
     internal static class CustomPackageActionHelper
     {
         static TraceSource log =  OpenTap.Log.CreateSource("Package");
-        private static List<ICustomPackageData> cachedPackageData;
 
         internal static void RunCustomActions(PackageDef package, PackageActionStage stage, CustomPackageActionArgs args)
         {
-            log.Debug($"Running custom actions");
-            foreach (ICustomPackageAction action in PluginManager.GetPlugins<ICustomPackageAction>()
+            var customActions = PluginManager.GetPlugins<ICustomPackageAction>()
                 .Select(s => Activator.CreateInstance(s) as ICustomPackageAction)
                 .Where(w => w.ActionStage == stage)
-                .OrderBy(p => p.Order()))
+                .OrderBy(p => p.Order())
+                .ToList();
+
+            if (customActions.Count == 0)
+            {
+                log.Debug($"Found no custom actions to run at '{stage.ToString().ToLower()}' stage.");
+                return;
+            }
+
+            log.Debug($"Available custom actions for '{stage.ToString().ToLower()}' stage. ({customActions.Count} actions: {string.Join(", ", customActions.Select(s => s.ToString()))})");
+
+            foreach (ICustomPackageAction action in customActions)
             {
                 Stopwatch timer = Stopwatch.StartNew();
                 try
@@ -99,26 +110,65 @@ namespace OpenTap.Package
 
         internal static List<ICustomPackageData> GetAllData()
         {
-            if(cachedPackageData == null)
+            var packageData = new List<ICustomPackageData>();
+
+            var plugins = PluginManager.GetPlugins<ICustomPackageData>();
+            foreach (var plugin in plugins)
             {
-                cachedPackageData = new List<ICustomPackageData>();
-                     
-                var plugins = PluginManager.GetPlugins<ICustomPackageData>();
-                foreach(var plugin in plugins)
+                try
                 {
-                    try
-                    {
-                        cachedPackageData.Add((ICustomPackageData)Activator.CreateInstance(plugin));
-                    }
-                    catch (Exception ex)
-                    {
-                        log.Warning($"Failed to instantiate {plugin}. Skipping plugin.");
-                        log.Debug(ex);
-                    }
+                    ICustomPackageData customData = (ICustomPackageData)Activator.CreateInstance(plugin);
+                    packageData.Add(customData);
+                }
+                catch (Exception ex)
+                {
+                    log.Warning($"Failed to instantiate {plugin}. Skipping plugin.");
+                    log.Debug(ex);
                 }
             }
 
-            return cachedPackageData;
+            return packageData;
+        }
+    }
+
+    public class MissingPackageData : ICustomPackageData
+    {
+        public MissingPackageData()
+        {
+
+        }
+
+        public MissingPackageData(XElement xmlElement)
+        {
+            XmlElement = xmlElement ?? throw new ArgumentNullException(nameof(xmlElement));
+        }
+
+        public XElement XmlElement { get; set; }
+
+        public string GetLine()
+        {
+            if (XmlElement is IXmlLineInfo lineInfo && lineInfo.HasLineInfo())
+                return lineInfo.LineNumber.ToString();
+            else
+                return "";
+        }
+
+        public bool TryResolve(out ICustomPackageData customPackageData)
+        {
+            customPackageData = this;
+
+            var handlingPlugins = CustomPackageActionHelper.GetAllData().Where(s => s.GetType().GetDisplayAttribute().Name == XmlElement.Name.LocalName).ToList();
+
+            if (handlingPlugins != null && handlingPlugins.Count() > 0)
+            {
+                ICustomPackageData p = handlingPlugins.FirstOrDefault();
+                if (XmlElement.HasAttributes || !XmlElement.IsEmpty) { }
+                    new TapSerializer().Deserialize(XmlElement, o => p = (ICustomPackageData)o, p.GetType());
+                customPackageData = p;
+                return true;
+            }
+
+            return false;
         }
     }
     
@@ -141,9 +191,9 @@ namespace OpenTap.Package
         /// <typeparam name="T">The type that inherits from <see cref="ICustomPackageData"/></typeparam>
         /// <param name="file"></param>
         /// <returns>List of <see cref="ICustomPackageData"/></returns>
-        public static T GetCustomData<T>(this PackageFile file) where T : ICustomPackageData
+        public static IEnumerable<T> GetCustomData<T>(this PackageFile file) where T : ICustomPackageData
         {
-            return (T)file.CustomData.FirstOrDefault(s => s is T);
+            return file.CustomData.OfType<T>();
         }
 
         /// <summary>

@@ -2,16 +2,14 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
-using OpenTap;
-using System.Collections.Generic;
 
 namespace OpenTap.Plugins.BasicSteps
 {
     /// <summary>
-    /// Custom handler for exporting sweep parameters from a file.
+    /// Custom handler for exporting a table of values to a file.
     /// </summary>
     [Display("External Parameter Export")]
-    public interface ISweepValueExport : ITapPlugin
+    public interface ITableExport : ITapPlugin
     {
         /// <summary>
         /// The extension of the file including the '.'. For example '.zip'.
@@ -25,10 +23,10 @@ namespace OpenTap.Plugins.BasicSteps
         string Name { get; }
 
         /// <summary>
-        /// Exports currently configured sweep parameters and values to a file
+        /// Exports a table of values to a file. The table should be arranged as an array of rows.
         /// </summary>
-        /// <param name="parameters">The currently configured sweep loop parameters.</param>
+        /// <param name="table">The values to put in the CSV file.</param>
         /// <param name="parameterFilePath">Location of the file.</param>
-        void ExportSweepValues(List<SweepParam> parameters, string parameterFilePath);
+        void ExportTableValues(string[][] table, string parameterFilePath);
     }
 }

@@ -41,10 +41,10 @@ namespace OpenTap.Engine.UnitTests
         {
             EngineSettings.LoadWorkingDirectory(System.IO.Path.GetDirectoryName(typeof(TestStep).Assembly.Location));
             PluginManager.SearchAsync().Wait();
-            SessionLogs.Initialize(string.Format("Tap.Engine.UnitTests {0}.TapLog", DateTime.Now.ToString("HH-mm-ss.fff")));
+            SessionLogs.Initialize(string.Format("OpenTap.Engine.UnitTests {0}.TapLog", DateTime.Now.ToString("HH-mm-ss.fff")));
 
             Assembly engine = Assembly.GetAssembly(typeof(ITestStep));
-             OpenTap.Log.CreateSource("UnitTest").Info("TAP version '{0}' initialized {1}", PluginManager.GetOpenTapAssembly().SemanticVersion, DateTime.Now.ToString("MM/dd/yyyy"));
+             OpenTap.Log.CreateSource("UnitTest").Info("OpenTAP version '{0}' initialized {1}", PluginManager.GetOpenTapAssembly().SemanticVersion, DateTime.Now.ToString("MM/dd/yyyy"));
         }
 
         [OneTimeTearDown]

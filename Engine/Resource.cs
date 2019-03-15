@@ -39,7 +39,7 @@ namespace OpenTap
         /// <summary>
         /// A short name displayed in the user interface where space is limited.
         /// </summary>
-        [Display("Name", Group: "Common", Order: -3)]
+        [Display(nameof(Name), Group: "Common", Order: -3)]
         [Browsable(false)]
         public string Name
         {
@@ -52,14 +52,14 @@ namespace OpenTap
                 if (_name != value)
                 {
                     if (value == null)
-                        throw new ArgumentNullException("Name");
+                        throw new ArgumentNullException(nameof(Name));
                     _name = value;
                     if (Log != null)
                     {
                         OpenTap.Log.RemoveSource(Log);
                     }
                     Log = OpenTap.Log.CreateSource(_name, this);
-                    OnPropertyChanged("Name");
+                    OnPropertyChanged(nameof(Name));
                 }
             }
         }

@@ -9,7 +9,7 @@ using System.Xml.Linq;
 namespace OpenTap.Plugins
 {
     /// <summary> Serializer implementation for TestPlans. </summary>
-    public class TestPlanSerializer : ObjectSerializer
+    internal class TestPlanSerializer : ObjectSerializer
     {
         /// <summary> The order of this serializer. </summary>
         public override double Order { get { return 1; } }
@@ -24,7 +24,7 @@ namespace OpenTap.Plugins
         /// <param name="_t"></param>
         /// <param name="setter"></param>
         /// <returns></returns>
-        public override bool Deserialize(XElement element, ITypeInfo _t, Action<object> setter)
+        public override bool Deserialize(XElement element, ITypeData _t, Action<object> setter)
         {
             if (_t.IsA(typeof(TestPlan)) == false)
                 return false;
@@ -48,7 +48,7 @@ namespace OpenTap.Plugins
         /// <param name="obj"></param>
         /// <param name="expectedType"></param>
         /// <returns></returns>
-        public override bool Serialize(XElement element, object obj, ITypeInfo expectedType)
+        public override bool Serialize(XElement element, object obj, ITypeData expectedType)
         {
             if (obj is TestPlan == false || currentNode.Contains(element))
                 return false;

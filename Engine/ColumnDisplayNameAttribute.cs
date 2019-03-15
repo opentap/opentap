@@ -9,8 +9,8 @@ namespace OpenTap
     /// <summary>
     /// Indicates that a property on a <see cref="TestStep"/> (a step setting) should be visible within a Test Plan editor UI.
     /// </summary>
-    public class ColumnDisplayNameAttribute : Attribute
-    {
+    public class ColumnDisplayNameAttribute : Attribute, IAnnotation
+    { 
         /// <summary>
         /// The header name of the column.
         /// </summary>

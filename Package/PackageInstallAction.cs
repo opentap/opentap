@@ -21,16 +21,16 @@ namespace OpenTap.Package
         [CommandLineArgument("dependencies", Description = "Install dependencies without asking.", ShortName = "y")]
         public bool InstallDependencies { get; set; }
 
-        [CommandLineArgument("repository", Description = "Search this repository for packages instead of using\nsettings from 'Package Manager.xml'.", ShortName = "r")]
+        [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
-        [CommandLineArgument("version", Description = "Specify a version string that the package must be compatible with.\nTo specify a version that has to match exactly start the number with '!'. E.g. \"!8.1.319-beta\".")]
+        [CommandLineArgument("version", Description = CommandLineArgumentVersionDescription)]
         public string Version { get; set; }
 
-        [CommandLineArgument("os", Description = "Override which OS to target.")]
+        [CommandLineArgument("os", Description = CommandLineArgumentOsDescription)]
         public string OS { get; set; }
 
-        [CommandLineArgument("architecture", Description = "Override which CPU to target.")]
+        [CommandLineArgument("architecture", Description = CommandLineArgumentArchitectureDescription)]
         public CpuArchitecture Architecture { get; set; }
 
         /// <summary>
@@ -67,22 +67,45 @@ namespace OpenTap.Package
             {
                 log.Info("Installing to {0}", Path.GetFullPath(Target));
             }
-            
-            List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(PackageCacheHelper.PackageCacheDirectory, Target, PackageReferences, Packages, Version, Architecture, OS, Repository,ForceInstall, InstallDependencies, !ForceInstall);
-            if (packagesToInstall == null)
-                return 2;
+            else
+            {
+                Target = FileSystemHelper.GetCurrentInstallationDirectory();
+            }
+            var targetInstallation = new Installation(Target);
 
-            List<string> downloadedPackageFiles = PackageActionHelpers.DownloadPackages(PackageCacheHelper.PackageCacheDirectory, packagesToInstall);
+            List<IPackageRepository> repositories = new List<IPackageRepository>();
 
-            Installer installer;
-            installer = new Installer(Target, cancellationToken) { DoSleep = false };
+            if (Repository == null)
+                repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager).ToList());
+            else
+                repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
+
+            bool installError = false;
+            var installer = new Installer(Target, cancellationToken) { DoSleep = false, ForceInstall = ForceInstall };
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;
-            installer.PackagePaths.AddRange(downloadedPackageFiles);
-            installer.SetWorkingDir();
+            installer.Error += ex => installError = true;
 
+            try
+            {
+                // Get package information
+                List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, ForceInstall, InstallDependencies, !ForceInstall);
+                if (packagesToInstall == null)
+                    return 2;
 
-            var issue = DependencyChecker.CheckDependencies(installer.PackagePaths, ForceInstall ? LogEventType.Warning: LogEventType.Error);
+                // Download the packages
+                var downloadedPackageFiles = PackageActionHelpers.DownloadPackages(PackageCacheHelper.PackageCacheDirectory, packagesToInstall);
+                installer.PackagePaths.AddRange(downloadedPackageFiles);
+            }
+            catch (Exception e)
+            {
+                log.Info("Could not download one or more TAP packages.");
+                log.Debug(e);
+                RaiseError(e);
+                return 6;
+            }
+            // Check dependencies
+            var issue = DependencyChecker.CheckDependencies(targetInstallation, installer.PackagePaths, ForceInstall ? LogEventType.Warning: LogEventType.Error);
             if (issue == DependencyChecker.Issue.BrokenPackages)
             {
                 if (!ForceInstall)
@@ -95,23 +118,20 @@ namespace OpenTap.Package
             }
 
             // Uninstall old packages before
-            UninstallExisting(installer.PackagePaths, cancellationToken);
+            UninstallExisting(targetInstallation, installer.PackagePaths, cancellationToken);
 
             var toInstall = ReorderPackages(installer.PackagePaths);
             installer.PackagePaths.Clear();
             installer.PackagePaths.AddRange(toInstall);
 
-            bool installError = false;
-            installer.Error += ex => installError = true;
-            installer.ForceInstall = ForceInstall;
+            // Install the package
             installer.InstallThread();
 
             return installError ? 5 : 0;
         }
 
-        private void UninstallExisting(List<string> packagePaths, CancellationToken cancellationToken)
+        private void UninstallExisting(Installation installation, List<string> packagePaths, CancellationToken cancellationToken)
         {
-            var installation = new Installation(Directory.GetCurrentDirectory());
             var installed = installation.GetPackages();
 
             var packages = packagePaths.Select(PackageDef.FromPackage).Select(x => x.Name).ToHashSet();

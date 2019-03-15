@@ -47,7 +47,7 @@ namespace OpenTap.Plugins
         /// <param name="recurse"> true if child steps should also be 'fixed'.</param>
         public void FixupStep(ITestStep step, bool recurse)
         {
-            if (stepLookup.ContainsKey(step.Id) && !ignoredGuids.Contains(step.Id))
+            if (stepLookup.TryGetValue(step.Id, out ITestStep currentStep) && currentStep != step && !ignoredGuids.Contains(step.Id))
             {
                 step.Id = Guid.NewGuid();
                 if (step is IDynamicStep)
@@ -69,7 +69,7 @@ namespace OpenTap.Plugins
         }
         
         /// <summary> Deserialization implementation. </summary>
-        public override bool Deserialize( XElement elem, ITypeInfo t, Action<object> setResult)
+        public override bool Deserialize( XElement elem, ITypeData t, Action<object> setResult)
         {
 
             if(t.DescendsTo(typeof(ITestStep)))
@@ -121,7 +121,7 @@ namespace OpenTap.Plugins
         HashSet<XElement> currentNode = new HashSet<XElement>();
         
         /// <summary> Serialization implementation. </summary>
-        public override bool Serialize( XElement elem, object obj, ITypeInfo expectedType)
+        public override bool Serialize( XElement elem, object obj, ITypeData expectedType)
         {
             if (false == obj is ITestStep) return false;
             if (currentNode.Contains(elem)) return false;

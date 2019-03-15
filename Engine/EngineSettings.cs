@@ -13,7 +13,7 @@ namespace OpenTap
     /// Settings class containing user-configurable platform options.
     /// </summary>
     [Display("Engine", "Engine Settings")]
-    [HelpLink(@"TapGuiHelp.chm::/Configuring TAP/Engine Configuration.html")]
+    [HelpLink(@"EditorHelp.chm::/Configuring TAP/Engine Configuration.html")]
     public class EngineSettings : ComponentSettings<EngineSettings>
     {
         /// <summary>
@@ -36,7 +36,7 @@ namespace OpenTap
         /// </summary>
         [Display("Log Path", Group: "General", Order:1, Description: "Where to save the session log file. This setting only takes effect after restart.")]
         [FilePath(FilePathAttribute.BehaviorChoice.Save)]
-        [HelpLink(@"TapGuiHelp.chm::/Configuring TAP/Using Tags and Variables in File Names.html")]
+        [HelpLink(@"EditorHelp.chm::/Configuring TAP/Using Tags and Variables in File Names.html")]
         public MacroString SessionLogPath { get; set; }
         
         /// <summary>
@@ -109,8 +109,8 @@ namespace OpenTap
             ResultLatencyLimit = 3.0;
             OperatorName = Environment.ExpandEnvironmentVariables("%USERNAME%");
             StationName = System.Environment.MachineName;
-            
-            // Set TAP to abort on step error by default.
+
+            // Set OpenTAP to abort on step error by default.
             AbortTestPlan = AbortTestPlanType.Step_Error;
 
             PromptForMetaData = false;
@@ -132,7 +132,7 @@ namespace OpenTap
         [Display("Resource Strategy", Group: "General", Order: 12, Description: "Selects which strategy to use for opening resources while the test plan is executing.")]
         public IResourceManager ResourceManagerType { get; set; }
 
-        /// <summary> Loads a new working directory and sets up environment variables important to TAP.</summary>
+        /// <summary> Loads a new working directory and sets up environment variables important to OpenTAP.</summary>
         /// <param name="newWorkingDirectory"></param>
         public static void LoadWorkingDirectory(string newWorkingDirectory)
         {

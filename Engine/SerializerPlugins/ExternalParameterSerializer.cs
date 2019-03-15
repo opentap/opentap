@@ -25,7 +25,7 @@ namespace OpenTap.Plugins
             /// <summary>
             /// The external param property.
             /// </summary>
-            public IMemberInfo Property;
+            public IMemberData Property;
             /// <summary>
             ///  The name of the external test plan parameter.
             /// </summary>
@@ -47,7 +47,7 @@ namespace OpenTap.Plugins
         public readonly Dictionary<string, string> PreloadedValues = new Dictionary<string, string>();
 
         /// <summary> Deserialization implementation. </summary>
-        public override bool Deserialize( XElement elem, ITypeInfo t, Action<object> setter)
+        public override bool Deserialize( XElement elem, ITypeData t, Action<object> setter)
         {
             if (currentNode.Contains(elem)) return false;
             
@@ -95,7 +95,7 @@ namespace OpenTap.Plugins
         }
 
         /// <summary> Serialization implementation. </summary>
-        public override bool Serialize( XElement elem, object obj, ITypeInfo expectedType)
+        public override bool Serialize( XElement elem, object obj, ITypeData expectedType)
         {
             if (currentNode.Contains(elem)) return false;
             

@@ -9,7 +9,7 @@ namespace OpenTap
     /// <summary>
     /// Identifies a string as a file path.
     /// </summary>
-    public class FilePathAttribute : Attribute
+    public class FilePathAttribute : Attribute, IAnnotation
     {
         ///<summary>
         /// Default file extension for this file path.

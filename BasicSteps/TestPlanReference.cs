@@ -8,6 +8,8 @@ using System.ComponentModel;
 using System.Linq;
 using System.IO;
 using System.Xml.Serialization;
+using System.Text.RegularExpressions;
+using System.Runtime.CompilerServices;
 
 namespace OpenTap.Plugins.BasicSteps
 {
@@ -39,7 +41,7 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Referenced Plan", Order: 0, Description: "A file path pointing to a test plan which will be imported as readonly test steps.")]
         [Browsable(true)]
         [FilePath(FilePathAttribute.BehaviorChoice.Open, "TapPlan")]
-        [SerializationOrder(Order = 1.0)]
+        [DeserializeOrder(1.0)]
         public MacroString Filepath
         {
             get => filepath; 
@@ -263,11 +265,11 @@ namespace OpenTap.Plugins.BasicSteps
         internal ExternalParameter[] ForwardedParameters { get; private set; } = Array.Empty<ExternalParameter>();
     }
 
-    public class ExpandedMemberData : IMemberInfo
+    class ExpandedMemberData : IMemberData
     {
         public override bool Equals(object obj)
         {
-            if(obj is ExpandedMemberData mem)
+            if (obj is ExpandedMemberData mem)
             {
                 return object.Equals(mem.DeclaringType, DeclaringType) && object.Equals(mem.Name, Name);
             }
@@ -279,17 +281,17 @@ namespace OpenTap.Plugins.BasicSteps
             return DeclaringType.GetHashCode() ^ Name.GetHashCode();
         }
 
-        public ITypeInfo DeclaringType { get; set; }
+        public ITypeData DeclaringType { get; set; }
 
         public IEnumerable<object> Attributes { get; private set; }
-        
+
         public string Name { get; set; }
 
         public bool Writable => true;
 
         public bool Readable => true;
 
-        public ITypeInfo TypeDescriptor { get; set; }
+        public ITypeData TypeDescriptor { get; set; }
 
         public object GetValue(object owner)
         {
@@ -305,7 +307,7 @@ namespace OpenTap.Plugins.BasicSteps
         {
             get
             {
-                var tpr = (this.DeclaringType as ExpandedTypeInfo).Object as TestPlanReference;
+                var tpr = (this.DeclaringType as ExpandedTypeData).Object as TestPlanReference;
                 var ep = tpr.ForwardedParameters.FirstOrDefault(x => x.Name == epName);
                 return ep;
             }
@@ -320,8 +322,8 @@ namespace OpenTap.Plugins.BasicSteps
             ep.Value = value;
         }
 
-        static DelayDeserializeAttribute delaySerializeAttribute = new DelayDeserializeAttribute();
         static BrowsableAttribute nonBrowsable = new BrowsableAttribute(false);
+
         public ExpandedMemberData(ExternalParameter ep, string name)
         {
             Name = name;
@@ -334,17 +336,18 @@ namespace OpenTap.Plugins.BasicSteps
             var groups = dis.Group;
             if (groups.FirstOrDefault() != "Settings")
                 groups = new[] { "Settings" }.Append(dis.Group).ToArray();
-            attrs.Add(new DisplayAttribute(ep.Name, Description: dis.Description, Order:5, Groups: groups));
+            attrs.Add(new DisplayAttribute(ep.Name, Description: dis.Description, Order: 5, Groups: groups));
             Attributes = attrs;
         }
-
     }
 
-    public class ExpandedTypeInfo : ITypeInfo
+    class ExpandedTypeData : ITypeData
     {
+        private static readonly Regex propRegex = new Regex(@"^prop(?<index>[0-9]+)$", RegexOptions.Compiled);
+
         public override bool Equals(object obj)
         {
-            if(obj is ExpandedTypeInfo exp)
+            if(obj is ExpandedTypeData exp)
                 return exp.Object == Object;
             return false;
         }
@@ -354,15 +357,14 @@ namespace OpenTap.Plugins.BasicSteps
             return Object.GetHashCode() ^ 0x1111234;
         }
 
-        public ITypeInfo InnerDescriptor;
+        public ITypeData InnerDescriptor;
         public TestPlanReference Object;
-        public ITypeInfoProvider Provider { get; set; }
 
         public string Name => ExpandMemberDataProvider.exp + InnerDescriptor.Name;
 
         public IEnumerable<object> Attributes => InnerDescriptor.Attributes;
 
-        public ITypeInfo BaseType => InnerDescriptor;
+        public ITypeData BaseType => InnerDescriptor;
 
         public bool CanCreateInstance => InnerDescriptor.CanCreateInstance;
 
@@ -385,77 +387,96 @@ namespace OpenTap.Plugins.BasicSteps
             return true;
         }
 
-        public IMemberInfo GetMember(string memberName)
+        private IMemberData ResolveLegacyName(string memberName)
         {
-            
-            for(int i = 0; i < Object.ForwardedParameters.Length; i++)
-            {
-                var ep = Object.ForwardedParameters[i];
-                string epName = ep.Name;
-                
-                if (!validName(epName))
-                {
-                    epName = "prop" + i;
-                }
+            ExpandedMemberData result = null; // return null if no valid expanded member data gets set
 
-                if (epName == memberName)
-                    return new ExpandedMemberData(ep, epName) { DeclaringType = this};
+            // The following code is only for legacy purposes where properties which were not valid would get a valid 
+            // name like: prop0, prop1, prop73, where the number after the prefix prop would be the actual index in the
+            // ForwardedParameters array.
+            Match m = propRegex.Match(memberName);
+            if (m.Success)
+            {
+                int index = 0;
+                try
+                {
+                    index = int.Parse(m.Groups["index"].Value);
+                    if (index >= 0 && index < Object.ForwardedParameters.Length)
+                    {
+                        var ep = Object.ForwardedParameters[index];
+                        // return valid expanded member data
+                        result = new ExpandedMemberData(ep, ep.Name) { DeclaringType = this };
+                    }
+                }
+                catch
+                {
+                }
             }
-            return InnerDescriptor.GetMember(memberName);
+
+            return result;
         }
 
-        public IEnumerable<IMemberInfo> GetMembers()
+        public IMemberData GetMember(string memberName)
         {
-            List<IMemberInfo> members = new List<IMemberInfo>();
-            var innerMembers = InnerDescriptor.GetMembers();
+            var mem = GetMembers().FirstOrDefault(x => x.Name == memberName);
+            return mem ?? ResolveLegacyName(memberName);
+        }
+
+        string names = "";
+        IMemberData[] savedMembers = null;
+        public IEnumerable<IMemberData> GetMembers()
+        {
+            var names2 = string.Join(",", Object.ForwardedParameters.Select(x => x.Name));
+            if (names == names2 && savedMembers != null) return savedMembers;
+            List<IMemberData> members = new List<IMemberData>();
+            
             for(int i = 0; i < Object.ForwardedParameters.Length; i++)
             {
                 var ep = Object.ForwardedParameters[i];
-                string epName = ep.Name;
-                if (!validName(epName))
-                {
-                    epName = "prop" + i; 
-                }
-                
-                members.Add(new ExpandedMemberData(ep, epName) { DeclaringType = this});
+                members.Add(new ExpandedMemberData(ep, ep.Name) { DeclaringType = this});
             }
-            
+            var innerMembers = InnerDescriptor.GetMembers();
             foreach (var mem in innerMembers)
                 members.Add(mem);
+            savedMembers = members.ToArray();
+            names = names2;
             return members;
         }
     }
 
-    public class ExpandMemberDataProvider : ITypeInfoProvider
+
+    public class ExpandMemberDataProvider : ITypeDataProvider
     {
         public double Priority => 1;
         internal const string exp = "ref@";
-        public void GetTypeInfo(TypeInfoResolver resolver, string identifier)
+        public ITypeData GetTypeData(string identifier)
         {
             if (identifier.StartsWith(exp))
             {
-                var tp = TypeInfo.GetTypeInfo(identifier.Substring(exp.Length));
+                var tp = TypeData.GetTypeData(identifier.Substring(exp.Length));
                 if (tp != null)
                 {
-                    resolver.Stop(new ExpandedTypeInfo() { InnerDescriptor = tp, Object = null, Provider = this });
+                    return new ExpandedTypeData() { InnerDescriptor = tp, Object = null };
                 }
             }
+            return null;
         }
 
-        public void GetTypeInfo(TypeInfoResolver res, object obj)
+        static ConditionalWeakTable<TestPlanReference, ExpandedTypeData> types = new ConditionalWeakTable<TestPlanReference, ExpandedTypeData>();
+
+        ExpandedTypeData getExpandedTypeData(TestPlanReference step)
+        {
+            var expDesc = new ExpandedTypeData();
+            expDesc.InnerDescriptor = TypeData.FromType(typeof(TestPlanReference));
+            expDesc.Object = step;
+            return expDesc;
+        }
+
+        public ITypeData GetTypeData(object obj)
         {
             if (obj is TestPlanReference exp)
-            {
-                res.Iterate(obj);
-                if (res.FoundType != null)
-                {
-                    var expDesc = new ExpandedTypeInfo();
-                    expDesc.InnerDescriptor = res.FoundType;
-                    expDesc.Provider = this;
-                    expDesc.Object = exp;
-                    res.Stop(expDesc);
-                }
-            }
+                return types.GetValue(exp, getExpandedTypeData);
+            return null;
         }
     }
 }

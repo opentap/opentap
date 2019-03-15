@@ -21,7 +21,7 @@ namespace OpenTap
         /// File path of log file.
         /// </summary>
         [FilePath(FilePathAttribute.BehaviorChoice.Save, "txt")]
-        [HelpLink(@"TapGuiHelp.chm::/Configuring TAP/Using Tags and Variables in File Names.html")]
+        [HelpLink(@"EditorHelp.chm::/Configuring TAP/Using Tags and Variables in File Names.html")]
         [Display("File Path", Description: "Output file path for the log file.")]
         public MacroString FilePath { get; set; }
 

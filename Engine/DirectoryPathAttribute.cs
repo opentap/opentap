@@ -9,7 +9,7 @@ namespace OpenTap
     /// <summary>
     /// Identifies a string as a directory path.
     /// </summary>
-    public class DirectoryPathAttribute : Attribute
+    public class DirectoryPathAttribute : Attribute, IAnnotation
     {
 
     }

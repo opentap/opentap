@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 using System.IO.MemoryMappedFiles;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 //**** WARNING ****//
 // This file is used in many projects(link existing), but only with internal protection.
@@ -27,6 +28,17 @@ namespace OpenTap
     /// </summary>
     internal static class ReflectionHelper
     {
+        /// <summary>Returns true if 'type' and 'basetype' are equal. </summary> 
+        /// <param name="type"></param>
+        /// <param name="basetype"></param>
+        /// <returns></returns>
+        public static bool IsA(this ITypeData type, Type basetype)
+        {
+            if (type is TypeData cst)
+                return cst.Type == basetype;
+            return false;
+        }
+
         static Dictionary<MemberInfo, DisplayAttribute> displayLookup = new Dictionary<MemberInfo, DisplayAttribute>(1024);
         static object displayLookupLock = new object();
 
@@ -404,20 +416,21 @@ namespace OpenTap
 
         
 
-        static readonly ConditionalWeakTable<Type, MemberData[]> membersLookup = new ConditionalWeakTable<Type, MemberData[]>();
-        public static MemberData[] GetMemberData(this Type type)
+        static readonly ConditionalWeakTable<Type, InternalMemberData[]> membersLookup = new ConditionalWeakTable<Type, InternalMemberData[]>();
+        public static InternalMemberData[] GetMemberData(this Type type)
         {
-            return membersLookup.GetValue(type, MemberData.Get);
+            return membersLookup.GetValue(type, InternalMemberData.Get);
         }
 
-        public static MemberData GetMemberData(this Type type, string name)
+        public static InternalMemberData GetMemberData(this Type type, string name)
         {
             var p = type.GetProperty(name);
             if (p == null) return null;
-            return new MemberData(p);
+            return new InternalMemberData(p);
         }
     }
-    internal class MemberData
+    
+    internal class InternalMemberData
     {
         public MemberInfo Info;
         public object[] Attributes;
@@ -436,13 +449,13 @@ namespace OpenTap
 
         public bool IsProperty => Info is PropertyInfo;
         public PropertyInfo Property => Info as PropertyInfo;
-        public static MemberData[] Get(Type type)
+        public static InternalMemberData[] Get(Type type)
         {
             var properties = type.GetPropertiesTap();
             var methods = type.GetMethodsTap();
-            return properties.Select(info => new MemberData(info)).OrderBy(x => x.Info.Name).ToArray();
+            return properties.Select(info => new InternalMemberData(info)).OrderBy(x => x.Info.Name).ToArray();
         }
-        public MemberData(MemberInfo info)
+        public InternalMemberData(MemberInfo info)
         {
             Info = info;
             Attributes = info.GetAllCustomAttributes();
@@ -821,7 +834,7 @@ namespace OpenTap
         /// Returns the element for which selector returns the max value.
         /// if IEnumerable is empty, it returns default(T) multiplier gives the direction to search.
         /// </summary>
-        static T FindExtreme<T, C>(this IEnumerable<T> ienumerable, Func<T, C> selector, double multiplier) where C : IComparable
+        static T FindExtreme<T, C>(this IEnumerable<T> ienumerable, Func<T, C> selector, int multiplier) where C : IComparable
         {
             if (!ienumerable.Any())
             {
@@ -854,7 +867,7 @@ namespace OpenTap
         /// <returns></returns>
         public static T FindMax<T, C>(this IEnumerable<T> ienumerable, Func<T, C> selector) where C : IComparable
         {
-            return FindExtreme(ienumerable, selector, 1.0);
+            return FindExtreme(ienumerable, selector, 1);
         }
 
         /// <summary>
@@ -868,7 +881,7 @@ namespace OpenTap
         /// <returns></returns>
         public static T FindMin<T, C>(this IEnumerable<T> ienumerable, Func<T, C> selector) where C : IComparable
         {
-            return FindExtreme(ienumerable, selector, -1.0);
+            return FindExtreme(ienumerable, selector, -1);
         }
 
         /// <summary>
@@ -893,41 +906,37 @@ namespace OpenTap
         /// </summary>
         /// <param name="source"></param>
         /// <param name="pred"></param>
-        public static List<T> RemoveIf<T>(this IList<T> source, Func<T, bool> pred)
+        public static void RemoveIf<T>(this IList<T> source, Predicate<T> pred)
         {
-            List<T> removedElements = new List<T>();
-            var toRemove = new List<int>();
-            for (int i = 0; i < source.Count; i++)
+            if(source is List<T> lst)
+            {
+                lst.RemoveAll(pred);
+                return;
+            }
+            for (int i = source.Count - 1; i >= 0; i--)
             {
                 if (pred(source[i]))
                 {
-                    toRemove.Add(i);
-                    removedElements.Add(source[i]);
+                    source.RemoveAt(i);
                 }
             }
-
-            for (int i = toRemove.Count - 1; i >= 0; i--)
-                source.RemoveAt(toRemove[i]);
-
-            return removedElements;
         }
 
         /// <summary>
         /// Removes items of source matching a given predicate.
         /// </summary>
         /// <param name="source"></param>
-        /// <param name="pred">Predicate.</param>
-        public static void RemoveIf(this System.Collections.IList source, Func<object, bool> pred)
+        /// <param name="pred"></param>
+        public static void RemoveIf(this System.Collections.IList source, Predicate<object> pred)
         {
-            var toRemove = new List<int>();
-            for (int i = 0; i < source.Count; i++)
+            
+            for (int i = source.Count - 1; i >= 0; i--)
             {
                 if (pred(source[i]))
-                    toRemove.Add(i);
+                {
+                    source.RemoveAt(i);
+                }
             }
-
-            for (int i = toRemove.Count - 1; i >= 0; i--)
-                source.RemoveAt(toRemove[i]);
         }
 
         static void flattenHeirarchy<T>(IEnumerable<T> lst, Func<T, IEnumerable<T>> lookup, IList<T> result)
@@ -1984,24 +1993,41 @@ namespace OpenTap
     /// <summary> Invoke an action after a timeout, unless canceled. </summary>
     class TimeoutOperation : IDisposable
     {
-        private TimeoutOperation() { }
-
+        TimeoutOperation(TimeSpan timeout, Action action)
+        {
+            this.timeout = timeout;
+            this.action = action;
+            tokenSource = new CancellationTokenSource(timeout);
+        }
+        Action action;
+        TimeSpan timeout;
         /// <summary> Estimate of how long it takes for the user to loose patience.</summary>
         static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);
 
-        readonly System.Threading.ManualResetEventSlim resetEvent = new System.Threading.ManualResetEventSlim(false);
+        CancellationTokenSource tokenSource;
+        bool isCompleted = false;
+        void wait()
+        {
+            try
+            {
+                if (!tokenSource.IsCancellationRequested && WaitHandle.WaitTimeout == WaitHandle.WaitAny(new WaitHandle[] { tokenSource.Token.WaitHandle, TapThread.Current.AbortToken.WaitHandle }, timeout))
+                    action();
+            }
+            finally
+            {
+                tokenSource.Dispose();
+                isCompleted = true;
+            }
+        }
+
         /// <summary> Creates a new TimeoutOperation with a specific timeout. </summary>
         /// <param name="timeout"></param>
         /// <param name="actionOnTimeout"></param>
         /// <returns></returns>
         public static TimeoutOperation Create(TimeSpan timeout, Action actionOnTimeout)
         {
-            TimeoutOperation operation = new TimeoutOperation();
-            TapThread.Start(() =>
-            {
-                if (!operation.resetEvent.Wait(timeout))
-                    actionOnTimeout();
-            });
+            TimeoutOperation operation = new TimeoutOperation(timeout, actionOnTimeout);
+            TapThread.Start(operation.wait, "Timeout");
             return operation;
         }
 
@@ -2018,7 +2044,15 @@ namespace OpenTap
         /// </summary>
         public void Cancel()
         {
-            resetEvent.Set();
+            try
+            {
+                if (!isCompleted)
+                    tokenSource.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+
+            }
         }
 
         public void Dispose()

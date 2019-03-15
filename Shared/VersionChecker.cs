@@ -18,7 +18,7 @@ namespace OpenTap
         static OpenTap.TraceSource log = OpenTap.Log.CreateSource("TAP");
         internal static string EmitVersion(string title)
         {
-            //check whether TAP application is 32-bit or 64-bit
+            //check whether OpenTAP application is 32-bit or 64-bit
             string tapPlatform = Environment.Is64BitProcess ? "64-bit" : "32-bit";
             var tapVersion = PluginManager.GetOpenTapAssembly().SemanticVersion;
             var initt = DateTime.Now - Process.GetCurrentProcess().StartTime;

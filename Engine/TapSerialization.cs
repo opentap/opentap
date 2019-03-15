@@ -16,7 +16,7 @@ using OpenTap.Plugins;
 namespace OpenTap
 {
 
-    /// <summary> Enables callback from the TAP deserializer after deserialization. </summary>
+    /// <summary> Enables callback from the OpenTAP deserializer after deserialization. </summary>
     public interface IDeserializedCallback
     {
         /// <summary>
@@ -25,25 +25,27 @@ namespace OpenTap
         void OnDeserialized();
     }
 
-    /// <summary> Indicates that a property should be deserialized after everything else. </summary>
-    [AttributeUsage(AttributeTargets.Property)]
-    public class DelayDeserializeAttribute : Attribute
-    {
-
-    }
-
     /// <summary>
-    /// Can be used to control the order of the serialization of members.
+    /// Can be used to control the order in which members are deserialized.
     /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
-    public class SerializationOrderAttribute : Attribute
+    public class DeserializeOrderAttribute : Attribute
     {
-        /// <summary> The order in which the member will be serialized. Higher order, means it will be serialized later. Minimum value is 0, which is the order of unmarked elements.</summary>
-        public double Order { get; set; }
+        /// <summary> The order in which the member will be deserialized. Higher order, means it will be deserialized later. Minimum value is 0, which is also the default order of not attributed members.</summary>
+        public double Order { get; }
+
+        /// <summary>
+        /// Can be used to control the order in which members are deserialized.
+        /// </summary>
+        /// <param name="order">The order in which the member will be deserialized. Higher order, means it will be deserialized later. Minimum value is 0, which is also the default order of not attributed members.</param>
+        public DeserializeOrderAttribute(double order)
+        {
+            Order = order;
+        }
     }
 
     /// <summary>
-    /// Serializing/deserializing TAP objects. This class mostly just orchestrates a number of serializer plugins. <see cref="MacroString"/>
+    /// Serializing/deserializing OpenTAP objects. This class mostly just orchestrates a number of serializer plugins. <see cref="MacroString"/>
     /// </summary>
     public class TapSerializer
     {
@@ -88,22 +90,22 @@ namespace OpenTap
         /// <param name="autoFlush"></param>
         /// <param name="path"></param>
         /// <returns></returns>
-        public object Deserialize(XDocument document, Type type = null, bool autoFlush = true, string path = null)
+        public object Deserialize(XDocument document, ITypeData type = null, bool autoFlush = true, string path = null)
         {
             if (document == null)
                 throw new ArgumentNullException("document");
             var node1 = document.Elements().First();
             object serialized = null;
             this.ReadPath = path;
-            var prevSer = CurrentSerializer.Value;
-            CurrentSerializer.Value = this;
+            var prevSer = currentSerializer.Value;
+            currentSerializer.Value = this;
             try
             {
                 Deserialize(node1, x => serialized = x, type);
             }
             finally
             {
-                CurrentSerializer.Value = prevSer;
+                currentSerializer.Value = prevSer;
             }
             if (autoFlush)
                 Flush();
@@ -127,7 +129,7 @@ namespace OpenTap
         /// <param name="type"></param>
         /// <param name="path"></param>
         /// <returns></returns>
-        public object Deserialize(Stream stream, bool flush = true, Type type = null, string path = null)
+        public object Deserialize(Stream stream, bool flush = true, ITypeData type = null, string path = null)
         {
             if (stream == null)
                 throw new ArgumentNullException("stream");
@@ -150,7 +152,7 @@ namespace OpenTap
         /// <param name="flush"></param>
         /// <param name="path"></param>
         /// <returns></returns>
-        public object DeserializeFromString(string text, Type type = null, bool flush = true, string path = null)
+        public object DeserializeFromString(string text, ITypeData type = null, bool flush = true, string path = null)
         {
             if (text == null)
                 throw new ArgumentNullException("text");
@@ -165,7 +167,7 @@ namespace OpenTap
         /// <param name="type"></param>
         /// <param name="flush"></param>
         /// <returns></returns>
-        public object DeserializeFromFile(string file, Type type = null, bool flush = true)
+        public object DeserializeFromFile(string file, ITypeData type = null, bool flush = true)
         {
             if (file == null)
                 throw new ArgumentNullException("file");
@@ -194,16 +196,18 @@ namespace OpenTap
             return serializers.OfType<T>().FirstOrDefault();
         }
 
-        /// <summary> For avoiding having to specify the TapSerializer in all TapSerializerPlugin constructors, it can be fetched here instead.</summary>
-        internal static System.Threading.ThreadLocal<TapSerializer> CurrentSerializer = new System.Threading.ThreadLocal<TapSerializer>();
-
+        
+        static System.Threading.ThreadLocal<TapSerializer> currentSerializer = new System.Threading.ThreadLocal<TapSerializer>();
+        
+        /// <summary> The serializer currently serializing/deserializing an object.</summary>
+        public static TapSerializer GetCurrentSerializer() => currentSerializer.Value;
         /// <summary>
         /// Creates a new serializer instance.
         /// </summary>
         public TapSerializer()
         {
-            var previousValue = CurrentSerializer.Value;
-            CurrentSerializer.Value = this;
+            var previousValue = currentSerializer.Value;
+            currentSerializer.Value = this;
 
             var plugins = PluginManager.GetPlugins<ITapSerializerPlugin>();
             serializers = plugins.Select(x =>
@@ -229,7 +233,7 @@ namespace OpenTap
 
             Array.Sort(values, serializers, 0, values.Length);
 
-            CurrentSerializer.Value = previousValue;
+            currentSerializer.Value = previousValue;
         }
 
         Queue<Action> deferedLoads = new Queue<Action>();
@@ -264,7 +268,7 @@ namespace OpenTap
         /// <returns></returns>
         public bool Deserialize(XElement element, Action<object> setter, Type t = null)
         {
-            return Deserialize(element, setter, t != null ? CSharpTypeInfo.Create(t) : null);
+            return Deserialize(element, setter, t != null ? TypeData.FromType(t) : null);
         }
 
         /// <summary>
@@ -274,14 +278,14 @@ namespace OpenTap
         /// <param name="setter"></param>
         /// <param name="t"></param>
         /// <returns></returns>
-        public bool Deserialize(XElement element, Action<object> setter, ITypeInfo t)
+        public bool Deserialize(XElement element, Action<object> setter, ITypeData t)
         {
             var typeattribute = element.Attribute("type");
             if (typeattribute != null)
             {   // if a specific type is given by the element use that.
                 // If it cannot be found fall back on previous value.
                 // This can happen if LocateType cannot find it, eg. private type.
-                var t2 = TypeInfo.GetTypeInfo(typeattribute.Value);
+                var t2 = TypeData.GetTypeData(typeattribute.Value);
                 
                 if (t2 != null)
                 {
@@ -296,7 +300,7 @@ namespace OpenTap
                         return false;
                 }
             }
-            if (t == null) t = CSharpTypeInfo.Create(typeof(object));
+            if (t == null) t = TypeData.FromType(typeof(object));
             foreach (var serializer in serializers)
             {
                 try
@@ -372,12 +376,12 @@ namespace OpenTap
         /// <param name="obj"></param>
         /// <param name="expectedType"></param>
         /// <returns></returns>
-        public bool Serialize(XElement elem, object obj, ITypeInfo expectedType = null)
+        public bool Serialize(XElement elem, object obj, ITypeData expectedType = null)
         {
-            ITypeInfo type = null;
+            ITypeData type = null;
             if(obj != null)
             {
-                type = TypeInfo.GetTypeInfo(obj);
+                type = TypeData.GetTypeData(obj);
             }
             if (Object.Equals(type, expectedType) == false && type != null)
                 elem.SetAttributeValue("type", type.Name);
@@ -492,7 +496,7 @@ namespace OpenTap
         {
             TapSerializer serializer = null;
             serializerSteps.TryGetValue(@object, out serializer);
-            return serializer ?? CurrentSerializer.Value;
+            return serializer ?? GetCurrentSerializer();
         }
 
         /// <summary> The path where the current file is being loaded from. This might be null in cases where it's being loaded from a stream.</summary>

@@ -49,8 +49,4 @@
     <Exec Command="rm $(PublishDir)tap.runtimeconfig.json" />
     <Exec Command="rm $(PublishDir)tap.dll.config" />
   </Target>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'net462'">
-    <PackageReference Include="EnvDTE" Version="8.0.2" />
-  </ItemGroup>
 </Project>

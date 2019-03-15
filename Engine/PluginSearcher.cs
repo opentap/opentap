@@ -15,14 +15,37 @@ using System.Reflection.PortableExecutable;
 using System.Text;
 using Tap.Shared;
 
+[assembly:OpenTap.PluginAssembly(true)]
+
 namespace OpenTap
 {
+    /// <summary>
+    /// Marks an assembly as one containing OpenTAP plugins.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Assembly)]
+    public class PluginAssemblyAttribute : Attribute
+    {
+        /// <summary>
+        /// Ask the <see cref="PluginSearcher"/> to also look for plugins among the internal types in this assembly (default is to only search in public types).
+        /// </summary>
+        public bool SearchInternalTypes { get; }
+        /// <summary>
+        /// Marks an assembly as one containing OpenTAP plugins.
+        /// </summary>
+        /// <param name="SearchInternalTypes">True to ask the <see cref="PluginSearcher"/> to also look for plugins among the internal types in this assembly (default is to only search in public types).</param>
+        public PluginAssemblyAttribute(bool SearchInternalTypes)
+        {
+            this.SearchInternalTypes = SearchInternalTypes;
+        }
+    }
+
+
     /// <summary>
     /// Searches assemblies for classes implementing ITapPlugin.
     /// </summary>
     public class PluginSearcher
     {
-        internal class AssemblyRef
+        private class AssemblyRef
         {
             public string Name;
             public Version Version;
@@ -148,7 +171,7 @@ namespace OpenTap
         }
         
         /// <summary>
-        /// The assemblies found by Search
+        /// The assemblies found by Search. Ordered such that referenced assemblies come before assemblies that reference them.
         /// </summary>
         public IEnumerable<AssemblyData> Assemblies;
 
@@ -185,17 +208,43 @@ namespace OpenTap
 
         internal TypeData PluginMarkerType = new TypeData
         {
-            FullName = typeof(ITapPlugin).FullName
+            Name = typeof(ITapPlugin).FullName
         };
 
         private void PluginsInAssemblyRecursive(AssemblyData asm)
         {
             CurrentAsm = asm;
+            ReadPrivateTypesInCurrentAsm = false;
             TypesInCurrentAsm = new Dictionary<TypeDefinitionHandle, TypeData>();
             using (FileStream file = new FileStream(asm.Location, FileMode.Open, FileAccess.Read))
             using (PEReader header = new PEReader(file, PEStreamOptions.LeaveOpen))
             {
                 CurrentReader = header.GetMetadataReader();
+                
+                foreach (CustomAttributeHandle attrHandle in CurrentReader.CustomAttributes)
+                {
+                    CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
+                    string attributeFullName = "";
+                    if (attr.Constructor.Kind == HandleKind.MethodDefinition)
+                    {
+                        MethodDefinition ctor = CurrentReader.GetMethodDefinition((MethodDefinitionHandle)attr.Constructor);
+                        attributeFullName = GetFullName(CurrentReader, ctor.GetDeclaringType());
+
+                    }
+                    else if (attr.Constructor.Kind == HandleKind.MemberReference)
+                    {
+                        var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle)attr.Constructor);
+                        attributeFullName = GetFullName(CurrentReader, ctor.Parent);
+                    }
+                    if(attributeFullName == typeof(PluginAssemblyAttribute).FullName)
+                    {
+                        var value = CurrentReader.GetBlobBytes(attr.Value);
+                        var valueString = attr.DecodeValue(new CustomAttributeTypeProvider());
+                        ReadPrivateTypesInCurrentAsm = bool.Parse(valueString.FixedArguments.First().Value.ToString());
+                        break;
+                    }
+                }
+
                 foreach (var typeDefHandle in CurrentReader.TypeDefinitions)
                 {
                     try
@@ -222,6 +271,7 @@ namespace OpenTap
         internal HashSet<TypeData> PluginTypes;
 
         private AssemblyData CurrentAsm;
+        private bool ReadPrivateTypesInCurrentAsm = false;
         private Dictionary<TypeDefinitionHandle, TypeData> TypesInCurrentAsm;
         private MetadataReader CurrentReader;
 
@@ -236,7 +286,14 @@ namespace OpenTap
                     return PluginFromTypeDefRecursive((TypeDefinitionHandle)handle);
                 case HandleKind.TypeSpecification:
                     var baseSpec = CurrentReader.GetTypeSpecification((TypeSpecificationHandle)handle);
-                    return baseSpec.DecodeSignature(new SignatureTypeProdiver(this), AllTypes);
+                    try
+                    {
+                        return baseSpec.DecodeSignature(new SignatureTypeProvider(this), AllTypes);
+                    }
+                    catch
+                    {
+                        return null;
+                    }
                 default:
                     return null;
             }
@@ -258,15 +315,25 @@ namespace OpenTap
                 return TypesInCurrentAsm[handle];
             }
             TypeDefinition typeDef = CurrentReader.GetTypeDefinition(handle);
-            if ((typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.Public &&
-                (typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPublic)
-                return null;
+            if (ReadPrivateTypesInCurrentAsm)
+            {
+                if ((typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.NotPublic &&
+                    (typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.Public &&
+                    (typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPublic)
+                    return null;
+            }
+            else
+            {
+                if ((typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.Public &&
+                    (typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPublic)
+                    return null;
+            }
 
             TypeData plugin = new TypeData();
             TypeDefinitionHandle declaringTypeHandle = typeDef.GetDeclaringType();
             if (declaringTypeHandle.IsNil)
             {
-                plugin.FullName = string.Format("{0}.{1}", CurrentReader.GetString(typeDef.Namespace), CurrentReader.GetString(typeDef.Name));
+                plugin.Name = string.Format("{0}.{1}", CurrentReader.GetString(typeDef.Namespace), CurrentReader.GetString(typeDef.Name));
             }
             else
             {
@@ -274,11 +341,11 @@ namespace OpenTap
                 TypeData declaringType = PluginFromTypeDefRecursive(declaringTypeHandle);
                 if (declaringType == null)
                     return null;
-                plugin.FullName = string.Format("{0}+{1}", declaringType.FullName, CurrentReader.GetString(typeDef.Name));
+                plugin.Name = string.Format("{0}+{1}", declaringType.Name, CurrentReader.GetString(typeDef.Name));
             }
-            if (AllTypes.ContainsKey(plugin.FullName))
+            if (AllTypes.ContainsKey(plugin.Name))
             {
-                var existingPlugin = AllTypes[plugin.FullName];
+                var existingPlugin = AllTypes[plugin.Name];
                 if (existingPlugin.Assembly.Name == CurrentAsm.Name)
                 {
                     // we assume this is the same plugin, just in another copy of the dll
@@ -287,27 +354,27 @@ namespace OpenTap
                     // That file will get copied, and we end up with it twice in the installation dir
                     // in that case it is important for the logic in EnumeratePlugins that this assembly also has the plugin types listed.
                     if (existingPlugin.PluginTypes != null &&
-                        (CurrentAsm.PluginTypes == null || !CurrentAsm.PluginTypes.Any(t => t.FullName == existingPlugin.FullName)))
+                        (CurrentAsm.PluginTypes == null || !CurrentAsm.PluginTypes.Any(t => t.Name == existingPlugin.Name)))
                     {
                         CurrentAsm.AddPluginType(existingPlugin);
                     }
                 }
                 return existingPlugin;
             }
-            if (plugin.FullName == PluginMarkerType.FullName)
+            if (plugin.Name == PluginMarkerType.Name)
             {
                 PluginMarkerType.Assembly = CurrentAsm;
-                PluginMarkerType.Attributes = typeDef.Attributes;
-                AllTypes.Add(PluginMarkerType.FullName, PluginMarkerType);
+                PluginMarkerType.TypeAttributes = typeDef.Attributes;
+                AllTypes.Add(PluginMarkerType.Name, PluginMarkerType);
                 TypesInCurrentAsm.Add(handle, PluginMarkerType);
                 CurrentAsm.AddPluginType(PluginMarkerType);
                 return PluginMarkerType;
             }
-            plugin.Attributes = typeDef.Attributes;
+            plugin.TypeAttributes = typeDef.Attributes;
             plugin.Assembly = CurrentAsm;
             plugin.Handle = handle;
             TypesInCurrentAsm.Add(handle, plugin);
-            AllTypes.Add(plugin.FullName, plugin);
+            AllTypes.Add(plugin.Name, plugin);
             if (!typeDef.BaseType.IsNil)
             {
                 TypeData baseType = PluginFromEntityRecursive(typeDef.BaseType);
@@ -328,7 +395,7 @@ namespace OpenTap
                 iface.AddDerivedType(plugin);
                 plugin.AddBaseType(iface);
                 plugin.AddPluginTypes(iface.PluginTypes);
-                if (iface.FullName == PluginMarkerType.FullName && plugin.PluginTypes == null)
+                if (iface.Name == PluginMarkerType.Name && plugin.PluginTypes == null)
                 {
                     plugin.AddPluginType(plugin); // this inherrits directly from ITapPlugin (otherwise it should have been picked up earlier)
                 }
@@ -485,14 +552,14 @@ namespace OpenTap
 
             public bool IsSystemType(TypeData type)
             {
-                return type.FullName == "System.Type";
+                return type.Name == "System.Type";
             }
         }
 
-        class SignatureTypeProdiver : ISignatureTypeProvider<TypeData, Dictionary<string, TypeData>>
+        class SignatureTypeProvider : ISignatureTypeProvider<TypeData, Dictionary<string, TypeData>>
         {
             private readonly PluginSearcher _Searcher;
-            public SignatureTypeProdiver(PluginSearcher searcher)
+            public SignatureTypeProvider(PluginSearcher searcher)
             {
                 _Searcher = searcher;
             }
@@ -544,12 +611,12 @@ namespace OpenTap
 
             public TypeData GetPrimitiveType(PrimitiveTypeCode typeCode)
             {
-                return new TypeData { FullName = "System." + typeCode.ToString() };
+                return new TypeData { Name = "System." + typeCode.ToString() };
             }
 
             public TypeData GetSZArrayType(TypeData elementType)
             {
-                return new TypeData { FullName = elementType.FullName };
+                return elementType != null ? new TypeData { Name = elementType.Name } : null;
             }
 
             public TypeData GetTypeFromDefinition(MetadataReader reader, TypeDefinitionHandle handle, byte rawTypeKind)
@@ -571,21 +638,21 @@ namespace OpenTap
     }
 
     /// <summary>
-    /// Representation of a type including its inherritance hierarchy. Part of the object model model used in the PluginManager
+    /// Representation of a C#/dotnet type including its inheritance hierarchy. Part of the object model used in the PluginManager
     /// </summary>
-    [DebuggerDisplay("{FullName}")]
-    public class TypeData
+    [DebuggerDisplay("{Name}")]
+    public partial class TypeData
     {
         internal TypeDefinitionHandle Handle;
         /// <summary>
         /// Gets the fully qualified name of the type, including its namespace but not its assembly.
         /// </summary>
-        public string FullName { get; internal set; }
+        public string Name { get; internal set; }
 
         /// <summary>
         /// Gets the TypeAttributes for this type. This can be used to check if the type is abstract, nested, an interface, etc.
         /// </summary>
-        public TypeAttributes Attributes { get; internal set; }
+        public TypeAttributes TypeAttributes { get; internal set; }
         
         /// <summary>
         /// Gets the Assembly that defines this type.
@@ -602,7 +669,7 @@ namespace OpenTap
         /// <summary>
         /// Gets a list of base types (including interfaces)
         /// </summary>
-        public IEnumerable<TypeData> BaseTypes { get { return _BaseTypes; } }
+        internal ICollection<TypeData> BaseTypes { get { return _BaseTypes; } }
 
         internal void AddBaseType(TypeData typename)
         {
@@ -613,7 +680,7 @@ namespace OpenTap
 
         private HashSet<TypeData> _PluginTypes;
         /// <summary>
-        /// Gets a list of plugin types (i.e. types that direcly implement ITapPlugin) that this type inherrits from/implements
+        /// Gets a list of plugin types (i.e. types that directly implement ITapPlugin) that this type inherits from/implements
         /// </summary>
         public IEnumerable<TypeData> PluginTypes { get { return _PluginTypes; } }
 
@@ -664,9 +731,7 @@ namespace OpenTap
         {
             IsBrowsable = true;
         }
-
-        private Type _Type;
-
+        
         private bool _FailedLoad;
 
         /// <summary>
@@ -676,7 +741,7 @@ namespace OpenTap
         public Type Load()
         {
             if (_FailedLoad) return null;
-            if (_Type == null)
+            if (type == null)
             {
                 var asm = Assembly.Load();
                 if(asm == null)
@@ -686,20 +751,24 @@ namespace OpenTap
                 }
                 try
                 {
-                    _Type = asm.GetType(this.FullName,true);
+                    type = asm.GetType(this.Name,true);
+                    if (!dict.TryGetValue(type, out _))
+                    {
+                        dict.Add(type, this);
+                    }
                 }
                 catch (Exception ex)
                 {
                     _FailedLoad = true;
-                    log.Error("Unable to load type '{0}' from '{1}'. Reason: '{2}'.", FullName, Assembly.Location, ex.Message);
+                    log.Error("Unable to load type '{0}' from '{1}'. Reason: '{2}'.", Name, Assembly.Location, ex.Message);
                     log.Debug(ex);
                 }
             }
-            return _Type;
+            return type;
         }
 
         /// <summary> The loaded state of the type. </summary>
-        internal LoadStatus Status => _Type != null ? LoadStatus.Loaded : (_FailedLoad ? LoadStatus.FailedToLoad : LoadStatus.NotLoaded);
+        internal LoadStatus Status => type != null ? LoadStatus.Loaded : (_FailedLoad ? LoadStatus.FailedToLoad : LoadStatus.NotLoaded);
 
         static TraceSource log = Log.CreateSource("PluginManager");
 
@@ -709,7 +778,7 @@ namespace OpenTap
         /// <returns></returns>
         public string GetBestName()
         {
-            return Display != null ? Display.Name : FullName.Split('.', '+').Last();
+            return Display != null ? Display.Name : Name.Split('.', '+').Last();
         }
     }
 

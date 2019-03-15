@@ -214,9 +214,9 @@ namespace OpenTap
                 {
                     kw.Value.Wait();
                 }
-                if (TapThread.Current.AbortToken.IsCancellationRequested)
-                    UpgradeVerdict(Verdict.Aborted);
             }
+            if (MainThread.AbortToken.IsCancellationRequested)
+                Verdict = Verdict.Aborted;
         }
 
         
@@ -279,8 +279,7 @@ namespace OpenTap
             var instant = Stopwatch.GetTimestamp();
             // Create a clone, because running the test step may change the
             // values inside the active instance of TestStepRun.
-            // TODO: 9.0 make TestStepRun a clone.
-            var clone = stepRun; //not actually a clone yet. //stepRun.Clone();
+            var clone = stepRun.Clone();
 
             ScheduleInResultProcessingThread<IResultListener>(listener =>
             {
@@ -322,7 +321,7 @@ namespace OpenTap
         internal void AddTestStepRunCompleted(TestStepRun stepRun)
         {
             var instant = Stopwatch.GetTimestamp();
-
+            
             ScheduleInResultProcessingThread<IResultListener>(listener =>
             {
                 try
@@ -411,7 +410,7 @@ namespace OpenTap
 
             foreach (var res in ResultListeners)
             {
-                resultWorkers[res] = new WorkQueue(WorkQueue.Options.LongRunning | WorkQueue.Options.TimeAveraging, res);
+                resultWorkers[res] = new WorkQueue(WorkQueue.Options.LongRunning | WorkQueue.Options.TimeAveraging, res.ToString());
             }
 
             if (EngineSettings.Current.ResourceManagerType == null)
@@ -466,7 +465,7 @@ namespace OpenTap
             this.ResultListeners = original.ResultListeners;
             foreach (var resultListener in ResultListeners)
             {
-                resultWorkers[resultListener] = new WorkQueue(WorkQueue.Options.LongRunning | WorkQueue.Options.TimeAveraging, resultListener);
+                resultWorkers[resultListener] = new WorkQueue(WorkQueue.Options.LongRunning | WorkQueue.Options.TimeAveraging, resultListener.ToString());
             }
 
             this.ResourceManager = original.ResourceManager;

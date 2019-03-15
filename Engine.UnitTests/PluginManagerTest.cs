@@ -89,7 +89,7 @@ namespace OpenTap.Engine.UnitTests
         //[Test, Ignore("We dont know what this actually does")]
         //public void DirectoriesToSearchTest()
         //{
-        //    //This Test requires TAP to be installed
+        //    //This Test requires OpenTAP to be installed
 
         //    // Make sure we have the stuff we need in a temp dir:
         //    string baseDir = Path.Combine(Path.GetTempPath(), "DirectoriesToSearchTest");
@@ -107,9 +107,9 @@ namespace OpenTap.Engine.UnitTests
         //    domain.DoCallBack(() =>
         //    {
         //        TestTraceListener log = new TestTraceListener();
-        //        Log.AddListener(log);
+        //        Log.AddListener(logOpenTAP
         //        // Ask to look for plugins in TAP installation dir as well as current dir 
-        //        // (current dir should be different from TAP installation dir for the bug to show)
+        //        // (current dir should be different from OpenTAP installation dir for the bug to show)
         //        PluginManager.DirectoriesToSearch.Add(Environment.GetEnvironmentVariable("TAP_PATH"));
         //        var d = AppDomain.CurrentDomain;
         //        var l = log.GetLog();

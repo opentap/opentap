@@ -27,7 +27,7 @@ namespace OpenTap.Package.UnitTests
             byte[] inputArray = System.Text.Encoding.ASCII.GetBytes(input);
             using (MemoryStream inputStream = new MemoryStream(inputArray))
             {
-                pkg = PackageDef.LoadFrom(inputStream);
+                pkg = PackageDef.FromXml(inputStream);
             }
             string output = "";
             using (Stream str = new MemoryStream())

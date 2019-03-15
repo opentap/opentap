@@ -33,7 +33,7 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Sweep Parameters", Order: -4, Description: "Test step parameters that should be swept. The variable must be a numeric type.")]
         [XmlIgnore]
         [Browsable(true)]
-        public List<IMemberInfo> SweepProperties { get; set; }
+        public List<IMemberData> SweepProperties { get; set; }
 
         [Display("Start", Order: -2, Description: "The parameter value where the sweep will start.")]
         public decimal SweepStart { get; set; }
@@ -75,39 +75,39 @@ namespace OpenTap.Plugins.BasicSteps
         public decimal Current { get; private set; }
 
         [Browsable(false)]
-        [DelayDeserialize]
+        [DeserializeOrder(1.0)]
         public string SweepPropertyName
         {
             get => propertyInfosToString(SweepProperties);
             set => SweepProperties = parseInfosFromString(value).ToList();
         }
 
-        static string propertyInfosToString(IEnumerable<IMemberInfo> infos)
+        static string propertyInfosToString(IEnumerable<IMemberData> infos)
         {
             return string.Join("|", infos.Select(x => String.Format("{0};{1}", x.Name, x.DeclaringType.Name)));
         }
 
-        List<IMemberInfo> parseInfosFromString(string str)
+        List<IMemberData> parseInfosFromString(string str)
         {
-            var cs = this.GetChildSteps(TestStepSearch.All).Select( x => TypeInfo.GetTypeInfo(x)).ToArray();
+            var cs = this.GetChildSteps(TestStepSearch.All).Select( x => TypeData.GetTypeData(x)).ToArray();
             var allMembers = cs.SelectMany(x => x.GetMembers().ToArray());
-            Dictionary<string, IMemberInfo> dict = new Dictionary<string, IMemberInfo>();
+            Dictionary<string, IMemberData> dict = new Dictionary<string, IMemberData>();
             foreach(var x in allMembers)
             {
                 var key = String.Format("{0};{1}", x.Name, x.DeclaringType.Name);
                 dict[key] = x;
             }
             var items = str.Split('|');
-            List<IMemberInfo> outlist = new List<IMemberInfo>();
+            List<IMemberData> outlist = new List<IMemberData>();
             foreach (var item in items)
             {
-                if (dict.TryGetValue(item, out IMemberInfo member))
+                if (dict.TryGetValue(item, out IMemberData member))
                     outlist.Add(member);
             }
             return outlist;
         }
 
-        ITypeInfo SweepType => SweepProperties.FirstOrDefault()?.TypeDescriptor;
+        ITypeData SweepType => SweepProperties.FirstOrDefault()?.TypeDescriptor;
         bool isRunning => StepRun != null;
         string validateSweep(decimal Value)
         {   // Mostly copied from Run
@@ -151,7 +151,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         public SweepLoopRange()
         {
-            SweepProperties = new List<IMemberInfo>();
+            SweepProperties = new List<IMemberData>();
 
             SweepStart = 1;
             SweepStop = 100;
@@ -171,7 +171,7 @@ namespace OpenTap.Plugins.BasicSteps
         struct ObjPropSet
         {
             public IValidatingObject Obj;
-            public IMemberInfo Prop;
+            public IMemberData Prop;
             public void SetValue(object value, bool invokePropertyChanged = true)
             {
 
@@ -179,7 +179,7 @@ namespace OpenTap.Plugins.BasicSteps
                 {
                     Prop.SetValue(Obj, value);
                 }
-                else if(Prop.TypeDescriptor is CSharpTypeInfo cst)
+                else if(Prop.TypeDescriptor is TypeData cst)
                 {
                     Prop.SetValue(Obj, Convert.ChangeType(value, cst.Type));
                 }
@@ -202,7 +202,7 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 foreach (var prop in SweepProperties)
                 {
-                    IMemberInfo paramProp = TypeInfo.GetTypeInfo(step).GetMember(prop.Name);
+                    IMemberData paramProp = TypeData.GetTypeData(step).GetMember(prop.Name);
                     if (paramProp != null && (paramProp.TypeDescriptor == prop.TypeDescriptor && paramProp.GetDisplayAttribute().GetFullName() == prop.GetDisplayAttribute().GetFullName()))
                         yield return new ObjPropSet { Obj = step, Prop = paramProp };
                     if (step is TestPlanReference) continue; //TODO: keep this hack?
@@ -299,7 +299,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         HashSet<XElement> proccessingNodes = new HashSet<XElement>();
 
-        public override bool Deserialize(XElement node, ITypeInfo t, Action<object> setter)
+        public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
         {
             var typeAttribute = node.Attribute("type");
             if(typeAttribute != null && (typeAttribute.Value == "OpenTap.Plugins.BasicSteps.LinearSweepLoop" || typeAttribute.Value == "OpenTap.Plugins.BasicSteps.SweepLoopRange") )
@@ -334,7 +334,7 @@ namespace OpenTap.Plugins.BasicSteps
             return false;
         }
 
-        public override bool Serialize(XElement node, object obj, ITypeInfo expectedType)
+        public override bool Serialize(XElement node, object obj, ITypeData expectedType)
         {
             return false;
         }

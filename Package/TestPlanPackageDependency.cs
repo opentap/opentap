@@ -12,10 +12,12 @@ using System.Runtime.Serialization;
 using System.Threading;
 using System.Xml.Linq;
 
+[assembly:OpenTap.PluginAssembly(true)]
+
 namespace OpenTap.Package
 {
     [Display("Test Plan Package Dependencies", Description: "Serializer plugin that inserts package dependencies for a test plan in the test plan itself.")]
-    public class TestPlanPackageDependency : TapSerializerPlugin
+    internal class TestPlanPackageDependency : TapSerializerPlugin
     {
         const string PackageDependenciesName = "Package.Dependencies";
         const string PackageDependencyName = "Package";
@@ -55,7 +57,7 @@ namespace OpenTap.Package
             InstallNeedPackage req = new InstallNeedPackage() {
                 Message = string.Format("Install package \"{0}\" version {1}?", name, version.ToString()),
                 Response = UserRequest.Ignore };
-            UserInput.Request(req, TimeSpan.MaxValue, true);
+            UserInput.Request(req, true);
 
             Log.Info("Installing package \"{0}\".", name);
 
@@ -83,7 +85,7 @@ namespace OpenTap.Package
             }
         }
 
-        public override bool Deserialize(XElement element, ITypeInfo t, Action<object> setter)
+        public override bool Deserialize(XElement element, ITypeData t, Action<object> setter)
         {
             var dep = element.Element(PackageDependenciesName);
             if (dep == null) return false;
@@ -135,10 +137,10 @@ namespace OpenTap.Package
             return false;
         }
 
-        static string getAssemblyLocation(ITypeInfo _x)
+        static string getAssemblyLocation(ITypeData _x)
         {
             
-            if(_x is CSharpTypeInfo xx && xx.Type is Type x && x.Assembly != null && x.Assembly.IsDynamic == false)
+            if(_x is TypeData xx && xx.Type is Type x && x.Assembly != null && x.Assembly.IsDynamic == false)
             {
                 try
                 {
@@ -153,9 +155,9 @@ namespace OpenTap.Package
             return null;
         }
 
-        readonly HashSet<ITypeInfo> allTypes = new HashSet<ITypeInfo>();
+        readonly HashSet<ITypeData> allTypes = new HashSet<ITypeData>();
         XElement endnode;
-        public override bool Serialize(XElement elem, object obj, ITypeInfo type)
+        public override bool Serialize(XElement elem, object obj, ITypeData type)
         {
             //if (type == typeof(PackageDef))
             //    return false; // TODO: fix this in a less hacky way
@@ -180,8 +182,10 @@ namespace OpenTap.Package
                         foreach (var file in plugin.Files)
                         {
                             if (allassemblies.Contains(Path.GetFullPath(file.FileName)))
+                            {
                                 packages.Add(plugin);
-                            break;
+                                break;
+                            }
                         }
                     }
 

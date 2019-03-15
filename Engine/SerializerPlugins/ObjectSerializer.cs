@@ -18,44 +18,14 @@ namespace OpenTap.Plugins
 {
 
     /// <summary>
-    /// Species a TAP Serializer plugin.
-    /// </summary>
-    [Display("Serializer")]
-    public interface ITapSerializerPlugin : ITapPlugin
-    {
-        
-        /// <summary>
-        /// Called as part for the deserialization chain. Returns false if it cannot serialize the XML element.  
-        /// </summary>
-        /// <param name="node"></param>
-        /// <param name="t"></param>
-        /// <param name="setter"></param>
-        /// <returns></returns>
-        bool Deserialize(XElement node, ITypeInfo t, Action<object> setter);
-        /// <summary>
-        /// Called as part for the serialization chain. Returns false if it cannot serialize the XML element.  
-        /// </summary>
-        /// <param name="node">The output XML element.</param>
-        /// <param name="obj">The object being deserialized.</param>
-        /// <param name="expectedType">The expected type from deserialization.</param>
-        /// <returns>return true if the object could be serialized.</returns>
-        bool Serialize(XElement node, object obj, ITypeInfo expectedType);
-
-        /// <summary>
-        /// Priority of the serializer. Defines the order in which the serializers are used. Default is 0.  
-        /// </summary>
-        double Order { get; }
-    }
-
-    /// <summary>
     /// Default object serializer.
     /// </summary>
-    public class ObjectSerializer : TapSerializerPlugin, ITapSerializerPlugin
+    internal class ObjectSerializer : TapSerializerPlugin, ITapSerializerPlugin
     {
         /// <summary>
         /// Gets the member currently being serialized.
         /// </summary>
-        public IMemberInfo CurrentMember { get; private set; }
+        public IMemberData CurrentMember { get; private set; }
 
 
         /// <summary>
@@ -78,7 +48,7 @@ namespace OpenTap.Plugins
         /// <param name="newobj"></param>
         /// <param name="logWarnings">Whether warning messages should be emitted in case of missing properties.</param>
         /// <returns>True on success.</returns>
-        public virtual bool TryDeserializeObject(XElement element, ITypeInfo t, Action<object> setter, object newobj = null, bool logWarnings = true)
+        public virtual bool TryDeserializeObject(XElement element, ITypeData t, Action<object> setter, object newobj = null, bool logWarnings = true)
         {
             
             if (element.IsEmpty && !element.HasAttributes)
@@ -91,7 +61,7 @@ namespace OpenTap.Plugins
                 try
                 {
                     newobj = t.CreateInstance(Array.Empty<object>());
-                    t = TypeInfo.GetTypeInfo(newobj);
+                    t = TypeData.GetTypeData(newobj);
                 }
                 catch (TargetInvocationException ex)
                 {
@@ -120,7 +90,7 @@ namespace OpenTap.Plugins
                     if (attr == null) continue;
                     var name = string.IsNullOrWhiteSpace(attr.AttributeName) ? prop.Name : attr.AttributeName;
                     var attr_value = element.Attribute(XmlConvert.EncodeLocalName(name));
-                    var p = prop as CSharpMemberInfo;
+                    var p = prop as MemberData;
 
                     if (p != null && attr_value != null && p.Member is PropertyInfo csprop)
                     {
@@ -155,7 +125,7 @@ namespace OpenTap.Plugins
                     foreach (var element2 in elements)
                     {
                         if (visited.Contains(element2)) continue;
-                        IMemberInfo property = null;
+                        IMemberData property = null;
                         var name = XmlConvert.DecodeName(element2.Name.LocalName);
                         var propertyMatches = props[name];
 
@@ -189,7 +159,7 @@ namespace OpenTap.Plugins
                         if (hits > 1)
                             Log.Warning(element2, "Multiple properties named '{0}' are available to the serializer in '{1}' this might give issues in serialization.", element2.Name.LocalName, t.GetAttribute<DisplayAttribute>().Name);
                         
-                        if (property.GetAttribute<SerializationOrderAttribute>() is SerializationOrderAttribute orderAttr)
+                        if (property.GetAttribute<DeserializeOrderAttribute>() is DeserializeOrderAttribute orderAttr)
                         {
                             if(order < orderAttr.Order)
                             {
@@ -213,27 +183,17 @@ namespace OpenTap.Plugins
                                 if (!CurrentMember.HasAttribute<BrowsableAttribute>()) // In the special case we assume that this is some compatibility property that still needs to be set if present in the XML. (E.g. TestPlanReference.DynamicDataContents)
                                     continue;
 
-                            Action go = null;
-                            if (property is CSharpMemberInfo mem && mem.Member is PropertyInfo Property && Property.PropertyType.HasInterface<IList>() && Property.PropertyType.IsGenericType && Property.HasAttribute<XmlElementAttribute>())
+                            if (property is MemberData mem && mem.Member is PropertyInfo Property && Property.PropertyType.HasInterface<IList>() && Property.PropertyType.IsGenericType && Property.HasAttribute<XmlElementAttribute>())
                             {
                                 // Special case to mimic old .NET XmlSerializer behavior
                                 var list = (IList)Property.GetValue(newobj);
                                 Action<object> setValue = x => list.Add(x);
-                                go = () => Serializer.Deserialize(element2, setValue, Property.PropertyType.GetGenericArguments().First());
+                                Serializer.Deserialize(element2, setValue, Property.PropertyType.GetGenericArguments().First());
                             }
                             else
                             {
                                 Action<object> setValue = x => property.SetValue(newobj, x);
-                                go = () => Serializer.Deserialize(element2, setValue, property.TypeDescriptor);
-                            }
-                            bool delay = CurrentMember.HasAttribute<DelayDeserializeAttribute>();
-                            if (delay)
-                            {
-                                Serializer.DeferLoad(go);
-                            }
-                            else
-                            {
-                                go();
+                                Serializer.Deserialize(element2, setValue, property.TypeDescriptor);
                             }
                         }
                         catch (Exception e)
@@ -464,12 +424,12 @@ namespace OpenTap.Plugins
         /// <param name="t"></param>
         /// <param name="setter"></param>
         /// <returns></returns>
-        public override bool Deserialize(XElement element, ITypeInfo t, Action<object> setter)
+        public override bool Deserialize(XElement element, ITypeData t, Action<object> setter)
         {
             object result = null;
             try
             {
-                if (t is CSharpTypeInfo ctd)
+                if (t is TypeData ctd)
                 {
                     object obj = readContentInternal(ctd.Type, false, () => element.Value, element);
                     if (obj != null)
@@ -479,9 +439,10 @@ namespace OpenTap.Plugins
                     }
                 }
             }
-            catch
+            catch(Exception ex)
             {
                 Log.Warning(element, "Object value was not read correctly.");
+                Log.Debug(ex);
                 return false;
             }
             try
@@ -529,7 +490,7 @@ namespace OpenTap.Plugins
         /// <param name="obj"></param>
         /// <param name="expectedType"></param>
         /// <returns></returns>
-        public override bool Serialize(XElement elem, object obj, ITypeInfo expectedType)
+        public override bool Serialize(XElement elem, object obj, ITypeData expectedType)
         {
             if (obj == null)
                 return true;
@@ -599,7 +560,7 @@ namespace OpenTap.Plugins
                     return true;
                 }
 
-                if (expectedType is CSharpTypeInfo type && (type.Type.IsEnum || type.Type.IsPrimitive || type.Type.IsValueType))
+                if (expectedType is TypeData type && (type.Type.IsEnum || type.Type.IsPrimitive || type.Type.IsValueType))
                 {
                     if (type.Type == typeof(bool))
                     {
@@ -610,9 +571,9 @@ namespace OpenTap.Plugins
                     return true;
                 }
                 
-                var _type = TypeInfo.GetTypeInfo(obj);
+                var _type = TypeData.GetTypeData(obj);
                 var properties = _type.GetMembers().Where(x => x.HasAttribute<XmlIgnoreAttribute>() == false).ToArray();
-                foreach (IMemberInfo prop in properties)
+                foreach (IMemberData prop in properties)
                 {
                     var attr = prop.GetAttribute<XmlAttributeAttribute>();
                     if (attr != null)
@@ -640,7 +601,7 @@ namespace OpenTap.Plugins
                 }
                 else
                 {
-                    foreach (IMemberInfo subProp in properties)
+                    foreach (IMemberData subProp in properties)
                     {
                         if (subProp.Readable && subProp.Writable && null == subProp.GetAttribute<XmlAttributeAttribute>())
                         {
@@ -659,19 +620,20 @@ namespace OpenTap.Plugins
                                                 continue;
                                         }
                                         var attr = subProp.GetAttribute<XmlElementAttribute>();
-                                        if (subProp.TypeDescriptor is CSharpTypeInfo cst && cst.Type.HasInterface<IList>() && cst.Type.IsGenericType && attr != null)
+                                        if (subProp.TypeDescriptor is TypeData cst && cst.Type.HasInterface<IList>() && cst.Type.IsGenericType && attr != null)
                                         {
                                             // Special case to mimic old .NET XmlSerializer behavior
                                             foreach (var item in enu)
                                             {
-                                                XElement elem2 = new XElement(attr.ElementName ?? subProp.Name);
-                                                Serializer.Serialize(elem2, item, CSharpTypeInfo.Create(cst.Type.GetGenericArguments().First()));
+                                                string name = attr.ElementName ?? subProp.Name;
+                                                XElement elem2 = new XElement(XmlConvert.EncodeLocalName(name));
+                                                Serializer.Serialize(elem2, item, TypeData.FromType(cst.Type.GetGenericArguments().First()));
                                                 elem.Add(elem2);
                                             }
                                         }
                                         else
                                         {
-                                            XElement elem2 = new XElement(subProp.Name);
+                                            XElement elem2 = new XElement(XmlConvert.EncodeLocalName(subProp.Name));
                                             Serializer.Serialize(elem2, val, subProp.TypeDescriptor);
                                             elem.Add(elem2);
                                         }

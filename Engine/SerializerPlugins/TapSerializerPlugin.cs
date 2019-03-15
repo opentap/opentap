@@ -9,7 +9,7 @@ using System.Xml.Linq;
 namespace OpenTap
 {
     /// <summary>
-    /// Base class for TAP Serializer plugins. Implement this in a public class to extend the TapSerializer with additional functionality.
+    /// Base class for OpenTAP Serializer plugins. Implement this in a public class to extend the TapSerializer with additional functionality.
     /// </summary>
     [Display("Serializer")]
     public abstract class TapSerializerPlugin : ITapSerializerPlugin
@@ -23,7 +23,7 @@ namespace OpenTap
         /// <summary> Creates a new TapSerializerPlugin. </summary>
         public TapSerializerPlugin()
         {
-            this.Serializer = TapSerializer.CurrentSerializer.Value;
+            this.Serializer = TapSerializer.GetCurrentSerializer();
         }
         /// <summary>
         /// Priority of the serializer. Defines the order in which the serializers are used. Default is 0.  
@@ -37,7 +37,7 @@ namespace OpenTap
         /// <param name="t"></param>
         /// <param name="setter"></param>
         /// <returns></returns>
-        public abstract bool Deserialize(XElement node, ITypeInfo t, Action<object> setter);
+        public abstract bool Deserialize(XElement node, ITypeData t, Action<object> setter);
 
         /// <summary>
         /// Implement to serialize an object.
@@ -46,7 +46,7 @@ namespace OpenTap
         /// <param name="obj"></param>
         /// <param name="expectedType"></param>
         /// <returns></returns>
-        public abstract bool Serialize(XElement node, object obj, ITypeInfo expectedType);
+        public abstract bool Serialize(XElement node, object obj, ITypeData expectedType);
     }
 
     /// <summary>

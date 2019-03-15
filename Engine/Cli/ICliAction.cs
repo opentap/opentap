@@ -15,9 +15,9 @@ using System.Threading.Tasks;
 namespace OpenTap.Cli
 {
     /// <summary>
-    /// Plugin type that defines a sub command for the TAP CLI (tap.exe). 
+    /// Plugin type that defines a sub command for the OpenTAP CLI (tap.exe). 
     /// Deriving from this, and annotating the class and any public properties with <see cref="CommandLineArgumentAttribute"/> and <see cref="UnnamedCommandLineArgument"/> attributes
-    /// will allow it to be called from the TAP CLI.
+    /// will allow it to be called from the OpenTAP CLI.
     /// </summary>
     public interface ICliAction : ITapPlugin
     {        

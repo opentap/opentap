@@ -11,7 +11,7 @@ using System.Collections;
 namespace OpenTap.Plugins
 {
     /// <summary> Serializer implementation for Resources. </summary>
-    public class ResourceSerializer : TapSerializerPlugin
+    internal class ResourceSerializer : TapSerializerPlugin
     {
         /// <summary>
         /// True if there was an change caused by a mismatch of resource names in the tesplan and names in the bench settings
@@ -22,9 +22,9 @@ namespace OpenTap.Plugins
         public override double Order { get { return 1; } }
 
         /// <summary> Deserialization implementation. </summary>
-        public override bool Deserialize( XElement elem, ITypeInfo _t, Action<object> setter)
+        public override bool Deserialize( XElement elem, ITypeData _t, Action<object> setter)
         {
-            var t = (_t as CSharpTypeInfo)?.Type;
+            var t = (_t as TypeData)?.Type;
             if (t != null && t.DescendsTo(typeof(IResource)) && ComponentSettingsList.HasContainer(t))
             {
                 var srcattr = elem.Attribute("Source");
@@ -102,7 +102,7 @@ namespace OpenTap.Plugins
         HashSet<object> checkRentry = new HashSet<object>();
         
         /// <summary> Serialization implementation. </summary>
-        public override bool Serialize( XElement elem, object obj, ITypeInfo expectedType)
+        public override bool Serialize( XElement elem, object obj, ITypeData expectedType)
         {            
             if (obj == null) return false;
 

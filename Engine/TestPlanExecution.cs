@@ -44,14 +44,14 @@ namespace OpenTap
                         planRun.AddTestStepStateUpdate(step.Id, null, StepState.PrePlanRun);
                         try
                         {
-                            planRun.ResourceManager.BeginStep(planRun, step, Stage.PrePlanRun, TapThread.Current.AbortToken);
+                            planRun.ResourceManager.BeginStep(planRun, step, TestPlanExecutionStage.PrePlanRun, TapThread.Current.AbortToken);
                             try
                             {
                                 step.PrePlanRun();
                             }
                             finally
                             {
-                                planRun.ResourceManager.EndStep(step, Stage.PrePlanRun);
+                                planRun.ResourceManager.EndStep(step, TestPlanExecutionStage.PrePlanRun);
                             }
                         }
                         finally
@@ -211,14 +211,14 @@ namespace OpenTap
                                 run.AddTestStepStateUpdate(step.Id, null, StepState.PostPlanRun);
                                 try
                                 {
-                                    run.ResourceManager.BeginStep(run, step, Stage.PostPlanRun, TapThread.Current.AbortToken);
+                                    run.ResourceManager.BeginStep(run, step, TestPlanExecutionStage.PostPlanRun, TapThread.Current.AbortToken);
                                     try
                                     {
                                         step.PostPlanRun();
                                     }
                                     finally
                                     {
-                                        run.ResourceManager.EndStep(step, Stage.PostPlanRun);
+                                        run.ResourceManager.EndStep(step, TestPlanExecutionStage.PostPlanRun);
                                     }
                                 }
                                 finally
@@ -286,10 +286,10 @@ namespace OpenTap
 
                     run.AddTestPlanCompleted(logStream, runWentOk != failState.StartFail);
 
-                    run.ResourceManager.EndStep(this, Stage.Execute);
+                    run.ResourceManager.EndStep(this, TestPlanExecutionStage.Execute);
 
                     if (!run.IsCompositeRun)
-                        run.ResourceManager.EndStep(this, Stage.Open);
+                        run.ResourceManager.EndStep(this, TestPlanExecutionStage.Open);
                 }
             }
             finally
@@ -317,10 +317,10 @@ namespace OpenTap
                 foreach (var resource in resources)
                 {
                     var name = resource.ToString().Trim();
-                    var type = TypeInfo.GetTypeInfo(resource);
+                    var type = TypeData.GetTypeData(resource);
                     foreach (var __prop in type.GetMembers())
                     {
-                    IMemberInfo prop = __prop;
+                    IMemberData prop = __prop;
                         var attr = prop.GetAttribute<MetaDataAttribute>();
                         if (attr == null || attr.PromptUser == false) continue;
                     AnyMetaData = true;
@@ -341,7 +341,7 @@ namespace OpenTap
                         try
                         {
                             var obj = new MetadataPromptObject { Resources = resources };
-                            UserInput.Request(obj, TimeSpan.Zero, false);
+                            UserInput.Request(obj, false);
                         }
                         catch(Exception e)
                         {
@@ -352,7 +352,7 @@ namespace OpenTap
                         {
                             planRun.PromptWaitHandle.Set();
                         }
-                    });
+                    }, name: "Request Metadata");
                     
                 
                 planRun.ResourcePromptReset = new System.Collections.Concurrent.ConcurrentStack<Action>();
@@ -397,7 +397,7 @@ namespace OpenTap
                     {
                         sem.Release();
                     }
-                });
+                }, "Plan Thread");
                 sem.Wait();
                 
                 return testPlanRun;
@@ -619,7 +619,7 @@ namespace OpenTap
 
                 OpenInternal(execStage, continuedExecutionState, currentListeners.Cast<IResource>().ToList(), allEnabledSteps);
 
-                execStage.ResourceManager.BeginStep(execStage, this, Stage.Execute, TapThread.Current.AbortToken);
+                execStage.ResourceManager.BeginStep(execStage, this, TestPlanExecutionStage.Execute, TapThread.Current.AbortToken);
 
                 if (continuedExecutionState)
                 {  // Since resources are not opened, getting metadata cannot be done in the wait for resources continuation
@@ -766,7 +766,7 @@ namespace OpenTap
                 // If there is an error, reset the state to allow calling open again later 
                 // when the user has fixed the error.
                 if (currentExecutionState != null)
-                    currentExecutionState.ResourceManager.EndStep(this, Stage.Open);
+                    currentExecutionState.ResourceManager.EndStep(this, TestPlanExecutionStage.Open);
 
                 if (monitors != null)
                     foreach (var item in monitors)
@@ -792,7 +792,7 @@ namespace OpenTap
                 run.ResourceManager.StaticResources = resources;
 
                 if (!isOpen)
-                    run.ResourceManager.BeginStep(run, this, Stage.Open, TapThread.Current.AbortToken);
+                    run.ResourceManager.BeginStep(run, this, TestPlanExecutionStage.Open, TapThread.Current.AbortToken);
             }
         }
 
@@ -808,7 +808,7 @@ namespace OpenTap
                 throw new InvalidOperationException("Call open first.");
 
             Stopwatch timer = Stopwatch.StartNew();
-            currentExecutionState.ResourceManager.EndStep(this, Stage.Open);
+            currentExecutionState.ResourceManager.EndStep(this, TestPlanExecutionStage.Open);
 
             // If we locked the setup earlier, unlock it now that all recourses has been closed:
             foreach (var item in monitors)

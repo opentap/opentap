@@ -16,6 +16,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
+using System.Xml.Serialization;
 using Tap.Shared;
 
 namespace OpenTap.Package
@@ -153,6 +154,9 @@ namespace OpenTap.Package
             }
             catch (Exception ex)
             {
+                if (ex is WebException)
+                    CheckRepoApiVersion();
+                
                 var exception = new WebException("Error communicating with repository at '" + defaultUrl + "'.", ex);
 
                 if (!IsSilent)
@@ -164,7 +168,6 @@ namespace OpenTap.Package
             }
             return xmlText;
         }
-
         private string CheckUrlRedirect(string url)
         {
             try
@@ -177,7 +180,7 @@ namespace OpenTap.Package
 
                     try
                     {
-                        var xmlText = wc.DownloadString(url + "/check");
+                        var xmlText = wc.DownloadString($"{url}/{ApiVersion}/version");
                         url = checkUrl(url, xmlText);
                     }
                     catch
@@ -200,7 +203,7 @@ namespace OpenTap.Package
             }
             return url.TrimEnd('/');
         }
-
+        
         private string checkUrl(string url, string xmlText)
         {
             try
@@ -219,6 +222,24 @@ namespace OpenTap.Package
             return url;
         }
 
+        private void CheckRepoApiVersion()
+        {
+            try
+            {
+                var data = new WebClient().DownloadString($"{Url}/{ApiVersion}/version");
+                using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(data)))
+                {
+                    var version = new XmlSerializer(typeof(string)).Deserialize(stream) as string;
+                    if (SemanticVersion.TryParse(version, out var semver) && semver.IsCompatible(SemanticVersion.Parse("1.0.0")) == false)
+                        throw new Exception();
+                }
+            }
+            catch
+            {
+                throw new NotSupportedException($"The repository '{this.Url}' is not supported by this version of OpenTAP.");
+            }
+        }
+
         PackageDef[] packagesFromXml(string xmlText)
         {
             try
@@ -226,7 +247,7 @@ namespace OpenTap.Package
                 if (string.IsNullOrEmpty(xmlText) || xmlText == "null") return new PackageDef[0];
                 using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(xmlText)))
                 {
-                    return PackageDef.LoadManyFrom(stream).ToArray();
+                    return PackageDef.ManyFromXml(stream).ToArray();
                 }
             }
             catch (XmlException ex)
@@ -362,7 +383,7 @@ namespace OpenTap.Package
             
             cancellationToken.ThrowIfCancellationRequested();
 
-            var pkgs = new TapSerializer().DeserializeFromString(response, type: typeof(PackageVersion[])) as PackageVersion[];
+            var pkgs = new TapSerializer().DeserializeFromString(response, type: TypeData.FromType(typeof(PackageVersion[]))) as PackageVersion[];
             pkgs.AsParallel().ForAll(p => p.Name = packageName);
             return pkgs;
         }

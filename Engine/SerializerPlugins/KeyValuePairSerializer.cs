@@ -10,23 +10,23 @@ namespace OpenTap.Plugins
 {
     /// <summary> For serializing/deserializing KeyValuePairs (mostly for use with Dictionaries). 
     /// It requires that the generic arguments of the KeyValuePair can be serialized.</summary>
-    public class KeyValuePairSerializer : TapSerializerPlugin
+    internal class KeyValuePairSerializer : TapSerializerPlugin
     {
         /// <summary> Creates a Key and a Value node in the XML.</summary>
-        public override bool Serialize(XElement node, object obj, ITypeInfo _expectedType)
+        public override bool Serialize(XElement node, object obj, ITypeData _expectedType)
         {
             if(obj == null || false == obj.GetType().DescendsTo(typeof(KeyValuePair<,>)))
             {
                 return false;
             }
 
-            if (_expectedType is CSharpTypeInfo expectedType2 && expectedType2.Type is Type expectedType)
+            if (_expectedType is TypeData expectedType2 && expectedType2.Type is Type expectedType)
             {
 
                 var key = new XElement("Key");
                 var value = new XElement("Value");
-                bool keyok = Serializer.Serialize(key, _expectedType.GetMember("Key").GetValue(obj), CSharpTypeInfo.Create(expectedType.GetGenericArguments()[0]));
-                bool valueok = Serializer.Serialize(value, _expectedType.GetMember("Value").GetValue(obj), CSharpTypeInfo.Create(expectedType.GetGenericArguments()[1]));
+                bool keyok = Serializer.Serialize(key, _expectedType.GetMember("Key").GetValue(obj), TypeData.FromType(expectedType.GetGenericArguments()[0]));
+                bool valueok = Serializer.Serialize(value, _expectedType.GetMember("Value").GetValue(obj), TypeData.FromType(expectedType.GetGenericArguments()[1]));
                 if (!keyok || !valueok)
                     return false;
                 node.Add(key);
@@ -37,9 +37,9 @@ namespace OpenTap.Plugins
         }
 
         /// <summary> Looks for a Key and a Value node in the XML. </summary>
-        public override bool Deserialize(XElement node, ITypeInfo _t, Action<object> setter)
+        public override bool Deserialize(XElement node, ITypeData _t, Action<object> setter)
         {
-            Type t = (_t as CSharpTypeInfo)?.Type;
+            Type t = (_t as TypeData)?.Type;
             if (t == null) return false;
             if (false == t.DescendsTo(typeof(KeyValuePair<,>)))
                 return false;

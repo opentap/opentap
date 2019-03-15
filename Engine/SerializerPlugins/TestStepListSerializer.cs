@@ -8,7 +8,7 @@ using System.Xml.Linq;
 namespace OpenTap.Plugins
 {
     /// <summary> Serializer implementation for TestStepList. </summary>
-    public class TestStepListSerializer : TapSerializerPlugin
+    internal class TestStepListSerializer : TapSerializerPlugin
     {
         
 
@@ -18,7 +18,7 @@ namespace OpenTap.Plugins
             get { return 2; }
         }
         /// <summary> Deserialization implementation. </summary>
-        public override bool Deserialize(XElement elem, ITypeInfo t, Action<object> setResult)
+        public override bool Deserialize(XElement elem, ITypeData t, Action<object> setResult)
         {
             if (t.IsA(typeof(TestStepList)) == false) return false;
             var steps = new TestStepList();
@@ -39,23 +39,15 @@ namespace OpenTap.Plugins
                     continue;
                 }
 
-                steps.CheckInserts = false;
-                try
-                {
-                    if(result != null)
-                        steps.Add(result);
-                }
-                finally
-                {
-                    steps.CheckInserts = true;
-                }
+                if (result != null)
+                    steps.Add(result);
             }
             setResult(steps);
             return true;
         }
 
         /// <summary> Serialization implementation. </summary>
-        public override bool Serialize( XElement elem, object target, ITypeInfo expectedType)
+        public override bool Serialize( XElement elem, object target, ITypeData expectedType)
         {
             if(target is TestStepList)
             {

@@ -12,9 +12,9 @@ using OpenTap;
 namespace OpenTap.Plugins.BasicSteps
 {
     [Display("Generic SCPI Instrument", Description: "Allows you to configure a VISA based connection to a SCPI instrument.")]
-    public class RawSCPIInstrument : ScpiInstrument
+    public class GenericScpiInstrument : ScpiInstrument
     {
-        public RawSCPIInstrument()
+        public GenericScpiInstrument()
         {
             Name = "SCPI";
         }
@@ -59,7 +59,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         [EnabledIf("GeneratesOutput", true)]
         [Display("Regular Expression", Group: "Set Verdict", Order: 1.1, Collapsed: true, Description: "The regular expression to apply to the output.")]
-        [HelpLink("TapGuiHelp.chm::/Creating a Test Plan/Working with Test Steps/Using Regex in Output Parameters.html")]
+        [HelpLink("EditorHelp.chm::/Creating a Test Plan/Working with Test Steps/Using Regex in Output Parameters.html")]
         public Enabled<string> RegularExpressionPattern { get; set; }
 
         [EnabledIf("GeneratesOutput", true)]
@@ -74,7 +74,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         [EnabledIf("GeneratesOutput", true)]
         [Display("Regular Expression", Group: "Results", Order: 1.5, Collapsed: true, Description: "The regular expression to apply to the output.")]
-        [HelpLink("TapGuiHelp.chm::/Creating a Test Plan/Working with Test Steps/Using Regex in Output Parameters.html")]
+        [HelpLink("EditorHelp.chm::/Creating a Test Plan/Working with Test Steps/Using Regex in Output Parameters.html")]
         public Enabled<string> ResultRegularExpressionPattern { get; set; }
 
         [EnabledIf("GeneratesOutput", true)]

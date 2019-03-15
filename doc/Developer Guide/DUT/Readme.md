@@ -14,5 +14,5 @@ Developers should add appropriate properties and methods to the plugin code to a
 
 For examples of DUT plugin development, see:
 
--	`TAP_PATH\SDK Examples\PluginDevelopment\InstrumentsAndDuts`
+-	`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\InstrumentsAndDuts`
 

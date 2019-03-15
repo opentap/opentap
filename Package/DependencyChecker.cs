@@ -8,19 +8,16 @@ using System.Linq;
 
 namespace OpenTap.Package
 {
-    public static class DependencyChecker
+    internal static class DependencyChecker
     {
         static TraceSource log =  OpenTap.Log.CreateSource("Packages");
 
         /// <summary>
         /// detects issues and prints them to the log. use filterPackages if its wanted to filter the issues based on newly installed packages.
         /// </summary>
-        /// <param name="packages"></param>
-        /// <param name="filterPackages"></param>
-        /// <returns></returns>
-        public static Issue CheckInstalledPackages()
+        public static Issue CheckInstalledPackages(string installDir)
         {
-            var packages = new Installation(Directory.GetCurrentDirectory()).GetPackages();
+            var packages = new Installation(installDir).GetPackages();
             var tree = DependencyAnalyzer.BuildAnalyzerContext(packages.ToList());
             if (tree.BrokenPackages.Count == 0)
                 return Issue.None;
@@ -51,9 +48,6 @@ namespace OpenTap.Package
         /// <summary>
         /// detects issues and prints them to the log. use filterPackages if its wanted to filter the issues based on newly installed packages.
         /// </summary>
-        /// <param name="packages"></param>
-        /// <param name="newPackages"></param>
-        /// <returns></returns>
         private static Issue CheckPackages(IEnumerable<PackageDef> packages, IEnumerable<PackageDef> newPackages, LogEventType severity)
         {
 
@@ -83,7 +77,7 @@ namespace OpenTap.Package
             return Issue.BrokenPackages;
         }
 
-        static Issue checkPackages(string[] packages, LogEventType severity)
+        static Issue checkPackages(Installation installation, string[] packages, LogEventType severity)
         {
             var packages_new = new List<PackageDef>();
             foreach (string pkg in packages)
@@ -97,7 +91,7 @@ namespace OpenTap.Package
                     packages_new.Add(PackageDef.FromPackage(pkg));
             }
 
-            var packages_installed = new Installation(Directory.GetCurrentDirectory()).GetPackages();
+            var packages_installed = installation.GetPackages();
             
             var new_names = packages_new.Select(pkg => pkg.Name).ToArray();
             var after_installation = packages_new.Concat(packages_installed.Where(pkg => new_names.Contains(pkg.Name) == false)).ToList();
@@ -111,9 +105,9 @@ namespace OpenTap.Package
             MissingPackage
         }
 
-        public static Issue CheckDependencies(IEnumerable<string> newPackages, LogEventType severity = LogEventType.Error)
+        public static Issue CheckDependencies(Installation installation, IEnumerable<string> newPackages, LogEventType severity = LogEventType.Error)
         {
-            return checkPackages(newPackages.Select(Path.GetFullPath).ToArray(), severity);
+            return checkPackages(installation, newPackages.Select(Path.GetFullPath).ToArray(), severity);
         }
     }
 }

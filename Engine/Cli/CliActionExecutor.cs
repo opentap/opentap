@@ -61,11 +61,11 @@ namespace OpenTap.Cli
             result = null;
             return false;
         }
-        
-        
+
+
 
         /// <summary>
-        /// Used as entrypoint for the command line interface of TAP (PluginManager must have searched for assemblies before this method is called)
+        /// Used as entrypoint for the command line interface of OpenTAP (PluginManager must have searched for assemblies before this method is called)
         /// </summary>
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Execute()
@@ -91,12 +91,12 @@ namespace OpenTap.Cli
             // Find the called action
             if(PluginManager.LocateTypeData(typeof(ICliAction).FullName).DerivedTypes == null)
             {
-                Console.WriteLine("No commands found. Please try reinstalling TAP.");
+                Console.WriteLine("No commands found. Please try reinstalling OpenTAP.");
                 Environment.ExitCode = 1;
                 return;
             }
 
-            var commands = PluginManager.LocateTypeData(typeof(ICliAction).FullName).DerivedTypes.Where(t => !t.Attributes.HasFlag(TypeAttributes.Abstract) && t.Display != null).ToList();
+            var commands = PluginManager.LocateTypeData(typeof(ICliAction).FullName).DerivedTypes.Where(t => !t.TypeAttributes.HasFlag(TypeAttributes.Abstract) && t.Display != null).ToList();
             TypeData selectedCommand = null;
             var requestedCommand = args.FirstOrDefault();
 
@@ -157,8 +157,8 @@ namespace OpenTap.Cli
             }
 
 
-            if(selectedCommand.Load() != typeof(RunCliAction)) // RunCliAction has --non-interactive flag and custom platform interaction handling.
-                UserInput.SetInterface(new CliUserInputInterface());
+            if (selectedCommand != TypeData.FromType(typeof(RunCliAction))) // RunCliAction has --non-interactive flag and custom platform interaction handling.
+                CliUserInputInterface.Load();
 
             // Create action and attach handlers
             var startupListener = new ConsoleTraceListener(false,false,false);
@@ -167,7 +167,7 @@ namespace OpenTap.Cli
             if(selectedType == null)
             {
                 Environment.ExitCode = -2;
-                Console.WriteLine("Error loading command {0}", selectedCommand.FullName);
+                Console.WriteLine("Error loading command {0}", selectedCommand.Name);
                 return;
             }
             var inst = selectedType.CreateInstance();
@@ -177,7 +177,7 @@ namespace OpenTap.Cli
             if (packageAction == null)
             {
                 Environment.ExitCode = -3;
-                Console.WriteLine("Error instanciating command {0}", selectedCommand.FullName);
+                Console.WriteLine("Error instanciating command {0}", selectedCommand.Name);
                 return;
             }
 

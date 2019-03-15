@@ -58,7 +58,7 @@ namespace OpenTap
     /// <summary>
     /// This indicates what stage a testplan execution is at.
     /// </summary>
-    public enum Stage
+    public enum TestPlanExecutionStage
     {
         /// <summary>
         /// Indicates that a testplan is being opened.
@@ -128,14 +128,14 @@ namespace OpenTap
         /// <param name="item">The item affected by the current action. This can be either a testplan or a teststep.</param>
         /// <param name="stage">The stage that is beginning.</param>
         /// <param name="cancellationToken">Used to cancel the step early.</param>
-        void BeginStep(TestPlanRun planRun, ITestStepParent item, Stage stage, CancellationToken cancellationToken);
+        void BeginStep(TestPlanRun planRun, ITestStepParent item, TestPlanExecutionStage stage, CancellationToken cancellationToken);
 
         /// <summary>
         /// Signals that an action has completed.
         /// </summary>
         /// <param name="item">The item affected by the current action. This can be either a testplan or a teststep.</param>
         /// <param name="stage">The stage that was just completed.</param>
-        void EndStep(ITestStepParent item, Stage stage);
+        void EndStep(ITestStepParent item, TestPlanExecutionStage stage);
     }
 
     /// <summary>
@@ -162,8 +162,11 @@ namespace OpenTap
     /// Resources are opened and closed in order depending on dependencies between them.
     /// </summary>
     [Display("Default", Order: 0)]
-    public class ResourceTaskManager : IResourceManager
+    internal class ResourceTaskManager : IResourceManager
     {
+        /// <summary> Prints a friendly name. </summary>
+        /// <returns></returns>
+        public override string ToString() => "Default Resource Manager";
         private static readonly TraceSource log = Log.CreateSource("Resources");
         
         List<ResourceNode> openedResources = new List<ResourceNode>();
@@ -341,11 +344,11 @@ namespace OpenTap
         /// <param name="item">The item affected by the current action. This can be either a testplan or a teststep.</param>
         /// <param name="stage">The stage that is beginning.</param>
         /// <param name="cancellationToken">Used to cancel the step early.</param>
-        public void BeginStep(TestPlanRun planRun, ITestStepParent item, Stage stage, CancellationToken cancellationToken)
+        public void BeginStep(TestPlanRun planRun, ITestStepParent item, TestPlanExecutionStage stage, CancellationToken cancellationToken)
         {
             switch (stage)
             {
-                case Stage.Execute:
+                case TestPlanExecutionStage.Execute:
                     if (item is TestPlan)
                     {
                         var testplan = item as TestPlan;
@@ -358,7 +361,7 @@ namespace OpenTap
                             beginOpenResoureces(resources, cancellationToken);
                     }
                     break;
-                case Stage.Open:
+                case TestPlanExecutionStage.Open:
                     if (item is TestPlan)
                     {
                         var testplan = item as TestPlan;
@@ -366,8 +369,8 @@ namespace OpenTap
                         beginOpenResoureces(resources, cancellationToken);
                     }
                     break;
-                case Stage.Run:
-                case Stage.PrePlanRun:
+                case TestPlanExecutionStage.Run:
+                case TestPlanExecutionStage.PrePlanRun:
                     {
                         bool openCompletedWithSuccess = openTasks.Values.All(x => x.Status == TaskStatus.RanToCompletion);
                         if (!openCompletedWithSuccess)
@@ -378,7 +381,7 @@ namespace OpenTap
                         }
                         break;
                     }
-                case Stage.PostPlanRun: break;
+                case TestPlanExecutionStage.PostPlanRun: break;
             }
         }
 
@@ -387,11 +390,11 @@ namespace OpenTap
         /// </summary>
         /// <param name="item">The item affected by the current action. This can be either a testplan or a teststep.</param>
         /// <param name="stage">The stage that was just completed.</param>
-        public void EndStep(ITestStepParent item, Stage stage)
+        public void EndStep(ITestStepParent item, TestPlanExecutionStage stage)
         {
             switch (stage)
             {
-                case Stage.Open:
+                case TestPlanExecutionStage.Open:
                     if (item is TestPlan)
                     {
                         try
@@ -412,10 +415,12 @@ namespace OpenTap
     /// Opens resources in a lazy way only before teststeps or global plan resources actually need them.
     /// </summary>
     [Display("Short Lived Connections", "Opens resources only right before they are needed (e.g. before an individual test step starts). And closes them again immediately after.", Order: 1)]
-    public class LazyResourceManager : IResourceManager
+    internal class LazyResourceManager : IResourceManager
     {
         private static readonly TraceSource log = Log.CreateSource("Resources");
-
+        /// <summary> Prints a friendly name. </summary>
+        /// <returns></returns>
+        public override string ToString() => "Short Lived Connections";
         private class ResourceInfo
         {
             private enum ResourceState
@@ -643,12 +648,12 @@ namespace OpenTap
         /// <param name="item">The item affected by the current action. This can be either a testplan or a teststep.</param>
         /// <param name="stage">The stage that is beginning.</param>
         /// <param name="cancellationToken">Used to cancel the step early.</param>
-        public void BeginStep(TestPlanRun planRun, ITestStepParent item, Stage stage, CancellationToken cancellationToken)
+        public void BeginStep(TestPlanRun planRun, ITestStepParent item, TestPlanExecutionStage stage, CancellationToken cancellationToken)
         {
             switch (stage)
             {
-                case Stage.Open:
-                case Stage.Execute:
+                case TestPlanExecutionStage.Open:
+                case TestPlanExecutionStage.Execute:
                     {
                         var resources = ResourceManagerUtils.GetResourceNodes(StaticResources);
 
@@ -693,7 +698,7 @@ namespace OpenTap
                         break;
                     }
 
-                case Stage.Run:
+                case TestPlanExecutionStage.Run:
                     if (item is ITestStep step)
                     {
                         var resources = ResourceManagerUtils.GetResourceNodes(new List<object> { step });
@@ -755,18 +760,18 @@ namespace OpenTap
         /// </summary>
         /// <param name="item">The item affected by the current action. This can be either a testplan or a teststep.</param>
         /// <param name="stage">The stage that was just completed.</param>
-        public void EndStep(ITestStepParent item, Stage stage)
+        public void EndStep(ITestStepParent item, TestPlanExecutionStage stage)
         {
             switch (stage)
             {
-                case Stage.Open:
-                case Stage.Execute:
+                case TestPlanExecutionStage.Open:
+                case TestPlanExecutionStage.Execute:
                     lock (resourceLock)
                         CloseResources(Resources, true);
 
                     break;
 
-                case Stage.Run:
+                case TestPlanExecutionStage.Run:
                     if (item is ITestStep step)
                     {
                         IEnumerable<IResource> usedResources;

@@ -537,7 +537,7 @@ namespace OpenTap.Package.SetAsmInfo
 
         private class TapMonoResolver : BaseAssemblyResolver
         {
-            ILookup<string, AssemblyData> searchedAssemblies = PluginManager.GetSearchedAssemblies().ToLookup(asm => asm.Name);
+            ILookup<string, AssemblyData> searchedAssemblies = PluginManager.GetSearcher().Assemblies.ToLookup(asm => asm.Name);
 
             public override AssemblyDefinition Resolve(AssemblyNameReference name, ReaderParameters parameters)
             {

@@ -38,7 +38,7 @@ namespace OpenTap
     }
 
     /// <summary>
-    /// Encapsulates the features of the TAP logging infrastructure.
+    /// Encapsulates the features of the OpenTAP logging infrastructure.
     /// </summary>
     public class TraceSource
     {
@@ -326,7 +326,7 @@ namespace OpenTap
         static object addlock = new object();
         /// <summary> Creates a new owned log source. Note that any given object can only have one owned TraceSource.</summary>
         /// <param name="name">The name of the Log.</param>
-        /// <param name="owner">The object owning the log. This is used to enable TAP to emit log messages on behalf of the owner object. </param>
+        /// <param name="owner">The object owning the log. This is used to enable OpenTAP to emit log messages on behalf of the owner object. </param>
         /// <returns>The created Log.</returns>
         public static TraceSource CreateSource(string name, object owner)
         {

@@ -16,6 +16,9 @@ namespace OpenTap.Diagnostic
     [Display("Local and Accurate", "Delivers timestamping that will be accurate to the system time over longer durations.")]
     public class AccurateStamper : ILogTimestampProvider
     {
+        /// <summary> Prints a friendly name. </summary>
+        /// <returns></returns>
+        public override string ToString() => "Local and Accurate";
         long ILogTimestampProvider.Timestamp()
         {
             return DateTime.UtcNow.Ticks;

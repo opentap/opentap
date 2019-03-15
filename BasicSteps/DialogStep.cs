@@ -2,9 +2,10 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
-using OpenTap;
 using System;
 using System.ComponentModel;
+using System.Reflection;
+using System.Xml.Linq;
 
 namespace OpenTap.Plugins.BasicSteps
 {
@@ -16,20 +17,23 @@ namespace OpenTap.Plugins.BasicSteps
         YesNo
     }
 
-    public enum WaitForInputResult1
+    [Obfuscation(Exclude = true, ApplyToMembers =true)]
+    enum WaitForInputResult1
     {
         // The order of the results determines the order in which the buttons is shown in the dialog box.
         // The number assigned, determines the default value.
         No = 2, Yes = 1
     }
 
-    public enum WaitForInputResult2
+    [Obfuscation(Exclude = true, ApplyToMembers = true)]
+    enum WaitForInputResult2
     {
         // The order of the results determines the order in which the buttons is shown in the dialog box.
         // The number assigned, determines the default value.
         Cancel = 2, Ok = 1
     }
 
+    [Obfuscation(Exclude = true, ApplyToMembers = true)]
     class DialogRequest
     {
         public DialogRequest(string Title, string Message)
@@ -38,11 +42,11 @@ namespace OpenTap.Plugins.BasicSteps
             this.Message = Message;
         }
         [Browsable(false)]
-        public string Name { get; set; }
+        public string Name { get;}
 
-        [Layout(LayoutMode.FullRow, rowHeight: 5)]
+        [Layout(LayoutMode.FullRow, rowHeight: 2)]
         [Browsable(true)]
-        public string Message { get; private set; }
+        public string Message { get; }
 
         [Browsable(false)]
         public InputButtons Buttons { get; set; }
@@ -50,19 +54,19 @@ namespace OpenTap.Plugins.BasicSteps
         [Layout(LayoutMode.FloatBottom | LayoutMode.FullRow)]
         [EnabledIf("Buttons", InputButtons.YesNo, HideIfDisabled = true)]
         [Submit]
-        public WaitForInputResult1 Input1 { get; set; }
+        public WaitForInputResult1 Input1 { get; set; } = WaitForInputResult1.Yes;
 
         [Layout(LayoutMode.FloatBottom | LayoutMode.FullRow)]
         [EnabledIf("Buttons", InputButtons.OkCancel, HideIfDisabled = true)]
         [Submit]
-        public WaitForInputResult2 Input2 { get; set; }
+        public WaitForInputResult2 Input2 { get; set; } = WaitForInputResult2.Ok;
     }
 
     [Display("Dialog", Group: "Basic Steps", Description: "Used to interact with the user.")]
     public class DialogStep : TestStep
     {
         [Display("Message", Description: "The message shown to the user.", Order: 0.1)]
-        [Layout(LayoutMode.Normal, 2)]
+        [Layout(LayoutMode.Normal, 2, maxRowHeight: 5)]
         public string Message { get; set; }
         
         [Display("Title", "The title of the dialog box.", Order: 0)]
@@ -98,7 +102,7 @@ namespace OpenTap.Plugins.BasicSteps
         }
 
         [EnabledIf("UseTimeout", true)]
-        [Display("Default Positive", "Is the default answer(on timeout) positive?", Group: "Timeout", Order: 2, Collapsed: true)]
+        [Display("Default Verdict", "The verdict the step will have if timeout is reached", Group: "Timeout", Order: 2, Collapsed: true)]
         public Verdict DefaultAnswer { get; set; }
 
         public DialogStep()
@@ -138,6 +142,80 @@ namespace OpenTap.Plugins.BasicSteps
             }
 
             Verdict = answer;
+        }
+    }
+
+    class DialogStepCompatibilitSerializer : ITapSerializerPlugin
+    {
+        public double Order => 2;
+
+        // Box: 
+        // A place to put a value. 
+        // Since the step is not available when the property is deserialized.
+        // we create a box, where the step value can be put at a later point.
+        // then in Defer we get the step inside the box.
+        class Box
+        {
+            public DialogStep Step;
+        }
+
+        const string legacyNotSetName = "Not_Set";
+        const string legacyDefaultAnswerPropertyName = "DefaultAnswer";
+
+        Box currentBox;
+        public bool Deserialize(XElement node, ITypeData t, Action<object> setter)
+        {
+            if (t.IsA(typeof(Verdict)))
+            {
+                if(node.Value == legacyNotSetName)
+                {
+                    node.SetValue(nameof(Verdict.NotSet));
+                    return TapSerializer.GetCurrentSerializer().Serialize(node, setter, t);
+                }    
+            }
+
+            if(node.Name == nameof(TestStep) && t.DescendsTo(typeof(DialogStep)))
+            {
+                if (currentBox != null) return false;
+
+                currentBox = new Box();
+                var serializer = TapSerializer.GetCurrentSerializer();
+                return serializer.Deserialize(node, x =>
+                {
+                    currentBox.Step = (DialogStep)x;
+                    setter(x);
+                }, t);
+                
+            }
+            else if(currentBox != null && node.Name == legacyDefaultAnswerPropertyName)
+            {
+                if(bool.TryParse(node.Value, out bool defaultAnswer))
+                {
+                    node.Remove();
+                    var serializer = TapSerializer.GetCurrentSerializer();
+                    var thisbox = currentBox;
+                    serializer.DeferLoad(() =>
+                    {
+                        if (thisbox.Step == null) return;
+                        if (defaultAnswer)
+                        {
+                            thisbox.Step.DefaultAnswer = thisbox.Step.PositiveAnswer;
+                        }
+                        else
+                        {
+                            thisbox.Step.DefaultAnswer = thisbox.Step.NegativeAnswer;
+                        }
+                    });
+                    return true;
+                }
+
+            }
+            return false;
+        }
+
+        public bool Serialize(XElement node, object obj, ITypeData expectedType)
+        {
+            return false;
         }
     }
 }

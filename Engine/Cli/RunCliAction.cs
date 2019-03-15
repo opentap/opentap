@@ -29,16 +29,10 @@ namespace OpenTap.Cli
     public class RunCliAction : ICliAction
     {
         /// <summary>
-        /// Specify a bench settings profile from which to load\nsettings. The parameter given here should correspondto the name of a subdirectory of ./Settings/Bench. If not specified the settings from TAP GUI are used.
+        /// Specify a bench settings profile from which to load\nsettings. The parameter given here should correspondto the name of a subdirectory of ./Settings/Bench. If not specified the settings from OpenTAP GUI are used.
         /// </summary>
-        [CommandLineArgument("settings", Description = "Specify a bench settings profile from which to load\nsettings. The parameter given here should correspond\nto the name of a subdirectory of ./Settings/Bench.\nIf not specified the settings from TAP GUI are used.")]
+        [CommandLineArgument("settings", Description = "Specify a bench settings profile from which to load\nsettings. The parameter given here should correspond\nto the name of a subdirectory of ./Settings/Bench.\nIf not specified the settings from OpenTAP GUI are used.")]
         public string Settings { get; set; } = "";
-
-        /// <summary>
-        /// Don't print the greeting/logo message containing version.
-        /// </summary>
-        [CommandLineArgument("no-logo", Description = "Don't print the greeting/logo message containing version.")]
-        public bool NoLogo { get; set; } = false;
 
         /// <summary>
         /// Add directories to search for plugin dlls.
@@ -141,10 +135,7 @@ namespace OpenTap.Cli
 
             Assembly assembly = Assembly.GetExecutingAssembly();
 
-            if (!NoLogo)
-            {
-                Console.WriteLine("OpenTAP Command Line Interface (CLI)\n");
-            }
+            Console.WriteLine($"OpenTAP Command Line Interface {FileVersionInfo.GetVersionInfo(assembly.Location).ProductVersion}\n");
 
             if (!string.IsNullOrWhiteSpace(Settings))
             {
@@ -155,7 +146,7 @@ namespace OpenTap.Cli
 
             if (!NonInteractive)
             {
-                UserInput.SetInterface(new CliUserInputInterface());
+                CliUserInputInterface.Load();
             }
 
 
@@ -266,7 +257,7 @@ namespace OpenTap.Cli
                 var value = externalParam.Substring(equalIdx + 1);
                 extparams.PreloadedValues[name] = value;
             }
-            Plan = (TestPlan)serializer.DeserializeFromFile(planToLoad, type: typeof(TestPlan));
+            Plan = (TestPlan)serializer.DeserializeFromFile(planToLoad, type: TypeData.FromType(typeof(TestPlan)));
 
             if (External.Length > 0)
             {   // Print warnings if an --external parameter was not in the test plan. 
@@ -321,21 +312,15 @@ namespace OpenTap.Cli
             if (rs.Count > 0)
             {
                 Console.Error.WriteLine("Unknown result listeners: {0}", string.Join(",", rs));
-
-                var knownResultListeners = ResultSettings.Current.OfType<IEnabledResource>().ToList();
-
-                if (knownResultListeners.Count != 0)
-                {
-                    Console.WriteLine("Known result listeners are:");
-                    foreach (var r in knownResultListeners)
-                        Console.WriteLine("[{2}] {0}:  {1}", r.Name, r.ToString(), r.IsEnabled ? "x" : " ");
-                }
+                Console.WriteLine("Known result listeners are:");
             }
+
+            foreach (var r in ResultSettings.Current.OfType<IEnabledResource>().ToList())
+                Console.WriteLine("[{2}] {0}:  {1}", r.Name, r.ToString(), r.IsEnabled ? "x" : " ");
 
             if (rs.Count > 0)
                 throw new ArgumentException();
         }
-
 
         private static string AwaitReadline(DateTime TimeOut)
         {

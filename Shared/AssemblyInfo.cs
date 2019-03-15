@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyCompany("Keysight Technologies")]
-[assembly: AssemblyProduct("Keysight Test Automation on PathWave")]
+[assembly: AssemblyProduct("Keysight Test Automation")]
 [assembly: AssemblyCopyright("© Keysight Technologies 2012-2018")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

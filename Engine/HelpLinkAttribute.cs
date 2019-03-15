@@ -9,7 +9,7 @@ namespace OpenTap
     /// <summary> Defines a help link for an object.</summary>
     /// <remarks>General behavior is to search up the visual tree, until the first HelpLink is found.</remarks>
     /// <seealso cref="T:System.Attribute"/>
-    public class HelpLinkAttribute : Attribute
+    public class HelpLinkAttribute : Attribute, IAnnotation
     {
         /// <summary>
         /// The HelpLink specified in this attribute.

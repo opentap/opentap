@@ -9,7 +9,7 @@ using System.Linq;
 namespace OpenTap
 {
     /// <summary>
-    /// Base type for all TAP plugins.
+    /// Base type for all OpenTAP plugins.
     /// </summary>
     public interface ITapPlugin { }
 

@@ -18,17 +18,17 @@ namespace OpenTap
         /// </summary>
         public string Name { get; private set; }
 
-        Dictionary<ITestStep, List<IMemberInfo>> properties;
+        Dictionary<ITestStep, List<IMemberData>> properties;
         TestPlan plan;
         /// <summary> Maps test step to member infos. </summary>
-        public IEnumerable<KeyValuePair<ITestStep, IEnumerable<IMemberInfo>>> Properties
-            => properties.Select(x => new KeyValuePair<ITestStep, IEnumerable<IMemberInfo>>(x.Key, x.Value));
+        public IEnumerable<KeyValuePair<ITestStep, IEnumerable<IMemberData>>> Properties
+            => properties.Select(x => new KeyValuePair<ITestStep, IEnumerable<IMemberData>>(x.Key, x.Value));
 
 
         /// <summary>
         /// Gets the list of PropertyInfos associated with this mask entry.
         /// </summary>
-        public IEnumerable<IMemberInfo> PropertyInfos
+        public IEnumerable<IMemberData> PropertyInfos
         {
             get { return properties.SelectMany(x => x.Value).Distinct(); }
         }
@@ -69,7 +69,7 @@ namespace OpenTap
                 foreach (ITestStep step in properties.Keys)
                 {
 
-                    foreach (IMemberInfo prop in properties[step])
+                    foreach (IMemberData prop in properties[step])
                     {
                         try
                         {
@@ -100,7 +100,6 @@ namespace OpenTap
                                 prop.SetValue(step, _value); // This will throw an exception if it is not assignable.
                         }
                     }
-                    step.OnPropertyChanged("");
                 }
             }
         }
@@ -117,7 +116,7 @@ namespace OpenTap
         /// </summary>
         /// <param name="stepGuid"></param>
         /// <returns></returns>
-        public List<IMemberInfo> GetProperties(ITestStep stepGuid)
+        public List<IMemberData> GetProperties(ITestStep stepGuid)
         {
             if (stepGuid == null)
                 throw new ArgumentNullException("stepGuid");
@@ -133,7 +132,7 @@ namespace OpenTap
         {
             this.plan = Plan;
             this.Name = Name;
-            properties = new Dictionary<ITestStep, List<IMemberInfo>>();
+            properties = new Dictionary<ITestStep, List<IMemberData>>();
         }
 
         /// <summary>
@@ -141,7 +140,7 @@ namespace OpenTap
         /// </summary>
         /// <param name="stepId"></param>
         /// <param name="property"></param>
-        public void Add(ITestStep stepId, IMemberInfo property)
+        public void Add(ITestStep stepId, IMemberData property)
         {
             if (stepId == null)
                 throw new ArgumentNullException("stepId");
@@ -150,15 +149,15 @@ namespace OpenTap
             foreach (var prop in properties.SelectMany(p => p.Value))
             {
                 // enum, numbers, others
-                ITypeInfo t1 = prop.TypeDescriptor;
-                ITypeInfo t2 = property.TypeDescriptor;
+                ITypeData t1 = prop.TypeDescriptor;
+                ITypeData t2 = property.TypeDescriptor;
                 if (object.Equals(t1, t2) == false)
                     throw new Exception("External properties with same name has to be of same type.");
             }
             if (properties.ContainsKey(stepId))
                 properties[stepId].Add(property);
             else
-                properties[stepId] = new List<IMemberInfo> { property };
+                properties[stepId] = new List<IMemberData> { property };
         }
 
         /// <summary>
@@ -197,7 +196,7 @@ namespace OpenTap
         /// <param name="step"></param>
         /// <param name="propertyInfo"></param>
         /// <param name="Name"></param>
-        public ExternalParameter Add(ITestStep step, IMemberInfo propertyInfo, string Name = null)
+        public ExternalParameter Add(ITestStep step, IMemberData propertyInfo, string Name = null)
         {
             if (step == null)
                 throw new ArgumentNullException("step");
@@ -236,7 +235,7 @@ namespace OpenTap
         /// <param name="step"></param>
         /// <param name="propertyInfo"></param>
         /// <param name="Name"></param>
-        public void Remove(ITestStep step, IMemberInfo propertyInfo, string Name = null)
+        public void Remove(ITestStep step, IMemberData propertyInfo, string Name = null)
         {
             if (step == null)
                 throw new ArgumentNullException("step");
@@ -286,7 +285,7 @@ namespace OpenTap
         /// <param name="step"></param>
         /// <param name="property"></param>
         /// <returns></returns>
-        public ExternalParameter Find(ITestStep step, IMemberInfo property)
+        public ExternalParameter Find(ITestStep step, IMemberData property)
         {
             if (step == null)
                 throw new ArgumentNullException("step");

@@ -82,7 +82,7 @@ namespace OpenTap.Plugins
 
     }
     /// <summary> Serializer implementation for SecureStrings. </summary>
-    public class SecureStringSerializer : TapSerializerPlugin
+    internal class SecureStringSerializer : TapSerializerPlugin
     {
         private const string password = "P4ssw0rdF0rS3r1al1z1ngS3cur3Str1ngs";
 
@@ -91,7 +91,7 @@ namespace OpenTap.Plugins
         /// <param name="targetType"></param>
         /// <param name="setResult"></param>
         /// <returns></returns>
-        public override bool Deserialize(XElement node, ITypeInfo targetType, Action<object> setResult)
+        public override bool Deserialize(XElement node, ITypeData targetType, Action<object> setResult)
         {
             if (targetType.IsA(typeof(System.Security.SecureString)) == false) return false;
             string valueString = node.Value;
@@ -117,7 +117,7 @@ namespace OpenTap.Plugins
         /// <param name="obj"></param>
         /// <param name="expectedType"></param>
         /// <returns></returns>
-        public override bool Serialize(XElement elem, object obj, ITypeInfo expectedType)
+        public override bool Serialize(XElement elem, object obj, ITypeData expectedType)
         {
             if (obj is System.Security.SecureString == false) return false;
             var sec = (System.Security.SecureString)obj;

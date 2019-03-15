@@ -18,12 +18,12 @@ namespace OpenTap.Package
         string TapPath { get; }
 
         /// <summary>
-        /// Initialize an instance of a TAP installation.
+        /// Initialize an instance of a OpenTAP installation.
         /// </summary>
         /// <param name="TapPath"></param>
         public Installation(string TapPath)
         {
-            this.TapPath = TapPath;
+            this.TapPath = TapPath ?? throw new ArgumentNullException(nameof(TapPath));
         }
 
         /// <summary>
@@ -35,25 +35,12 @@ namespace OpenTap.Package
             List<PackageDef> plugins = new List<PackageDef>();
             List<string> package_files = new List<string>();
 
-            // this way of seaching for package.xml files will find them both in their 8.x 
-            // location (Package Definitions/<PkgName>.package.xml) and in their new 9.x
-            // location (Packages/<PkgName>/package.xml)
 
-            // Add normal package from TAP folder
-            var packageDir = Path.GetFullPath(Path.Combine(TapPath, PackageDef.PackageDefDirectory));
-            if (Directory.Exists(packageDir))
-                package_files.AddRange(Directory.GetFiles(packageDir, "*" + PackageDef.PackageDefFileName, SearchOption.AllDirectories));
-            var packageDir8x = Path.GetFullPath(Path.Combine(TapPath, "Package Definitions"));
-            if (Directory.Exists(packageDir8x))
-                package_files.AddRange(Directory.GetFiles(packageDir8x, "*.package.xml"));
+            // Add normal package from OpenTAP folder
+            package_files.AddRange(PackageDef.GetPackageMetadataFilesInTapInstallation(TapPath));
 
             // Add system wide packages
-            var systemWidePackageDir = Path.Combine(PackageDef.SystemWideInstallationDirectory, PackageDef.PackageDefDirectory);
-            if (Directory.Exists(systemWidePackageDir))
-                package_files.AddRange(Directory.GetFiles(systemWidePackageDir, "*" + PackageDef.PackageDefFileName, SearchOption.AllDirectories));
-            var systemWidePackageDir8x = Path.Combine(PackageDef.SystemWideInstallationDirectory, "Package Definitions");
-            if (Directory.Exists(systemWidePackageDir8x))
-                package_files.AddRange(Directory.GetFiles(systemWidePackageDir8x, "*.package.xml"));
+            package_files.AddRange(PackageDef.GetSystemWidePackages());
 
             foreach (var file in package_files)
             {
@@ -91,7 +78,7 @@ namespace OpenTap.Package
             try
             {
                 using (var f = File.Open(file, FileMode.Open, FileAccess.Read, FileShare.Read))
-                    return PackageDef.LoadFrom(f);
+                    return PackageDef.FromXml(f);
             }
             catch (Exception e)
             {

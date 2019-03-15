@@ -38,10 +38,11 @@ namespace OpenTap.Package
             }
             using (GitVersionCalulator calc = new GitVersionCalulator(RepoPath))
             {
+                TraceSource log = Log.CreateSource("GitVersion");
                 if (String.IsNullOrEmpty(Sha))
-                    Console.WriteLine(calc.GetVersion());
+                    log.Info(calc.GetVersion().ToString());
                 else
-                    Console.WriteLine(calc.GetVersion(Sha));
+                    log.Info(calc.GetVersion(Sha).ToString());
             }
             return 0;
         }
@@ -58,10 +59,10 @@ namespace OpenTap.Package
                 if (repositoryDir == null)
                     throw new ArgumentException("Directory is not a git repository.", "repositoryDir");
             }
-            using (Repository repo = new Repository(repositoryDir))
+            using (LibGit2Sharp.Repository repo = new LibGit2Sharp.Repository(repositoryDir))
             {
                 Commit tip = repo.Head.Tip;
-                if (!String.IsNullOrEmpty(Sha))
+                if (!string.IsNullOrEmpty(Sha))
                 {
                     repo.RevParse(Sha, out _, out GitObject obj);
                     if(obj is Commit c)
@@ -121,7 +122,7 @@ namespace OpenTap.Package
                                 maxPosition = endPos;
                             // c is now merged back, no need to keep track of it (or any other commit on this branch)
                             // this way we can reuse the position for another branch 
-                            foreach (var kvp in commitPosition.Where(kvp => kvp.Value == endPos).ToList())
+                            foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == endPos).ToList())
                             {
                                 commitPosition.Remove(kvp.Key);
                             }
@@ -272,12 +273,12 @@ namespace OpenTap.Package
                                     Console.WriteLine();
                                     // c is now merged back, no need to keep track of it (or any other commit on this branch)
                                     // this way we can reuse the position for another branch 
-                                    foreach (var kvp in commitPosition.Where(kvp => kvp.Value == endPos).ToList())
+                                    foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == endPos).ToList())
                                     {
                                         commitPosition.Remove(kvp.Key);
                                     }
                                     commitPosition[p1] = startPos;
-                                    foreach (var kvp in commitPosition.Where(kvp => kvp.Value == startPos).ToList())
+                                    foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == startPos).ToList())
                                     {
                                         if(kvp.Key != p1)
                                             commitPosition.Remove(kvp.Key);

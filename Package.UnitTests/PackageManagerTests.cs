@@ -59,7 +59,7 @@ namespace OpenTap.Package.UnitTests
         
         public static void RepositoryManagerReceivePackageList(IPackageRepository manager)
         {
-            var tap = new PackageIdentifier("OpenTAP", SemanticVersion.Parse("7.4"), CpuArchitecture.Unknown, "Windows");
+            var tap = new PackageIdentifier("OpenTAP", SemanticVersion.Parse("7.4"), CpuArchitecture.Unspecified, "Windows");
             
             // ReceivePackageList.
             var allPackages = manager.GetPackages(new PackageSpecifier(), tap);
@@ -86,7 +86,7 @@ namespace OpenTap.Package.UnitTests
 
         public static void TestDownload(IPackageRepository manager)
         {
-            var tap = new PackageIdentifier("OpenTAP", SemanticVersion.Parse("7.5.0-Development"), CpuArchitecture.Unknown, "Windows");
+            var tap = new PackageIdentifier("OpenTAP", SemanticVersion.Parse("7.5.0-Development"), CpuArchitecture.Unspecified, "Windows");
             
             // Download package.
             var bag = manager.GetPackages(new PackageSpecifier(), tap);
@@ -171,7 +171,7 @@ namespace OpenTap.Package.UnitTests
 
             // Dependencies without any issues.
             using (var xmlText = File.OpenRead(Path.Combine(Directory.GetCurrentDirectory(), "TapPackages/MyPlugin1.xml")))
-                packages.AddRange(PackageDef.LoadManyFrom(xmlText));
+                packages.AddRange(PackageDef.ManyFromXml(xmlText));
             var dependencyAnalyzer = DependencyAnalyzer.BuildAnalyzerContext(packages);
             var issues = dependencyAnalyzer.GetIssues(packages.Last());
             if (issues.Any())
@@ -186,7 +186,7 @@ namespace OpenTap.Package.UnitTests
             // Dependencies with issues (Tap newer than plugin).
             using (var xmlText = File.OpenRead(Path.Combine(Directory.GetCurrentDirectory(), "TapPackages/MyPlugin2.xml")))
             {
-                var pkgs = PackageDef.LoadManyFrom(xmlText);
+                var pkgs = PackageDef.ManyFromXml(xmlText);
                 packages.AddRange(pkgs);
                 Assert.IsTrue(pkgs.First().Version.Major == 1);
                 Assert.IsTrue(pkgs.First().Version.Minor == 2);
@@ -217,11 +217,11 @@ namespace OpenTap.Package.UnitTests
             var packages = new List<PackageDef>();
             packages.Add(tapPackage);
             using (var xmlText = File.OpenRead(Path.Combine(Directory.GetCurrentDirectory(), "TapPackages/MyPlugin3.xml")))
-                packages.AddRange(PackageDef.LoadManyFrom(xmlText));
+                packages.AddRange(PackageDef.ManyFromXml(xmlText));
             using (var xmlText = File.OpenRead(Path.Combine(Directory.GetCurrentDirectory(), "TapPackages/MyPlugin2.xml")))
-                packages.AddRange(PackageDef.LoadManyFrom(xmlText));
+                packages.AddRange(PackageDef.ManyFromXml(xmlText));
             using (var xmlText = File.OpenRead(Path.Combine(Directory.GetCurrentDirectory(), "TapPackages/MyPlugin1.xml")))
-                packages.AddRange(PackageDef.LoadManyFrom(xmlText));
+                packages.AddRange(PackageDef.ManyFromXml(xmlText));
 
             // No dependencies
             var dependencyAnalyzer = DependencyAnalyzer.BuildAnalyzerContext(packages.Take(2).ToList());
@@ -255,11 +255,11 @@ namespace OpenTap.Package.UnitTests
             // Correct packages.
             using (var xmlText = File.OpenRead(Path.Combine(Directory.GetCurrentDirectory(), "TapPackages/MyPlugin1.xml")))
             {
-                packages.AddRange(PackageDef.LoadManyFrom(xmlText));
+                packages.AddRange(PackageDef.ManyFromXml(xmlText));
 
                 // Multiple identical packages.
                 xmlText.Seek(0, 0);
-                packages.AddRange(PackageDef.LoadManyFrom(xmlText));
+                packages.AddRange(PackageDef.ManyFromXml(xmlText));
             }
             
             // Reset test.
@@ -292,13 +292,14 @@ namespace OpenTap.Package.UnitTests
             string errors = "";
             listener.MessageLogged += events => errors += Environment.NewLine + String.Join(Environment.NewLine, events.Select(m => m.Message));
             Log.AddListener(listener);
-            var issues = DependencyChecker.CheckDependencies(new string[] { MyPlugin1, MyPlugin2 });
+            Installation installation = new Installation(Directory.GetCurrentDirectory());
+            var issues = DependencyChecker.CheckDependencies(installation, new string[] { MyPlugin1, MyPlugin2 });
             Log.RemoveListener(listener);
             Assert.IsTrue(issues == DependencyChecker.Issue.None, errors);
             log.Info("No dependencies - SUCCESS");
 
             // Dependency on plugin
-            issues = DependencyChecker.CheckDependencies(new string[] { MyPlugin1, MyPlugin2, MyPlugin3 });
+            issues = DependencyChecker.CheckDependencies(installation, new string[] { MyPlugin1, MyPlugin2, MyPlugin3 });
             Assert.IsTrue(issues == DependencyChecker.Issue.BrokenPackages, "Dependency on plugin");
             log.Info("Dependency on plugin - SUCCESS");
         }
@@ -323,7 +324,7 @@ namespace OpenTap.Package.UnitTests
 
         void GetPackages()
         {
-            var tap = new PackageIdentifier("OpenTAP", SemanticVersion.Parse("9.0.0-Development"), CpuArchitecture.Unknown, "Windows");
+            var tap = new PackageIdentifier("OpenTAP", SemanticVersion.Parse("9.0.0-Development"), CpuArchitecture.Unspecified, "Windows");
             
             // Development, don't check build version
             var packages = get(tap);
@@ -338,7 +339,7 @@ namespace OpenTap.Package.UnitTests
             Assert.IsFalse(packages.Any(p => p.Name == "MyPlugin2"));
             Assert.IsTrue(packages.Any(p => p.Name == "MyPlugin3"), "GetPackages - Release, TAP is incompatible");
 
-            // Release, TAP is compatible
+            // Release, OpenTAP is compatible
             tap.Version = SemanticVersion.Parse("9.0.800");
             packages = get(tap);
             Assert.IsTrue(packages.Any(p => p.Name == "MyPlugin1"));
@@ -369,7 +370,7 @@ namespace OpenTap.Package.UnitTests
         
         List<PackageDef> get(IPackageIdentifier compatibleWith)
         {
-            var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(new PackageSpecifier(),compatibleWith);
+            var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager).ToList(), new PackageSpecifier(),compatibleWith);
 
             return packages;
         }

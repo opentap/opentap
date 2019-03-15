@@ -451,7 +451,7 @@ namespace OpenTap.Engine.UnitTests
                 var pln = new TestPlan();
                 var del = new DelayStep();
                 pln.ChildTestSteps.Add(del);
-                pln.ExternalParameters.Add(del, CSharpTypeInfo.Create(typeof(DelayStep)).GetMember("DelaySecs"));
+                pln.ExternalParameters.Add(del, TypeData.FromType(typeof(DelayStep)).GetMember("DelaySecs"));
                 var pms = new List<ExternalParameter>();
                 var sw = Stopwatch.StartNew();
                 //TestPlanReference._fromProperties(pln.ExternalParameters.Entries.ToList());
@@ -504,7 +504,7 @@ namespace OpenTap.Engine.UnitTests
 
             var delaystep = tp.ChildTestSteps.First() as VerifyTestStep;
 
-            tp.ExternalParameters.Add(delaystep, TypeInfo.GetTypeInfo(delaystep).GetMember("Prop"), "Prop");
+            tp.ExternalParameters.Add(delaystep, TypeData.GetTypeData(delaystep).GetMember("Prop"), "Prop");
             tp.Save(TempName);
 
             // Sanity check to verify that the step itself works
@@ -525,7 +525,7 @@ namespace OpenTap.Engine.UnitTests
             ITestStep step2 = tp.ChildTestSteps.First();
 
             Assert.AreEqual(1, step2.ChildTestSteps.Count, "Number of childsteps");
-            Assert.IsNotNull(TypeInfo.GetTypeInfo(step2).GetMember("Prop"), "Could not find external parameter property on testplan");
+            Assert.IsNotNull(TypeData.GetTypeData(step2).GetMember("Prop"), "Could not find external parameter property on testplan");
 
             var sweep = new OpenTap.Plugins.BasicSteps.SweepLoop();
 
@@ -533,7 +533,7 @@ namespace OpenTap.Engine.UnitTests
             tp.ChildTestSteps.Remove(step2);
             sweep.ChildTestSteps.Add(step2);
 
-            sweep.SweepParameters = new List<OpenTap.Plugins.BasicSteps.SweepParam> { new OpenTap.Plugins.BasicSteps.SweepParam(new List<IMemberInfo> {  TypeInfo.GetTypeInfo(step2).GetMember("Prop") }, 1337) };
+            sweep.SweepParameters = new List<OpenTap.Plugins.BasicSteps.SweepParam> { new OpenTap.Plugins.BasicSteps.SweepParam(new List<IMemberData> {  TypeData.GetTypeData(step2).GetMember("Prop") }, 1337) };
 
             VerifyTestStep.Value = 0;
             tp.Execute();
@@ -840,42 +840,123 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        public class StepWithArray : TestStep
+        {
+            public double[] ArrayValues { get; set; } = Array.Empty<double>();
+            public override void Run()
+            {
+                ArrayValues = new double[] { 1, 2, 3, 4, 5, 6 };
+            }
+        }
+
         [Test]
+        public void TestStepWithArray()
+        {
+            PlanRunCollectorListener pl = new PlanRunCollectorListener();
+            var arrayStep = new StepWithArray();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(arrayStep);
+            var planrun = plan.Execute(new[] { pl });
+
+            var steprun = pl.StepRuns.First();
+            Assert.IsTrue(steprun.Parameters["ArrayValues"].ToString() == new NumberFormatter(System.Globalization.CultureInfo.CurrentCulture).FormatRange(arrayStep.ArrayValues));
+        }
+
+        [Test]
+        [Ignore("This test is very unstable in limited CPU situations. (for example on a server that is already busy with other things)")]
         public void TestPlanDeferError()
         {
+            //
+            // This unit test verifies that the verdict of the test plan behaves predictably when a test step throws an exception or aborts the plan
+            // during defer actions. It also tests what happens in general when a step is being aborted when something else is happening in parallel.
+            //
 
+            /* // instabilities can be tested by doing a bunch of processing in other threads while testing.
+            bool workhard = true;
+            for(int i = 0; i < 16; i++)
+            {
+                TapThread.Start(() =>
+                {
+                    while (workhard)
+                    {
+                        Enumerable.Range(0, 1000).Count().ToString().GetHashCode();
+                    }
+                });
+            }*/
             var plan = new TestPlan();
-            var seq = new SequenceStep();
             var err = new ThrowInDefer() { WaitMs = 10 };
             var delay = new DelayStep() { DelaySecs = 1.0 };
             
-            seq.ChildTestSteps.Add(err);
-            seq.ChildTestSteps.Add(delay);
-            plan.ChildTestSteps.Add(seq);
-
-            var sw = Stopwatch.StartNew();
-            for (int i = 0; i < 5; i++)
-            {    
-                err.Throw = i % 2 == 0;
-                if(i == 4)
-                {
-                    err.WaitMs = 50;
-                    delay.DelaySecs = 0; // now it will 
-                }
-                
-                PlanRunCollectorListener pl = new PlanRunCollectorListener();
-
-                TestPlanRun run = plan.ExecuteAsync(new[] { (IResultListener)pl }, null, null, CancellationToken.None).Result;
-
-                var delayRun = pl.StepRuns.FirstOrDefault(x => x.TestStepId == delay.Id);
-                var errRun = pl.StepRuns.FirstOrDefault(x => x.TestStepId == err.Id);
-
-                Assert.AreEqual(Verdict.Error, run.Verdict);
-                Assert.AreEqual(Verdict.Error, errRun.Verdict);
-                Assert.AreEqual(Verdict.NotSet, delayRun.Verdict);
-            }
             
+            plan.ChildTestSteps.Add(err);
+            plan.ChildTestSteps.Add(delay);
+            
+            var prevAbortPlanType = EngineSettings.Current.AbortTestPlan;
+            var sw = Stopwatch.StartNew();
+            // The abort mode decides which verdict the plan but also the delay step will get.
+            var abortModes = new[] { EngineSettings.AbortTestPlanType.Step_Error, (EngineSettings.AbortTestPlanType)0 };
+            foreach(var abortMode in abortModes)
+            {
+                EngineSettings.Current.AbortTestPlan = abortMode;
+                for (int i = 0; i < 5; i++)
+                {
+                    bool isErrorDuringDelay = i != 4;
+                    err.Throw = i % 2 == 0;
+                    if (!isErrorDuringDelay)
+                    {
+                        // in this case the error will happen after delay has run
+                        err.WaitMs = 50;
+                        delay.DelaySecs = 0;
+                    }
+                    else
+                    {
+                        // in this case the error will happen during delay
+                        err.WaitMs = 10;
+                        delay.DelaySecs = 1.0;
+                    }
+
+                    if(isErrorDuringDelay && abortMode.HasFlag(EngineSettings.AbortTestPlanType.Step_Error) == false)
+                    {
+                        // since we dont abort on step errors, we dont want to wait 1s for this.
+                        delay.DelaySecs = 0.1;
+                    }
+
+                    
+                    for (int iterations = 0; iterations < 2; iterations++)
+                    {
+                        // Iterate a bit to faster catch race condition errors.
+                        PlanRunCollectorListener pl = new PlanRunCollectorListener();
+                        TestPlanRun planRun = plan.ExecuteAsync(new[] { (IResultListener)pl }, null, null, CancellationToken.None).Result;
+                        
+                        var delayRun = pl.StepRuns.FirstOrDefault(x => x.TestStepId == delay.Id);
+                        var errorStepRun = pl.StepRuns.FirstOrDefault(x => x.TestStepId == err.Id);
+
+                        // The error step verdict is always 'Error'.
+                        Assert.AreEqual(Verdict.Error, errorStepRun.Verdict);
+
+                        // The plan verdict depends on abortMode.
+                        if (abortMode.HasFlag(EngineSettings.AbortTestPlanType.Step_Error))
+                            Assert.AreEqual(Verdict.Aborted, planRun.Verdict);
+                        else
+                            Assert.AreEqual(Verdict.Error, planRun.Verdict);
+
+                        // the verdict of delayRun depends on if the delay step completed before the error or abortMode.
+                        if (abortMode.HasFlag(EngineSettings.AbortTestPlanType.Step_Error))
+                        {
+                            if (isErrorDuringDelay)
+                                Assert.AreEqual(Verdict.Aborted, delayRun.Verdict);
+                            else
+                                Assert.AreEqual(Verdict.NotSet, delayRun.Verdict);
+                        }
+                        else
+                            Assert.AreEqual(Verdict.NotSet, delayRun.Verdict);
+
+                    }
+                }
+            }
+            EngineSettings.Current.AbortTestPlan = prevAbortPlanType;
             Debug.WriteLine("TestPlanDeferError {0}", sw.Elapsed);
+            //workhard = false;
         }
 
         class DutInfoPrompt : IUserInputInterface
@@ -1316,6 +1397,31 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(false, plan1.IsRunning);
             Assert.AreEqual(false, plan2.IsRunning);
         }
+
+        [Test]
+        public void DuplicateStepInPlan()
+        {
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(new SequenceStep());
+            try
+            {
+                plan.ChildTestSteps.Add(plan.ChildTestSteps[0]);
+                Assert.Fail("This should have failed");
+            }
+            catch(InvalidOperationException)
+            {
+
+            }
+
+            Assert.AreEqual(1, plan.ChildTestSteps.Count);
+
+            var startId = plan.ChildTestSteps[0].Id;
+            var seq2 = new SequenceStep() { Id = startId };
+            plan.ChildTestSteps.Add(seq2);
+            Assert.AreNotEqual(startId, seq2.Id);
+            Assert.AreEqual(plan.ChildTestSteps[0].Id, startId);
+
+        }
     }
 
     [TestFixture]
@@ -1334,11 +1440,11 @@ namespace OpenTap.Engine.UnitTests
 
                 tp.Open();
 
-                Assert.AreEqual(1, ResourceManageValidator.StageCounter[Stage.Open]);
+                Assert.AreEqual(1, ResourceManageValidator.StageCounter[TestPlanExecutionStage.Open]);
 
                 var run = tp.Execute();
 
-                Assert.AreEqual(1, ResourceManageValidator.StageCounter[Stage.Open]);
+                Assert.AreEqual(1, ResourceManageValidator.StageCounter[TestPlanExecutionStage.Open]);
 
                 tp.Close();
 
@@ -1359,31 +1465,31 @@ namespace OpenTap.Engine.UnitTests
         {
             public override void PrePlanRun()
             {
-                Assert.AreEqual(1, ResourceManageValidator.StageCounter[Stage.Open]);
-                Assert.AreEqual(1, ResourceManageValidator.StageCounter[Stage.Execute]);
-                Assert.AreEqual(1, ResourceManageValidator.StageCounter[Stage.PrePlanRun]);
+                Assert.AreEqual(1, ResourceManageValidator.StageCounter[TestPlanExecutionStage.Open]);
+                Assert.AreEqual(1, ResourceManageValidator.StageCounter[TestPlanExecutionStage.Execute]);
+                Assert.AreEqual(1, ResourceManageValidator.StageCounter[TestPlanExecutionStage.PrePlanRun]);
             }
 
             public override void Run()
             {
-                Assert.AreEqual(1, ResourceManageValidator.StageCounter[Stage.Open]);
-                Assert.AreEqual(1, ResourceManageValidator.StageCounter[Stage.Execute]);
-                Assert.AreEqual(1, ResourceManageValidator.StageCounter[Stage.Run]);
+                Assert.AreEqual(1, ResourceManageValidator.StageCounter[TestPlanExecutionStage.Open]);
+                Assert.AreEqual(1, ResourceManageValidator.StageCounter[TestPlanExecutionStage.Execute]);
+                Assert.AreEqual(1, ResourceManageValidator.StageCounter[TestPlanExecutionStage.Run]);
 
                 UpgradeVerdict(Verdict.Pass);
             }
 
             public override void PostPlanRun()
             {
-                Assert.AreEqual(1, ResourceManageValidator.StageCounter[Stage.Open]);
-                Assert.AreEqual(1, ResourceManageValidator.StageCounter[Stage.Execute]);
-                Assert.AreEqual(1, ResourceManageValidator.StageCounter[Stage.PostPlanRun]);
+                Assert.AreEqual(1, ResourceManageValidator.StageCounter[TestPlanExecutionStage.Open]);
+                Assert.AreEqual(1, ResourceManageValidator.StageCounter[TestPlanExecutionStage.Execute]);
+                Assert.AreEqual(1, ResourceManageValidator.StageCounter[TestPlanExecutionStage.PostPlanRun]);
             }
         }
 
         public class ResourceManageValidator : IResourceManager
         {
-            public static Dictionary<Stage, int> StageCounter = new Dictionary<Stage, int>();
+            public static Dictionary<TestPlanExecutionStage, int> StageCounter = new Dictionary<TestPlanExecutionStage, int>();
 
             public IEnumerable<IResource> Resources => StaticResources;
 
@@ -1392,11 +1498,11 @@ namespace OpenTap.Engine.UnitTests
 
             public event Action<IResource> ResourceOpened;
 
-            public void BeginStep(TestPlanRun planRun, ITestStepParent item, Stage stage, CancellationToken cancellationToken)
+            public void BeginStep(TestPlanRun planRun, ITestStepParent item, TestPlanExecutionStage stage, CancellationToken cancellationToken)
             {
                 if (!StageCounter.ContainsKey(stage)) StageCounter[stage] = 0;
                 StageCounter[stage]++;
-                if (stage == Stage.Execute)
+                if (stage == TestPlanExecutionStage.Execute)
                 {
                     if (item is TestPlan testplan)
                     {
@@ -1406,7 +1512,7 @@ namespace OpenTap.Engine.UnitTests
                 }
             }
 
-            public void EndStep(ITestStepParent item, Stage stage)
+            public void EndStep(ITestStepParent item, TestPlanExecutionStage stage)
             {
                 StageCounter[stage]--;
             }

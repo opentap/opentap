@@ -16,11 +16,11 @@ THE MATERIAL CONTAINED IN THIS DOCUMENT IS PROVIDED "AS IS," AND IS SUBJECT TO B
 Technology Licenses
 -------------------
 The hardware and/or software described in this document are furnished under a license and may be used or copied only in accordance with the terms of such license.
-© Keysight Technologies, Inc. 2015, 2016, 2017
+© Keysight Technologies, Inc. 2015, 2016, 2017, 2018, 2019
 Keysight Technologies, Inc.
 900 South Taft Avenue Loveland, CO, 80537-6378 USA
 
 Document History
 ----------------
-Published October 31, 2018 for TAP version 9.0
+Published March 15, 2019 for TAP version 9.0
 

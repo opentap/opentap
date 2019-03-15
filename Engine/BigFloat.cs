@@ -266,6 +266,96 @@ namespace OpenTap
 
         /// <summary> Big float 1. </summary>
         public static readonly BigFloat One = new BigFloat(BigInteger.One, BigInteger.One);
+
+        /// <summary> Supports parsing BigFloat without throwing an exception. Returns an exception in case something went wrong otherwise it will return a BigFloat.</summary>
+        /// <param name="value"></param>
+        /// <param name="format"></param>
+        /// <returns></returns>
+        internal static object Parse(string value, IFormatProvider format = null)
+        {
+            if (string.Equals(value, "infinity", StringComparison.InvariantCultureIgnoreCase))
+            {
+                return Infinity;
+            }
+            else if (string.Equals(value, "-infinity", StringComparison.InvariantCultureIgnoreCase))
+            {
+                return NegativeInfinity;
+            }
+            else if (string.Equals(value, "nan", StringComparison.InvariantCultureIgnoreCase))
+            {
+                return NaN;
+            }
+            else if (value.Contains("/"))
+            {
+                var splitted = value.Split('/');
+                if (splitted.Length != 2)
+                {
+                    return new FormatException("value contains multiple '/'");
+                }
+                var numerator = BigInteger.Parse(splitted[0]);
+                var denominator = BigInteger.Parse(splitted[1]);
+                return new BigFloat(numerator, denominator);
+            }
+            else
+            {
+                var sep = getDigitSeparator(format);
+                int index = 0;
+                bool dotHit = false;
+                bool exp = false;
+                BigInteger sign = 1;
+                BigFloat mantissa = 0;
+                BigInteger denom = 1;
+                BigInteger nomerator = 0;
+                for (; index < value.Length; index++)
+                {
+                    var chr = value[index];
+                    if (chr == '-' && nomerator == 0 && sign == 1)
+                    {
+                        sign = -1;
+                        continue;
+                    }
+                    if (chr == sep && !dotHit && !exp)
+                    {
+                        dotHit = true;
+                        continue;
+                    }
+                    if ((chr == 'e' || chr == 'E') && !exp)
+                    {
+                        exp = true;
+                        mantissa = new BigFloat(nomerator * sign, denom);
+                        denom = 1;
+                        nomerator = 0;
+                        dotHit = false;
+                        sign = 1;
+                        continue;
+                    }
+                    if (char.IsWhiteSpace(chr)) continue;
+                    if ((chr == '+') && exp) continue;
+                    if (char.IsDigit(chr) == false)
+                        return new FormatException("Format not supported.");
+                    if (dotHit)
+                        denom *= 10;
+                    int v = (chr - '0');
+                    nomerator = nomerator * 10 + v;
+                }
+                
+                if (exp)
+                {
+                    var powerTerm = BigInteger.Pow(10, (int)(nomerator));
+                    if (sign < 0)
+                    {
+                        return mantissa * new BigFloat(1, powerTerm);
+                    }
+                    else
+                    {
+                        return mantissa * new BigFloat(powerTerm, 1);
+                    }
+
+                }
+                return new BigFloat(nomerator * sign, denom);
+            }
+        }
+
         /// <summary> Big float 0. </summary>
         public static readonly BigFloat Zero = new BigFloat(BigInteger.Zero, BigInteger.One);
         /// <summary> Big float Infinity. </summary>
@@ -334,87 +424,12 @@ namespace OpenTap
         }
         public BigFloat(string value, IFormatProvider format = null)
         {
-            if(string.Equals(value, "infinity", StringComparison.InvariantCultureIgnoreCase))
+            var result = Parse(value, format);
+            if (result is BigFloat bf)
             {
-                this = Infinity;
-
-            }else if(string.Equals(value, "-infinity", StringComparison.InvariantCultureIgnoreCase))
-            {
-                this = NegativeInfinity;
-            }else if(string.Equals(value, "nan", StringComparison.InvariantCultureIgnoreCase))
-            {
-                this = NaN;
+                this = bf;
             }
-            else if (value.Contains("/"))
-            {
-                var splitted = value.Split('/');
-                if (splitted.Length != 2)
-                {
-                    throw new FormatException("value contains multiple '/'");
-                }
-                Numerator = BigInteger.Parse(splitted[0]);
-                Denominator = BigInteger.Parse(splitted[1]);
-                Normalize();
-            }
-            else
-            {
-                var sep = getDigitSeparator(format);
-                int index = 0;
-                bool dotHit = false;
-                bool exp = false;
-                BigInteger sign = 1;
-                BigFloat mantissa = 0;
-                BigInteger denom = 1;
-                BigInteger nomerator = 0;
-                for (; index < value.Length; index++)
-                {
-                    var chr = value[index];
-                    if (chr == '-' && nomerator == 0 && sign == 1)
-                    {
-                        sign = -1;
-                        continue;
-                    }
-                    if (chr == sep && !dotHit && !exp)
-                    {
-                        dotHit = true;
-                        continue;
-                    }
-                    if ((chr == 'e' || chr == 'E')  && !exp)
-                    {
-                        exp = true;
-                        mantissa = new BigFloat(nomerator * sign, denom);
-                        denom = 1;
-                        nomerator = 0;
-                        dotHit = false;
-                        sign = 1;
-                        continue;
-                    }
-                    if (char.IsWhiteSpace(chr)) continue;
-                    if ((chr == '+') && exp) continue;
-                    if (char.IsDigit(chr) == false)
-                        throw new FormatException("Format not supported.");
-                    if (dotHit)
-                        denom *= 10;
-                    int v = (chr - '0');
-                    nomerator = nomerator * 10 + v;
-                }
-                Denominator = denom;
-                Numerator = nomerator * sign;
-                if (exp)
-                {
-                    var powerTerm = BigInteger.Pow(10, (int)(nomerator));
-                    if (sign < 0)
-                    {
-                        this = mantissa * new BigFloat(1, powerTerm);
-                    }
-                    else
-                    {
-                        this = mantissa * new BigFloat(powerTerm, 1);
-                    }
-                    
-                }
-                this = Normalize();
-            }
+            else throw (Exception)result;
         }
 
         private bool IsNan { get { return (Denominator == 0) && (Numerator == 0); } }
@@ -668,7 +683,7 @@ namespace OpenTap
         }
     }
 
-    /// <summary> Converter for TAP arbitrary precision number types. </summary>
+    /// <summary> Converter for OpenTAP arbitrary precision number types. </summary>
     class BigFloatConverter : TypeConverter
     {
         /// <summary> returns  true if it can convert from </summary>

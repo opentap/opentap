@@ -9,9 +9,9 @@ using System.Xml.Serialization;
 
 namespace OpenTap.Package
 {
-    public class PackageFileSerializerPlugin : TapSerializerPlugin
+    internal class PackageFileSerializerPlugin : TapSerializerPlugin
     {
-        public override bool Deserialize(XElement node, ITypeInfo t, Action<object> setter)
+        public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
         {
             if (node.Name.LocalName == "File" && t.IsA(typeof(PackageFile)))
             {
@@ -66,7 +66,7 @@ namespace OpenTap.Package
                         continue;
                     }
 
-                    Log.Error($"Could not find type for XML element {elm.Name.LocalName}, are you missing a plugin?");
+                    packageFile.CustomData.Add(new MissingPackageData(elm));
                 }
 
                 setter.Invoke(packageFile);
@@ -76,14 +76,14 @@ namespace OpenTap.Package
             return false;
         }
 
-        public override bool Serialize(XElement node, object obj, ITypeInfo expectedType)
+        public override bool Serialize(XElement node, object obj, ITypeData expectedType)
         {
             if (expectedType.IsA(typeof(PackageFile)) == false)
             {
                 return false;
             }
 
-            foreach (IMemberInfo prop in expectedType.GetMembers().Where(s => !s.HasAttribute<XmlIgnoreAttribute>()))
+            foreach (IMemberData prop in expectedType.GetMembers().Where(s => !s.HasAttribute<XmlIgnoreAttribute>()))
             {
                 object val = prop.GetValue(obj);
                 string name = prop.Name;
@@ -136,8 +136,11 @@ namespace OpenTap.Package
                     {
                         foreach (ICustomPackageData action in packageActions)
                         {
+                            if (action is MissingPackageData)
+                                continue;
+
                             XElement xAction = new XElement(action.GetType().GetDisplayAttribute().Name);
-                            Serializer.Serialize(xAction, action, TypeInfo.GetTypeInfo(action));
+                            Serializer.Serialize(xAction, action, TypeData.GetTypeData(action));
                             node.Add(xAction);
                         }
                     }

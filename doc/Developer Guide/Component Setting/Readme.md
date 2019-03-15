@@ -10,10 +10,10 @@ In addition to the settings defined for test steps, DUTs, and instruments, there
 ![](Benchsettings.PNG)
 
 ### Creating a New Global/Grouped Settings Dialog
-TAP developers can create their own settings dialogs under the **Settings** or **Settings > GroupName** menus. By default, the dialog appears under the **Settings** menu. If the class is decorated with the `[SettingsGroup("GroupName")]` attribute, the dialog will appear under the **Settings > GroupName** menu. It is also possible to extend the bench settings by decorating a class with the `[SettingsGroup("Bench")]` attribute.
+OpenTAP developers can create their own settings dialogs under the **Settings** or **Settings > GroupName** menus. By default, the dialog appears under the **Settings** menu. If the class is decorated with the `[SettingsGroup("GroupName")]` attribute, the dialog will appear under the **Settings > GroupName** menu. It is also possible to extend the bench settings by decorating a class with the `[SettingsGroup("Bench")]` attribute.
 
 ### Single Instance of Multiple Different Settings
-If you want to create a dialog consisting of multiple settings, you should inherit from the ComponentSettings class. See the `TAP_PATH\SDK Examples\PluginDevelopment\GUI\ExampleSettings.cs` file. The result looks like this:
+If you want to create a dialog consisting of multiple settings, you should inherit from the ComponentSettings class. See the `TAP_PATH\Packages\SDK\Examples\PluginDevelopment\GUI\ExampleSettings.cs` file. The result looks like this:
 
 ![](BenchSettings2.PNG)
 
@@ -72,13 +72,13 @@ public class SettingsRetrieval : TestStep
 ```
 ## Connection Management
 
-A TAP *connection* represents a physical connection between Instrument and/or DUT ports. A *physical connection* is modeled in **software** by creating a class that extends the **Tap.Engine.Connection** abstract base class.
+A OpenTAP *connection* represents a physical connection between Instrument and/or DUT ports. A *physical connection* is modeled in **software** by creating a class that extends the **OpenTap.Connection** abstract base class.
 
 A *port* is the endpoint of a connection. Ports are often defined on Instruments or DUTs to represent physical connectors. An instrument or DUT can have an arbitrary number of ports.
 
-TAP comes with a number of predefined connections. These include:
+OpenTAP comes with a number of predefined connections. These include:
 
--	**RfConnection**, which extends the Tap.Connection class, consists of two ports (inherited from the Tap.Connection), and adds the concept of CableLoss, which is a list of LossPoints. An RfConnection represents a physical RF cable with known loss characteristics by using the list of loss points to represent the cable loss at different frequencies.
+-	**RfConnection**, which extends the OpenTAP.Connection class, consists of two ports (inherited from the OpenTAP.Connection), and adds the concept of CableLoss, which is a list of LossPoints. An RfConnection represents a physical RF cable with known loss characteristics by using the list of loss points to represent the cable loss at different frequencies.
 -	**DirectionalRfConnection**, which extends the RfConnection class to include direction.
 
-For more information, see the *Bench Settings - Connections* topic in the TAP GUI help, or contact support.
+For more information, see the *Bench Settings - Connections* topic in the OpenTAP GUI help, or contact support.

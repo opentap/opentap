@@ -17,7 +17,7 @@ namespace OpenTap.Plugins.BasicSteps
     {
         public override bool GeneratesOutput { get { return WaitForEnd; } }
 
-        [Display("Application", Group:"Common", Order: -2.5, Description: "The path to the program. It should contain either a relative path to TAP installation folder or an absolute path to the program.")]
+        [Display("Application", Group:"Common", Order: -2.5, Description: "The path to the program. It should contain either a relative path to OpenTAP installation folder or an absolute path to the program.")]
         [FilePath(FilePathAttribute.BehaviorChoice.Open, "exe")]
         public string Application { get; set; }
         

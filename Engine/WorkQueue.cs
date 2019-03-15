@@ -41,74 +41,21 @@ namespace OpenTap
 
     }
 
-    /// <summary>
-    /// 'inverse semaphore'. Wait blocks until the countdown is 0.
-    /// </summary>
-    class CountDownLatch
-    {
-        
-        CountdownEvent evt = new CountdownEvent(0);
-        int count = 0;
-        object counterLock = new object();
-        public void Increment()
-        {
-            lock (counterLock)
-            {
-                if (count == 0)
-                {
-                    evt.Reset(1);
-                }
-                evt.TryAddCount();
-                count++;
-            }
-        }
-
-        public void Decrement()
-        {
-            lock (counterLock)
-            {
-                if (count == 0) throw new InvalidOperationException();
-                count--;
-                
-                if(count == 0)
-                {
-                    evt.Signal(2);
-                }
-                else
-                {
-                    evt.Signal();
-                }
-            }
-        }
-
-        public void Wait(CancellationToken token)
-        {
-            evt.Wait(token);
-        }
-
-        public void Wait()
-        {
-            evt.Wait();
-        }
-    }
-
     /// <summary> 
     /// Work Queue used for result processing in sequence but asynchronously. It uses the ThreadManager to automatically clean up threads that have been idle for a while.
     /// When the WorkQueue is disposed, the used thread is immediately returned to the ThreadManager.
     /// </summary>
-    class WorkQueue : IDisposable
+    public class WorkQueue : IDisposable
     {
+        /// <summary> Options for WorkQUeues. </summary>
         [Flags]
         public enum Options
         {
+            /// <summary> No options. </summary>
             None = 0,
-            /// <summary>
-            /// The thread is not returned to the ThreadManager when it has been idle for some time. In this situation the WorkQueue must be disposed manually.
-            /// </summary>
+            /// <summary> The thread is not returned to the ThreadManager when it has been idle for some time. In this situation the WorkQueue must be disposed manually. </summary>
             LongRunning = 1,
-            /// <summary>
-            /// Time averaging is enabled.
-            /// </summary>
+            /// <summary> Time averaging is enabled. Each piece of work will have measured time spent. </summary>
             TimeAveraging = 2
         }
         /// <summary>
@@ -120,6 +67,8 @@ namespace OpenTap
         ConcurrentQueue<Action> workItems = new ConcurrentQueue<Action>();
 
         TimeSpanAverager average;
+
+        /// <summary> The average time spent for each task. Only available if Options.TImeAveraging is enabled. </summary>
         public TimeSpan AverageTimeSpent
         {
             get
@@ -129,6 +78,8 @@ namespace OpenTap
                 return average.GetAverage();
             }
         }
+
+        /// <summary> The current number of items in the work queue. If called from the worker thread, this number will be 0 for that last worker. </summary>
         public int QueueSize { get { return workItems.Count; } }
         
         object threadCreationLock = new object();
@@ -141,67 +92,80 @@ namespace OpenTap
         // the addSemaphore counts the current number of things in the tasklist.
         SemaphoreSlim addSemaphore = new SemaphoreSlim(0,semaphoreMaxCount); //todo: consider using SemaphoreSlim for better performance
 
-
         int countdown = 0;
-        public object Context;
+        
+        /// <summary> A name of identifying the work queue. </summary>
+        public readonly string Name;
 
         bool longRunning = false;
 
-        public WorkQueue(Options options, object context)
+        /// <summary> Creates a new instance of WorkQueue.</summary>
+        /// <param name="options">Options.</param>
+        /// <param name="name">A name to identify a work queue.</param>
+        public WorkQueue(Options options, string name = "")
         {
             longRunning = options.HasFlag(Options.LongRunning);
             if (options.HasFlag(Options.TimeAveraging))
                 average = new TimeSpanAverager();
-            
-            Context = context;
+            Name = name;
         }
 
+        /// <summary> Enqueue a new piece of work to be handled in the future. </summary>
+        /// <param name="f"></param>
         public void EnqueueWork(Action f)
         {
             void threadGo()
             {
-                var awaitArray = new WaitHandle[] { addSemaphore.AvailableWaitHandle, cancel.Token.WaitHandle };
-                while (true)
+                try
                 {
-                    retry:
-                    awaitArray[1] = cancel.Token.WaitHandle;
-                    int thing = 0;
-                    if(longRunning)
-                        thing = WaitHandle.WaitAny(awaitArray);
-                    else
-                        thing = WaitHandle.WaitAny(awaitArray, Timeout);
-                    if (thing == 0 && !addSemaphore.Wait(0))
-                        goto retry;
-                    bool ok = thing == 0;
-                    
-                    if (!ok)
+                    var awaitArray = new WaitHandle[] { addSemaphore.AvailableWaitHandle, cancel.Token.WaitHandle };
+                    while (true)
                     {
-                        if (cancel.IsCancellationRequested == false && longRunning) continue;
-                        lock (threadCreationLock)
+                        retry:
+                        awaitArray[1] = cancel.Token.WaitHandle;
+                        int thing = 0;
+                        if (longRunning)
+                            thing = WaitHandle.WaitAny(awaitArray);
+                        else
+                            thing = WaitHandle.WaitAny(awaitArray, Timeout);
+                        if (thing == 0 && !addSemaphore.Wait(0))
+                            goto retry;
+                        bool ok = thing == 0;
+
+                        if (!ok)
                         {
-
-                            if (workItems.Count > 0)
-                                goto retry;
-                            threadCount--;
-                            break;
+                            if (cancel.IsCancellationRequested == false && longRunning) continue;
+                            lock (threadCreationLock)
+                            {
+                                if (workItems.Count > 0)
+                                    goto retry;
+                                break;
+                            }
                         }
-                    }
 
-                    
-                    Action run = null;
-                    while (!workItems.TryDequeue(out run))
-                        Thread.Yield();
-                    if (average != null)
-                    {
-                        var sw = Stopwatch.StartNew();
-                        run();
-                        average.PushTimeSpan(sw.Elapsed);
+
+                        Action run = null;
+                        while (!workItems.TryDequeue(out run))
+                            Thread.Yield();
+                        if (average != null)
+                        {
+                            var sw = Stopwatch.StartNew();
+                            run();
+                            average.PushTimeSpan(sw.Elapsed);
+                        }
+                        else
+                        {
+                            run();
+                        }
+                        Interlocked.Decrement(ref countdown);
                     }
-                    else
+                }
+                finally
+                {
+                    lock (threadCreationLock)
                     {
-                        run();
+                        threadCount--;
                     }
-                    Interlocked.Decrement(ref countdown);
                 }
             }
 
@@ -222,7 +186,7 @@ namespace OpenTap
                 {
                     if (threadCount == 0)
                     {
-                        TapThread.Start(threadGo);
+                        TapThread.Start(threadGo, Name);
                         threadCount++;
                     }
                 }
@@ -236,7 +200,6 @@ namespace OpenTap
         }
 
         /// <summary> Waits for the workqueue to become empty. </summary>
-
         public void Wait()
         {
             // This is not often called spin-wait is fine in this case.

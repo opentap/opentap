@@ -1,7 +1,7 @@
 Appendix A: Attribute Details
 =============================
 ## Display
-The **Display** attribute is the most commonly used TAP attribute. This attribute:
+The **Display** attribute is the most commonly used OpenTAP attribute. This attribute:
 
 -	Can be applied to class names (impacting the appearance in dialogs, such as the Add New Step dialog), or to properties (impacting appearance in the Step Settings Panel).
 -	Has the following signature in its constructor:
@@ -10,9 +10,9 @@ The **Display** attribute is the most commonly used TAP attribute. This attribut
 ```
 
 -	Requires the **Name** parameter. All the other parameters are optional.
--	Supports a **Group** or **Groups** of parameters to enable you to organize the presentation of the items in the GUI.
+-	Supports a **Group** or **Groups** of parameters to enable you to organize the presentation of the items in the Test Automation Editor.
 
-The parameters are ordered starting with the most frequently used parameters first. The following examples show example code and the resulting GUI appearance:
+The parameters are ordered starting with the most frequently used parameters first. The following examples show example code and the resulting Editor appearance:
 ```csharp
 // Defining the name and description.
 [Display("MyName", "MyDescription")]
@@ -21,14 +21,14 @@ public string NameAndDescription { get; set; }
 
 ![](appendix_img1.PNG)
 
-See the examples in **`TAP_PATH\SDK Examples\PluginDevelopment\TestSteps\Attributes`** for different uses of the Display attribute.
+See the examples in **`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\Attributes`** for different uses of the Display attribute.
 
 Display has the following parameters:
 
 | **Attribute**   | **Required** |**Description** |
 | --      | --     |--------  |
-| **Name**        | Required |The name displayed in the GUI. If the Display attribute is not used, the **property name** is used in the GUI. |
-|**Description**  | Optional |Text displayed in tools tips, dialogs and editors in the GUI.|
+| **Name**        | Required |The name displayed in the Editor. If the Display attribute is not used, the **property name** is used in the Editor. |
+|**Description**  | Optional |Text displayed in tools tips, dialogs and editors in the Editor.|
 |**Group/Groups** | Optional |Specifies an item’s group. Use **Group** if the item is in a one-level hierarchy or **Groups** if the item is in a hierarchy with two or more levels. The hierarchy is specified by the left-to-right order of the string array. Use either Group or Groups; do not use both. Groups is preferred. Groups are ordered according to the average order value of their child items. For test steps, the top-level group is always ordered alphabetically. Syntax: `Groups: new[] { "Group" , "Subgroup" }`|
 |**Order**        | Optional |Specifies the display order for an item. Note that **Order** is supported for settings and properties, such as test step settings, DUT settings, and instrument settings. It does not support types: test steps, DUTs, instruments. These items are ordered alphabetically, with groups appearing before ungrouped items. Order is of type double, and can be negative. Order’s behavior matches the Microsoft behavior of the *Display.Order* attribute. If order is not specified, a default value of -10,000 is assumed. Items (ungrouped or within a group) are ranked so that items with lower order values precede those with higher values; alphabetically if order values are equal or not specified. To avoid confusion, we recommend that you set the order value for ungrouped items to negative values so that they appear at the top and Grouped items to a small range of values to avoid conflicts with other items (potentially specified in base classes). For example, if *Item A* has order = 100, and *Item B* has order = 50, *Item B* is ranked first.|
 
@@ -74,22 +74,22 @@ When **Radio Standard** is set to GSM in the step settings, both **Override Band
 
 ![](appendix_img2.PNG)
 
-For an example, see `TAP_PATH\SDK Examples\PluginDevelopment\TestSteps\Attributes\EnabledIfAttributeExample.cs`.
+For an example, see `TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\Attributes\EnabledIfAttributeExample.cs`.
 
 ## Flags Attribute
 The **Flags** attribute is a C# attribute used with enumerations. This attribute indicates that an enumeration can be treated as a *bit field* (meaning, elements can be combined by bitwise OR operation). The enumeration constants must be defined in powers of two (for example 1, 2, 4, …).
 
-Using the Flags attribute results in a multiple select GUI, as shown below:
+Using the Flags attribute results in a multiple select in the Editor, as shown below:
 
 ![](appendix_img3.PNG)
 
 ## FilePath and DirectoryPath Attributes 
-The FilePath and DirectoryPath attributes can be used on a string-type property to indicate the string is a file or a folder system path. When this attribute is present, the TAP GUI displays a browse button allowing the user to choose a file or folder. These attributes can be used as follows:
+The FilePath and DirectoryPath attributes can be used on a string-type property to indicate the string is a file or a folder system path. When this attribute is present, the Editor displays a browse button allowing the user to choose a file or folder. These attributes can be used as follows:
 ```csharp
 [FilePath]
 public string MyFilePath { get; set; }
 ```
-This results in the following user control in the GUI:
+This results in the following user control in the Editor:
 
 ![](appendix_img4.PNG)
 
@@ -98,22 +98,22 @@ The DirectoryPath attribute works the same as the FilePath attribute, but in the
 ## MetaData Attribute
 Metadata is a set of data that describes and gives information about other data. The Metadata attribute marks a property as metadata. 
 
-TAP can prompt the user for metadata. Two requirements must be met:
+OpenTAP can prompt the user for metadata. Two requirements must be met:
 
 -	The MetaData attribute is used and the promptUser parameter is set to *true*
 -	The *Allow Metadata Dialog* property in **Settings > Engine**, is set to *true*
 
-If both requirements are met, a dialog (in TAP GUI) or prompt(in TAP CLI) will appear on each test plan run to ask the user for the appropriate values. This works for both TAP GUI and TAP CLI. An example of where metadata might be useful is when testing multiple DUTs in a row and the serial number must be typed in manually.
+If both requirements are met, a dialog (in the Editor) or prompt(in OpenTAP CLI) will appear on each test plan run to ask the user for the appropriate values. This works for both the Editor and the OpenTAP CLI. An example of where metadata might be useful is when testing multiple DUTs in a row and the serial number must be typed in manually.
 
 Values captured as metadata are provided to all the result listeners, and can be used in the macro system. See SimpleDut.cs for an example of the use of the MetaData attribute.
 
 ## Unit Attribute
-The Unit attribute specifies the units for a setting. The GUI displays the units after the value (with a space separator). Compound units (watt-hours) should be hyphenated. Optionally, displayed units can insert engineering prefixes.
+The Unit attribute specifies the units for a setting. The Editor displays the units after the value (with a space separator). Compound units (watt-hours) should be hyphenated. Optionally, displayed units can insert engineering prefixes.
 
-See the `TAP_PATH\SDK Examples\PluginDevelopment\TestSteps\Attributes\UnitAttributeExample.cs` file for an extensive example.
+See the `TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\Attributes\UnitAttributeExample.cs` file for an extensive example.
 
 ## XmlIgnore Attribute
-The XmlIgnore attribute indicates that a setting should not be serialized. If XmlIgnore is set for a property, the property will not show up in the GUI. If you want to NOT serialize the setting AND show it in the GUI, then use the Browsable(true) attribute, as shown below:
+The XmlIgnore attribute indicates that a setting should not be serialized. If XmlIgnore is set for a property, the property will not show up in the Editor. If you want to NOT serialize the setting AND show it in the Editor, then use the Browsable(true) attribute, as shown below:
 ```csharp
 // Editable property not serialized to XML 
 [Browsable(true)]

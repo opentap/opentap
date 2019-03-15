@@ -7,15 +7,11 @@ using System.IO;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 using System.Linq;
-using OpenTap.Cli;
 using System.Collections.Generic;
-using OpenTap.Package;
 using OpenTap.Plugins.BasicSteps;
 using System.Reflection;
 using System;
-using System.Threading;
 using static OpenTap.Package.PackageDefExt;
-using OpenTap.Package.CreatePackage;
 
 namespace OpenTap.Package.UnitTests
 {
@@ -55,26 +51,24 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void GetPluginName_Test()
         {
-            string inputFilename = "Packages/test2.package.xml";
-            PackageDef pkg = PackageDefExt.FromXmlFile(inputFilename);
+            string inputFilename = "Packages/test2/package.xml";
+            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename);
             
             Assert.AreEqual(pkg.Files?.FirstOrDefault()?.Plugins?.FirstOrDefault(p => p.Type == typeof(IfStep).FullName)?.BaseType, "Test Step");
-            Assert.AreEqual(pkg.Files?.FirstOrDefault()?.Plugins?.FirstOrDefault(p => p.Type == typeof(NotifyingResultListener).FullName)?.BaseType, "Result Listener");
-            Assert.AreEqual(pkg.Files?.FirstOrDefault()?.Plugins.FirstOrDefault(p => p.Type == typeof(RawSCPIInstrument).FullName)?.BaseType, "Instrument");
+            Assert.AreEqual(pkg.Files?.FirstOrDefault()?.Plugins.FirstOrDefault(p => p.Type == typeof(GenericScpiInstrument).FullName)?.BaseType, "Instrument");
         }
 
         [Test]
         public void FromXmlFile_Test()
         {
-            string inputFilename = "Packages/package.xml";
+            string inputFilename = "Packages/Package/package.xml";
 
-            PackageDef pkg = PackageDefExt.FromXmlFile(inputFilename);
+            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename);
             //Assert.AreEqual(inputFilename, pkg.FileName);
 
             CollectionAssert.IsNotEmpty(pkg.Files);
             Assert.AreEqual("OpenTap.dll", pkg.Files[0].FileName);
-            Assert.AreEqual(false, pkg.Files[0].HasCustomData<DotfuscatorData>());
-            Assert.AreEqual("Version", pkg.Files[0].GetCustomData<SetAssemblyInfoData>().Attributes);
+            Assert.AreEqual("Version", pkg.Files[0].GetCustomData<SetAssemblyInfoData>().FirstOrDefault().Attributes);
 
             CollectionAssert.IsNotEmpty(pkg.PackageActionExtensions);
             Assert.AreEqual("chmod", pkg.PackageActionExtensions[0].ExeFile);
@@ -86,25 +80,12 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
-        public void FromXmlCheckSign_Test()
-        {
-            string inputFilename = "Packages/package_sign.xml";
-
-            PackageDef pkg = PackageDefExt.FromXmlFile(inputFilename);
-            //Assert.AreEqual(inputFilename, pkg.FileName);
-
-            Assert.AreEqual(false, pkg.Files[0].HasCustomData<DotfuscatorData>());
-            Assert.AreEqual(true, pkg.Files[0].HasCustomData<UseVersionData>());
-            Assert.AreEqual("Test 123,./", pkg.Files[0].GetCustomData<SignData>().Certificate);
-        }
-
-        [Test]
         public void CreatePackage_NoObfuscation()
         {
-            string inputFilename = "Packages/package.xml";
+            string inputFilename = "Packages/package/package.xml";
             string outputFilename = "Test.TapPlugin";
 
-            PackageDef pkg = PackageDefExt.FromXmlFile(inputFilename);
+            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename);
             try
             {
                 pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory());
@@ -120,194 +101,11 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void CreatePackage_NoBinFiles()
         {
-            File.Copy("Packages/package_NoBinFiles.xml", "package_NoBinFiles.xml", true);
+            File.Copy("Packages/package_NoBinFiles/package.xml", "package_NoBinFiles.xml", true);
             string inputFilename = "package_NoBinFiles.xml";
             string outputFilename = "Test.TapPackage";
 
-            PackageDef pkg = PackageDefExt.FromXmlFile(inputFilename);
-            try
-            {
-                pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory());
-                Assert.IsTrue(File.Exists(outputFilename));
-            }
-            finally
-            {
-                if (File.Exists(outputFilename))
-                    File.Delete(outputFilename);
-            }
-}
-
-        [Test]
-        public void CreatePackage_Obfuscation()
-        {
-            string inputFilename = "Packages/package.xml";
-            string outputFilename = "Test.TapPackage";
-
-            if (File.Exists(outputFilename)) File.Delete(outputFilename);
-
-            PackageDef pkg = PackageDefExt.FromXmlFile(inputFilename);
-
-            pkg.Files[0].CustomData.Add(new ObfuscarData());
-
-            try
-            {
-                pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory());
-                Assert.IsTrue(File.Exists(outputFilename));
-            }
-            finally
-            {
-                if (File.Exists(outputFilename))
-                    File.Delete(outputFilename);
-            }
-        }
-
-        [Test]
-        public void CreatePackage_ObfuscationSubDir()
-        {
-            string inputFilename = "Packages/package.xml";
-            string outputFilename = "Test.TapPlugin";
-
-            if (File.Exists(outputFilename)) File.Delete(outputFilename);
-
-            PackageDef pkg = PackageDefExt.FromXmlFile(inputFilename);
-
-            var tmpDir1 = Path.Combine(Path.GetTempPath(), "tmp" + new System.Random().Next().ToString());
-            var tmpPath2 = Path.Combine(Path.GetTempPath(), "tmpa" + new System.Random().Next().ToString(), "Keysight.Ccl.Licensing.Api.dll");
-
-            Directory.CreateDirectory(tmpDir1);
-            Directory.CreateDirectory(Path.GetDirectoryName(tmpPath2));
-
-            pkg.Files[0].CustomData.Add(new ObfuscarData());
-
-            foreach (PackageFile item in pkg.Files)
-            {
-                var newFile = Path.Combine(tmpDir1, Path.GetFileName(item.FileName));
-
-                File.Copy(item.FileName, newFile, true);
-                item.FileName = newFile;
-            }
-
-            File.Copy("Keysight.Ccl.Licensing.Api.dll", tmpPath2, true);
-            PackageFile packageFile = new PackageFile { FileName = tmpPath2, RelativeDestinationPath = tmpPath2 };
-            packageFile.CustomData.Add(new UseVersionData());
-            pkg.Files.Add(packageFile);
-
-            try
-            {
-                pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory());
-                Assert.IsTrue(File.Exists(outputFilename));
-            }
-            finally
-            {
-                if (File.Exists(outputFilename))
-                    File.Delete(outputFilename);
-            }
-        }
-        
-        public class DotfuscatorTests
-        {
-            [Test]
-            public void CreatePackage_Dotfuscation()
-            {
-                string inputFilename = "Packages/package.xml";
-                string outputFilename = "Test2.TapPackage";
-
-                if (File.Exists(outputFilename)) File.Delete(outputFilename);
-
-                PackageDef pkg = PackageDefExt.FromXmlFile(inputFilename);
-
-                pkg.Files[0].CustomData.Add(new DotfuscatorData());
-
-                try
-                {
-                    pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory());
-                    Assert.IsTrue(File.Exists(outputFilename));
-                }
-                catch(Exception ex)
-                {
-                    if (ex.Data.Contains("StdErr") && ex.Data.Contains("StdOut"))
-                        throw new Exception(ex.Message + Environment.NewLine +
-                            "Errors: " + (ex.Data["StdErr"] ?? "") + Environment.NewLine +
-                            "Output: " + (ex.Data["StdOut"] ?? "") + Environment.NewLine);
-                    else
-                        throw ex;
-                }
-                finally
-                {
-                    if (File.Exists(outputFilename))
-                        File.Delete(outputFilename);
-                }
-            }
-
-            [Test]
-            public void CreatePackage_DotfuscationSubDir()
-            {
-                string inputFilename = "Packages/package.xml";
-                string outputFilename = "Test3.TapPlugin";
-
-                if (File.Exists(outputFilename)) File.Delete(outputFilename);
-
-                PackageDef pkg = PackageDefExt.FromXmlFile(inputFilename);
-
-                var tmpDir1 = Path.Combine(Path.GetTempPath(), "tmp" + new System.Random().Next().ToString());
-                var tmpPath2 = Path.Combine(Path.GetTempPath(), "tmpa" + new System.Random().Next().ToString(), "Keysight.Ccl.Licensing.Api.dll");
-
-                Directory.CreateDirectory(tmpDir1);
-                Directory.CreateDirectory(Path.GetDirectoryName(tmpPath2));
-
-                pkg.Files[0].CustomData.Add(new DotfuscatorData());
-
-                foreach (PackageFile item in pkg.Files)
-                {
-                    var newFile = Path.Combine(tmpDir1, Path.GetFileName(item.FileName));
-
-                    File.Copy(item.FileName, newFile, true);
-                    item.FileName = newFile;
-                }
-
-                File.Copy("Keysight.Ccl.Licensing.Api.dll", tmpPath2, true);
-                PackageFile packageFile = new PackageFile { FileName = tmpPath2, RelativeDestinationPath = tmpPath2 };
-                packageFile.CustomData.Add(new UseVersionData());
-                pkg.Files.Add(packageFile);
-
-                try
-                {
-                    pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory());
-                    Assert.IsTrue(File.Exists(outputFilename));
-                }
-                    catch(Exception ex)
-                    {
-                        if (ex.Data.Contains("StdErr") && ex.Data.Contains("StdOut"))
-                            throw new Exception(ex.Message + Environment.NewLine +
-                                "Errors: " + (ex.Data["StdErr"] ?? "") + Environment.NewLine +
-                                "Output: " + (ex.Data["StdOut"] ?? "") + Environment.NewLine);
-                        else
-                            throw ex;
-                }
-                finally
-                {
-                    if (File.Exists(outputFilename))
-                        File.Delete(outputFilename);
-                }
-            }
-        }
-
-        [Test]
-        public void CreatePackage_Signing()
-        {
-            string inputFilename = "Packages/package.xml";
-            string outputFilename = "Test.TapPackage";
-
-            if (File.Exists(outputFilename)) File.Delete(outputFilename);
-
-            PackageDef pkg = PackageDefExt.FromXmlFile(inputFilename);
-
-            foreach (PackageFile item in pkg.Files)
-            {
-                item.CustomData.Add(new SignData() { Certificate = "Keysight Technologies, Inc." });
-            }
-
-
+            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename);
             try
             {
                 pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory());
@@ -379,14 +177,17 @@ namespace OpenTap.Package.UnitTests
                     PackageDef def = new PackageDef();
                     def.Name = "test";
                     def.InfoLink = "a";
-                    def.Date = "123";
+                    def.Date = DateTime.Today;
 
                     def.AddFile(tmp);
 
-                    var bs = PluginManager.GetSearchedAssemblies().First(asm => asm.Name == "OpenTap.Plugins.BasicSteps");
+                    var bs = PluginManager.GetSearcher().Assemblies.First(asm => asm.Name == "OpenTap.Plugins.BasicSteps");
                     def.Files[0].DependentAssemblyNames.Add(bs);
 
-                    def.findDependencies(new List<string>());
+                    var searcher = new PluginSearcher();
+                    searcher.Search(Directory.GetCurrentDirectory());
+                    List<AssemblyData> assemblies = searcher.Assemblies.ToList();
+                    def.findDependencies(new List<string>(), assemblies);
 
                     Assert.AreEqual(0, def.Dependencies.Count);
                     Assert.AreNotEqual(0, def.Files.Count);
@@ -397,10 +198,13 @@ namespace OpenTap.Package.UnitTests
 
                     def.AddFile(tmp);
 
-                    var bs = PluginManager.GetSearchedAssemblies().First(asm => asm.Name == "OpenTap.Plugins.BasicSteps");
+                    var bs = PluginManager.GetSearcher().Assemblies.First(asm => asm.Name == "OpenTap.Plugins.BasicSteps");
                     def.Files[0].DependentAssemblyNames.Add(bs);
 
-                    def.findDependencies(new List<string> { "OpenTap" });
+                    var searcher = new PluginSearcher();
+                    searcher.Search(Directory.GetCurrentDirectory());
+                    List<AssemblyData> assemblies = searcher.Assemblies.ToList();
+                    def.findDependencies(new List<string> { "OpenTap" }, assemblies);
 
                     Assert.AreEqual(0, def.Dependencies.Count);
                     Assert.AreNotEqual(1, def.Files.Count);
@@ -428,37 +232,40 @@ namespace OpenTap.Package.UnitTests
                 {
                     PackageDef def = new PackageDef() { Name = "pkg1", Version = SemanticVersion.Parse("1.2") };
                     def.AddFile("OpenTap.dll");
-
-                    using (var f = File.OpenWrite("Packages/pkg1.package.xml")) def.SaveTo(f);
+                    Directory.CreateDirectory("Packages/pkg1");
+                    using (var f = File.OpenWrite("Packages/pkg1/package.xml")) def.SaveTo(f);
                 }
 
                 {
                     PackageDef def = new PackageDef() { Name = "gui", Version = SemanticVersion.Parse("1.2") };
-                    def.AddFile("Keysight.OpenTap.Gui.Controls.dll");
-
-                    using (var f = File.OpenWrite("Packages/gui.package.xml")) def.SaveTo(f);
+                    def.AddFile("Keysight.OpenTap.Wpf.dll");
+                    Directory.CreateDirectory("Packages/gui");
+                    using (var f = File.OpenWrite("Packages/gui/package.xml")) def.SaveTo(f);
                 }
 
                 {
                     PackageDef def = new PackageDef() { Name = "rv", Version = SemanticVersion.Parse("1.2") };
-                    def.AddFile("Keysight.OpenTap.Gui.Controls.dll");
-
-                    using (var f = File.OpenWrite("Packages/rv.package.xml")) def.SaveTo(f);
+                    def.AddFile("Keysight.OpenTap.Wpf.dll");
+                    Directory.CreateDirectory("Packages/rv");
+                    using (var f = File.OpenWrite("Packages/rv/package.xml")) def.SaveTo(f);
                 }
 
                 {
                     PackageDef def = new PackageDef();
                     def.Name = "test";
                     def.InfoLink = "a";
-                    def.Date = "123";
+                    def.Date = DateTime.Today;
 
                     def.Dependencies.Add(new PackageDependency( "rv", VersionSpecifier.Parse("1.2")));
 
-                    def.AddFile("Keysight.OpenTap.ResultsViewer.exe");
-                    def.Files[0].DependentAssemblyNames.AddRange(PluginManager.GetSearchedAssemblies().First(f => f.Name == "Keysight.OpenTap.ResultsViewer").References);
+                    def.AddFile("ResultsViewer.exe");
+                    def.Files[0].DependentAssemblyNames.AddRange(PluginManager.GetSearcher().Assemblies.First(f => f.Name == "ResultsViewer").References);
 
-                    def.findDependencies(new List<string>());
-                    
+                    var searcher = new PluginSearcher();
+                    searcher.Search(Directory.GetCurrentDirectory());
+                    List<AssemblyData> assemblies = searcher.Assemblies.ToList();
+                    def.findDependencies(new List<string>(), assemblies);
+
                     //Assert.AreEqual(3, def.Dependencies.Count);
                     Assert.IsTrue(def.Dependencies.Any(d => d.Name == "rv"));
                     Assert.IsTrue(def.Dependencies.Any(d => d.Name == "pkg1"));
@@ -468,14 +275,17 @@ namespace OpenTap.Package.UnitTests
                     PackageDef def = new PackageDef();
                     def.Name = "test";
                     def.InfoLink = "a";
-                    def.Date = "123";
+                    def.Date = DateTime.Today;
 
                     def.Dependencies.Add(new PackageDependency("gui", VersionSpecifier.Parse("1.2") ));
 
-                    def.AddFile("Keysight.OpenTap.ResultsViewer.exe");
-                    def.Files[0].DependentAssemblyNames.AddRange(PluginManager.GetSearchedAssemblies().First(f => f.Name == "Keysight.OpenTap.ResultsViewer").References);
+                    def.AddFile("ResultsViewer.exe");
+                    def.Files[0].DependentAssemblyNames.AddRange(PluginManager.GetSearcher().Assemblies.First(f => f.Name == "ResultsViewer").References);
 
-                    def.findDependencies(new List<string>());
+                    var searcher = new PluginSearcher();
+                    searcher.Search(Directory.GetCurrentDirectory());
+                    List<AssemblyData> assemblies = searcher.Assemblies.ToList();
+                    def.findDependencies(new List<string>(), assemblies);
 
                     //Assert.AreEqual(2, def.Dependencies.Count);
                     Assert.IsTrue(def.Dependencies.Any(d => d.Name == "gui"));
@@ -493,10 +303,10 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void SaveTo_Simple()
         {
-            string inputFilename = "Packages/package.xml";  // this package contains the old XML Schema URL
+            string inputFilename = "Packages/Package/package.xml";  // this package contains the old XML Schema URL
             string outputFileContent = "";
 
-            PackageDef pkg = PackageDef.FromXmlFile(inputFilename);
+            PackageDef pkg = PackageDef.FromXml(inputFilename);
 
             using (Stream str = new MemoryStream())
             {
@@ -517,8 +327,8 @@ namespace OpenTap.Package.UnitTests
         {
             string outputFileContent = "";
 
-            PackageDef pkg = PackageDefExt.FromXmlFile("Packages/package.xml");
-            PackageDef pkg1 = PackageDefExt.FromXmlFile("Packages/test2.package.xml");
+            PackageDef pkg = PackageDefExt.FromInputXml("Packages/Package/package.xml");
+            PackageDef pkg1 = PackageDefExt.FromInputXml("Packages/test2/package.xml");
 
             using (Stream str = new MemoryStream())
             {
@@ -537,10 +347,10 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void SaveTo_FromXmlFile_Dependency()
         {
-            string inputFilename = "Packages/test3.package.xml";
+            string inputFilename = "Packages/test3/package.xml";
             string outputFileContent = "";
 
-            PackageDef pkg = PackageDefExt.FromXmlFile(inputFilename);
+            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename);
             pkg.Files.First().IgnoredDependencies.AddRange(new[] { "abc", "test" });
 
             using (Stream str = new MemoryStream())
@@ -563,17 +373,17 @@ namespace OpenTap.Package.UnitTests
         }
 
         /// <summary>
-        /// This test requires that TAP is installed along with the XSeries plugin
+        /// This test requires that OpenTAP is installed along with the XSeries plugin
         /// </summary>
         [Test]
         public void CheckDependencies_MissingDep()
         {
-            string inputFilename = "Packages/CheckDependencies_MissingDep.xml";
+            string inputFilename = "Packages/CheckDependencies_MissingDep/package.xml";
 
             //PackageDependencyExt.CheckDependencies(inputFilename);
-            var xseries = PackageDef.FromXmlFile(Path.Combine(PackageDef.PackageDefDirectory, "XSeries.package.xml"));
+            var xseries = PackageDef.FromXml(PackageDef.GetDefaultPackageMetadataPath("XSeries"));
             PackageDef.ValidateXml(inputFilename);
-            var missing = PackageDef.FromXmlFile(inputFilename);
+            var missing = PackageDef.FromXml(inputFilename);
             var tree = DependencyAnalyzer.BuildAnalyzerContext(new List<PackageDef> { xseries, missing });
             Assert.IsTrue(tree.GetIssues(missing).Any(issue => issue.IssueType == DependencyIssueType.Missing));
             //Assert.Fail("CheckDependencies should have thrown an exception");
@@ -587,12 +397,12 @@ namespace OpenTap.Package.UnitTests
         public void CheckDependencies_AllDepsInstalled()
         {
 
-            var xseries = PackageDef.FromXmlFile(Path.Combine(PackageDef.PackageDefDirectory, "XSeries.package.xml"));
-            var qcfemto = PackageDef.FromXmlFile(Path.Combine(PackageDef.PackageDefDirectory, "Test2.package.xml"));
-            File.Copy(Path.Combine(PackageDef.PackageDefDirectory, "CheckDependencies_AllDepsInstalled.xml"), "CheckDependencies_AllDepsInstalled.xml", true);
+            var xseries = PackageDef.FromXml(PackageDef.GetDefaultPackageMetadataPath("XSeries"));
+            var test2 = PackageDef.FromXmlFile(PackageDef.GetDefaultPackageMetadataPath("Test2"));
+            File.Copy(PackageDef.GetDefaultPackageMetadataPath("CheckDependencies_AllDepsInstalled"), "CheckDependencies_AllDepsInstalled.xml", true);
             PackageDef.ValidateXml("CheckDependencies_AllDepsInstalled.xml");
-            var alldeps = PackageDef.FromXmlFile("CheckDependencies_AllDepsInstalled.xml");
-            var tree = DependencyAnalyzer.BuildAnalyzerContext(new List<PackageDef> { xseries, qcfemto, alldeps });
+            var alldeps = PackageDef.FromXml("CheckDependencies_AllDepsInstalled.xml");
+            var tree = DependencyAnalyzer.BuildAnalyzerContext(new List<PackageDef> { xseries, test2, alldeps });
             Assert.AreEqual(tree.BrokenPackages.Count, 1);
             //PackageDependencyExt.CheckDependencies(inputFilename);
         }
@@ -605,7 +415,7 @@ namespace OpenTap.Package.UnitTests
         {
             string inputFilename = "FromXmlFile_NonDllFile.xml";
 
-            PackageDefExt.FromXmlFile(inputFilename);
+            PackageDefExt.FromInputXml(inputFilename);
             //PackageDependency.CheckDependencies(inputFilename);
         }
 
@@ -613,8 +423,8 @@ namespace OpenTap.Package.UnitTests
         [Ignore("Temporarily Disabled")]
         public void InstalledPackages_TwoPackages()
         {
-            Assert.IsTrue(File.Exists(Path.Combine(PackageDef.PackageDefDirectory, "XSeries.package.xml")), "Necessary package file missing.");
-            Assert.IsTrue(File.Exists(Path.Combine(PackageDef.PackageDefDirectory, "Test.package.xml")), "Necessary package file missing.");
+            Assert.IsTrue(File.Exists(PackageDef.GetDefaultPackageMetadataPath("XSeries")), "Necessary package file missing.");
+
             System.Collections.Generic.List<PackageDef> target = new Installation(Directory.GetCurrentDirectory()).GetPackages();
             CollectionAssert.AllItemsAreInstancesOfType(target, typeof(PackageDef));
             CollectionAssert.AllItemsAreNotNull(target);
@@ -627,8 +437,8 @@ namespace OpenTap.Package.UnitTests
         [Ignore("Temporarily Disabled")]
         public void InstalledPackages_InvalidXmlIgnored()
         {
-            Assert.IsTrue(File.Exists(Path.Combine(PackageDef.PackageDefDirectory, "XSeries.package.xml")), "Necessary package file missing.");
-            Assert.IsTrue(File.Exists(Path.Combine(PackageDef.PackageDefDirectory, "Test.package.xml")), "Necessary package file missing.");
+            Assert.IsTrue(File.Exists(PackageDef.GetDefaultPackageMetadataPath("XSeries")), "Necessary package file missing.");
+
 
             File.WriteAllText(Path.Combine(PackageDef.PackageDefDirectory, "Invalid.package.xml"),
 @"<?xml version='1.0' encoding='utf-8' ?>
@@ -666,7 +476,7 @@ namespace OpenTap.Package.UnitTests
             string pkgContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
 <Package Name=""BasicSteps"" xmlns=""http://keysight.com/schemas/TAP/Package"">
  <Files>
-  <File Path=""__BASICSTEPS_DLL__"" Obfuscate=""false"">
+  <File Path=""__BASICSTEPS_DLL__"">
     <UseVersion/>
   </File>
  </Files>
@@ -679,25 +489,21 @@ namespace OpenTap.Package.UnitTests
                 if (File.Exists(pkgName))
                     File.Delete(pkgName);
                 File.WriteAllText(pkgName, pkgContent);
-                var pkg = PackageDefExt.FromXmlFile(pkgName);
+                var pkg = PackageDefExt.FromInputXml(pkgName);
                 CollectionAssert.IsNotEmpty(pkg.Dependencies,"Package has not dependencies.");
-                Assert.AreEqual("OpenTAP",pkg.Dependencies.First().Name);
-                pkg.CreatePackage("BasicSteps.TapPackage", Directory.GetCurrentDirectory(), skipObfuscation: true);
+                Assert.AreEqual("OpenTAP", pkg.Dependencies.First().Name);
+                pkg.CreatePackage("BasicSteps.TapPackage", Directory.GetCurrentDirectory());
 
-                PackageManagerSettings.Current.Repositories.Clear();
-                var entry = new PackageManagerSettings.RepositorySettingEntry();
-                entry.IsEnabled = true;
-                entry.Url = Directory.GetCurrentDirectory();
-                PackageManagerSettings.Current.Repositories.Add(entry);
+                List<IPackageRepository> repositories = new List<IPackageRepository>() { new FilePackageRepository(Directory.GetCurrentDirectory()) };
 
-                var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(new PackageSpecifier());
+                var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, new PackageSpecifier());
                 CollectionAssert.IsNotEmpty(packages, "Repository does not list any packages.");
                 Assert.IsTrue(packages.Any(p => p.Name == "BasicSteps"));
 
 
                 var depVersion = pkg.Dependencies.First().Version;
                 var version = new SemanticVersion(depVersion.Major ?? 0, depVersion.Minor ?? 0, depVersion.Patch ?? 0, depVersion.PreRelease, "");
-                packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(new PackageSpecifier("BasicSteps"), new PackageIdentifier("OpenTAP", version, CpuArchitecture.Unknown, null));
+                packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, new PackageSpecifier("BasicSteps"), new PackageIdentifier("OpenTAP", version, CpuArchitecture.Unspecified, null));
                 CollectionAssert.IsNotEmpty(packages, "Repository does not list any compatible \"BasicSteps\" package.");
                 Assert.IsTrue(packages.First().Name == "BasicSteps");
             }
@@ -707,14 +513,13 @@ namespace OpenTap.Package.UnitTests
                     File.Delete("BasicSteps.TapPackage");
                 if (File.Exists(pkgName))
                     File.Delete(pkgName);
-                PackageManagerSettings.Current.Invalidate();
             }
         }
 
         [Test]
         public void TestCliPackaging()
         {
-            var p = Process.Start("tap.exe", "package create \"Packages/package.xml\" -v");
+            var p = Process.Start("tap.exe", "package create \"Packages/Package/package.xml\" -v");
             p.WaitForExit();
             Assert.AreEqual(0, p.ExitCode);
             var plugins = Directory.EnumerateFiles(".");
@@ -722,7 +527,7 @@ namespace OpenTap.Package.UnitTests
             Assert.IsTrue(plugins.Any(package =>
                 Path.GetFileName(package).StartsWith("Test", System.StringComparison.InvariantCultureIgnoreCase) &&
                 Path.GetExtension(package).EndsWith("TapPackage", System.StringComparison.InvariantCultureIgnoreCase)
-            ), "Generated TAP package file not found");
+            ), "Generated OpenTAP package file not found");
         }
 
         /* XSeries not compiled for TAP 5.0.

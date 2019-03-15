@@ -32,7 +32,7 @@ DOXYFILE_ENCODING      = UTF-8
 # title of most generated pages and in a few other places.
 # The default value is: My Project.
 
-PROJECT_NAME           = "Keysight Test Automation Platform"
+PROJECT_NAME           = "OpenTAP"
 
 # The PROJECT_NUMBER tag can be used to enter a project or revision number. This
 # could be handy for archiving the generated documentation or if some version
@@ -51,7 +51,7 @@ PROJECT_BRIEF          = "API Reference"
 # pixels and the maximum width should not exceed 200 pixels. Doxygen will copy
 # the logo to the output directory.
 
-PROJECT_LOGO           = Keysight_Signature_Pref_ColorReverse2.png
+#PROJECT_LOGO           = Keysight_Signature_Pref_ColorReverse2.png
 
 # The OUTPUT_DIRECTORY tag is used to specify the (relative or absolute) path
 # into which the generated documentation will be written. If a relative path is
@@ -790,7 +790,7 @@ WARN_LOGFILE           =
 # spaces. See also FILE_PATTERNS and EXTENSION_MAPPING
 # Note: If this tag is empty the current directory is searched.
 
-INPUT                  = ../../Tap/Engine \
+INPUT                  = ../../OpenTAP/Engine \
                          doxyfile.md namespaces.cs
 
 # This tag can be used to specify the character encoding of the source files
@@ -1330,7 +1330,7 @@ GENERATE_HTMLHELP      = YES
 # written to the html output directory.
 # This tag requires that the tag GENERATE_HTMLHELP is set to YES.
 
-CHM_FILE               = TapApiReference.chm
+CHM_FILE               = OpenTapApiReference.chm
 
 # The HHC_LOCATION tag can be used to specify the location (absolute path
 # including file name) of the HTML help compiler (hhc.exe). If non-empty,

@@ -11,7 +11,7 @@ namespace OpenTap.Plugins
     /// <summary> Serializer implementation for IDynamicStep. </summary>
     /// It needs to act like an object serializer, which is why it inherits from it.
     /// It implementes TapSerializerPlugin, so it can explicitly override serializer behavior.
-    public class DynamicStepSerializer : ObjectSerializer
+    internal class DynamicStepSerializer : ObjectSerializer
     {
         /// <summary> The order of this serializer. </summary>
         public override double Order { get { return new TestStepSerializer().Order + 1; } }
@@ -24,7 +24,7 @@ namespace OpenTap.Plugins
         /// <param name="obj"></param>
         /// <param name="expectedType"></param>
         /// <returns></returns>
-        public override bool Serialize(XElement elem, object obj, ITypeInfo expectedType)
+        public override bool Serialize(XElement elem, object obj, ITypeData expectedType)
         {
             if (obj is IDynamicStep == false) return false;
             if (serializing.Contains(elem)) return false;
@@ -44,7 +44,7 @@ namespace OpenTap.Plugins
 
         HashSet<XElement> currentNode = new HashSet<XElement>();
         /// <summary> Deserialization implementation. </summary>
-        public override bool Deserialize(XElement elem, ITypeInfo t, Action<object> setter)
+        public override bool Deserialize(XElement elem, ITypeData t, Action<object> setter)
         {
             if (t.DescendsTo(typeof(IDynamicStep)) == false)
                 return false;
@@ -55,12 +55,12 @@ namespace OpenTap.Plugins
                 Serializer.Register(step);
                 var toIgnore = new HashSet<string>();
 
-                TryDeserializeObject(elem, TypeInfo.GetTypeInfo(step), setter, step, logWarnings: false);
+                TryDeserializeObject(elem, TypeData.GetTypeData(step), setter, step, logWarnings: false);
                 
                 ITestStep genStep = step.GetStep();
                 bool res = true;
                 if (elem.IsEmpty == false)
-                    res = TryDeserializeObject(elem, TypeInfo.GetTypeInfo(genStep), setter, genStep, logWarnings: false);
+                    res = TryDeserializeObject(elem, TypeData.GetTypeData(genStep), setter, genStep, logWarnings: false);
                 else
                     setter(genStep);
                 Serializer.GetSerializer<TestStepSerializer>().FixupStep(genStep, true);

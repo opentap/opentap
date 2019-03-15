@@ -11,7 +11,7 @@ namespace OpenTap
     /// <summary>
     /// Base info for reflection objects.
     /// </summary>
-    public interface IReflectionInfo
+    public interface IReflectionData
     {
         /// <summary> The attributes of it. </summary>
         IEnumerable<object> Attributes { get; }
@@ -22,12 +22,12 @@ namespace OpenTap
     }
 
     /// <summary> A member of an object type. </summary>
-    public interface IMemberInfo : IReflectionInfo
+    public interface IMemberData : IReflectionData
     {
         /// <summary> The declaring type of this member. </summary>
-        ITypeInfo DeclaringType { get; }
+        ITypeData DeclaringType { get; }
         /// <summary> The underlying type of this member. </summary>
-        ITypeInfo TypeDescriptor { get; }
+        ITypeData TypeDescriptor { get; }
         /// <summary> Gets if this member is writable. </summary>
         bool Writable { get; }
         /// <summary> Gets if this member is readable.</summary>
@@ -45,17 +45,17 @@ namespace OpenTap
     }
 
     /// <summary> The type information of an object. </summary>
-    public interface ITypeInfo : IReflectionInfo
+    public interface ITypeData : IReflectionData
     {
         /// <summary> The base type of this type. </summary>
-        ITypeInfo BaseType { get; }
+        ITypeData BaseType { get; }
         /// <summary> Gets the members of this object. </summary>
         /// <returns></returns>
-        IEnumerable<IMemberInfo> GetMembers();
+        IEnumerable<IMemberData> GetMembers();
         /// <summary> Gets a member of this object by name.  </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-        IMemberInfo GetMember(string name);
+        IMemberData GetMember(string name);
         /// <summary>
         /// Creates an instance of this type. The arguments are used for construction.
         /// </summary>
@@ -72,20 +72,16 @@ namespace OpenTap
     /// Type info provider. Provides type info for a given object. 
     /// </summary>
     [Display("TypeInfo Provider")]
-    public interface ITypeInfoProvider : ITapPlugin
+    public interface ITypeDataProvider : ITapPlugin
     {
         /// <summary>
         /// Gets the type info from an identifier.
         /// </summary>
-        /// <param name="res"></param>
-        /// <param name="identifier"></param>
-        void GetTypeInfo(TypeInfoResolver res, string identifier);
+        ITypeData GetTypeData(string identifier);
         /// <summary>
         /// Gets the type info from an object.
         /// </summary>
-        /// <param name="res"></param>
-        /// <param name="obj"></param>
-        void GetTypeInfo(TypeInfoResolver res, object obj);
+        ITypeData GetTypeData(object obj);
 
         /// <summary>
         /// The priority of this type info provider. Note, this decides the order in which tyhe type info is resolved.
@@ -95,14 +91,14 @@ namespace OpenTap
 
 
     /// <summary> Can resolve a type info. </summary>
-    public class TypeInfoResolver
+    internal class TypeInfoResolver
     {
 
-        internal TypeInfoResolver(List<ITypeInfoProvider> providers)
+        internal TypeInfoResolver(List<ITypeDataProvider> providers)
         {
             this.providers = providers;
         }
-        List<ITypeInfoProvider> providers;
+        List<ITypeDataProvider> providers;
         int offset = 0;
         /// <summary> Looks for a type info provider to provide the type for obj. </summary>
         /// <param name="obj"></param>
@@ -112,7 +108,7 @@ namespace OpenTap
             {
                 var provider = providers[offset];
                 offset++;
-                provider.GetTypeInfo(this, obj);
+                FoundType = provider.GetTypeData(obj);
             }
         }
 
@@ -124,36 +120,29 @@ namespace OpenTap
             {
                 var provider = providers[offset];
                 offset++;
-                provider.GetTypeInfo(this, obj);
+                FoundType = provider.GetTypeData(obj);
             }
-        }
-
-        /// <summary> Can be used to stop iteration from a type info provider. </summary>
-        /// <param name="desc"></param>
-        public void Stop(ITypeInfo desc)
-        {
-            FoundType = desc;
         }
 
         /// <summary>
         /// The found type info instance.
         /// </summary>
-        public ITypeInfo FoundType { get; private set; }
+        public ITypeData FoundType { get; private set; }
     }
 
     /// <summary>
     /// Helper method for TypeInfo.
     /// </summary>
-    public static class TypeInfo
+    public partial class TypeData
     {
-        static List<ITypeInfoProvider> providers = new List<ITypeInfoProvider>();
-        static List<ITypeInfoProvider> Providers
+        static List<ITypeDataProvider> providers = new List<ITypeDataProvider>();
+        static List<ITypeDataProvider> Providers
         {
             get
             {
-                var _providers = PluginManager.GetPlugins<ITypeInfoProvider>();
+                var _providers = PluginManager.GetPlugins<ITypeDataProvider>();
                 if (providers.Count == _providers.Count) return providers;
-                providers = _providers.Select(x => Activator.CreateInstance(x)).OfType<ITypeInfoProvider>().ToList();
+                providers = _providers.Select(x => Activator.CreateInstance(x)).OfType<ITypeDataProvider>().ToList();
                 providers.Sort((x, y) => y.Priority.CompareTo(x.Priority));
                 return providers;
             }
@@ -162,9 +151,9 @@ namespace OpenTap
         /// <summary> Get the type info of an object. </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
-        static public ITypeInfo GetTypeInfo(object obj)
+        static public ITypeData GetTypeData(object obj)
         {
-            if (obj == null) return CSharpTypeInfo.Create(typeof(object));
+            if (obj == null) return TypeData.FromType(typeof(object));
             var resolver = new TypeInfoResolver(Providers);
             resolver.Iterate(obj);
             return resolver.FoundType;
@@ -173,7 +162,7 @@ namespace OpenTap
         /// <summary> Gets the type info from a string. </summary>
         /// <param name="name"></param>
         /// <returns></returns>
-        static public ITypeInfo GetTypeInfo(string name)
+        static public ITypeData GetTypeData(string name)
         {
             var resolver = new TypeInfoResolver(Providers);
             resolver.Iterate(name);
@@ -182,36 +171,21 @@ namespace OpenTap
     }
 
     /// <summary> Helpers for work with ITypeInfo objects. </summary>
-    public static class ReflectionInfoExtensions
+    public static class ReflectionDataExtensions
     {
-        /// <summary> Returns true if 'type' and 'basetype' are equal. </summary>
-        /// <param name="type"></param>
-        /// <param name="basetype"></param>
-        /// <returns></returns>
-        public static bool IsA(this ITypeInfo type, ITypeInfo basetype)
-        {
-            return object.Equals(type, basetype);
-        }
-        /// <summary>Returns true if 'type' and 'basetype' are equal. </summary> 
-        /// <param name="type"></param>
-        /// <param name="basetype"></param>
-        /// <returns></returns>
-        public static bool IsA(this ITypeInfo type, Type basetype)
-        {
-            if (type is CSharpTypeInfo cst)
-                return cst.Type == basetype;
-            return false;
-        }
-
         /// <summary> returns tru if 'type' is a descendant of 'basetype'. </summary>
         /// <param name="type"></param>
         /// <param name="basetype"></param>
         /// <returns></returns>
-        public static bool DescendsTo(this ITypeInfo type, ITypeInfo basetype)
+        public static bool DescendsTo(this ITypeData type, ITypeData basetype)
         {
-            while (type != null)
+            if (basetype is TypeData basetype2)
             {
-                if (type.IsA(basetype))
+                return DescendsTo(type, basetype2.Type);
+            }
+            while (type != null)
+            {    
+                if (object.Equals(type, basetype))
                     return true;
                 type = type.BaseType;
             }
@@ -221,11 +195,11 @@ namespace OpenTap
         /// <param name="type"></param>
         /// <param name="basetype"></param>
         /// <returns></returns>
-        public static bool DescendsTo(this ITypeInfo type, Type basetype)
+        public static bool DescendsTo(this ITypeData type, Type basetype)
         {
             while (type != null)
             {
-                if (type is CSharpTypeInfo cst)
+                if (type is TypeData cst)
                 {
                     return cst.Type.DescendsTo(basetype);
                 }
@@ -240,7 +214,7 @@ namespace OpenTap
         /// <typeparam name="T"></typeparam>
         /// <param name="mem"></param>
         /// <returns></returns>
-        static public bool HasAttribute<T>(this IReflectionInfo mem)
+        static public bool HasAttribute<T>(this IReflectionData mem)
         {
             return mem.Attributes.OfType<T>().Any();
         }
@@ -249,7 +223,7 @@ namespace OpenTap
         /// <typeparam name="T"></typeparam>
         /// <param name="mem"></param>
         /// <returns></returns>
-        static public T GetAttribute<T>(this IReflectionInfo mem)
+        static public T GetAttribute<T>(this IReflectionData mem)
         {
             return mem.GetAttributes<T>().FirstOrDefault();
         }
@@ -258,7 +232,7 @@ namespace OpenTap
         /// <typeparam name="T"></typeparam>
         /// <param name="mem"></param>
         /// <returns></returns>
-        static public IEnumerable<T> GetAttributes<T>(this IReflectionInfo mem)
+        static public IEnumerable<T> GetAttributes<T>(this IReflectionData mem)
         {
             return mem.Attributes.OfType<T>();
         }
@@ -266,20 +240,25 @@ namespace OpenTap
         /// <summary> Gets the display attribute of mem. </summary>
         /// <param name="mem"></param>
         /// <returns></returns>
-        public static DisplayAttribute GetDisplayAttribute(this IReflectionInfo mem)
+        public static DisplayAttribute GetDisplayAttribute(this IReflectionData mem)
         {
-            return mem.GetAttribute<DisplayAttribute>() ?? new DisplayAttribute(mem.Name, null, Order: -10000, Collapsed: false);
+            DisplayAttribute attr = null;
+            if (mem is TypeData td)
+                attr = td.Display;
+            else
+                attr = mem.GetAttribute<DisplayAttribute>();
+            return attr ?? new DisplayAttribute(mem.Name, null, Order: -10000, Collapsed: false);
         }
 
         /// <summary>Gets the help link of 'member'</summary>
         /// <param name="member"></param>
         /// <returns></returns>
-        internal static string GetHelpLink(this IReflectionInfo member)
+        internal static HelpLinkAttribute GetHelpLink(this IReflectionData member)
         {
             var attr = member.GetAttribute<HelpLinkAttribute>();
             if (attr != null)
-                return attr.HelpLink;
-            if (member is IMemberInfo meminfo)// Recursively look for class level help.
+                return attr;
+            if (member is IMemberData meminfo)// Recursively look for class level help.
                 return meminfo.DeclaringType.GetHelpLink();
             return null;
         }

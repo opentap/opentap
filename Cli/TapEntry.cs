@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 
@@ -18,10 +19,6 @@ namespace OpenTap.Cli
     /// </summary>
     internal class TapEntry
     {
-        static TapEntry()
-        {
-            TapInitializer.Initialize();
-        }
 
         private class CommandLineSplit
         {
@@ -64,7 +61,7 @@ namespace OpenTap.Cli
                     }
                 };
                 subproc.Start();
-                subproc.WaitForExit();
+                Environment.ExitCode = subproc.WaitForExit();
             }
             List<string> tmpDirs = new List<string>();
             try
@@ -108,7 +105,7 @@ namespace OpenTap.Cli
                                     message = msg;
                                 }
                             };
-                            subproc.WaitForExit();
+                            Environment.ExitCode = subproc.WaitForExit();
                         }
                         tmpDirs.Add(Path.GetDirectoryName(command.App));
                     }
@@ -138,6 +135,14 @@ namespace OpenTap.Cli
 
         private static void goInProcess()
         {
+            TapInitializer.Initialize(); // This will dynamically load OpenTap.dll
+            wrapGoInProcess();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void wrapGoInProcess()
+        {
+            DebuggerAttacher.TryAttach();
             CliActionExecutor.Execute();
         }
 
@@ -157,7 +162,7 @@ namespace OpenTap.Cli
             uninstallCommand = args.Contains("uninstall");
             packageManagerCommand = args.Contains("packagemanager");
 
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) && (installCommand || uninstallCommand || packageManagerCommand))
+            if (OperatingSystem.Current == OperatingSystem.Windows && (installCommand || uninstallCommand || packageManagerCommand))
             {
                 goIsolated();
             }

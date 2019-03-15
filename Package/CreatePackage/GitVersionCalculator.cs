@@ -21,7 +21,7 @@ namespace OpenTap.Package
     {
         private static readonly TraceSource log = Log.CreateSource("GitVersion");
         private const string configFileName = ".gitversion";
-        private readonly Repository repo;
+        private readonly LibGit2Sharp.Repository repo;
 
         private class Config
         {
@@ -58,7 +58,6 @@ namespace OpenTap.Package
             /// <summary>
             /// Cap the length of the branch name to this many chars. This can be useful e.g. if the version number is used in a file name, which could otherwise become too long.
             /// </summary>
-            /// <param name="repositoryDir"></param>
             public int MaxBranchChars => _maxBranchChars;
 
             private Config()
@@ -127,7 +126,7 @@ namespace OpenTap.Package
                 if (repositoryDir == null)
                     throw new ArgumentException("Directory is not a git repository.", "repositoryDir");
             }
-            repo = new Repository(repositoryDir);
+            repo = new LibGit2Sharp.Repository(repositoryDir);
         }
 
         public void Dispose()
@@ -144,21 +143,28 @@ namespace OpenTap.Package
 
         private Commit getLatestConfigVersionChange(Commit c)
         {
-            // find all changes in the file
-            var log = repo.Commits.QueryBy(configFileName, new CommitFilter() { IncludeReachableFrom = c, SortBy = CommitSortStrategies.Topological });
+            // find all changes in the file (for some reason that sometimes returns an empty list)
+            //var fileLog = repo.Commits.QueryBy(configFileName, new CommitFilter() { IncludeReachableFrom = c, SortBy = CommitSortStrategies.Topological, FirstParentOnly = false });
+            //... go on to iterate through filelog...
 
-            // walk the changes to find one that changes the version number
-            foreach(LogEntry entry in log)
+            // Instead, just walk all commits comparing the version in the .gitversion file to the one in the previous commit
+            Config currentCfg = ParseConfig(c);
+            while (c != null)
             {
-                Config cfg = ParseConfig(entry.Commit);
-                Config cfgOld = ParseConfig(entry.Commit.Parents.FirstOrDefault());
-                if(cfg.Version.CompareTo(cfgOld.Version) > 0)
+                Commit parent = c.Parents.FirstOrDefault(); // first parent only, we are only interested in when the file changes on the beta branch
+                if (parent == null)
+                    break;
+                Config parentCfg = ParseConfig(parent);
+                if (currentCfg.Version.CompareTo(parentCfg.Version) > 0)
                 {
                     // the version number was bumped
-                    return entry.Commit;
+                    return c;
                 }
+                c = parent;
+                currentCfg = parentCfg;
             }
-            return log.LastOrDefault()?.Commit;
+            log.Warning("Did not find any .gitversion file.");
+            return null;
         }
         
         /// <summary>
@@ -192,8 +198,7 @@ namespace OpenTap.Package
                 throw new ArgumentException("Commit does not exist in repository.");
             Config cfg = ParseConfig(targetCommit);
 
-            Branch defaultBranch = getDefaultBranch(cfg);
-            log.Debug("Determined default branch to be '{0}'", defaultBranch.GetShortName());
+            Branch defaultBranch = getBetaBranch(cfg);
 
             string branchName = guessBranchName(cfg,targetCommit,defaultBranch);
 
@@ -222,7 +227,9 @@ namespace OpenTap.Package
                 Commit cfgCommit = getLatestConfigVersionChange(targetCommit) ?? targetCommit;
                 Commit commonAncestor = findFirstCommonAncestor(defaultBranch, targetCommit);
                 int commitsFromDefaultBranch = countCommitsBetween(commonAncestor, targetCommit, true);
-                int commitsSinceVersionUpdate = countCommitsBetween(cfgCommit, targetCommit, true);
+                log.Debug("Found {0} commits since branchout from beta branch in commit {1}.", commitsFromDefaultBranch, commonAncestor.Sha.Substring(0, 8));
+                int commitsSinceVersionUpdate = countCommitsBetween(cfgCommit, targetCommit, true)+1;
+                log.Debug("Found {0} commits since last version bump in commit {1}.", commitsSinceVersionUpdate, cfgCommit.Sha.Substring(0, 8));
                 int alphaVersion = Math.Min(commitsFromDefaultBranch, commitsSinceVersionUpdate);
                 if (!preRelease.StartsWith("rc", true, CultureInfo.InvariantCulture))
                 {
@@ -256,17 +263,17 @@ namespace OpenTap.Package
 
         /// <summary>
         /// Find the first (youngest) commit that is reachable from two specified places
-        /// Slower than <see cref="findCommonAncestor"/>
         /// </summary>
         private Commit findFirstCommonAncestor(Branch b1, Commit target)
         {
             Commit b1Commit = b1.Tip;
             while (b1Commit != null)
             {
-                if (b1Commit == target)
+                if (b1Commit.Sha == target.Sha)
                     return target; // target is a directly on the b1 branch
                 b1Commit = b1Commit.Parents.FirstOrDefault();
             }
+            log.Debug($"Common ancestor of {b1.Tip} and {target} is not on the same branch.");
             HashSet<Commit> targetHistory = repo.Commits.QueryBy(new CommitFilter() { IncludeReachableFrom = target }).ToHashSet();
             Commit firstCommon = b1.Commits.FirstOrDefault(c => targetHistory.Contains(c)); // same as repo.ObjectDatabase.FindMergeBase(b1.Tip, target); but faster on average
             // if this branch is being used for several releases (merged to several times, one for each release)
@@ -300,7 +307,7 @@ namespace OpenTap.Package
             return repo.Commits.QueryBy(filter).Count();
         }
 
-        private Branch getDefaultBranch(Config cfg)
+        private Branch getBetaBranch(Config cfg)
         {
             // Try to find the HEAD of the 
             foreach (var remote in repo.Network.Remotes)
@@ -309,8 +316,9 @@ namespace OpenTap.Package
                 var defaultRef = repo.Refs.FirstOrDefault(r => r.CanonicalName == expectedDefaultRefName) as SymbolicReference;
                 if (defaultRef != null)
                 {
-                    var defaultName = defaultRef.TargetIdentifier.Split('/').Last();
-                    var branch = repo.Branches.FirstOrDefault(b => b.GetShortName() == defaultName);
+                    // be careful to return the remote branch instead of any local one. On build runners the local branch might be behind, as they usually just checkout a sha not the actual branch
+                    var branch = repo.Branches.FirstOrDefault(b => b.CanonicalName == defaultRef.TargetIdentifier);
+                    log.Debug("Determined beta branch to be '{0}' by looking at the HEAD of the remote '{1}'.", branch.GetShortName(), remote.Name);
                     if (branch != null)
                         return branch;
                 }
@@ -318,7 +326,7 @@ namespace OpenTap.Package
 
             // For each regex from the config, try to find a branch that matches.
             Branch defaultBranch = cfg.BetaBranchRegexes.Select(rx => repo.Branches.FirstOrDefault(b => rx.IsMatch(b.GetShortName()))).FirstOrDefault(b => b != null);
-            
+
             if (defaultBranch == null)
             {
                 StringBuilder error = new StringBuilder("Unable to determine the default branch. No branch matching ");
@@ -348,6 +356,7 @@ namespace OpenTap.Package
                     log.Debug(line.ToString());
                 throw new NotSupportedException(error.ToString());
             }
+            log.Debug("Determined beta branch to be '{0}' using regular expression match.", defaultBranch.GetShortName());
             return defaultBranch;
         }
         
@@ -364,7 +373,15 @@ namespace OpenTap.Package
             var commitsOnDefault = repo.Commits.QueryBy(new CommitFilter { IncludeReachableFrom = defaultBranch, FirstParentOnly = true });
             var shasOnDefault = commitsOnDefault.Select(c => c.Sha).ToHashSet();
             if (shasOnDefault.Contains(commit.Sha))
+            {
+                // is this also the tip of a release branch, then pick that instead
+                var releaseBranch = repo.Branches.Where(r => cfg.ReleaseBranchRegex.IsMatch(r.GetShortName()) && r.Tip.Sha == commit.Sha).FirstOrDefault();
+                if (releaseBranch != null)
+                {
+                    return releaseBranch.GetShortName();
+                }
                 return defaultBranch.GetShortName();
+            }
 
             // is the commit the tip of any branches
             var tipMatches = repo.Branches.Where(r => r.Tip.Sha == commit.Sha).Where(r => !r.FriendlyName.EndsWith("HEAD"));

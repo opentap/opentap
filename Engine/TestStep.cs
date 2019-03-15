@@ -60,7 +60,7 @@ namespace OpenTap
             {
                 if (enabled == value) return;
                 enabled = value;
-                OnPropertyChanged("Enabled");
+                OnPropertyChanged(nameof(Enabled));
             }
         }
 
@@ -86,7 +86,7 @@ namespace OpenTap
                 if (value == null)
                     throw new ArgumentNullException("value", "TestStep.Name cannot be null.");
                 name = value;
-                OnPropertyChanged("Name");
+                OnPropertyChanged(nameof(Name));
             }
         }
 
@@ -219,7 +219,7 @@ namespace OpenTap
         /// </summary>
         public TestStep()
         {
-            Name = defaultNames.GetValue(GetType(), type => GenerateDefaultNames(type).Last());
+            name = defaultNames.GetValue(GetType(), type => GenerateDefaultNames(type).Last());
             
             Enabled = true;
             IsReadOnly = false;
@@ -708,8 +708,8 @@ namespace OpenTap
         {
             if ((Step.Verdict == Verdict.Fail && planRun.AbortOnStepFail) || (Step.Verdict == Verdict.Error && planRun.AbortOnStepError))
             {
-                TestPlan.Log.Warning("TAP is currently configured to abort run on verdict {0}. This can be changed in Engine Settings.", Step.Verdict);
-                TapThread.Current.Abort(String.Format("Verdict of '{0}' was '{1}'.", Step.Name, Step.Verdict));
+                TestPlan.Log.Warning("OpenTAP is currently configured to abort run on verdict {0}. This can be changed in Engine Settings.", Step.Verdict);
+                planRun.MainThread.Abort(String.Format("Verdict of '{0}' was '{1}'.", Step.Name, Step.Verdict));
             }
             else  if (Step.Verdict == Verdict.Aborted)
             {
@@ -756,7 +756,7 @@ namespace OpenTap
 
             // Signal step is going to execute
             planRun.ExecutionHooks.ForEach(eh => eh.BeforeTestStepExecute(Step));
-            planRun.ResourceManager.BeginStep(planRun, Step, Stage.Run, TapThread.Current.AbortToken);
+            planRun.ResourceManager.BeginStep(planRun, Step, TestPlanExecutionStage.Run, TapThread.Current.AbortToken);
 
             TestPlan.Log.Info(stepPath + " started.");
 
@@ -804,7 +804,7 @@ namespace OpenTap
             finally
             {
                 planRun.AddTestStepStateUpdate(stepRun.TestStepId, stepRun, StepState.Deferred);
-                planRun.ResourceManager.EndStep(Step, Stage.Run);
+                planRun.ResourceManager.EndStep(Step, TestPlanExecutionStage.Run);
                 planRun.ExecutionHooks.ForEach(eh => eh.AfterTestStepExecute(Step));
                 
                 void completeAction(Task runTask)
@@ -855,7 +855,7 @@ namespace OpenTap
                             }
                         }
                         TimeSpan time = swatch.Elapsed;
-                        stepRun.CompleteStepRun(planRun, Step.Verdict, time);
+                        stepRun.CompleteStepRun(planRun, Step, time);
                         if (Step.Verdict == Verdict.NotSet)
                         {
                             TestPlan.Log.Info(time, stepPath + " completed.");

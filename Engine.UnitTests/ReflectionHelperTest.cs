@@ -233,6 +233,31 @@ namespace OpenTap.Engine.UnitTests
             }
 
         }
+
+        [Test]
+        public void RemoveIfTest()
+        {
+            var rnd = new Random();
+            var values = Enumerable.Repeat(0, 1000).Select(x => rnd.NextDouble()).ToList();
+            Assert.IsTrue(values.IndexWhen(x => x < 0.5) != -1);
+            values.RemoveIf(x => x < 0.5); // remove all values < 0.5.
+            Assert.IsTrue(values.IndexWhen(x => x < 0.5) == -1);
+        }
+
+        [Test]
+        public void TestCheckOperatingSystem()
+        {
+            // we can use RuntimeInformation to check that our OperatingSystem implementation works.
+            if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
+            {
+                Assert.AreEqual(OperatingSystem.Windows, OperatingSystem.Current);
+            }
+            else
+            {
+                Assert.AreEqual(OperatingSystem.Linux, OperatingSystem.Current);
+            }
+        }
+
     }
 
 

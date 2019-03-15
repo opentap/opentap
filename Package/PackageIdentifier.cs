@@ -8,7 +8,7 @@ using System.Xml.Serialization;
 namespace OpenTap.Package
 {
     /// <summary>
-    /// Uniquely identifies a package in the TAP package system.
+    /// Uniquely identifies a package in the OpenTAP package system.
     /// </summary>
     public class PackageIdentifier : IPackageIdentifier
     {

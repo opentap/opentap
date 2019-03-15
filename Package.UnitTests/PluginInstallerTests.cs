@@ -36,7 +36,7 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void InstallUninstallTest()
         {
-            var pkg = PluginInstaller.InstallPluginPackage("TapPackages/MyPlugin1.TapPackage");
+            var pkg = PluginInstaller.InstallPluginPackage(Directory.GetCurrentDirectory(), "TapPackages/MyPlugin1.TapPackage");
             Assert.IsTrue(pkg.Files.Select(f => f.RelativeDestinationPath).All(File.Exists), "Some files did not get installed.");
             PluginInstaller.Uninstall(pkg);
             Assert.IsFalse(pkg.Files.Select(f => f.RelativeDestinationPath).Any(File.Exists), "Some files did not get uninstalled.");
@@ -45,7 +45,7 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void InstallUninstallTestSystemWide()
         {
-            var pkg = PluginInstaller.InstallPluginPackage("TapPackages/MyPlugin3.TapPackage");  // MyPlugin3.TapPackage is marked as system-wide
+            var pkg = PluginInstaller.InstallPluginPackage(Directory.GetCurrentDirectory(), "TapPackages/MyPlugin3.TapPackage");  // MyPlugin3.TapPackage is marked as system-wide
             Assert.IsTrue(pkg.Files.Select(f => Path.Combine(PackageDef.SystemWideInstallationDirectory, f.RelativeDestinationPath)).All(File.Exists), "Some files did not get installed.");
             PluginInstaller.Uninstall(pkg);
             Assert.IsFalse(pkg.Files.Select(f => Path.Combine(PackageDef.SystemWideInstallationDirectory, f.RelativeDestinationPath)).Any(File.Exists), "Some files did not get uninstalled.");

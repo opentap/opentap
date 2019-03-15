@@ -8,7 +8,7 @@ using System;
 namespace OpenTap.Cli
 {
     /// <summary>
-    /// When used on a <see cref="ICliAction"/> this indicates the name and description of the action. ShortName will not be displayed in the TAP CLI help.
+    /// When used on a <see cref="ICliAction"/> this indicates the name and description of the action. ShortName will not be displayed in the OpenTAP CLI help.
     /// When used on a property inside a <see cref="ICliAction"/> all the properties are valid.
     /// The <see cref="Visible"/> indicates whether the property or class will be shown in the help.
     /// </summary>

@@ -14,7 +14,7 @@ using System.Collections.Generic;
 namespace OpenTap
 {
     /// <summary>
-    /// Version object for TAP versions. Adheres to Semantic Version 2.0 formatting and behavior, see http://semver.org. 
+    /// Version object for OpenTAP versions. Adheres to Semantic Version 2.0 formatting and behavior, see http://semver.org. 
     /// Supported formats:
     ///   Major.Minor.Patch
     ///   Major.Minor.Patch-PreRelease

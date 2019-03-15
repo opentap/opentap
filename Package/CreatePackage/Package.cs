@@ -16,7 +16,7 @@ using System.Xml.Serialization;
 
 namespace OpenTap.Package
 {
-    public static class PackageDefExt
+    internal static class PackageDefExt
     {
         //
         // Note: There is some code duplication between PackageDefExt and PackageDef, 
@@ -25,87 +25,70 @@ namespace OpenTap.Package
 
         static TraceSource log =  OpenTap.Log.CreateSource("Package");
 
-        private static void EnumeratePlugins(this PackageFile def)
+        private static void EnumeratePlugins(PackageDef pkg, List<AssemblyData> searchedAssemblies)
         {
-            if (def.Plugins == null || !def.Plugins.Any())
+            foreach (PackageFile def in pkg.Files)
             {
-                if (File.Exists(def.FileName) && IsAssembly(def.FileName))
+                if (def.Plugins == null || !def.Plugins.Any())
                 {
-                    try
+                    if (File.Exists(def.FileName) && IsAssembly(def.FileName))
                     {
-                        string fullPath = Path.GetFullPath(def.FileName);
-                        if(File.Exists(def.RelativeDestinationPath))
+                        try
+                        {
                             // if the file is already in its destination dir use that inatead.
                             // That file is much more likely to be inside the OpenTAP dir we already searched.
-                            fullPath = Path.GetFullPath(def.RelativeDestinationPath);
-                        string dir = Path.GetDirectoryName(fullPath);
-
-                        if (!PluginManager.DirectoriesToSearch.Any(sd => dir.StartsWith(sd)))
-                        {
-                            log.Debug($"DirectoriesToSearch did not contain {dir}. Searching again.");
-                            PluginManager.DirectoriesToSearch.Add(dir);
-                            PluginManager.SearchAsync(); // start a (new) search
-                        }
-
-                        var searchedAssemblies = PluginManager.GetSearchedAssemblies();
-                        AssemblyData assembly = searchedAssemblies.FirstOrDefault(a => PathUtils.AreEqual(a.Location, fullPath));
-
-                        if (assembly == null && PluginManager.DirectoriesToSearch.Any(sd => fullPath.StartsWith(sd)))
-                        {
-                            log.Debug($"Assembly '{fullPath}' was not found. Searching again.");
-
-                            // The file is in the search dir but was not searched, 
-                            // it was probably added after we searched, try searching again
-                            PluginManager.SearchAsync(); // start a (new) search
-                            searchedAssemblies = PluginManager.GetSearchedAssemblies();
-                            assembly = searchedAssemblies.FirstOrDefault(a => PathUtils.AreEqual(a.Location, fullPath));
-                        }
-                        if(assembly != null)
-                        {
-                            var otherversions = searchedAssemblies.Where(a => a.Name == assembly.Name).ToList();
-                            if (otherversions.Count > 1)
+                            string fullPath = Path.GetFullPath(def.RelativeDestinationPath);
+                            string dir = Path.GetDirectoryName(fullPath);
+                            
+                            AssemblyData assembly = searchedAssemblies.FirstOrDefault(a => PathUtils.AreEqual(a.Location, fullPath));
+                            
+                            if (assembly != null)
                             {
-                                // if SourcePath is set to a location inside the installation folder, the file will
-                                // be there twice at this point. This is expected.
-                                bool isOtherVersionFromCopy =
-                                    otherversions.Count == 2 &&
-                                    otherversions.Any(a => a.Location == Path.GetFullPath(def.FileName)) &&
-                                    otherversions.Any(a => a.Location == Path.GetFullPath(def.RelativeDestinationPath));
-
-                                if (!isOtherVersionFromCopy)
-                                    log.Warning($"Found assembly '{assembly.Name}' multiple times: \n" + string.Join("\n", otherversions.Select(a => "- " + a.Location).Distinct()));
-                            }
-
-                            if(assembly.PluginTypes != null)
-                            {
-                                foreach (TypeData type in assembly.PluginTypes)
+                                var otherversions = searchedAssemblies.Where(a => a.Name == assembly.Name).ToList();
+                                if (otherversions.Count > 1)
                                 {
-                                    if (type.Attributes.HasFlag(TypeAttributes.Interface) || type.Attributes.HasFlag(TypeAttributes.Abstract))
-                                        continue;
-                                    PluginFile plugin = new PluginFile
-                                    {
-                                        BaseType = string.Join(" | ", type.PluginTypes.Select(t => t.GetBestName())),
-                                        Type = type.FullName,
-                                        Name = type.GetBestName(),
-                                        Description = type.Display != null ? type.Display.Description : "",
-                                        Groups = type.Display != null ? type.Display.Group : null,
-                                        Collapsed = type.Display != null ? type.Display.Collapsed : false,
-                                        Order = type.Display != null ? type.Display.Order : -10000,
-                                        Browsable = type.IsBrowsable,
-                                    };
-                                    def.Plugins.Add(plugin);
+                                    // if SourcePath is set to a location inside the installation folder, the file will
+                                    // be there twice at this point. This is expected.
+                                    bool isOtherVersionFromCopy =
+                                        otherversions.Count == 2 &&
+                                        otherversions.Any(a => a.Location == Path.GetFullPath(def.FileName)) &&
+                                        otherversions.Any(a => a.Location == Path.GetFullPath(def.RelativeDestinationPath));
+
+                                    if (!isOtherVersionFromCopy)
+                                        log.Warning($"Found assembly '{assembly.Name}' multiple times: \n" + string.Join("\n", otherversions.Select(a => "- " + a.Location).Distinct()));
                                 }
+
+                                if (assembly.PluginTypes != null)
+                                {
+                                    foreach (TypeData type in assembly.PluginTypes)
+                                    {
+                                        if (type.TypeAttributes.HasFlag(TypeAttributes.Interface) || type.TypeAttributes.HasFlag(TypeAttributes.Abstract))
+                                            continue;
+                                        PluginFile plugin = new PluginFile
+                                        {
+                                            BaseType = string.Join(" | ", type.PluginTypes.Select(t => t.GetBestName())),
+                                            Type = type.Name,
+                                            Name = type.GetBestName(),
+                                            Description = type.Display != null ? type.Display.Description : "",
+                                            Groups = type.Display != null ? type.Display.Group : null,
+                                            Collapsed = type.Display != null ? type.Display.Collapsed : false,
+                                            Order = type.Display != null ? type.Display.Order : -10000,
+                                            Browsable = type.IsBrowsable,
+                                        };
+                                        def.Plugins.Add(plugin);
+                                    }
+                                }
+                                def.DependentAssemblyNames = assembly.References.ToList();
                             }
-                            def.DependentAssemblyNames = assembly.References.ToList();
+                            else
+                            {
+                                log.Warning($"Could not load plugins for '{fullPath}'");
+                            }
                         }
-                        else
+                        catch (BadImageFormatException)
                         {
-                            log.Warning($"Could not load plugins for '{fullPath}'");
+                            // unable to load file. Ignore this error, it is probably not a .NET dll.
                         }
-                    }
-                    catch (BadImageFormatException)
-                    {
-                        // unable to load file. Ignore this error, it is probably not a .NET dll.
                     }
                 }
             }
@@ -129,78 +112,67 @@ namespace OpenTap.Package
         /// Load from an XML package definition file. 
         /// This file is not expected to have info about the plugins in it, so this method will enumerate the plugins inside each dll by loading them.
         /// </summary>
-        public static PackageDef FromXmlFile(string xmlFilePath, bool findDependencies = true, string ProjectDirectory = null, bool expandVersion = true)
+        public static PackageDef FromInputXml(string xmlFilePath)
         {
             PackageDef.ValidateXml(xmlFilePath);
-            var pkgDef = PackageDef.FromXmlFile(xmlFilePath);
-            if(pkgDef.Files.Any(f => f.HasCustomData<UseVersionData>() && f.HasCustomData<SetAssemblyInfoData>() && !String.IsNullOrEmpty(f.GetCustomData<SetAssemblyInfoData>().Attributes)))
+            var pkgDef = PackageDef.FromXml(xmlFilePath);
+            if(pkgDef.Files.Any(f => f.HasCustomData<UseVersionData>() && f.HasCustomData<SetAssemblyInfoData>()))
                 throw new InvalidDataException("A file cannot specify <SetAssemblyInfo/> and <UseVersion/> at the same time.");
 
             var excludeAdd = pkgDef.Files.Where(file => file.IgnoredDependencies != null).SelectMany(file => file.IgnoredDependencies).Distinct().ToList();
 
             List<Exception> exceptions = new List<Exception>();
-            if (findDependencies || (pkgDef.Version == null && pkgDef.Files.Any(pf => pf.HasCustomData<UseVersionData>()))) // if this is an xml file that has already been through Tap.Package to have its dependencies, version, etc. set, then there is no need for the files to be there now.
+            foreach (PackageFile item in pkgDef.Files)
             {
-                foreach (PackageFile item in pkgDef.Files)
+                string fullPath = Path.GetFullPath(item.FileName);
+                if (!File.Exists(fullPath))
                 {
-                    string fullPath = Path.GetFullPath(item.FileName);
-                    if (!File.Exists(fullPath))
+                    string fileName = Path.GetFileName(item.FileName);
+                    if (File.Exists(fileName))
                     {
-                        string fileName = Path.GetFileName(item.FileName);
-                        if (File.Exists(fileName))
-                        {
-                            // this is to support building everything to the root folder. This way the developer does not have to specify SourcePath.
-                            log.Info("Specified file '{0}' was not found, using file '{1}' as source instead. Consider setting SourcePath to remove this warning.", item.FileName,fileName);
-                            item.SourcePath = fileName;
-                        }
-                        else
-                            exceptions.Add(new FileNotFoundException("", fullPath));
+                        // this is to support building everything to the root folder. This way the developer does not have to specify SourcePath.
+                        log.Info("Specified file '{0}' was not found, using file '{1}' as source instead. Consider setting SourcePath to remove this warning.", item.FileName,fileName);
+                        item.SourcePath = fileName;
                     }
+                    else
+                        exceptions.Add(new FileNotFoundException("", fullPath));
                 }
-                if (exceptions.Count > 0) throw new AggregateException("Missing files", exceptions);
+            }
+            if (exceptions.Count > 0)
+                throw new AggregateException("Missing files", exceptions);
+            
+            pkgDef.Date = DateTime.UtcNow;
+            
+            // Copy to output directory first
+            foreach(var file in pkgDef.Files)
+            {
+                if (file.RelativeDestinationPath != file.FileName)
+                    try
+                    {
+                        var destPath = Path.GetFullPath(file.RelativeDestinationPath);
+                        if (!File.Exists(destPath))
+                        {
+                            Directory.CreateDirectory(Path.GetDirectoryName(destPath));
+                            ProgramHelper.FileCopy(file.FileName, destPath);
+                        }
+                    }
+                    catch
+                    {
+                        // Catching here. The files might be used by themselves
+                    }
             }
 
-            if (expandVersion)
-            {
-                pkgDef.updateVersion(ProjectDirectory);
-            }
-            pkgDef.Date = DateTime.UtcNow.ToString(CultureInfo.InvariantCulture);
-            
-            if (findDependencies)
-            {
-                // Copy to output directory first
-                foreach(var file in pkgDef.Files)
-                {
-                    if (file.RelativeDestinationPath != file.FileName)
-                        try
-                        {
-                            var destPath = Path.GetFullPath(file.RelativeDestinationPath);
-                            if (!File.Exists(destPath))
-                            {
-                                Directory.CreateDirectory(Path.GetDirectoryName(destPath));
-                                ProgramHelper.FileCopy(file.FileName, destPath);
-                            }
-                        }
-                        catch
-                        {
-                            // Catching here. The files might be used by themselves
-                        }
-                }
-            }
+            var searcher = new PluginSearcher();
+            searcher.Search(Directory.GetCurrentDirectory());
+            List<AssemblyData> assemblies = searcher.Assemblies.ToList();
 
             // Enumerate plugins if this has not already been done.
             if (!pkgDef.Files.SelectMany(pfd => pfd.Plugins).Any())
             {
-                foreach (PackageFile item in pkgDef.Files)
-                {
-                    item.EnumeratePlugins();
-                }
+                EnumeratePlugins(pkgDef, assemblies);
             }
-
-            if (findDependencies)
-            {
-                pkgDef.findDependencies(excludeAdd);
-            }
+            
+            pkgDef.findDependencies(excludeAdd, assemblies);
 
             return pkgDef;
         }
@@ -257,7 +229,7 @@ namespace OpenTap.Package
             {
                 foreach (var file in pkg.Files.Where(file => file.HasCustomData<UseVersionData>()))
                 {
-                    pkg.Version = PluginManager.GetSearchedAssemblies().FirstOrDefault(a => Path.GetFullPath(a.Location) == Path.GetFullPath(file.FileName)).SemanticVersion;
+                    pkg.Version = PluginManager.GetSearcher().Assemblies.FirstOrDefault(a => Path.GetFullPath(a.Location) == Path.GetFullPath(file.FileName)).SemanticVersion;
                     break;
                 }
             }
@@ -311,18 +283,15 @@ namespace OpenTap.Package
             }
         }
 
-        internal static void findDependencies(this PackageDef pkg, List<string> excludeAdd)
+        internal static void findDependencies(this PackageDef pkg, List<string> excludeAdd, List<AssemblyData> searchedFiles)
         {
             bool foundNew = false;
 
             var notFound = new HashSet<string>();
-
-            var searcher = new PluginSearcher();
-            searcher.Search(Directory.GetCurrentDirectory());
+            
             // First update the pre-entered dependencies
             var installed = new Installation(Directory.GetCurrentDirectory()).GetPackages().Where(p => p.Name != pkg.Name).ToList();
             
-            var searchedFiles = searcher.Assemblies.ToList();
             List<string> brokenPackageNames = new List<string>();
             var packageAssemblies = new Memorizer<PackageDef, List<AssemblyData>>(pkgDef => pkgDef.Files.SelectMany(f =>
             {
@@ -449,10 +418,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Creates a *.TapPlugin package file from the definition in this PackageDef.
         /// </summary>
-        /// <param name="path">Output file path.</param>
-        /// <param name="path">Project directory.</param>
-        /// <param name="skipObfuscation">Override to disable all obfuscation.</param>
-        static public void CreatePackage(this PackageDef pkg, string path, string projectDir, bool skipObfuscation = false, string prereleaseOverride = null)
+        static public void CreatePackage(this PackageDef pkg, string path, string projectDir, string prereleaseOverride = null)
         {
             foreach (PackageFile file in pkg.Files)
             {
@@ -463,13 +429,28 @@ namespace OpenTap.Package
                 }
             }
 
-            if (skipObfuscation)
+            if (pkg.Files.Any(s => s.HasCustomData<MissingPackageData>()))
             {
-                foreach (PackageFile file in pkg.Files)
+                bool resolved = true;
+                foreach (var file in pkg.Files)
                 {
-                    file.RemoveCustomData<DotfuscatorData>();
-                    file.RemoveCustomData<ObfuscarData>();
+                    while (file.HasCustomData<MissingPackageData>())
+                    {
+                        MissingPackageData missingPackageData = file.GetCustomData<MissingPackageData>().FirstOrDefault();
+                        if (missingPackageData.TryResolve(out ICustomPackageData customPackageData))
+                        {
+                            file.CustomData.Add(customPackageData);
+                        }
+                        else
+                        {
+                            resolved = false;
+                            log.Error($"Missing plugin to handle XML Element '{missingPackageData.XmlElement.Name.LocalName}' on file {file.FileName}. (Line {missingPackageData.GetLine()})");
+                        }
+                        file.CustomData.Remove(missingPackageData);
+                    }
                 }
+                if (!resolved)
+                    throw new ArgumentException("Missing plugins to handle XML elements specified in input package.xml...");
             }
 
             string tempDir = Path.GetTempPath() + Path.GetRandomFileName();
@@ -488,7 +469,7 @@ namespace OpenTap.Package
                 // Sign
                 CustomPackageActionHelper.RunCustomActions(pkg, PackageActionStage.Create, new CustomPackageActionArgs(tempDir, false));
 
-                log.Info("Creating TAP package.");
+                log.Info("Creating OpenTAP package.");
                 pkg.Compress(path, pkg.Files);
             }
             finally
@@ -506,7 +487,7 @@ namespace OpenTap.Package
 
         private static void UpdateVersionInfo(string tempDir, List<PackageFile> files, SemanticVersion version)
         {
-            var features = files.Where(f => f.HasCustomData<SetAssemblyInfoData>()).SelectMany(f => f.GetCustomData<SetAssemblyInfoData>().Attributes.Split(',').Select(str => str.Trim().ToLower())).Distinct().ToHashSet();
+            var features = files.Where(f => f.HasCustomData<SetAssemblyInfoData>()).SelectMany(f => string.Join(",", f.GetCustomData<SetAssemblyInfoData>().Select(a => a.Attributes)).Split(',').Select(str => str.Trim().ToLower())).Distinct().ToHashSet();
 
             if (!features.Any())
                 return;
@@ -521,7 +502,7 @@ namespace OpenTap.Package
                 if (!file.HasCustomData<SetAssemblyInfoData>())
                     continue;
 
-                var toSet = file.GetCustomData<SetAssemblyInfoData>().Attributes.Split(',').Select(str => str.Trim().ToLower()).Distinct().ToHashSet();
+                var toSet = string.Join(",", file.GetCustomData<SetAssemblyInfoData>().Select(a => a.Attributes)).Split(',').Select(str => str.Trim().ToLower()).Distinct().ToHashSet();
 
                 if (!toSet.Any())
                     continue;
@@ -569,20 +550,9 @@ namespace OpenTap.Package
             log.Info(timer,"Updated assembly version info using {0} method.", updateMethod);
         }
 
-        internal static void PruneInformation(this PackageDef def)
-        {
-            foreach (var file in def.Files)
-            {
-                if(!string.IsNullOrWhiteSpace(file.LicenseRequired))
-                    file.LicenseRequired = LicenseBase.FormatFriendly(file.LicenseRequired);
-            }
-        }
-
         /// <summary>
         /// Compresses the files to a zip package.
         /// </summary>
-        /// <param name="outputPath"></param>
-        /// <returns>An instance of TapPackage representing the file.</returns>
         static private void Compress(this PackageDef pkg, string outputPath, IEnumerable<PackageFile> inputPaths)
         {
             var dir = Path.GetDirectoryName(outputPath);

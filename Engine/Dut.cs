@@ -38,7 +38,7 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// User-supplied comment about DUT. Entered in the Bench Settings > Instrument dialog in the TAP GUI.
+        /// User-supplied comment about DUT. Entered in the Bench Settings > Instrument dialog in the OpenTAP GUI.
         /// </summary>
         [Display("Comment", "A comment related to the DUT associated with results in the database.", "Common", Order: 1)]
         [MetaData(true)]

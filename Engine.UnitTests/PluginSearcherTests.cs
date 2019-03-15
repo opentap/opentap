@@ -22,7 +22,7 @@ namespace OpenTap.Engine.UnitTests
             CollectionAssert.AllItemsAreNotNull(searcher.PluginTypes.ToList());
             CollectionAssert.AllItemsAreUnique(searcher.PluginTypes.ToList());
 
-            var instrType = searcher.PluginTypes.FirstOrDefault(st => st.FullName == "OpenTap.IInstrument");
+            var instrType = searcher.PluginTypes.FirstOrDefault(st => st.Name == "OpenTap.IInstrument");
             Assert.IsNotNull(instrType);
             // Test of SearchType.PluginTypes (should be the type itself, as this is IInstrument is a plugin type - it directly implements ITapPlugin)
             Assert.AreEqual(instrType, instrType.PluginTypes.First());
@@ -32,7 +32,7 @@ namespace OpenTap.Engine.UnitTests
             // Test of SearchType.Assembly
             Assert.AreEqual("OpenTap", instrType.Assembly.Name);
 
-            var instrImplType = searcher.PluginTypes.FirstOrDefault(st => st.FullName == "OpenTap.Engine.UnitTests.InstrumentTest");
+            var instrImplType = searcher.PluginTypes.FirstOrDefault(st => st.Name == "OpenTap.Engine.UnitTests.InstrumentTest");
             Assert.IsNotNull(instrImplType);
             // Test of SearchType.PluginTypes
             Assert.AreEqual(1, instrImplType.PluginTypes.Count());
@@ -47,7 +47,7 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(typeof(OpenTap.Engine.UnitTests.InstrumentTest), instrImplType.Load());
             
             // Test of nested class
-            var stepType = searcher.PluginTypes.FirstOrDefault(st => st.FullName == "OpenTap.Engine.UnitTests.TestPlanTestFixture1+TestPlanTestStep");
+            var stepType = searcher.PluginTypes.FirstOrDefault(st => st.Name == "OpenTap.Engine.UnitTests.TestPlanTestFixture1+TestPlanTestStep");
             Assert.IsNotNull(stepType);
 
             CollectionAssert.IsSubsetOf(searcher.PluginTypes.ToList(), searcher.AllTypes.Values);

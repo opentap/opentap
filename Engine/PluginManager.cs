@@ -16,7 +16,7 @@ using Tap.Shared;
 namespace OpenTap
 {
     /// <summary>
-    /// Static class that searches for and loads TAP plugins.
+    /// Static class that searches for and loads OpenTAP plugins.
     /// </summary>
     public static class PluginManager
     {
@@ -72,7 +72,7 @@ namespace OpenTap
         {
             return PluginFetcher.GetPlugins(pluginBaseType);
         }
-        
+
         /// <summary> Class for caching the result of GetPlugins(type).</summary>
         static class PluginFetcher
         {
@@ -149,18 +149,19 @@ namespace OpenTap
 
             foreach (TypeData st in baseType.DerivedTypes)
             {
-                if (st.Attributes.HasFlag(TypeAttributes.Interface) || st.Attributes.HasFlag(TypeAttributes.Abstract))
+                if (st.TypeAttributes.HasFlag(TypeAttributes.Interface) || st.TypeAttributes.HasFlag(TypeAttributes.Abstract))
                     continue;
                 if(shouldLoadAssembly(st.Assembly.Name, st.Assembly.Version))
                     specializations.Add(st);
             }
             return specializations;
         }
-
+        
         /// <summary>
-        /// Searches for plugins if not done already. Blocking, reentrant.
+        /// Returns the <see cref="PluginSearcher"/> used to search for plugins.
+        /// This will search for plugins if not done already (i.e. call and wait for <see cref="PluginManager.SearchAsync()"/>)
         /// </summary>
-        private static PluginSearcher EnsureSearched()
+        public static PluginSearcher GetSearcher()
         {
             lock (implicitSearchLock)
             {
@@ -178,9 +179,9 @@ namespace OpenTap
         /// </summary>
         public static ReadOnlyCollection<TypeData> GetAllPlugins()
         {
-            PluginSearcher searcher = EnsureSearched();
+            PluginSearcher searcher = GetSearcher();
             return searcher.PluginTypes
-                .Where(st => !st.Attributes.HasFlag(TypeAttributes.Interface) && !st.Attributes.HasFlag(TypeAttributes.Abstract))
+                .Where(st => !st.TypeAttributes.HasFlag(TypeAttributes.Interface) && !st.TypeAttributes.HasFlag(TypeAttributes.Abstract))
                 .ToList().AsReadOnly();
         }
 
@@ -198,25 +199,14 @@ namespace OpenTap
         {
             return GetPlugins(typeof(BaseType));
         }
-
-        /// <summary>
-        /// Gets all assemblies that was searched during <see cref="PluginManager.SearchAsync"/>.
-        /// This will search for plugins if not done already (i.e. call and wait for <see cref="PluginManager.SearchAsync()"/>)
-        /// This does not require/cause the assembly containing the type to be loaded.
-        /// </summary>
-        public static IEnumerable<AssemblyData> GetSearchedAssemblies()
-        {
-            PluginSearcher searcher = EnsureSearched();
-            return searcher.Assemblies;
-        }
-
+        
         /// <summary>
         /// Gets the AssembliyData for the OpenTap.dll assembly.
         /// This will search for plugins if not done already (i.e. call and wait for <see cref="PluginManager.SearchAsync()"/>)
         /// </summary>
         public static AssemblyData GetOpenTapAssembly()
         {
-            PluginSearcher searcher = EnsureSearched();
+            PluginSearcher searcher = GetSearcher();
             return searcher.PluginMarkerType.Assembly;
         }
 
@@ -356,7 +346,7 @@ namespace OpenTap
 
         private static Type locateType(string typeName)
         {
-            PluginSearcher searcher = EnsureSearched();
+            PluginSearcher searcher = GetSearcher();
 
             if (string.IsNullOrWhiteSpace(typeName))
                 return null;
@@ -407,7 +397,7 @@ namespace OpenTap
         /// </summary>
         public static TypeData LocateTypeData(string typeName)
         {
-            PluginSearcher searcher = EnsureSearched();
+            PluginSearcher searcher = GetSearcher();
             TypeData type;
             searcher.AllTypes.TryGetValue(typeName, out type);
             return type;
@@ -459,13 +449,7 @@ namespace OpenTap
         }
         #endregion
     }
-
-    /// <summary>
-    /// Classes with this attribute will not have an XML serializer created. Useful for cases where a plugin contains non-serializable members or types.
-    /// </summary>
-    public class IgnoreSerializerAttribute : Attribute
-    {
-    }
+    
 
     class TapAssemblyResolver
     {

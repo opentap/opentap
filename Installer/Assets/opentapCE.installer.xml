@@ -11,8 +11,7 @@
 
   <Extensions>
     <Installer>
-      <ID>0D8A32D8-2873-4EAC-85F0-CAF8A090D03A</ID>
-
+      <ID>B63BFBDD-14E3-49AE-BFF3-ABE2BBA91ADB</ID>
       <Name>OpenTAP 9</Name>
       <DefaultInstallDir>OpenTAP</DefaultInstallDir>
       <Publisher>Keysight Technologies</Publisher>

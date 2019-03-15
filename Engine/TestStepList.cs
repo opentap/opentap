@@ -84,7 +84,7 @@ namespace OpenTap
         private ITestStepParent _Parent;
         /// <summary>
         /// Parent item of type <see cref="ITestStepParent"/> to which this list belongs.
-        /// TestSteps in this list (including TestSteps that are added later) will have this item set as their <see cref="P:Keysight.Tap.ITestStep.Parent"/>.
+        /// TestSteps in this list (including TestSteps that are added later) will have this item set as their <see cref="P:OpenTap.ITestStep.Parent"/>.
         /// </summary>
         public ITestStepParent Parent
         {
@@ -216,8 +216,7 @@ namespace OpenTap
             return toplst.GetStep(guid);
         }
 
-        internal bool CheckInserts = true;
-
+        
         /// <summary>
         /// Inserts an item into the collection at a specified index.
         /// </summary>
@@ -229,15 +228,19 @@ namespace OpenTap
                 throw new ArgumentNullException("item");
             throwIfRunning();
 
-            if (CheckInserts){ // check if step GUIDs (also for child steps) already exists. If so then replace.
-                var childsteps = Utils.FlattenHeirarchy(new ITestStep[] { item }, (step) => step.ChildTestSteps);
-                foreach (var step in childsteps)
+            var childsteps = Utils.FlattenHeirarchy(new ITestStep[] { item }, (step) => step.ChildTestSteps);
+
+            foreach (var step in childsteps)
+            {
+                var existingstep = findStepWithGuid(step.Id);
+                if (existingstep != null)
                 {
-                    var existingstep = findStepWithGuid(step.Id);
-                    if (existingstep != null && existingstep != step)
-                        step.Id = Guid.NewGuid();
+                    if (existingstep == step)
+                        throw new InvalidOperationException("Step already exists in the plan");
+                    step.Id = Guid.NewGuid();
                 }
             }
+
             // Parent can be null if the list is being loaded from XML, in that case we 
             // set the parent property of the children in the setter of the Parent property
             if (Parent != null)

@@ -65,7 +65,7 @@ namespace OpenTap.Engine.UnitTests
                 var theDuts = Enumerable.Range(0, 10).Select(number => new IsOpenedDut()).ToArray();
 
                 step.ChildTestSteps.Add(new IsOpenUsedTestStep() { Resource = new IsOpenedDut() });
-                step.SweepParameters.Add(new OpenTap.Plugins.BasicSteps.SweepParam(new IMemberInfo[] { CSharpTypeInfo.Create(typeof(IsOpenUsedTestStep)).GetMember("Resource") }, theDuts));
+                step.SweepParameters.Add(new OpenTap.Plugins.BasicSteps.SweepParam(new IMemberData[] { TypeData.FromType(typeof(IsOpenUsedTestStep)).GetMember("Resource") }, theDuts));
                 var plan = new TestPlan();
                 plan.PrintTestPlanRunSummary = true;
                 plan.ChildTestSteps.Add(step);
@@ -105,7 +105,7 @@ namespace OpenTap.Engine.UnitTests
             var ds = new SweepTestStep();
 
             sl.ChildTestSteps.Add(ds);
-            sl.SweepParameters.Add(new SweepParam(new[] { TypeInfo.GetTypeInfo(ds).GetMember("SweepProp") }, 2, 5));
+            sl.SweepParameters.Add(new SweepParam(new[] { TypeData.GetTypeData(ds).GetMember("SweepProp") }, 2, 5));
 
             tp.ChildTestSteps.Add(sl);
 
@@ -122,13 +122,8 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(7, SweepTestStep.Value);
         }
 
-        [Test]
-        public void RunSweepRangeWithInterruptions()
-        {
-            RunSweepWithInterruptions(true);
-            RunSweepWithInterruptions(false);
-        }
-
+        [TestCase(true)]
+        [TestCase(false)]
         public void RunSweepWithInterruptions(bool loopRange)
         {
             IEnumerable<int> check;
@@ -140,7 +135,7 @@ namespace OpenTap.Engine.UnitTests
                 sweepRange.SweepStart = 10;
                 sweepRange.SweepEnd = 30;
                 sweepRange.SweepStep = 1;
-                sweepRange.SweepProperties = new List<IMemberInfo>() { CSharpTypeInfo.Create(typeof(SweepTestStep)).GetMember("SweepProp") };
+                sweepRange.SweepProperties = new List<IMemberData>() { TypeData.FromType(typeof(SweepTestStep)).GetMember("SweepProp") };
                 sweep = sweepRange;
                 check = Enumerable.Range(10, (int)(sweepRange.SweepEnd - sweepRange.SweepStart + 1));
             }
@@ -149,7 +144,7 @@ namespace OpenTap.Engine.UnitTests
                 check = Enumerable.Range(10, 20);
                 var sweepRange = new SweepLoop();
                 var lst = new List<SweepParam>();
-                lst.Add(new SweepParam(new[] { CSharpTypeInfo.Create(typeof(SweepTestStep)).GetMember("SweepProp") }, check.Cast<object>().ToArray()));
+                lst.Add(new SweepParam(new[] { TypeData.FromType(typeof(SweepTestStep)).GetMember("SweepProp") }, check.Cast<object>().ToArray()));
                 sweepRange.SweepParameters = lst;
                 sweep = sweepRange;
             }
@@ -212,7 +207,7 @@ namespace OpenTap.Engine.UnitTests
             plan.ChildTestSteps.Add(repeat1);
 
             checkif.InputVerdict.Step = setVer;
-            checkif.InputVerdict.Property = CSharpTypeInfo.Create(typeof(TestStep)).GetMember(nameof(TestStep.Verdict));
+            checkif.InputVerdict.Property = TypeData.FromType(typeof(TestStep)).GetMember(nameof(TestStep.Verdict));
 
 
 
@@ -237,7 +232,7 @@ namespace OpenTap.Engine.UnitTests
         public void RepeatWithReferenceOutsideStep()
         {
             var stream = File.OpenRead("TestTestPlans\\whiletest.TapPlan");
-            TestPlan plan = (TestPlan)new TapSerializer().Deserialize(stream, type: typeof(TestPlan));
+            TestPlan plan = (TestPlan)new TapSerializer().Deserialize(stream, type: TypeData.FromType(typeof(TestPlan)));
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Pass, run.Verdict);
         }

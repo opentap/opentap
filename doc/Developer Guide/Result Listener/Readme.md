@@ -1,6 +1,6 @@
 Result Listener
 ===============
-TAP comes with a number of predefined result listeners, summarized in the following table.
+OpenTAP comes with a number of predefined result listeners, summarized in the following table.
 
 | **Group** | **Name** | **Description** |
 | ----  | ---- |-------- |
@@ -10,17 +10,17 @@ TAP comes with a number of predefined result listeners, summarized in the follow
 | **Text**       | **CSV**   | Stores results into a CSV file. Supported delimiters are semicolon (to avoid conflicts with commas in VISA addresses), comma and tab.|
 |  **Text**              | **Log**   | Stores log messages (NOT results) into a log file. One file is created for each test plan run. |
 
-TAP also supports custom results listeners.
+OpenTAP also supports custom results listeners.
 
 ## Custom Result Listeners
 
-A custom result listener stores the data in a "custom" way. For example, if TAP is to be deployed in a manufacturing shop that has a preexisting data storage system, you can create a custom result listener to interface with that system.
+A custom result listener stores the data in a "custom" way. For example, if OpenTAP is to be deployed in a manufacturing shop that has a preexisting data storage system, you can create a custom result listener to interface with that system.
 
-To create a custom result listener, make a new public class which extends the Tap.ResultListener class. The ResultListener class has virtual methods that are called during test plan execution. Implement only those that are needed for the specific ResultListener implementation. The SDK includes an ExampleResultListener that places a summary of any ResultTables into the log. 
+To create a custom result listener, make a new public class which extends the OpenTAP.ResultListener class. The ResultListener class has virtual methods that are called during test plan execution. Implement only those that are needed for the specific ResultListener implementation. The SDK includes an ExampleResultListener that places a summary of any ResultTables into the log. 
 
 For examples, see:
 
--	`TAP_PATH\SDK Examples\PluginDevelopment\ResultListeners`
+-	`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\ResultListeners`
 
 When extending the ResultListener class, the following methods can be overwritten:
 
@@ -30,7 +30,7 @@ When extending the ResultListener class, the following methods can be overwritte
 -	`public override void OnTestStepRunCompleted(TestStepRun stepRun)`
 -	`public override void OnTestPlanRunCompleted(TestPlanRun planRun, Stream logStream)`
 
-These methods are called by the test plan execution engine and are guaranteed to be called in a certain order:
+These methods are called by OpenTAP and are guaranteed to be called in a certain order:
 
 1.	**OnTestPlanRunStart** - Called when the test plan starts and all resources have been opened (including Result Listeners). It takes a TestPlanRun argument, containing parameters for the plan run. 
 2. **OnTestStepRunStart** - Called for each step when the step execution starts.
@@ -48,7 +48,7 @@ The five methods described here run on a separate thread, and do NOT run synchro
 
 It is possible to abort the test plan execution in case the result listener fails or encounters an error.  This is done by calling the TestPlanRun.RequestAbort() method.
 
-## TAP SQL Database
+## OpenTAP SQL Database
 Interacting with the predefined databases or interfacing to an unsupported database requires DB knowledge. 
 
 When the user runs a test plan for the first time, the entire test plan file (XML) is automatically compressed and saved together with the test plan name in the Attachment database table, seen in the figure below. At the same time, the given test plan run is registered in the TestRun table, with time of execution and a reference to the test plan saved in the Attachment table. The log file of the test plan run is stored in the same table.
@@ -57,7 +57,7 @@ The TestRun table gets a new entry for each executed step in the test plan. The 
 
 Lastly, ResultSeries is pointed to by the Results table, so that each row in ResultSeries can have many results belonging to it.
 
-The TAP database schema consists of 11 tables, shown in the following diagram. You should explore the schema of the sample databases before attempting to write a new result listener targeting a new database.
+The OpenTAP database schema consists of 11 tables, shown in the following diagram. You should explore the schema of the sample databases before attempting to write a new result listener targeting a new database.
 
 ![](DatabaseDiagram.PNG)
 

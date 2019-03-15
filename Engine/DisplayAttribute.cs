@@ -10,7 +10,7 @@ namespace OpenTap
     /// Defines how a property, class, enum, or other item is presented to the user. 
     /// Also configures the description and allows items to be grouped and ordered.
     /// </summary>
-    public class DisplayAttribute : Attribute
+    public class DisplayAttribute : Attribute, IAnnotation
     {
         /// <summary> Optional text that provides a description of the item. 
         /// Consider using HelpLinkAttribute if a link to documentation is needed. 
@@ -39,12 +39,18 @@ namespace OpenTap
         /// </summary>
         public bool Collapsed { get; private set; }
 
+        string fullName = null;
         /// <summary> Gets the Group (or Groups) and Name concatenated with a backslash (\).</summary>
         public string GetFullName()
         {
-            if(Group.Length == 0)
-                return Name;
-            return string.Join(" \\ ", Group.Append(Name));
+            if(fullName == null)
+            {
+                if (Group.Length == 0)
+                    fullName = Name;
+                else
+                    fullName = string.Join(" \\ ", Group.Append(Name));
+            }
+            return fullName;
         }
 
         /// <summary>

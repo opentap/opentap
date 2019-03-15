@@ -17,14 +17,14 @@ namespace OpenTap.Package.UnitTests
         Signature me = new Signature("Me", "me@opentap.io", DateTime.Now);
         MergeOptions noFastForward = new MergeOptions { FastForwardStrategy = FastForwardStrategy.NoFastForward };
 
-        void commitChangesToReadme(Repository repo, string newContent, string commitMessage)
+        void commitChangesToReadme(LibGit2Sharp.Repository repo, string newContent, string commitMessage)
         {
             File.WriteAllText(repo.Info.WorkingDirectory + "readme.md", newContent);
             Commands.Stage(repo, repo.Info.WorkingDirectory + "readme.md");
             repo.Commit(commitMessage, me, me);
         }
 
-        void commitChangesToGitVersionFile(Repository repo, string version, string commitMessage)
+        void commitChangesToGitVersionFile(LibGit2Sharp.Repository repo, string version, string commitMessage)
         {
             string filePath = Path.Combine(repo.Info.WorkingDirectory, ".gitversion");
             using (StreamWriter file = new StreamWriter(filePath))
@@ -37,13 +37,13 @@ namespace OpenTap.Package.UnitTests
         }
 
         [DebuggerStepThrough]
-        void verifyVersion(Repository repo, int major, int minor, int patch, string prerelease, string branchName = "")
+        void verifyVersion(LibGit2Sharp.Repository repo, int major, int minor, int patch, string prerelease, string branchName = "")
         {
             verifyVersion(repo, repo.Head.Tip, major, minor, patch, prerelease, branchName);
         }
 
         [DebuggerStepThrough]
-        void verifyVersion(Repository repo, Commit c, int major, int minor, int patch, string prerelease, string branchName = null)
+        void verifyVersion(LibGit2Sharp.Repository repo, Commit c, int major, int minor, int patch, string prerelease, string branchName = null)
         {
             var metadata = c.Sha.Substring(0, 8);  // (note: hashes will differ each time this is run)
             if (!String.IsNullOrEmpty(branchName))
@@ -59,7 +59,7 @@ namespace OpenTap.Package.UnitTests
             }
         }
 
-        Repository repo;
+        LibGit2Sharp.Repository repo;
         [SetUp]
         public void InitTestRepo()
         {
@@ -67,7 +67,7 @@ namespace OpenTap.Package.UnitTests
             FileSystemHelper.DeleteDirectory(repoPath);
             Directory.CreateDirectory(repoPath);
             LibGit2Sharp.Repository.Init(repoPath);
-            repo = new Repository(repoPath);
+            repo = new LibGit2Sharp.Repository(repoPath);
         }
 
         [TearDown]
@@ -248,10 +248,10 @@ namespace OpenTap.Package.UnitTests
             repo.CreateBranch("feature");
             Commands.Checkout(repo, "feature");
             commitChangesToGitVersionFile(repo, "1.0.0", "Added .gitversion file with version = 1.0.0");
-            verifyVersion(repo, 1, 0, 0, "alpha.1","feature");
+            verifyVersion(repo, 1, 0, 0, "alpha.1.1","feature");
             Commands.Checkout(repo, "master");
             repo.Merge("feature", me, noFastForward);
-            verifyVersion(repo, 1, 0, 0, "beta.2");
+            verifyVersion(repo, 1, 0, 0, "beta.1");
         }
     }
 }

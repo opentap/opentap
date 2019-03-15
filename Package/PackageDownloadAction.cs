@@ -21,16 +21,16 @@ namespace OpenTap.Package
         [CommandLineArgument("dependencies", Description = "Download dependencies without asking.", ShortName = "y")]
         public bool InstallDependencies { get; set; }
 
-        [CommandLineArgument("repository", Description = "Search this repository for packages instead of using\nsettings from 'Package Manager.xml'.", ShortName = "r")]
+        [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
-        [CommandLineArgument("version", Description = "Specify a version string that the package must be compatible with.\nTo specify a version that has to match exactly start the number with '!'. E.g. \"!8.1.319-beta\".")]
+        [CommandLineArgument("version", Description = CommandLineArgumentVersionDescription)]
         public string Version { get; set; }
 
-        [CommandLineArgument("os", Description = "Override which OS to target.")]
+        [CommandLineArgument("os", Description = CommandLineArgumentOsDescription)]
         public string OS { get; set; }
 
-        [CommandLineArgument("architecture", Description = "Override which CPU to target.")]
+        [CommandLineArgument("architecture", Description = CommandLineArgumentArchitectureDescription)]
         public CpuArchitecture Architecture { get; set; }
 
         [UnnamedCommandLineArgument("packages", Required = true)]
@@ -69,8 +69,16 @@ namespace OpenTap.Package
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
             string destinationDir = Target ?? Directory.GetCurrentDirectory();
+            Installation destinationInstallation = new Installation(destinationDir);
+
+            List<IPackageRepository> repositories = new List<IPackageRepository>();
+
+            if (Repository == null)
+                repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager).ToList());
+            else
+                repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
             
-            List<PackageDef> PackagesToDownload = PackageActionHelpers.GatherPackagesAndDependencyDefs(PackageCacheHelper.PackageCacheDirectory, destinationDir, PackageReferences, Packages, Version, Architecture, OS, Repository, ForceInstall, InstallDependencies, false);
+            List<PackageDef> PackagesToDownload = PackageActionHelpers.GatherPackagesAndDependencyDefs(destinationInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, ForceInstall, InstallDependencies, false);
 
             if (PackagesToDownload == null)
                 return 2;

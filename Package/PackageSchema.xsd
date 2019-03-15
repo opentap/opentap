@@ -14,7 +14,7 @@
 
   <xs:complexType name="FileType">
     <xs:sequence>
-      <xs:any minOccurs="0" maxOccurs="unbounded" namespace="##any" processContents="lax" />
+      <xs:any minOccurs="0" maxOccurs="unbounded" namespace="##any" processContents="skip" />
     </xs:sequence>
     
     <xs:attribute name="Path" type="xs:string" use="required"/>

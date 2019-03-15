@@ -9,6 +9,7 @@ using System.IO;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.Text;
+using System.Reflection;
 
 namespace OpenTap
 {
@@ -81,6 +82,15 @@ namespace OpenTap
         public static string CreateTempFile()
         {
             return Path.Combine(System.IO.Path.GetTempPath(), Path.GetRandomFileName());
+        }
+
+        public static string GetCurrentInstallationDirectory()
+        {
+            if (Assembly.GetEntryAssembly() != null)
+            {
+                return Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+            }
+            return Path.GetDirectoryName(typeof(PluginManager).Assembly.Location);
         }
 
         /// <summary>

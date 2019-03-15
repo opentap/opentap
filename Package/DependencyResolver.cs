@@ -5,6 +5,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -34,32 +35,28 @@ namespace OpenTap.Package
         /// Instantiates a new dependency resolver.
         /// </summary>
         /// <param name="packages">The packages to resolve dependencies for.</param>
-        /// <param name="installed">The list of installed packages. If set to null it will get the list of the install in the used directory.</param>
-        public DependencyResolver(IEnumerable<PackageDef> packages, IEnumerable<PackageDef> installed = null)
+        /// <param name="tapInstallation">The tap installation containing installed packages.</param>
+        /// <param name="repositories">The repositories to use for resolving dependencies</param>
+        public DependencyResolver(Installation tapInstallation, IEnumerable<PackageDef> packages, List<IPackageRepository> repositories)
         {
-            if (installed != null)
-                InstalledPackages = installed.ToDictionary(pkg => pkg.Name);
-            else
-            {
-                InstalledPackages = new Dictionary<string, PackageDef>();
-                foreach (var pkg in new Installation(Directory.GetCurrentDirectory()).GetPackages())
-                    InstalledPackages[pkg.Name] = pkg;
-            }
+            InstalledPackages = new Dictionary<string, PackageDef>();
+            foreach (var pkg in tapInstallation.GetPackages())
+                InstalledPackages[pkg.Name] = pkg;
 
-            resolve(packages);
+            resolve(repositories, packages);
         }
 
-        private void resolve(IEnumerable<PackageDef> packages)
+        private void resolve(List<IPackageRepository> repositories, IEnumerable<PackageDef> packages)
         {
             var firstleveldependencies = packages.SelectMany(pkg => pkg.Dependencies.Select(dep => new { Dependency = dep, Architecture = pkg.Architecture, OS = pkg.OS }));
             Dependencies.AddRange(packages);
             foreach (var dependency in firstleveldependencies)
             {
-                GetDependenciesRecursive(dependency.Dependency, dependency.Architecture, dependency.OS);
+                GetDependenciesRecursive(repositories, dependency.Dependency, dependency.Architecture, dependency.OS);
             }
         }
 
-        private void GetDependenciesRecursive(PackageDependency dependency, CpuArchitecture packageArchitecture, string OS)
+        private void GetDependenciesRecursive(List<IPackageRepository> repositories, PackageDependency dependency, CpuArchitecture packageArchitecture, string OS)
         {
             if (Dependencies.Any(p => (p.Name == dependency.Name) &&
                 dependency.Version.IsCompatible(p.Version) &&
@@ -68,7 +65,7 @@ namespace OpenTap.Package
             PackageDef depPkg = GetPackageDefFromInstallation(dependency.Name, dependency.Version, packageArchitecture, OS);
             if (depPkg == null)
             {
-                depPkg = GetPackageDefFromRepo(dependency.Name, dependency.Version, packageArchitecture, OS);
+                depPkg = GetPackageDefFromRepo(repositories, dependency.Name, dependency.Version, packageArchitecture, OS);
                 MissingDependencies.Add(depPkg);
             }
             if (depPkg == null)
@@ -79,7 +76,7 @@ namespace OpenTap.Package
             Dependencies.Add(depPkg);
             foreach (var nextLevelDep in depPkg.Dependencies)
             {
-                GetDependenciesRecursive(nextLevelDep, packageArchitecture, OS);
+                GetDependenciesRecursive(repositories, nextLevelDep, packageArchitecture, OS);
             }
         }
 
@@ -100,12 +97,12 @@ namespace OpenTap.Package
             return null;
         }
 
-        private static PackageDef GetPackageDefFromRepo(string name, VersionSpecifier version, CpuArchitecture pluginArchitecture, string OS)
+        private static PackageDef GetPackageDefFromRepo(List<IPackageRepository> repositories, string name, VersionSpecifier version, CpuArchitecture pluginArchitecture, string OS)
         {
             if (name.ToLower().EndsWith(".tappackage"))
                 name = Path.GetFileNameWithoutExtension(name);
 
-            var packages =  PackageRepositoryHelpers.GetPackagesFromAllRepos(new PackageSpecifier(name, version, pluginArchitecture, OS));
+            var packages =  PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, new PackageSpecifier(name, version, pluginArchitecture, OS));
 
             return packages.OrderByDescending(pkg => pkg.Version).FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, pluginArchitecture));
         }

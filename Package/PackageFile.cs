@@ -86,7 +86,7 @@ namespace OpenTap.Package
         }
 
         /// <summary>
-        /// Relative location of file ( to TAP folder).
+        /// Relative location of file ( to OpenTAP folder).
         /// </summary>
         [XmlAttribute("Path")]
         public string RelativeDestinationPath { get; set; }
@@ -189,7 +189,7 @@ namespace OpenTap.Package
 
     public enum CpuArchitecture
     {
-        Unknown,
+        Unspecified,
 
         AnyCPU,
 
@@ -231,10 +231,10 @@ namespace OpenTap.Package
         public string InfoLink { get; set; }
 
         /// <summary>
-        /// The date that the package was build.
+        /// The date that the package was build. Defaults to DateTime.MinValue if no date is specified in package.xml
         /// </summary>
         [XmlAttribute]
-        public string Date { get; set; }
+        public DateTime Date { get; set; }
 
         /// <summary>
         /// The file type of this package. Either 'application' or 'tappackage'. Default is 'tappackage'.
@@ -250,34 +250,14 @@ namespace OpenTap.Package
         [DefaultValue("package")]
         public string Class { get; set; }
 
-        public bool IsBundle()
+        internal bool IsBundle()
         {
-            return string.Compare(Class, "bundle", StringComparison.InvariantCultureIgnoreCase) == 0 ||
-                   string.Compare(Class, "solution", StringComparison.InvariantCultureIgnoreCase) == 0;
+            return Class.ToLower() == "bundle" || Class.ToLower() == "solution";
         }
 
-        public bool IsSystemWide()
+        internal bool IsSystemWide()
         {
-            return string.Compare(Class, "system-wide", StringComparison.InvariantCultureIgnoreCase) == 0;
-        }
-                
-        public bool IsPlatformCompatible(CpuArchitecture selectedArch = CpuArchitecture.Unknown, string selectedOS = null)
-        {
-            var cpu = selectedArch == CpuArchitecture.Unknown ? ArchitectureHelper.HostArchitecture : selectedArch;
-            var os = selectedOS ?? RuntimeInformation.OSDescription;
-
-            if (ArchitectureHelper.CompatibleWith(cpu, Architecture) == false)
-                return false;
-
-            if (IsOsCompatible(os) == false)
-                return false;
-            
-            return true;
-        }
-
-        private bool IsOsCompatible(string os)
-        {
-            return string.IsNullOrWhiteSpace(OS) || string.IsNullOrWhiteSpace(os) || OS.ToLower().Split(',').Any(os.ToLower().Contains) || os.Split(',').Intersect(OS.Split(','), StringComparer.OrdinalIgnoreCase).Any();
+            return Class.ToLower() == "system-wide";
         }
 
         /// <summary>
@@ -289,19 +269,7 @@ namespace OpenTap.Package
             get;
             set;
         }
-
-        /// <summary>
-        /// Returns the BuildDate as a <seealso cref="DateTime"/>.
-        /// </summary>
-        public DateTime? GetDate()
-        {
-            DateTime date;
-            if (DateTime.TryParse(Date, out date))
-                return date;
-            else
-                return null;
-        }
-
+        
         /// <summary>
         /// A list of files contained in this package.
         /// </summary>
@@ -315,7 +283,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Creates a new packagedef.
         /// </summary>
-        public PackageDef()
+        internal PackageDef()
         {
             Files = new List<PackageFile>();
             PackageActionExtensions = new List<ActionStep>();
@@ -338,12 +306,12 @@ namespace OpenTap.Package
         /// </summary>
         /// <param name="stream"></param>
         /// <returns></returns>
-        public static PackageDef LoadFrom(Stream stream)
+        public static PackageDef FromXml(Stream stream)
         {
             stream = ConvertXml(stream);
 
             var serializer = new TapSerializer();
-            return (PackageDef)serializer.Deserialize(stream, type: typeof(PackageDef));
+            return (PackageDef)serializer.Deserialize(stream, type: TypeData.FromType(typeof(PackageDef)));
         }
 
         static Stream ConvertXml(Stream stream)
@@ -388,7 +356,6 @@ namespace OpenTap.Package
         /// <summary>
         /// Writes this package definition to a file.
         /// </summary>
-        /// <param name="stream"></param>
         public static void SaveManyTo(Stream stream, IEnumerable<PackageDef> packages)
         {
             XDocument xdoc = new XDocument();
@@ -414,7 +381,7 @@ namespace OpenTap.Package
             xdoc.Save(stream);
         }
 
-        public static IEnumerable<PackageDef> LoadManyFrom(Stream stream)
+        public static IEnumerable<PackageDef> ManyFromXml(Stream stream)
         {
             var root = XElement.Load(stream);
             List<PackageDef> packages = new List<PackageDef>();
@@ -426,7 +393,7 @@ namespace OpenTap.Package
                     {
                         (node as XElement).Save(str);
                         str.Seek(0, 0);
-                        packages.Add(PackageDef.LoadFrom(str));
+                        packages.Add(PackageDef.FromXml(str));
                     }
                     else
                     {
@@ -443,15 +410,7 @@ namespace OpenTap.Package
         /// <param name="path">Path to a *.TapPackage file</param>
         public static PackageDef FromPackage(string path)
         {
-            string metaFilePath = PluginInstaller.FilesInPackage(path).FirstOrDefault(p => p.Contains(PackageDef.PackageDefDirectory) && p.EndsWith(PackageDef.PackageDefFileName));
-            if (String.IsNullOrEmpty(metaFilePath))
-            {
-                // for TAP 8.x support, we could remove when 9.0 is final, and packages have been migrated.
-                metaFilePath = PluginInstaller.FilesInPackage(path).FirstOrDefault(p => (p.Contains("package/") || p.Contains("Package Definitions/")) && p.EndsWith("package.xml"));
-                if (String.IsNullOrEmpty(metaFilePath))
-                    throw new IOException("No metadata found in package " + path);
-            }
-
+            string metaFilePath = GetMetadataFromPackage(path);
 
             PackageDef pkgDef;
             using (Stream metaFileStream = new MemoryStream(1000))
@@ -459,7 +418,7 @@ namespace OpenTap.Package
                 if (!PluginInstaller.UnpackageFile(path, metaFilePath, metaFileStream))
                     throw new Exception("Failed to extract package metadata from package.");
                 metaFileStream.Seek(0, SeekOrigin.Begin);
-                pkgDef = PackageDef.LoadFrom(metaFileStream);
+                pkgDef = PackageDef.FromXml(metaFileStream);
             }
             //pkgDef.updateVersion();
             pkgDef.Location = Path.GetFullPath(path);
@@ -507,10 +466,10 @@ namespace OpenTap.Package
             ValidateXmlDefinitionFile(path, false);
         }
 
-        public static PackageDef FromXmlFile(string path)
+        public static PackageDef FromXml(string path)
         {
             using (var stream = File.OpenRead(path))
-                return PackageDef.LoadFrom(stream);
+                return PackageDef.FromXml(stream);
         }
 
         public static XmlSchemaSet GetXmlSchema()
@@ -541,7 +500,6 @@ namespace OpenTap.Package
         /// <summary>
         /// Throws InvalidDataException if the xml in the file does not conform to the schema. Also prints an error to stderr
         /// </summary>
-        /// <param name="path"></param>
         private static void ValidateXmlDefinitionFile(string xmlFilePath, bool verbose = true)
         {
             XmlReaderSettings settings = new XmlReaderSettings();
@@ -587,12 +545,81 @@ namespace OpenTap.Package
         /// </summary>
         public static string SystemWideInstallationDirectory { get => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Keysight", "TAP"); }
         public const string PackageDefFileName = "package.xml";
-        internal static string GetPackageDefinitionInstallPath(PackageDef pkg)
+
+        internal static string GetDefaultPackageMetadataPath(PackageDef pkg)
         {
             string installationRootDir = Directory.GetCurrentDirectory();
             if (pkg.IsSystemWide())
                 installationRootDir = PackageDef.SystemWideInstallationDirectory;
-            return String.Join("/", installationRootDir, PackageDef.PackageDefDirectory, pkg.Name, PackageDef.PackageDefFileName); // don't use Path.Combine, as that might create \ which makes the package unable to install on linux
+            return GetDefaultPackageMetadataPath(pkg.Name, installationRootDir);
+        }
+
+        internal static string GetDefaultPackageMetadataPath(string name, string installationDir = null)
+        {
+            if (installationDir == null)
+                installationDir = FileSystemHelper.GetCurrentInstallationDirectory();
+
+            return String.Join("/", installationDir, PackageDef.PackageDefDirectory, name, PackageDef.PackageDefFileName); // don't use Path.Combine, as that might create \ which makes the package unable to install on linux
+        }
+
+        internal static List<string> GetPackageMetadataFilesInTapInstallation(string tapPath)
+        {
+            List<string> metadatas = new List<string>();
+
+            // this way of seaching for package.xml files will find them both in their 8.x 
+            // location (Package Definitions/<PkgName>.package.xml) and in their new 9.x
+            // location (Packages/<PkgName>/package.xml)
+
+            // Add 9.x packages in "Packages" folder
+            string packageDir = Path.GetFullPath(Path.Combine(tapPath, PackageDefDirectory));
+
+            Directory.CreateDirectory(packageDir);
+            foreach (var dir in Directory.EnumerateDirectories(packageDir).Select(s => new DirectoryInfo(s).Name))
+            {
+                if (File.Exists(GetDefaultPackageMetadataPath(dir, tapPath)))
+                    metadatas.Add(GetDefaultPackageMetadataPath(dir, tapPath));
+            }
+
+            // Add backwards compatibility by adding packages in "Package Definitions" folder
+            var packageDir8x = Path.GetFullPath(Path.Combine(tapPath, "Package Definitions"));
+            if (Directory.Exists(packageDir8x))
+                metadatas.AddRange(Directory.GetFiles(packageDir8x, "*.package.xml"));
+
+            return metadatas;
+        }
+
+        internal static List<string> GetSystemWidePackages()
+        {
+            List<string> metadatas = new List<string>();
+
+            // Add 9.x packages in "Packages" folder
+            var systemWidePackageDir = Path.Combine(PackageDef.SystemWideInstallationDirectory, PackageDef.PackageDefDirectory);
+            if (Directory.Exists(systemWidePackageDir))
+                metadatas.AddRange(Directory.GetFiles(systemWidePackageDir, "*" + PackageDef.PackageDefFileName, SearchOption.AllDirectories));
+
+            // Add backwards compatibility by adding packages in "Package Definitions" folder
+            var systemWidePackageDir8x = Path.Combine(PackageDef.SystemWideInstallationDirectory, "Package Definitions");
+            if (Directory.Exists(systemWidePackageDir8x))
+                metadatas.AddRange(Directory.GetFiles(systemWidePackageDir8x, "*.package.xml"));
+
+            return metadatas;
+        }
+
+        internal static string GetMetadataFromPackage(string path)
+        {
+            var filesInPackage = PluginInstaller.FilesInPackage(path);
+            string metaFilePath = PluginInstaller.FilesInPackage(path)
+                .Where(p => p.Contains(PackageDef.PackageDefDirectory) && p.EndsWith(PackageDef.PackageDefFileName))
+                .OrderBy(p => p.Length).FirstOrDefault(); // Find the xml file in the most top level
+            if (String.IsNullOrEmpty(metaFilePath))
+            {
+                // for TAP 8.x support, we could remove when 9.0 is final, and packages have been migrated.
+                metaFilePath = PluginInstaller.FilesInPackage(path).FirstOrDefault(p => (p.Contains("package/") || p.Contains("Package Definitions/")) && p.EndsWith("package.xml"));
+                if (String.IsNullOrEmpty(metaFilePath))
+                    throw new IOException("No metadata found in package " + path);
+            }
+
+            return metaFilePath;
         }
     }
 
@@ -612,7 +639,7 @@ namespace OpenTap.Package
     /// </summary>
     public class ArchitectureHelper
     {
-        private static CpuArchitecture hostPlatform = CpuArchitecture.Unknown;
+        private static CpuArchitecture hostPlatform = CpuArchitecture.Unspecified;
 
         static ArchitectureHelper()
         {
@@ -660,8 +687,10 @@ namespace OpenTap.Package
                 if ((HostArchitecture == CpuArchitecture.arm) || (HostArchitecture == CpuArchitecture.arm64)) currentArchitecture = HostArchitecture;
 
                 // And finally try to use the actual information in the package xml.
-                var basePackage = new Installation(Directory.GetCurrentDirectory()).GetPackages().FirstOrDefault(pp => pp.Files.Select(file => Path.GetFileName(file.FileName).ToLower()).Distinct().Contains(Path.GetFileName(typeof(PackageAction).Assembly.Location).ToLower()));
-                if (basePackage != null) currentArchitecture = basePackage.Architecture;
+                var installDir = Path.GetDirectoryName(typeof(PluginManager).Assembly.Location);
+                if(File.Exists(PackageDef.GetDefaultPackageMetadataPath("OpenTap", installDir))){
+                    currentArchitecture = PackageDef.FromXml(PackageDef.GetDefaultPackageMetadataPath("OpenTap", installDir)).Architecture;
+                }
 
                 return currentArchitecture;
             }
@@ -675,7 +704,7 @@ namespace OpenTap.Package
         /// <returns></returns>
         public static bool CompatibleWith(CpuArchitecture host, CpuArchitecture plugin)
         {
-            if (plugin == CpuArchitecture.AnyCPU || (host == CpuArchitecture.Unknown)) return true; // TODO: Figure out if this should be allowed in the long term
+            if (plugin == CpuArchitecture.AnyCPU || (host == CpuArchitecture.Unspecified)) return true; // TODO: Figure out if this should be allowed in the long term
             if (plugin == CpuArchitecture.AnyCPU) return true;
 
             if ((host == CpuArchitecture.x64) && (plugin == CpuArchitecture.x86)) return true;

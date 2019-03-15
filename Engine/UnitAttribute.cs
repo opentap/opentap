@@ -7,10 +7,10 @@ using System;
 namespace OpenTap
 {
     /// <summary>
-    /// Identfies that units should be assigned to a property.
+    /// Identifies that units should be assigned to a property.
     /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
-    public class UnitAttribute : Attribute
+    public class UnitAttribute : Attribute, IAnnotation
     {
         /// <summary>
         /// The unit e.g "Hz".

@@ -24,7 +24,7 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void InputBasicTests()
         {
-            var prop = CSharpTypeInfo.Create(typeof(DelayStep)).GetMember(nameof(DelayStep.DelaySecs));
+            var prop = TypeData.FromType(typeof(DelayStep)).GetMember(nameof(DelayStep.DelaySecs));
             DelayStep delay = new DelayStep();
             Input<double> secs = new Input<double>() { Step = delay, Property = prop};
             delay.DelaySecs = 2;

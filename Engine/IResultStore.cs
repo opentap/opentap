@@ -574,7 +574,7 @@ namespace OpenTap
     }
 
     /// <summary>
-    /// Interface to support result tagging in the TAP Results Viewer.
+    /// Interface to support result tagging in the OpenTAP Results Viewer.
     /// </summary>
     public interface IResultTagging : IResultStore
     {

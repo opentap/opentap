@@ -16,7 +16,6 @@ namespace OpenTap.Package
     internal class Installer
     {
         private readonly static TraceSource log =  OpenTap.Log.CreateSource("Installer");
-        private bool hasSetPath = false;
         private CancellationToken cancellationToken;
 
         internal delegate void ProgressUpdateDelegate(int progressPercent, string message);
@@ -45,38 +44,14 @@ namespace OpenTap.Package
                 TapDir = tapDir?.Trim() ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             }
         }
-
-        internal bool SetWorkingDir()
-        {
-            if (hasSetPath)
-                return true;
-
-            //Get all paths as fullpaths since we are changing current directory to where this is run.
-            for (int i = 0; i < PackagePaths.Count(); i++)
-            {
-                PackagePaths[i] = Path.GetFullPath(PackagePaths[i]);
-            }
-
-            // change directory to the app dir
-            Directory.SetCurrentDirectory(TapDir);
-            log.Debug("Running {0}.", Path.GetFileName(Assembly.GetExecutingAssembly().Location));
-            log.Debug("Operating in folder '{0}'.", TapDir);
-
-            hasSetPath = true;
-
-            return true;
-        }
         
         internal void InstallThread()
         {
             if (cancellationToken.IsCancellationRequested) return;
 
-            if (!SetWorkingDir())
-                return;
-
             try
             {
-                waitForPackageFilesFree(PackagePaths);
+                waitForPackageFilesFree(TapDir, PackagePaths);
 
                 int progressPercent = 10;
                 OnProgressUpdate(progressPercent, "");
@@ -86,10 +61,18 @@ namespace OpenTap.Package
                     {
                         OnProgressUpdate(progressPercent, "Installing " + Path.GetFileNameWithoutExtension(fileName));
                         Stopwatch timer = Stopwatch.StartNew();
-                        PackageDef pkg = PluginInstaller.InstallPluginPackage(fileName);
+                        PackageDef pkg = PluginInstaller.InstallPluginPackage(TapDir, fileName);
+
                         log.Info(timer, "Installed " + pkg.Name + " version " + pkg.Version);
 
                         progressPercent += 80 / PackagePaths.Count();
+
+                        if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) && PackagePaths.Last() != fileName)
+                        {
+                            log.Info(timer, $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
+                            PluginManager.DirectoriesToSearch.Add(TapDir);
+                            PluginManager.SearchAsync();
+                        }
                     }
                     catch
                     {
@@ -132,14 +115,11 @@ namespace OpenTap.Package
         
         internal bool RunCommand(string command, bool force)
         {
-            if (!SetWorkingDir())
-                return false;
-
             var verb = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(command.ToLower()) + "ed";
 
             try
             {
-                waitForPackageFilesFree(PackagePaths);
+                waitForPackageFilesFree(TapDir, PackagePaths);
 
                 if (cancellationToken.IsCancellationRequested)
                 {
@@ -156,7 +136,7 @@ namespace OpenTap.Package
                 {
                     OnProgressUpdate(progressPercent, string.Format("Running command '{0}' on {1}", command, Path.GetFileNameWithoutExtension(fileName)));
                     Stopwatch timer = Stopwatch.StartNew();
-                    PackageDef pkg = PackageDef.FromXmlFile(fileName);
+                    PackageDef pkg = PackageDef.FromXml(fileName);
                     var res = pi.ExecuteAction(pkg, command, force);
 
                     if (res == ActionResult.Error)
@@ -192,16 +172,15 @@ namespace OpenTap.Package
             return true;
         }
 
-        private void waitForPackageFilesFree(List<string> PackagePaths)
+        private void waitForPackageFilesFree(string tapDir, List<string> PackagePaths)
         {
             List<FileInfo> filesInUse = new List<FileInfo>();
-            string endDir = Directory.GetCurrentDirectory();
 
             foreach (string packageFileName in PackagePaths)
             {
                 foreach (string file in PluginInstaller.FilesInPackage(packageFileName))
                 {
-                    string fullPath = Path.Combine(endDir, file);
+                    string fullPath = Path.Combine(tapDir, file);
                     string filename = Path.GetFileName(file);
                     if (filename == "tap" || filename.ToLower() == "tap.exe") // ignore tap.exe as it is not meant to be overwritten.
                         continue;
@@ -211,8 +190,8 @@ namespace OpenTap.Package
             }
 
             // Check if the files that are in use are used by any other package
-            var packages = PackagePaths.Select(p => p.EndsWith("TapPackage") ? PackageDef.FromPackage(p) : PackageDef.FromXmlFile(p));
-            var remainingInstalledPlugins = new Installation(Directory.GetCurrentDirectory()).GetPackages().Where(i => packages.Any(p => p.Name == i.Name) == false);
+            var packages = PackagePaths.Select(p => p.EndsWith("TapPackage") ? PackageDef.FromPackage(p) : PackageDef.FromXml(p));
+            var remainingInstalledPlugins = new Installation(tapDir).GetPackages().Where(i => packages.Any(p => p.Name == i.Name) == false);
             var filesToRemain = remainingInstalledPlugins.SelectMany(p => p.Files).Select(f => f.RelativeDestinationPath).Distinct(StringComparer.InvariantCultureIgnoreCase);
             filesInUse = filesInUse.Where(f => filesToRemain.Contains(f.Name, StringComparer.InvariantCultureIgnoreCase) == false).ToList();
             
@@ -222,6 +201,11 @@ namespace OpenTap.Package
                 foreach (var file in filesInUse)
                 {
                     log.Info("- " + file.FullName);
+
+                    var loaded_asm = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(x => x.IsDynamic == false && x.Location == file.FullName);
+                    if (loaded_asm != null)
+                        throw new InvalidOperationException($"The file '{file.FullName}' is being used by this process.");
+
                 }
 
                 var allProcesses = Process.GetProcesses().Where(p => 
@@ -230,7 +214,7 @@ namespace OpenTap.Package
                     p.ProcessName != Assembly.GetExecutingAssembly().GetName().Name).ToArray();
                 if (allProcesses.Any())
                 {
-                    // The file could be locked by someone other than TAP processes. We should not assume it's TAP holding the file.
+                    // The file could be locked by someone other than OpenTAP processes. We should not assume it's OpenTAP holding the file.
                     log.Warning(Environment.NewLine + "To continue, try closing applications that could be using the files.");
                     foreach (var process in allProcesses)
                         log.Warning("- " + process.ProcessName);
@@ -238,7 +222,7 @@ namespace OpenTap.Package
 
                 log.Warning(Environment.NewLine + "Waiting for files to become unlocked...");
 
-                while (isPackageFilesInUse(PackagePaths))
+                while (isPackageFilesInUse(tapDir, PackagePaths))
                 {
                     if (cancellationToken.IsCancellationRequested) return;
                     if (!isTapRunning())
@@ -257,14 +241,13 @@ namespace OpenTap.Package
                 return true;
         }
 
-        private bool isPackageFilesInUse(List<string> packagePaths)
+        private bool isPackageFilesInUse(string tapDir, List<string> packagePaths)
         {
-            string endDir = Directory.GetCurrentDirectory();
             foreach (string packageFileName in PackagePaths)
             {
                 foreach (string file in PluginInstaller.FilesInPackage(packageFileName))
                 {
-                    string fullPath = Path.Combine(endDir, file);
+                    string fullPath = Path.Combine(tapDir, file);
                     if (IsFileLocked(new FileInfo(fullPath)))
                         return true;
                 }

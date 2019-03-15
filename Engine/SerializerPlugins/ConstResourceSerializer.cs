@@ -10,15 +10,15 @@ using System.Collections;
 namespace OpenTap.Plugins
 {
     /// <summary> Serializer implementation for IConstResourceProperty items. </summary>
-    public class ConstResourceSerializer : TapSerializerPlugin
+    internal class ConstResourceSerializer : TapSerializerPlugin
     {
         /// <summary> The order of this serializer. </summary>
         public override double Order { get { return 3; } }
 
         /// <summary> Deserialization implementation. </summary>
-        public override bool Deserialize( XElement element, ITypeInfo t, Action<object> setter)
+        public override bool Deserialize( XElement element, ITypeData t, Action<object> setter)
         {
-            if (t.DescendsTo(typeof(IConstResourceProperty)))
+            if (t.DescendsTo(TypeData.FromType(typeof(IConstResourceProperty))))
             {
                 if (element.IsEmpty) return true; // Dont do anything with a <port/>
                 var name = element.Attribute("Name");
@@ -46,7 +46,7 @@ namespace OpenTap.Plugins
                      
                      foreach(var resProp in resource.GetConstProperties())
                      {
-                         if(TypeInfo.GetTypeInfo(resProp).DescendsTo(t) && resProp.Name == name.Value)
+                         if(TypeData.GetTypeData(resProp).DescendsTo(t) && resProp.Name == name.Value)
                          {
                              setter(resProp);
                              return;
@@ -63,7 +63,7 @@ namespace OpenTap.Plugins
         /// </summary>
         HashSet<object> checkRentry = new HashSet<object>();
         /// <summary> Serialization implementation. </summary>
-        public override bool Serialize( XElement elem, object obj, ITypeInfo expectedType)
+        public override bool Serialize( XElement elem, object obj, ITypeData expectedType)
         {
             if (obj is IConstResourceProperty == false) return false;
             if (checkRentry.Contains(obj)) return false;
@@ -79,7 +79,7 @@ namespace OpenTap.Plugins
 
                     XElement device = new XElement("Device");
                     device.SetAttributeValue("type", settings.GetType().Name);
-                    if (Serializer.Serialize(device, port.Device, CSharpTypeInfo.Create(port.GetType())))
+                    if (Serializer.Serialize(device, port.Device, TypeData.FromType(port.GetType())))
                     {
                         elem.Add(device);
                     }

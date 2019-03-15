@@ -57,6 +57,9 @@ namespace OpenTap
             }
         }
 
+        /// <summary> An (optional) name identifying the OpenTAP thread. </summary>
+        public readonly string Name;
+
         /// <summary>
         /// The execution status of the work
         /// </summary>
@@ -75,8 +78,9 @@ namespace OpenTap
         #endregion
 
         #region ctor
-        internal TapThread(TapThread parent, Action action)
+        internal TapThread(TapThread parent, Action action, string name = "")
         {
+            Name = name;
             this.action = action;
             Parent = parent;
             Status = TapThreadStatus.Queued;
@@ -137,11 +141,12 @@ namespace OpenTap
 
         /// <summary> Enqueue an action to be executed asynchroniously. </summary>
         /// <param name="action">The action to be executed.</param>
-        public static TapThread Start(Action action)
+        /// <param name="name">The (optional) name of the OpenTAP thread. </param>
+        public static TapThread Start(Action action, string name = "")
         {
             if (action == null)
                 throw new ArgumentNullException(nameof(action), "Action to be executed cannot be null.");
-            return manager.Enqueue(action);
+            return manager.Enqueue(action, name ?? "");
         }
 
         /// <summary>
@@ -211,6 +216,13 @@ namespace OpenTap
                 action = null; 
             }
         }
+
+        /// <summary> Returns a readable string.</summary>
+        /// <returns></returns>
+        public override string ToString()
+        {
+            return $"[Thread '{Name}']";
+        }
     }
 
     /// <summary> Custom thread pool for fast thread startup. </summary>
@@ -241,10 +253,11 @@ namespace OpenTap
         /// <summary> Current number of threads. </summary>
         public uint ThreadCount => (uint)threads;
         /// <summary> Enqueue an action to be executed in the future. </summary>
-        /// <param name="f"></param>
-        public TapThread Enqueue(Action f)
+        /// <param name="action">The work to be processed.</param>
+        /// <param name="name">The (Optional) name of the new OpenTAP thread. </param>
+        public TapThread Enqueue(Action action, string name = "")
         {
-            var newThread = new TapThread(TapThread.Current, f);
+            var newThread = new TapThread(TapThread.Current, action, name);
             workQueue.Enqueue(newThread);
             freeWorkSemaphore.Release();
             return newThread;

@@ -19,7 +19,7 @@ namespace OpenTap.Package
     [Display("ConvertMajorMinorBuildRevision", 
         "Supports a four value number (x.x.x.x) which will be interpreted as Major.Minor.BuildMetadata.Patch. This is compatible with Microsofts definition of version numbers (e.g. for .NET assemblies), see https://docs.microsoft.com/en-us/dotnet/api/system.version",
         Order: 2)]
-    public class MajorMinorBuildRevisionVersionConverter : IVersionConverter
+    internal class MajorMinorBuildRevisionVersionConverter : IVersionConverter
     {
         public SemanticVersion Convert(string versionString)
         {
@@ -33,7 +33,7 @@ namespace OpenTap.Package
     [Display("ConvertFourValue", 
         "Supports a four value number (x.y.z.w) which will be converted to the semantic version number x.y.z+w.",
         Order: 1)]
-    public class FourValueVersionConverter : IVersionConverter
+    internal class FourValueVersionConverter : IVersionConverter
     {
         public SemanticVersion Convert(string versionString)
         {
@@ -47,7 +47,7 @@ namespace OpenTap.Package
     [Display("Compatibility",
     "For compatibility with TAP 8.x parsing.",
     Order: 1)]
-    public class Tap8CompatibilityVersionConverter : IVersionConverter
+    internal class Tap8CompatibilityVersionConverter : IVersionConverter
     {
         public SemanticVersion Convert(string versionString)
         {
@@ -76,9 +76,9 @@ namespace OpenTap.Package
                 isok = int.TryParse(parts[2], out build);
             else if (full_parts.Length > 1)
             {
-                // When developing and using a TAP version that is built on the local machine
+                // When developing and using a OpenTAP version that is built on the local machine
                 // (not by pushing to git and have the CI system do the build), we would like
-                // for TAP not to complain about incompatible build versions.
+                // for OpenTAP not to complain about incompatible build versions.
                 string type = full_parts[1];
                 if (type == "Development")
                     build = int.MaxValue;

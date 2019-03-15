@@ -272,12 +272,12 @@ namespace OpenTap
             if (stream == null)
                 throw new ArgumentNullException("stream");
             var serializer = new TapSerializer();
-            var plan = (TestPlan)serializer.Deserialize(stream, type: typeof(TestPlan), path: path);
+            var plan = (TestPlan)serializer.Deserialize(stream, type: TypeData.FromType(typeof(TestPlan)), path: path);
             var errors = serializer.Errors;
             if (errors.Any())
             {
                 var err = new PlanLoadError();
-                UserInput.Request(err, TimeSpan.MaxValue, false);
+                UserInput.Request(err, false);
                 var respValue = err.Response;
                 if (respValue == PlanLoadErrorResponse.Abort)
                 {
@@ -299,7 +299,7 @@ namespace OpenTap
             if (this.IsRunning)
                 throw new InvalidOperationException("Cannot reload while running.");
             var serializer = new TapSerializer();
-            var plan = (TestPlan)serializer.Deserialize(filestream, type: typeof(TestPlan), path: Path);
+            var plan = (TestPlan)serializer.Deserialize(filestream, type: TypeData.FromType(typeof(TestPlan)), path: Path);
             plan.currentExecutionState = this.currentExecutionState;
             plan.Path = this.Path;
             return plan;
@@ -344,7 +344,8 @@ namespace OpenTap
         {
             if (PropertyChanged != null)
             {
-                ValidatingObject.PropertyChangedDispatcher(() => { PropertyChanged(this, new System.ComponentModel.PropertyChangedEventArgs(name)); });
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+                UserInput.NotifyChanged(this, name);
             }
         }
         #endregion

@@ -182,8 +182,14 @@ namespace OpenTap
         /// <summary>
         /// Called by TestStep.DoRun after running the step.
         /// </summary>
-        internal void CompleteStepRun(TestPlanRun planRun, Verdict verdict, TimeSpan runDuration)
+        internal void CompleteStepRun(TestPlanRun planRun, ITestStep step, TimeSpan runDuration)
         {
+            // update values in the run. 
+            var newparameters = ResultParameters.GetParams(step);
+            foreach(var parameter in newparameters)
+            {
+                this.Parameters[parameter.Name] = parameter.Value;
+            }
             try
             {
                 Duration = runDuration; // Requires update after TestStepRunStart and before TestStepRunCompleted
@@ -194,7 +200,7 @@ namespace OpenTap
                 log.Warning("Caught exception in result handling task.");
                 log.Debug(e);
             };
-            UpgradeVerdict(verdict);
+            UpgradeVerdict(step.Verdict);
             completedEvent.Set();
         }
 

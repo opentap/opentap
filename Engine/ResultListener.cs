@@ -306,7 +306,7 @@ namespace OpenTap
             output.Add( new ResultParameter(group, parentName, val, metadata));
         }
 
-        static ConcurrentDictionary<Type, List<MemberData>> propertieslookup = new ConcurrentDictionary<Type, List<MemberData>>();
+        static ConcurrentDictionary<Type, List<InternalMemberData>> propertieslookup = new ConcurrentDictionary<Type, List<InternalMemberData>>();
 
         private static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", params Type[] attributeFilter)
         {
@@ -314,7 +314,7 @@ namespace OpenTap
                 return;
             if (!propertieslookup.ContainsKey(obj.GetType()))
             {
-                List<MemberData> lst = new List<MemberData>();
+                List<InternalMemberData> lst = new List<InternalMemberData>();
                 foreach (var _prop in obj.GetType().GetMemberData())
                 {
                     var prop = _prop.Property;
@@ -344,10 +344,6 @@ namespace OpenTap
                         if (attributes.Count(att => attributeFilter.Contains(att.GetType())) == 0)
                             continue;
                     }
-                    
-                    // Don't add Lists. They do not become useful strings.
-                    if (prop.PropertyType.DescendsTo(typeof(IEnumerable)) && prop.PropertyType != typeof(string))
-                        continue;
                     
                     lst.Add(_prop);
                 }

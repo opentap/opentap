@@ -574,7 +574,7 @@ namespace OpenTap.Engine.UnitTests
                 // test deserializing instrument
                 DeserializedCallbackInstrument inst = new DeserializedCallbackInstrument();
                 string xml = new TapSerializer().SerializeToString(inst);
-                var inst2 = (DeserializedCallbackInstrument)new TapSerializer().DeserializeFromString(xml, inst.GetType());
+                var inst2 = (DeserializedCallbackInstrument)new TapSerializer().DeserializeFromString(xml, TypeData.GetTypeData(inst));
                 Assert.IsTrue(inst2.WasDeserialized);
                 Assert.IsFalse(inst.WasDeserialized);
             }
@@ -582,7 +582,7 @@ namespace OpenTap.Engine.UnitTests
             { // test deserializing settings
                 DeserializedCallbackSettings settings = new DeserializedCallbackSettings();
                 string xml = new TapSerializer().SerializeToString(settings);
-                var settings2 = (DeserializedCallbackSettings)new TapSerializer().DeserializeFromString(xml, settings.GetType());
+                var settings2 = (DeserializedCallbackSettings)new TapSerializer().DeserializeFromString(xml, TypeData.GetTypeData(settings));
                 Assert.IsTrue(settings2.WasDeserialized);
                 Assert.IsFalse(settings.WasDeserialized);
             }
@@ -600,7 +600,7 @@ namespace OpenTap.Engine.UnitTests
             settings.Add(new ScpiDummyInstrument() { VisaAddress = "test" });
             var xml = new TapSerializer().SerializeToString(settings);
 
-            var settings2 = (PrivateComponentSettingsList)(new TapSerializer().DeserializeFromString(xml, typeof(PrivateComponentSettingsList)));
+            var settings2 = (PrivateComponentSettingsList)(new TapSerializer().DeserializeFromString(xml, TypeData.FromType(typeof(PrivateComponentSettingsList))));
             var inst = (ScpiDummyInstrument)settings2[0];
             Assert.AreEqual("test", inst.VisaAddress);
         }
@@ -868,14 +868,14 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void DeserializeLegacyPlatformSettings()
         {
-            EngineSettings settings = (EngineSettings)new TapSerializer().DeserializeFromString(Resources.GetEmbedded("LegacyPlatformSettings.xml"), typeof(EngineSettings));
+            EngineSettings settings = (EngineSettings)new TapSerializer().DeserializeFromString(Resources.GetEmbedded("LegacyPlatformSettings.xml"), TypeData.FromType(typeof(EngineSettings)));
             Assert.AreEqual(settings.OperatorName, "SomeOperator");
         }
 
         [Test, Ignore("We are not backwards compatible.")]
         public void DeserializeLegacyResultSettings()
         {
-            ResultSettings settings = (ResultSettings)new TapSerializer().DeserializeFromString(Resources.GetEmbedded("LegacyResultSettings.xml"), typeof(ResultSettings));
+            ResultSettings settings = (ResultSettings)new TapSerializer().DeserializeFromString(Resources.GetEmbedded("LegacyResultSettings.xml"), TypeData.FromType(typeof(ResultSettings)));
             Assert.IsTrue(settings[0] is LogResultListener);
             Assert.IsTrue((settings[0] as LogResultListener).FilePath == "SomePath.txt");
             Assert.IsTrue((settings[0] as LogResultListener).FilterOptions ==
@@ -889,7 +889,7 @@ namespace OpenTap.Engine.UnitTests
         public void DeserializeLegacyTapPlan()
         {
             var stream = File.OpenRead("TestTestPlans\\FiveDelays.TapPlan");
-            TestPlan plan = (TestPlan)new TapSerializer().Deserialize(stream, type: typeof(TestPlan));
+            TestPlan plan = (TestPlan)new TapSerializer().Deserialize(stream, type: TypeData.FromType(typeof(TestPlan)));
 
             var childSteps = plan.ChildTestSteps.OfType<DelayStep>().ToArray();
             Assert.AreEqual(childSteps.Length, 5);
@@ -1326,7 +1326,7 @@ namespace OpenTap.Engine.UnitTests
             sw1.ChildTestSteps.Add(sw2);
             sw2.ChildTestSteps.Add(ds);
 
-            sw1.SweepParameters.Add(new SweepParam(new IMemberInfo[] { TypeInfo.GetTypeInfo(sw2).GetMember("CrossPlan") }, SweepLoop.SweepBehaviour.Across_Runs, SweepLoop.SweepBehaviour.Within_Run));
+            sw1.SweepParameters.Add(new SweepParam(new IMemberData[] { TypeData.GetTypeData(sw2).GetMember("CrossPlan") }, SweepLoop.SweepBehaviour.Across_Runs, SweepLoop.SweepBehaviour.Within_Run));
 
             var str = new TapSerializer().SerializeToString(tp);
             var tp2 = (TestPlan)new TapSerializer().DeserializeFromString(str);
@@ -1541,8 +1541,8 @@ namespace OpenTap.Engine.UnitTests
                 ListStep step3 = new ListStep();
 
 
-                var someNumberProp = CSharpTypeInfo.Create(typeof(ListStep)).GetMember("SomeNumber");
-                var doublesProp = CSharpTypeInfo.Create(typeof(ListStep)).GetMember("Doubles");
+                var someNumberProp = TypeData.FromType(typeof(ListStep)).GetMember("SomeNumber");
+                var doublesProp = TypeData.FromType(typeof(ListStep)).GetMember("Doubles");
 
                 step1.Load();
                 step3.Load();
@@ -1642,7 +1642,7 @@ namespace OpenTap.Engine.UnitTests
                 DynamicStepTest dynstep = new DynamicStepTest() { NewData = "Hello" + new string('A', 50) };
                 DynamicStepTest dynstep2 = new DynamicStepTest() { NewData = "Hello" + new string('B', 5000) };
 
-                var someNumberProp = CSharpTypeInfo.Create(typeof(ListStep)).GetMember("SomeNumber");
+                var someNumberProp = TypeData.FromType(typeof(ListStep)).GetMember("SomeNumber");
 
                 step1.Load();
                 step3.Load();
@@ -1696,6 +1696,35 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void StepIdChangeStep()
+        {
+            //
+            // this test verifies that a step heirarchy can be loaded 
+            // without the IDs changes. 
+            //
+
+            var delay1 = new DelayStep();
+            var delay2 = new DelayStep();
+            var seq = new SequenceStep();
+            var plan = new TestPlan();
+            seq.ChildTestSteps.Add(delay1);
+            seq.ChildTestSteps.Add(delay2);
+            plan.ChildTestSteps.Add(seq);
+            using (var memstr = new MemoryStream())
+            {
+                plan.Save(memstr);
+                memstr.Position = 0;
+                var plan2 = TestPlan.Load(memstr, "Untitled");
+                var seq2 = plan2.ChildTestSteps[0] as SequenceStep;
+                
+                Assert.IsTrue(plan2.ChildTestSteps[0].Id == seq.Id);
+                Assert.IsTrue(seq2.ChildTestSteps[0].Id == delay1.Id);
+                Assert.IsTrue(seq2.ChildTestSteps[1].Id == delay2.Id);
+            }
+        }
+
+
+        [Test]
         public void DataSerializerArray()
         {
             var table = new ResultTable("XYZ", new ResultColumn[] {
@@ -1730,11 +1759,11 @@ namespace OpenTap.Engine.UnitTests
         {
             InstrumentSettings.Current.Clear();
 
-            InstrumentSettings.Current.Add(new RawSCPIInstrument { Name = "1" });
-            InstrumentSettings.Current.Add(new RawSCPIInstrument { Name = "0" });
+            InstrumentSettings.Current.Add(new GenericScpiInstrument { Name = "1" });
+            InstrumentSettings.Current.Add(new GenericScpiInstrument { Name = "0" });
 
             TestPlan tp = new TestPlan();
-            tp.ChildTestSteps.Add(new SCPIRegexStep { Instrument = InstrumentSettings.Current[0] as RawSCPIInstrument });
+            tp.ChildTestSteps.Add(new SCPIRegexStep { Instrument = InstrumentSettings.Current[0] as GenericScpiInstrument });
             using (var ms = new MemoryStream())
             {
                 tp.Save(ms);
@@ -1786,8 +1815,7 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(typeof(double), sl.SweepParameters[2].Type);
             Assert.AreEqual("1", (string)sl.SweepParameters[0].Values.GetValue(0));
             Assert.AreEqual(InputButtons.OkCancel, (InputButtons)sl.SweepParameters[1].Values.GetValue(0));
-            Assert.AreEqual(true, sl.SweepParameters[1].IsEnabled[0]);
-            Assert.AreEqual(true, sl.SweepParameters[0].IsEnabled[0]);
+            Assert.AreEqual(true, sl.EnabledRows[0]);
         }
     }
 
@@ -1808,18 +1836,18 @@ namespace OpenTap.Engine.UnitTests
                 ComponentSettings.SetSettingsProfile("Bench", "Test1");
                 InstrumentSettings.Current.Clear();
                 InstrumentSettings.Current.Add(new ScpiDummyInstrument { Name = "Dum" });
-                InstrumentSettings.Current.Add(new RawSCPIInstrument { Name = "INST1" });
+                InstrumentSettings.Current.Add(new GenericScpiInstrument { Name = "INST1" });
                 InstrumentSettings.Current.Save();
                 ComponentSettings.SetSettingsProfile("Bench", "Test2");
                 InstrumentSettings.Current.Clear();
-                InstrumentSettings.Current.Add(new RawSCPIInstrument { Name = "INST2" });
+                InstrumentSettings.Current.Add(new GenericScpiInstrument { Name = "INST2" });
                 InstrumentSettings.Current.Save();
 
                 // Add a RefListener to ResultSettings
                 var res = new RefListener();
                 ResultSettings.Current.RemoveIf<IResultListener>(l => l is RefListener);
                 ResultSettings.Current.Add(res);
-                res.InstrRef = InstrumentSettings.Current.GetDefault<RawSCPIInstrument>();
+                res.InstrRef = InstrumentSettings.Current.GetDefault<GenericScpiInstrument>();
                 ResultSettings.Current.Save();
 
                 Assert.AreEqual("INST2", res.InstrRef.Name);
@@ -1879,7 +1907,7 @@ namespace OpenTap.Engine.UnitTests
         void testStringConvert(object value)
         {
             var strfmt = StringConvertProvider.GetString(value);
-            var reparse = StringConvertProvider.FromString(strfmt, CSharpTypeInfo.Create(value.GetType()), null);
+            var reparse = StringConvertProvider.FromString(strfmt, TypeData.FromType(value.GetType()), null);
             DynObjectAssertEqual(value, reparse);
         }
 
@@ -1931,7 +1959,7 @@ namespace OpenTap.Engine.UnitTests
             testStringConvert(new EngineSettings.AbortTestPlanType[] { EngineSettings.AbortTestPlanType.Step_Error, EngineSettings.AbortTestPlanType.Step_Error | EngineSettings.AbortTestPlanType.Step_Fail });
             testStringConvert(new double[] { 1, 2, 3, 4, 7, 8, 9, 0 });
             testStringConvert(new List<int> { 1, 2, 3, 4, 7, 8, 9, 0 });
-            var reparse = (Verdict)StringConvertProvider.FromString("pass", CSharpTypeInfo.Create(typeof(Verdict)), null);
+            var reparse = (Verdict)StringConvertProvider.FromString("pass", TypeData.FromType(typeof(Verdict)), null);
             Assert.AreEqual(Verdict.Pass, reparse);
         }
 
@@ -1955,7 +1983,7 @@ namespace OpenTap.Engine.UnitTests
                 inst.Password.AppendChar(c);
             
             string xml = new TapSerializer().SerializeToString(inst);
-            var inst2 = (SomeInstrument)new TapSerializer().DeserializeFromString(xml, inst.GetType());
+            var inst2 = (SomeInstrument)new TapSerializer().DeserializeFromString(xml, TypeData.GetTypeData(inst));
             Assert.AreEqual(inst.Password.ToString(), inst2.Password.ToString());
         }
     }

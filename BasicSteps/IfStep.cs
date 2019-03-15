@@ -38,16 +38,19 @@ namespace OpenTap.Plugins.BasicSteps
         public IfStep()
         {
             InputVerdict = new Input<Verdict>();
+            Rules.Add(() => InputVerdict.Step != null, "Input property must be set.", nameof(InputVerdict));
         }
 
+        
         class Request
         {
-            public string Name => "Continue?";
+            public string Name => "Waiting for user input";
             [Browsable(true)]
             [Layout(LayoutMode.FullRow)]
             public string Message { get; private set; } = "Continue?";
             [Submit]
-            [Layout(LayoutMode.FloatBottom)]
+            [Layout(LayoutMode.FloatBottom | LayoutMode.FullRow)]
+            
             public WaitForInputResult1 Response { get; set; }
         }
 
@@ -73,7 +76,7 @@ namespace OpenTap.Plugins.BasicSteps
                     case IfStepAction.WaitForUser:
                         Log.Info("Condition is true, waiting for user input.");
                         var req = new Request();
-                        UserInput.Request(req, TimeSpan.MaxValue, false);
+                        UserInput.Request(req, false);
                         if (req.Response == WaitForInputResult1.No)
                         {
                             PlanRun.MainThread.Abort();

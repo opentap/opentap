@@ -13,89 +13,110 @@ using System.Runtime.CompilerServices;
 
 namespace OpenTap
 {
-    /// <summary> Type info for C# objects. </summary>
-    public class CSharpTypeInfo : ITypeInfo
+    public partial class TypeData : ITypeData
     {
         /// <summary> Creates a string value of this.</summary>
-        /// <returns></returns>
         public override string ToString()
         {
-            return $"C#: {Type.FullName}";
+            return $"{type.FullName}";
         }
-        static ConditionalWeakTable<Type, CSharpTypeInfo> dict
-    = new ConditionalWeakTable<Type, CSharpTypeInfo>();
+        static ConditionalWeakTable<Type, TypeData> dict
+    = new ConditionalWeakTable<Type, TypeData>();
 
         Type type;
-        /// <summary>
-        /// The type this C# type info represents.
-        /// </summary>
-        public Type Type => type;
 
-        /// <summary> Creates a new CSharpTypeInfo. </summary>
-        /// <param name="type"></param>
-        /// <returns></returns>
-        public static CSharpTypeInfo Create(Type type)
+        /// <summary>
+        /// Gets the System.Type that this represents. Same as calling <see cref="Load()"/>.
+        /// Accessing this property causes the underlying Assembly to be loaded if it is not already.
+        /// </summary>
+        public Type Type => Load();
+
+        /// <summary> Creates a new TypeData object to represent a dotnet type. </summary>
+        public static TypeData FromType(Type type)
         {
-            return dict.GetValue(type, x => new CSharpTypeInfo(x));
+            return dict.GetValue(type, x =>
+            {
+                TypeData td = null;
+                PluginManager.GetSearcher()?.AllTypes.TryGetValue(type.FullName, out td);
+                if (td == null) td = new TypeData(x);
+                return td;
+            });
         }
 
-        CSharpTypeInfo(Type type)
+        TypeData(Type type)
         {
             this.type = type;
+            this.Name = type.FullName;
         }
 
-
-        /// <summary> The name of this type. </summary>
-        public string Name => Type.FullName;
-
-        /// <summary> The attributes of this type. </summary>
-        public IEnumerable<object> Attributes => Type.GetAllCustomAttributes();
+        /// <summary> 
+        /// The attributes of this type. 
+        /// Accessing this property causes the underlying Assembly to be loaded if it is not already.
+        /// </summary>
+        public IEnumerable<object> Attributes => Load().GetAllCustomAttributes();
 
         /// <summary> The base type of this type. </summary>
-        public ITypeInfo BaseType => CSharpTypeInfo.Create(Type.BaseType);
+        public ITypeData BaseType
+        {
+            get
+            {
+                if (BaseTypes.Any())
+                    return BaseTypes.First();
+                return Load().BaseType == null ? null : TypeData.FromType(Load().BaseType);
+            }
+        }
 
-        /// <summary> returns true if an instance possibly can be created. </summary>
-        public bool CanCreateInstance => Type.IsAbstract == false && Type.IsInterface == false && Type.GetConstructor(Array.Empty<Type>()) != null;
+        /// <summary> 
+        /// returns true if an instance possibly can be created. 
+        /// Accessing this property causes the underlying Assembly to be loaded if it is not already.
+        /// </summary>
+        public bool CanCreateInstance => !_FailedLoad && Load().IsAbstract == false && Load().IsInterface == false && Load().GetConstructor(Array.Empty<Type>()) != null;
 
         /// <summary>
         /// Creates a new object instance of this type.
+        /// Accessing this property causes the underlying Assembly to be loaded if it is not already.
         /// </summary>
-        /// <param name="arguments"></param>
-        /// <returns></returns>
         public object CreateInstance(object[] arguments)
         {
-            return Activator.CreateInstance(Type, arguments);
+            return Activator.CreateInstance(Load(), arguments);
         }
 
         /// <summary>
         /// Gets a member by name.
+        /// Causes the underlying Assembly to be loaded if it is not already.
         /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        public IMemberInfo GetMember(string name)
+        public IMemberData GetMember(string name)
         {
-            return GetMembers().FirstOrDefault(x => x.Name == name);
+            var members = GetMembers();
+            foreach(var member in members)
+            {
+                if(member.GetDisplayAttribute().GetFullName() == name)
+                    return member;
+                else if(member.Name == name)
+                    return member;
+            }
+            return null;
         }
-        IEnumerable<IMemberInfo> members = null;
+        IEnumerable<IMemberData> members = null;
 
         /// <summary>
-        /// Get all the members of this type. 
+        /// Gets all the members of this type. 
+        /// Causes the underlying Assembly to be loaded if it is not already.
         /// </summary>
-        /// <returns></returns>
-        public IEnumerable<IMemberInfo> GetMembers()
+        public IEnumerable<IMemberData> GetMembers()
         {
             if (members == null)
             {
-                List<IMemberInfo> m = new List<IMemberInfo>();
-                foreach (var prop in Type.GetPropertiesTap())
+                List<IMemberData> m = new List<IMemberData>();
+                foreach (var prop in Load().GetPropertiesTap())
                 {
-                    m.Add(CSharpMemberInfo.Create(prop));
+                    m.Add(MemberData.Create(prop));
                 }
 
-                foreach (var mem in Type.GetMethodsTap())
+                foreach (var mem in Load().GetMethodsTap())
                 {
                     if (mem.GetAttribute<BrowsableAttribute>()?.Browsable ?? false)
-                        m.Add(CSharpMemberInfo.Create(mem));
+                        m.Add(MemberData.Create(mem));
                 }
                 members = m.ToArray();
             }
@@ -104,9 +125,9 @@ namespace OpenTap
     }
 
     /// <summary>
-    /// Represents the members of C# types.
+    /// Represents the members of C#/dotnet types.
     /// </summary>
-    public class CSharpMemberInfo : IMemberInfo
+    public class MemberData : IMemberData
     {
         
         struct MemberName
@@ -114,30 +135,30 @@ namespace OpenTap
             public string Name { get; set; }
             public Type DeclaringType { get; set; }
         }
-        static ConcurrentDictionary<MemberName, CSharpMemberInfo> dict
-            = new ConcurrentDictionary<MemberName, CSharpMemberInfo>();
+        static ConcurrentDictionary<MemberName, MemberData> dict
+            = new ConcurrentDictionary<MemberName, MemberData>();
 
         /// <summary>
-        /// Creats a new CSharpMemberInfo.
+        /// Creates a new MemberData for a member of a C#/dotnet type.
         /// </summary>
         /// <param name="info"></param>
         /// <returns></returns>
-        static public CSharpMemberInfo Create(MemberInfo info)
+        static public MemberData Create(MemberInfo info)
         {
             lock(dict)
-                return dict.GetOrAdd(new MemberName { Name = info.Name, DeclaringType = info.DeclaringType }, x => new CSharpMemberInfo(x.Name, CSharpTypeInfo.Create(x.DeclaringType)));
+                return dict.GetOrAdd(new MemberName { Name = info.Name, DeclaringType = info.DeclaringType }, x => new MemberData(x.Name, TypeData.FromType(x.DeclaringType)));
         }
 
         /// <summary>
-        /// The member this represents.
+        /// The System.Reflection.MemberInfo this represents.
         /// </summary>
         public readonly MemberInfo Member;
 
-        private CSharpMemberInfo(string name, CSharpTypeInfo declaringType) : this(declaringType.Type.GetMember(name)[0], declaringType)
+        private MemberData(string name, TypeData declaringType) : this(declaringType.Type.GetMember(name)[0], declaringType)
         {
 
         }
-        private CSharpMemberInfo(MemberInfo info, CSharpTypeInfo declaringType)
+        private MemberData(MemberInfo info, TypeData declaringType)
         {
             if (info == null)
                 throw new ArgumentNullException("info");
@@ -206,7 +227,7 @@ namespace OpenTap
         /// <summary>
         /// The declaring type of this member.
         /// </summary>
-        public ITypeInfo DeclaringType { get; private set; }
+        public ITypeData DeclaringType { get; private set; }
 
         /// <summary> Gets if the member is writable. </summary>
         public bool Writable
@@ -239,15 +260,15 @@ namespace OpenTap
         /// <summary>
         /// The type descriptor for the object that this member can hold.
         /// </summary>
-        public ITypeInfo TypeDescriptor
+        public ITypeData TypeDescriptor
         {
             get
             {
                 switch (Member)
                 {
-                    case PropertyInfo Property: return CSharpTypeInfo.Create(Property.PropertyType);
-                    case FieldInfo Field: return CSharpTypeInfo.Create(Field.FieldType);
-                    case MethodInfo Method: return CSharpTypeInfo.Create(createDelegateType(Method));
+                    case PropertyInfo Property: return TypeData.FromType(Property.PropertyType);
+                    case FieldInfo Field: return TypeData.FromType(Field.FieldType);
+                    case MethodInfo Method: return TypeData.FromType(createDelegateType(Method));
                     default: throw new InvalidOperationException("Unsupported member type: " + Member);
                 }
             }
@@ -262,30 +283,27 @@ namespace OpenTap
     }
 
     /// <summary> Type info provider for C# types. </summary>
-    public class CSharpTypeInfoProvider : ITypeInfoProvider
+    internal class CSharpTypeInfoProvider : ITypeDataProvider
     {
         /// <summary> The priority of this type info provider.  </summary>
         public double Priority => 0;
         /// <summary> Gets the C# type info for a string.  </summary>
-        /// <param name="res"></param>
-        /// <param name="identifier"></param>
-        public void GetTypeInfo(TypeInfoResolver res, string identifier)
+        public ITypeData GetTypeData(string identifier)
         {
             
             var type = PluginManager.LocateType(identifier);
             if (type != null)
             {
-                res.Stop(CSharpTypeInfo.Create(type));
+                return TypeData.FromType(type);
             }
+            return null;
         }
 
         /// <summary> Gets the C# type info for an object. </summary>
-        /// <param name="res"></param>
-        /// <param name="obj"></param>
-        public void GetTypeInfo(TypeInfoResolver res, object obj)
+        public ITypeData GetTypeData(object obj)
         {
             var type = obj.GetType();
-            res.Stop(CSharpTypeInfo.Create(type));
+            return TypeData.FromType(type);
         }
     }
 

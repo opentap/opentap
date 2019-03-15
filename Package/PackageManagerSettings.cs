@@ -17,15 +17,15 @@ namespace OpenTap.Package
     /// </summary>
     [Display("Package Manager")]
     [Browsable(false)]
-    [HelpLink("TapGuiHelp.chm::/TAP Package Manager Help/Readme.html")]
+    [HelpLink("EditorHelp.chm::/TAP Package Manager Help/Readme.html")]
     public class PackageManagerSettings : ComponentSettings<PackageManagerSettings>
     {
         public PackageManagerSettings()
         {
-            Repositories = new ObservableCollection<RepositorySettingEntry>();
+            Repositories = new List<RepositorySettingEntry>();
             Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = ExecutorClient.ExeDir });
             Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = PackageDef.SystemWideInstallationDirectory });
-            Repositories.Add(new RepositorySettingEntry { IsEnabled = false, Url = "http://keysight.com/find/TAPpackages" });
+            Repositories.Add(new RepositorySettingEntry { IsEnabled = false, Url = "http://packages.opentap.io" });
         }
 
         [Display("Show Incompatible Packages", Group: "General", Description: "Show all packages, including incompatible and deprecated packages.")]
@@ -41,91 +41,85 @@ namespace OpenTap.Package
             Version,
             Date
         }
-
-        /// <summary>
-        /// Structure used by PackageRepositories setting
-        /// </summary>
-        public class RepositorySettingEntry : ValidatingObject
-        {
-            string _Url;
-            /// <summary>
-            /// URL to the server
-            /// </summary>
-            [Display("URL", Description: "Specify URL to a local or remote repository hosting TAP plugin packages.")]
-            public string Url
-            {
-                get
-                {
-                    return _Url;
-                }
-                set
-                {
-                    if (_Url == value)
-                        return;
-                    _Url = value;
-                    _Manager = null; // invalidate the cached manager, now that the URL changed
-                    OnPropertyChanged("Url");
-                    OnPropertyChanged("Error");
-                }
-            }
-
-            private bool _IsEnabled;
-            /// <summary>
-            /// If disabled this server will not be contacted when discovering available plugins.
-            /// </summary>
-            public bool IsEnabled
-            {
-                get
-                {
-                    return _IsEnabled;
-                }
-                set
-                {
-                    if (_IsEnabled == value)
-                        return;
-                    _IsEnabled = value;
-                    _Manager = null;
-                    OnPropertyChanged("IsEnabled");
-                    OnPropertyChanged("Error");
-                }
-            }
-
-            // a cached manager
-            IPackageRepository _Manager = null;
-
-            public IPackageRepository Manager
-            {
-                get
-                {
-                    if (_Manager == null)
-                    {
-                        if (String.IsNullOrEmpty(Url))
-                            return null;
-                        _Manager = PackageRepositoryHelpers.DetermineRepositoryType(Url);
-                    }
-                    return _Manager;
-                }
-            }
-
-            [Browsable(false)]
-            public string CacheFileName { get; set; }
-
-            [Browsable(false)]
-            public int CachePackageCount { get; set; }
-
-            [Browsable(false)]
-            [XmlIgnore] 
-            public bool IsBusy { get; set; }
-        }
         
         /// <summary>
         /// List of servers from where new plugin packages can be discovered and downloaded.
         /// </summary>
         [Display("URLs", Group: "Package Repositories", Order: 2, Description: "URLs from where new plugin packages can be discovered and downloaded.")]
-        public ObservableCollection<RepositorySettingEntry> Repositories
+        public List<RepositorySettingEntry> Repositories
         {
             get;
             set;
         }
+    }
+
+    /// <summary>
+    /// Structure used by PackageRepositories setting
+    /// </summary>
+    public class RepositorySettingEntry : ValidatingObject
+    {
+        string _Url;
+        /// <summary>
+        /// URL to the server
+        /// </summary>
+        [Display("URL", Description: "Specify URL to a local or remote repository hosting OpenTAP plugin packages.")]
+        public string Url
+        {
+            get
+            {
+                return _Url;
+            }
+            set
+            {
+                if (_Url == value)
+                    return;
+                _Url = value;
+                _Manager = null; // invalidate the cached manager, now that the URL changed
+                OnPropertyChanged("Url");
+                OnPropertyChanged("Error");
+            }
+        }
+
+        private bool _IsEnabled;
+        /// <summary>
+        /// If disabled this server will not be contacted when discovering available plugins.
+        /// </summary>
+        public bool IsEnabled
+        {
+            get
+            {
+                return _IsEnabled;
+            }
+            set
+            {
+                if (_IsEnabled == value)
+                    return;
+                _IsEnabled = value;
+                _Manager = null;
+                OnPropertyChanged("IsEnabled");
+                OnPropertyChanged("Error");
+            }
+        }
+
+        // a cached manager
+        IPackageRepository _Manager = null;
+
+        public IPackageRepository Manager
+        {
+            get
+            {
+                if (_Manager == null)
+                {
+                    if (String.IsNullOrEmpty(Url))
+                        return null;
+                    _Manager = PackageRepositoryHelpers.DetermineRepositoryType(Url);
+                }
+                return _Manager;
+            }
+        }
+
+        [Browsable(false)]
+        [XmlIgnore]
+        public bool IsBusy { get; set; }
     }
 }

@@ -135,7 +135,7 @@ namespace OpenTap.Package
     }
 
     /// <summary>
-    /// Install system for Tap Plugins, which are TAP dll/waveforms in a renamed zip.
+    /// Install system for Tap Plugins, which are OpenTAP dll/waveforms in a renamed zip.
     /// </summary>
     internal class PluginInstaller
     {
@@ -145,7 +145,6 @@ namespace OpenTap.Package
         };
 
         static TraceSource log =  OpenTap.Log.CreateSource("package");
-        static string TPM_FILENAME = "tap.exe";
         
         /// <summary>
         /// Returns the names of the files in a plugin package.
@@ -158,7 +157,7 @@ namespace OpenTap.Package
             string fileType = Path.GetExtension(packagePath);
             if (fileType == ".xml")
             {
-                var pkg = PackageDef.FromXmlFile(packagePath);
+                var pkg = PackageDef.FromXml(packagePath);
                 return pkg.Files.Select(f => f.FileName).ToList();
             }
 
@@ -182,13 +181,13 @@ namespace OpenTap.Package
         /// </summary>
         /// <param name="path">Absolute or relative path to tap plugin</param>
         /// <returns>List of installed parts.</returns>
-        internal static PackageDef InstallPluginPackage(string path)
+        internal static PackageDef InstallPluginPackage(string tapDir, string path)
         {
             checkExtension(path);
             checkFileExists(path);
 
             var package = PackageDef.FromPackage(path);
-            var destination = package.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : Directory.GetCurrentDirectory();
+            var destination = package.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : tapDir;
 
             try
             {
@@ -382,6 +381,9 @@ namespace OpenTap.Package
             
             foreach (var file in package.Files)
             {
+                if (file.RelativeDestinationPath == "tap" || file.RelativeDestinationPath.ToLower() == "tap.exe") // ignore tap.exe as it is not meant to be overwritten.
+                    continue;
+
                 var fullPath = Path.GetFullPath(file.RelativeDestinationPath);
                 if (package.IsSystemWide())
                 {
@@ -401,11 +403,6 @@ namespace OpenTap.Package
                 }
                 catch(Exception e)
                 {
-                    if (!File.Exists(TPM_FILENAME))
-                    {
-                        log.Warning("The file '{0}' could not be removed. Continuing anyway.", file.RelativeDestinationPath);
-                    }
-                    
                     log.Debug(e);
                     result = ActionResult.Error;
                 }
@@ -413,7 +410,7 @@ namespace OpenTap.Package
                 DeleteEmptyDirectory(new FileInfo(fullPath).Directory);
             }
 
-            var packageFile = PackageDef.GetPackageDefinitionInstallPath(package);
+            var packageFile = PackageDef.GetDefaultPackageMetadataPath(package);
             if (!File.Exists(packageFile))
             {
                 // TAP 8.x support:
@@ -455,7 +452,7 @@ namespace OpenTap.Package
             try
             {
                 using (var f = File.Open(file, FileMode.Open, FileAccess.Read, FileShare.Read))
-                    return PackageDef.LoadFrom(f);
+                    return PackageDef.FromXml(f);
             }
             catch (Exception e)
             {

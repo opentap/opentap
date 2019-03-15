@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 
@@ -12,6 +13,7 @@ namespace OpenTap
     /// <summary>
     /// Class for generating the summary for a test plan.
     /// </summary>
+    [Browsable(false)]
     internal class TestPlanRunSummaryListener : ResultListener
     {
         const int stepRunLimit = 10000;

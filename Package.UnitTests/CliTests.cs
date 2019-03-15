@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace OpenTap.Package.UnitTests
@@ -78,6 +79,38 @@ namespace OpenTap.Package.UnitTests
             Debug.Write(output);
         }
 
+        [Ignore("This does not work on build runners")]
+        [Test]
+        public void TAPUninstallSelfTest()
+        {
+            int exitCode;
+            string testDir = "../UninstallOpenTAP";
+            try
+            {
+                Directory.CreateDirectory(testDir);
+                string output = RunPackageCli($"install Packages/OpenTAP.TapPackage --target {testDir} -f", out exitCode);
+                Debug.Write(output);
+                Assert.AreEqual(0, exitCode, "Unexpected exit code.\r\n" + output);
+                Debug.Write("--------------------------------------------");
+                string workingDir = Path.Combine(Directory.GetCurrentDirectory(), testDir);
+                output = RunPackageCliWrapped($"uninstall OpenTAP -v", out exitCode, workingDir, Path.Combine(workingDir, "tap.exe"));
+                Debug.Write(output);
+                if (File.Exists(Path.Combine(testDir, "OpenTap.dll")) || File.Exists(Path.Combine(testDir, "OpenTap.Package.dll")) || Directory.Exists(Path.Combine(testDir, "Packages")))
+                    Console.WriteLine(output);
+                Assert.False(File.Exists(Path.Combine(testDir, "OpenTap.dll")), "OpenTap.dll was not deleted!");
+                Assert.False(File.Exists(Path.Combine(testDir, "OpenTap.Package.dll")), "OpenTap.Package.dll was not deleted!");
+                Assert.False(Directory.Exists(Path.Combine(testDir, "Packages")), "Packages directory was not deleted!");
+            }
+            finally
+            {
+                try
+                {
+                    Directory.Delete(testDir, true);
+                }
+                catch { }
+            }
+        }
+
         [Test]
         public void InstallOutsideTapDir()
         {
@@ -100,15 +133,53 @@ namespace OpenTap.Package.UnitTests
                 int exitCode;
                 string output = RunPackageCli("install " + Path.GetFileName(tempFn), out exitCode, Path.GetDirectoryName(tempFn));
                 Assert.AreEqual(0, exitCode, "Unexpected exit code");
-                //StringAssert.Contains("Pkg1", output);
-                //Assert.IsTrue(File.Exists("Dependency.txt"));
-                //PluginInstaller.Uninstall(depDef);
+                StringAssert.Contains("Installed Pkg1", output);
+                Assert.IsTrue(File.Exists("Dependency.txt"));
+                PluginInstaller.Uninstall(depDef);
             }
             finally
             {
                 File.Delete(dep0File);
+                File.Delete(tempFn);
             }
         }
+
+        [Test]
+        public void InstallOutsideTapDirInSubDir()
+        {
+            var depDef = new PackageDef();
+            depDef.Name = "Pkg1";
+            depDef.Version = SemanticVersion.Parse("1.0");
+            depDef.AddFile("Dependency.txt");
+            string dep0File = DummyPackageGenerator.GeneratePackage(depDef);
+
+            string tempFn = Path.Combine(Path.GetTempPath(), Path.GetFileName(dep0File));
+
+            if (File.Exists(tempFn))
+                File.Delete(tempFn);
+            File.Move(dep0File, tempFn);
+
+            string testDir = Path.Combine(Path.GetTempPath(), "lolDir");
+
+            try
+            {
+                if (File.Exists("Dependency.txt"))
+                    File.Delete("Dependency.txt");
+                int exitCode;
+                Directory.CreateDirectory(testDir);
+                string output = RunPackageCli($"install --target {testDir} {Path.GetFileName(tempFn)}", out exitCode, Path.GetDirectoryName(tempFn));
+                Assert.AreEqual(0, exitCode, "Unexpected exit code");
+                StringAssert.Contains("Installed Pkg1", output);
+                Assert.IsTrue(File.Exists(Path.Combine(testDir, "Dependency.txt")));
+            }
+            finally
+            {
+                File.Delete(dep0File);
+                File.Delete(tempFn);
+                Directory.Delete(testDir, true);
+            }
+        }
+
 
         [Test]
         public void InstallFileWithDependenciesTest()
@@ -217,8 +288,8 @@ namespace OpenTap.Package.UnitTests
         {
             int exitCode;
             string output = RunPackageCli("install NonExistent.TapPackage", out exitCode);
-            //Assert.AreEqual(1, exitCode, "Unexpected exit code");
-            StringAssert.Contains("NonExistent", output);
+            Assert.AreEqual(6, exitCode, "Unexpected exit code");
+            StringAssert.Contains("Could not download", output);
         }
 
         [Test]
@@ -298,15 +369,14 @@ namespace OpenTap.Package.UnitTests
         public void InstallFromRepoTest()
         {
             int exitCode;
-            // TODO: we need the --version part below because the release version of License Injector does not yet support TAP 9.x, when it does, we can remove it again.
+            // TODO: we need the --version part below because the release version of License Injector does not yet support OpenTAP 9.x, when it does, we can remove it again.
             string output = RunPackageCli("install \"License Injector\" -r http://packages.opentap.keysight.com --version \"-beta\" -f", out exitCode);
             Assert.AreEqual(0, exitCode, "Unexpected exit code: " + output);
             Assert.IsTrue(output.Contains("Installed License Injector"));
             output = RunPackageCli("uninstall \"License Injector\" -f", out exitCode);
             Assert.AreEqual(0, exitCode, "Unexpected exit code: " + output);
-            Assert.IsTrue(output.Contains("Uninstalled License Injector"));
         }
-        
+
         [Test]
         public void InstallFileWithMissingDependencyTest()
         {
@@ -353,19 +423,43 @@ namespace OpenTap.Package.UnitTests
 
         private static string RunPackageCli(string args, out int exitCode, string workingDir = null)
         {
-            if (!File.Exists(Path.Combine(Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location), "Packages/OpenTap-CE.package.xml")))
+            string opentapPackageXmlPath = "Packages/OpenTap/package.xml";
+            if (!File.Exists(Path.Combine(Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location), opentapPackageXmlPath)))
             {
-                string createOpenTap = "create -v ../../opentap/opentapCE.package.xml -o \"Packages/OpenTAP-CE.package.xml\"";
+                // Sign package is needed to create opentap
+                string packageXml = CreateOpenTapPackageXmlWithoutSignElement("../../opentap/opentapCE.package.xml");
+                string createOpenTap = $"create -v {packageXml} --fake-install -o Packages/OpenTAP.TapPackage";
                 RunPackageCliWrapped(createOpenTap, out exitCode, workingDir);
+                File.Delete(packageXml);
             }
             return RunPackageCliWrapped(args, out exitCode, workingDir);
         }
 
-        private static string RunPackageCliWrapped(string args, out int exitCode, string workingDir)
+        private static string CreateOpenTapPackageXmlWithoutSignElement(string v)
         {
+            string fakeOpenTap = "fakeOpentap.xml";
+            using (StreamWriter fsWrite = new StreamWriter(fakeOpenTap, false))
+            {
+                using (StreamReader fsRead = new StreamReader(v))
+                {
+                    while (!fsRead.EndOfStream)
+                    {
+                        string line = fsRead.ReadLine();
+                        if (!line.Contains("<Sign"))
+                            fsWrite.WriteLine(line);
+                    }
+
+                }
+            }
+            return fakeOpenTap;
+        }
+
+        private static string RunPackageCliWrapped(string args, out int exitCode, string workingDir, string fileName = null)
+        {
+            if (fileName == null) fileName = Path.GetFileName(Path.Combine(Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location), "tap.exe"));
             var startinfo = new ProcessStartInfo
             {
-                FileName = Path.GetFileName(Path.Combine(Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location), "tap.exe")),
+                FileName = fileName,
                 WorkingDirectory = workingDir,
                 Arguments = "package " + args,
                 RedirectStandardOutput = true,
@@ -383,10 +477,17 @@ namespace OpenTap.Package.UnitTests
             p.BeginErrorReadLine();
             p.BeginOutputReadLine();
 
-            p.WaitForExit();
+            p.WaitForExit(125000); // TapUninstallSelfTest can hang while waiting for files to be freed up. 125 seconds ought to be enough for everyone!
 
-            exitCode = p.ExitCode;
-
+            if (!p.HasExited)
+            {
+                p.Kill();
+                exitCode = -1;
+            }
+            else
+            {
+                exitCode = p.ExitCode;
+            }
             return output.ToString();
         }
     }

@@ -49,7 +49,7 @@ namespace OpenTap.Engine.UnitTests
             var setVerdict = new OpenTap.Engine.UnitTests.TestTestSteps.VerdictStep();
             TestPlan plan = new TestPlan();
             plan.Steps.Add(setVerdict);
-            plan.ExternalParameters.Add(setVerdict, TypeInfo.GetTypeInfo(setVerdict).GetMember("VerdictOutput"),"verdict");
+            plan.ExternalParameters.Add(setVerdict, TypeData.GetTypeData(setVerdict).GetMember("VerdictOutput"),"verdict");
             plan.Save("verdictPlan.TapPlan");
             var fileName = CreateCsvTestFile(new string[] { "verdict" }, new object[] { "pass" });
             {

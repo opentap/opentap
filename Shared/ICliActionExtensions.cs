@@ -143,7 +143,7 @@ namespace OpenTap.Cli
 
                 Console.WriteLine("Options:");
                 printOptions(action.GetType().GetAttribute<DisplayAttribute>().Name, ap.AllOptions, unnamedArgToProp);
-                return 0;
+                return 1;
             }
 
             CancellationTokenSource source = new CancellationTokenSource();
@@ -216,8 +216,7 @@ namespace OpenTap.Cli
         
         private static object ParseEnum(string name, string value, Type propertyType)
         {
-            var conv = new StringConvertPlugins.EnumStringConvertProvider();
-            var obj = conv.FromString(value, CSharpTypeInfo.Create(propertyType), null, System.Globalization.CultureInfo.InvariantCulture);
+            var obj = StringConvertProvider.FromString(value, TypeData.FromType(propertyType), null, System.Globalization.CultureInfo.InvariantCulture);
 
             if (obj == null)
                 throw new Exception(string.Format("Could not parse argument '{0}'. Argument given: '{1}'. Valid arguments: {2}", name, value, string.Join(", ", propertyType.GetEnumNames())));

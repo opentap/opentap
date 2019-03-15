@@ -28,7 +28,7 @@ The default implementation of a TestStep (as generated when using the Visual Stu
 The following code shows the template for a test step:
 
 ```csharp
-namespace MyTapProject
+namespace MyOpenTAPProject
 {
     [Display("MyTestStep1", Group: "MyPlugin2", Description: "Insert a description here")]
     public class MyTestStep1 : TestStep
@@ -63,9 +63,9 @@ namespace MyTapProject
     }
 }
 ```
-To allow user configuration of a test step, developers must add appropriate properties to the plugin code. These properties will very likely be visible and editable in the TAP GUI. Properties typically include instrument and DUT references, instrument and DUT settings, timing and limit information, etc. Defining these properties is a major part of plugin development.
+To allow user configuration of a test step, developers must add appropriate properties to the plugin code. These properties will very likely be visible and editable in the OpenTAP GUI. Properties typically include instrument and DUT references, instrument and DUT settings, timing and limit information, etc. Defining these properties is a major part of plugin development.
 
-The SDK provides many examples of test step development in the **`TAP_PATH\SDK Examples\PluginDevelopment\TestSteps`** folder. 
+The SDK provides many examples of test step development in the **`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps`** folder. 
 
 ## TestStep Hierarchy
 
@@ -104,7 +104,8 @@ It is valuable to use *interfaces* instead of *types* in the AllowChildrenOfType
 [Display(Groups: new[] { "Examples", "Feature Library", "ParentChild" }, Name: "Child Only Parents With InterfaceB", Description: "Only allowed in parents with interface B")]
 // This will only allow children that implement this interface.
 [AllowAsChildIn(typeof(IInterfaceB))]
-public class ChildOnlyParentsWithInterfaceB : TestStep
+public class ChildOnlyParentsWithInterfaceB : TestStep {
+
 }
 ```
 
@@ -118,10 +119,10 @@ public ExampleParentTestStep()
     ChildTestSteps.Add(new ExampleChildTestStep { Name = "Child Step 2" });
 }
 ```
-For examples of parent/child implementations, see: **`TAP_PATH\SDK Examples\PluginDevelopment\TestSteps\ParentChild`**.
+For examples of parent/child implementations, see: **`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\ParentChild`**.
 
 ## Verdict
-TAP allows steps to be structured in parent/child hierarchy. The Tap.Verdict enumeration defines a 'verdict' indicating the state and progress of each test step and test plan run. The following table shows the available values for Tap.Verdict, in increasing order of severity. 
+OpenTAP allows steps to be structured in parent/child hierarchy. The OpenTap.Verdict enumeration defines a 'verdict' indicating the state and progress of each test step and test plan run. The following table shows the available values for OpenTap.Verdict, in increasing order of severity. 
 
 | **Verdict Severity** (lowest to highest) | **Description** |
 | ---- | -------- |
@@ -181,7 +182,7 @@ In the example above Step A is implemented so, that it sets its verdict based on
 
 ## Log Messages
 
-Log messages provide useful insight to the process of writing and debugging the test step code (as well as other plugin code). The TestStep base class has a predefined Log source, called **Log**. Log messages are displayed in the TAP GUI **Log** panel and saved in the log file.
+Log messages provide useful insight to the process of writing and debugging the test step code (as well as other plugin code). The TestStep base class has a predefined Log source, called **Log**. Log messages are displayed in the OpenTAP GUI **Log** panel and saved in the log file.
 
 When creating log messages, Keysight recommends the following:
 
@@ -205,7 +206,7 @@ void OnTestPlanRunCompleted(TestPlanRun planRun, System.IO.Stream logStream);
 **Note**: Users can create their own logs by creating an instance of **TraceSource** as shown in the code below. The *name* used to create the source is shown in the log:
 ```csharp
 Log.Debug("Info from Run");
-private Keysight.Tap.TraceSource MyLog = Keysight.Tap.Log.CreateSource("MyLog");
+private TraceSource MyLog = OpenTAP.Log.CreateSource("MyLog");
 MyLog.Info("Info from Run");
 ```
 ### Timestamps and Timing Analysis
@@ -298,7 +299,7 @@ The setting as displayed in the GUI looks like this:
 ![](Validation.PNG)
 
 ## Publishing Results 
-Publishing results from a test step is a fundamental part of test step execution. The following section discusses publishing results in detail. At a high level, publishing results usually involves a single call, as shown in the following code snippet from `TAP_PATH\SDK Examples\ExamplePlugin\MeasurePeakAmplituteTestStep.cs`.
+Publishing results from a test step is a fundamental part of test step execution. The following section discusses publishing results in detail. At a high level, publishing results usually involves a single call, as shown in the following code snippet from `TAP_PATH\Packages\SDK\Examples\ExamplePlugin\MeasurePeakAmplituteTestStep.cs`.
 ```csharp
 InputData = new double[] {0, 0, 5, 5, 5, 50};
 ReadOnlyOutputData = new double[]{10, 10, 15, 15, 15, 150};
@@ -334,11 +335,11 @@ The following **ResultSource.Publish** methods are available:
 
 For different approaches to publishing results, see the examples in:
 
--	`TAP_PATH\SDK Examples\PluginDevelopment\TestSteps\PublishResults`
+-	`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\PublishResults`
 
 	
 ## Serialization
-Default values of properties should be defined in the constructor. Upon saving a test plan, the test plan's **Tap.Serializer** adds each step's public property to the test plan's XML file. Upon loading a test plan from a file, the Tap.Serializer first instantiates the class with values from the constructor and then fills the property values from the values found in the test plan file. 
+Default values of properties should be defined in the constructor. Upon saving a test plan, the test plan's **OpenTAP.Serializer** adds each step's public property to the test plan's XML file. Upon loading a test plan from a file, the OpenTAP.Serializer first instantiates the class with values from the constructor and then fills the property values from the values found in the test plan file. 
 
 Because the resource references are declared as properties:
 
@@ -352,7 +353,7 @@ Inputs and outputs are test step settings that transfer data between test steps 
 
 For examples, see:
 
--	 `TAP_PATH\SDK Examples\PluginDevelopment\TestSteps\InputOutput`
+-	 `TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\InputOutput`
 
 The generic **Input** class takes one type argument. The Input property references an *Output* of a different step. If no Output is assigned to the Input, the value of the Input is null, and will result in an error.
 
@@ -393,4 +394,4 @@ public class HandleInput : TestStep
 }
 ```
 ## Exceptions 
-Exceptions from user code are caught by the TAP Engine. This could break the control flow, but all resources will always be closed. If the exception gets caught before PostPlanRun, the steps that had PrePlanRun called will also get PostPlanRun called. When a step fails (by setting the Verdict to *Fail* or *Abort*) or throws an exception, execution can be configured to continue (ignoring the error) or to abort execution. These settings are configured in Engine settings, by configuring the "Abort Run If" property.
+Exceptions from user code are caught by OpenTAP. This could break the control flow, but all resources will always be closed. If the exception gets caught before PostPlanRun, the steps that had PrePlanRun called will also get PostPlanRun called. When a step fails (by setting the Verdict to *Fail* or *Abort*) or throws an exception, execution can be configured to continue (ignoring the error) or to abort execution. These settings are configured in Engine settings, by configuring the "Abort Run If" property.

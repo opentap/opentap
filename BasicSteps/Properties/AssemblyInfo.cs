@@ -19,3 +19,4 @@ using System.Runtime.InteropServices;
 // The following GUID is for the ID of the typelib if this project is exposed to COM
 [assembly: Guid("0cfa6189-e5db-4954-9545-ae4e5f1876fb")]
 
+[assembly: OpenTap.PluginAssembly(true)]

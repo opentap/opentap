@@ -20,10 +20,10 @@ Developers should add appropriate properties to the plugin code to allow:
 Similar to DUTs, instruments must be preconfigured via the **Bench** menu choice, and tests will use the first instrument found that matches the type they need.
 For instrument plugin development examples, see the files in:
 
--	`TAP_PATH\SDK Examples\PluginDevelopment\InstrumentsAndDuts`
+-	`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\InstrumentsAndDuts`
 
 ## SCPI Instruments
-TAP provides a number of utilities for using SCPI instruments and SCPI in general. The **ScpiInstrument** base class:
+OpenTAP provides a number of utilities for using SCPI instruments and SCPI in general. The **ScpiInstrument** base class:
 
 -	Has properties and methods useful for controlling SCPI based instruments
 -	Includes a predefined VisaAddress property
@@ -41,7 +41,7 @@ The SCPI *class* is a utility class that formats SCPI commands and parses the re
 
 For an example, see:
 
--	`TAP_PATH\SDK Examples\PluginDevelopment\TestSteps\Attributes\ScpiAttributeExample.cs`
+-	`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\Attributes\ScpiAttributeExample.cs`
 
 The example below shows how the VisaAddress property for a SCPI instrument is automatically populated with values retrieved from VISA:
 

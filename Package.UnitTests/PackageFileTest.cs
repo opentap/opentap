@@ -19,7 +19,7 @@ namespace OpenTap.Package.UnitTests
             PackageDef package;
             using (var str = new MemoryStream(Encoding.UTF8.GetBytes(packageString)))
             {
-                package = PackageDef.LoadFrom(str);
+                package = PackageDef.FromXml(str);
             }
             Assert.AreEqual(package.Dependencies.Count, 1);
             Assert.AreEqual("Tap", package.Dependencies[0].Name);

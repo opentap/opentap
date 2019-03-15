@@ -1,9 +1,9 @@
 Plugin Development
 ==================
 
-## TAP Plugin Object Hierarchy
+## OpenTAP Plugin Object Hierarchy
 
-At the very root of the TAP plugin class hierarchy is the **ValidatingObject** class. Items in blue are TAP base classes. The green, dotted rectangles are user extensions to those base classes.
+At the very root of the OpenTAP plugin class hierarchy is the **ValidatingObject** class. Items in blue are OpenTAP base classes. The green, dotted rectangles are user extensions to those base classes.
 
  ![](ObjectHierarchy.PNG)
  
@@ -17,9 +17,9 @@ At the very root of the TAP plugin class hierarchy is the **ValidatingObject** c
 
 ## Developing Using Interfaces
 
-Developers may choose to NOT extend the TAP base classes, but instead to implement the required interfaces. You can inherit from as many interfaces as you want, but from only one class. The TestStepInterface.cs file provides an example of implementing ITestStep.
+Developers may choose to NOT extend the OpenTAP base classes, but instead to implement the required interfaces. You can inherit from as many interfaces as you want, but from only one class. The TestStepInterface.cs file provides an example of implementing ITestStep.
 
-Developers implementing IResource (required by virtually all other TAP plugin classes), must ensure that the implementation of:
+Developers implementing IResource (required by virtually all other OpenTAP plugin classes), must ensure that the implementation of:
 
 -	IResource.Open sets IsConnected to true, and 
 -	IResource.Close sets IsConnected to false.
@@ -28,10 +28,10 @@ Developers implementing IResource (required by virtually all other TAP plugin cl
 
 Attributes are standard parts of C# and are used extensively throughout .NET. They have constructors (just like classes) with different signatures, each with required and optional parameters. For more information on attributes, refer to the MSDN C# documentation. 
 
-For TAP, *type* information is not enough to fully describe what is needed from a property or class. For this reason, attributes are a convenient way to specify additional information. The TAP Engine, the GUI and CLI use reflection (which allows interrogation of attributes) extensively. Some attributes have already been shown in code samples in this document. 
+For OpenTAP, *type* information is not enough to fully describe what is needed from a property or class. For this reason, attributes are a convenient way to specify additional information. OpenTAP, the GUI and CLI use reflection (which allows interrogation of attributes) extensively. Some attributes have already been shown in code samples in this document. 
 
-### Attributes Used by TAP
-TAP uses the following attributes: 
+### Attributes Used by OpenTAP
+OpenTAP uses the following attributes: 
 
 | **Attribute name** | **Description** |
 | ---- | -------- |
@@ -49,7 +49,7 @@ TAP uses the following attributes:
 | **HelpLink**   | Defines the help link for a class or property.   |
 | **IgnoreSerializer**  | Used on classes to ignore serialization. Useful for cases where a plugin implementation contains non-serializable members or types.   |
 | **MacroPath**   | Indicates a setting should use MacroPath values, such as &lt;Name&gt; and %Temp%.   |
-| **MetaData**   | A *property* marked by this attribute becomes metadata and will be provided to all result listeners. If a resource is used with this attribute (and *Allow Metadata Dialog* is enabled), a dialog prompts the user. This works for both TAP GUI and TAP CLI.  |
+| **MetaData**   | A *property* marked by this attribute becomes metadata and will be provided to all result listeners. If a resource is used with this attribute (and *Allow Metadata Dialog* is enabled), a dialog prompts the user. This works for both OpenTAP GUI and OpenTAP CLI.  |
 | **Output**   | Indicates a test step property is an output variable.  |
 | **ResultListenerIgnore**   | Indicates a property that should not be published to ResultListeners.   |
 | **Scpi**   | Identifies a method or enumeration value that can be handled by the SCPI class.    |
@@ -60,7 +60,7 @@ TAP uses the following attributes:
 
 For attribute usage examples, see the files in:
 
--	`TAP_PATH\SDK Examples\PluginDevelopment\TestSteps\Attributes`
+-	`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\Attributes`
 
 Some of the commonly used attributes are described in the following sections.
 
@@ -71,7 +71,6 @@ The following recommendations will help you get your project off to a good start
 -	You can develop one or many plugins in one Visual Studio project. The organization is up to the developer. Keysight recommends the following:
     -	Encapsulate your logic. Keeping all instrument logic inside the instrument class makes it possible to swap out instruments without changing TestSteps. For example, a TestStep plugin knows to call **MeasureVoltage**, and the instrument plugin knows how to get that measurement from its specific instrument.  
     -	You can put Instruments, DUTs, and TestSteps all in separate packages and create a "plug-and-play" type of interaction for test developers. For example, you can create test steps that make a measurement and plot a result. If done properly, the steps don't necessarily care which instrument gets the data or what type of device is being tested.
--	The namespace of a plugin should follow the folder structure. For example, a folder structure of **`MyCompany\Tap\Plugins\Category`** should use a namespace **MyCompany.Tap.Plugins.Category**.
 
 -	Don't introduce general settings unless absolutely necessary. Instead try to move general settings to test steps (such as a parent step holding settings for a group of child steps) or to DUT or Instrument settings.
 

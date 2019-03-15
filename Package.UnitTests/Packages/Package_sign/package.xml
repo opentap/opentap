@@ -3,7 +3,6 @@
   <Files>
     <File Path="OpenTap.dll">
       <UseVersion/>
-      <Sign Certificate="Test 123,./"/>
     </File>
   </Files>
 </Package>

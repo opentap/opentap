@@ -32,6 +32,9 @@ namespace OpenTap.Package
         [CommandLineArgument("prerelease", Description = "Set type of prerelease", ShortName = "p")]
         public string PreRelease { get; set; }
 
+        [CommandLineArgument("fake-install", Description = "Fake installs the created package by only extracting files not already in your installation")]
+        public bool FakeInstall { get; set; } = false;
+
         public PackageCreateAction()
         {
             ProjectDir = Directory.GetCurrentDirectory();
@@ -72,7 +75,7 @@ namespace OpenTap.Package
                 }
                 try
                 {
-                    pkg = PackageDefExt.FromXmlFile(PackageXmlFile, expandVersion: false);
+                    pkg = PackageDefExt.FromInputXml(PackageXmlFile);
                     
                     // Check if package name has invalid characters or is not a valid path
                     var illegalCharacter = pkg.Name.IndexOfAny(Path.GetInvalidFileNameChars());
@@ -105,7 +108,7 @@ namespace OpenTap.Package
                 
                 var tmpFile = Path.GetTempFileName();
                 
-                pkg.CreatePackage(tmpFile, ProjectDir, false, PreRelease);
+                pkg.CreatePackage(tmpFile, ProjectDir, PreRelease);
 
                 if (OutputPaths == null || OutputPaths.Length == 0)
                     OutputPaths = new string[1] { "" };
@@ -114,26 +117,25 @@ namespace OpenTap.Package
                 {
                     var path = outputPath;
 
-                    if (path.EndsWith(".xml"))
-                    {
-                        File.Delete(path);
-                        using (FileStream fs = new FileStream(path, FileMode.CreateNew))
-                        {
-                            pkg.SaveTo(fs);
-                        }
-                        log.Info("TAP plugin package definition '{0}' for '{1}' successfully created.", path, pkg.Name);
-                        continue;
-                    }
-
                     if (String.IsNullOrEmpty(path))
                         path = GetRealFilePath(pkg.Name, pkg.Version.ToString(), DefaultEnding);
 
                     Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)));
 
                     ProgramHelper.FileCopy(tmpFile, path);
-                    log.Info("TAP plugin package '{0}' containing '{1}' successfully created.", path, pkg.Name);
+                    log.Info("OpenTAP plugin package '{0}' containing '{1}' successfully created.", path, pkg.Name);
                 }
 
+                if (FakeInstall)
+                {
+                    var path = PackageDef.GetDefaultPackageMetadataPath(pkg);
+                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                    using (FileStream fs = new FileStream(path, FileMode.OpenOrCreate))
+                    {
+                        pkg.SaveTo(fs);
+                    }
+                    log.Info($"Fake installed '{pkg.Name}' ({Path.GetFullPath(path)})");
+                }
             }
             catch (ArgumentException ex)
             {

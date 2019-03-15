@@ -4,7 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 
-namespace OpenTap.Package
+namespace OpenTap.Cli
 {
     /// <summary>
     /// Thrown from <see cref="OpenTap.Cli.ICliAction.Execute"/> to set a specific exit code

@@ -67,7 +67,7 @@ namespace OpenTap.Package
 
     public class PackageVersion : PackageIdentifier, IEquatable<PackageVersion>
     {
-        public PackageVersion(string name, SemanticVersion version, string os, CpuArchitecture architechture, string date, List<string> licenses) : base(name,version,architechture,os)
+        public PackageVersion(string name, SemanticVersion version, string os, CpuArchitecture architechture, DateTime date, List<string> licenses) : base(name,version,architechture,os)
         {
             this.Date = date;
             this.Licenses = licenses;
@@ -78,7 +78,7 @@ namespace OpenTap.Package
 
         }
 
-        public string Date { get; set; }
+        public DateTime Date { get; set; }
         public List<string> Licenses { get; set; }
 
         public bool Equals(PackageVersion other)
@@ -87,11 +87,11 @@ namespace OpenTap.Package
         }
     }
 
-    public class PackageVersionSerializerPlugin : TapSerializerPlugin
+    internal class PackageVersionSerializerPlugin : TapSerializerPlugin
     {
         public override double Order { get { return 5; } }
 
-        public override bool Deserialize(XElement node, ITypeInfo t, Action<object> setter)
+        public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
         {
             if (t.IsA(typeof(PackageVersion[])))
             {
@@ -110,7 +110,7 @@ namespace OpenTap.Package
             return false;
         }
 
-        public override bool Serialize(XElement node, object obj, ITypeInfo expectedType)
+        public override bool Serialize(XElement node, object obj, ITypeData expectedType)
         {
             return false;
         }
@@ -134,7 +134,7 @@ namespace OpenTap.Package
 
             void setProp(string propertyName, string value)
             {
-                if (propertyName == "CPU") // CPU was removed in TAP 9.0. This is to support packages created by TAP 8x
+                if (propertyName == "CPU") // CPU was removed in OpenTAP 9.0. This is to support packages created by TAP 8x
                     propertyName = "Architecture";
 
                 var prop = typeof(PackageVersion).GetProperty(propertyName);
@@ -153,6 +153,11 @@ namespace OpenTap.Package
                         prop.SetValue(version, semver);
                     else
                         Log.Warning($"Cannot parse version '{value}' of package '{version.Name ?? "Unknown"}'.");
+                }
+                else if (prop.PropertyType == typeof(DateTime))
+                {
+                    if (DateTime.TryParse(value, out var date))
+                        prop.SetValue(version, date);
                 }
                 else
                 {
@@ -194,16 +199,14 @@ namespace OpenTap.Package
     {
         private static TraceSource log = Log.CreateSource("PackageRepository");
 
-        internal static List<PackageDef> GetPackagesFromAllRepos(PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
+        internal static List<PackageDef> GetPackagesFromAllRepos(List<IPackageRepository> repositories, PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
         {
             var list = new List<PackageDef>();
             try
             {
-                Parallel.ForEach(PackageManagerSettings.Current.Repositories, repo =>
+                Parallel.ForEach(repositories, repo =>
                 {
-                    if (repo.IsEnabled == false || repo.Manager == null)
-                        return;
-                    list.AddRange(repo.Manager.GetPackages(id, compatibleWith));
+                    list.AddRange(repo.GetPackages(id, compatibleWith));
                 });
             }
             catch (AggregateException ex)
@@ -215,16 +218,14 @@ namespace OpenTap.Package
             return list;
         }
         
-        internal static List<PackageVersion> GetAllVersionsFromAllRepos(string packageName, params IPackageIdentifier[] compatibleWith)
+        internal static List<PackageVersion> GetAllVersionsFromAllRepos(List<IPackageRepository> repositories, string packageName, params IPackageIdentifier[] compatibleWith)
         {
             var list = new List<PackageVersion>();
             try
             {
-                Parallel.ForEach(PackageManagerSettings.Current.Repositories, repo =>
+                Parallel.ForEach(repositories, repo =>
                 {
-                    if (repo.IsEnabled == false || repo.Manager == null)
-                        return;
-                    list.AddRange(repo.Manager.GetPackageVersions(packageName, compatibleWith));
+                    list.AddRange(repo.GetPackageVersions(packageName, compatibleWith));
                 });
             }
             catch (AggregateException ex)

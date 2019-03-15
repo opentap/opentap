@@ -5,6 +5,7 @@
 using System;
 using System.Linq;
 using NUnit.Framework;
+using OpenTap.Package;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -132,6 +133,34 @@ namespace OpenTap.Engine.UnitTests
             
             Assert.AreEqual(2.CompareTo(1), higherVersion.CompareTo(lowerVersion));
             Assert.AreEqual(1.CompareTo(2), lowerVersion.CompareTo(higherVersion));
+        }
+
+        [TestCase("^9.0.0-alpha.1", "9.0.0-alpha.1", true)]
+        [TestCase("^9.0.0-alpha", "9.0.0-alpha.1", true)]
+        [TestCase("^9.0.0-alpha.2", "9.0.0-alpha.7", true)]
+        [TestCase("^9.0.1200-alpha.1.2", "9.0.1200-alpha.1.7", true)]
+        [TestCase("^9.0.0-alpha.1", "9.1.0-alpha.1", true)]
+        [TestCase("^9.0.0-alpha+test", "9.0.0-alpha+test", true)]
+        [TestCase("^9.0.0-alpha+test.5", "9.0.0-alpha+test.2", true)] // ignoring buildMetadata
+        [TestCase("^9.0.0-beta", "9.0.0-alpha", false)]
+        [TestCase("^9.0.0-alpha.2", "9.0.0-alpha.1", false)]
+        [TestCase("^9.0.0-alpha.1", "9.0.0-alpha", false)]
+        [TestCase("^9.0.1200-alpha.1.7", "9.0.1200-alpha.1.2", false)]
+        [TestCase("^9.1.0-alpha.1", "9.0.0-alpha.1", false)]
+        public void SpecifierCompatibilityTest(string specifier, string version, bool expected)
+        {
+            Assert.AreEqual(expected, VersionSpecifier.Parse(specifier).IsCompatible(SemanticVersion.Parse(version)));
+        }
+
+        [TestCase("9.0.0-alpha", "9.0.0-alpha", true)]
+        [TestCase("9.0.0-alpha.1", "9.0.0-alpha.1", true)]
+        [TestCase("1.2.3+Build-something", "1.2.3+Build-something", true)]
+        [TestCase("9.0.0-beta", "9.1.0-beta", false)] // minor
+        [TestCase("9.0.0-beta", "9.0.0-alpha", false)] // prerelease
+        [TestCase("1.2.3+Build-something", "1.2.3+Build-something-else", false)] // buildMetadata
+        public void SpecifierExactTest(string specifier, string version, bool expected)
+        {
+            Assert.AreEqual(expected, VersionSpecifier.Parse(specifier).IsCompatible(SemanticVersion.Parse(version)));
         }
     }
 }

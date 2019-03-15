@@ -41,15 +41,26 @@ namespace OpenTap
         string getError(string propertyName = null)
         {
             List<string> errors = null;
+            void pushError(string error)
+            {
+                if (errors == null) errors = new List<string>();
+                if (!errors.Contains(error))
+                    errors.Add(error);
+            }
+
             foreach (var rule in Rules)
             {
-                if (propertyName != null && rule.PropertyName != propertyName) continue;
-                if (rule.IsValid()) continue;
-                var err = rule.ErrorMessage;
-                if (string.IsNullOrEmpty(err)) continue;
-                if (errors == null) errors = new List<string>();
-                if (!errors.Contains(err))
-                    errors.Add(err);
+                try
+                {
+                    if (propertyName != null && rule.PropertyName != propertyName) continue;
+                    if (rule.IsValid()) continue;
+                    var error = rule.ErrorMessage;
+                    if (string.IsNullOrEmpty(error)) continue;
+                    pushError(error);
+                }catch(Exception ex)
+                {
+                    pushError(ex.Message);
+                }
             }
             foreach (var fwd in Rules.ForwardedRules)
             {
@@ -98,12 +109,6 @@ namespace OpenTap
         string IDataErrorInfo.this[string propertyName] => getError(propertyName);
 
         /// <summary>
-        /// Dispatcher function for PropertyChanged. Used for invoking PropertyChanged in different threads.
-        /// </summary>
-        [EditorBrowsable(EditorBrowsableState.Never)] // we don't want to show this to regular users. This is only for people implementing their own GUIs.
-        public static Action<Action> PropertyChangedDispatcher = a => a();
-
-        /// <summary>
         /// Checks all validation rules on this object (<see cref="Rules"/>) and throws an AggregateException on errors.
         /// </summary>
         /// <param name="ignoreDisabledProperties">If true, ignores <see cref="Rules"/> related to properties that are disabled or hidden as a result of <see cref="EnabledIfAttribute"/> or <see cref="Enabled{T}"/>.</param>
@@ -126,34 +131,6 @@ namespace OpenTap
         /// Standard PropertyChanged event object.
         /// </summary>
         public event PropertyChangedEventHandler PropertyChanged;
-
-        /// <summary> So we can avoid generating a lot of PropertyChangedEventArgs when just "" is used. </summary>
-        static readonly PropertyChangedEventArgs allArgs = new PropertyChangedEventArgs("");
-
-        int propertyChangedRecursionCount = 0;
-
-        // To avoid a situation where infinite recursion causes TAP to crash
-        // we make this limit. 
-        const int propertyChangedRecursionLimit = 5;
-        static bool recursionLimitHasBeenReached = false;
-
-        void onRecursionLimitReached(string propertyName)
-        {
-            if (string.IsNullOrEmpty(propertyName))
-            {
-                log.Warning("Change in a property of '{1}' caused a recursive property changed call to be made.", propertyName, GetType());
-            }
-            else
-            {
-                log.Warning("Change in the property '{0}' of '{1}' caused a recursive property changed call to be made.", propertyName, GetType());
-            }
-            
-            log.Info("The call to OnPropertyChanged has been canceled to prevent infinite recursion.");
-            log.Info("This issue is probably related to the properties of '{0}'.", GetType());
-        }
-        
-        static TraceSource log = Log.CreateSource("ValidatingObject");
-        string currentProperty = null;
         
         /// <summary>
         /// Triggers the PropertyChanged event.
@@ -161,40 +138,8 @@ namespace OpenTap
         /// <param name="propertyName">string name of which property has been changed.</param>
         public void OnPropertyChanged(string propertyName)
         {
-            PropertyChangedEventHandler handler = PropertyChanged;
-            if (handler == null) return;
-            if(PropertyChangedDispatcher == null)
-            {
-                handler(this, propertyName == "" ? allArgs : new PropertyChangedEventArgs(propertyName));
-            }
-
-            if (System.Threading.Interlocked.CompareExchange(ref currentProperty, propertyName, null) != null)
-                currentProperty = "";
-
-            PropertyChangedDispatcher(propertyChangedDispatched);
-        }
-
-        void propertyChangedDispatched()
-        {
-            string propertyName = null;
-            propertyName = System.Threading.Interlocked.Exchange(ref currentProperty, null);
-            if (propertyName == null) return;
-            int prev = System.Threading.Interlocked.Increment(ref propertyChangedRecursionCount);
-            try
-            {
-                PropertyChangedEventHandler handler = PropertyChanged;
-                if (prev < propertyChangedRecursionLimit && handler != null)
-                    handler(this, propertyName == "" ? allArgs : new PropertyChangedEventArgs(propertyName));
-                else if (!recursionLimitHasBeenReached)
-                {
-                    recursionLimitHasBeenReached = true;
-                    onRecursionLimitReached(propertyName);
-                }
-            }
-            finally
-            {
-                System.Threading.Interlocked.Decrement(ref propertyChangedRecursionCount);
-            }
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            UserInput.NotifyChanged(this, propertyName);
         }
 
         #endregion

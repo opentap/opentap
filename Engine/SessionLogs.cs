@@ -14,7 +14,7 @@ using System.Threading;
 namespace OpenTap
 {
     /// <summary>
-    /// SessionLogs are logs of all events that occur during startup/shutdown of a TAP session and of all the session's TestPlan runs. 
+    /// SessionLogs are logs of all events that occur during startup/shutdown of a OpenTAP session and of all the session's TestPlan runs. 
     /// A new session log is created at the start of each session, which starts when a process is launched and ends when it closes. 
     /// Only 10 session logs are allowed to exist, with the oldest deleted as new logs are created. 
     /// By comparison, a result log typically shows only the log activity for a single run of a TestPlan. 
@@ -53,14 +53,18 @@ namespace OpenTap
         {
             if (CurrentLogFile != null) return;
             var timestamp = System.Diagnostics.Process.GetCurrentProcess().StartTime.ToString("yyyy-MM-dd HH-mm-ss");
+
+            // Path example: <TapDir>/SessionLogs/SessionLog <timestamp>.txt
+            string pathEnding = $"SessionLog {timestamp}";
+
             if (Assembly.GetEntryAssembly() != null && !String.IsNullOrWhiteSpace(Assembly.GetEntryAssembly().Location))
             {
-                Initialize(string.Format("SessionLogs{2}{1}{2}{1} {0}.txt", timestamp, Path.GetFileNameWithoutExtension(Assembly.GetEntryAssembly().Location), Path.DirectorySeparatorChar));
+                string exeName = Path.GetFileNameWithoutExtension(Assembly.GetEntryAssembly().Location);
+                // Path example: <TapDir>/SessionLogs/tap/tap <timestamp>.txt
+                pathEnding = $"{exeName}/{exeName} {timestamp}";
             }
-            else
-            {
-                Initialize(string.Format("SessionLogs{1}SessionLog {0}.txt", timestamp, Path.DirectorySeparatorChar));
-            }
+
+            Initialize($"{FileSystemHelper.GetCurrentInstallationDirectory()}/SessionLogs/{pathEnding}.txt");
         }
         
         /// <summary>
@@ -112,7 +116,10 @@ namespace OpenTap
             string name;
             public LineFile(string filename)
             {
-                this.name = filename;
+                if (Assembly.GetEntryAssembly() != null)
+                    this.name = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), filename);
+                else
+                    this.name = filename;
 
             }
             void waitForFileUnlock()
@@ -297,7 +304,7 @@ namespace OpenTap
                 log.Warning("Unable to rename log file to {0} as permissions was denied.", path);
                 log.Debug(e);
             }catch (IOException e)
-            { // This could also be an error the the user does not have permissions. E.g TAP installed in C:\\
+            { // This could also be an error the the user does not have permissions. E.g OpenTAP installed in C:\\
                 log.Warning("Unable to rename log file to {0} as the file could not be created.", path);
                 log.Debug(e);
             }
@@ -312,7 +319,7 @@ namespace OpenTap
             if (!String.IsNullOrEmpty(RuntimeInformation.FrameworkDescription))
                 log.Debug(RuntimeInformation.FrameworkDescription); // This becomes something like ".NET Framework 4.6.1586.0"
             var version = SemanticVersion.Parse(Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion);
-            log.Debug("TAP Engine {0} {1}", version, RuntimeInformation.ProcessArchitecture);
+            log.Debug("OpenTAP Engine {0} {1}", version, RuntimeInformation.ProcessArchitecture);
         }
         
         /// <summary>

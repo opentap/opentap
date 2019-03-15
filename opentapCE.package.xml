@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Package Name="OpenTAP" xmlns="http://opentap.io/schemas/package" InfoLink="http://www.keysight.com/find/TAP" Version="$(GitVersion)" OS="Windows" Architecture="x64">
-  <Description>OpenTAP contains the core components of the software. It includes the TAP Engine, CLI and a plugin manager that finds and handles plugins (test steps, DUT and Instrument interfaces, etc.). OpenTAP also controls test plan (list of test steps) execution and provides access to functionality offered by the plugins. This covers logging functionality, result handling (database) and instrument communication (user-developed hardware drivers, for example).
+  <Description>OpenTAP contains the core components of the software. It controls test plan (list of test steps) execution and provides access to functionality offered by the plugins. This covers logging functionality, result handling (database) and instrument communication (user-developed hardware drivers, for example). OpenTAP also includes a CLI and a plugin manager that finds and handles plugins (test steps, DUT and Instrument interfaces, etc.). 
     <Status>Released</Status>
     <Organisation>Keysight Technologies</Organisation>
   </Description>

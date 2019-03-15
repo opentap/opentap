@@ -473,7 +473,7 @@ namespace OpenTap
     }
 
     /// <summary>
-    /// Specifies the ComponentSettings class to be a TAP plugin.
+    /// Specifies the ComponentSettings class to be a OpenTAP plugin.
     /// </summary>
     /// <remarks>
     /// It is recommended to iherit from <see cref="ComponentSettings{T}"/> when possible.
@@ -492,7 +492,6 @@ namespace OpenTap
     /// <remarks>
     /// It is recommended to iherit from <see cref="ComponentSettings{T}"/> when possible.
     /// </remarks>
-    [IgnoreSerializer]
     public abstract class ComponentSettings : ValidatingObject, IComponentSettings
     {
         /// <summary>
@@ -589,7 +588,7 @@ namespace OpenTap
                 Directory.CreateDirectory(GetSettingsDirectory(groupName, isProfile));
         }
 
-        /// <summary> Gets or sets if settings groups should be persisted between TAP processes.</summary>
+        /// <summary> Gets or sets if settings groups should be persisted between OpenTAP processes.</summary>
         [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
         public static bool PersistSettingGroups = true;
 
@@ -741,7 +740,7 @@ namespace OpenTap
                         var xdocserializer = new TapSerializer();
                         lock(flushers)
                             flushers.Enqueue(xdocserializer);
-                        settings = (ComponentSettings)xdocserializer.Deserialize(str, false, settingsType);
+                        settings = (ComponentSettings)xdocserializer.Deserialize(str, false, TypeData.FromType(settingsType));
                         
                     }
                 }
