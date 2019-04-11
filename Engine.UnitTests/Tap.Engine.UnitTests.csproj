@@ -7,28 +7,28 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <RootNamespace>OpenTap.UnitTests</RootNamespace>
     <LangVersion>7.2</LangVersion>
-    <Configurations>Debug;Release;Linux</Configurations>
+    <Configurations>Debug;Release;NetCore</Configurations>
   </PropertyGroup>
   
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <OutputPath>../../bin/Debug/</OutputPath>
+    <OutputPath>../bin/Debug/</OutputPath>
     <Optimize>false</Optimize>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-    <OutputPath>..\..\bin\Release\</OutputPath>
+    <OutputPath>..\bin\Release\</OutputPath>
     <DebugType>pdbonly</DebugType>
     <DefineConstants>TRACE</DefineConstants>
     <Optimize>true</Optimize>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)'=='Linux'">
+  <PropertyGroup Condition="'$(Configuration)'=='NetCore'">
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <RuntimeIdentifiers>linux-x64</RuntimeIdentifiers>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <PlatformTarget>x64</PlatformTarget>
-    <OutputPath>..\..\bin\Release\</OutputPath>
+    <OutputPath>..\bin\Release\</OutputPath>
     <Optimize>true</Optimize>
   </PropertyGroup>
 

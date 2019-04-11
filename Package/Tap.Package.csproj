@@ -6,24 +6,24 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AssemblyName>OpenTap.Package</AssemblyName>
     <RootNamespace>OpenTap.Package</RootNamespace>
-    <Configurations>Debug;Release;LinuxNetCore;Linux</Configurations>
+    <Configurations>Debug;Release;NetCore</Configurations>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <OutputPath>../../bin/Debug/</OutputPath>
+    <OutputPath>../bin/Debug/</OutputPath>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-    <OutputPath>..\..\bin\Release\</OutputPath>
+    <OutputPath>..\bin\Release\</OutputPath>
     <DebugType>pdbonly</DebugType>
     <DefineConstants>TRACE</DefineConstants>
     <Optimize>true</Optimize>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)'=='Linux'">
-    <OutputPath>..\..\bin\Release\</OutputPath>
+  <PropertyGroup Condition="'$(Configuration)'=='NetCore'">
+    <OutputPath>..\bin\Release\</OutputPath>
     <DebugType>pdbonly</DebugType>
     <DefineConstants>TRACE</DefineConstants>
     <Optimize>true</Optimize>
