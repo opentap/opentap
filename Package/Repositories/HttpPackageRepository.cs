@@ -445,7 +445,7 @@ namespace OpenTap.Package
                     if (macAddr != null)
                         macAddr.GetAddressBytes().CopyTo(block, 0);
 
-                    string arg = string.Format("/{0}/CheckForUpdates?name={1}", "2.0", MurMurHash3.Hash(block));
+                    string arg = string.Format("/{0}/CheckForUpdates?name={1}", ApiVersion, MurMurHash3.Hash(block));
                     response = downloadPackagesString(arg, data);
                     cancellationToken.ThrowIfCancellationRequested();
                 }

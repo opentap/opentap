@@ -122,6 +122,7 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(7, SweepTestStep.Value);
         }
 
+        [Ignore("This is very unstable on CI runners")]
         [TestCase(true)]
         [TestCase(false)]
         public void RunSweepWithInterruptions(bool loopRange)

@@ -48,6 +48,52 @@ namespace OpenTap.Package.UnitTests
     [TestFixture]
     public class PackageDefTests
     {
+        [TestCase("GlobTest/**/*.txt", 4)]
+        [TestCase("GlobTest/*/*.txt", 3)]
+        [TestCase("GlobTest/dir*/*.txt", 3)]
+        [TestCase("GlobTest/dir?/*.txt", 3)]
+        [TestCase("GlobTest/**/dir3/*.txt",1)]
+        [TestCase("GlobTest/*/dir3/*.txt", 1)]
+        [TestCase("GlobTes?/dir1/*.txt", 1)]
+        [TestCase("GlobTest/empty/*.txt", 0)]
+        [TestCase("GlobTest/nonexistent/*.txt", 0)]
+        [TestCase("GlobTest/empty/*.txt,GlobTest/dir2/*.txt", 2)]
+        public void GlobTest(string globPattern, int matchCount)
+        {
+            Directory.CreateDirectory("GlobTest");
+            Directory.CreateDirectory("GlobTest/dir1");
+            Directory.CreateDirectory("GlobTest/dir2");
+            Directory.CreateDirectory("GlobTest/dir2/dir3");
+            Directory.CreateDirectory("GlobTest/empty");
+            File.WriteAllText("GlobTest/dir1/inDir1.txt","test");
+            File.WriteAllText("GlobTest/dir2/inDir2.txt","test");
+            File.WriteAllText("GlobTest/dir2/inDir2Too.txt", "test");
+            File.WriteAllText("GlobTest/dir2/dir3/inDir3.txt", "test");
+
+            try
+            {
+                List<PackageFile> files = new List<PackageFile>
+                {
+                    new PackageFile{ RelativeDestinationPath = "FirstEntry.txt" }
+                };
+                foreach(var x in globPattern.Split(','))
+                {
+                    files.Add(new PackageFile { RelativeDestinationPath = x });
+                }
+
+                files.Add(new PackageFile { RelativeDestinationPath = "LastEntry.txt" });
+
+                files = PackageDefExt.expandGlobEntries(files);
+                Assert.AreEqual("FirstEntry.txt", files.First().RelativeDestinationPath);
+                Assert.AreEqual("LastEntry.txt", files.Last().RelativeDestinationPath);
+                Assert.AreEqual(matchCount, files.Count-2);
+            }
+            finally
+            {
+                FileSystemHelper.DeleteDirectory("GlobTest");
+            }
+        }
+
         [Test]
         public void GetPluginName_Test()
         {

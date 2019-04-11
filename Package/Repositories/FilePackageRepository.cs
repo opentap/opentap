@@ -212,7 +212,7 @@ namespace OpenTap.Package
 
             // Select the latest of each packagename left
             return packages
-                .GroupBy(p => p.Name).Select(g => g.First())
+                .GroupBy(p => p.Name).Select(g => g.FirstOrDefault(x => x.Architecture == pid.Architecture) ?? g.First())
                 .ToArray();
         }
         public  PackageDef[] CheckForUpdates(IPackageIdentifier[] packages, CancellationToken cancellationToken)

@@ -167,7 +167,10 @@ namespace OpenTap.Package
                 {
                     if (!packages.Any(p => p.Name == d.Name && d.Version.IsCompatible(p.Version)))
                         throw new Exception($"Unable to run isolated. Cannot find needed dependency '{d.Name}'.");
-                    var fs = packages.First(p => p.Name == d.Name && d.Version.IsCompatible(p.Version)).Files;
+                    var package = packages.First(p => p.Name == d.Name && d.Version.IsCompatible(p.Version));
+                    allFiles.Add(String.Join("/", PackageDef.PackageDefDirectory, package.Name, PackageDef.PackageDefFileName));
+
+                    var fs = package.Files;
                     foreach (var file in fs)
                     {
                         allFiles.Add(file.FileName);
@@ -446,6 +449,7 @@ namespace OpenTap.Package
                 throw new Exception("No packages specified.");
 
             Installer installer;
+
             installer = new Installer(Target, cancellationToken) { DoSleep = false};
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;
@@ -531,10 +535,10 @@ namespace OpenTap.Package
                     string.Join(" and ", packages.Select(p => p.Name)),
                     string.Join("\n", packagesWithIssues.Select(p => p.Name + " " + p.Version)));
 
-                var req = new ContinueRequest { message = question + "\nContinue?", Response = true };
+                var req = new ContinueRequest { message = question, Response = ContinueResponse.Continue };
                 UserInput.Request(req, true);
 
-                return req.Response;
+                return req.Response == ContinueResponse.Continue;
             }
             else
             {
@@ -550,13 +554,23 @@ namespace OpenTap.Package
         }
     }
 
+    [Obfuscation(Exclude = true)]
+    enum ContinueResponse
+    {
+        Continue,
+        Cancel
+    }
+
+    [Obfuscation(Exclude = true)]
     class ContinueRequest
     {
         [Browsable(true)]
         public string Message => message;
         internal string message;
         public string Name { get; private set; } = "Continue?";
-        public bool Response { get; set; }
+
+        [Submit]
+        public ContinueResponse Response { get; set; }
     }
 
     [Display("test", Group: "package", Description: "Runs tests on one or more packages.")]

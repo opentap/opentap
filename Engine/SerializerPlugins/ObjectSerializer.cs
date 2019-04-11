@@ -261,7 +261,7 @@ namespace OpenTap.Plugins
 
             if (propType.IsEnum || propType.IsPrimitive || propType == typeof(string) || propType.IsValueType || propType == typeof(Type))
             {
-                string valueString = getvalueString();
+                string valueString = getvalueString().Trim();
                 if (valueString != null)
                 {
                     if (propType.IsEnum)

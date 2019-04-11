@@ -74,7 +74,6 @@ namespace OpenTap.Plugins.BasicSteps
                 crossPlanSweepIndex = 0;
                 Iteration = 0;
                 sweepParameters = value;
-                OnPropertyChanged(nameof(SweepParameters));
             }
         }
 
@@ -188,7 +187,8 @@ namespace OpenTap.Plugins.BasicSteps
                     {
                         try
                         {
-                            if (object.Equals(paramProp.TypeDescriptor, sweepParameter.Member.TypeDescriptor))
+                            var tp = TypeData.GetTypeData(val);
+                            if (paramProp.TypeDescriptor == sweepParameter.Member.TypeDescriptor && (tp.DescendsTo(paramProp.TypeDescriptor) || val == null))
                                 paramProp.SetValue(childTestStep, val);
                         }
                         catch (TargetInvocationException e)
@@ -644,6 +644,7 @@ namespace OpenTap.Plugins.BasicSteps
 
             public void Write(object source)
             {
+                if (selectedValues == null) return;
                 var otherMember = fac.ParentAnnotation.Get<IMembersAnnotation>().Members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member.Name == nameof(SweepLoop.SweepParameters));
                 var sweepPrams = otherMember.Get<IObjectValueAnnotation>().Value as List<SweepParam>;
                 var avail = allAvailable.OfType<IMemberData>().ToLookup(x => x.GetDisplayAttribute().GetFullName() + x.TypeDescriptor.Name, x => x);
@@ -725,8 +726,8 @@ namespace OpenTap.Plugins.BasicSteps
 
             public void Read(object source)
             {
-                int index = Math.Min(Param.Values.Length - 1, Index);
-                Value = index == -1 ? Param.DefaultValue : Param.Values[index];
+                if (Index >= Param.Values.Length || Index < 0) Value = Param.DefaultValue;
+                else Value = Param.Values[Index];
             }
 
             public void Write(object source)
@@ -769,7 +770,7 @@ namespace OpenTap.Plugins.BasicSteps
 
                         // a bit complicated..
                         // we have to make sure that the ValueAnnotation is put very early in the chain.
-                        sub.Insert(fst, v);
+                        sub.Insert(fst + 1, v);
                         
                         lst.Add(sub);
                     }
@@ -890,6 +891,10 @@ namespace OpenTap.Plugins.BasicSteps
             int count = 0;
             public void Read(object source)
             {
+                var sweep = fac.ParentAnnotation.Get<IObjectValueAnnotation>()?.Value as SweepLoop;
+                if (sweep == null)
+                    return;
+
                 var sparams = (List<SweepParam>)fac.Get<IObjectValueAnnotation>().Value;
                 count = sparams?.FirstOrDefault()?.Values.Length ?? 0;
                 rowAnnotations.Clear();
@@ -900,6 +905,8 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 var sparams = (List<SweepParam>)fac.Get<IObjectValueAnnotation>().Value;
                 var sweep = fac.ParentAnnotation.Get<IObjectValueAnnotation>()?.Value as SweepLoop;
+                if (sweep == null)
+                    return;
                 foreach(var param in sparams)
                      param.Resize(count);
 
@@ -1167,8 +1174,13 @@ namespace OpenTap.Plugins.BasicSteps
         object[] _values = Array.Empty<object>();
         public object[] Values { get => _values; set => _values = value; }
 
+        object _defaultValue;
         [XmlIgnore]
-        public object DefaultValue;
+        public object DefaultValue
+        {
+            get => cloneObject(_defaultValue);
+            set => _defaultValue = value;
+        }
 
         [XmlIgnore]
         public ITypeData Type => Member?.TypeDescriptor; 
@@ -1232,6 +1244,36 @@ namespace OpenTap.Plugins.BasicSteps
             return string.Format("{0} : {1}", Name, Type.Name);
         }
 
+        TapSerializer serializer = null;
+        object cloneObject(object newValue)
+        {
+            if (StringConvertProvider.TryGetString(newValue, out string str))
+            {
+                if (StringConvertProvider.TryFromString(str, TypeData.GetTypeData(newValue), this.Step, out object result))
+                {
+                    newValue = result;
+                }
+            }
+            else
+            {
+
+                string serialized = null;
+
+                serializer = new TapSerializer();
+                try
+                {
+
+                    serialized = serializer.SerializeToString(newValue);
+                    newValue = serializer.DeserializeFromString(serialized, TypeData.GetTypeData(newValue));
+                }
+                catch
+                {
+
+                }
+
+            }
+            return newValue;
+        }
         public void Resize(int newCount)
         {
             int oldCount = Values.Length;
@@ -1242,14 +1284,13 @@ namespace OpenTap.Plugins.BasicSteps
             Array.Resize(ref _values, newCount);
             for (int i = oldCount; i < newCount; i++)
             {
+                object newValue = null; 
                 if (i == 0)
-                {
-                    _values.SetValue(DefaultValue, i);
-                }
+                    newValue = DefaultValue;
                 else
-                {
-                    _values.SetValue(_values.GetValue(i - 1), i);
-                }
+                    newValue = _values.GetValue(i - 1);
+                newValue = cloneObject(newValue);
+                _values.SetValue(newValue, i);
             }
             var copyAmount = Math.Min(newCount, oldValues.Length);
             Array.Copy(oldValues, Values, copyAmount);

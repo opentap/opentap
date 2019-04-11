@@ -59,9 +59,9 @@ namespace OpenTap.Cli
         public string[] External { get; set; } = new string[0];
 
         /// <summary>
-        /// Try setting an external test plan parameter, ignoring if it does not exist in the test plan. Can be used multiple times. Use the syntax parameter=value, e.g. \"-t delay=1.0\".
+        /// Try setting an external test plan parameter, ignoring errors if it does not exist in the test plan. Can be used multiple times. Use the syntax parameter=value, e.g. \"-t delay=1.0\".
         /// </summary>
-        [CommandLineArgument("try-external", ShortName = "t", Description = "Try setting an external test plan parameter,\nignoring if it does not exist in the test plan.\nCan be used multiple times. Use the syntax parameter=value,\ne.g. \"-t delay=1.0\".")]
+        [CommandLineArgument("try-external", ShortName = "t", Description = "Try setting an external test plan parameter,\nignoring errors if it does not exist in the test plan.\nCan be used multiple times. Use the syntax parameter=value,\ne.g. \"-t delay=1.0\".")]
         public string[] TryExternal { get; set; } = new string[0];
 
         /// <summary>

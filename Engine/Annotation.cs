@@ -782,25 +782,43 @@ namespace OpenTap
         string currentError;
         AnnotationCollection annotation;
         object currentValue;
+        
+        
+        bool wasRead = false;
+        bool wasSet = false;
         public object Value
         {
-            get => currentValue;
-            set => currentValue = value;
+            get
+            {
+                if (!wasRead)
+                    read(); // lazy read.
+                return currentValue;
+            }
+            set
+            {
+                wasSet = true;
+                wasRead = true;
+                currentValue = value;
+            }
         }
 
         public DefaultValueAnnotation(AnnotationCollection annotation)
         {
             this.annotation = annotation;
         }
-        
-        public void Read(object source)
+        void read()
         {
             var m = annotation.Get<IMemberAnnotation>();
-            currentValue = m.Member.GetValue(source);
+            currentValue = m.Member.GetValue(annotation.Source);
+        }
+        public void Read(object source)
+        {
+            wasRead = false;
         }
 
         public void Write(object source)
         {
+            if (wasSet == false) return;
             var m = annotation.Get<IMemberAnnotation>();
             if (m.Member.Writable == false) return;
             string newerror = null;
@@ -1578,6 +1596,7 @@ namespace OpenTap
                 var mem = annotation.Get<IMemberAnnotation>();
                 var device_attr = mem.Member.GetAttribute<DeviceAddressAttribute>();
                 var plugins = PluginManager.GetPlugins<IDeviceDiscovery>();
+                List<string> result = new List<string>();
                 foreach(var plugin in plugins)
                 {
                     try
@@ -1585,7 +1604,7 @@ namespace OpenTap
                         var device_discoverer = (IDeviceDiscovery) Activator.CreateInstance(plugin);
                         if (device_discoverer.CanDetect(device_attr))
                         {
-                            return device_discoverer.DetectDeviceAddresses(device_attr);
+                            result.AddRange(device_discoverer.DetectDeviceAddresses(device_attr));
                         }
                     }
                     catch
@@ -1593,7 +1612,7 @@ namespace OpenTap
 
                     }
                 }
-                return Enumerable.Empty<string>();
+                return result.Distinct().ToArray();
             }
 
             AnnotationCollection annotation;

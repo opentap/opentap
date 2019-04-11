@@ -31,7 +31,7 @@ The GUI facilitates test plan configuration and execution by providing the featu
 
 -	The OpenTAP GUI consists of multiple dockable panels. It is possible to extend the OpenTAP GUI with custom dockable panels. For an example, see `TAP_PATH\Packages\SDK\Examples\PluginDevelopment\GUI\DockablePanel.cs` 
 -   If a GUI is not needed or desired, test plans can be executed using the [OpenTAP Command Line Interface](#tap-command-line-interface ) (CLI). 
--	It is possible to build custom GUIs to expose only the functionality necessary for test execution or to integrate TAP into preexisting UIs. This can be useful for operators in a production environment.
+-	It is possible to build custom GUIs to expose only the functionality necessary for test execution or to integrate OpenTAP into preexisting UIs. This can be useful for operators in a production environment.
 -	Users can specify one or more of the following command line arguments when starting the GUI:
 	
 | **Command** | **Description** | **Example** |

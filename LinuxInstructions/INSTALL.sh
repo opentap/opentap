@@ -29,11 +29,9 @@ cd $DEST_DIR
 unzip $CUR_DIR/TAPLinux.TapPackage -d $DEST_DIR
 chmod -R +w .
 
-chmod +x Keysight.Tap.Cli
 chmod +x tap
 
 cd $BIN_DIR
-ln -s $DEST_DIR/Keysight.Tap.Cli Keysight.Tap.Cli
 ln -s $DEST_DIR/tap tap
 
 cd "$CUR_DIR"

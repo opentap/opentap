@@ -15,10 +15,9 @@
    needed for package installation and session log output.
 
 --- Usage
-The two main executables are "Keysight.Tap.Cli" and
-"Keysight.Tap.PackageManager". If you ran the automatic install script
-these should be callable straight away. Otherwise you should call:
-"dotnet Keysight.Tap.Cli.dll <arguments>"
+The main executable is "tap". If you ran the automatic install script
+this should be callable straight away. Otherwise you should call:
+"dotnet tap.dll <arguments>"
 
 --- Licensing
 To use TAP on Linux you need to have a running FlexLM license server with

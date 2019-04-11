@@ -119,8 +119,9 @@ namespace OpenTap.Cli
             // Print default info
             if (selectedCommand == null)
             {
-                Console.WriteLine("Usage: tap <command> [<subcommand>] [<args>]\n\n");
-                Console.WriteLine("Valid commands are:\n");
+                Console.WriteLine("OpenTAP Command Line Interface ({0})",Assembly.GetExecutingAssembly().GetSemanticVersion().ToString(4));
+                Console.WriteLine("Usage: tap <command> [<subcommand>] [<args>]\n");
+                Console.WriteLine("Valid commands are:");
 
                 var availableCommands = commands
                     .Where(cmd => cmd.Display != null && cmd.IsBrowsable)

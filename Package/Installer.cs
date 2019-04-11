@@ -137,7 +137,7 @@ namespace OpenTap.Package
                     OnProgressUpdate(progressPercent, string.Format("Running command '{0}' on {1}", command, Path.GetFileNameWithoutExtension(fileName)));
                     Stopwatch timer = Stopwatch.StartNew();
                     PackageDef pkg = PackageDef.FromXml(fileName);
-                    var res = pi.ExecuteAction(pkg, command, force);
+                    var res = pi.ExecuteAction(pkg, command, force, TapDir);
 
                     if (res == ActionResult.Error)
                     {

@@ -17,6 +17,13 @@ namespace OpenTap.Package
     {
         readonly static TraceSource log =  OpenTap.Log.CreateSource("PackageAction");
 
+        private enum DepResponse
+        {
+            Add,
+            Ignore
+        }
+
+        [System.Reflection.Obfuscation(Exclude = true)]
         private class DepRequest
         {
             [Browsable(true)]
@@ -24,7 +31,8 @@ namespace OpenTap.Package
             public string Message => message;
             internal string message;
             internal string PackageName { get; set; }
-            public bool Response { get; set; }
+            [Submit]
+            public DepResponse Response { get; set; } = DepResponse.Add;
         }
 
         internal static PackageDef FindPackage(PackageSpecifier packageReference, bool force, Installation installation, List<IPackageRepository> repositories)
@@ -61,7 +69,7 @@ namespace OpenTap.Package
                         new string[] {
                                     packageReference.Version != VersionSpecifier.Any ? "compatible with version " + packageReference.Version : null,
                                     packageReference.OS != null ? "compatible with " + packageReference.OS + " operating system" : null,
-                                    packageReference.Architecture != CpuArchitecture.Unspecified ? "with \"" + packageReference.Architecture + "\" architechture" : null
+                                    packageReference.Architecture != CpuArchitecture.Unspecified ? "with \"" + packageReference.Architecture + "\" architecture" : null
                         }.Where(x => x != null).ToArray()));
                 else
                     message = String.Format("Could not find any versions of package '{0}' that is compatible.", packageReference.Name);
@@ -110,7 +118,7 @@ namespace OpenTap.Package
                         var bundleFiles = PluginInstaller.UnpackPackage(packageName, tempDir);
                         var packagesInBundle = bundleFiles.Select(PackageDef.FromPackage);
 
-                        // A packages file may contain the several variants of the same package, try to select one based on OS and Architechture
+                        // A packages file may contain the several variants of the same package, try to select one based on OS and Architecture
                         foreach (IGrouping<string, PackageDef> grp in packagesInBundle.GroupBy(p => p.Name))
                         {
                             var selected = grp.ToList();
@@ -135,7 +143,7 @@ namespace OpenTap.Package
                                 if (selected.Count == 1)
                                 {
                                     gatheredPackages.Add(selected.First());
-                                    log.Debug("TapPackages file contains packages for several CPU architechtures. Picking only the one for {0}.", arch);
+                                    log.Debug("TapPackages file contains packages for several CPU architectures. Picking only the one for {0}.", arch);
                                     continue;
                                 }
                             }
@@ -224,16 +232,15 @@ namespace OpenTap.Package
                     {
                         // Handle each package at a time.
                         DepRequest req = null;
-                        pkgs.Add(req = new DepRequest { PackageName = package.Name, message = string.Format("{0} {1}", package.Name, package.Version), Response = true });
+                        pkgs.Add(req = new DepRequest { PackageName = package.Name, message = string.Format("Add dependency {0} {1} ?", package.Name, package.Version), Response = DepResponse.Add });
                         UserInput.Request(req, true);
                     }
-
 
                     foreach (var pkg in resolver.MissingDependencies)
                     {
                         var res = pkgs.FirstOrDefault(r => r.PackageName == pkg.Name);
 
-                        if ((res != null) && res.Response)
+                        if ((res != null) && res.Response == DepResponse.Add)
                         {
                             gatheredPackages.Insert(0, pkg);
                         }

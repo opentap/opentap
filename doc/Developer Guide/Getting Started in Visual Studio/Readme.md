@@ -7,7 +7,7 @@ OpenTAP plugin development begins with the **OpenTAP Plugin** template, a Visual
 -	Copies the project's output to the location specified by the TAP_PATH environment variable, which enables OpenTAP to load the plugins during development.
 
 ## View the Visual Studio Example Projects
-Before you create your own project, look at the projects and files in **`TAP_PATH\Packages\SDK\Examples`**. This folder provides code for example DUT, instrument and test step plugins. First-time TAP developers should browse and build the projects, then use the OpenTAP GUI to view the example DUTs, instruments and test steps. 
+Before you create your own project, look at the projects and files in **`TAP_PATH\Packages\SDK\Examples`**. This folder provides code for example DUT, instrument and test step plugins. First-time OpenTAP developers should browse and build the projects, then use the OpenTAP GUI to view the example DUTs, instruments and test steps. 
 
 SDK Examples contains the following:
 

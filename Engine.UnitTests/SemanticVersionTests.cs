@@ -3,7 +3,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.CodeDom.Compiler;
+using System.IO;
 using System.Linq;
+using System.Reflection;
+using Microsoft.CSharp;
 using NUnit.Framework;
 using OpenTap.Package;
 
@@ -161,6 +165,34 @@ namespace OpenTap.Engine.UnitTests
         public void SpecifierExactTest(string specifier, string version, bool expected)
         {
             Assert.AreEqual(expected, VersionSpecifier.Parse(specifier).IsCompatible(SemanticVersion.Parse(version)));
+        }
+
+
+        static Assembly generateAssemblyInMemWithoutVersion()
+        {
+            string cs = "public class ObjectTest { public void Run(){} }";
+
+            CSharpCodeProvider provider = new CSharpCodeProvider();
+            CompilerParameters parameters = new CompilerParameters();
+            parameters.ReferencedAssemblies.Add("System.dll");
+
+            parameters.GenerateInMemory = true;
+            parameters.GenerateExecutable = false;
+            CompilerResults results = provider.CompileAssemblyFromSource(parameters, cs);
+            if (results.Errors.HasErrors)
+            {
+                var errors = results.Errors.Cast<CompilerError>().Select(err => err.ToString());
+                Assert.Inconclusive(String.Join("\r\n", errors));
+            }
+            return results.CompiledAssembly;
+        }
+
+        [Test]
+        public void TestSemVerDynamicallyLoadedAssembly()
+        {
+            var dynasm = generateAssemblyInMemWithoutVersion();
+            var semver = dynasm.GetSemanticVersion();
+            Assert.IsTrue(semver == new SemanticVersion(0, 0, 0, "", ""));
         }
     }
 }

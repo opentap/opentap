@@ -337,6 +337,14 @@ namespace OpenTap.Plugins.BasicSteps
             if (groups.FirstOrDefault() != "Settings")
                 groups = new[] { "Settings" }.Append(dis.Group).ToArray();
             attrs.Add(new DisplayAttribute(ep.Name, Description: dis.Description, Order: 5, Groups: groups));
+            if (attrs.Any(x => x is ColumnDisplayNameAttribute))
+            {
+                var colAttr = (ColumnDisplayNameAttribute)attrs.FirstOrDefault(x => x is ColumnDisplayNameAttribute);
+                attrs.Remove(colAttr);
+
+                var newColAttr = new ColumnDisplayNameAttribute(ep.Name, colAttr.Order, colAttr.IsReadOnly);
+                attrs.Add(newColAttr);
+            }
             Attributes = attrs;
         }
     }

@@ -63,8 +63,9 @@ namespace OpenTap.Cli
                 {
                     description = attr.Description;
                 }
-
+                
                 var arg = ap.AllOptions.Add(attr.Name, attr.ShortName == null ? '\0' : attr.ShortName.FirstOrDefault(), needsArg, description);
+                arg.IsVisible = attr.Visible;
                 argToProp.Add(arg.LongName, prop);
             }
 
@@ -80,7 +81,6 @@ namespace OpenTap.Cli
 
             if (args.Contains("help"))
             {
-                Console.WriteLine("Options:");
                 printOptions(action.GetType().GetAttribute<DisplayAttribute>().Name, ap.AllOptions, unnamedArgToProp);
                 return 0;
             }
@@ -140,8 +140,7 @@ namespace OpenTap.Cli
 
                 if (requiredArgs.Any())
                     Console.WriteLine("Missing argument: " + string.Join(" ", requiredArgs.Select(p => p.GetAttribute<UnnamedCommandLineArgument>().Name)));
-
-                Console.WriteLine("Options:");
+                
                 printOptions(action.GetType().GetAttribute<DisplayAttribute>().Name, ap.AllOptions, unnamedArgToProp);
                 return 1;
             }
@@ -169,11 +168,11 @@ namespace OpenTap.Cli
         private static void printOptions(string passName, ArgumentCollection options, List<PropertyInfo> unnamed)
         {
             Console.WriteLine("Usage: {2} {0} {1}",
-                string.Join(" ", options.Select(x =>
+                string.Join(" ", options.Values.Where(x => x.IsVisible).Select(x =>
                 {
-                    var str = x.Value.ShortName != '\0' ? string.Format("-{0}", x.Value.ShortName) : "--" + x.Value.LongName;
+                    var str = x.ShortName != '\0' ? string.Format("-{0}", x.ShortName) : "--" + x.LongName;
 
-                    if (x.Value.NeedsArgument)
+                    if (x.NeedsArgument)
                         str += " <arg>";
 
                     return '[' + str + ']';
@@ -190,9 +189,10 @@ namespace OpenTap.Cli
                     return str;
                 })), passName);
 
-            foreach (var option in options)
+            foreach (var opt in options.Values)
             {
-                var opt = option.Value;
+                if (opt.IsVisible == false)
+                    continue;
                 var arg = "--" + opt.LongName;
                 if (opt.ShortName != default(char))
                 {

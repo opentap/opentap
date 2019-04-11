@@ -36,6 +36,7 @@
     <EmbeddedResource Include="PackageSchema.xsd" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="DotNet.Glob" Version="3.0.1" />
     <PackageReference Include="LibGit2Sharp" Version="0.25.4" />
     <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
     <PackageReference Include="Mono.Cecil" Version="0.10.1" />

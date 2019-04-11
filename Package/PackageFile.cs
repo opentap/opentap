@@ -543,12 +543,12 @@ namespace OpenTap.Package
         /// <summary>
         /// Absolute path to the directory representing the OpenTAP installation dir for system-wide packages
         /// </summary>
-        public static string SystemWideInstallationDirectory { get => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Keysight", "TAP"); }
+        public static string SystemWideInstallationDirectory { get => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Keysight", "Test Automation"); }
         public const string PackageDefFileName = "package.xml";
 
-        internal static string GetDefaultPackageMetadataPath(PackageDef pkg)
+        internal static string GetDefaultPackageMetadataPath(PackageDef pkg, string target)
         {
-            string installationRootDir = Directory.GetCurrentDirectory();
+            string installationRootDir = target;
             if (pkg.IsSystemWide())
                 installationRootDir = PackageDef.SystemWideInstallationDirectory;
             return GetDefaultPackageMetadataPath(pkg.Name, installationRootDir);
@@ -707,7 +707,7 @@ namespace OpenTap.Package
             if (plugin == CpuArchitecture.AnyCPU || (host == CpuArchitecture.Unspecified)) return true; // TODO: Figure out if this should be allowed in the long term
             if (plugin == CpuArchitecture.AnyCPU) return true;
 
-            if ((host == CpuArchitecture.x64) && (plugin == CpuArchitecture.x86)) return true;
+            //if ((host == CpuArchitecture.x64) && (plugin == CpuArchitecture.x86)) return true;
 
             return (host == plugin);
         }

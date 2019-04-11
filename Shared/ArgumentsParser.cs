@@ -150,6 +150,10 @@ namespace OpenTap.Cli
         /// </summary>
         public string Description { get; set; }
         /// <summary>
+        /// Indicates if an argument should be shown in "--help" output.
+        /// </summary>
+        public bool IsVisible { get; set; } = true;
+        /// <summary>
         /// Initializes a new instance of the Option class.
         /// </summary>
         public Argument(string longName, char shortName = default(char), bool needsArgument = true, string description = "", string defaultArg = null)

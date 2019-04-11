@@ -276,9 +276,15 @@ namespace OpenTap
             var errors = serializer.Errors;
             if (errors.Any())
             {
+                foreach (var error in errors)
+                {
+                    Log.Error("{0}", error);
+                }
+
                 var err = new PlanLoadError();
                 UserInput.Request(err, false);
                 var respValue = err.Response;
+                
                 if (respValue == PlanLoadErrorResponse.Abort)
                 {
                     throw new PlanLoadException(string.Join("\n", errors));

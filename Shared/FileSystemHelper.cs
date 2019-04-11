@@ -137,197 +137,38 @@ namespace OpenTap
 
         private class LineModifier
         {
-            private readonly FileStream io;
-            private readonly Encoding encoding;
-
-            private long outPos = 0, outSize = 0;
-
-            private int outBufSize = 0;
-            private byte[] outBuffer = new byte[64 * 1024];
-
-            private long inPos = 0;
-            private bool inGotEnd = false;
-
-            private int inBufOffset = 0, inBufSize = 0;
-            private byte[] inBuffer = new byte[64 * 1024];
-
-            private byte[] lineEnding;
-            private int lineEndingSize;
+            readonly string tempFile;
+            readonly Stream outFile;
+            readonly Stream infile;
+            readonly StreamReader @in;
+            readonly StreamWriter @out;
 
             public void Close()
             {
-                // Flush
-                if (outBufSize > 0)
-                {
-                    io.Seek(outPos, SeekOrigin.Begin);
-                    io.Write(outBuffer, 0, outBufSize);
-
-                    outPos += outBufSize;
-                    outSize += outBufSize;
-                }
+                @out.Flush();
                 
-                // Truncate
-                io.SetLength(outSize);
-                io.Close();
+                infile.Flush();
+                infile.Seek(0, SeekOrigin.Begin);
+                infile.SetLength(outFile.Length);
+
+                outFile.Seek(0, SeekOrigin.Begin);
+                outFile.CopyTo(infile, 1024 * 8);
+                outFile.Close();
+                File.Delete(tempFile);
             }
 
-            private void EnsureSpace(long bytes)
+
+            public string ReadLine() => @in.ReadLine();
+            public void WriteLine(string line) => @out.WriteLine(line);
+            
+            public LineModifier(Stream file, Encoding encoding)
             {
-                // Compact the input buffer
-                if (!inGotEnd && (inBufOffset > 0))
-                {
-                    Array.Copy(inBuffer, inBufOffset, inBuffer, 0, inBufSize);
-                    inBufOffset = 0;
-                }
+                tempFile = FileSystemHelper.CreateTempFile();
 
-                while (!inGotEnd && ((outPos + bytes >= inPos) || (inBufSize == 0)))
-                {
-                    if (inBufSize + inBufOffset >= inBuffer.Length)
-                        Array.Resize(ref inBuffer, inBuffer.Length * 4 / 3);
-
-                    io.Seek(inPos, SeekOrigin.Begin);
-                    var cnt = io.Read(inBuffer, inBufOffset + inBufSize, inBuffer.Length - (inBufOffset + inBufSize));
-
-                    if (cnt == 0)
-                    {
-                        // We are at the end of file
-                        inGotEnd = true;
-                        break;
-                    }
-                    else
-                    {
-                        inBufSize += cnt;
-                        inPos += cnt;
-                    }
-                }
-            }
-
-            private int FindLineEnding()
-            {
-                int scanOffset = 0;
-
-                // Keep trying 
-                while (true)
-                {
-                    if (inGotEnd && (inBufSize <= 0)) return -1;
-
-                    int idx = -1;
-
-                    // If we got space to check
-                    if (inBufSize - scanOffset - lineEndingSize + 1 > 0)
-                        idx = Array.IndexOf<byte>(inBuffer, lineEnding[0], inBufOffset + scanOffset, inBufSize - scanOffset - lineEndingSize + 1); // The count calculation ignores the length of the lineending
-
-                    if (idx >= 0)
-                    {
-                        bool match = true;
-
-                        // Check that the lineending is a full match
-                        for (int i = 1; i < lineEndingSize; i++)
-                            if (inBuffer[idx + i] != lineEnding[i])
-                            {
-                                match = false;
-                                break;
-                            }
-
-                        // If not then we need to skip and look after the first character match
-                        if (!match)
-                        {
-                            scanOffset = (idx - inBufOffset) + 1;
-                            continue;
-                        }
-
-                        // Otherwise we got it
-                        return idx - inBufOffset;
-                    }
-
-                    // Grow buffer if needed
-                    if (inBufSize + inBufOffset >= inBuffer.Length)
-                        Array.Resize(ref inBuffer, inBuffer.Length * 4 / 3);
-
-                    // Read into buffer
-                    io.Seek(inPos, SeekOrigin.Begin);
-                    var cnt = io.Read(inBuffer, inBufOffset + inBufSize, inBuffer.Length - (inBufOffset + inBufSize));
-
-                    if (cnt == 0)
-                    {
-                        // We are at the end of file
-                        inGotEnd = true;
-                        return -1;
-                    }
-                    else
-                    {
-                        inBufSize += cnt;
-                        inPos += cnt;
-                    }
-                }
-            }
-
-            public string ReadLine()
-            {
-                var ending = FindLineEnding();
-
-                if (ending < 0)
-                {
-                    if (inBufSize <= 0)
-                        return null;
-                    else
-                    {
-                        var res = encoding.GetString(inBuffer, inBufOffset, inBufSize);
-                        inBufSize = 0;
-                        return res;
-                    }
-                }
-                else
-                {
-                    var res = encoding.GetString(inBuffer, inBufOffset, ending);
-                    inBufOffset += ending + lineEndingSize;
-                    inBufSize -= ending + lineEndingSize;
-
-                    if (inBufSize <= 0)
-                        EnsureSpace(1024);
-
-                    return res;
-                }
-            }
-
-            public void WriteLine(string line)
-            {
-                var bytesNeeded = encoding.GetByteCount(line) + lineEndingSize;
-
-                // Find out whether we need to flush
-                if (outBufSize + bytesNeeded > outBuffer.Length)
-                {
-                    EnsureSpace(outBufSize);
-
-                    io.Seek(outPos, SeekOrigin.Begin);
-                    io.Write(outBuffer, 0, outBufSize);
-
-                    outPos += outBufSize;
-                    outSize += outBufSize;
-
-                    outBufSize = 0;
-                }
-
-                // Find out if we need a bigger buffer, if yes it's already flushed
-                if (bytesNeeded > outBuffer.Length)
-                    outBuffer = new byte[bytesNeeded];
-
-                outBufSize += encoding.GetBytes(line, 0, line.Length, outBuffer, outBufSize);
-
-                Array.Copy(lineEnding, 0, outBuffer, outBufSize, lineEndingSize);
-                outBufSize += lineEndingSize;
-            }
-
-            public LineModifier(string filename, Encoding encoding)
-            {
-                io = File.Open(filename, FileMode.Open, FileAccess.ReadWrite);
-                this.encoding = encoding;
-
-                lineEnding = encoding.GetBytes(Environment.NewLine);
-                lineEndingSize = lineEnding.Length;
-
-                // Prime the input buffer
-                EnsureSpace(1024);
+                outFile = File.Open(tempFile, FileMode.Create);
+                infile = file;
+                @in = new StreamReader(file, encoding, false, 1024 * 8);
+                @out = new StreamWriter(outFile, encoding, 1024 * 8);
             }
         }
 
@@ -335,11 +176,13 @@ namespace OpenTap
         /// Modifies each line in a file by using the modify function.
         /// It does so in-place and out of memory, so large files can be modified.
         /// </summary>
-        /// <param name="file"> The file that should be modified.</param>
+        /// <param name="stream"> The file that should be modified.</param>
+        /// <param name="pushBom">Whether a BOM should be prepended to the file.</param>
         /// <param name="modify">The function that can modify each line.</param>
-        public static void ModifyLines(string file, Func<string, int, string> modify)
+        public static void ModifyLines(Stream stream, bool pushBom, Func<string, int, string> modify)
         {
-            LineModifier lm = new LineModifier(file, Encoding.UTF8);
+            var lm = new LineModifier(stream, new UTF8Encoding(pushBom));
+            
             try
             {
                 int lineCount = 0;
@@ -360,7 +203,9 @@ namespace OpenTap
                 lm.Close();
             }
         }
+        
 
+        internal static byte[] ByteOrderMark = new byte[] { 0xEF, 0xBB, 0xBF };
         public static string EscapeBadPathChars(string path)
         {
             try

@@ -119,6 +119,8 @@ namespace OpenTap.Package
             if(pkgDef.Files.Any(f => f.HasCustomData<UseVersionData>() && f.HasCustomData<SetAssemblyInfoData>()))
                 throw new InvalidDataException("A file cannot specify <SetAssemblyInfo/> and <UseVersion/> at the same time.");
 
+            pkgDef.Files = expandGlobEntries(pkgDef.Files);
+
             var excludeAdd = pkgDef.Files.Where(file => file.IgnoredDependencies != null).SelectMany(file => file.IgnoredDependencies).Distinct().ToList();
 
             List<Exception> exceptions = new List<Exception>();
@@ -176,8 +178,74 @@ namespace OpenTap.Package
 
             return pkgDef;
         }
-        
-        private static string TryReplaceMacro(string text, string ProjectDirectory, string prereleaseOverride)
+
+        internal static List<PackageFile> expandGlobEntries(List<PackageFile> fileEntries)
+        {
+            List<PackageFile> newEntries = new List<PackageFile>();
+            foreach (PackageFile fileEntry in fileEntries)
+            {
+                if (fileEntry.FileName.Contains('*') || fileEntry.FileName.Contains('?'))
+                {
+                    string[] segments = fileEntry.FileName.Split('/', '\\');
+                    int fixedSegmentCount = 0;
+                    while (fixedSegmentCount < segments.Length)
+                    {
+                        if (segments[fixedSegmentCount].Contains('*')) break;
+                        if (segments[fixedSegmentCount].Contains('?')) break;
+                        fixedSegmentCount++;
+                    }
+                    string fixedDir = ".";
+                    if(fixedSegmentCount > 0)
+                        fixedDir = String.Join("/", segments.Take(fixedSegmentCount));
+
+                    IEnumerable<string> files = null;
+                    if (Directory.Exists(fixedDir))
+                    {
+                        if (fixedSegmentCount == segments.Length - 1)
+                            files = Directory.GetFiles(fixedDir, segments.Last());
+                        else
+                        {
+                            files = Directory.GetFiles(fixedDir, segments.Last(), SearchOption.AllDirectories)
+                                                      .Select(f => f.StartsWith(".") ? f.Substring(2) : f); // remove leading "./". GetFiles() adds these chars only when fixedDir="." and they confuse the Glob matching below.
+                            var options = new DotNet.Globbing.GlobOptions();
+                            if(OperatingSystem.Current == OperatingSystem.Windows)
+                                options.Evaluation.CaseInsensitive = false;
+                            else
+                                options.Evaluation.CaseInsensitive = true;
+                            var globber = DotNet.Globbing.Glob.Parse(fileEntry.FileName,options);
+                            List<string> matches = new List<string>();
+                            foreach (string file in files)
+                            {
+                                if (globber.IsMatch(file))
+                                    matches.Add(file);
+                            }
+                            files = matches;
+                        }
+                    }
+                    if (files != null && files.Any())
+                    {
+                        newEntries.AddRange(files.Select(f => new PackageFile
+                        {
+                            RelativeDestinationPath = f,
+                            LicenseRequired = fileEntry.LicenseRequired,
+                            IgnoredDependencies = fileEntry.IgnoredDependencies,
+                            CustomData = fileEntry.CustomData
+                        }));
+                    }
+                    else
+                    {
+                        log.Warning("Glob pattern '{0}' did not match any files.", fileEntry.FileName);
+                    }
+                }
+                else
+                {
+                    newEntries.Add(fileEntry);
+                }
+            }
+            return newEntries;
+        }
+
+        private static string TryReplaceMacro(string text, string ProjectDirectory)
         {
             if (string.IsNullOrEmpty(text)) return text;
 
@@ -219,10 +287,10 @@ namespace OpenTap.Package
             return text;
         }
 
-        internal static void updateVersion(this PackageDef pkg, string ProjectDirectory, string prereleaseOverride = null)
+        internal static void updateVersion(this PackageDef pkg, string ProjectDirectory)
         {
             // Replace macro if possible
-            pkg.RawVersion = TryReplaceMacro(pkg.RawVersion, ProjectDirectory, prereleaseOverride);
+            pkg.RawVersion = TryReplaceMacro(pkg.RawVersion, ProjectDirectory);
 
             
             if (pkg.RawVersion == null)
@@ -298,7 +366,7 @@ namespace OpenTap.Package
                 var asms = searchedFiles.Where(sf => PathUtils.AreEqual(f.FileName, sf.Location)).ToList();
                 if (asms.Count == 0 && (Path.GetExtension(f.FileName).Equals(".dll", StringComparison.OrdinalIgnoreCase) || Path.GetExtension(f.FileName).Equals(".exe", StringComparison.OrdinalIgnoreCase)))
                 {
-                    if (!brokenPackageNames.Contains(pkgDef.Name))
+                    if (!brokenPackageNames.Contains(pkgDef.Name) && File.Exists(f.FileName) == false)
                     {
                         brokenPackageNames.Add(pkgDef.Name);
                         log.Warning($"Package '{pkgDef.Name}' is not installed correctly?  Referenced file '{f.FileName}' was not found.");
@@ -418,7 +486,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Creates a *.TapPlugin package file from the definition in this PackageDef.
         /// </summary>
-        static public void CreatePackage(this PackageDef pkg, string path, string projectDir, string prereleaseOverride = null)
+        static public void CreatePackage(this PackageDef pkg, string path, string projectDir)
         {
             foreach (PackageFile file in pkg.Files)
             {
@@ -459,7 +527,7 @@ namespace OpenTap.Package
             try
             {
                 log.Info("Updating package version.");
-                pkg.updateVersion(projectDir,prereleaseOverride);
+                pkg.updateVersion(projectDir);
                 log.Info("Package version is {0}", pkg.Version);
                 
                 UpdateVersionInfo(tempDir, pkg.Files, pkg.Version);

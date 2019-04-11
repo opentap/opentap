@@ -124,6 +124,22 @@ namespace OpenTap
         /// <returns></returns>
         public override string ToString()
         {
+            return ToString(5);
+        }
+
+        /// <summary>
+        /// Prints the string in version format. It should be parsable from the same string.
+        /// </summary>
+        /// <param name="fieldCount">Number of values to return. Must be 1, 2, 4 or 5.</param>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        /// <returns></returns>
+        public string ToString(int fieldCount)
+        {
+            if (fieldCount < 1 || fieldCount > 5)
+                throw new ArgumentOutOfRangeException();
+            if (fieldCount == 1)
+                return Major.ToString();
+
             var formatter = versionFormatter.Value;
 
             formatter.Clear();
@@ -132,16 +148,25 @@ namespace OpenTap
             formatter.Append('.');
             formatter.Append(Minor);
 
+            if (fieldCount == 2)
+                return formatter.ToString();
+
             if (Patch != int.MaxValue)
             {
                 formatter.Append('.');
                 formatter.Append(Patch);
             }
+            if (fieldCount == 3)
+                return formatter.ToString();
+
             if (false == string.IsNullOrWhiteSpace(PreRelease))
             {
                 formatter.Append('-');
                 formatter.Append(PreRelease);
             }
+            if (fieldCount == 4)
+                return formatter.ToString();
+
             if (false == string.IsNullOrWhiteSpace(BuildMetadata))
             {
                 formatter.Append('+');
@@ -149,26 +174,6 @@ namespace OpenTap
             }
 
             return formatter.ToString();
-        }
-
-        /// <summary>
-        /// Prints the string in version format. It should be parsable from the same string.
-        /// </summary>
-        /// <param name="fieldCount">Number of values to return. Must be 1, 2 or 3.</param>
-        /// <returns></returns>
-        public string ToString(int fieldCount)
-        {
-            switch(fieldCount)
-            {
-                case 1:
-                    return Major.ToString();
-                case 2:
-                    return $"{Major}.{Minor}";
-                case 3:
-                    return $"{Major}.{Minor}.{Patch}";
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
         }
 
         /// <summary>

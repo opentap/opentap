@@ -135,7 +135,7 @@ namespace OpenTap.Package.UnitTests
                 Assert.AreEqual(0, exitCode, "Unexpected exit code");
                 StringAssert.Contains("Installed Pkg1", output);
                 Assert.IsTrue(File.Exists("Dependency.txt"));
-                PluginInstaller.Uninstall(depDef);
+                PluginInstaller.Uninstall(depDef, Directory.GetCurrentDirectory());
             }
             finally
             {
@@ -213,8 +213,8 @@ namespace OpenTap.Package.UnitTests
             }
             finally
             {
-                PluginInstaller.Uninstall(dummyDef);
-                PluginInstaller.Uninstall(depDef);
+                PluginInstaller.Uninstall(dummyDef, Directory.GetCurrentDirectory());
+                PluginInstaller.Uninstall(depDef, Directory.GetCurrentDirectory());
                 File.Delete(dep0File);
                 File.Delete(dummyFile);
             }
@@ -253,8 +253,8 @@ namespace OpenTap.Package.UnitTests
             }
             finally
             {
-                PluginInstaller.Uninstall(dummyDef);
-                PluginInstaller.Uninstall(depDef);
+                PluginInstaller.Uninstall(dummyDef, Directory.GetCurrentDirectory());
+                PluginInstaller.Uninstall(depDef, Directory.GetCurrentDirectory());
                 File.Delete(dep0File);
                 File.Delete(dummyFile);
             }
@@ -357,8 +357,8 @@ namespace OpenTap.Package.UnitTests
             }
             finally
             {
-                PluginInstaller.Uninstall(dummyDef);
-                PluginInstaller.Uninstall(dep1Def);
+                PluginInstaller.Uninstall(dummyDef, Directory.GetCurrentDirectory());
+                PluginInstaller.Uninstall(dep1Def, Directory.GetCurrentDirectory());
                 File.Delete(dep0File);
                 File.Delete(dep1File);
                 File.Delete(dummyFile);

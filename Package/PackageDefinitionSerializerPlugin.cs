@@ -26,7 +26,8 @@ namespace OpenTap.Package
         /// </summary>
         public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
         {
-            if(node.Name.LocalName == "Package" && t.IsA(typeof(PackageDef)))
+            if((node.Name.LocalName == "Package" && t.IsA(typeof(PackageDef))) || 
+               (node.Name.LocalName == nameof(PackageIdentifier) && t.IsA(typeof(PackageIdentifier))))
             {
                 var pkg = new PackageDef();
                 foreach (XAttribute attr in node.Attributes())
@@ -71,7 +72,12 @@ namespace OpenTap.Package
                             break;
                     }
                 }
-                setter.Invoke(pkg);
+
+                if (t.IsA(typeof(PackageIdentifier)))
+                    setter.Invoke(new PackageIdentifier(pkg));
+                else
+                    setter.Invoke(pkg);
+                
                 return true;
             }
             return false;
@@ -82,10 +88,10 @@ namespace OpenTap.Package
         /// </summary>
         public override bool Serialize(XElement node, object obj, ITypeData expectedType)
         {
-            if (expectedType.IsA(typeof(PackageDef)) == false)
+            if (expectedType.IsA(typeof(PackageDef)) == false && expectedType.IsA(typeof(PackageIdentifier)) == false)
                 return false;
             XNamespace ns = "http://opentap.io/schemas/package";
-            node.Name = ns + "Package";
+            node.Name = ns + (expectedType.IsA(typeof(PackageIdentifier)) ? nameof(PackageIdentifier) : "Package");
             node.SetAttributeValue("type", null);
             foreach (var prop in expectedType.GetMembers())
             {

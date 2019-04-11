@@ -15,7 +15,7 @@ namespace OpenTap
     /// </summary>
     class VersionChecker
     {
-        static OpenTap.TraceSource log = OpenTap.Log.CreateSource("TAP");
+        static OpenTap.TraceSource log = OpenTap.Log.CreateSource("OpenTAP");
         internal static string EmitVersion(string title)
         {
             //check whether OpenTAP application is 32-bit or 64-bit
@@ -23,9 +23,9 @@ namespace OpenTap
             var tapVersion = PluginManager.GetOpenTapAssembly().SemanticVersion;
             var initt = DateTime.Now - Process.GetCurrentProcess().StartTime;
             log.Info(initt, "{0} version '{1}' {2} initialized {3}", title, tapVersion, tapPlatform, DateTime.Now.ToString("MM/dd/yyyy"));
-            if (string.IsNullOrWhiteSpace(tapVersion.PreRelease))
-                return tapVersion.ToString(2);
-            return tapVersion.ToString();
+            if (tapVersion.PreRelease != null && tapVersion.PreRelease.StartsWith("alpha"))
+                return tapVersion.ToString(5);
+            return tapVersion.ToString(4);
         }
     }
 }

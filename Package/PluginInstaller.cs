@@ -45,15 +45,15 @@ namespace OpenTap.Package
         /// <summary>
         /// The inbuilt action that is executed first.
         /// </summary>
-        public Func<PluginInstaller, ActionExecuter, PackageDef, bool, ActionResult> Execute { get; set; }
+        public Func<PluginInstaller, ActionExecuter, PackageDef, bool, string, ActionResult> Execute { get; set; }
 
-        public ActionResult DoExecute(PluginInstaller pluginInstaller, PackageDef package, bool force)
+        public ActionResult DoExecute(PluginInstaller pluginInstaller, PackageDef package, bool force, string target)
         {
             try
             {
                 if (Execute != null)
                 {
-                    return Execute(pluginInstaller, this, package, force);
+                    return Execute(pluginInstaller, this, package, force, target);
                 }
                 else
                     return ExecutePackageActionSteps(package, force);
@@ -181,13 +181,13 @@ namespace OpenTap.Package
         /// </summary>
         /// <param name="path">Absolute or relative path to tap plugin</param>
         /// <returns>List of installed parts.</returns>
-        internal static PackageDef InstallPluginPackage(string tapDir, string path)
+        internal static PackageDef InstallPluginPackage(string target, string path)
         {
             checkExtension(path);
             checkFileExists(path);
 
             var package = PackageDef.FromPackage(path);
-            var destination = package.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : tapDir;
+            var destination = package.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : target;
 
             try
             {
@@ -205,15 +205,15 @@ namespace OpenTap.Package
             catch (Exception e)
             {
                 log.Error($"Install failed to execute for '{package.Name}'.");
-                tryUninstall(path, package);
+                tryUninstall(path, package, target);
                 throw new Exception($"Failed to install package '{path}'.", e);
             }
 
             var pi = new PluginInstaller();
-            if (pi.ExecuteAction(package, "install", false) == ActionResult.Error)
+            if (pi.ExecuteAction(package, "install", false, target) == ActionResult.Error)
             {
                 log.Error($"Install package action failed to execute for '{package.Name}'.");
-                tryUninstall(path, package);
+                tryUninstall(path, package, target);
                 throw new Exception($"Failed to install package '{path}'.");
             }
 
@@ -224,10 +224,10 @@ namespace OpenTap.Package
             return package;
         }
 
-        static void tryUninstall(string path, PackageDef package)
+        static void tryUninstall(string path, PackageDef package,string target)
         {
             log.Info("Uninstalling package '{0}'.", package.Name);
-            Uninstall(package);
+            Uninstall(package, target);
             log.Flush();
             log.Info("Uninstalled package '{0}'.", path);
         }
@@ -332,29 +332,28 @@ namespace OpenTap.Package
         /// Uninstalls a package.
         /// </summary>
         /// <param name="package"></param>
-        internal static void Uninstall(PackageDef package)
+        internal static void Uninstall(PackageDef package, string target)
         {
-            
             var pi = new PluginInstaller();
 
-            pi.ExecuteAction(package, "uninstall", true);
+            pi.ExecuteAction(package, "uninstall", true, target);
         }
 
-        internal ActionResult ExecuteAction(PackageDef package, string actionName, bool force)
+        internal ActionResult ExecuteAction(PackageDef package, string actionName, bool force, string target)
         {
             ActionExecuter action = builtinActions.FirstOrDefault(r => r.ActionName == actionName);
 
             if (action == null)
                 action = new ActionExecuter { ActionName = actionName };
 
-            return action.DoExecute(this, package, force);
+            return action.DoExecute(this, package, force, target);
         }
 
-        private static ActionResult DoUninstall(PluginInstaller pluginInstaller, ActionExecuter action, PackageDef package, bool force)
+        private static ActionResult DoUninstall(PluginInstaller pluginInstaller, ActionExecuter action, PackageDef package, bool force, string target)
         {
             
             var result = ActionResult.Ok;
-            var destination = package.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : Directory.GetCurrentDirectory();
+            var destination = package.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : target;
           
             var filesToRemain = new Installation(destination).GetPackages().Where(p => p.Name != package.Name).SelectMany(p => p.Files).Select(f => f.RelativeDestinationPath).Distinct(StringComparer.InvariantCultureIgnoreCase).ToHashSet(StringComparer.InvariantCultureIgnoreCase);
 
@@ -384,10 +383,14 @@ namespace OpenTap.Package
                 if (file.RelativeDestinationPath == "tap" || file.RelativeDestinationPath.ToLower() == "tap.exe") // ignore tap.exe as it is not meant to be overwritten.
                     continue;
 
-                var fullPath = Path.GetFullPath(file.RelativeDestinationPath);
+                string fullPath;
                 if (package.IsSystemWide())
                 {
                     fullPath = Path.Combine(PackageDef.SystemWideInstallationDirectory, file.RelativeDestinationPath);
+                }
+                else
+                {
+                     fullPath = Path.Combine(destination, file.RelativeDestinationPath);
                 }
                 
                 if (filesToRemain.Contains(file.RelativeDestinationPath))
@@ -410,7 +413,8 @@ namespace OpenTap.Package
                 DeleteEmptyDirectory(new FileInfo(fullPath).Directory);
             }
 
-            var packageFile = PackageDef.GetDefaultPackageMetadataPath(package);
+            var packageFile = PackageDef.GetDefaultPackageMetadataPath(package, target);
+            
             if (!File.Exists(packageFile))
             {
                 // TAP 8.x support:

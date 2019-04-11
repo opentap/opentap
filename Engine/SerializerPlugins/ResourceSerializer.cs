@@ -105,10 +105,13 @@ namespace OpenTap.Plugins
         public override bool Serialize( XElement elem, object obj, ITypeData expectedType)
         {            
             if (obj == null) return false;
-
+            
             Type type = obj.GetType();
             if(obj is IResource && ComponentSettingsList.HasContainer(type))
             {
+                // source was set by something else. Assume it can deserialize as well.
+                if (false == string.IsNullOrEmpty(elem.Attribute("Source")?.Value as string)) return false;
+
                 // If the next thing on the stack is a CollectionSerializer, it means that we are deserializing a ComponentSettingsList.
                 // but if it is a ObjectSerializer it is probably a nested(stacked) resource property.
                 var prevSerializer = Serializer.SerializerStack.FirstOrDefault(x => x is CollectionSerializer || x is ObjectSerializer);

@@ -26,14 +26,14 @@ namespace OpenTap.Package
         [CommandLineArgument("project-directory", Description = "The directory containing the GIT repo.\nUsed to get values for version/branch macros.")]
         public string ProjectDir { get; set; }
 
+        [CommandLineArgument("install", Description = "Installs the created package. Will not overwrite files \nalready in the target installation (e.g. debug binaries).")]
+        public bool Install { get; set; } = false;
+
+        [CommandLineArgument("fake-install", Visible = false, Description = "Installs the created package. Will not overwrite files \nalready in the target installation (e.g. debug binaries).")]
+        public bool FakeInstall { get; set; } = false;
+
         [CommandLineArgument("out", Description = "Path to the output file.", ShortName = "o")]
         public string[] OutputPaths { get; set; }
-
-        [CommandLineArgument("prerelease", Description = "Set type of prerelease", ShortName = "p")]
-        public string PreRelease { get; set; }
-
-        [CommandLineArgument("fake-install", Description = "Fake installs the created package by only extracting files not already in your installation")]
-        public bool FakeInstall { get; set; } = false;
 
         public PackageCreateAction()
         {
@@ -45,16 +45,10 @@ namespace OpenTap.Package
             if (PackageXmlFile == null)
                 throw new Exception("No packages definition file specified.");
 
-            if (PreRelease != null)
-            {
-                if (PreRelease.StartsWith(".") || PreRelease.EndsWith(".") || Regex.IsMatch(PreRelease, "[^0-9A-Za-z-.]"))
-                    throw new ArgumentException("Pre Release tag must be a series of dot separated identifies that contain only letters, numbers and hyphens '[0-9A-Za-z-]'.");
-            }
+            var result = Process(OutputPaths);
 
-                var result = Process(OutputPaths);
-
-                if (result != 0)
-                    return result;
+            if (result != 0)
+                return result;
             return 0;
         }
 
@@ -108,7 +102,7 @@ namespace OpenTap.Package
                 
                 var tmpFile = Path.GetTempFileName();
                 
-                pkg.CreatePackage(tmpFile, ProjectDir, PreRelease);
+                pkg.CreatePackage(tmpFile, ProjectDir);
 
                 if (OutputPaths == null || OutputPaths.Length == 0)
                     OutputPaths = new string[1] { "" };
@@ -126,15 +120,20 @@ namespace OpenTap.Package
                     log.Info("OpenTAP plugin package '{0}' containing '{1}' successfully created.", path, pkg.Name);
                 }
 
-                if (FakeInstall)
+                if(FakeInstall)
                 {
-                    var path = PackageDef.GetDefaultPackageMetadataPath(pkg);
+                    log.Warning("--fake-install argument is obsolete, use --install instead");
+                    Install = FakeInstall;
+                }
+                if (Install)
+                {
+                    var path = PackageDef.GetDefaultPackageMetadataPath(pkg, Directory.GetCurrentDirectory());
                     Directory.CreateDirectory(Path.GetDirectoryName(path));
                     using (FileStream fs = new FileStream(path, FileMode.OpenOrCreate))
                     {
                         pkg.SaveTo(fs);
                     }
-                    log.Info($"Fake installed '{pkg.Name}' ({Path.GetFullPath(path)})");
+                    log.Info($"Installed '{pkg.Name}' ({Path.GetFullPath(path)})");
                 }
             }
             catch (ArgumentException ex)

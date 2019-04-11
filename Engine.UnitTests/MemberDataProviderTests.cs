@@ -593,5 +593,68 @@ namespace OpenTap.Engine.UnitTests
                 Assert.IsFalse(step1.Input.Step == theParent);
             }
         }
+
+        [Test]
+        public void SweepLoopAnnotation()
+        {
+            var sweep = new SweepLoop();
+            var delay = new DelayStep() { DelaySecs = 0.001 };
+            var verdict = new IfStep();
+            sweep.ChildTestSteps.Add(delay);
+            sweep.ChildTestSteps.Add(verdict);
+            sweep.SweepParameters.Add(new SweepParam(new[] { MemberData.Create(typeof(DelayStep).GetProperty(nameof(DelayStep.DelaySecs))) }));
+            sweep.SweepParameters.Add(new SweepParam(new[] { MemberData.Create(typeof(IfStep).GetProperty(nameof(IfStep.InputVerdict))) }));
+            double[] values = new double[] { 0.01, 0.02, 0.03 };
+            sweep.SweepParameters[0].Resize(values.Length);
+            
+            for (int i = 0; i < values.Length; i++)
+            {
+                sweep.SweepParameters[0].Values.SetValue(values[i], i);
+            }
+
+            sweep.OnDeserialized(); // force sanitize sweep values.
+
+            for (int i = 1; i < values.Length; i++)
+            {
+                var val = sweep.SweepParameters[1].Values.GetValue(i);
+                var val1 = sweep.SweepParameters[1].Values.GetValue(0);
+               
+                Assert.AreNotSame(val, val1);
+                Assert.IsNull(((IInput)val1).Step);
+            }
+
+            var swep = AnnotationCollection.Annotate(sweep);
+
+            swep.Write();
+            var sweepParameters = swep.Get<IMembersAnnotation>().Members.First(x => x.Get<IMemberAnnotation>().Member.Name == nameof(SweepLoop.SweepParameters));
+            var elements = sweepParameters.Get<ICollectionAnnotation>().AnnotatedElements;
+            int i2 = 0;
+            foreach(var elem in elements)
+            {
+                {
+                    var delayMember = elem.Get<IMembersAnnotation>().Members.First(x => x.Get<IMemberAnnotation>().Member.Name == nameof(DelayStep.DelaySecs));
+                    var currentValue = (double)delayMember.Get<IObjectValueAnnotation>().Value;
+                    Assert.AreEqual(values[i2], currentValue);
+                }
+                {
+                    var ifMember = elem.Get<IMembersAnnotation>().Members.First(x => x.Get<IMemberAnnotation>().Member.Name == nameof(IfStep.InputVerdict));
+                    var currentValue = ifMember.Get<IObjectValueAnnotation>().Value;
+                    var avail = ifMember.Get<IAvailableValuesAnnotationProxy>();
+                    avail.SelectedValue = avail.AvailableValues.Last();
+
+                }
+                i2++;
+            }
+            swep.Write();
+            for (int i = 1; i < values.Length; i++)
+            {
+                var val = sweep.SweepParameters[1].Values.GetValue(i);
+                var val1 = sweep.SweepParameters[1].Values.GetValue(0);
+
+                Assert.AreNotSame(val, val1);
+                Assert.IsNotNull(((IInput)val1).Step);
+            }
+
+        }
     }
 }

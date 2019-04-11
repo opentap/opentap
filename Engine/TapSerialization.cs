@@ -138,7 +138,7 @@ namespace OpenTap
             var rs = GetSerializer<OpenTap.Plugins.ResourceSerializer>();
             if (rs.TestPlanChanged)
             {
-                log.Warning("Test Plan changed due to resources missing from Bench setttings.");
+                log.Warning("Test Plan changed due to resources missing from Bench settings.");
                 log.Warning("Please review these changes before saving or running the Test Plan.");
             }
             return obj;
@@ -174,12 +174,12 @@ namespace OpenTap
             return Deserialize(XDocument.Load(file, LoadOptions.SetLineInfo), type: type, autoFlush: flush, path: file);
         }
 
-        object[] serializers;
+        List<ITapSerializerPlugin> serializers = new List<ITapSerializerPlugin>();
         readonly Stack<object> activeSerializers = new Stack<object>(32);
         /// <summary>
         /// The stack of serializers. Changes during serialization depending on the order of serializers used.
         /// </summary>
-        public IEnumerable<TapSerializerPlugin> SerializerStack => activeSerializers.OfType<TapSerializerPlugin>();
+        public IEnumerable<ITapSerializerPlugin> SerializerStack => activeSerializers.OfType<ITapSerializerPlugin>();
 
         /// <summary>
         /// True if errors should be ignored.
@@ -191,12 +191,19 @@ namespace OpenTap
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
-        public T GetSerializer<T>() where T : TapSerializerPlugin
+        public T GetSerializer<T>() where T : ITapSerializerPlugin
         {
             return serializers.OfType<T>().FirstOrDefault();
         }
 
-        
+        /// <summary> Adds new serializers to the serializer. Will insert them based on the order property. </summary>
+        /// <param name="_serializers"></param>
+        public void AddSerializers(IEnumerable<ITapSerializerPlugin> _serializers)
+        {
+            serializers.AddRange(_serializers);
+            serializers.Sort((x, y) => -x.Order.CompareTo(y.Order));
+        }
+
         static System.Threading.ThreadLocal<TapSerializer> currentSerializer = new System.Threading.ThreadLocal<TapSerializer>();
         
         /// <summary> The serializer currently serializing/deserializing an object.</summary>
@@ -210,28 +217,17 @@ namespace OpenTap
             currentSerializer.Value = this;
 
             var plugins = PluginManager.GetPlugins<ITapSerializerPlugin>();
-            serializers = plugins.Select(x =>
+            AddSerializers(plugins.Select(x =>
             {
                 try
                 {
-                    return Activator.CreateInstance(x);
+                    return (ITapSerializerPlugin)Activator.CreateInstance(x);
                 }
                 catch
                 {
                     return null;
                 }
-            }).ToArray();
-
-            var values = serializers.Select(x =>
-            {
-                switch (x)
-                {
-                    case ITapSerializerPlugin p: return -p.Order;
-                    default: return 1000;
-                }
-            }).ToArray();
-
-            Array.Sort(values, serializers, 0, values.Length);
+            }).Where(x => x!=null));
 
             currentSerializer.Value = previousValue;
         }
@@ -394,12 +390,6 @@ namespace OpenTap
                     if(serializer is ITapSerializerPlugin ser)
                     {
                         if (ser.Serialize(elem, obj, type))
-                            return true;
-                    }
-                    else if(serializer is TapSerializerPlugin ser2)
-                    {
-
-                        if (ser2.Serialize(elem, obj, type))
                             return true;
                     }
                 }

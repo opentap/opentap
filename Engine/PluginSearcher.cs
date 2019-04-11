@@ -929,10 +929,13 @@ namespace OpenTap
                     verString = asm.GetCustomAttributes<AssemblyFileVersionAttribute>().FirstOrDefault()?.Version;
                 if (String.IsNullOrEmpty(verString) || !SemanticVersion.TryParse(verString, out ver))
                 {
-                    if(Version.TryParse(FileVersionInfo.GetVersionInfo(asm.Location).ProductVersion, out Version pv))
+                    if(asm.IsDynamic == true || string.IsNullOrWhiteSpace(asm.Location))
+                        verString = "0.0.0";
+                    else if(Version.TryParse(FileVersionInfo.GetVersionInfo(asm.Location).ProductVersion, out Version pv))
                         verString = pv.ToString(3);
                     else if(Version.TryParse(FileVersionInfo.GetVersionInfo(asm.Location).FileVersion, out Version fv))
                         verString = fv.ToString(3);
+
                 }
                 if (String.IsNullOrEmpty(verString) || !SemanticVersion.TryParse(verString, out ver))
                     Debug.Assert(false);

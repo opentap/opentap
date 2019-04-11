@@ -13,7 +13,7 @@ namespace OpenTap
     /// Settings class containing user-configurable platform options.
     /// </summary>
     [Display("Engine", "Engine Settings")]
-    [HelpLink(@"EditorHelp.chm::/Configuring TAP/Engine Configuration.html")]
+    [HelpLink(@"EditorHelp.chm::/Configurations/Engine Configuration.html")]
     public class EngineSettings : ComponentSettings<EngineSettings>
     {
         /// <summary>
@@ -36,7 +36,7 @@ namespace OpenTap
         /// </summary>
         [Display("Log Path", Group: "General", Order:1, Description: "Where to save the session log file. This setting only takes effect after restart.")]
         [FilePath(FilePathAttribute.BehaviorChoice.Save)]
-        [HelpLink(@"EditorHelp.chm::/Configuring TAP/Using Tags and Variables in File Names.html")]
+        [HelpLink(@"EditorHelp.chm::/Configurations/Using Tags and Variables in File Names.html")]
         public MacroString SessionLogPath { get; set; }
         
         /// <summary>

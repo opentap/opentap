@@ -16,7 +16,7 @@ using System.Xml.Serialization;
 using OpenTap.Plugins.BasicSteps;
 using OpenTap;
 using OpenTap.Engine.UnitTests.TestTestSteps;
-using OpenTap.Plugins;
+using System.Xml.Linq;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -1869,6 +1869,47 @@ namespace OpenTap.Engine.UnitTests
                 InstrumentSettings.Current.Clear();
             }
         }
+
+        class CloneEnforcer : ITapSerializerPlugin
+        {
+            public double Order => 10;
+
+            public bool Deserialize(XElement node, ITypeData t, Action<object> setter)
+            {
+                return false;
+            }
+
+            public Object TheObject;
+            public bool Serialize(XElement node, object obj, ITypeData expectedType)
+            {
+                if (obj == TheObject)
+                {
+                    node.SetAttributeValue("Source", "None");
+                }
+                return false;
+            }
+        }
+
+        [Test]
+        public void SkipSerializePluginResourceTest()
+        {
+            var newinst = new LogResultListener() { FilePath = new MacroString() { Text = "hello" } };
+            ResultSettings.Current.Add(newinst);
+            var serializer = new TapSerializer();
+
+            var clone1 = (LogResultListener)serializer.Clone(newinst); 
+            // not actually a clone.
+            Assert.AreSame(newinst, clone1);
+            Assert.AreEqual(newinst.FilePath.Text, clone1.FilePath.Text);
+
+            serializer.AddSerializers(new[] { new CloneEnforcer() { TheObject = newinst } });
+
+            // a memberwise clone.
+            var clone2 = (LogResultListener)serializer.Clone(newinst);
+            Assert.AreNotSame(newinst, clone2);
+            Assert.AreEqual(newinst.FilePath.Text, clone1.FilePath.Text);
+        }
+
     }
 
     [TestFixture]
