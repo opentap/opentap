@@ -1037,29 +1037,71 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        /// <summary>
+        /// This test proves that each WorkQueue can process things in sequence, while working in parallel.
+        /// </summary>
         [Test]
         public void DeferSynchronization()
         {
+            int testCount = 1000;
+            
             var tw = new WorkQueue(WorkQueue.Options.None, "Test");
             var tw2 = new WorkQueue(WorkQueue.Options.None, "Test");
             int counter = 0;
             int counter2 = 0;
-            for (int i = 0; i < 10; i++)
+            var sem = new SemaphoreSlim(0);
+            var sem2a = new SemaphoreSlim(0);
+            var sem2b = new SemaphoreSlim(0);
+            
+            // enqueue a bunch of work.
+            for (int i = 0; i < testCount; i++)
             {
                 tw.EnqueueWork(() =>
                 {
-                    Thread.Sleep(10);
+                    sem2a.Wait();
                     counter += 1;
+                    sem.Release();
                 });
                 tw2.EnqueueWork(() =>
                 {
-                    Thread.Sleep(10);
+                    sem2b.Wait();
                     counter2 += 1;
+                    sem.Release();
                 });
             }
-            Thread.Sleep(200);
-            Assert.AreEqual(10, counter);
-            Assert.AreEqual(10, counter2);
+
+            // Verify execution in parallel bit by bit (first half only).
+            for (int i = 0; i < testCount / 2; i++)
+            {
+                sem2a.Release();
+                sem2b.Release();
+                for (int j = 0; j < 2; j++)
+                {
+                    if (!sem.Wait(TimeSpan.FromSeconds(10)))
+                    {
+                        throw new TimeoutException();
+                    }
+                }
+                Assert.AreEqual(counter, i + 1);
+                Assert.AreEqual(counter2, i + 1);
+            }
+
+            // second half, execute as fast as possible without locks.
+            sem2a.Release(testCount / 2);
+            sem2b.Release(testCount / 2);
+            for(int i = 0; i < testCount/2; i++)
+            {
+                for (int j = 0; j < 2; j++)
+                {
+                    if (!sem.Wait(TimeSpan.FromSeconds(10)))
+                    {
+                        throw new TimeoutException();
+                    }
+                }
+            }
+            // verify it works at full speed.
+            Assert.AreEqual(testCount, counter);
+            Assert.AreEqual(testCount, counter2);
         }
 
         [Test]

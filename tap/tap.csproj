@@ -14,7 +14,7 @@
   </PropertyGroup>
   
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-    <OutputPath>..\bin\Debug\</OutputPath>
+    <OutputPath>$(SolutionDir)bin\Debug\</OutputPath>
     <DefineConstants>DEBUG;TRACE;KEYSIGHT_INTERNAL</DefineConstants>
     <Optimize>false</Optimize>
     <DebugType>full</DebugType>
@@ -22,7 +22,7 @@
   </PropertyGroup>
   
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-    <OutputPath>..\bin\Release\</OutputPath>
+    <OutputPath>$(SolutionDir)bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <Optimize>true</Optimize>
   </PropertyGroup>
@@ -32,7 +32,7 @@
     <RuntimeIdentifiers>linux-x64</RuntimeIdentifiers>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <PlatformTarget>x64</PlatformTarget>
-    <OutputPath>..\bin\Release\</OutputPath>
+    <OutputPath>$(SolutionDir)bin\Release\</OutputPath>
     <Optimize>true</Optimize>
   </PropertyGroup>
   

@@ -107,6 +107,12 @@ namespace OpenTap.Plugins.BasicSteps
             return outlist;
         }
 
+        public override void PrePlanRun()
+        {
+            if (SweepProperties.Count == 0)
+                throw new InvalidOperationException("No parameters selected to sweep");
+        }
+
         ITypeData SweepType => SweepProperties.FirstOrDefault()?.TypeDescriptor;
         bool isRunning => StepRun != null;
         string validateSweep(decimal Value)
@@ -157,6 +163,7 @@ namespace OpenTap.Plugins.BasicSteps
             SweepStop = 100;
             SweepPoints = 100;
 
+            Rules.Add(() => SweepProperties.Count != 0, "No parameters selected to sweep", nameof(SweepProperties));
             Rules.Add(() => string.IsNullOrWhiteSpace(validateSweep(SweepStart)), () => validateSweep(SweepStart), "SweepStart");
             Rules.Add(() => string.IsNullOrWhiteSpace(validateSweep(SweepStop)), () => validateSweep(SweepStop), "SweepEnd");
 

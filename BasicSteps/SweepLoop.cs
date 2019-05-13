@@ -153,6 +153,7 @@ namespace OpenTap.Plugins.BasicSteps
         public SweepLoop()
         {
             SweepParameters = new List<SweepParam>();
+            Rules.Add(() => SweepMembers.Count() != 0, "No parameters selected to sweep", nameof(SweepMembers));
             Rules.Add(() => string.IsNullOrWhiteSpace(validateSweep()), validateSweep, nameof(SweepParameters));
 
             ChildTestSteps.ChildStepsChanged += childStepsChanged;

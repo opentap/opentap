@@ -121,8 +121,23 @@ namespace OpenTap
     public class CliUserInputInterface : IUserInputInterface
     {
         Mutex platforDialogMutex = new Mutex();
+        object readerLock = new object();
         void IUserInputInterface.RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
         {
+            if(readerThread == null)
+            {
+                lock (readerLock)
+                {
+                    if (readerThread == null)
+                    {
+                        readerThread = TapThread.Start(() =>
+                        {
+                            while (true)
+                                lines.Add(Console.ReadLine());
+                        }, "Console Reader");
+                    }
+                }
+            }
             DateTime TimeoutTime;
             if (Timeout == TimeSpan.MaxValue)
                 TimeoutTime = DateTime.MaxValue;
@@ -300,15 +315,7 @@ namespace OpenTap
 
         TapThread readerThread = null;
         BlockingCollection<string> lines = new BlockingCollection<string>();
-        CliUserInputInterface()
-        {
-            readerThread = TapThread.Start(() =>
-            {
-                while (true)
-                    lines.Add(Console.ReadLine());
-            }, "Console Reader");
-        }
-
+        
         static bool isLoaded = false;
         
         /// <summary> Loads the CLI user input interface. Note, once it is loaded it cannot be unloaded. </summary>

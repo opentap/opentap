@@ -95,6 +95,23 @@ This results in the following user control in the Editor:
 
 The DirectoryPath attribute works the same as the FilePath attribute, but in the place of a file browse dialog, a directory browse dialog opens when the browse ('...') button is clicked.
 
+The FilePath attribute supports specifying file type as well.
+
+It can be done by writing the file extension as such:
+```csharp
+[FilePath(FilePathAttribute.BehaviorChoice.Open, "csv");
+```
+
+Or it can be done by specifying a more advanced filter expression as shown below.
+
+``````csharp
+[FilePath(FilePathAttribute.BehaviorChoice.Open, "Comma Separated Files (*.csv)|*.csv| Tab Separated Files (*.tsv) | *.tsv| All Files | *.*)]");
+```
+The syntax works as follows:
+```[Name_1] | [file extensions 1] | [Name_2] | [file extensions 2] ...```
+
+Each filter comes in pairs of two, a name and a list of extensions. The name of a filter can be anything, excluding the '|' character. It normally contains the name of all the included file extensions, for example "Image Files (*.png, *.jpg)". The file extensions is normally not seen by the user, but should contain all the supported file extensions as a semi-colon separated list. Lastly, it is common practice to include the 'AllFiles | *.*' part, which makes it possible for the user to override the known filters and manually select any kind of file.
+
 ## MetaData Attribute
 Metadata is a set of data that describes and gives information about other data. The Metadata attribute marks a property as metadata. 
 

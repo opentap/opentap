@@ -5,8 +5,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Data;
-using System.Reflection;
 using System.Diagnostics;
 using System.Runtime.Serialization;
 using System.Collections;
@@ -24,8 +22,25 @@ namespace OpenTap
         bool isEnabled = true;
         ///<summary> Gets or sets if this resource is enabled.</summary>
         [Browsable(false)]
-        public bool IsEnabled { get { return isEnabled; } set { isEnabled = value; } }
+        public bool IsEnabled {
+
+            get => isEnabled;
+            set
+            {
+                var oldValue = isEnabled;
+                isEnabled = value;
+                onEnabledChanged(oldValue, value);
+            }
+        }
         
+        /// <summary> Called when IsEnabled is changed. </summary>
+        /// <param name="oldValue"></param>
+        /// <param name="newValue"></param>
+        protected virtual void onEnabledChanged(bool oldValue, bool newValue)
+        {
+
+        }
+
         /// <summary>
         /// Called when a test plan starts.
         /// </summary>

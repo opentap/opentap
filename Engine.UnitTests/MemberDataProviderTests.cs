@@ -277,6 +277,23 @@ namespace OpenTap.Engine.UnitTests
 
             public List<ScpiInstrument> Instruments { get; set; } = new List<ScpiInstrument>();
 
+            public double? NullableDouble { get; set; }
+            public class Data1
+            {
+                public string X { get; set; }
+            }
+
+            List<Data1> list = new List<Data1> { new Data1 { X = "5" }, new Data1 { X = "1" } };
+
+            [Browsable(true)]
+            public IReadOnlyList<Data1> Data1List
+            {
+                get => list.AsReadOnly();
+                set { }
+            }
+
+            public Data1[] DataArray { get; set; } = new Data1[] { new Data1 { X = "5" }, new Data1 { X = "Y" } };
+
         }
         
         [Test]
@@ -352,6 +369,41 @@ namespace OpenTap.Engine.UnitTests
                     var instprox = prox.AvailableValues.FirstOrDefault();
                     var col = instprox.Get<ICollectionAnnotation>();
                     Assert.IsNull(col);
+                }
+                if(mem.Member.Name == nameof(DataInterfaceTestClass.NullableDouble))
+                {
+                    var num = member.Get<IStringValueAnnotation>();
+                    Assert.IsNotNull(num);
+                    num.Value = "5";
+                    var val = member.Get<IObjectValueAnnotation>();
+                    Assert.AreEqual(5, (double)val.Value);
+                    num.Value = "";
+                    Assert.IsNull(val.Value);
+
+                }
+                if(mem.Member.Name == nameof(DataInterfaceTestClass.Data1List))
+                {
+                    var prox = member.Get<ICollectionAnnotation>();
+                    var annotated = prox.AnnotatedElements.ToArray();
+                    member.Write();
+                }
+                if (mem.Member.Name == nameof(DataInterfaceTestClass.DataArray))
+                {
+                    var prox = member.Get<ICollectionAnnotation>();
+                    var annotated = prox.AnnotatedElements.ToArray();
+                    var newelem = prox.NewElement();
+                    newelem.Get<IObjectValueAnnotation>().Value = new DataInterfaceTestClass.Data1();
+                    prox.AnnotatedElements = prox.AnnotatedElements.Append(newelem);
+                    try
+                    {
+                        member.Write();
+                        Assert.Fail("This should have thrown an exception");
+                    }
+                    catch
+                    {
+                        // index out of bounds
+                    }
+                    member.Read();
                 }
             }
             annotations.Write(testobj);
@@ -433,7 +485,7 @@ namespace OpenTap.Engine.UnitTests
             // one of the sweep rows was disabled.
             Assert.AreEqual(6 - 1 , rlistener.StepRuns.Count);
         }
-
+        
         [Test]
         public void DataInterfaceProviderTest()
         {
@@ -655,6 +707,44 @@ namespace OpenTap.Engine.UnitTests
                 Assert.IsNotNull(((IInput)val1).Step);
             }
 
+        }
+
+        public class EnabledVirtualBaseClass : TestStep
+        {
+            
+            public virtual Enabled<double> EnabledValue { get; set; } = new Enabled<double>();
+
+            public override void Run()
+            {
+            }
+        }
+
+        public class EnabledVirtualClass : EnabledVirtualBaseClass
+        {
+            public override Enabled<double> EnabledValue { get; set; }
+        }
+
+        /// <summary>
+        /// This shows issue #4666 related to Enabled properties that are null and multi selected.
+        /// </summary>
+        [Test]
+        public void AnnotationVirtualEnabledProperty()
+        {
+            var obj = new EnabledVirtualClass();
+            var obj2 = new EnabledVirtualClass();
+
+            var annotation = AnnotationCollection.Annotate(new[] { obj, obj2 });
+            annotation.Read();
+            var members = annotation.Get<IMembersAnnotation>();
+            var enabledValueAnnotation = members.Members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member.Name == "EnabledValue");
+            var val = enabledValueAnnotation.Get<IObjectValueAnnotation>().Value;
+            var members2 = enabledValueAnnotation.Get<IMembersAnnotation>();
+            var mems = members2.Members.ToArray();
+            mems[0].Get<IObjectValueAnnotation>().Value?.ToString();
+            mems[1].Get<IObjectValueAnnotation>().Value?.ToString();
+
+            mems[0].Write();
+            mems[1].Write();
         }
     }
 }

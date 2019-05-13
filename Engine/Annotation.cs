@@ -291,14 +291,15 @@ namespace OpenTap
         public AnnotationCollection GetMember(IMemberData member)
         {
             if (members.TryGetValue(member, out AnnotationCollection value)) return value;
-            
-            var annotation = fac.AnnotateMember(member);
             var objectValue = fac.Get<IObjectValueAnnotation>().Value;
+
+            var annotation = fac.AnnotateMember(member, objectValue);
+            members[member] = annotation;
             if (objectValue != null)
             {
                  annotation.Read(objectValue);
             }
-            members[member] = annotation;
+            
             return annotation;
         }
     }
@@ -380,6 +381,7 @@ namespace OpenTap
 
     class NumberAnnotation : IStringValueAnnotation
     {
+        public Type NullableType { get; set; }
         string currentError;
         public string Value
         {
@@ -389,12 +391,21 @@ namespace OpenTap
                 if (value != null)
                 {
                     var unit = annotation.Get<UnitAttribute>();
-                    return new NumberFormatter(CultureInfo.CurrentCulture, unit).FormatNumber(value.Value);
+                    var value2 = value.Value;
+                    if (NullableType != null && value2 == null)
+                        return "";
+                    return new NumberFormatter(CultureInfo.CurrentCulture, unit).FormatNumber(value2);
                 }
                 return null;
             }
             set
             {
+                if(NullableType != null && value == "")
+                {
+                    var val = annotation.Get<IObjectValueAnnotation>();
+                    val.Value = null;
+                    return;
+                }
                 string newerror = null;
                 var unit = annotation.Get<UnitAttribute>();
                 if (annotation.Get<IReflectionAnnotation>()?.ReflectionInfo is TypeData cst)
@@ -402,7 +413,7 @@ namespace OpenTap
                     object number = null;
                     try
                     {
-                        number = new NumberFormatter(CultureInfo.CurrentCulture, unit).ParseNumber(value, cst.Type);
+                        number = new NumberFormatter(CultureInfo.CurrentCulture, unit).ParseNumber(value, NullableType ?? cst.Type);
                     }
                     catch(Exception e)
                     {
@@ -808,6 +819,7 @@ namespace OpenTap
         }
         void read()
         {
+            if (annotation.Source == null) return;
             var m = annotation.Get<IMemberAnnotation>();
             currentValue = m.Member.GetValue(annotation.Source);
         }
@@ -818,6 +830,7 @@ namespace OpenTap
 
         public void Write(object source)
         {
+            if (annotation.Source == null) return;
             if (wasSet == false) return;
             var m = annotation.Get<IMemberAnnotation>();
             if (m.Member.Writable == false) return;
@@ -1327,15 +1340,28 @@ namespace OpenTap
                 var lst = objValue.Value;
                 if (lst is IList lst2)
                 {
+                    if (lst2.IsReadOnly)
+                        rdonly = true;
                     if (!rdonly)
                         lst2.Clear();
+                    int index = 0;
                     foreach (var elem in annotatedElements)
                     {
                         var val = elem.Get<IObjectValueAnnotation>().Value;
 
                         elem.Write(val);
                         if (!rdonly)
-                            lst2.Add(val);
+                        {
+                            if (lst2.IsFixedSize)
+                            {
+                                lst2[index] = val;
+                                index++;
+                            }
+                            else
+                            {
+                                lst2.Add(val);
+                            }
+                        }
                     }
                 }
                 isWriting = true;
@@ -1520,7 +1546,7 @@ namespace OpenTap
                 {
                     this.parentAnnotation = parentAnnotation;
                 }
-                public bool IsReadOnly => (parentAnnotation.Get<IObjectValueAnnotation>().Value as IEnabled).IsEnabled == false;
+                public bool IsReadOnly => (parentAnnotation.Get<IObjectValueAnnotation>().Value as IEnabled)?.IsEnabled == false;
 
                 public bool IsVisible => true;
             }
@@ -1543,8 +1569,9 @@ namespace OpenTap
                     if (unit != null) { extra.Add(unit); }
                     if (avail != null) { extra.Add(avail); }
                     extra.Add(new EnabledAccessAnnotation(annotation));
-                    var newValueMember = annotation.AnnotateMember(valueMember.Get<IMemberAnnotation>().Member, extra.ToArray());
                     var src = annotation.Get<IObjectValueAnnotation>().Value;
+                    var newValueMember = annotation.AnnotateMember(valueMember.Get<IMemberAnnotation>().Member, src, extra.ToArray());
+                    
                     if(src != null)
                         newValueMember.Read(src);
                     this.members = new[] { enabledMember, newValueMember };
@@ -1959,6 +1986,15 @@ namespace OpenTap
             if (reflect?.ReflectionInfo is TypeData csharpType)
             {
                 var type = csharpType.Load();
+                bool isNullable = type.DescendsTo(typeof(Nullable<>));
+                if (isNullable)
+                {
+                    Type type2 = type.GetGenericArguments().FirstOrDefault();
+                    if (type2.IsNumeric())
+                    {
+                        annotation.Add(new NumberAnnotation(annotation) { NullableType = type2 });
+                    }
+                }
                 if (type.IsNumeric())
                 {
                     annotation.Add(new NumberAnnotation(annotation));
@@ -2678,16 +2714,26 @@ namespace OpenTap
         
         /// <summary> Annotates a member of the object annotated by this. </summary>
         /// <param name="member"></param>
+        /// <param name="Source"></param>
         /// <param name="extraAnnotations"></param>
         /// <returns></returns>
-        public AnnotationCollection AnnotateMember(IMemberData member, params IAnnotation[] extraAnnotations)
+        public AnnotationCollection AnnotateMember(IMemberData member, object Source, params IAnnotation[] extraAnnotations)
         {
-            var annotation = new AnnotationCollection { ParentAnnotation = this, source = source, ExtraAnnotations = extraAnnotations ?? Array.Empty<IAnnotation>() };
+            var annotation = new AnnotationCollection { ParentAnnotation = this, source = Source, ExtraAnnotations = extraAnnotations ?? Array.Empty<IAnnotation>() };
             annotation.Add(new MemberAnnotation(member));
             annotation.AddRange(extraAnnotations);
             var resolver = new AnnotationResolver();
             resolver.Iterate(annotation);
             return annotation;
+        }
+
+        /// <summary> Annotates a member of the object annotated by this. </summary>
+        /// <param name="member"></param>
+        /// <param name="extraAnnotations"></param>
+        /// <returns></returns>
+        public AnnotationCollection AnnotateMember(IMemberData member, params IAnnotation[] extraAnnotations)
+        {
+            return AnnotateMember(member, null, extraAnnotations);
         }
 
         /// <summary> Annotates a sub-object of the object annotated by this. </summary>

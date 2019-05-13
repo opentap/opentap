@@ -29,7 +29,7 @@ namespace OpenTap.Package
         /// Unlockes the package action to allow multiple running at the same time.
         /// </summary>
         public bool Unlocked { get; set; }
-        
+
         /// <summary>
         /// The location to apply the command to. The default is the location of OpenTap.PackageManager.exe
         /// </summary>
@@ -70,7 +70,7 @@ namespace OpenTap.Package
                 log.Error("Destination directory \"{0}\" does not exist.", Target);
                 return -1;
             }
-            
+
             if (ExecutorClient.IsExecutorMode) // do we support running isolated?
             {
                 if (!ExecutorClient.IsRunningIsolated) // are we already running isolated?
@@ -103,7 +103,7 @@ namespace OpenTap.Package
                     }
                 }
             }
-            
+
             using (Mutex state = GetMutex(Target))
             {
                 if (Unlocked == false && !state.WaitOne(0))
@@ -129,7 +129,7 @@ namespace OpenTap.Package
                         foreach (var pkgfile in package.Files)
                         {
                             var filePath = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), pkgfile.FileName);
-                            
+
                             if (string.Equals(filePath, file, StringComparison.OrdinalIgnoreCase))
                             {
                                 return package;
@@ -150,7 +150,7 @@ namespace OpenTap.Package
                 foreach(var exDep in extraDependencies)
                 {
                     var package = findPackageWithFile(exDep);
-                    if (package != null && !dependencies.Any(p => p.Name == package.Name)) { 
+                    if (package != null && !dependencies.Any(p => p.Name == package.Name)) {                 
                         dependencies.Add(new PackageDependency(package.Name, new VersionSpecifier(package.Version, VersionMatchBehavior.Compatible)));
                     }
                 }
@@ -239,7 +239,7 @@ namespace OpenTap.Package
             }
         }
     }
-    
+
     [Display("list", Group: "package", Description: "List installed packages.")]
     public class PackageListAction : LockingPackageAction
     {
@@ -300,7 +300,7 @@ namespace OpenTap.Package
 
             HashSet<PackageDef> installed = new Installation(Target).GetPackages().ToHashSet();
 
-            
+
             VersionSpecifier versionSpec = VersionSpecifier.Any;
             if (!String.IsNullOrWhiteSpace(Version))
             {
@@ -311,10 +311,10 @@ namespace OpenTap.Package
             {
                 var packages = installed.ToList();
                 packages.AddRange(PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, new PackageSpecifier("", versionSpec, Architecture, OS)));
-                
+
                 if (Installed)
                     packages = packages.Where(p => installed.Any(i => i.Name == p.Name)).ToList();
-                
+
                 PrintReadable(packages, installed);
             }
             else
@@ -332,7 +332,7 @@ namespace OpenTap.Package
                         log.Info($"No versions of '{Name}'.");
                         return 0;
                     }
-                    
+
                     if (Version != null) // Version is specified by user
                         versions = versions.Where(v => versionSpec.IsCompatible(v.Version)).ToList();
 
@@ -348,7 +348,7 @@ namespace OpenTap.Package
                 {
                     var opentap = new Installation(Target).GetOpenTapPackage();
                     versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name, opentap);
-    
+
                     if (versions.Any() == false) // No compatible versions
                     {
                         log.Warning($"There are no compatible versions of '{Name}'.");
@@ -372,11 +372,11 @@ namespace OpenTap.Package
 
                         return 0;
                     }
-                    
+
                     PrintVersionsReadable(package, versions);
                 }
             }
-            
+
             return 0;
         }
 
@@ -386,30 +386,32 @@ namespace OpenTap.Package
             var arcLen = versions.Select(p => p?.Architecture.ToString().Length).Max();
             var osLen = versions.Select(p => p.OS?.Length).Max();
             foreach (var version in versions)
-                log.Info(string.Format($"{{0,-{verLen}}} - {{1,-{arcLen}}} - {{2,-{osLen}}} - {{3}}", version.Version, version.Architecture, version.OS ?? "Unknown", package != null && package.Equals(version) ? "installed" : "available"));
+            {
+                log.Info(string.Format($"{{0,-{verLen}}} - {{1,-{arcLen}}} - {{2,-{osLen}}} - {{3}}", version.Version, version.Architecture, version.OS ?? "Unknown", package != null && package.Equals(version) ? "installed" : ""));
+            }
         }
 
         private void PrintReadable(List<PackageDef> packages, HashSet<PackageDef> installed)
         {
-            var plist = packages.GroupBy(p => p.Name).Select(x => x.OrderByDescending(p => p.Version).First()).OrderBy(x => x.Name).ToList();
+            var packageList = packages.GroupBy(p => p.Name).Select(x => x.OrderByDescending(p => p.Version).First()).OrderBy(x => x.Name).ToList();
 
-            if (plist.Count == 0)
+            if (packageList.Count == 0)
             {
-                log.Info("Selected directory has no packages installed or available.");
+                log.Info("Selected directory has no packages installed.");
                 return;
             }
 
-            var nameLen = plist.Select(p => p.Name?.Length).Max();
-            var verLen = plist.Select(p => p.Version?.ToString().Length).Max() ?? 0;
+            var nameLen = packageList.Select(p => p.Name?.Length).Max();
+            var verLen = packageList.Select(p => p.Version?.ToString().Length).Max() ?? 0;
             verLen = Math.Max(verLen, installed.Select(p => p.Version?.ToString().Length).Max() ?? 0);
 
-
-            foreach (var plugin in plist)
+            foreach (var plugin in packageList)
             {
                 var installedPackage = installed.FirstOrDefault(p => p.Name == plugin.Name);
                 var latestPackage = packages.Where(p => p.Name == plugin.Name).OrderByDescending(p => p.Version).FirstOrDefault();
 
-                string logMessage = string.Format(string.Format("{{0,-{0}}} - {{1,-{1}}} - {{2}}", nameLen, verLen), plugin.Name, (installedPackage ?? plugin).Version, installedPackage != null ? "installed" : "available");
+                string logMessage = string.Format(string.Format("{{0,-{0}}} - {{1,-{1}}} - {{2}}", nameLen, verLen), plugin.Name, (installedPackage ?? plugin).Version, installedPackage != null ? "installed" : "");
+
                 if (installedPackage != null && installedPackage?.Version?.CompareTo(latestPackage.Version) < 0)
                     logMessage += " - update available";
 

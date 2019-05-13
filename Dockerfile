@@ -12,6 +12,12 @@ RUN apt install apt-transport-https -y
 RUN apt update
 RUN apt install dotnet-sdk-2.1 -y
 
+# Install dotnet core 2.1.503
+RUN wget -P /tmp https://download.visualstudio.microsoft.com/download/pr/04d83723-8370-4b54-b8b9-55708822fcde/63aab1f4d0be5246e3a92e1eb3063935/dotnet-sdk-2.1.503-linux-x64.tar.gz
+RUN mkdir -p /tmp/dotnet && tar zxf /tmp/dotnet-sdk-2.1.503-linux-x64.tar.gz -C /tmp/dotnet
+RUN cp -r /tmp/dotnet/sdk/2.1.503 /usr/share/dotnet/sdk
+
+
 # TAP dotnet core 2.1 dependency
 RUN apt install libc6-dev libunwind8 curl git -y
 

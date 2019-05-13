@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Package Name="GitVersionDependencyTest" Version="$(GitVersion)" xmlns="http://opentap.io/schemas/package">
+  <Description>
+    Everything goes here <Status> tags </Status>.
+  </Description>
+  <Dependencies>
+    <Package Name="DepName" Version="$(GitVersion)" />
+  </Dependencies>
+  <Files>
+    <File Path="OpenTap.dll" >
+      <SetAssemblyInfo Attributes="Version"/>
+      <IgnoreDependency>System.Reflection.Metadata</IgnoreDependency>
+    </File>
+  </Files>
+</Package>

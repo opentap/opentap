@@ -55,7 +55,7 @@ namespace OpenTap.Cli
         /// <summary>
         /// Sets an external test plan parameter. Can be used multiple times. Use the syntax parameter=value, e.g. \"-e delay=1.0\".
         /// </summary>
-        [CommandLineArgument("external", ShortName = "e", Description = "Sets an external test plan parameter. Can be used multiple\ntimes. Use the syntax parameter=value, e.g. \"-e delay=1.0\".")]
+        [CommandLineArgument("external", ShortName = "e", Description = "Sets an external test plan parameter. \nUse the syntax parameter=value, e.g. \"-e delay=1.0\". The argument can be used multiple times \nor a .csv file containing sets of parameters can be specified \"-e file.csv\".")]
         public string[] External { get; set; } = new string[0];
 
         /// <summary>
@@ -235,18 +235,17 @@ namespace OpenTap.Cli
             if (TryExternal.Length > 0)
                 values.AddRange(TryExternal);
             Plan = new TestPlan();
-
+            List<string> externalParameterFiles = new List<string>();
             foreach (var externalParam in values)
             {
                 int equalIdx = externalParam.IndexOf("=");
                 if (equalIdx == -1)
                 {
                     //try "Import External Parameters File"
-                    var importers = CreateInstances<IExternalTestPlanParameterImport>();
                     try
                     {
-                        importers.FirstOrDefault(importer => importer.Extension == Path.GetExtension(externalParam)).ImportExternalParameters(Plan, externalParam);
-                        break;
+                        externalParameterFiles.Add(externalParam);
+                        continue;
                     }
                     catch
                     {
@@ -257,8 +256,18 @@ namespace OpenTap.Cli
                 var value = externalParam.Substring(equalIdx + 1);
                 extparams.PreloadedValues[name] = value;
             }
+            var log = Log.CreateSource("CLI");
             Plan = (TestPlan)serializer.DeserializeFromFile(planToLoad, type: TypeData.FromType(typeof(TestPlan)));
-
+            if (externalParameterFiles.Count > 0)
+            {
+                var importers = CreateInstances<IExternalTestPlanParameterImport>();
+                foreach (var file in externalParameterFiles)
+                {
+                    log.Info("Loading external parameters from '{0}'.", file);
+                    var importer = importers.FirstOrDefault(i => i.Extension == Path.GetExtension(file)); 
+                    importer?.ImportExternalParameters(Plan, file);
+                }
+            }
             if (External.Length > 0)
             {   // Print warnings if an --external parameter was not in the test plan. 
 

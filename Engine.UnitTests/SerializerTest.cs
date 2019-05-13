@@ -604,6 +604,42 @@ namespace OpenTap.Engine.UnitTests
             var inst = (ScpiDummyInstrument)settings2[0];
             Assert.AreEqual("test", inst.VisaAddress);
         }
+
+        public class StringObject
+        {
+            public string TheString { get; set; }
+        }
+
+        [Test]
+        public void SerializeDeserializeProblematicString()
+        {
+            {
+                StringBuilder sb = new StringBuilder("test:");
+                var ser = new TapSerializer();
+                for (int i = 0; i < 512; i++)
+                {
+                    sb[4] = (char)i;
+                    var st = new StringObject() { TheString = sb.ToString() };
+                    var stt = ser.SerializeToString(st);
+                    var rev = (StringObject)ser.DeserializeFromString(stt);
+                    Assert.IsTrue(string.Compare(st.TheString, rev.TheString) == 0);
+                }
+            }
+            {
+                StringBuilder sb = new StringBuilder("test::::");
+                var ser = new TapSerializer();
+                for (int i = 0; i < 512; i++)
+                {
+                    sb[4] = (char)i;
+                    var st = new StringObject() { TheString = sb.ToString() };
+                    var stt = ser.SerializeToString(st);
+                    var rev = (StringObject)ser.DeserializeFromString(stt);
+                    Assert.IsTrue(string.Compare(st.TheString, rev.TheString) == 0);
+                }
+            }
+
+        }
+
     }
 
     [TestFixture]
@@ -896,6 +932,8 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        [Retry(10)]
+        // [Repeat(1000)] // TODO: this test sometimes fails due to a timing issue. Enable the repeat to reproduce.
         public void RunMultipleTestPlanReferences()
         {
             PlanRunCollectorListener pl = new PlanRunCollectorListener();
@@ -1408,6 +1446,7 @@ namespace OpenTap.Engine.UnitTests
 
             public List<Verdict> ListOfVerdicts { get; set; } = new List<Verdict> { Verdict.Pass };
 
+            public double? NullableNumber { get; set; } = 5;
             public override void Run()
             {
                 throw new NotImplementedException();

@@ -213,11 +213,11 @@ namespace OpenTap.Package
             {
                 foreach (var inner in ex.InnerExceptions)
                     log.Error(inner);
-                throw;
+                log.Error(ex);
             }
             return list;
         }
-        
+
         internal static List<PackageVersion> GetAllVersionsFromAllRepos(List<IPackageRepository> repositories, string packageName, params IPackageIdentifier[] compatibleWith)
         {
             var list = new List<PackageVersion>();
@@ -232,7 +232,7 @@ namespace OpenTap.Package
             {
                 foreach (var inner in ex.InnerExceptions)
                     log.Error(inner);
-                throw;
+                log.Error(ex);
             }
             return list;
         }
@@ -241,6 +241,8 @@ namespace OpenTap.Package
         {
             if (Uri.IsWellFormedUriString(url, UriKind.Relative) && Directory.Exists(url))
                 return new FilePackageRepository(url);
+            else if (File.Exists(url))
+                return new FilePackageRepository(Path.GetDirectoryName(url));
             else if (Regex.IsMatch(url ?? "", @"^([A-Z|a-z]:)?(\\|/)"))
                 return new FilePackageRepository(url);
             else

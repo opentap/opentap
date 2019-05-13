@@ -44,6 +44,11 @@ namespace OpenTap.Package
         /// </summary>
         public PackageSpecifier[] PackageReferences { get; set; }
 
+        /// <summary>
+        /// PackageDef of downloaded packages. Value is null until packages have actually been downloaded (after Execute)
+        /// </summary>
+        public IEnumerable<PackageDef> DownloadedPackages { get; private set; } = null; 
+
         static PackageDownloadAction()
         {
             log =  OpenTap.Log.CreateSource("Download");
@@ -83,14 +88,12 @@ namespace OpenTap.Package
             if (PackagesToDownload == null)
                 return 2;
 
-            if (DryRun)
-            {
+            if (!DryRun)
+                PackageActionHelpers.DownloadPackages(destinationDir, PackagesToDownload);
+            else
                 log.Info("Dry run completed. Specified packages are available.");
-                return 0;
-            }
 
-            PackageActionHelpers.DownloadPackages(destinationDir, PackagesToDownload);
-
+            DownloadedPackages = PackagesToDownload;
             return 0;
         }
         

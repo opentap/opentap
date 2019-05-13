@@ -108,6 +108,7 @@ namespace OpenTap.Package
             }
         }
 
+        static HashSet<Type> failedToLoadPlugins = new HashSet<Type>();
         internal static List<ICustomPackageData> GetAllData()
         {
             var packageData = new List<ICustomPackageData>();
@@ -117,11 +118,16 @@ namespace OpenTap.Package
             {
                 try
                 {
+                    if (failedToLoadPlugins.Contains(plugin))
+                        continue;
+
                     ICustomPackageData customData = (ICustomPackageData)Activator.CreateInstance(plugin);
                     packageData.Add(customData);
                 }
                 catch (Exception ex)
                 {
+                    failedToLoadPlugins.Add(plugin);
+
                     log.Warning($"Failed to instantiate {plugin}. Skipping plugin.");
                     log.Debug(ex);
                 }

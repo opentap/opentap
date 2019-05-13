@@ -287,12 +287,14 @@ namespace OpenTap.Package
             return text;
         }
 
-        internal static void updateVersion(this PackageDef pkg, string ProjectDirectory)
+        private static void updateVersion(this PackageDef pkg, string ProjectDirectory)
         {
             // Replace macro if possible
             pkg.RawVersion = TryReplaceMacro(pkg.RawVersion, ProjectDirectory);
 
-            
+            foreach (var depPackage in pkg.Dependencies)
+                ReplaceDependencyVersion(ProjectDirectory, depPackage);
+
             if (pkg.RawVersion == null)
             {
                 foreach (var file in pkg.Files.Where(file => file.HasCustomData<UseVersionData>()))
@@ -314,6 +316,27 @@ namespace OpenTap.Package
                     throw new FormatException("The version string in the package is not a valid semantic version.");
                 }
             }
+        }
+
+        private static void ReplaceDependencyVersion(string ProjectDirectory, PackageDependency depPackage)
+        {
+            if (string.IsNullOrWhiteSpace(depPackage.RawVersion))
+                return;
+
+            string replaced = TryReplaceMacro(depPackage.RawVersion, ProjectDirectory);
+            if (replaced != depPackage.RawVersion)
+                if (VersionSpecifier.TryParse(replaced, out var versionSpecifier))
+                {
+                    if (versionSpecifier.MatchBehavior.HasFlag(VersionMatchBehavior.Exact))
+                        depPackage.Version = versionSpecifier;
+                    else
+                        depPackage.Version = new VersionSpecifier(versionSpecifier.Major,
+                            versionSpecifier.Minor,
+                            versionSpecifier.Patch,
+                            versionSpecifier.PreRelease,
+                            versionSpecifier.BuildMetadata,
+                            VersionMatchBehavior.Compatible | VersionMatchBehavior.AnyPrerelease);
+                }
         }
 
         internal static IEnumerable<AssemblyData> AssembliesOfferedBy(List<PackageDef> packages, IEnumerable<PackageDependency> refs, bool recursive, Memorizer<PackageDef, List<AssemblyData>> offeredFiles)
@@ -366,7 +389,7 @@ namespace OpenTap.Package
                 var asms = searchedFiles.Where(sf => PathUtils.AreEqual(f.FileName, sf.Location)).ToList();
                 if (asms.Count == 0 && (Path.GetExtension(f.FileName).Equals(".dll", StringComparison.OrdinalIgnoreCase) || Path.GetExtension(f.FileName).Equals(".exe", StringComparison.OrdinalIgnoreCase)))
                 {
-                    if (!brokenPackageNames.Contains(pkgDef.Name) && File.Exists(f.FileName) == false)
+                    if (!brokenPackageNames.Contains(pkgDef.Name) && IsAssembly(f.FileName) == false)
                     {
                         brokenPackageNames.Add(pkgDef.Name);
                         log.Warning($"Package '{pkgDef.Name}' is not installed correctly?  Referenced file '{f.FileName}' was not found.");

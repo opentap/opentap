@@ -126,6 +126,28 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
+        public void GitVersionDependency()
+        {
+            string inputFilename = "Packages/GitversionDependency/package.xml";
+            string outputFilename = "GitversionDependency.TapPlugin";
+
+            try
+            {
+                PackageDef pkg = PackageDefExt.FromInputXml(inputFilename);
+                pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory());
+                Assert.AreNotSame("$(GitVersion)", pkg.Dependencies.First().Version.ToString());
+                VersionSpecifier versionSpecifier = new VersionSpecifier(pkg.Version, VersionMatchBehavior.Exact);
+
+                Assert.AreEqual(pkg.Dependencies.FirstOrDefault(p => p.Name == "DepName").Version.ToString(), versionSpecifier.ToString());
+            }
+            finally
+            {
+                if (File.Exists(outputFilename))
+                    File.Delete(outputFilename);
+            }
+        }
+
+        [Test]
         public void CreatePackage_NoObfuscation()
         {
             string inputFilename = "Packages/package/package.xml";

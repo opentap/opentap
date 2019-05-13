@@ -147,17 +147,28 @@ namespace OpenTap.Package
         /// <summary>
         /// Specifying requirements to the version of the package. Never null.
         /// </summary>
-        public VersionSpecifier Version { get; private set; }
+        public VersionSpecifier Version { get; set; }
+
+        /// <summary>
+        /// Returns raw version string.
+        /// </summary>
+        /// <returns>Raw version string from input. Null if the raw input is not set</returns>
+        internal string RawVersion
+        {
+            get;
+            private set;
+        }
 
         /// <summary>
         /// This constructor is only used for serialization.
         /// </summary>
-        public PackageDependency(string name, VersionSpecifier version)
+        public PackageDependency(string name, VersionSpecifier version, string rawVersion = null)
         {
             if(version == null)
                 throw new ArgumentNullException("version");
             Name = name;
             Version = version;
+            RawVersion = rawVersion;
         }
     }
 
@@ -573,12 +584,15 @@ namespace OpenTap.Package
             // Add 9.x packages in "Packages" folder
             string packageDir = Path.GetFullPath(Path.Combine(tapPath, PackageDefDirectory));
 
-            Directory.CreateDirectory(packageDir);
-            foreach (var dir in Directory.EnumerateDirectories(packageDir).Select(s => new DirectoryInfo(s).Name))
+            if (Directory.Exists(packageDir))
             {
-                if (File.Exists(GetDefaultPackageMetadataPath(dir, tapPath)))
-                    metadatas.Add(GetDefaultPackageMetadataPath(dir, tapPath));
+                foreach (var dir in Directory.EnumerateDirectories(packageDir).Select(s => new DirectoryInfo(s).Name))
+                {
+                    if (File.Exists(GetDefaultPackageMetadataPath(dir, tapPath)))
+                        metadatas.Add(GetDefaultPackageMetadataPath(dir, tapPath));
+                }
             }
+            
 
             // Add backwards compatibility by adding packages in "Package Definitions" folder
             var packageDir8x = Path.GetFullPath(Path.Combine(tapPath, "Package Definitions"));

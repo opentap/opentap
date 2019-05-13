@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -188,7 +189,7 @@ namespace OpenTap.Package
                             break;
                     }
                 }
-                setter.Invoke(new PackageDependency(name, ConvertVersion(version)));
+                setter.Invoke(new PackageDependency(name, ConvertVersion(version), version));
                 return true;
             }
             return false;

@@ -86,11 +86,7 @@ namespace OpenTap
 
         public static string GetCurrentInstallationDirectory()
         {
-            if (Assembly.GetEntryAssembly() != null)
-            {
-                return Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
-            }
-            return Path.GetDirectoryName(typeof(PluginManager).Assembly.Location);
+            return ExecutorClient.ExeDir;
         }
 
         /// <summary>

@@ -253,7 +253,7 @@ namespace OpenTap
         class PlanLoadError
         {
             [Browsable(true)]
-            [Layout(LayoutMode.FullRow)]
+            [Layout(LayoutMode.FullRow, 2)]
             public string Message { get; private set; } = "Parts of the test plan did not load correctly. See the log for more details.\n\nDo you want to ignore these errors and use a corrupt test plan?";
             public string Name { get; private set; } = "Errors occured while loading test plan.";
             [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]

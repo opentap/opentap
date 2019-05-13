@@ -62,10 +62,10 @@ namespace OpenTap.Package
                 dependency.Version.IsCompatible(p.Version) &&
                 ArchitectureHelper.PluginsCompatible(p.Architecture, packageArchitecture)))
                 return;
-            PackageDef depPkg = GetPackageDefFromInstallation(dependency.Name, dependency.Version, packageArchitecture, OS);
+            PackageDef depPkg = GetPackageDefFromInstallation(dependency.Name, dependency.Version);
             if (depPkg == null)
             {
-                depPkg = GetPackageDefFromRepo(repositories, dependency.Name, dependency.Version, packageArchitecture, OS);
+                depPkg = GetPackageDefFromRepo(repositories, dependency.Name, dependency.Version);
                 MissingDependencies.Add(depPkg);
             }
             if (depPkg == null)
@@ -82,7 +82,7 @@ namespace OpenTap.Package
 
         private Dictionary<string, PackageDef> InstalledPackages;
 
-        PackageDef GetPackageDefFromInstallation(string name, VersionSpecifier version, CpuArchitecture pluginArchitecture, string OS)
+        PackageDef GetPackageDefFromInstallation(string name, VersionSpecifier version)
         {
             if (name.ToLower().EndsWith(".tappackage"))
                 name = Path.GetFileNameWithoutExtension(name);
@@ -90,21 +90,20 @@ namespace OpenTap.Package
             {
                 PackageDef package = InstalledPackages[name];
                 // Check that the installed package is compatible with the required package
-                if ( version.IsCompatible(package.Version) && 
-                    ArchitectureHelper.PluginsCompatible(package.Architecture, pluginArchitecture) && package.IsPlatformCompatible(selectedOS: OS))
+                if (version.IsCompatible(package.Version))
                     return package;
             }
             return null;
         }
 
-        private static PackageDef GetPackageDefFromRepo(List<IPackageRepository> repositories, string name, VersionSpecifier version, CpuArchitecture pluginArchitecture, string OS)
+        private static PackageDef GetPackageDefFromRepo(List<IPackageRepository> repositories, string name, VersionSpecifier version)
         {
             if (name.ToLower().EndsWith(".tappackage"))
                 name = Path.GetFileNameWithoutExtension(name);
 
-            var packages =  PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, new PackageSpecifier(name, version, pluginArchitecture, OS));
+            var packages =  PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, new PackageSpecifier(name, version, CpuArchitecture.Unspecified, OperatingSystem.Current.ToString()));
 
-            return packages.OrderByDescending(pkg => pkg.Version).FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, pluginArchitecture));
+            return packages.OrderByDescending(pkg => pkg.Version).FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.HostArchitecture));
         }
     }
 }

@@ -462,12 +462,21 @@ namespace OpenTap.Plugins
             }
             return false;
         }
-        static bool isValidXmlString(string str)
+        /// <summary>
+        /// Checks if the string can be turned into an XML string. 
+        /// This should return true only if the transformation to/from xml is reversible.
+        /// </summary>
+        /// <param name="str"></param>
+        /// <returns></returns>
+        static bool containsOnlyReversibleTapXmlChars(string str)
         {
             int len = str.Length;
             for(int i = 0; i < len; i++)
             {
                 char c = str[i];
+                if (c == '\r') // special case. Somehow deserialization turns \n into \r.
+                    return false;
+                
                 if (XmlConvert.IsXmlChar(c))
                     continue;
                 else if(i < len - 1)
@@ -476,7 +485,7 @@ namespace OpenTap.Plugins
                     if(XmlConvert.IsXmlSurrogatePair(c2, c))
                         continue;
                 }
-                else
+                
                 {
                     return false;
                 }
@@ -546,11 +555,10 @@ namespace OpenTap.Plugins
 
                 if (obj is string str) // handled separately due to "case char c" from above.
                 {
-                    // This will throw an XmlException if the string contains invalid XML chars.
-                    // If thats the case we base64 encode it.
-                    if (isValidXmlString(str))
+                    // check if the str->xml is reversible otherwise base64 encode it.
+                    if (containsOnlyReversibleTapXmlChars(str) && str.Trim() == str)
                     {
-                        elem.Value = str;
+                        elem.Value = str;   
                     }
                     else
                     {
