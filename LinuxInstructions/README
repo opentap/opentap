@@ -1,31 +1,20 @@
------ TAP 2018 ----------------------------------------------------------------
+OpenTAP Linux Distribution   
 
---- Prerequisites
- - Ubuntu (16.04)
- - .NET Core 2.0
-   To install follow instructions here:
-   https://www.microsoft.com/net/learn/get-started/linuxubuntu
+Prerequisites:
+- Ubuntu (16.04)
+- .NET Core 2.0
 
---- Automatic installation
- - Run the command "sh INSTALL.sh"
+Installation instructions for Ubuntu can be found here: https://www.microsoft.com/net/learn/get-started/linuxubuntu
 
---- Manual installation
- - Unzip the TAPLinux.TapPackage file. This is a normal ZIP file.
- - Set directory permission as being read-write in the TAP directory. This is
-   needed for package installation and session log output.
+Automatic installation of OpenTAP
+- Run the command "sh INSTALL.sh"
 
---- Usage
+Manual installation:
+- Unzip the TAPLinux.TapPackage file. This is a normal ZIP file.
+- Set directory permission as being read-write in the OpenTAP directory. This is 
+  needed for package installation and session log output.
+
+Usage:
 The main executable is "tap". If you ran the automatic install script
 this should be callable straight away. Otherwise you should call:
 "dotnet tap.dll <arguments>"
-
---- Licensing
-To use TAP on Linux you need to have a running FlexLM license server with
-KS8400A/KS8000A license(s) installed. This can be set up using the Keysight
-FLO tool.
-
-In Linux you should set the LM_LICENSE_FILE environment variable like you
-would on a Windows machine.
-
-You could for example add something like `export LM_LICENSE_FILE=@Hostname`
-to your .bash_rc file.
