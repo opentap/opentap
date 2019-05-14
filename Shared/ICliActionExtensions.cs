@@ -159,7 +159,7 @@ namespace OpenTap.Cli
             catch (IOException)
             {
                 if (isVerbose)
-                    Log.CreateSource("CliAction").Warning("Handling of CTRL-C failed.");
+                    Log.CreateSource("CliAction").Debug("Handling of CTRL-C failed.");
             }
             
             return action.Execute(source.Token);

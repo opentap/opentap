@@ -31,7 +31,7 @@ namespace OpenTap.Package
             {
                 if (def.Plugins == null || !def.Plugins.Any())
                 {
-                    if (File.Exists(def.FileName) && IsAssembly(def.FileName))
+                    if (File.Exists(def.FileName) && IsDotNetAssembly(def.FileName))
                     {
                         try
                         {
@@ -94,7 +94,7 @@ namespace OpenTap.Package
             }
         }
 
-        private static bool IsAssembly(string fullPath)
+        private static bool IsDotNetAssembly(string fullPath)
         {
             try
             {
@@ -389,7 +389,7 @@ namespace OpenTap.Package
                 var asms = searchedFiles.Where(sf => PathUtils.AreEqual(f.FileName, sf.Location)).ToList();
                 if (asms.Count == 0 && (Path.GetExtension(f.FileName).Equals(".dll", StringComparison.OrdinalIgnoreCase) || Path.GetExtension(f.FileName).Equals(".exe", StringComparison.OrdinalIgnoreCase)))
                 {
-                    if (!brokenPackageNames.Contains(pkgDef.Name) && IsAssembly(f.FileName) == false)
+                    if (!brokenPackageNames.Contains(pkgDef.Name) && IsDotNetAssembly(f.FileName))
                     {
                         brokenPackageNames.Add(pkgDef.Name);
                         log.Warning($"Package '{pkgDef.Name}' is not installed correctly?  Referenced file '{f.FileName}' was not found.");
