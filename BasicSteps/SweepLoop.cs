@@ -583,6 +583,9 @@ namespace OpenTap.Plugins.BasicSteps
                 getPropertiesForItem((ITestStep)source, members);
                 foreach(var member in members)
                 {
+                    var mem = member.Key;
+                    if (mem.DeclaringType.DescendsTo(typeof(SweepLoop)) && (mem.Name == nameof(SweepLoop.SweepMembers) || mem.Name == nameof(SweepLoop.SweepParameters)))
+                        continue;
                     var anot = AnnotationCollection.Create(null, member.Key);
                     var access = anot.Get<ReadOnlyMemberAnnotation>();
                     var rmember = anot.Get<IMemberAnnotation>().Member;
