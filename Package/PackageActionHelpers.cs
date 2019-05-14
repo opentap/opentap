@@ -157,9 +157,6 @@ namespace OpenTap.Package
                 }
             }
 
-            InsertCacheDirectory(repositories);
-
-
             foreach (var packageReference in packages)
             {
                 Stopwatch timer = Stopwatch.StartNew();
@@ -249,24 +246,6 @@ namespace OpenTap.Package
             }
 
             return gatheredPackages;
-        }
-
-        private static void InsertCacheDirectory(List<IPackageRepository> repositories)
-        {
-            var cacheDir = PackageCacheHelper.PackageCacheDirectory;
-            if (!repositories.Any(e => cacheDir.StartsWith(e.Url)))
-                repositories.Insert(0, PackageRepositoryHelpers.DetermineRepositoryType(cacheDir));
-            else
-            {
-                int index = repositories.IndexWhen(e => cacheDir.StartsWith(e.Url));
-                if (index != 0)
-                {
-                    var repo = repositories[index];
-
-                    repositories.Remove(repo);
-                    repositories.Insert(0, repo);
-                }
-            }
         }
 
         internal static List<string> DownloadPackages(string destinationDir, List<PackageDef> PackagesToDownload)
