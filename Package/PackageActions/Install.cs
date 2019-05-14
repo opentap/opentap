@@ -1,4 +1,4 @@
-//            Copyright Keysight Technologies 2012-2019
+﻿//            Copyright Keysight Technologies 2012-2019
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
@@ -105,7 +105,7 @@ namespace OpenTap.Package
                 return 6;
             }
             // Check dependencies
-            var issue = DependencyChecker.CheckDependencies(targetInstallation, installer.PackagePaths, ForceInstall ? LogEventType.Warning: LogEventType.Error);
+            var issue = DependencyChecker.CheckDependencies(targetInstallation, installer.PackagePaths, ForceInstall ? LogEventType.Warning : LogEventType.Error);
             if (issue == DependencyChecker.Issue.BrokenPackages)
             {
                 if (!ForceInstall)

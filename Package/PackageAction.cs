@@ -16,7 +16,7 @@ namespace OpenTap.Package
 {
     /// <summary>
     /// Indicates a well defined action to be performed on a package.
-    /// A number of common actions are <see cref="PackageInstallAction"/>, <see cref="PackageUninstallAction"/>, and <see cref="PackageRunCommandAction"/>.
+    /// A number of common actions are <see cref="PackageInstallAction"/>, <see cref="PackageUninstallAction"/>, and <see cref="PackageDownloadAction"/>.
     /// Deriving from this, and annotating the class and any public properties with <see cref="CommandLineArgumentAttribute"/> and <see cref="UnnamedCommandLineArgument"/> attributes
     /// will allow it to be called from the OpenTAP.Package CLI.
     /// </summary>

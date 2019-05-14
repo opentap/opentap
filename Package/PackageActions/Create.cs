@@ -1,4 +1,4 @@
-//            Copyright Keysight Technologies 2012-2019
+﻿//            Copyright Keysight Technologies 2012-2019
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
@@ -22,7 +22,7 @@ namespace OpenTap.Package
 
         [UnnamedCommandLineArgument("PackageXmlFile", Required = true)]
         public string PackageXmlFile { get; set; }
-        
+
         [CommandLineArgument("project-directory", Description = "The directory containing the GIT repo.\nUsed to get values for version/branch macros.")]
         public string ProjectDir { get; set; }
 
@@ -62,7 +62,7 @@ namespace OpenTap.Package
                     log.Error("Cannot locate XML file '{0}'", PackageXmlFile);
                     return 4;
                 }
-                if(!Directory.Exists(ProjectDir))
+                if (!Directory.Exists(ProjectDir))
                 {
                     log.Error("Project directory '{0}' does not exist.", ProjectDir);
                     return 4;
@@ -70,7 +70,7 @@ namespace OpenTap.Package
                 try
                 {
                     pkg = PackageDefExt.FromInputXml(PackageXmlFile);
-                    
+
                     // Check if package name has invalid characters or is not a valid path
                     var illegalCharacter = pkg.Name.IndexOfAny(Path.GetInvalidFileNameChars());
                     if (illegalCharacter >= 0)
@@ -78,7 +78,7 @@ namespace OpenTap.Package
                         log.Error("Package name cannot contain invalid file path characters: '{0}'", pkg.Name[illegalCharacter]);
                         return 5;
                     }
-                    
+
 
                 }
                 catch (AggregateException aex)
@@ -99,9 +99,9 @@ namespace OpenTap.Package
                     log.Error("Caught errors while loading package definition.");
                     return 4;
                 }
-                
+
                 var tmpFile = Path.GetTempFileName();
-                
+
                 pkg.CreatePackage(tmpFile, ProjectDir);
 
                 if (OutputPaths == null || OutputPaths.Length == 0)
@@ -120,7 +120,7 @@ namespace OpenTap.Package
                     log.Info("OpenTAP plugin package '{0}' containing '{1}' successfully created.", path, pkg.Name);
                 }
 
-                if(FakeInstall)
+                if (FakeInstall)
                 {
                     log.Warning("--fake-install argument is obsolete, use --install instead");
                     Install = FakeInstall;

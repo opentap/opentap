@@ -1,4 +1,4 @@
-//            Copyright Keysight Technologies 2012-2019
+﻿//            Copyright Keysight Technologies 2012-2019
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
@@ -47,11 +47,11 @@ namespace OpenTap.Package
         /// <summary>
         /// PackageDef of downloaded packages. Value is null until packages have actually been downloaded (after Execute)
         /// </summary>
-        public IEnumerable<PackageDef> DownloadedPackages { get; private set; } = null; 
+        public IEnumerable<PackageDef> DownloadedPackages { get; private set; } = null;
 
         static PackageDownloadAction()
         {
-            log =  OpenTap.Log.CreateSource("Download");
+            log = OpenTap.Log.CreateSource("Download");
         }
 
         public PackageDownloadAction()
@@ -82,7 +82,7 @@ namespace OpenTap.Package
                 repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager).ToList());
             else
                 repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
-            
+
             List<PackageDef> PackagesToDownload = PackageActionHelpers.GatherPackagesAndDependencyDefs(destinationInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, ForceInstall, InstallDependencies, false);
 
             if (PackagesToDownload == null)
@@ -96,7 +96,7 @@ namespace OpenTap.Package
             DownloadedPackages = PackagesToDownload;
             return 0;
         }
-        
+
         private static string MakeFilename(string osList)
         {
             return FileSystemHelper.EscapeBadPathChars(osList.Replace("/", "").Replace("\\", ""));
