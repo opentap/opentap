@@ -25,6 +25,7 @@ namespace OpenTap.Package
     {
         private static TraceSource log = Log.CreateSource("HttpPackageRepository");
         private const string ApiVersion = "3.0";
+        private const string MinRepoVersion = "3.0.0";
         private string defaultUrl;
 
         public bool IsSilent;
@@ -224,20 +225,34 @@ namespace OpenTap.Package
 
         private void CheckRepoApiVersion()
         {
-            try
+            string tryDownload(string url)
             {
-                var data = new WebClient().DownloadString($"{Url}/{ApiVersion}/version");
-                using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(data)))
+                using (var wc = new WebClient())
                 {
-                    var version = new XmlSerializer(typeof(string)).Deserialize(stream) as string;
-                    if (SemanticVersion.TryParse(version, out var semver) && semver.IsCompatible(SemanticVersion.Parse("1.0.0")) == false)
-                        throw new Exception();
+                    try { return wc.DownloadString(url); }
+                    catch { return null; }
                 }
             }
-            catch
-            {
-                throw new NotSupportedException($"The repository '{this.Url}' is not supported by this version of OpenTAP.");
-            }
+
+            // Url does not exists
+            if (tryDownload(Url) == null)
+                throw new WebException($"Unable to connect to '{Url}'.");
+
+            // Check old repo
+            if (tryDownload($"{Url}/2.0/version") != null)
+                throw new NotSupportedException($"The repository '{Url}' is only compatible with TAP 8.x or ealier.");
+
+            // Check specific version
+            var data = tryDownload($"{Url}/{ApiVersion}/version");
+            if (string.IsNullOrEmpty(data))
+                throw new NotSupportedException($"'{Url}' is not a package repository.");
+            var reader = XmlReader.Create(new StringReader(data));
+            var serializer = new XmlSerializer(typeof(string));
+            if (serializer.CanDeserialize(reader) == false)
+                throw new NotSupportedException($"'{Url}' is not a package repository.");
+            var version = serializer.Deserialize(reader) as string;
+            if (SemanticVersion.TryParse(version, out var semver) && semver.IsCompatible(SemanticVersion.Parse(MinRepoVersion)) == false)
+                throw new NotSupportedException($"The repository '{Url}' is not supported.", new Exception($"Repository version '{semver}' is not compatible with min required version '{MinRepoVersion}'."));
         }
 
         PackageDef[] packagesFromXml(string xmlText)
