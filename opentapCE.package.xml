@@ -26,8 +26,6 @@
         <Sign Certificate="Keysight Technologies, Inc."/>
     </File>
     <File Path="LICENSE.txt"  SourcePath="..\..\opentap\LICENSE.txt"/>
-    
-
     <File Path="Dependencies\LibGit2Sharp.0.25.0.0\git2-4aecb64.dll" SourcePath="lib\win32\x64\git2-4aecb64.dll"  />
     <File Path="Dependencies\LibGit2Sharp.0.25.0.0\LICENSE.txt" SourcePath="..\..\packages\LibGit2Sharp.0.25.4\App_Readme\LICENSE.md"  />
 

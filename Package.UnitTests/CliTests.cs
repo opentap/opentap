@@ -445,7 +445,7 @@ namespace OpenTap.Package.UnitTests
                     while (!fsRead.EndOfStream)
                     {
                         string line = fsRead.ReadLine();
-                        if (!line.Contains("<Sign"))
+                        if (!line.Contains("<Sign") && !line.Contains(".chm"))
                             fsWrite.WriteLine(line);
                     }
 
