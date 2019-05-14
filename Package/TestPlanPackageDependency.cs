@@ -114,8 +114,17 @@ namespace OpenTap.Package
 
                 if (!plugins.ContainsKey(name))
                 {
-                    errors.Add($"Package '{name}' is required to load the test plan, but it is not installed."); 
-                    
+                    string legacyTapBasePackageName = "TAP Base";
+                    if (name == legacyTapBasePackageName)
+                    {
+                        Log.Warning($"Test plan depends on an older, incompatible version of TAP. Migrating test plan from TAP {version} to the installed version. Please verify the test plan settings.");
+                        continue;
+                    }
+                    else
+                    {
+                        errors.Add($"Package '{name}' is required to load the test plan, but it is not installed.");
+                    }
+
                     if (UsePlatformInteraction)
                     {
                         interactiveInstallPackage(name, version);   
