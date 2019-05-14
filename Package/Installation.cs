@@ -73,7 +73,7 @@ namespace OpenTap.Package
         }
 
 
-        IMemorizer<string, PackageDef> installedPackageMemorizer = new Memorizer<string, PackageDef, string>(null, loadPackageDef)
+        static IMemorizer<string, PackageDef> installedPackageMemorizer = new Memorizer<string, PackageDef, string>(null, loadPackageDef)
         {
             Validator = file => new FileInfo(file).LastWriteTimeUtc.Ticks
         };
