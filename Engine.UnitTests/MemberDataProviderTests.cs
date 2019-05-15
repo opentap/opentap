@@ -230,6 +230,27 @@ namespace OpenTap.Engine.UnitTests
             var str2 = ser.SerializeToString(outobj);
         }
 
+        class DataSimpleInterfaceClass
+        {
+            [Unit("Hz")]
+            public double SimpleNumber { get; set; }
+            public string SimpleString { get; set; }
+        }
+
+        [Test]
+        public void DataInterfaceProviderTest3()
+        {
+            var x = new DataSimpleInterfaceClass() { SimpleString = "Asd" };
+            var annotation = AnnotationCollection.Annotate(x);
+            var mem = annotation.Get<IMembersAnnotation>();
+            var num = mem.Members.FirstOrDefault(x2 => x2.Get<IMemberAnnotation>().Member.Name == nameof(DataSimpleInterfaceClass.SimpleNumber)).Get<IStringValueAnnotation>();
+            Assert.IsTrue(num.Value.Contains("Hz"));
+
+            var num2 = mem.Members.FirstOrDefault(x2 => x2.Get<IMemberAnnotation>().Member.Name == nameof(DataSimpleInterfaceClass.SimpleString)).Get<IStringValueAnnotation>();
+            Assert.IsTrue(num2.Value.Contains("Asd"));
+        }
+
+
         [Display("I am a class")]
         class DataInterfaceTestClass
         {

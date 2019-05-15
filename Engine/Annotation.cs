@@ -34,23 +34,7 @@ namespace OpenTap
         object Value { get; set; }
     }
 
-    ///// <summary>
-    ///// Specifies that an annotation depends on one or more other annotation(s).
-    ///// </summary>
-    //public class AnnotationAggregatorAttribute: Attribute
-    //{
-    //    /// <summary>
-    //    /// Specifies that an annotation depends on one or more other annotation(s)
-    //    /// </summary>
-    //    /// <param name="types">Which types it depends on</param>
-    //    public AnnotationAggregatorAttribute(params Type[] types)
-    //    {
-
-    //    }
-    //}
-
     /// <summary> Specifies how available values proxies are implemented. This class should rarely be implemented. Consider implementing just IAvailableValuesAnnotation instead.</summary>
-    //[AnnotationAggregator(typeof(IAvailableValuesAnnotation))]
     public interface IAvailableValuesAnnotationProxy : IAnnotation
     {
         /// <summary> Annotated available values. </summary>
@@ -235,27 +219,27 @@ namespace OpenTap
         public bool IsVisible => true;
     }
 
-    class MembersAnnotation : INamedMembersAnnotation,IMembersAnnotation, IOwnedAnnotation
+    class MembersAnnotation : INamedMembersAnnotation, IMembersAnnotation, IOwnedAnnotation
     {
         Dictionary<IMemberData, AnnotationCollection> members = new Dictionary<IMemberData, AnnotationCollection>();
         IEnumerable<AnnotationCollection> getMembers()
         {
-            
-                var val2 = fac.Get<IObjectValueAnnotation>().Value;
-                var val = fac.Get<IReflectionAnnotation>();
-                var _members = val.ReflectionInfo.GetMembers();
-                if (val2 != null)
-                    _members = TypeData.GetTypeData(val2).GetMembers();
-                if (members.Count == _members.Count()) return members.Values;
 
-                foreach (var item in val.ReflectionInfo.GetMembers())
-                {
-                    if (members.ContainsKey(item)) continue;
-                    members[item] = GetMember(item);
-                }
+            var val2 = fac.Get<IObjectValueAnnotation>().Value;
+            var val = fac.Get<IReflectionAnnotation>();
+            var _members = val.ReflectionInfo.GetMembers();
+            if (val2 != null)
+                _members = TypeData.GetTypeData(val2).GetMembers();
+            if (members.Count == _members.Count()) return members.Values;
 
-                return members.Values;
-            
+            foreach (var item in val.ReflectionInfo.GetMembers())
+            {
+                if (members.ContainsKey(item)) continue;
+                members[item] = GetMember(item);
+            }
+
+            return members.Values;
+
         }
 
         public IEnumerable<AnnotationCollection> Members => getMembers();
@@ -267,12 +251,12 @@ namespace OpenTap
         {
             this.fac = fac;
         }
-        
+
         public void Read(object source)
         {
             var val = fac.Get<IObjectValueAnnotation>()?.Value;
             if (val == null) return;
-            foreach(var mem in members)
+            foreach (var mem in members)
             {
                 mem.Value.Read(val);
             }
@@ -297,9 +281,9 @@ namespace OpenTap
             members[member] = annotation;
             if (objectValue != null)
             {
-                 annotation.Read(objectValue);
+                annotation.Read(objectValue);
             }
-            
+
             return annotation;
         }
     }
@@ -365,7 +349,7 @@ namespace OpenTap
                 {
                     error = err[mem.Member.Name];
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     error = e.Message;
                 }
@@ -378,8 +362,7 @@ namespace OpenTap
         }
     }
 
-
-    class NumberAnnotation : IStringValueAnnotation
+    class NumberAnnotation : IStringValueAnnotation, IGenericAnnotation
     {
         public Type NullableType { get; set; }
         string currentError;
@@ -400,7 +383,7 @@ namespace OpenTap
             }
             set
             {
-                if(NullableType != null && value == "")
+                if (NullableType != null && value == "")
                 {
                     var val = annotation.Get<IObjectValueAnnotation>();
                     val.Value = null;
@@ -415,7 +398,7 @@ namespace OpenTap
                     {
                         number = new NumberFormatter(CultureInfo.CurrentCulture, unit).ParseNumber(value, NullableType ?? cst.Type);
                     }
-                    catch(Exception e)
+                    catch (Exception e)
                     {
                         newerror = e.Message;
                     }
@@ -436,7 +419,7 @@ namespace OpenTap
                         var val = annotation.Get<IObjectValueAnnotation>();
                         val.Value = number;
                     }
-                    
+
                 }
                 else
                 {
@@ -449,6 +432,40 @@ namespace OpenTap
         {
             this.annotation = mem;
         }
+
+        public NumberAnnotation()
+        {
+
+        }
+
+        public bool CanAnnotate(AnnotationCollection annotation)
+        {
+            this.annotation = annotation;
+            var csharpType = this.annotation.Get<IReflectionAnnotation>()?.ReflectionInfo as TypeData;
+            if (csharpType == null) return false;
+            NullableType = null;
+            var type = csharpType.Load();
+            bool isNullable = type.DescendsTo(typeof(Nullable<>));
+            if (isNullable)
+            {
+                Type type2 = type.GetGenericArguments().FirstOrDefault();
+                if (type2.IsNumeric())
+                {
+                    NullableType = type2;
+                    return true;
+                }
+            }
+            if (type.IsNumeric())
+            {
+                return true;
+            }
+            return false;
+        }
+
+        public void Initialize(AnnotationCollection annotation)
+        {
+            this.annotation = annotation;
+        }
     }
 
     class TimeSpanAnnotation : IStringValueAnnotation
@@ -457,8 +474,8 @@ namespace OpenTap
         {
             get
             {
-                
-                if(annotation.Get<IObjectValueAnnotation>(from: this).Value is TimeSpan timespan)
+
+                if (annotation.Get<IObjectValueAnnotation>(from: this).Value is TimeSpan timespan)
                     return TimeSpanFormatter.Format(timespan, fmt.Verbosity);
                 return "";
             }
@@ -640,7 +657,7 @@ namespace OpenTap
 
         public void Write(object source)
         {
-            foreach(var annotation in merged)
+            foreach (var annotation in merged)
             {
                 annotation.Write();
             }
@@ -680,26 +697,26 @@ namespace OpenTap
                     // these are normally the different things the user want to select between.
                     var mem = d.Get<IMemberAnnotation>()?.Member;
                     return mem.GetDisplayAttribute().GetFullName() + mem.TypeDescriptor.Name;
-                    })).ToArray();
+                })).ToArray();
                 var union = dicts.SelectMany(x => x.Keys).Distinct().ToArray();
                 List<AnnotationCollection> CommonAnnotations = new List<AnnotationCollection>();
-                
+
                 foreach (var name in union)
-                { 
+                {
                     List<AnnotationCollection> mergething = new List<AnnotationCollection>();
                     IMemberData mem = null;
                     foreach (var thing2 in dicts)
                     {
                         if (!thing2.ContainsKey(name))
                         {
-                            if(collectAll)
+                            if (collectAll)
                                 continue;
                             else
                                 goto next_thing;
                         }
 
                         var otherAnnotation = thing2[name];
-                        
+
                         var othermember = otherAnnotation.Get<IMemberAnnotation>()?.Member;
                         if (mem == null) mem = othermember;
                         //if (othermember != mem) continue;
@@ -712,19 +729,19 @@ namespace OpenTap
                     var manyAccess = new ManyAccessAnnotation(mergething.Select(x => x.Get<IAccessAnnotation>()).ToArray());
                     // Enabled if is not supported when multi-selecting.
                     newa.RemoveType<EnabledIfAnnotation>();
-                    
+
                     newa.Add(manyAccess);
 
                     newa.Read(parentAnnotation.Get<IObjectValueAnnotation>().Value);
                     CommonAnnotations.Add(newa);
 
-                    next_thing:;
+                next_thing:;
                 }
                 return (members = CommonAnnotations.ToArray());
-                
+
             }
         }
-        
+
         IEnumerable<AnnotationCollection> IMembersAnnotation.Members => Members;
 
         public ManyToOneAnnotation(AnnotationCollection parentAnnotation)
@@ -737,7 +754,7 @@ namespace OpenTap
         public void Read(object source)
         {
             if (members == null) return;
-            foreach(var annotation in members)
+            foreach (var annotation in members)
             {
                 annotation.Read();
             }
@@ -747,7 +764,7 @@ namespace OpenTap
         {
             if (members != null)
             {
-                foreach(var mem in members)
+                foreach (var mem in members)
                     mem.Write(source);
             }
         }
@@ -793,8 +810,8 @@ namespace OpenTap
         string currentError;
         AnnotationCollection annotation;
         object currentValue;
-        
-        
+
+
         bool wasRead = false;
         bool wasSet = false;
         public object Value
@@ -837,7 +854,7 @@ namespace OpenTap
             string newerror = null;
             try
             {
-                if(object.Equals(currentValue, m.Member.GetValue(source)) == false)
+                if (object.Equals(currentValue, m.Member.GetValue(source)) == false)
                     m.Member.SetValue(source, currentValue);
             }
             catch (Exception _e)
@@ -880,7 +897,7 @@ namespace OpenTap
             this.AvailableMember = annotation;
         }
     }
-    
+
     /// <summary> The default data annotator plugin. This normally forms the basis for annotation. </summary>
     public class DefaultDataAnnotator : IAnnotator
     {
@@ -914,7 +931,7 @@ namespace OpenTap
                 //annotation.
             }
         }
-        
+
         class InputStepAnnotation : IAvailableValuesAnnotation, IObjectValueAnnotation
         {
             struct InputThing
@@ -923,7 +940,7 @@ namespace OpenTap
                 public IMemberData Member { get; set; }
                 public override string ToString()
                 {
-                    if(Step == null) return "None";
+                    if (Step == null) return "None";
                     return $"{Member.GetDisplayAttribute().Name} from {Step.GetFormattedName()}";
                 }
 
@@ -934,7 +951,7 @@ namespace OpenTap
 
                 public override bool Equals(object obj)
                 {
-                    if(obj is InputThing other)
+                    if (obj is InputThing other)
                     {
                         return other.Step == Step && other.Member == Member;
                     }
@@ -960,7 +977,7 @@ namespace OpenTap
 
                     object context = parent.Get<IObjectValueAnnotation>().Value;
                     ITestStepParent step = context as ITestStep;
-                    if(context is IEnumerable enumerable_context)
+                    if (context is IEnumerable enumerable_context)
                     {
                         step = enumerable_context.OfType<ITestStep>().FirstOrDefault();
                     }
@@ -972,18 +989,18 @@ namespace OpenTap
                         parents.Add(step);
                         step = step.Parent;
                     }
-                    
+
                     var steps = Utils.FlattenHeirarchy(step.ChildTestSteps, x => x.ChildTestSteps);
-                    
+
                     List<InputThing> accepted = new List<InputThing>();
                     accepted.Add(new InputThing() { });
-                    if(inp is IInputTypeRestriction res)
+                    if (inp is IInputTypeRestriction res)
                     {
-                        foreach(var s in steps)
+                        foreach (var s in steps)
                         {
                             if (parents.Contains(s)) continue;
                             var t = TypeData.GetTypeData(s);
-                            foreach(var mem in t.GetMembers())
+                            foreach (var mem in t.GetMembers())
                             {
                                 if (mem.HasAttribute<OutputAttribute>())
                                 {
@@ -1045,7 +1062,7 @@ namespace OpenTap
             {
                 if (value == null) return null;
                 var mem = enumType.GetMember(value.ToString()).FirstOrDefault();
-                
+
                 if (mem == null)
                 {
                     if (enumType.HasAttribute<FlagsAttribute>())
@@ -1067,7 +1084,7 @@ namespace OpenTap
                         }
                         return sb.ToString();
                     }
-                    return value.ToString(); 
+                    return value.ToString();
                 }
                 return mem.GetDisplayAttribute().Name;
             }
@@ -1085,7 +1102,7 @@ namespace OpenTap
                     var values = Enum.GetValues(enumType).Cast<Enum>();
 
                     var newvalue = values.FirstOrDefault(x => enumToString(x) == value);
-                    if(newvalue == null)
+                    if (newvalue == null)
                     {
                         newvalue = values.FirstOrDefault(x => enumToString(x).ToLower() == value.ToLower());
                     }
@@ -1105,7 +1122,7 @@ namespace OpenTap
                     if (evalue != null)
                     {
                         var mem = enumType.GetMember(evalue.ToString()).FirstOrDefault();
-                        if(mem != null)
+                        if (mem != null)
                         {
                             return mem.IsBrowsable();
                         }
@@ -1187,7 +1204,7 @@ namespace OpenTap
             }
         }
 
-        class StringValueAnnotation : IStringValueAnnotation
+        public class StringValueAnnotation : IStringValueAnnotation, IGenericAnnotation
         {
             public string Value
             {
@@ -1199,6 +1216,21 @@ namespace OpenTap
             public StringValueAnnotation(AnnotationCollection dataAnnotation)
             {
                 annotation = dataAnnotation;
+            }
+
+            public StringValueAnnotation()
+            {
+
+            }
+
+            public bool CanAnnotate(AnnotationCollection annotations)
+            {
+                return annotations.Get<IReflectionAnnotation>().ReflectionInfo.DescendsTo(typeof(string));
+            }
+
+            public void Initialize(AnnotationCollection annotation)
+            {
+                this.annotation = annotation;
             }
         }
 
@@ -1261,8 +1293,7 @@ namespace OpenTap
                 if (source == null)
                     throw new InvalidOperationException("Unable to invoke method");
                 var action_proto = member.GetValue(source);
-                var action = action_proto as Action;
-                if (action != null)
+                if (action_proto is Action action)
                     action();
             }
 
@@ -1550,7 +1581,7 @@ namespace OpenTap
 
                 public bool IsVisible => true;
             }
-            
+
             IEnumerable<AnnotationCollection> members;
             public IEnumerable<AnnotationCollection> Members
             {
@@ -1571,8 +1602,8 @@ namespace OpenTap
                     extra.Add(new EnabledAccessAnnotation(annotation));
                     var src = annotation.Get<IObjectValueAnnotation>().Value;
                     var newValueMember = annotation.AnnotateMember(valueMember.Get<IMemberAnnotation>().Member, src, extra.ToArray());
-                    
-                    if(src != null)
+
+                    if (src != null)
                         newValueMember.Read(src);
                     this.members = new[] { enabledMember, newValueMember };
                     return this.members;
@@ -1601,7 +1632,7 @@ namespace OpenTap
                 if (Members != null)
                 {
                     var val = annotation.Get<IObjectValueAnnotation>().Value;
-                    foreach(var member in Members)
+                    foreach (var member in Members)
                         member.Write(val);
                     {
                         // since the Enabled annotation overrides the other IMembersAnnotation
@@ -1624,11 +1655,11 @@ namespace OpenTap
                 var device_attr = mem.Member.GetAttribute<DeviceAddressAttribute>();
                 var plugins = PluginManager.GetPlugins<IDeviceDiscovery>();
                 List<string> result = new List<string>();
-                foreach(var plugin in plugins)
+                foreach (var plugin in plugins)
                 {
                     try
                     {
-                        var device_discoverer = (IDeviceDiscovery) Activator.CreateInstance(plugin);
+                        var device_discoverer = (IDeviceDiscovery)Activator.CreateInstance(plugin);
                         if (device_discoverer.CanDetect(device_attr))
                         {
                             result.AddRange(device_discoverer.DetectDeviceAddresses(device_attr));
@@ -1679,7 +1710,7 @@ namespace OpenTap
                 get
                 {
                     IEnumerable<Port> getPorts(IResource res) => res.GetConstProperties<Port>();
-                    
+
                     var dutPorts = DutSettings.Current.SelectMany(getPorts);
                     var instrumentPorts = InstrumentSettings.Current.SelectMany(getPorts);
                     var availablePorts = dutPorts.Concat(instrumentPorts);
@@ -1811,11 +1842,11 @@ namespace OpenTap
                         selection = Enumerable.Empty<object>();
                         return selection;
                     }
-                    if(member.TypeDescriptor is TypeData cst)
+                    if (member.TypeDescriptor is TypeData cst)
                     {
                         var currentType = TypeData.GetTypeData(currentValue);
                         List<object> selection = new List<object>();
-                        foreach(var type in PluginManager.GetPlugins(cst.Type))
+                        foreach (var type in PluginManager.GetPlugins(cst.Type))
                         {
                             try
                             {
@@ -1840,10 +1871,10 @@ namespace OpenTap
                     return selection ?? Enumerable.Empty<object>();
                 }
             }
-            
+
             AnnotationCollection annotation;
             public PluginTypeSelectAnnotation(AnnotationCollection annotation) => this.annotation = annotation;
-            
+
         }
 
         class MetaDataPromptAnnotation : IForwardedAnnotations
@@ -1859,7 +1890,7 @@ namespace OpenTap
                 get
                 {
                     List<AnnotationCollection> metadataAnnotations = new List<AnnotationCollection>();
-                    MetadataPromptObject obj = (MetadataPromptObject) annotation.Get<IObjectValueAnnotation>().Value;
+                    MetadataPromptObject obj = (MetadataPromptObject)annotation.Get<IObjectValueAnnotation>().Value;
                     var named = annotation.Get<INamedMembersAnnotation>();
                     if (named == null) return Enumerable.Empty<AnnotationCollection>();
                     var member = named.GetMember(TypeData.GetTypeData(obj).GetMember(nameof(MetadataPromptObject.Resources)));
@@ -1869,9 +1900,9 @@ namespace OpenTap
                         var named2 = annotatedResource.Get<INamedMembersAnnotation>();
                         var type = TypeData.GetTypeData(resource);
                         var rname = annotatedResource.Get<IStringReadOnlyValueAnnotation>()?.Value ?? resource.ToString();
-                        foreach(var member2 in type.GetMembers())
+                        foreach (var member2 in type.GetMembers())
                         {
-                            if(member2.GetAttribute<MetaDataAttribute>() is MetaDataAttribute attr && attr.PromptUser)
+                            if (member2.GetAttribute<MetaDataAttribute>() is MetaDataAttribute attr && attr.PromptUser)
                             {
                                 var namedmember = named2.GetMember(member2);
                                 if (namedmember == null) continue;
@@ -1918,16 +1949,16 @@ namespace OpenTap
 
             annotation.Add(new ErrorAnnotation());
             if (mem != null)
-            { 
+            {
                 if (annotation.Get<IObjectValueAnnotation>() == null)
                     annotation.Add(new DefaultValueAnnotation(annotation));
 
                 annotation.Add(mem.Member.GetDisplayAttribute());
-                
+
                 if (mem.Member.GetAttribute<AvailableValuesAttribute>() is AvailableValuesAttribute avail)
                     annotation.Add(new AvailableValuesAnnotation(annotation, avail.PropertyName));
 
-                if(mem.Member.GetAttribute<SuggestedValuesAttribute>() is SuggestedValuesAttribute suggested)
+                if (mem.Member.GetAttribute<SuggestedValuesAttribute>() is SuggestedValuesAttribute suggested)
                     annotation.Add(new SuggestedValueAnnotation(annotation, suggested.PropertyName));
 
                 if (mem.Member.GetAttribute<DeviceAddressAttribute>() is DeviceAddressAttribute dev_addr)
@@ -1940,9 +1971,9 @@ namespace OpenTap
                 annotation.Add(new DefaultAccessAnnotation(mem.Member.Writable == false, browsable?.Browsable ?? true));
 
                 if (mem.Member.TypeDescriptor.DescendsTo(typeof(Action<object>)) || mem.Member.TypeDescriptor.DescendsTo(typeof(Action)))
-                   annotation.Add(new MethodAnnotation(mem.Member));
-                
-                
+                    annotation.Add(new MethodAnnotation(mem.Member));
+
+
                 if (mem.ReflectionInfo.DescendsTo(typeof(TimeSpan)))
                     annotation.Add(new TimeSpanAnnotation(annotation));
 
@@ -1952,7 +1983,7 @@ namespace OpenTap
                     annotation.Add(help);
                 if (mem.Member.GetAttribute<ColumnDisplayNameAttribute>() is ColumnDisplayNameAttribute col)
                     annotation.Add(col);
-                if(mem.Member.GetAttribute<FilePathAttribute>() is FilePathAttribute fp)
+                if (mem.Member.GetAttribute<FilePathAttribute>() is FilePathAttribute fp)
                     annotation.Add(fp);
                 if (mem.Member.GetAttribute<DirectoryPathAttribute>() is DirectoryPathAttribute dp)
                     annotation.Add(dp);
@@ -1986,26 +2017,12 @@ namespace OpenTap
             if (reflect?.ReflectionInfo is TypeData csharpType)
             {
                 var type = csharpType.Load();
-                bool isNullable = type.DescendsTo(typeof(Nullable<>));
-                if (isNullable)
-                {
-                    Type type2 = type.GetGenericArguments().FirstOrDefault();
-                    if (type2.IsNumeric())
-                    {
-                        annotation.Add(new NumberAnnotation(annotation) { NullableType = type2 });
-                    }
-                }
-                if (type.IsNumeric())
-                {
-                    annotation.Add(new NumberAnnotation(annotation));
-                }
-                if (type == typeof(string))
-                    annotation.Add(new StringValueAnnotation(annotation));
+
                 if (type == typeof(MacroString))
                 {
                     annotation.Add(new MacroStringValueAnnotation(annotation));
                 }
-                if(type == typeof(MetadataPromptObject))
+                if (type == typeof(MetadataPromptObject))
                 {
                     annotation.Add(new MetaDataPromptAnnotation(annotation));
                 }
@@ -2027,7 +2044,7 @@ namespace OpenTap
                         }
                         else if (innerType.DescendsTo(typeof(ViaPoint)))
                             annotation.Add(new ViaPointAnnotation(annotation));
-                        
+
                     }
                 }
                 if (type.IsEnum)
@@ -2045,7 +2062,7 @@ namespace OpenTap
                 else if (type.DescendsTo(typeof(ITestStep)))
                     annotation.Add(new TestStepSelectAnnotation(annotation));
             }
-            
+
 
 
             if (mem?.Member is MemberData mem2 && mem2.DeclaringType.DescendsTo(typeof(ITestStep)))
@@ -2109,7 +2126,7 @@ namespace OpenTap
                             prevValues = values.Cast<object>().ToArray();
                         else
                             prevValues = Array.Empty<object>();
-                        
+
                         var readOnly = new ReadOnlyMemberAnnotation();
                         var lst = new List<AnnotationCollection>();
                         foreach (var obj in prevValues)
@@ -2166,7 +2183,7 @@ namespace OpenTap
             {
                 if (annotations == null) return;
                 var values = a.Get<IAvailableValuesAnnotation>()?.AvailableValues;
-                if(Enumerable.SequenceEqual(prevValues.Cast<object>(), values.Cast<object>()) == false)
+                if (Enumerable.SequenceEqual(prevValues.Cast<object>(), values.Cast<object>()) == false)
                     annotations = null;
             }
 
@@ -2347,8 +2364,8 @@ namespace OpenTap
                     annotation.Add(new MultiSelectProxy(annotation));
                 }
 
-                if(annotation.Get<ISuggestedValuesAnnotation>() != null)
-                     annotation.Add(new SuggestedValuesAnnotationProxy(annotation));
+                if (annotation.Get<ISuggestedValuesAnnotation>() != null)
+                    annotation.Add(new SuggestedValuesAnnotationProxy(annotation));
             }
             if (annotation.Get<IAccessAnnotation>() != null)
             {
@@ -2371,16 +2388,16 @@ namespace OpenTap
                     var merged = annotation.Get<MergedValueAnnotation>();
                     if (merged == null) return Enumerable.Empty<object>();
                     var array = merged.Merged.Select(x => x.Get<IAvailableValuesAnnotation>()).Where(x => x != null).ToArray();
-                    
+
                     Dictionary<object, int> counts = new Dictionary<object, int>();
                     int maxCount = 0;
-                    foreach(var annotation in merged.Merged)
+                    foreach (var annotation in merged.Merged)
                     {
                         maxCount += 1;
                         var values = annotation.Get<IAvailableValuesAnnotation>()?.AvailableValues;
-                        if(values != null)
+                        if (values != null)
                         {
-                            foreach(var value in values)
+                            foreach (var value in values)
                             {
                                 counts.TryGetValue(value, out int val);
                                 counts[value] = val + 1;
@@ -2407,14 +2424,14 @@ namespace OpenTap
                 {
                     var manyToOne = new ManyToOneAnnotation(annotation);
                     annotation.Add(manyToOne);
-                    
+
                 }
             }
             var merged = annotation.Get<MergedValueAnnotation>();
             if (merged == null) return;
             var members = annotation.Get<IMembersAnnotation>();
-            
-            if(members != null && merged != null)
+
+            if (members != null && merged != null)
             {
                 var manyToOne = new ManyToOneAnnotation(annotation);
                 annotation.Add(manyToOne);
@@ -2426,17 +2443,6 @@ namespace OpenTap
             if (avail == null) return;
 
             annotation.Add(new MergedAvailableValues(annotation));
-
-            /*var avail = manyAnnotation.Members.Select(a => a?.Get<IAvailableValuesAnnotationProxy>()).Where(x => x != null).ToArray();
-            if(avail.Length > 0)
-            {
-                annotation.Add(new ManyToOneAvailableValuesAnnotation(avail));
-            }
-            var access = manyAnnotation.Members.Select(a => a.Get<IAccessAnnotation>()).Where(x => x != null).ToArray();
-            if(access.Length > 0)
-            {
-                annotation.Add(new ManyAccessAnnotation(access));
-            }*/
         }
     }
 
@@ -2450,7 +2456,7 @@ namespace OpenTap
         public AnnotationCollection Annotations { get; private set; }
         bool stop = false;
         int offset = 0;
-        
+
         /// <summary> </summary>
         public AnnotationResolver()
         {
@@ -2624,14 +2630,14 @@ namespace OpenTap
         /// <summary> Updates the annotation based on that last specified source object. </summary>
         public void Read()
         {
-            if(source != null)
+            if (source != null)
                 Read(source);
         }
 
         /// <summary> Writes the annotation data to the last specified source object. </summary>
         public void Write()
         {
-            if(source != null)
+            if (source != null)
                 Write(source);
         }
 
@@ -2711,7 +2717,7 @@ namespace OpenTap
             annotation.Read(obj);
             return annotation;
         }
-        
+
         /// <summary> Annotates a member of the object annotated by this. </summary>
         /// <param name="member"></param>
         /// <param name="Source"></param>
