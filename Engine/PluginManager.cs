@@ -508,6 +508,8 @@ namespace OpenTap
                                         continue;
                                     if (file.IndexOf("\\obj\\", StringComparison.InvariantCultureIgnoreCase) != -1)
                                         continue;
+                                    if (file.IndexOf(".vshost.",0) != -1)
+                                        continue;
                                     if (files.Contains(file))
                                         continue;
                                     files.Add(file);
