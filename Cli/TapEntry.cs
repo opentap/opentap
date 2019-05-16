@@ -135,6 +135,18 @@ namespace OpenTap.Cli
 
         private static void goInProcess()
         {
+            void loadCommandLine()
+            {
+                var args = Environment.GetCommandLineArgs();
+                bool isVerbose = args.Contains("--verbose") || args.Contains("-v");
+                bool isColor = args.Contains("--color") || args.Contains("-c");
+                args = args.Where(x => (x.Contains("--color") || x.Contains("--verbose")) == false).ToArray();
+                var cliTraceListener = new ConsoleTraceListener(isVerbose, false, isColor);
+                Log.AddListener(cliTraceListener);
+                AppDomain.CurrentDomain.ProcessExit += (s, e) => cliTraceListener.Flush();
+            }
+
+            loadCommandLine();
             TapInitializer.Initialize(); // This will dynamically load OpenTap.dll
             wrapGoInProcess();
         }

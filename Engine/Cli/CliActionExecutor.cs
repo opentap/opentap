@@ -160,10 +160,6 @@ namespace OpenTap.Cli
 
             if (selectedCommand != TypeData.FromType(typeof(RunCliAction))) // RunCliAction has --non-interactive flag and custom platform interaction handling.
                 CliUserInputInterface.Load();
-
-            // Create action and attach handlers
-            var startupListener = new ConsoleTraceListener(false,false,false);
-            Log.AddListener(startupListener);
             Type selectedType = selectedCommand.Load();
             if(selectedType == null)
             {
@@ -173,7 +169,6 @@ namespace OpenTap.Cli
             }
             var inst = selectedType.CreateInstance();
             var packageAction = (ICliAction)inst;
-            Log.RemoveListener(startupListener);
 
             if (packageAction == null)
             {
@@ -184,7 +179,7 @@ namespace OpenTap.Cli
 
             //packageAction.ProgressUpdate += (p, message) => log.Debug("{0}% {1}", p, message);
             //packageAction.Error += ex => log.Error(ex);
-
+           
 
             try
             {

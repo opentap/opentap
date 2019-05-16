@@ -19,13 +19,16 @@ namespace tap
             try
             {
                 string appDir = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
-                if (File.Exists(Path.Combine(appDir, "Packages/OpenTAP/OpenTap.Cli.dll")))
-                    asm = Assembly.Load(File.ReadAllBytes(Path.Combine(appDir, "Packages/OpenTAP/OpenTap.Cli.dll")));
-                if (File.Exists(Path.Combine(appDir, "OpenTap.Cli.dll")))
-                    asm = Assembly.Load(File.ReadAllBytes(Path.Combine(appDir, "OpenTap.Cli.dll")));
-                else if (File.Exists(Path.Combine(appDir, "OpenTap.Cli.exe")))
-                    asm = Assembly.Load(File.ReadAllBytes(Path.Combine(appDir, "OpenTap.Cli.exe")));
-                else if (File.Exists(Path.Combine(appDir, ".tapentry")))
+
+                Assembly load(string file)
+                {
+                    file = Path.Combine(appDir, file);
+                    if (File.Exists(file) == false)
+                        return null;
+                    return Assembly.Load(File.ReadAllBytes(file));
+                }
+                asm = load("Packages/OpenTAP/OpenTap.Cli.dll") ?? load("OpenTap.Cli.dll") ?? load("OpenTap.Cli.exe");
+                if (asm == null && File.Exists(Path.Combine(appDir, ".tapentry")))
                 {
                     string[] lines = File.ReadAllLines(Path.Combine(appDir, ".tapentry"));
                     asm = Assembly.Load(File.ReadAllBytes(Path.Combine(appDir, lines[0])));
