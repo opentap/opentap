@@ -17,22 +17,22 @@ namespace OpenTap.Plugins.BasicSteps
     {
         public override bool GeneratesOutput { get { return WaitForEnd; } }
 
-        [Display("Application", Group:"Common", Order: -2.5, Description: "The path to the program. It should contain either a relative path to OpenTAP installation folder or an absolute path to the program.")]
+        [Display("Application", Order: -2.5, Description: "The path to the program. It should contain either a relative path to OpenTAP installation folder or an absolute path to the program.")]
         [FilePath(FilePathAttribute.BehaviorChoice.Open, "exe")]
         public string Application { get; set; }
         
-        [Display("Command Line Arguments", Group: "Common", Order: -2.4, Description: "The arguments passed to the program.")]
+        [Display("Command Line Arguments", Order: -2.4, Description: "The arguments passed to the program.")]
         public string Arguments { get; set; }
         
-        [Display("Working Directory", Group:"Common", Order: -2.3, Description: "The directory where the program will be started in.")]
+        [Display("Working Directory", Order: -2.3, Description: "The directory where the program will be started in.")]
         [DirectoryPath]
         public string WorkingDirectory { get; set; }
 
-        [Display("Wait For Process to End", Group:"Common", Order: -2.2, Description: "Wait for the process to terminate before continuing.")]
+        [Display("Wait For Process to End", Order: -2.2, Description: "Wait for the process to terminate before continuing.")]
         public bool WaitForEnd { get; set; }
         
         int timeout = 0;
-        [Display("Wait Timeout", Group: "Common", Order: -2.1, Description: "The time to wait for the process to end. Set to 0 to wait forever.")]
+        [Display("Wait Timeout", Order: -2.1, Description: "The time to wait for the process to end. Set to 0 to wait forever.")]
         [Unit("s", PreScaling: 1000)]
         [EnabledIf("WaitForEnd", true)]
         public Int32 Timeout
@@ -47,12 +47,12 @@ namespace OpenTap.Plugins.BasicSteps
         }
 
         [EnabledIf("GeneratesOutput", true)]
-        [Display("Add to Log", Group: "Common", Order: -2.05, Description: "If enabled the result of the query is added to the log.")]
+        [Display("Add to Log", Order: -2.05, Description: "If enabled the result of the query is added to the log.")]
         public bool AddToLog { get; set; }
 
         [EnabledIf("AddToLog", true)]
         [EnabledIf("GeneratesOutput", true)]
-        [Display("Log Header", Group: "Common", Order: -2.0, Description: "This string is added to the front of the result of the query.")]
+        [Display("Log Header", Order: -2.0, Description: "This string is added to the front of the result of the query.")]
         public string LogHeader { get; set; }
 
         public ProcessStep()

@@ -51,8 +51,8 @@ namespace OpenTap
         /// <summary>
         /// Gets or sets boolean indicating whether this step is enabled in the TestPlan
         /// </summary>
-        [Browsable(false)]
         [ColumnDisplayName("", Order : -101)]
+        [Display("Enabled", Group: "Common", Order: 20000, Collapsed: true)]
         public bool Enabled
         {
             get { return enabled; }
@@ -77,7 +77,7 @@ namespace OpenTap
         ///  Different across instances of the same type.
         /// </summary>
         [ColumnDisplayName("Step Name", Order : -100)]
-        [Browsable(false)]
+        [Display("Step Name", Group: "Common", Order: 20001, Collapsed: true)]
         public string Name
         {
             get { return name; }
