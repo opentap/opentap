@@ -24,7 +24,7 @@
     <DebugType>pdbonly</DebugType>
     <DefineConstants>TRACE</DefineConstants>
     <Optimize>true</Optimize>
-    <DocumentationFile>..\..\bin\Release\Keysight.Tap.Engine.xml</DocumentationFile>
+    <DocumentationFile>..\..\bin\Release\OpenTap.xml</DocumentationFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='NetCore'">
@@ -32,7 +32,7 @@
     <DebugType>pdbonly</DebugType>
     <DefineConstants>TRACE</DefineConstants>
     <Optimize>true</Optimize>
-    <DocumentationFile>..\..\bin\Release\Keysight.Tap.Engine.xml</DocumentationFile>
+    <DocumentationFile>..\..\bin\Release\OpenTap.xml</DocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
