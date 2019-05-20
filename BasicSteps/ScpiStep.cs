@@ -177,22 +177,22 @@ namespace OpenTap.Plugins.BasicSteps
         [XmlIgnore]
         public override bool GeneratesOutput { get { return Action == SCPIAction.Query; } }
 
-        [Display("Instrument", Group: "Common", Order: 0.0, Description: "The instrument that the query is sent to.")]
+        [Display("Instrument", Order: 0.0, Description: "The instrument that the query is sent to.")]
         public ScpiInstrument Instrument { get; set; }
 
-        [Display("Action", Group: "Common", Order: 0.1, Description: "The type of SCPI action to perform.")]
+        [Display("Action", Order: 0.1, Description: "The type of SCPI action to perform.")]
         public SCPIAction Action { get; set; }
         
-        [Display("Command", Group: "Common", Order: 0.2, Description: "The command or query to send to the instrument.")]
+        [Display("Command", Order: 0.2, Description: "The command or query to send to the instrument.")]
         public string Query { get; set; }
 
         [EnabledIf("Action", SCPIAction.Query)]
-        [Display("Add to Log", Group: "Common", Order: 0.3, Description: "If enabled the result of the query is added to the log.")]
+        [Display("Add to Log", Order: 0.3, Description: "If enabled the result of the query is added to the log.")]
         public bool AddToLog { get; set; }
 
         [EnabledIf("AddToLog", true)]
         [EnabledIf("Action", SCPIAction.Query)]
-        [Display("Log Header", Group: "Common", Order: 0.4, Description: "This string is added to the front of the result of the query.")]
+        [Display("Log Header", Order: 0.4, Description: "This string is added to the front of the result of the query.")]
         public string LogHeader { get; set; }
         
         public SCPIRegexStep()
