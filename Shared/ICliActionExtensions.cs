@@ -70,14 +70,6 @@ namespace OpenTap.Cli
             }
 
             var args = ap.Parse(parameters);
-            var isVerbose = args.Contains("verbose");
-
-            var cliTraceListener = new ConsoleTraceListener(isVerbose, false, args.Contains("color"));
-            OpenTap.Log.AddListener(cliTraceListener);
-            AppDomain.CurrentDomain.ProcessExit += (s, e) => cliTraceListener.Flush();
-
-            if (isVerbose) args.Remove("verbose");
-            if (args.Contains("color")) args.Remove("color");
 
             if (args.Contains("help"))
             {
@@ -87,6 +79,7 @@ namespace OpenTap.Cli
 
             foreach (var opts in args)
             {
+                if (argToProp.ContainsKey(opts.Key) == false) continue; 
                 var prop = argToProp[opts.Key];
 
                 if (prop.PropertyType == typeof(Boolean)) prop.SetValue(action, true);
@@ -158,8 +151,7 @@ namespace OpenTap.Cli
             }
             catch (IOException)
             {
-                if (isVerbose)
-                    Log.CreateSource("CliAction").Debug("Handling of CTRL-C failed.");
+                
             }
             
             return action.Execute(source.Token);
