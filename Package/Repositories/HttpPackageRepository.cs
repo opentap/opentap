@@ -42,6 +42,14 @@ namespace OpenTap.Package
             this.Url = this.Url.TrimEnd('/');
             defaultUrl = this.Url;
             this.Url = CheckUrlRedirect(this.Url);
+            
+            var macAddr = NetworkInterface.GetAllNetworkInterfaces()
+                        .Where(nic => nic.OperationalStatus == OperationalStatus.Up)
+                        .Select(nic => nic.GetPhysicalAddress()).FirstOrDefault();
+            var block = new byte[8];
+            if (macAddr != null)
+                macAddr.GetAddressBytes().CopyTo(block, 0);
+            UpdateId = String.Format("{0:X8}",MurMurHash3.Hash(block));
         }
 
         private async Task DoDownloadPackage(PackageDef package, string destination, CancellationToken cancellationToken)
@@ -429,7 +437,9 @@ namespace OpenTap.Package
 
             return packagesFromXml(downloadPackagesString("/" + ApiVersion + endpoint));
         }
-        
+
+        public string UpdateId;
+
         public PackageDef[] CheckForUpdates(IPackageIdentifier[] packages, CancellationToken cancellationToken)
         {
             List<PackageDef> latestPackages = new List<PackageDef>();
@@ -451,16 +461,9 @@ namespace OpenTap.Package
                     }));
                     stream.Seek(0, 0);
                     string data = new StreamReader(stream).ReadToEnd();
+                    
 
-                    var macAddr = NetworkInterface.GetAllNetworkInterfaces()
-                        .Where(nic => nic.OperationalStatus == OperationalStatus.Up)
-                        .Select(nic => nic.GetPhysicalAddress()).FirstOrDefault();
-
-                    var block = new byte[8];
-                    if (macAddr != null)
-                        macAddr.GetAddressBytes().CopyTo(block, 0);
-
-                    string arg = string.Format("/{0}/CheckForUpdates?name={1}", ApiVersion, MurMurHash3.Hash(block));
+                    string arg = string.Format("/{0}/CheckForUpdates?name={1}", ApiVersion, UpdateId);
                     response = downloadPackagesString(arg, data);
                     cancellationToken.ThrowIfCancellationRequested();
                 }
