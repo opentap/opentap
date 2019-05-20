@@ -170,7 +170,7 @@ namespace OpenTap.Engine.UnitTests
             });
             
             
-            Assert.AreEqual(1, cnt);
+            Assert.AreEqual(3, cnt);
         }
         
         [Test]
@@ -425,7 +425,7 @@ namespace OpenTap.Engine.UnitTests
                 var select = smem.Get<IMultiSelect>();
                 var avail = smem.Get<IAvailableValuesAnnotation>();
 
-                Assert.AreEqual(2, avail.AvailableValues.Cast<object>().Count()); // DelayStep only has on property.
+                Assert.AreEqual(4, avail.AvailableValues.Cast<object>().Count()); // DelayStep only has on property.
                 select.Selected = smem.Get<IAvailableValuesAnnotation>().AvailableValues;
                 annotation.Write(sweep);
                 annotation.Read(sweep);
