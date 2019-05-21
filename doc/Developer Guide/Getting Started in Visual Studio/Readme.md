@@ -1,20 +1,14 @@
- Getting Started in Visual Studio
-================================
+## Getting Started with the Visual Studio Example Projects
+The Software Development Kit (SDK) package can be downloaded from opentap.io. If you are using the Keysight Developer's System (Community or Enterprice Edition) you already have the SDK package.
 
-OpenTAP plugin development begins with the **OpenTAP Plugin** template, a Visual Studio extension installed with the Keysight OpenTAP SDK. This template:
-
--	Contains OpenTAP plugin classes and gives you a head start to plugin development by setting up the project and providing code skeletons.
--	Copies the project's output to the location specified by the TAP_PATH environment variable, which enables OpenTAP to load the plugins during development.
-
-## View the Visual Studio Example Projects
-Before you create your own project, look at the projects and files in **`TAP_PATH\Packages\SDK\Examples`**. This folder provides code for example DUT, instrument and test step plugins. First-time OpenTAP developers should browse and build the projects, then use the OpenTAP GUI to view the example DUTs, instruments and test steps. 
+Before you start to create your own project, look at the projects and files in **`TAP_PATH\Packages\SDK\Examples`**. This folder provides code for example DUT, instrument and test step plugins. First-time OpenTAP developers should browse and build the projects, then use e.g. the Edtior GUI to view the example DUTs, instruments and test steps. 
 
 SDK Examples contains the following:
 
 | **Folder**  | **Description** |
 | -------- | --------  |
 | **`ExamplePlugin\ExamplePlugin.csproj`**                           | Creates a plugin package that contains one DUT resource, one Instrument resource, and one test step.   |
-|**`PluginDevelopment\PluginDevelopment.csproj`**                    | Creates a plugin package that contains several test steps, two DUT resources, four Instrument resources, and two result listeners.                                              |
+|**`PluginDevelopment\PluginDevelopment.csproj`**                    | Creates a plugin package that contains several test steps, DUT resources, Instrument resources, and result listeners.                                              |
 |**`TestPlanExecution\BuildTestPlan.Api\BuildTestPlan.Api.csproj`**  | Shows how to build, save and execute a test plan using OpenTAP API.  |
 |**`TestPlanExecution\RunTestPlan.Api\RunTestPlan.Api.csproj`**      | Shows how to load and run a test plan using OpenTAP API.   |
 
@@ -77,42 +71,17 @@ Follow the same process to build and view the **Plugin Development** project (`T
 
 ![](PluginDev_img1.PNG)
 
-- 	Two **DUT** resources:
+- 	**DUT** resources:
  	
 ![](PluginDev_img2.PNG)
 
--	Six Instrument resources:
+-	Instrument resources:
 	
 ![](PluginDev_img3.PNG)
 
--	Two Results Listeners:
+-	Results Listeners:
 	
 ![](PluginDev_img4.PNG)
 
-To remove these examples, go to your Test Automation folder and delete the **OpenTAP.Plugins.PluginDevelopment.dll** and **OpenTAP.Plugins.PluginDevelopment.pdb** files.
+To remove these examples, go to the installation folder and delete the **OpenTAP.Plugins.PluginDevelopment.dll** and **OpenTAP.Plugins.PluginDevelopment.pdb** files.
 
-## Create a Project with the OpenTAP Plugin Template
-
-The **OpenTAP Plugin Template** is a Visual Studio extension which is installed with the SDK. To start a new Visual studio project that will contain OpenTAP plugin classes:
-
-1. 	Select **File > New > Project**. Expand the **Visual C#** templates and select the **OpenTAP Plugin** template when you create your project:
-
-![](CreateProject_img1.PNG)
-
-This template:
-
-- 	Copies the project's output to the location specified by the TAP_PATH environment variable. This enables OpenTAP to load the plugins during development. Note that TAP_PATH is typically either:
-    -	`C:\Program Files\Keysight\Test Automation` (64-bit systems)
-    -	`C:\Program Files (x86)\Keysight\Test Automation` (32-bit systems)
--   Includes a "packaging" step (see [Plugin Packaging and Versioning](../Plugin Packaging and Versioning/Readme.md) for details).
-- 	Includes a TestStep class (Step.cs). If you are not creating a test step, delete this class.
-
-2. To create a particular plugin or add another plugin to your project:
-
-    a.	Select **Project > Add New Item**.
-    
-    b.	Enter **OpenTAP** in the search field.
-    
-    c.	Select the appropriate plugin.
-    
-![](CreateProject_img2.PNG)

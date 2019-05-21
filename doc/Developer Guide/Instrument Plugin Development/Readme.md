@@ -5,7 +5,7 @@ Developing an instrument plugin is done by extending either the:
 -	**Instrument class** (which extends *Resource*), or 
 -	**ScpiInstrument** base class (which extends *Instrument*)
 
-Keysight recommends using ScpiInstrument over the Instrument class when possible. 
+It is recommended to use ScpiInstrument over the Instrument class when possible. 
 
 Instrument plugins must implement the **Open** and **Close** methods:
 
@@ -36,8 +36,6 @@ Important methods and properties here include:
 -	**VisaAddress**, which specifies the Visa address of the instrument
 
 The SCPI *attribute* is used to identify a method or enumeration value that can be handled by the SCPI class. 
-
-The SCPI *class* is a utility class that formats SCPI commands and parses the results from SCPI queries.
 
 For an example, see:
 

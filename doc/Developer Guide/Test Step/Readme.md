@@ -1,7 +1,7 @@
 Test Step
 =========
 
-A test step plugin is developed by extending the **TestStep** base class. As you develop test steps, Keysight recommends the following:
+A test step plugin is developed by extending the **TestStep** base class. As you develop test steps, the following is recommended:
 
 -	Isolate each test step into a single .cs file, with a name similar to the display name. This makes the code easy to find, and focused on a single topic. 
 -	Use **TapThread.Sleep()** for sleep statements. This makes it possible for the user to abort the test plan during the sleep state.
@@ -63,7 +63,7 @@ namespace MyOpenTAPProject
     }
 }
 ```
-To allow user configuration of a test step, developers must add appropriate properties to the plugin code. These properties will very likely be visible and editable in the OpenTAP GUI. Properties typically include instrument and DUT references, instrument and DUT settings, timing and limit information, etc. Defining these properties is a major part of plugin development.
+To allow user configuration of a test step, developers must add appropriate properties to the plugin code. These properties will very likely be visible and editable in the GUI Editor. Properties typically include instrument and DUT references, instrument and DUT settings, timing and limit information, etc. Defining these properties is a major part of plugin development.
 
 The SDK provides many examples of test step development in the **`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps`** folder. 
 
@@ -182,9 +182,9 @@ In the example above Step A is implemented so, that it sets its verdict based on
 
 ## Log Messages
 
-Log messages provide useful insight to the process of writing and debugging the test step code (as well as other plugin code). The TestStep base class has a predefined Log source, called **Log**. Log messages are displayed in the OpenTAP GUI **Log** panel and saved in the log file.
+Log messages provide useful insight to the process of writing and debugging the test step code (as well as other plugin code). The TestStep base class has a predefined Log source, called **Log**. Log messages are displayed in the GUI Editor **Log** panel and saved in the log file.
 
-When creating log messages, Keysight recommends the following:
+When creating log messages, the following is recommended:
 
 -	Ensure that your logged messages are using the correct log levels. Make use of debug level for less relevant messages.
 -	Ensure that time-consuming operations write a descriptive message to the log that includes *duration* (to ensure that the operation will be clearly visible in the Timing Analyzer.)

@@ -1,20 +1,18 @@
 Introduction
 ============
-This document describes the programmatic interface to Keysight's **Test Automation** (OpenTAP) and shows how to get started using OpenTAP for implementing test steps, instrument plugins, DUT plugins and result listeners. 
+This document describes the programmatic interface to OpenTAP and shows how to get started using OpenTAP for implementing test steps, instrument plugins, DUT plugins and result listeners.
 
 ## Audience
-This document is written for **C# programmers** who are developing OpenTAP plugins or integrating OpenTAP into their own applications. It is not a reference manual, but rather a document that describes the principles behind OpenTAP and how to use its most important features from a programmer's perspective. Other documents cover an introduction to the OpenTAP GUIs.
+This document is written for **C# programmers** who are developing OpenTAP plugins or integrating OpenTAP into their own applications. It is not a reference manual, but rather a document that describes the principles behind OpenTAP and how to use its most important features from a programmer's perspective. 
 
-## Keysight OpenTAP SDK
-OpenTAP includes a Software Development Kit (SDK). The SDK includes Microsoft Visual Studio 2015/2017 extensions that provide code templates for creating OpenTAP plugins. To install it, select the SDK option during OpenTAP installation.
-
-## Prerequisites
-Before reading this document, you should be familiar with the usage of OpenTAP from the OpenTAP GUI. Refer to the *OpenTAP Graphical User Interface Help* documentation accessible from the OpenTAP GUI by pressing F1 or via the Keysight websites.
+## Keysight Test Automation
+Together with OpenTAP it is recommended to use a Graphical User Interface. Keysight Technologies offers both a enterprice and community version of Keysight Test Automation Developer's System that provide a highly flexible graphical user interface and some code examples. The offering is available for download using the OpenTAP package repository (packages.opentap.io). 
 
 Development requires the following software:
 
 - Visual Studio 2015 or 2017
-- Keysight Test Automation Developer's System including the SDK
+- OpenTAP 
+- Keysight Test Automation Developer's System (Community or Enterprice Edition)
 
 ## Suggested Resources
-Keysight I/O libraries
+VISA driver e.g. Keysight I/O libraries for instrument communication
