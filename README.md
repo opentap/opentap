@@ -18,7 +18,7 @@ If you are thinking of contributing code to OpenTAP, first of all, thank you! Al
 
 ## Reporting Issues
 
-We track issues at https://gitlab.com/OpenTAP/opentap/issues. You are welcome to file an issue there if you have found a bug or have a concrete request for a new feature. Please include a session log file possible/relevant. Any other files needed to e.g. reprocude a bug would also be appreciated.
+We track issues at https://gitlab.com/OpenTAP/opentap/issues. You are welcome to file an issue there if you have found a bug or have a concrete request for a new feature. Please include a session log file possible/relevant. Any other files needed to e.g. reproduce a bug would also be appreciated.
 
 ## License
 
