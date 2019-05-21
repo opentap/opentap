@@ -1,17 +1,22 @@
 ## Contribute to OpenTAP
 
-Thank you for your interest in contributing to OpenTAP. This guide details how
-to contribute to OpenTAP in a way that is efficient for everyone.
+Thank you for your interest in contributing to OpenTAP. Contributions includes feature enhancement request, issue reporting, bug fixing... 
+
+This guide details how to contribute to OpenTAP in a way that is efficient for everyone.
 
 ## Contributor license agreement
 
-OpenTAP requires contributors to sign a contribution license agreement (CLA). You can find the CLA [here](http://opentap.io/docs/OpenTAP%20Contributor%20License%20Agreement%2020190515.pdf)
+OpenTAP requires contributors to sign a contribution license agreement (CLA). 
+You can find the CLA [here](http://opentap.io/docs/OpenTAP%20Contributor%20License%20Agreement%2020190515.pdf).
+The CLA can be signed by an individual or a company. For companies, please add the company name and have a legal authorized representative endorsing the document.
 
-By submitting code as an individual you agree to the
+*  By submitting code as an individual you agree to the
 individual contributor license agreement.
 
-By submitting code as an entity you agree to the
+*  By submitting code as an entity you agree to the
 corporate contributor license agreement.
+
+After reception of the endorsed CLA, we will promote you as a developer in the OpenTAP project.
 
 ## Submitting a merge request
 
