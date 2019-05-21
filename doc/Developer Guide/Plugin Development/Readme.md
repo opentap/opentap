@@ -28,7 +28,7 @@ Developers implementing IResource (required by virtually all other OpenTAP plugi
 
 Attributes are standard parts of C# and are used extensively throughout .NET. They have constructors (just like classes) with different signatures, each with required and optional parameters. For more information on attributes, refer to the MSDN C# documentation. 
 
-For OpenTAP, *type* information is not enough to fully describe what is needed from a property or class. For this reason, attributes are a convenient way to specify additional information. OpenTAP, the GUI and CLI use reflection (which allows interrogation of attributes) extensively. Some attributes have already been shown in code samples in this document. 
+For OpenTAP, *type* information is not enough to fully describe what is needed from a property or class. For this reason, attributes are a convenient way to specify additional information. OpenTAP, the GUI Editor and CLI use reflection (which allows interrogation of attributes) extensively. Some attributes have already been shown in code samples in this document. 
 
 ### Attributes Used by OpenTAP
 OpenTAP uses the following attributes: 
@@ -45,11 +45,11 @@ OpenTAP uses the following attributes:
 | **EnabledIf**   | Disables some controls under certain conditions.  |
 | **FilePath**   | Indicates a string property is a file path.   |
 | **Flags**   | Indicates the values of an enumeration represents a bitmask.   |
-| **HandlesType**   | Indicates a IPropGridControlProvider can handle a certain type. Used by advanced programmers who are modifying GUI internals.   |
+| **HandlesType**   | Indicates a IPropGridControlProvider can handle a certain type. Used by advanced programmers who are modifying the GUI editor internals.   |
 | **HelpLink**   | Defines the help link for a class or property.   |
 | **IgnoreSerializer**  | Used on classes to ignore serialization. Useful for cases where a plugin implementation contains non-serializable members or types.   |
 | **MacroPath**   | Indicates a setting should use MacroPath values, such as &lt;Name&gt; and %Temp%.   |
-| **MetaData**   | A *property* marked by this attribute becomes metadata and will be provided to all result listeners. If a resource is used with this attribute (and *Allow Metadata Dialog* is enabled), a dialog prompts the user. This works for both OpenTAP GUI and OpenTAP CLI.  |
+| **MetaData**   | A *property* marked by this attribute becomes metadata and will be provided to all result listeners. If a resource is used with this attribute (and *Allow Metadata Dialog* is enabled), a dialog prompts the user. This works for both the GUI Editor and the OpenTAP CLI.  |
 | **Output**   | Indicates a test step property is an output variable.  |
 | **ResultListenerIgnore**   | Indicates a property that should not be published to ResultListeners.   |
 | **Scpi**   | Identifies a method or enumeration value that can be handled by the SCPI class.    |
@@ -68,7 +68,7 @@ Some of the commonly used attributes are described in the following sections.
 
 The following recommendations will help you get your project off to a good start and help ensure a smooth development process.
 
--	You can develop one or many plugins in one Visual Studio project. The organization is up to the developer. Keysight recommends the following:
+-	You can develop one or many plugins in one Visual Studio project. The organization is up to the developer. The following is recommended:
     -	Encapsulate your logic. Keeping all instrument logic inside the instrument class makes it possible to swap out instruments without changing TestSteps. For example, a TestStep plugin knows to call **MeasureVoltage**, and the instrument plugin knows how to get that measurement from its specific instrument.  
     -	You can put Instruments, DUTs, and TestSteps all in separate packages and create a "plug-and-play" type of interaction for test developers. For example, you can create test steps that make a measurement and plot a result. If done properly, the steps don't necessarily care which instrument gets the data or what type of device is being tested.
 
@@ -76,7 +76,7 @@ The following recommendations will help you get your project off to a good start
 
 -	For DUTs, Instruments, and Result Listeners, set the Name property in the constructor, so that this Name appears in the Resource Bar.
 
--	Use the **Display** attribute (with a minimum of name and description) on properties and classes. This ensures good naming and tooltips in the GUI.
+-	Use the **Display** attribute (with a minimum of name and description) on properties and classes. This ensures good naming and tooltips in the GUI Editor.
 
 -	Use **Rules** for input validation to ensure valid data.
 

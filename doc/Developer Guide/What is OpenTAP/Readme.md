@@ -1,48 +1,42 @@
 What is OpenTAP?
 ============
-OpenTAP is a software solution for fast and easy development and execution of automated test and/or calibration algorithms. These algorithms control Keysight and other vendors' instruments and possibly customer-specific *devices under test* (DUTs). By leveraging the features of C#/.NET and providing an extendable architecture, the OpenTAP SDK minimizes the code needed to be written by the programmer. 
+OpenTAP is a software solution for fast and easy development and execution of automated test and/or calibration algorithms. These algorithms control measurement instruments and possibly vendor-specific *devices under test* (DUTs). By leveraging the features of C#/.NET and providing an extendable architecture, OpenTAP minimizes the code needed to be written by the programmer. 
 
 OpenTAP offers a range of functionality and infrastructure for configuring, controlling and executing test algorithms. OpenTAP provides an API for implementing plugins in the form of test steps, instruments, DUTs and more. 
 
 OpenTAP consists of multiple executables, including:
-
 -	OpenTAP (as a dll)
--	OpenTAP Graphical User Interface (GUI)
--	OpenTAP Command Line Interface (CLI)
+-	Command Line Interface (CLI)
 -   Package Manager
--	Timing Analyzer
--	Result Viewer
--   Run Explorer
+
 
 Steps frequently have dependencies on DUT and instrument plugins. The development of different plugins is discussed later in this document.
 
 ## OpenTAP Architecture
 The illustration below shows how OpenTAP is central to the architecture, and how plugins (all the surrounding items) integrate with it.
 
-![](TAParchitecture.png#width=800)
+![](TAParchitecture.png#width=600)
 
 ## OpenTAP
 
-The OpenTAP assembly is the core and is required for any OpenTAP plugin. The most important classes in the OpenTAP are: TestPlan, TestStep, Resource, DUT, Instrument, PluginManager and ComponentSettings. OpenTAP also provides an API, which is used by the GUI, the CLI, and other programs. The OpenTAP can be controlled by either the CLI, GUI or API.
+The OpenTAP assembly is the core and is required for any OpenTAP plugin. The most important classes in the OpenTAP are: TestPlan, TestStep, Resource, DUT, Instrument, PluginManager and ComponentSettings. OpenTAP also provides an API, which is used by the CLI, and other programs like a editor GUI. 
 
-## OpenTAP Graphical User Interface
+## Graphical User Interface
 
-The GUI facilitates test plan configuration and execution by providing the features of OpenTAP in a well-structured and simple interface. It interfaces with the OpenTAP API and uses C# reflection to expose configuration options to the user. The GUI provides access to test step, instrument and DUT configuration, as well as information logged during test plan execution. Note that:
+If a graphical user interface is needed you can download the Keysight Test Automation Developer's System (Community or Enterprise Edition). It provide you with both a Software Development Kit (SDK) as well as an Editor GUI
 
--	The OpenTAP GUI consists of multiple dockable panels. It is possible to extend the OpenTAP GUI with custom dockable panels. For an example, see `TAP_PATH\Packages\SDK\Examples\PluginDevelopment\GUI\DockablePanel.cs` 
--   If a GUI is not needed or desired, test plans can be executed using the [OpenTAP Command Line Interface](#tap-command-line-interface ) (CLI). 
--	It is possible to build custom GUIs to expose only the functionality necessary for test execution or to integrate OpenTAP into preexisting UIs. This can be useful for operators in a production environment.
--	Users can specify one or more of the following command line arguments when starting the GUI:
+-	The graphical user interface consists of multiple dockable panels. It is possible to extend it with custom dockable panels. For an example, see `TAP_PATH\Packages\SDK\Examples\PluginDevelopment\GUI\DockablePanel.cs` 
+-	Users can specify one or more of the following command line arguments when starting the editor GUI:
 	
 | **Command** | **Description** | **Example** |
 | ---    | --------        | --------    |
-|**Open**     | Opens the specified test plan file  |   Keysight.OpenTap.Gui.exe --open testplan.tapplan       |
-| **Add**     | Adds a specific step to the end of the test plan.   |      Keysight.OpenTap.Gui.exe --add VerifyWcdmaMultiRx    |
-| **Search**  |     Allows PluginManager to search the specified folder for installed plugins. Multiple paths can be searched.     |   Keysight.OpenTap.Gui.exe --search `C:\myPlugins`       |
+|**Open**     | Opens the specified test plan file  |   tap editor --open testplan.tapplan       |
+| **Add**     | Adds a specific step to the end of the test plan.   |      tap editor --add VerifyWcdmaMultiRx    |
+| **Search**  |     Allows PluginManager to search the specified folder for installed plugins. Multiple paths can be searched.     |   tap editor --search `C:\myPlugins`       |
 
 ## OpenTAP Command Line Interface 
 
-The OpenTAP CLI is a console program that executes a test plan and allows easy integration with other programs. The CLI has options to configure the test plan execution, such as setting external parameters, setting meta data, and executing OpenTAP as a service.
+The OpenTAP CLI is a console program that executes a test plan and allows easy integration with other programs. The CLI has options to configure the test plan execution, such as setting external parameters, configuring resources and setting meta data.
 
 ## OpenTAP API
 
@@ -60,7 +54,7 @@ OpenTAP plugins and non-OpenTAP files (such as data files or README files) can b
 
 ## Test Plans 
 
-A *test plan* is a sequence of test steps with some additional data attached. Test plans are created via the OpenTAP GUI. Creating test plans is described in the *OpenTAP Graphical User Interface Help* (GuiHelp.chm), accessible within the OpenTAP GUI. Test plan files have the *.TapPlan* suffix, and are stored as xml files.
+A *test plan* is a sequence of test steps with some additional data attached. Test plans are created via the Editor GUI. Creating test plans is described in the *Graphical User Interface Help* (GuiHelp.chm), accessible within the Editor GUI. Test plan files have the *.TapPlan* suffix, and are stored as xml files.
 
 ### Test Plan Control Flow
 To use OpenTAP to its full potential, developers must understand the control flow of a running test plan. Several aspects of OpenTAP can influence the control flow. Important aspects include:
@@ -96,7 +90,7 @@ Similar to the previous example, test plan execution starts with the **Open assi
 Note that the above examples are very simple. A more advanced test plan may incorporate flow control statements to change execution flow. For example, adding a *Parallel* test step as a parent to child test steps will make the test steps run in parallel. This only affects the run stage, the other stages remain unchanged.
 
 ### External Parameters
-Editable OpenTAP step settings can be marked as *External*. The value of such settings can be set through the OpenTAP GUI, through an external program (such as OpenTAP CLI), or with an external file. This gives the user the ability to set key parameters at run time, and (potentially) from outside the OpenTAP GUI. You can also use the API to set external parameter values with your own program.
+Editable OpenTAP step settings can be marked as *External*. The value of such settings can be set through the Editor GUI, through an external program (such as OpenTAP CLI), or with an external file. This gives the user the ability to set key parameters at run time, and (potentially) from outside the Editor GUI. You can also use the API to set external parameter values with your own program.
 
 ### Manual Resource Connection 
 
