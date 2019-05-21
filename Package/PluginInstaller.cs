@@ -85,6 +85,7 @@ namespace OpenTap.Package
                 var pi = new ProcessStartInfo(step.ExeFile, step.Arguments);
 
                 pi.CreateNoWindow = step.CreateNoWindow;
+                pi.WorkingDirectory = ExecutorClient.ExeDir;
 
                 try
                 {
