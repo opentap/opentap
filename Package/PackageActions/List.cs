@@ -172,7 +172,7 @@ namespace OpenTap.Package
             var nameLen = packageList.Select(p => p.Name?.Length).Max();
             var verLen = packageList.Select(p => p.Version?.ToString().Length).Max() ?? 0;
             verLen = Math.Max(verLen, installed.Select(p => p.Version?.ToString().Length).Max() ?? 0);
-
+            
             foreach (var plugin in packageList)
             {
                 var installedPackage = installed.FirstOrDefault(p => p.Name == plugin.Name);
@@ -183,7 +183,11 @@ namespace OpenTap.Package
                 if (installedPackage != null && installedPackage?.Version?.CompareTo(latestPackage.Version) < 0)
                     logMessage += " - update available";
 
-                var licenses = string.Join(" & ", plugin.Files.Select(p => p.LicenseRequired).Where(l => string.IsNullOrWhiteSpace(l) == false).Select(LicenseBase.FormatFriendly));
+                // assuming that all dlls in the package requires has the same or distinct license requirements. 
+                // Duplicates are made if one file requires X|Y and the other X|Z or even Y|X.
+                var licensesRequiredStrings = plugin.Files.Select(p => p.LicenseRequired).Where(l => string.IsNullOrWhiteSpace(l) == false).Select(LicenseBase.FormatFriendly).Distinct();
+
+                var licenses = string.Join(" & ", licensesRequiredStrings);
 
                 if (licenses != "")
                     logMessage += " - requires license " + licenses;
