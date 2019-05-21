@@ -25,7 +25,7 @@ namespace OpenTap.Package
             Repositories = new List<RepositorySettingEntry>();
             Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = ExecutorClient.ExeDir });
             Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = PackageDef.SystemWideInstallationDirectory });
-            Repositories.Add(new RepositorySettingEntry { IsEnabled = false, Url = "http://packages.opentap.io" });
+            Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = "http://packages.opentap.io" });
         }
 
         [Display("Show Incompatible Packages", Group: "General", Description: "Show all packages, including incompatible and deprecated packages.")]
