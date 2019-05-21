@@ -49,7 +49,9 @@ namespace OpenTap.Package
             var block = new byte[8];
             if (macAddr != null)
                 macAddr.GetAddressBytes().CopyTo(block, 0);
-            UpdateId = String.Format("{0:X8}",MurMurHash3.Hash(block));
+            string mac = BitConverter.ToString(block).Replace("-", string.Empty);
+            string installDir = ExecutorClient.ExeDir;
+            UpdateId = String.Format("{0:X8}{0:X8}", MurMurHash3.Hash(mac), MurMurHash3.Hash(installDir));
         }
 
         private async Task DoDownloadPackage(PackageDef package, string destination, CancellationToken cancellationToken)
