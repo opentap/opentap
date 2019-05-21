@@ -73,18 +73,20 @@ namespace OpenTap.Package
             {
                 if (step.ActionName != ActionName)
                     continue;
-
+                
                 if (File.Exists(step.ExeFile) == false)
                     throw new Exception($"Could not find file '{step.ExeFile}' from ActionStep '{step.ActionName}'.");
-                
+
                 // Upgrade to ok output
                 res = ActionResult.Ok;
 
-                log.Debug("Running '{0}' with arguments: '{1}'", step.ExeFile, step.Arguments);
+                log.Debug("Running '{0}' with arguments: '{1}'.", step.ExeFile, step.Arguments);
 
                 var pi = new ProcessStartInfo(step.ExeFile, step.Arguments);
 
                 pi.CreateNoWindow = step.CreateNoWindow;
+                pi.WorkingDirectory = ExecutorClient.ExeDir;
+                pi.Environment.Remove(ExecutorSubProcess.EnvVarNames.ParentProcessExeDir);
 
                 try
                 {
