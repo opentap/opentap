@@ -18,7 +18,7 @@ tap package list
 
 We recommend that you download the Software Development Kit, or simply the Developer’s System Community Edition provided by Keysight Technologies. The Developer System is a bundle that contain the SDK as well as a graphical user interface and result viewing capabilities. It can be installed by typing the following:
 ```
-tap package install "Developer's System CE"
+tap package install "Developer's System CE" -y
 ```
 
 For how to develop using OpenTAP check out our __[Developer Guide PDF](http://opentap.io/docs/OpenTAP%20Developer%20Guide.pdf)__, note the [source](https://gitlab.com/OpenTAP/opentap/blob/master/doc/Developer%20Guide/Readme.md) can as well be found in Gitlab. 
