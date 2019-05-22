@@ -178,7 +178,12 @@ namespace OpenTap.Package
                 }
             }
 
-
+            if (gatheredPackages.All(p => p.IsBundle()))
+            {
+                // If we are just installing bundles, we can assume that dependencies should also be installed
+                includeDependencies = true;
+            }
+            
             log.Debug("Resolving dependencies.");
             var resolver = new DependencyResolver(installation, gatheredPackages, repositories);
             if (resolver.UnknownDependencies.Any())
@@ -207,9 +212,9 @@ namespace OpenTap.Package
                 if (!includeDependencies)
                     dependencyArgsHint = $" (use --dependencies to also get these)";
                 if (resolver.MissingDependencies.Count > 1)
-                    log.Info("There are {0} missing dependencies{1}.", resolver.MissingDependencies.Count, dependencyArgsHint);
+                    log.Info("{0} required dependencies are currently not installed{1}.", resolver.MissingDependencies.Count, dependencyArgsHint);
                 else
-                    log.Info("There is 1 missing dependency{0}.", dependencyArgsHint);
+                    log.Info("A required dependency is currently not installed{0}.", dependencyArgsHint);
 
 
                 if (includeDependencies)

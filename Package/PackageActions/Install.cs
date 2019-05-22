@@ -1,4 +1,4 @@
-﻿//            Copyright Keysight Technologies 2012-2019
+//            Copyright Keysight Technologies 2012-2019
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
@@ -18,7 +18,7 @@ namespace OpenTap.Package
         [CommandLineArgument("force", Description = "Install packages even if it results in some being broken.", ShortName = "f")]
         public bool ForceInstall { get; set; }
 
-        [CommandLineArgument("dependencies", Description = "Install dependencies without asking.", ShortName = "y")]
+        [CommandLineArgument("dependencies", Description = "Install dependencies without asking. This is always enabled when installing bundle packages.", ShortName = "y")]
         public bool InstallDependencies { get; set; }
 
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
