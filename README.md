@@ -27,6 +27,8 @@ For how to develop using OpenTAP check out our __[Developer Guide PDF](http://op
 
 If you would like to build OpenTAP yourself you can clone the git repository at https://gitlab.com/OpenTAP/opentap and build the OpenTAP.sln in Visual Studio 2017 (or later) by pressing F5.
 
+**Note:** You need [Microsoft .NET Framework 4.6.2 Targeting Pack](https://www.microsoft.com/en-us/download/details.aspx?id=53321) to build OpenTAP.
+
 ## Contributing
 
 If you are thinking of contributing code to OpenTAP, first of all, thank you! All fixes, patches and enhancements to OpenTAP are very warmly welcomed. In order to keep thing manageable, there are a number of guidelines that should be followed in order to ensure that your modification is included in OpenTAP as quickly as possible. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
