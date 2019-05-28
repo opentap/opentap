@@ -256,8 +256,8 @@ namespace OpenTap
         /// <returns></returns>
         public override bool Equals(object obj)
         {
-            if(obj is SemanticVersion)
-                return this.CompareTo(obj) == 0;
+            if (obj is SemanticVersion)
+                return this.ToString() == obj.ToString();
             return false;
         }
 

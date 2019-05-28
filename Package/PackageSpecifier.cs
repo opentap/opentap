@@ -192,6 +192,12 @@ namespace OpenTap.Package
                 sb.Append("-");
                 sb.Append(PreRelease);
             }
+            if (!string.IsNullOrEmpty(BuildMetadata))
+            {
+                sb.Append("+");
+                sb.Append(BuildMetadata);
+            }
+            
             return sb.ToString();
         }
 
