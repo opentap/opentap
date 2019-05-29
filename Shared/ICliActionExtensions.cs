@@ -29,7 +29,7 @@ namespace OpenTap.Cli
             var props = action.GetType().GetProperties();
 
             ap.AllOptions.Add("help", 'h', false, "Write help information.");
-            ap.AllOptions.Add("verbose", 'v', false, "Also show vebose/debug level messages.");
+            ap.AllOptions.Add("verbose", 'v', false, "Show verbose/debug level log messages.");
             ap.AllOptions.Add("color", 'c', false, "Color messages according to their level.");
 
             var argToProp = new Dictionary<string, PropertyInfo>();
