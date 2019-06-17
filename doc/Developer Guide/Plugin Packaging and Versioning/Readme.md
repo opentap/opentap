@@ -29,6 +29,9 @@ $(GitVersion) - Gets the version number in the recommended format Major.Minor.Bu
         <SetAssemblyInfo Attributes="Version"/>
       </File>
       <File Path="Packages/Example Plugin/SomeSampleData.txt"/>
+      <File Path="Packages/Example Plugin/Example Icon.ico">
+        <PackageIcon/>
+      </File>
   </Files>
 </Package>
 ```
@@ -50,14 +53,19 @@ The configuration file supports five optional attributes:
 
 The content of one of the strings assigned to the `OS` attribute must be contained in the output of the commands `uname -a` on linux/osx or `ver` on windows for the plugin to be considered compatible. The use of strings like `"Windows"`, `"Linux"` or `"Ubuntu"` is recommended. However, it is possible to use abbreviations, such as `"Win"` or to target a specific version of an operating system. This can be done by writing the exact name and the version number. For example, a plugin with the `OS` attribute `"Microsoft Windows [Version 10.0.14393]"` targets the specified version of Windows and is incompatible with other versions or operating systems. 
 
-Inside the configuration file, the **File** element supports the following attributes:
+### File Element
+The **File** element inside the configuration file supports the following attributes:
 
 | **Attribute** | **Description** |
 | ---- | -------- |
 | **Path** | The path to the file. This is relative to the root the OpenTAP installation directory. This serves as both source (where the packaging tool should get the file when creating the package) and target (where the file sould be located when installed). Unless there are special requirements, the convention is to put all payload files in a Packages/<PackageName>/ subfolder. Wildcards are supported - see later section.
 | **SourcePath** | Optional. If present the packaging tool will get the file from this path when creating the package.
 
-The **File** element can optionally contain custom elements supported by OpenTAP plugins. In the above example it includes the `SetAssemblyInfo` element, which is supported by a Keysight OpenTAP plugin. When `SetAssemblyInfo` is set to `Version`, AssemblyVersion, AssemblyFileVersion and AssemblyInformationalVersion attributes of the file are set according to the package's version.
+The **File** element can optionally contain custom elements supported by OpenTAP packages. In the above example it includes the `SetAssemblyInfo` element, which is supported by a Keysight OpenTAP package. When `SetAssemblyInfo` is set to `Version`, AssemblyVersion, AssemblyFileVersion and AssemblyInformationalVersion attributes of the file are set according to the package's version.
+
+### Package Icon
+A package can also include a package icon. The **File** element inside the configuration file supports adding a package icon by using the `Path` attribute to point to an image and using the `PackageIcon` element inside the `File` element. See the example above.
+
 
 ### Example
 
@@ -86,6 +94,9 @@ The below configuration file results in `MyPlugin.{version}.TapPackage` file,con
     </File>
     <File Path="Packages/MyPlugin/waveform1.wfm"/>
     <File Path="Packages/MyPlugin/waveform2.wfm"/>
+    <File Path="Packages/MyPlugin/Example Icon.ico">
+      <PackageIcon/>
+    </File>
   </Files>
 </Package>
 ```
@@ -122,6 +133,9 @@ This `package.xml` file is preserved inside the TapPackage as metadata. The Pack
     </File>
     <File Path="Packages/MyPlugin/waveform1.wfm"/>
     <File Path="Packages/MyPlugin/waveform2.wfm"/>
+    <File Path="Packages/MyPlugin/Example Icon.ico">
+      <PackageIcon/>
+    </File>
   </Files>
 </Package>
 ```
