@@ -58,7 +58,7 @@ namespace OpenTap
 
             public override int GetHashCode()
             {
-                return Name.GetHashCode() + Version.GetHashCode();
+                return Name.GetHashCode() * 17 + Version.GetHashCode();
             }
 
             public override bool Equals(object obj)
@@ -84,23 +84,32 @@ namespace OpenTap
                 nameToAsmMap = new Dictionary<AssemblyRef, AssemblyData>();
 
                 nameToFileMap = files.ToLookup(Path.GetFileNameWithoutExtension);
-
+                nameToAsmMap2 = new Dictionary<string, AssemblyRef>();
+                asmNameToAsmData = new Dictionary<string, AssemblyData>();
                 Assemblies = new List<AssemblyData>();
+                UnfoundAssemblies = new HashSet<AssemblyRef>();
                 foreach (string file in files)
+                {
                     AddAssemblyInfo(file);
+                }
 
                 return Assemblies;
             }
             
             private List<AssemblyData> Assemblies;
             private Dictionary<AssemblyRef, AssemblyData> nameToAsmMap;
+            private Dictionary<string, AssemblyRef> nameToAsmMap2;
+            private Dictionary<string, AssemblyData> asmNameToAsmData;
             private static ILookup<string, string> nameToFileMap;
+            HashSet<AssemblyRef> UnfoundAssemblies; // for assemblies that are not in the files.
 
             private AssemblyData AddAssemblyInfo(string file)
             {
-                var attempt = nameToAsmMap.Values.FirstOrDefault(asm => PathUtils.AreEqual(asm.Location, file));
-                if (attempt != null)
-                    return attempt;
+                var normalizedFile = PathUtils.NormalizePath(file);
+                if (nameToAsmMap2.TryGetValue(normalizedFile, out AssemblyRef asmRef2))
+                {
+                    return nameToAsmMap[asmRef2];
+                }
                 try
                 {
                     AssemblyData thisAssembly = new AssemblyData();
@@ -108,55 +117,90 @@ namespace OpenTap
 
                     List<AssemblyRef> refNames = new List<AssemblyRef>();
                     using (FileStream str = new FileStream(file, FileMode.Open, FileAccess.Read))
-                    //using (BufferedStream bstr = new BufferedStream(str))
                     using (PEReader header = new PEReader(str, PEStreamOptions.LeaveOpen))
                     {
                         if (!header.HasMetadata)
                             return null;
+
                         MetadataReader metadata = header.GetMetadataReader();
                         AssemblyDefinition def = metadata.GetAssemblyDefinition();
+                        var defAsmName = def.GetAssemblyName().FullName;
+                        if (asmNameToAsmData.TryGetValue(defAsmName, out AssemblyData data))
+                            return data;
+
                         thisAssembly.Name = metadata.GetString(def.Name);
+                        
                         if (string.Compare(thisAssembly.Name, Path.GetFileNameWithoutExtension(file),true) != 0)
                            throw new Exception("Assembly name does not match the file name.");
                         var thisRef = new AssemblyRef(thisAssembly.Name, def.Version);
 
                         thisAssembly.Version = def.Version;
-                        
+
                         if (!nameToAsmMap.ContainsKey(thisRef))
+                        {
                             nameToAsmMap.Add(thisRef, thisAssembly);
+                            nameToAsmMap2[PathUtils.NormalizePath(thisAssembly.Location)] = thisRef;
+                        }
+
+                        asmNameToAsmData[defAsmName] = thisAssembly;
 
                         foreach (var asmRefHandle in metadata.AssemblyReferences)
                         {
                             var asmRef = metadata.GetAssemblyReference(asmRefHandle);
                             var name = metadata.GetString(asmRef.Name);
+                            var newRef = new AssemblyRef(name, asmRef.Version);
+                            if (UnfoundAssemblies.Contains(newRef))
+                            {
+                                continue;
+                            }
                             refNames.Add(new AssemblyRef(name, asmRef.Version));
                         }
                     }
 
-                    List<AssemblyData> refList = new List<AssemblyData>();
+                    List<AssemblyData> refList = null;
                     foreach (var refName in refNames)
                     {
-                        if (nameToAsmMap.ContainsKey(refName))
+                        if (nameToAsmMap.TryGetValue(refName, out AssemblyData asmData2))
                         {
-                            refList.Add(nameToAsmMap[refName]);
+                            if (refList == null) refList = new List<AssemblyData>();
+                            refList.Add(asmData2);
                         }
                         else
                         {
                             if (nameToFileMap.Contains(refName.Name))
                             {
-                                var assemblies = nameToFileMap[refName.Name].Select(AddAssemblyInfo).Where(a => a != null).ToList();
-
-                                AssemblyData asm = assemblies.FirstOrDefault(a => a.Version == refName.Version);
-
-                                if (asm == null)
-                                    asm = assemblies.Where(a => Utils.Compatible(a.Version, refName.Version)).OrderByDescending(a => a.Version).FirstOrDefault();
-                                
+                                AssemblyData asm = null;
+                                foreach (var file2 in nameToFileMap[refName.Name])
+                                {
+                                    var data = AddAssemblyInfo(file2);
+                                    if (data == null) continue;
+                                    if (data.Version == refName.Version)
+                                    {
+                                        asm = data;
+                                        break;
+                                    }
+                                    else if (Utils.Compatible(data.Version, refName.Version))
+                                    {
+                                        asm = data;
+                                    }
+                                }
                                 if (asm != null)
+                                {
+                                    if (refList == null) refList = new List<AssemblyData>();
                                     refList.Add(asm);
+                                }
+                                else
+                                {
+                                    UnfoundAssemblies.Add(refName);
+                                }
+                            }
+                            else
+                            {
+                                UnfoundAssemblies.Add(refName);
                             }
                         }
                     }
-                    thisAssembly.References = refList;
+                    thisAssembly.References = (IEnumerable<AssemblyData>) refList ?? Array.Empty<AssemblyData>();
                     Assemblies.Add(thisAssembly);
                     return thisAssembly;
                 }
@@ -669,7 +713,7 @@ namespace OpenTap
         /// <summary>
         /// Gets a list of base types (including interfaces)
         /// </summary>
-        internal ICollection<TypeData> BaseTypes { get { return _BaseTypes; } }
+        internal ICollection<TypeData> BaseTypes => _BaseTypes;
 
         internal void AddBaseType(TypeData typename)
         {
@@ -682,7 +726,7 @@ namespace OpenTap
         /// <summary>
         /// Gets a list of plugin types (i.e. types that directly implement ITapPlugin) that this type inherits from/implements
         /// </summary>
-        public IEnumerable<TypeData> PluginTypes { get { return _PluginTypes; } }
+        public IEnumerable<TypeData> PluginTypes => _PluginTypes;
 
         internal void AddPluginType(TypeData typename)
         {
@@ -706,7 +750,7 @@ namespace OpenTap
         /// <summary>
         /// Gets a list of types that has this type as a base type (including interfaces)
         /// </summary>
-        public IEnumerable<TypeData> DerivedTypes { get { return _DerivedTypes; } }
+        public IEnumerable<TypeData> DerivedTypes => _DerivedTypes;
 
         /// <summary>
         /// False if the type has a System.ComponentModel.BrowsableAttribute with Browsable = false.
@@ -821,7 +865,7 @@ namespace OpenTap
         /// <summary>
         /// Gets a list of plugin types that this Assembly defines
         /// </summary>
-        public IEnumerable<TypeData> PluginTypes { get { return _PluginTypes; } }
+        public IEnumerable<TypeData> PluginTypes =>_PluginTypes;
 
         internal void AddPluginType(TypeData typename)
         {

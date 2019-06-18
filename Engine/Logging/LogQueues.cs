@@ -17,7 +17,8 @@ namespace OpenTap.Diagnostic
         /// </summary>
         internal class LogBuffer
         {
-            public const int Capacity = 1024 * 128;
+            /// <summary> How many log messages to make room for in the buffer.  </summary>
+            public const int Capacity = 1024 * 8; 
 
             public LogBuffer Next = null;
 
