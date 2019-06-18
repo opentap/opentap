@@ -16,7 +16,7 @@ individual contributor license agreement.
 *  By submitting code as an entity you agree to the
 corporate contributor license agreement.
 
-After reception of the endorsed CLA, we will promote you as a developer in the OpenTAP project.
+Send the signed CLA to CLA@opentap.io together with your Gitlab username and email address, we will promote you as a developer in the OpenTAP project.
 
 ## Submitting a merge request
 
