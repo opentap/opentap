@@ -16,6 +16,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Threading;
 using System.Diagnostics;
+using System.Net;
 
 namespace OpenTap.Package.UnitTests
 {
@@ -111,6 +112,21 @@ namespace OpenTap.Package.UnitTests
             package = bag.ToArray()[0];
             manager.DownloadPackage(package, path, new System.Threading.CancellationToken());
             File.Delete(path);
+        }
+
+        [Test]
+        public static void TestHttpRepositoryManagerRedirect()
+        {
+            var urls = new[] {
+                ($"opentap.io", "https://www.opentap.io/"), // Redirect to www and https
+                ($"packages.opentap.io", "http://packages.opentap.io/"), // No redirect
+                ($"http://opentap.io", "https://www.opentap.io/")}; // Redirect to https
+
+            foreach (var url in urls)
+            {
+                var manager = new HttpPackageRepository(url.Item1);
+                Assert.AreEqual(new Uri(manager.Url).AbsoluteUri, url.Item2);
+            }
         }
     }
 

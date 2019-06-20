@@ -183,23 +183,29 @@ namespace OpenTap.Package
         {
             try
             {
-                using (WebClient wc = new WebClient())
+                using (HttpClient hc = new HttpClient())
                 {
-                    wc.Proxy = WebRequest.GetSystemWebProxy();
-                    wc.Headers.Add(HttpRequestHeader.Accept, "application/xml");
-                    wc.Headers.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
+                    hc.DefaultRequestHeaders.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
+                    hc.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/xml");
 
                     try
                     {
-                        var xmlText = wc.DownloadString($"{url}/{ApiVersion}/version");
-                        url = checkUrl(url, xmlText);
+                        var versionUrl = $"{url}/{ApiVersion}/version";
+                        var response = hc.GetAsync(versionUrl).Result;
+
+                        // Check for http server redirects
+                        url = checkServerRedirect(url, versionUrl, response);
+
+                        // Check client redirects
+                        var xmlText = response.Content.ReadAsStringAsync().Result;
+                        url = checkClientRedirect(url, xmlText);
                     }
                     catch
                     {
                         try
                         {
-                            var xmlText = wc.DownloadString(url);
-                            url = checkUrl(url, xmlText);
+                            var xmlText = hc.GetStringAsync(url).Result;
+                            url = checkClientRedirect(url, xmlText);
                         }
                         catch
                         {
@@ -214,8 +220,21 @@ namespace OpenTap.Package
             }
             return url.TrimEnd('/');
         }
+
+        private string checkServerRedirect(string url, string versionUrl, HttpResponseMessage response)
+        {
+            var redirectedUrl = response.RequestMessage.RequestUri.ToString();
+            if (versionUrl != redirectedUrl)
+            {
+                redirectedUrl = new HttpClient().GetAsync(url).Result.RequestMessage.RequestUri.ToString();
+                log.Debug($"Redirected from '{url}' to '{redirectedUrl}'.");
+                url = redirectedUrl;
+            }
+
+            return url;
+        }
         
-        private string checkUrl(string url, string xmlText)
+        private string checkClientRedirect(string url, string xmlText)
         {
             try
             {
@@ -246,23 +265,23 @@ namespace OpenTap.Package
 
             // Url does not exists
             if (tryDownload(Url) == null)
-                throw new WebException($"Unable to connect to '{Url}'.");
+                throw new WebException($"Unable to connect to '{defaultUrl}'.");
 
             // Check old repo
             if (tryDownload($"{Url}/2.0/version") != null)
-                throw new NotSupportedException($"The repository '{Url}' is only compatible with TAP 8.x or ealier.");
+                throw new NotSupportedException($"The repository '{defaultUrl}' is only compatible with TAP 8.x or ealier.");
 
             // Check specific version
             var data = tryDownload($"{Url}/{ApiVersion}/version");
             if (string.IsNullOrEmpty(data))
-                throw new NotSupportedException($"'{Url}' is not a package repository.");
+                throw new NotSupportedException($"'{defaultUrl}' is not a package repository.");
             var reader = XmlReader.Create(new StringReader(data));
             var serializer = new XmlSerializer(typeof(string));
             if (serializer.CanDeserialize(reader) == false)
-                throw new NotSupportedException($"'{Url}' is not a package repository.");
+                throw new NotSupportedException($"'{defaultUrl}' is not a package repository.");
             var version = serializer.Deserialize(reader) as string;
             if (SemanticVersion.TryParse(version, out var semver) && semver.IsCompatible(SemanticVersion.Parse(MinRepoVersion)) == false)
-                throw new NotSupportedException($"The repository '{Url}' is not supported.", new Exception($"Repository version '{semver}' is not compatible with min required version '{MinRepoVersion}'."));
+                throw new NotSupportedException($"The repository '{defaultUrl}' is not supported.", new Exception($"Repository version '{semver}' is not compatible with min required version '{MinRepoVersion}'."));
         }
 
         PackageDef[] packagesFromXml(string xmlText)
