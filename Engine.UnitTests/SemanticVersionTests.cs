@@ -168,6 +168,24 @@ namespace OpenTap.Engine.UnitTests
         }
 
 
+        [TestCase("1", 1)]
+        [TestCase("1.0", 2)]
+        [TestCase("1.2.3", 3)]
+        [TestCase("1.2.3-beta", 4)]
+        [TestCase("1.2.3-beta+123456", 5)]
+        [TestCase("^1", 1)]
+        [TestCase("^1.0", 2)]
+        [TestCase("^1.2.3", 3)]
+        [TestCase("^1.2.3-beta", 4)]
+        [TestCase("^1.2.3-beta+123456", 5)]
+        [TestCase("Any", 5)]
+        public void SpecifierToStringTest(string specifier, int fieldCount)
+        {
+            Assert.AreEqual(specifier, VersionSpecifier.Parse(specifier).ToString());
+            Assert.AreEqual(specifier, VersionSpecifier.Parse(specifier).ToString(fieldCount));
+        }
+
+
         static Assembly generateAssemblyInMemWithoutVersion()
         {
             string cs = "public class ObjectTest { public void Run(){} }";

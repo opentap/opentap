@@ -171,34 +171,37 @@ namespace OpenTap.Package
         {
             if (this == VersionSpecifier.Any)
                 return "Any";
-            StringBuilder sb = new StringBuilder();
+
+            var formatter = versionFormatter.Value;
+            formatter.Clear();
+
             if (MatchBehavior.HasFlag(VersionMatchBehavior.Compatible))
-                sb.Append("^");
+                formatter.Append('^');
             if (Major.HasValue)
-                sb.Append(Major);
+                formatter.Append(Major);
             if (Minor.HasValue)
             {
-                sb.Append(".");
-                sb.Append(Minor);
+                formatter.Append('.');
+                formatter.Append(Minor);
             }
             
             if (Patch.HasValue)
             {
-                sb.Append(".");
-                sb.Append(Patch);
+                formatter.Append('.');
+                formatter.Append(Patch);
             }
-            if (!String.IsNullOrEmpty(PreRelease))
+            if (!string.IsNullOrEmpty(PreRelease))
             {
-                sb.Append("-");
-                sb.Append(PreRelease);
+                formatter.Append('-');
+                formatter.Append(PreRelease);
             }
             if (!string.IsNullOrEmpty(BuildMetadata))
             {
-                sb.Append("+");
-                sb.Append(BuildMetadata);
+                formatter.Append('+');
+                formatter.Append(BuildMetadata);
             }
             
-            return sb.ToString();
+            return formatter.ToString();
         }
 
         static ThreadLocal<StringBuilder> versionFormatter = new ThreadLocal<StringBuilder>(() => new StringBuilder(), false);
@@ -213,37 +216,34 @@ namespace OpenTap.Package
         {
             if (fieldCount < 1 || fieldCount > 5)
                 throw new ArgumentOutOfRangeException();
-            if (fieldCount == 1)
-                return Major.ToString();
 
             var formatter = versionFormatter.Value;
-
             formatter.Clear();
 
-            formatter.Append(Major);
-            formatter.Append('.');
-            formatter.Append(Minor);
+            if (this == VersionSpecifier.Any)
+                return "Any";
+            if (MatchBehavior.HasFlag(VersionMatchBehavior.Compatible))
+                formatter.Append('^');
 
-            if (fieldCount == 2)
-                return formatter.ToString();
-
-            if (Patch != int.MaxValue)
+            if (Major.HasValue)
+                formatter.Append(Major);
+            
+            if (Minor.HasValue && fieldCount >= 2)
+            {
+                formatter.Append('.');
+                formatter.Append(Minor);
+            }
+            if (Patch.HasValue && fieldCount >= 3)
             {
                 formatter.Append('.');
                 formatter.Append(Patch);
             }
-            if (fieldCount == 3)
-                return formatter.ToString();
-
-            if (false == string.IsNullOrWhiteSpace(PreRelease))
+            if (!string.IsNullOrWhiteSpace(PreRelease) && fieldCount >= 4)
             {
                 formatter.Append('-');
                 formatter.Append(PreRelease);
             }
-            if (fieldCount == 4)
-                return formatter.ToString();
-
-            if (false == string.IsNullOrWhiteSpace(BuildMetadata))
+            if (!string.IsNullOrWhiteSpace(BuildMetadata) && fieldCount == 5)
             {
                 formatter.Append('+');
                 formatter.Append(BuildMetadata);
