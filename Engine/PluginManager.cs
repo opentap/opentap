@@ -209,7 +209,6 @@ namespace OpenTap
             PluginSearcher searcher = GetSearcher();
             return searcher.PluginMarkerType.Assembly;
         }
-
         /// <summary>
         /// Start a search task that finds plugins to the platform.
         /// This call is not blocking, some other calls to PluginManager will automatically 
