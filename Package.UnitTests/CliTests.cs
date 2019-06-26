@@ -288,7 +288,7 @@ namespace OpenTap.Package.UnitTests
         {
             int exitCode;
             string output = RunPackageCli("install NonExistent.TapPackage", out exitCode);
-            Assert.AreEqual(6, exitCode, "Unexpected exit code");
+            Assert.AreEqual(6, exitCode, "Unexpected exit code.\n" + output);
             StringAssert.Contains("Could not download", output);
         }
 
@@ -428,8 +428,9 @@ namespace OpenTap.Package.UnitTests
             {
                 // Sign package is needed to create opentap
                 string packageXml = CreateOpenTapPackageXmlWithoutSignElement("../../opentap/opentapCE.package.xml");
-                string createOpenTap = $"create -v {packageXml} --fake-install -o Packages/OpenTAP.TapPackage";
-                RunPackageCliWrapped(createOpenTap, out exitCode, workingDir);
+                string createOpenTap = $"create -v {packageXml} --install -o Packages/OpenTAP.TapPackage";
+                string output = RunPackageCliWrapped(createOpenTap, out exitCode, workingDir);
+                Assert.AreEqual(0, exitCode, "Error creating OpenTAP package. Log:\n" + output);
                 File.Delete(packageXml);
             }
             return RunPackageCliWrapped(args, out exitCode, workingDir);
