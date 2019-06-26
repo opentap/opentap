@@ -558,8 +558,8 @@ namespace OpenTap.Package.UnitTests
                     File.Delete(pkgName);
                 File.WriteAllText(pkgName, pkgContent);
                 var pkg = PackageDefExt.FromInputXml(pkgName);
-                CollectionAssert.IsNotEmpty(pkg.Dependencies,"Package has not dependencies.");
-                Assert.AreEqual("OpenTAP", pkg.Dependencies.First().Name);
+                CollectionAssert.IsNotEmpty(pkg.Dependencies,"Package has no dependencies.");
+                //Assert.AreEqual("OpenTAP", pkg.Dependencies.First().Name);
                 pkg.CreatePackage("BasicSteps.TapPackage", Directory.GetCurrentDirectory());
 
                 List<IPackageRepository> repositories = new List<IPackageRepository>() { new FilePackageRepository(Directory.GetCurrentDirectory()) };
@@ -571,7 +571,8 @@ namespace OpenTap.Package.UnitTests
 
                 var depVersion = pkg.Dependencies.First().Version;
                 var version = new SemanticVersion(depVersion.Major ?? 0, depVersion.Minor ?? 0, depVersion.Patch ?? 0, depVersion.PreRelease, "");
-                packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, new PackageSpecifier("BasicSteps"), new PackageIdentifier("OpenTAP", version, CpuArchitecture.Unspecified, null));
+                var depName = pkg.Dependencies.First().Name;
+                packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, new PackageSpecifier("BasicSteps"), new PackageIdentifier(depName, version, CpuArchitecture.Unspecified, null));
                 CollectionAssert.IsNotEmpty(packages, "Repository does not list any compatible \"BasicSteps\" package.");
                 Assert.IsTrue(packages.First().Name == "BasicSteps");
             }
