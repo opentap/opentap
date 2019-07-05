@@ -631,35 +631,41 @@ namespace OpenTap
 
         private static void WriteException(TraceSource trace, Exception exception, LogEventType level)
         {
-
-            bool isInner = false;
-            while (exception != null)
+            try
             {
-                var exceptionMessage = exception.Message
-                    .Replace("{", "{{")
-                    .Replace("}", "}}");
-                if (isInner)
-                    trace.TraceEvent(level, 2, "  Inner exception: " + exceptionMessage, false);
-                else
-                    trace.TraceEvent(level, 2, "Exception: " + exceptionMessage);
-                if (exception.StackTrace != null)
+                bool isInner = false;
+                while (exception != null)
                 {
-                    string[] lines = exception.StackTrace.Split(new char[] { '\n' });
-                    foreach (string line in lines)
+                    var exceptionMessage = exception.Message
+                        .Replace("{", "{{")
+                        .Replace("}", "}}");
+                    if (isInner)
+                        trace.TraceEvent(level, 2, "  Inner exception: " + exceptionMessage, false);
+                    else
+                        trace.TraceEvent(level, 2, "Exception: " + exceptionMessage);
+                    if (exception.StackTrace != null)
                     {
-                        trace.TraceEvent(LogEventType.Debug, 2, "    " + line.Trim(), false);
+                        string[] lines = exception.StackTrace.Split(new char[] { '\n' });
+                        foreach (string line in lines)
+                        {
+                            var fixedLine = line.Replace("{", "{{").Replace("}", "}}").Trim();
+                            trace.TraceEvent(LogEventType.Debug, 2, "    " + fixedLine, false);
+                        }
                     }
-                }
-                if (exception is ReflectionTypeLoadException)
-                {
-                    ReflectionTypeLoadException reflectionTypeLoadException = (ReflectionTypeLoadException)exception;
-                    foreach (Exception ex in reflectionTypeLoadException.LoaderExceptions)
+                    if (exception is ReflectionTypeLoadException)
                     {
-                        WriteException(trace, ex, level);
+                        ReflectionTypeLoadException reflectionTypeLoadException = (ReflectionTypeLoadException)exception;
+                        foreach (Exception ex in reflectionTypeLoadException.LoaderExceptions)
+                        {
+                            WriteException(trace, ex, level);
+                        }
                     }
+                    exception = exception.InnerException;
+                    isInner = true;
                 }
-                exception = exception.InnerException;
-                isInner = true;
+            }catch(Exception)
+            {
+                trace.TraceEvent(level, 2, "Error caught while logging an exception.");
             }
         }
 
