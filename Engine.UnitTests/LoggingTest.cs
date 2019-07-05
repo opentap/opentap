@@ -172,5 +172,29 @@ namespace OpenTap.Engine.UnitTests
         {
             Assert.AreEqual(10000000, TimeSpan.FromSeconds(1).Ticks);
         }
+        
+        void testPrint(string test, int x)
+        {
+            throw new Exception("Intended exception");
+        }
+
+        class ExceptionTest : Exception
+        {
+            public override string StackTrace
+            {
+                get
+                {
+                    return "{1}";
+                }
+            }
+        }
+
+        [Test]
+        public void ExceptionDebugLog()
+        {
+            
+            Log.CreateSource("ExceptionTest").Debug(new ExceptionTest());
+            
+        }
     }
 }
