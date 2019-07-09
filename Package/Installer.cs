@@ -66,12 +66,13 @@ namespace OpenTap.Package
                         log.Info(timer, "Installed " + pkg.Name + " version " + pkg.Version);
 
                         progressPercent += 80 / PackagePaths.Count();
-
-                        if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) && PackagePaths.Last() != fileName)
+                        if (pkg.Name == "OpenTAP")
+                            continue;
+                        var plugins = pkg.Files.Where(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))).Select(k => Path.Combine(TapDir ,k.FileName));
+                        if (plugins.Any())
                         {
                             log.Info(timer, $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
-                            PluginManager.DirectoriesToSearch.Add(TapDir);
-                            PluginManager.SearchAsync();
+                            PluginManager.GetSearcher().Search(plugins);
                         }
                     }
                     catch

@@ -41,11 +41,7 @@ namespace OpenTap.Package
 
             // Add system wide packages
             package_files.AddRange(PackageDef.GetSystemWidePackages());
-
-            // Add packages from user specified search directoriesS
-            foreach (var searchDir in PluginManager.DirectoriesToSearch.Where(p => !p.StartsWith(TapPath)))
-                package_files.AddRange(PackageDef.GetPackageMetadataFilesInTapInstallation(searchDir));
-
+            
             foreach (var file in package_files)
             {
                 var package = installedPackageMemorizer.Invoke(file);
