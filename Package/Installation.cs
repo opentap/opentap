@@ -27,7 +27,7 @@ namespace OpenTap.Package
         }
 
         /// <summary>
-        /// Returns a list of installed packages.
+        /// Returns package definition list of installed packages in the TAP installation defined in the constructor, and system-wide packages.
         /// </summary>
         /// <returns></returns>
         public List<PackageDef> GetPackages()
