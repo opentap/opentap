@@ -89,7 +89,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         List<IMemberData> parseInfosFromString(string str)
         {
-            var cs = this.GetChildSteps(TestStepSearch.All).Select( x => TypeData.GetTypeData(x)).ToArray();
+            var cs = this.RecursivelyGetChildSteps(TestStepSearch.All).Select( x => TypeData.GetTypeData(x)).ToArray();
             var allMembers = cs.SelectMany(x => x.GetMembers().ToArray());
             Dictionary<string, IMemberData> dict = new Dictionary<string, IMemberData>();
             foreach(var x in allMembers)
