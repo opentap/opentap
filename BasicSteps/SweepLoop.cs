@@ -214,14 +214,14 @@ namespace OpenTap.Plugins.BasicSteps
             return ex;
         }
 
-        Dictionary<ITestStep, Tuple<IMemberData, object>> getSweepParameterValues(SweepParam sweepParameter, TestStepList childTestSteps)
+        Dictionary<ITestStep, List<Tuple<IMemberData, object>>> getSweepParameterValues(SweepParam sweepParameter, TestStepList childTestSteps)
         {
-            Dictionary<ITestStep, Tuple<IMemberData, object>> values = new Dictionary<ITestStep, Tuple<IMemberData, object>>();
+            var values = new Dictionary<ITestStep, List<Tuple<IMemberData, object>>>();
             populateChildParameters(values, sweepParameter, childTestSteps);
             return values;
         }
 
-        static void populateChildParameters(Dictionary<ITestStep, Tuple<IMemberData, object>> values, SweepParam sweepParameter, TestStepList childTestSteps)
+        static void populateChildParameters(Dictionary<ITestStep, List<Tuple<IMemberData, object>>> values, SweepParam sweepParameter, TestStepList childTestSteps)
         {
             foreach (ITestStep childTestStep in childTestSteps)
             {
@@ -230,7 +230,11 @@ namespace OpenTap.Plugins.BasicSteps
                 {
                     IMemberData paramProp = stepType.GetMember(property.Name);
                     if (object.Equals(paramProp, property))
-                        values[childTestStep] = new Tuple<IMemberData, object>(paramProp, paramProp.GetValue(childTestStep));
+                    {
+                        if (!values.TryGetValue(childTestStep, out var cons))
+                            values[childTestStep] = new List<Tuple<IMemberData, object>>();
+                        values[childTestStep].Add(new Tuple<IMemberData, object>(paramProp, paramProp.GetValue(childTestStep)));
+                    }
                 }
                 // TODO: do we want this hack??
                 if (false == stepType.DescendsTo(typeof(TestPlanReference)))
@@ -334,7 +338,10 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 for (int i = 0; i < SweepParameters.Count; i++)
                     foreach (var kvp in oldParams[i])
-                        kvp.Value.Item1.SetValue(kvp.Key, kvp.Value.Item2);
+                    {
+                        foreach(var i2 in kvp.Value)
+                            i2.Item1.SetValue(kvp.Key, i2.Item2);
+                    }
             }
         }
 
@@ -461,7 +468,10 @@ namespace OpenTap.Plugins.BasicSteps
                 // Restore values from before the run
                 for (int i = 0; i < SweepParameters.Count; i++)
                     foreach (var kvp in oldParams[i])
-                        kvp.Value.Item1.SetValue(kvp.Key, kvp.Value.Item2);
+                    {
+                        foreach (var i2 in kvp.Value)
+                            i2.Item1.SetValue(kvp.Key, i2.Item2);
+                    }
                 affectedSteps.ForEach(step => step.OnPropertyChanged(""));
             }
         }
