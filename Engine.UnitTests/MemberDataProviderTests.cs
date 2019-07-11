@@ -409,6 +409,20 @@ namespace OpenTap.Engine.UnitTests
             annotations.Write(testobj);
         }
 
+        public class Delay2Step : TestStep
+        {
+            [Display("Time Delay")]
+            public double TimeDelay { get; set; }
+
+            [Display("Time Delay")]
+            public double TimeDelay2 { get; set; }
+            public override void Run()
+            {
+                if (TimeDelay != TimeDelay2)
+                    throw new Exception($"{nameof(TimeDelay)} != {nameof(TimeDelay2)}");
+            }
+        }
+
         [Test]
         public void SweepLoopProviderTest()
         {
@@ -416,6 +430,9 @@ namespace OpenTap.Engine.UnitTests
             var sweep = new SweepLoop();
             var delay1 = new DelayStep();
             sweep.ChildTestSteps.Add(delay1);
+
+            var delay2 = new Delay2Step();
+            sweep.ChildTestSteps.Add(delay2);
 
             var annotation = AnnotationCollection.Annotate(sweep);
             var mem = annotation.Get<IMembersAnnotation>();
@@ -483,7 +500,7 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(Verdict.NotSet, run.Verdict);
 
             // one of the sweep rows was disabled.
-            Assert.AreEqual(6 - 1 , rlistener.StepRuns.Count);
+            Assert.AreEqual(10 - 1 , rlistener.StepRuns.Count);
         }
         
         [Test]

@@ -675,12 +675,18 @@ namespace OpenTap
                 var mems = sources.Select(x => x.Get<IMembersAnnotation>()?.Members.ToArray() ?? Array.Empty<AnnotationCollection>()).ToArray();
                 if (mems.Length == 0) return Array.Empty<AnnotationCollection>();
                 var fst = mems[0];
-                var dicts = mems.Select(x => x.ToDictionary(d => {
-                    // the way we separate members is by display name and type.
-                    // these are normally the different things the user want to select between.
-                    var mem = d.Get<IMemberAnnotation>()?.Member;
-                    return mem.GetDisplayAttribute().GetFullName() + mem.TypeDescriptor.Name;
-                    })).ToArray();
+                Dictionary<string, AnnotationCollection>[] dicts = mems.Select(x =>
+                {
+                    var dict = new Dictionary<string, AnnotationCollection>(x.Length);
+                    foreach (var d in x)
+                    {
+                        var mem = d.Get<IMemberAnnotation>()?.Member;
+                        var key = mem.GetDisplayAttribute().GetFullName() + mem.TypeDescriptor.Name;
+                        if(dict.ContainsKey(key) == false)
+                            dict[key] = d;
+                    }
+                    return dict;
+                }).ToArray();
                 var union = dicts.SelectMany(x => x.Keys).Distinct().ToArray();
                 List<AnnotationCollection> CommonAnnotations = new List<AnnotationCollection>();
                 
