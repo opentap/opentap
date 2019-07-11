@@ -44,7 +44,7 @@ namespace OpenTap.Package
                 TapDir = tapDir?.Trim() ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             }
         }
-        
+
         internal void InstallThread()
         {
             if (cancellationToken.IsCancellationRequested) return;
@@ -66,18 +66,17 @@ namespace OpenTap.Package
                         log.Info(timer, "Installed " + pkg.Name + " version " + pkg.Version);
 
                         progressPercent += 80 / PackagePaths.Count();
-                        if (pkg.Name == "OpenTAP")
-                            continue;
-                        var plugins = pkg.Files.Where(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))).Select(k => Path.Combine(TapDir ,k.FileName));
-                        if (plugins.Any())
+
+                        if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) && PackagePaths.Last() != fileName)
                         {
                             log.Info(timer, $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
-                            PluginManager.GetSearcher().Search(plugins);
+                            PluginManager.DirectoriesToSearch.Add(TapDir);
+                            PluginManager.SearchAsync();
                         }
                     }
                     catch
                     {
-                        if(!ForceInstall)
+                        if (!ForceInstall)
                         {
                             if (PackagePaths.Last() != fileName)
                                 log.Warning("Aborting installation of remaining packages (use --force to override this behavior).");
