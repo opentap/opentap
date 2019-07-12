@@ -102,6 +102,7 @@ namespace OpenTap.Engine.UnitTests
             var tp = new TestPlan();
 
             var sl = new SweepLoop();
+            
             var ds = new SweepTestStep();
 
             sl.ChildTestSteps.Add(ds);
@@ -121,6 +122,35 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsFalse(pr.FailedToStart);
             Assert.AreEqual(7, SweepTestStep.Value);
         }
+
+        [Test]
+        public void SerializeNestedSweepLoopRange()
+        {
+            var tp = new TestPlan();
+            var s1 = new SweepLoopRange();
+            var s2 = new SweepLoopRange();
+            var s3 = new DelayStep() { DelaySecs = 0 };
+            tp.ChildTestSteps.Add(s1);
+            s1.ChildTestSteps.Add(s2);
+            s2.ChildTestSteps.Add(s3);
+            s1.SweepProperties = new List<IMemberData>() { TypeData.FromType(typeof(DelayStep)).GetMember(nameof(DelayStep.DelaySecs)) };
+            s2.SweepProperties = new List<IMemberData>() { TypeData.FromType(typeof(DelayStep)).GetMember(nameof(DelayStep.DelaySecs)) };
+
+            using (var st = new System.IO.MemoryStream())
+            {
+                tp.Save(st);
+                st.Seek(0, 0);
+                tp = TestPlan.Load(st, tp.Path);
+            }
+            s1 = tp.ChildTestSteps[0] as SweepLoopRange;
+            s2 = s1.ChildTestSteps[0] as SweepLoopRange;
+
+            Assert.AreEqual(1, s1.SweepProperties.Count);
+            Assert.AreEqual(1, s2.SweepProperties.Count);
+            Assert.AreEqual(s1.SweepPropertyName, s2.SweepPropertyName);
+
+        }
+
 
         [Ignore("This is very unstable on CI runners")]
         [TestCase(true)]
