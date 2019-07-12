@@ -44,7 +44,7 @@ namespace OpenTap.Package
                 TapDir = tapDir?.Trim() ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             }
         }
-        
+
         internal void InstallThread()
         {
             if (cancellationToken.IsCancellationRequested) return;
@@ -76,7 +76,7 @@ namespace OpenTap.Package
                     }
                     catch
                     {
-                        if(!ForceInstall)
+                        if (!ForceInstall)
                         {
                             if (PackagePaths.Last() != fileName)
                                 log.Warning("Aborting installation of remaining packages (use --force to override this behavior).");
