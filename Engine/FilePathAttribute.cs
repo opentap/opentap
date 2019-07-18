@@ -59,8 +59,10 @@ namespace OpenTap
             {
                 var name = s[i];
                 var value = s[i + 1];
-                if (value.Contains("*.") == false || value.Contains(","))
-                    throw new InvalidFilterSpecification(str);
+                if (value.Contains("*.") == false)
+                    throw new InvalidFilterSpecification($"'{value}' must start with '*'.");
+                if(value.Contains(","))
+                    throw new InvalidFilterSpecification($"'{value}' must not contain ','. Use ';' to separate values.");
                 var filters = value.Split(';');
                 foreach(var filter in filters)
                 {

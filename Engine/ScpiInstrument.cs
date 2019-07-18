@@ -436,10 +436,10 @@ namespace OpenTap
 
             // default value for settings:
             SendClearOnConnect = true;
-            Rules.Add(() => LockHoldoff >= 0, "Lock holdoff must be positive.", "LockHoldoff");
-            Rules.Add(() => IoTimeout >= 0, "I/O timeout must be positive.", "IoTimeout");
-            Rules.Add(visaAddrValid, "Invalid visa address format.", "VisaAddress");
-            Rules.Add(() => !Regex.IsMatch(VisaAddress ?? "", IpPattern), () => "Invalid VISA address, did you mean 'TCPIP::" + VisaAddress + "::INSTR'?", "VisaAddress");
+            Rules.Add(() => LockHoldoff >= 0, "Lock holdoff must be positive.", nameof(LockHoldoff));
+            Rules.Add(() => IoTimeout >= 0, "I/O timeout must be positive.", nameof(IoTimeout));
+            Rules.Add(visaAddrValid, "Invalid VISA address format.", nameof(VisaAddress));
+            Rules.Add(() => !Regex.IsMatch(VisaAddress ?? "", IpPattern), () => "Invalid VISA address, did you mean 'TCPIP::" + VisaAddress + "::INSTR'?", nameof(VisaAddress));
         }
 
         private byte TerminationCharacter { get { return scpiIO.TerminationCharacter; } set { scpiIO.TerminationCharacter = value; } }
