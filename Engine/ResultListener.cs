@@ -123,37 +123,13 @@ namespace OpenTap
         [DataMember]
         public readonly int ParentLevel;
 
-        IConvertible IParameter.Value
-        {
-            get
-            {
-                return Value;
-            }
-        }
+        IConvertible IParameter.Value => Value;
 
-        string IAttributedObject.Name
-        {
-            get
-            {
-                return Name;
-            }
-        }
+        string IAttributedObject.Name => Name;
 
-        string IParameter.Group
-        {
-            get
-            {
-                return Group;
-            }
-        }
+        string IParameter.Group => Group;
 
-        string IAttributedObject.ObjectType
-        {
-            get
-            {
-                return "Parameter";
-            }
-        }
+        string IAttributedObject.ObjectType => "Parameter";
 
         /// <summary> Gets if this result is metadata. </summary>
         public bool IsMetaData { get; internal set; }
@@ -389,7 +365,7 @@ namespace OpenTap
         public static ResultParameters GetParams(ITestStep step)
         {
             if (step == null)
-                throw new ArgumentNullException("step");
+                throw new ArgumentNullException(nameof(step));
             var parameters = new List<ResultParameter>();
             GetPropertiesFromObject(step, parameters);
             if (parameters.Count == 0)
@@ -442,7 +418,7 @@ namespace OpenTap
             AddRange(new[] { parameter });
         }
 
-        ImmutableDictionary<string, int> indexByName = ImmutableDictionary<string, int>.Empty;
+        Dictionary<string, int> indexByName = new Dictionary<string, int>();
 
         /// <summary>
         /// Adds a range of result parameters (synchronized).
@@ -451,11 +427,11 @@ namespace OpenTap
         public void AddRange(IEnumerable<ResultParameter> parameters)
         {
             if (parameters == null)
-                throw new ArgumentNullException("parameters");
+                throw new ArgumentNullException(nameof(parameters));
             lock (addlock)
             {
                 var tmp = data.ToList();
-                var newIndexes = indexByName.ToBuilder();
+                Dictionary<string, int> newIndexes = null;
 
                 foreach (var par in parameters)
                 {
@@ -471,26 +447,26 @@ namespace OpenTap
                     {
                         int nidx = tmp.Count;
                         tmp.Add(par);
-                        if (newIndexes.ContainsKey(par.Name) == false)
-                        {
-                            newIndexes.Add(par.Name, nidx);
-                        }
+                        if (newIndexes == null)
+                            newIndexes = new Dictionary<string, int>(indexByName);
+                        newIndexes[par.Name] = nidx;
                     }
                 }
 
                 data = tmp;
-                indexByName = newIndexes.ToImmutable();
+                if(newIndexes != null)
+                    indexByName = newIndexes;
             }
         }
 
         IEnumerator<ResultParameter> IEnumerable<ResultParameter>.GetEnumerator()
         {
-            return ((IEnumerable<ResultParameter>)data).GetEnumerator();
+            return data.GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return ((IEnumerable<ResultParameter>)data).GetEnumerator();
+            return data.GetEnumerator();
         }
 
         /// <summary> Copies all the data inside a ResultParameters instance. </summary>

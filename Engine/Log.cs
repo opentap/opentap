@@ -9,7 +9,6 @@ using System.Reflection;
 using System.Threading;
 using System.IO;
 using OpenTap.Diagnostic;
-using System.Globalization;
 using System.Collections.Generic;
 
 namespace OpenTap
@@ -379,6 +378,10 @@ namespace OpenTap
             TapContext.MessageBufferSize = 8 * 1024 * 1024;
         }
 
+        // Performance: Reuse the string build each time to avoid generating GC pressure.
+        [ThreadStatic]
+        static System.Text.StringBuilder sb;
+
         /// <summary>
         /// like traceEvent except it uses a stopwatch 'timer' to write formatted time after the message [{1:0}ms].
         /// Usually used to signal in the log how long an operation took.
@@ -391,21 +394,25 @@ namespace OpenTap
         static void traceEvent(this TraceSource trace, TimeSpan elapsed, LogEventType eventType, string message, params object[] args)
         {
             if (message == null)
-                throw new ArgumentNullException("message");
+                throw new ArgumentNullException(nameof(message));
             var timespan = ShortTimeSpan.FromSeconds(elapsed.TotalSeconds);
 
+            if (sb == null)
+                sb = new System.Text.StringBuilder();
+            sb.Clear();
             if (args.Length == 0)
             {
-                trace.TraceEvent(eventType, 0, String.Format("{0} [{1}]", message, timespan));
+                sb.Append(message);
             }
             else
             {
-                var sb = new System.Text.StringBuilder();
                 sb.AppendFormat(message, args);
-                sb.AppendFormat(" [{0}]", timespan.ToString());
-                trace.TraceEvent(eventType, 0, sb.ToString());
             }
-            
+            sb.Append(" [");
+            timespan.ToString(sb);
+            sb.Append("]");
+            trace.TraceEvent(eventType, 0, sb.ToString());
+
         }
 
         /// <summary>
@@ -565,17 +572,6 @@ namespace OpenTap
         {
             traceEvent(trace, elapsed, LogEventType.Error, message, args);
         }
-        ///// <summary>
-        ///// Trace a message at level "Start" (<see cref="LogEventType.Error"/>).
-        ///// </summary>
-        ///// <param name="trace">this(extension method).</param>
-        ///// <param name="message">Message to write.</param>
-        ///// <param name="args">parameters (see <see cref="String.Format(string, object)"/>).</param>
-        //internal static void Start(this Log trace, Stopwatch timer, string message, params object[] args)
-        //{
-        //    traceEvent(trace, timer.Elapsed, LogEventType.Start | LogEventType.Information, message, args);
-        //}
-
         /// <summary>
         /// Trace a message at level "Information" (<see cref="LogEventType.Information"/>).
         /// </summary>
@@ -702,17 +698,6 @@ namespace OpenTap
     /// </summary>
     static class ExceptionExtensions
     {
-        ///// <summary>
-        ///// Finds the inner most exception for this exception. If no inner exceptions are set, this exception is returned.
-        ///// </summary>
-        //public static Exception GetInnerMostException(this Exception ex)
-        //{
-        //    Exception inner = ex;
-        //    while (inner.InnerException != null)
-        //        inner = inner.InnerException;
-        //    return inner;
-        //}
-
         /// <summary>
         /// Finds the message of the inner most exception for this exception. If no inner exceptions are set, the message of this exception is returned.
         /// COMExceptions are ignored as their message is not very useful.
