@@ -12,8 +12,6 @@ using System.IO.Compression;
 using System.Threading;
 using System.Runtime.InteropServices;
 
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("OpenTap.Package.UnitTests")] // This is just for unit testing
-
 namespace OpenTap.Package
 {
     internal enum ActionResult
