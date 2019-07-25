@@ -2,10 +2,10 @@
   <PropertyGroup>
     <TargetFramework>net462</TargetFramework>
     <OutputType>Library</OutputType>
-    <AssemblyName>OpenTap.UnitTests</AssemblyName>
+    <AssemblyName>OpenTap.Package.UnitTests</AssemblyName>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <RootNamespace>OpenTap.UnitTests</RootNamespace>
+    <RootNamespace>OpenTap.Package.UnitTests</RootNamespace>
     <LangVersion>7.2</LangVersion>
     <Configurations>Debug;Release;NetCore</Configurations>
   </PropertyGroup>
@@ -45,9 +45,6 @@
 
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config">
-      <SubType>Designer</SubType>
-    </None>
     <None Include="TapPackages\MyPlugin1.TapPackage">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -106,8 +103,6 @@
     <None Include="TapPackages\REST-API.1.1.180-rc+cbe0b1c4.TapPackages">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-  <ItemGroup>
     <Content Include="TapPackages\MyPlugin2.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -117,8 +112,6 @@
     <Content Include="TapPackages\Tap.7.0.0.0.x64.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="TapPackages\MyPlugin3.TapPackage">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
