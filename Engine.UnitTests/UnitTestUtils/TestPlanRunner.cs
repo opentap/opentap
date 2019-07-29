@@ -27,7 +27,7 @@ namespace OpenTap.EngineUnitTestUtils
             // Add database result output:
             PlanRunCollectorListener pl = new PlanRunCollectorListener();
            
-            const string outputDir = @"c:\PlatformTests\";
+            const string outputDir = @"PlatformTests/";
             if (!Directory.Exists(outputDir))
                 Directory.CreateDirectory(outputDir);
 
@@ -38,7 +38,7 @@ namespace OpenTap.EngineUnitTestUtils
                 log = new LogResultListener();
                 ResultSettings.Current.Add(log);
             }
-            string logFilePath = String.Format(@"c:\PlatformTests\{0}.log", plan.Name);
+            string logFilePath = String.Format(@"PlatformTests/{0}.log", plan.Name);
             log.FilePath.Text = logFilePath;
             TestPlanRun planRun;
             using (Mutex mux = new Mutex(false, "TAPDatabaseAccessMutex"))

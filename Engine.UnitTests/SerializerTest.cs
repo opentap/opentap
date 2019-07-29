@@ -193,8 +193,8 @@ namespace OpenTap.Engine.UnitTests
 
                 ms.Seek(0, SeekOrigin.Begin);
 
-                TestPlan deserialized = TestPlan.Load(ms, target.Path);
-                var step = deserialized.ChildTestSteps.First() as TimespanStep;
+                TestPlan deserialized = TestPlan.Load(ms, null);
+                var step = (TimespanStep)deserialized.ChildTestSteps.First();
 
                 Assert.AreNotEqual(null, step, "Expected step");
                 Assert.AreEqual(targetStep.TestProp, step.TestProp);

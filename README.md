@@ -40,12 +40,27 @@ sudo apt install libc6-dev libunwind8 curl git libcurl3 -y
 ```
 This should install the needed deb dependencies. Once these are installed to following can be done:
 
-```
+```sh
 dotnet build -c NetCore -r linux-x64
 dotnet publish -c NetCore -r linux-x64
 SolutionDir=. dotnet publish -c NetCore -r linux-x64 tap/tap.csproj
 ```
 *Note, the last line is there to ensure getting the right System.Runtime.dll.*
+
+## Testing
+OpenTAP can be tested using NUnit. 
+
+### Windows
+
+Using Visual Studio 2017, open OpenTAP.sln and run the tests in the TestExplorer.
+
+### Linux
+
+To run the entire test suite on Linux, run:
+
+```
+dotnet test -c NetCore
+```
 
 ## Contributing
 
