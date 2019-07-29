@@ -427,8 +427,17 @@ namespace OpenTap
                 if (threadObjects.TryGetValue(identifier, out var _))
                     threadObjects.Remove(identifier);
                 threadObjects.Add(identifier, value);
-
             }
+        }
+
+        /// <summary>
+        /// Removes the thread-locally set value.
+        /// </summary>
+        public void ClearLocal()
+        {
+            var identifier = TapThread.Current;
+            if (threadObjects.TryGetValue(identifier, out var _))
+                threadObjects.Remove(identifier);
         }
     }
 }

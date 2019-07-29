@@ -135,7 +135,7 @@ namespace OpenTap
                 throw new ArgumentNullException("stream");
 
             object obj = Deserialize(XDocument.Load(stream, LoadOptions.SetLineInfo), type: type, autoFlush: flush, path: path);
-            var rs = GetSerializer<OpenTap.Plugins.ResourceSerializer>();
+            var rs = GetSerializer<ResourceSerializer>();
             if (rs.TestPlanChanged)
             {
                 log.Warning("Test Plan changed due to resources missing from Bench settings.");

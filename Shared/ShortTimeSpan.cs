@@ -135,14 +135,26 @@ namespace OpenTap
                 return string.Format(CultureInfo.InvariantCulture, "{0} {1}", Math.Floor(Value), getUnitString(Unit));
         }
 
-        public Tuple<string, string> ToStringParts()
+        /// <summary> To avoid generating extra garbage during formatting, this can be used with StringBuilder. </summary>
+        /// <param name="output"></param>
+        public void ToString(System.Text.StringBuilder output)
         {
             if (Value < 10)
-                return Tuple.Create(string.Format(CultureInfo.InvariantCulture, "{0:0.00}", Math.Floor(Value * 100) * 0.01), getUnitString(Unit));
+                output.AppendFormat(CultureInfo.InvariantCulture, "{0:0.00} {1}", Math.Floor(Value * 100) * 0.01, getUnitString(Unit));
             else if (Value < 100)
-                return Tuple.Create(string.Format(CultureInfo.InvariantCulture, "{0:0.0}", Math.Floor(Value * 10) * 0.1), getUnitString(Unit));
+                output.AppendFormat(CultureInfo.InvariantCulture, "{0:0.0} {1}", Math.Round(Value * 10) * 0.1, getUnitString(Unit));
             else
-                return Tuple.Create(string.Format(CultureInfo.InvariantCulture, "{0:0}", Math.Floor(Value)), getUnitString(Unit));
+                output.AppendFormat(CultureInfo.InvariantCulture, "{0} {1}", Math.Floor(Value), getUnitString(Unit));
+        }
+
+        public (string, string) ToStringParts()
+        {
+            if (Value < 10)
+                return (string.Format(CultureInfo.InvariantCulture, "{0:0.00}", Math.Floor(Value * 100) * 0.01), getUnitString(Unit));
+            else if (Value < 100)
+                return (string.Format(CultureInfo.InvariantCulture, "{0:0.0}", Math.Floor(Value * 10) * 0.1), getUnitString(Unit));
+            else
+                return (string.Format(CultureInfo.InvariantCulture, "{0:0}", Math.Floor(Value)), getUnitString(Unit));
         }
     }
 }

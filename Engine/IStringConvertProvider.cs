@@ -48,8 +48,8 @@ namespace OpenTap
         static class PluginTypeFetcher<T>
         {
             static readonly Dictionary<Type, T> saveTypes = new Dictionary<Type, T>();
-            static ImmutableList<T> things = ImmutableList<T>.Empty;
-            public static IEnumerable<T> GetPlugins()
+            static T[] things = Array.Empty<T>();
+            public static T[] GetPlugins()
             {
                 var types = PluginManager.GetPlugins<T>();
 
@@ -59,7 +59,7 @@ namespace OpenTap
                     {
                         if (types.Count != saveTypes.Count)
                         {
-                            var builder = things.ToBuilder();
+                            var builder = things.ToList();
 
                             foreach (var type in types)
                             {
@@ -78,7 +78,7 @@ namespace OpenTap
                                     } // Ignore erros here.
                                 }
                             }
-                            things = builder.ToImmutable();
+                            things = builder.ToArray();
                         }
                     }
                 }
@@ -87,11 +87,41 @@ namespace OpenTap
             }
         }
 
-        static IEnumerable<IStringConvertProvider> Providers
+        
+        class PreHeater : ITestPlanExecutionHook
         {
-            get { return PluginTypeFetcher<IStringConvertProvider>.GetPlugins(); }
+            public static ThreadHierarchyLocal<IStringConvertProvider[]> preheated = new ThreadHierarchyLocal<IStringConvertProvider[]>();
+            static void PreHeatThread()
+            {
+                preheated.LocalValue = PluginTypeFetcher<IStringConvertProvider>.GetPlugins();
+            }
+
+            static void CooldownThread()
+            {
+                preheated.ClearLocal();
+            }
+
+            public void AfterTestPlanExecute(TestPlan executedPlan, TestPlan requestedPlan)
+            {
+                CooldownThread();
+            }
+
+            public void AfterTestStepExecute(ITestStep testStep)
+            {
+            }
+
+            public void BeforeTestPlanExecute(TestPlan executingPlan)
+            {
+                PreHeatThread();
+            }
+
+            public void BeforeTestStepExecute(ITestStep testStep)
+            {
+            }
         }
 
+        static IStringConvertProvider[] Providers => PreHeater.preheated.LocalValue ?? PluginTypeFetcher<IStringConvertProvider>.GetPlugins();
+        
         /// <summary>
         /// Turn value to a string if an IStringConvertProvider plugin supports the value.
         /// </summary>
@@ -401,14 +431,27 @@ namespace OpenTap
                 return null;
             }
 
+            static Dictionary<Type, Array> isFlagsAttribute = new Dictionary<Type, Array>();
+            static Array getFlagsValues(Type t)
+            {
+                lock (isFlagsAttribute)
+                {
+                    if (isFlagsAttribute.TryGetValue(t, out Array isFlagsValue))
+                        return isFlagsValue;
+
+                    Array values = t.HasAttribute<FlagsAttribute>() ? Enum.GetValues(t) : null;
+                    isFlagsAttribute[t] = values;
+                    return values;
+                }
+            }
+
             /// <summary> Turns an enum into a string. Usually just ToString unless flags. </summary>
             public string GetString(object value, CultureInfo culture)
             {
                 if (false == value is Enum) return null;
-                var type = value.GetType();
-                if (type.HasAttribute<FlagsAttribute>())
+                
+                if (getFlagsValues(value.GetType()) is Array values)
                 {
-                    var values = Enum.GetValues(type);
                     StringBuilder sb = new StringBuilder();
                     Enum val = (Enum)value;
                     bool first = true;
