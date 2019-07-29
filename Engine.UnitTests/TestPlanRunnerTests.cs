@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Linq;
 using NUnit.Framework;
 using System.Diagnostics;
 using System.Collections.Generic;
@@ -11,7 +12,7 @@ using System.Threading;
 using System.Text;
 using System.IO;
 using OpenTap.Cli;
-
+using OpenTap;
 namespace OpenTap.Engine.UnitTests
 {
     [TestFixture]
@@ -87,7 +88,16 @@ namespace OpenTap.Engine.UnitTests
 
                 var container = new TapProcessContainer { TapProcess = proc };
                 container.consoleListener = Task.Factory.StartNew(new Func<string>(container.consoleOutputLoader));
-                var program = Path.Combine(Path.GetDirectoryName(typeof(PluginManager).Assembly.Location), "tap.exe");
+
+                var file = Path.GetDirectoryName(typeof(PluginManager).Assembly.Location);
+                var files = new []{Path.Combine(file, "tap.exe"), Path.Combine(file, "tap"), Path.Combine(file, "tap.dll")};
+                global::OpenTap.Log.CreateSource("test").Debug($"location: {file}");
+                var program = files.First(File. Exists);
+                if(program.Contains(".dll")){
+                    program = "dotnet";
+                    args = $"\"{file}\" " + args;
+                }
+
                 proc.StartInfo = new ProcessStartInfo(program, args)
                 {
                     UseShellExecute = true,
@@ -210,7 +220,7 @@ namespace OpenTap.Engine.UnitTests
             }
             catch(ArgumentNullException ex)
             {
-                Assert.AreEqual("Value cannot be null.\r\nParameter name: plan", ex.Message);
+                Assert.AreEqual($"Value cannot be null.{Environment.NewLine}Parameter name: plan", ex.Message);
                 argumentNullExceptionCaught = true;
             }
             

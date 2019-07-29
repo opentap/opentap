@@ -74,7 +74,7 @@ namespace OpenTap.Package.UnitTests
         {
             int exitCode;
             string output = RunPackageCli("list", out exitCode);
-            Assert.AreEqual(0, exitCode, "Unexpected exit code.\r\n" + output);
+            Assert.AreEqual(0, exitCode, $"Unexpected exit code.{Environment.NewLine}{output}");
             StringAssert.Contains("OpenTAP ", output);
             Debug.Write(output);
         }

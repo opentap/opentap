@@ -38,16 +38,11 @@ namespace OpenTap.EngineUnitTestUtils
                 log = new LogResultListener();
                 ResultSettings.Current.Add(log);
             }
-            string logFilePath = String.Format(@"PlatformTests/{0}.log", plan.Name);
+            string logFilePath = $"{outputDir}/{plan.Name}.log";
             log.FilePath.Text = logFilePath;
-            TestPlanRun planRun;
-            using (Mutex mux = new Mutex(false, "TAPDatabaseAccessMutex"))
-            {
-                mux.WaitOne();
-                planRun = plan.Execute(ResultSettings.Current.Concat(new IResultListener[] { pl }));
-                mux.ReleaseMutex();
-            }
-            List<string> allowedMessages = new List<string>
+            TestPlanRun planRun = plan.Execute(ResultSettings.Current.Concat(new IResultListener[] { pl }));
+            
+                List<string> allowedMessages = new List<string>
             {
                 "DUT chipset is not verified to work with this application."
             };
