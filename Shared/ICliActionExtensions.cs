@@ -86,6 +86,7 @@ namespace OpenTap.Cli
                 else if (prop.PropertyType.IsEnum) prop.SetValue(action, ParseEnum(opts.Key, opts.Value.Value, prop.PropertyType));
                 else if (prop.PropertyType == typeof(string)) prop.SetValue(action, opts.Value.Value);
                 else if (prop.PropertyType == typeof(string[])) prop.SetValue(action, opts.Value.Values.ToArray());
+                else if (prop.PropertyType == typeof(int)) prop.SetValue(action, int.Parse(opts.Value.Value));
                 else throw new Exception(string.Format("Invalid command line option: {0}", opts.Key));
             }
 
