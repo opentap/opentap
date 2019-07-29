@@ -275,6 +275,11 @@ namespace OpenTap.Engine.UnitTests
 
             public SingleEnum TheSingleEnum { get; set; }
 
+            public IEnumerable<SingleEnum> OneEnum => new[] { SingleEnum.A };
+            [AvailableValues(nameof(OneEnum))]
+            public SingleEnum AvailSingleEnum { get; set; } = SingleEnum.A;
+
+
             public List<ScpiInstrument> Instruments { get; set; } = new List<ScpiInstrument>();
 
             public double? NullableDouble { get; set; }
@@ -294,6 +299,8 @@ namespace OpenTap.Engine.UnitTests
 
             public Data1[] DataArray { get; set; } = new Data1[] { new Data1 { X = "5" }, new Data1 { X = "Y" } };
 
+            [DirectoryPath]
+            public Enabled<string> EnabledDirectoryString { get; set; }
         }
         
         [Test]
@@ -324,6 +331,21 @@ namespace OpenTap.Engine.UnitTests
                 if(mem.Member.Name == nameof(DataInterfaceTestClass.SelectableValues))
                 {
 
+                }
+                if (mem.Member.Name == nameof(DataInterfaceTestClass.EnabledDirectoryString))
+                {
+                    var enabledMembers = member.Get<IMembersAnnotation>().Members.ToArray();
+                    Assert.AreEqual(2, enabledMembers.Length);
+                    var valueMember = enabledMembers[1];
+                    var directoryPathAttr = valueMember.Get<DirectoryPathAttribute>();
+                    Assert.IsNotNull(directoryPathAttr);
+                }
+                
+                if (mem.Member.Name == nameof(DataInterfaceTestClass.AvailSingleEnum))
+                {
+                    // #4702 : AvailableValuesAttribute should override enum behavior.
+                    var avail = member.Get<IAvailableValuesAnnotation>();
+                    Assert.AreEqual(1, avail.AvailableValues.Cast<object>().Count());
                 }
                 if(mem.Member.Name == nameof(DataInterfaceTestClass.FromAvailable))
                 {
