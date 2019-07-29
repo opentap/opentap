@@ -112,7 +112,7 @@ namespace OpenTap.Package
                     var path = outputPath;
 
                     if (String.IsNullOrEmpty(path))
-                        path = GetRealFilePath(pkg.Name, pkg.Version.ToString(), DefaultEnding);
+                        path = GetRealFilePathFromName(pkg.Name, pkg.Version.ToString(), DefaultEnding);
 
                     Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)));
 
@@ -156,8 +156,14 @@ namespace OpenTap.Package
             return 0;
         }
 
+        [Obsolete("Will be removed in OpenTAP 10.")]
         public static string GetRealFilePath(string path, string version, string extension)
         {
+            return GetRealFilePathFromName(Path.GetFileNameWithoutExtension(path), version, extension);
+        }
+
+        internal static string GetRealFilePathFromName(string name, string version, string extension)
+        {            
             string toInsert;
             if (String.IsNullOrEmpty(version))
             {
@@ -168,7 +174,7 @@ namespace OpenTap.Package
                 toInsert = "." + version + "."; // insert version between ext and path
             }
 
-            return Path.GetFileNameWithoutExtension(path) + toInsert + extension;
+            return name + toInsert + extension;
         }
     }
 }
