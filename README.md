@@ -25,9 +25,27 @@ For how to develop using OpenTAP check out our __[Developer Guide PDF](http://op
 
 ## Building OpenTAP
 
-If you would like to build OpenTAP yourself you can clone the git repository at https://gitlab.com/OpenTAP/opentap and build the OpenTAP.sln in Visual Studio 2017 (or later) by pressing F5.
+If you would like to build OpenTAP yourself you can clone the git repository at https://gitlab.com/OpenTAP/opentap and build the OpenTAP.sln solution file.
 
-**Note:** You need [Microsoft .NET Framework 4.6.2 Targeting Pack](https://www.microsoft.com/en-us/download/details.aspx?id=53321) to build OpenTAP.
+### Microsoft Windows 10
+ On Window Visual Studio 2017 is needed to build. This can be done by opening the solution and pressing F5 or Shift-B.
+
+**Note:** You need [Microsoft .NET Framework 4.6.2 Targeting Pack](https://www.microsoft.com/en-us/download/details.aspx?id=53321) to build OpenTAP for .NET Framework.
+
+### Linux / .NET Core
+On Linux, you can build the source with .NET Core. You usually need to install some dependencies in addition to .NET Core SDK. On Ubuntu, run the following on apt:
+
+```sh
+sudo apt install libc6-dev libunwind8 curl git libcurl3 -y
+```
+This should install the needed deb dependencies. Once these are installed to following can be done:
+
+```
+dotnet build -c NetCore -r linux-x64
+dotnet publish -c NetCore -r linux-x64
+SolutionDir=. dotnet publish -c NetCore -r linux-x64 tap/tap.csproj
+```
+*Note, the last line is there to ensure getting the right System.Runtime.dll.*
 
 ## Contributing
 
