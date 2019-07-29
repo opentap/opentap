@@ -1,0 +1,66 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+
+  <ItemGroup>
+    <PackagePayloadFiles Condition="'$(MSBuildThisFileDirectory)' != '' And
+                                   HasTrailingSlash('$(MSBuildThisFileDirectory)')"
+                         Include="$(MSBuildThisFileDirectory)payload\**\*"/>
+  </ItemGroup>
+
+  <Target Name="CopyOpenTapPayloadFiles"
+          Condition="'$(CopyOpenTapPayloadFiles)' != 'false' And
+                     '$(OutDir)' != '' And
+                     HasTrailingSlash('$(OutDir)') And
+                     Exists('$(OutDir)')"
+          Inputs="@(PackagePayloadFiles)"
+          Outputs="@(PackagePayloadFiles -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')">
+    <Copy SourceFiles="@(PackagePayloadFiles)"
+          DestinationFiles="@(PackagePayloadFiles -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" />
+  </Target>
+
+  <Target Name="CleanOpenTapPayloadFiles"
+          Condition="'$(CleanOpenTapPayloadFiles)' != 'false' And
+                     '$(OutDir)' != '' And
+                     HasTrailingSlash('$(OutDir)') And
+                     Exists('$(OutDir)')">
+    <ItemGroup>
+      <PackagePayloadFilesToClean Include="@(PackagePayloadFiles -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')"
+                                  Exclude="$(OutDir)Editor.exe"/>
+    </ItemGroup>
+    <Delete Files="@(PackagePayloadFilesToClean)" />
+  </Target>
+
+  <Target Name="CreateOpenTapPackage"
+          Condition="'$(CreateOpenTapPackage)' != 'false' And
+                     '$(OutDir)' != '' And
+                     Exists('$(OutDir)') And
+                     '$(OpenTapPackageDefinitionPath)' != '' And
+                     Exists('$(OpenTapPackageDefinitionPath)')"
+          AfterTargets="Build">
+    <PackageTask Dir="$(OutDir)" ConfFile="$(ProjectDir)\$(OpenTapPackageDefinitionPath)"/>
+  </Target>
+
+  <Target Name="InstallOpenTapPackages"
+        Condition="'$(BuildingInsideVisualStudio)' == 'true'"
+        Inputs="$(MSBuildProjectFullPath)"
+        Outputs="$(OutDir)Packages/%(AdditionalOpenTapPackage.Identity)/package.xml"
+        DependsOnTargets="CopyOpenTapPayloadFiles" AfterTargets="CopyOpenTapPayloadFiles">
+    <Exec Command="$(OutDir)tap.exe package install --dependencies --force &quot;%(AdditionalOpenTapPackage.Identity)&quot;"
+          LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" />
+  </Target>
+
+  <PropertyGroup>
+    <PostBuildEventDependsOn>
+      $(PostBuildEventDependsOn);
+      CopyOpenTapPayloadFiles;
+    </PostBuildEventDependsOn>
+    <BuildDependsOn>
+      $(BuildDependsOn);
+      CopyOpenTapPayloadFiles;
+    </BuildDependsOn>
+    <CleanDependsOn>
+      $(CleanDependsOn);
+      CleanOpenTapPayloadFiles;
+    </CleanDependsOn>
+  </PropertyGroup>
+
+</Project>
