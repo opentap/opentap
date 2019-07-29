@@ -1574,6 +1574,13 @@ namespace OpenTap
                     List<IAnnotation> extra = new List<IAnnotation>();
                     if (unit != null) { extra.Add(unit); }
                     if (avail != null) { extra.Add(avail); }
+                    if (annotation.Get<DirectoryPathAttribute>() is DirectoryPathAttribute d)
+                        extra.Add(d);
+                    if (annotation.Get<FilePathAttribute>() is FilePathAttribute f)
+                        extra.Add(f);
+                    if (annotation.Get<ISuggestedValuesAnnotation>() is ISuggestedValuesAnnotation s)
+                        extra.Add(s);
+
                     extra.Add(new EnabledAccessAnnotation(annotation));
                     var src = annotation.Get<IObjectValueAnnotation>().Value;
                     var newValueMember = annotation.AnnotateMember(valueMember.Get<IMemberAnnotation>().Member, src, extra.ToArray());
@@ -1930,9 +1937,6 @@ namespace OpenTap
 
                 annotation.Add(mem.Member.GetDisplayAttribute());
                 
-                if (mem.Member.GetAttribute<AvailableValuesAttribute>() is AvailableValuesAttribute avail)
-                    annotation.Add(new AvailableValuesAnnotation(annotation, avail.PropertyName));
-
                 if(mem.Member.GetAttribute<SuggestedValuesAttribute>() is SuggestedValuesAttribute suggested)
                     annotation.Add(new SuggestedValueAnnotation(annotation, suggested.PropertyName));
 
@@ -2052,7 +2056,11 @@ namespace OpenTap
                     annotation.Add(new TestStepSelectAnnotation(annotation));
             }
             
-
+            if(mem != null)
+            {
+                if (mem.Member.GetAttribute<AvailableValuesAttribute>() is AvailableValuesAttribute avail)
+                    annotation.Add(new AvailableValuesAnnotation(annotation, avail.PropertyName));
+            }
 
             if (mem?.Member is MemberData mem2 && mem2.DeclaringType.DescendsTo(typeof(ITestStep)))
             {
