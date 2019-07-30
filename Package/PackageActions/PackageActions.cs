@@ -169,13 +169,27 @@ namespace OpenTap.Package
                     if (!packages.Any(p => p.Name == d.Name && d.Version.IsCompatible(p.Version)))
                         throw new Exception($"Unable to run isolated. Cannot find needed dependency '{d.Name}'.");
                     var package = packages.First(p => p.Name == d.Name && d.Version.IsCompatible(p.Version));
-                    allFiles.Add(String.Join("/", PackageDef.PackageDefDirectory, package.Name, PackageDef.PackageDefFileName));
+                    var defPath = String.Join("/", PackageDef.PackageDefDirectory, package.Name, PackageDef.PackageDefFileName);
+                    if (File.Exists(defPath))
+                        allFiles.Add(defPath);
 
                     var fs = package.Files;
+                    var brokenPackages = new HashSet<string>();
                     foreach (var file in fs)
                     {
+                        string loc = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), file.FileName);
+                        if (!File.Exists(loc))
+                        {
+                            brokenPackages.Add(package.Name);
+                            log.Debug($"Could not find file '{loc}' part of package '{package.Name}'.");
+                            continue;
+                        }
+
                         allFiles.Add(file.FileName);
                     }
+
+                    foreach (var name in brokenPackages)
+                        log.Warning($"Package '{name}' has missing files and is broken.");
                 }
 #if DEBUG && !NETCOREAPP
                 // in debug builds tap.exe tries to attach a debugger using EnvDTE.dll, that dll needs to be copied as well.
@@ -185,30 +199,9 @@ namespace OpenTap.Package
 
                 string tempFolder = Path.GetFullPath(FileSystemHelper.CreateTempDirectory());
 
-                Dictionary<string, string> fileloc = new Dictionary<string, string>();
-
-                foreach (var file in Directory.EnumerateFiles(".", "*", SearchOption.AllDirectories))
-                {
-                    fileloc[Path.GetFileName(file)] = file;
-                }
-
                 foreach (var _loc in allFiles.Distinct())
                 {
                     string loc = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), _loc);
-                    if (!File.Exists(loc))
-                    {
-                        var name = Path.GetFileName(loc);
-                        if (fileloc.ContainsKey(name))
-                            loc = fileloc[Path.GetFileName(loc)];
-                        else
-                            loc = null;
-                    }
-
-                    if (loc == null)
-                    {
-                        // warning
-                        continue;
-                    }
 
                     var newloc = Path.Combine(tempFolder, _loc);
                     OpenTap.FileSystemHelper.EnsureDirectory(newloc);
