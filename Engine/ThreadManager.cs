@@ -38,7 +38,7 @@ namespace OpenTap
         static ThreadManager manager = new ThreadManager();
         Action action;
         readonly CancellationTokenSource abortTokenSource;
-        static readonly TraceSource Log = OpenTap.Log.CreateSource("TapThread");
+        static readonly TraceSource Log = OpenTap.Log.CreateSource(nameof(TapThread));
         #endregion
 
         #region properties
@@ -57,6 +57,33 @@ namespace OpenTap
             }
         }
 
+        // <summary> Pretends that the current thread is a different thread while evaluating 'action'. 
+        /// This affects the functionality of ThreadHeirachyLocals and TapThread.Current. 
+        /// This overload also specifies which parent thread should be used.</summary>
+        public static void WithNewContext(Action action, TapThread parent)
+        {
+            var currentThread = Current;
+            ThreadManager.ThreadKey = new TapThread(parent, action, currentThread.Name)
+            {
+                Status = TapThreadStatus.Running
+            };
+            try
+            {
+                action();
+            }
+            finally
+            {
+                ThreadManager.ThreadKey = currentThread;
+            }
+        }
+
+        /// <summary> Pretends that the current thread is a different thread while evaluating 'action'. 
+        /// This affects the functionality of ThreadHeirachyLocals and TapThread.Current. </summary>
+        public static void WithNewContext(Action action)
+        {
+            WithNewContext(action, parent: Current);
+        }
+        
         /// <summary> An (optional) name identifying the OpenTAP thread. </summary>
         public readonly string Name;
 
