@@ -50,8 +50,8 @@ namespace OpenTap.Plugins.BasicSteps
             public string Message { get; private set; } = "Continue?";
             [Submit]
             [Layout(LayoutMode.FloatBottom | LayoutMode.FullRow)]
-            
-            public WaitForInputResult1 Response { get; set; }
+
+            public WaitForInputResult1 Response { get; set; } = WaitForInputResult1.Yes;
         }
 
         public override void Run()
