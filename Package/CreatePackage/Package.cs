@@ -482,7 +482,7 @@ namespace OpenTap.Package
                                     log.Info($"'{Path.GetFileName(depender.FileName)}' dependents on '{unknown.Name}' version '{unknown.Version}'. Adding dependency to package, it was not found in any other packages.");
 
                                 var destPath = string.Format("Dependencies/{0}.{1}/{2}", Path.GetFileNameWithoutExtension(foundAsm.Location), foundAsm.Version.ToString(), Path.GetFileName(foundAsm.Location));
-                                pkg.Files.Add(new PackageFile { FileName = foundAsm.Location, RelativeDestinationPath = destPath, DependentAssemblyNames = foundAsm.References.ToList() });
+                                pkg.Files.Add(new PackageFile { SourcePath = foundAsm.Location, RelativeDestinationPath = destPath, DependentAssemblyNames = foundAsm.References.ToList() });
 
                                 // Copy the file to the actual directory so we can rely on it actually existing where we say the package has it.
                                 if (!File.Exists(destPath))

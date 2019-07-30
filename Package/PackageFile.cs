@@ -57,6 +57,7 @@ namespace OpenTap.Package
         [XmlIgnore]
         public string FileName
         {
+            set => sourcePath = value;
             // When this type is deserialized from an xml file, FileName will 
             // be unset, so we use the value from RelativeDestinationPath
             get => sourcePath ??  RelativeDestinationPath;
