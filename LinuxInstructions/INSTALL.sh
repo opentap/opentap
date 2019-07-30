@@ -26,7 +26,7 @@ mkdir -p $DEST_DIR
 mkdir -p $BIN_DIR
 
 cd $DEST_DIR
-unzip $CUR_DIR/OpenTAPLinux.TapPackage -d $DEST_DIR
+unzip $CUR_DIR/*TAPLinux.TapPackage -d $DEST_DIR # *: match OpenTAPLinux and just TAPLinux.
 chmod -R +w .
 
 chmod +x tap
