@@ -150,11 +150,27 @@ It is possible to include multiple files using only a single **File** element us
 
 | Wildcard | Description                                         | Example |  Matches             |
 | -------- | --------------------------------------------------- | ------- | -------------------- |
-| *        | matches any number of any characters including none | Law*    | Law, Laws, or Lawyer | 
-| ?        | matches any single character                        | ?at     | Cat, cat, Bat or bat |
-| **       | matches any number of path / directory segments. When used must be the only contents of a segment. | /**/some.* | /foo/bar/bah/some.txt, /some.txt, or /foo/some.txt |
+| *        | Matches any number of any characters including none. | Law*    | Law, Laws, or Lawyer | 
+| ?        | Matches any single character.                        | ?at     | Cat, cat, Bat or bat |
+| **       | Matches any number of path / directory segments. When used must be the only contents of a segment. | /**/some.* | /foo/bar/bah/some.txt, /some.txt, or /foo/some.txt. |
 
-When using wildcards in the **Path** attribute, the **SourcePath** attribute has no effect. Generated **File** elements will have all the same child elements as the original wildcard element.
+When using wildcards in the **Path** attribute, the **SourcePath** attribute has no effect. All matching **File** elements will have all the same child elements as the original wildcard element. So this feature could be applied to the XML from the previous section as such:
+```xml
+...
+ <Files>
+    <File Path="Packages/MyPlugin/*.dll">
+      <!-- SetAssemblyInfo Applied to all '.dll' files matching the wildcard. -->
+      <SetAssemblyInfo Attributes="Version"/> 
+    </File>
+   <!-- All '.wfm' files from the directory are included. -->
+   <File Path="Packages/MyPlugin/*.wfm"/> 
+   <File Path="Packages/MyPlugin/Example Icon.ico">
+    <!-- Only one package icon - no wildcard is used. -->
+     <PackageIcon/> 
+   </File>
+ </Files>
+ ...
+ ```
 
 ## Command Line Use
 You can create an OpenTAP package from the command line or from MSBUILD (directly in Visual Studio). If you create an OpenTAP project in Visual Studio using the SDK, the resulting project is set up to generate a .TapPackage using the Keysight.OpenTAP.Sdk.MSBuild.dll (only when building in "Release" configuration).
