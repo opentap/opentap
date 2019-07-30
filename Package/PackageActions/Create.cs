@@ -69,7 +69,8 @@ namespace OpenTap.Package
                 }
                 try
                 {
-                    pkg = PackageDefExt.FromInputXml(PackageXmlFile);
+                    var fullpath = Path.GetFullPath(PackageXmlFile);
+                    pkg = PackageDefExt.FromInputXml(fullpath);
 
                     // Check if package name has invalid characters or is not a valid path
                     var illegalCharacter = pkg.Name.IndexOfAny(Path.GetInvalidFileNameChars());
