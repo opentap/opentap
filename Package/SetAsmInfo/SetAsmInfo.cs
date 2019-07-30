@@ -438,7 +438,7 @@ namespace OpenTap.Package.SetAsmInfo
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception("Error while updating version information.", ex);
+                    throw new Exception($"Error while updating version information for '{filename}'", ex);
                 }
             }
 

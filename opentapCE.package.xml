@@ -9,7 +9,7 @@
         <SetAssemblyInfo Attributes="Version"/>
         <Sign Certificate="Keysight Technologies, Inc."/>
     </File>
-    <File Path="Packages/OpenTAP/OpenTap.Cli.dll">
+    <File Path="Packages/OpenTAP/OpenTap.Cli.dll" SourcePath="OpenTap.Cli.dll">
         <SetAssemblyInfo Attributes="Version"/>
         <Sign Certificate="Keysight Technologies, Inc."/>
     </File>
@@ -17,7 +17,7 @@
         <SetAssemblyInfo Attributes="Version"/>
         <Sign Certificate="Keysight Technologies, Inc."/>
     </File>
-    <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll">
+    <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" SourcePath="OpenTap.Plugins.BasicSteps.dll">
         <SetAssemblyInfo Attributes="Version"/>
         <Sign Certificate="Keysight Technologies, Inc."/>
     </File>

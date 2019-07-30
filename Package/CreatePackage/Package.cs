@@ -35,13 +35,13 @@ namespace OpenTap.Package
                     {
                         try
                         {
-                            // if the file is already in its destination dir use that inatead.
+                            // if the file is already in its destination dir use that instead.
                             // That file is much more likely to be inside the OpenTAP dir we already searched.
-                            string fullPath = Path.GetFullPath(def.RelativeDestinationPath);
+                            string fullPath = Path.GetFullPath(def.FileName);
                             string dir = Path.GetDirectoryName(fullPath);
                             
                             AssemblyData assembly = searchedAssemblies.FirstOrDefault(a => PathUtils.AreEqual(a.Location, fullPath));
-                            
+
                             if (assembly != null)
                             {
                                 var otherversions = searchedAssemblies.Where(a => a.Name == assembly.Name).ToList();
@@ -82,6 +82,7 @@ namespace OpenTap.Package
                             }
                             else
                             {
+                                // This error could be critical since assembly dependencies won't be found.
                                 log.Warning($"Could not load plugins for '{fullPath}'");
                             }
                         }
@@ -130,14 +131,14 @@ namespace OpenTap.Package
                 if (!File.Exists(fullPath))
                 {
                     string fileName = Path.GetFileName(item.FileName);
-                    if (File.Exists(fileName))
+                    if (File.Exists(fileName) && item.SourcePath == null)
                     {
                         // this is to support building everything to the root folder. This way the developer does not have to specify SourcePath.
                         log.Info("Specified file '{0}' was not found, using file '{1}' as source instead. Consider setting SourcePath to remove this warning.", item.FileName,fileName);
                         item.SourcePath = fileName;
                     }
                     else
-                        exceptions.Add(new FileNotFoundException("", fullPath));
+                        exceptions.Add(new FileNotFoundException("Missing file for package.", fullPath));
                 }
             }
             if (exceptions.Count > 0)
@@ -623,7 +624,7 @@ namespace OpenTap.Package
 
                     Directory.CreateDirectory(Path.GetDirectoryName(tempName));
                     ProgramHelper.FileCopy(file.FileName, tempName);
-                    file.FileName = tempName;
+                    file.SourcePath = tempName;
                 }
 
                 SemanticVersion fVersion = null;
