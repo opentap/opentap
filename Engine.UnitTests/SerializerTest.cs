@@ -615,6 +615,7 @@ namespace OpenTap.Engine.UnitTests
                 ScpiTestStep step = new ScpiTestStep();
                 step.Instrument = null;
                 var xml = new TapSerializer().SerializeToString(step);
+                Assert.IsTrue(xml.Contains($"<Instrument />"));
                 var deserializedStep = new TapSerializer().DeserializeFromString(xml) as ScpiTestStep;
                 Assert.AreEqual(step.Instrument, deserializedStep.Instrument);
             }
