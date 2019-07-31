@@ -39,7 +39,8 @@ namespace OpenTap
 
         public SimpleTapAssemblyResolver()
         {
-            string curAssemblyFolder = new Uri(Assembly.GetExecutingAssembly().CodeBase).LocalPath;
+
+            string curAssemblyFolder = Path.GetDirectoryName(Environment.GetEnvironmentVariable("OPENTAP_INIT_DIRECTORY"));
             string currentDir = Path.GetDirectoryName(curAssemblyFolder);
             assemblies = Directory.EnumerateFiles(currentDir, "*.*", SearchOption.AllDirectories)
                 .Where(s => s.EndsWith(".dll", StringComparison.InvariantCultureIgnoreCase) || s.EndsWith(".exe", StringComparison.InvariantCultureIgnoreCase))
@@ -59,7 +60,7 @@ namespace OpenTap
             Assembly loadedAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.FullName == args.Name);
             if (loadedAssembly != null)
                 return loadedAssembly;
-
+            
             if (!string.IsNullOrWhiteSpace(assembly))
                 return Assembly.LoadFrom(assembly);
 

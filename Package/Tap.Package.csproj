@@ -29,6 +29,11 @@
     <Optimize>true</Optimize>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)'=='NetCoreDebug'">
+    <OutputPath>$(SolutionDir)bin\Debug\</OutputPath>
+    <DefineConstants>TRACE;DEBUG</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <None Remove="PackageSchema.xsd" />
   </ItemGroup>

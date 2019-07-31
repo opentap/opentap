@@ -35,6 +35,11 @@
     <DocumentationFile>$(SolutionDir)bin\Release\OpenTap.xml</DocumentationFile>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)'=='NetCoreDebug'">
+    <OutputPath>$(SolutionDir)bin\Debug\</OutputPath>
+    <DefineConstants>TRACE;DEBUG</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup>
     <Compile Remove="Licensing\*" />
   </ItemGroup>

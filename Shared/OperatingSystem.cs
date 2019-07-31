@@ -3,7 +3,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace OpenTap
 {
@@ -50,4 +52,50 @@ namespace OpenTap
             }
         }
     }
+
+    internal class SharedLibrary {
+
+        [DllImport("kernel32.dll")]
+        static extern IntPtr LoadLibrary(string filename);
+
+        [DllImport("kernel32.dll")]
+        static extern IntPtr GetProcAddress(IntPtr hModule, string procname);
+
+
+        [DllImport("libdl.so")]
+        static extern IntPtr dlopen(string filename, int flags);
+
+        const int RTLD_GLOBAL = 0x00100;
+        delegate IntPtr loadLibType(string name);
+        static loadLibType LoadLib;
+
+        static SharedLibrary(){
+            
+            if(OperatingSystem.Current == OperatingSystem.Linux)
+            {
+                LoadLib = (name) => dlopen(name, RTLD_GLOBAL);
+            }
+            else{
+                LoadLib = LoadLibrary;
+            }
+
+        }
+
+        IntPtr handle;
+        public SharedLibrary(IntPtr handle){
+            this.handle = handle;
+        }
+        public static SharedLibrary Load(string name)
+        {
+            Console.ReadLine();
+            var handle = LoadLib(name);
+            Console.ReadLine();
+            Console.WriteLine($"Loaded {name}: {handle}");
+            if(handle == null) return null;
+
+            return new SharedLibrary(handle);
+        }
+
+    }
+
 }

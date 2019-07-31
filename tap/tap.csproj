@@ -23,24 +23,29 @@
   
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
     <OutputPath>$(SolutionDir)bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
     <Optimize>true</Optimize>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='NetCore'">
     <TargetFramework>netcoreapp2.1</TargetFramework>
     <RuntimeIdentifiers>linux-x64</RuntimeIdentifiers>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-    <PlatformTarget>x64</PlatformTarget>
     <OutputPath>$(SolutionDir)bin\Release\</OutputPath>
     <Optimize>true</Optimize>
+    <RunWorkingDirectory>$(SolutionDir)bin\Release\</RunWorkingDirectory>
   </PropertyGroup>
   
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'">
+  <PropertyGroup Condition="'$(Configuration)'=='NetCoreDebug'">
+  <TargetFramework>netcoreapp2.1</TargetFramework>
+  <RuntimeIdentifiers>linux-x64</RuntimeIdentifiers>
+  <OutputPath>$(SolutionDir)bin\Debug\</OutputPath>
+  <DefineConstants>TRACE;DEBUG</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Platform)'=='x86'">
     <PlatformTarget>x86</PlatformTarget>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+  <PropertyGroup Condition="'$(Platform)'=='x64'">
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
 
