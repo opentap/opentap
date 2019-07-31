@@ -1,43 +1,18 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+<Import Project="$(SolutionDir)Common.targets"/>
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <RuntimeFrameworkVersion>2.1.0</RuntimeFrameworkVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <LangVersion>7.2</LangVersion>
     <AssemblyOriginatorKeyFile>Keysight.Tap.snk</AssemblyOriginatorKeyFile>
     <AssemblyName>OpenTap</AssemblyName>
     <RootNamespace>OpenTap</RootNamespace>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <Configurations>Debug;Release;NetCore</Configurations>
   </PropertyGroup>
-
-  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-    <OutputPath>$(SolutionDir)bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE;KEYSIGHT_INTERNAL</DefineConstants>
-  </PropertyGroup>
-
   <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-    <OutputPath>$(SolutionDir)bin\Release\</OutputPath>
-    <DebugType>pdbonly</DebugType>
-    <DefineConstants>TRACE</DefineConstants>
-    <Optimize>true</Optimize>
     <DocumentationFile>$(SolutionDir)bin\Release\OpenTap.xml</DocumentationFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='NetCore'">
-    <OutputPath>$(SolutionDir)bin\Release\</OutputPath>
-    <DebugType>pdbonly</DebugType>
-    <DefineConstants>TRACE</DefineConstants>
-    <Optimize>true</Optimize>
-    <DocumentationFile>$(SolutionDir)bin\Release\OpenTap.xml</DocumentationFile>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)'=='NetCoreDebug'">
-    <OutputPath>$(SolutionDir)bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG</DefineConstants>
+    <DocumentationFile>$(SolutionDir)bin\Release\OpenTap.xml</DocumentationFile>    
   </PropertyGroup>
 
   <ItemGroup>

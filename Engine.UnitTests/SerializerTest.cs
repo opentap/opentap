@@ -943,8 +943,8 @@ namespace OpenTap.Engine.UnitTests
                 var ser = new TapSerializer();
 
                 ser.GetSerializer<Plugins.ExternalParameterSerializer>()
-                    .PreloadedValues["path1"] = "TestTestPlans\\testReferencedPlan3.TapPlan";
-                TestPlan plan = (TestPlan)ser.DeserializeFromFile("TestTestPlans\\testMultiReferencePlan.TapPlan");
+                    .PreloadedValues["path1"] = "TestTestPlans/testReferencedPlan3.TapPlan";
+                TestPlan plan = (TestPlan)ser.DeserializeFromFile("TestTestPlans/testMultiReferencePlan.TapPlan");
 
                 // The last step is a SetVerdict step, which points into the last TestPlanReferenceStep.
                 // inside that there should be a SetVerdict that results in an inconclusive verdict.

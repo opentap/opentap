@@ -1,54 +1,16 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
+  <Import Project="$(SolutionDir)Common.targets"/>
   <PropertyGroup>
-    <TargetFramework>net462</TargetFramework>
     <OutputType>Exe</OutputType>
     <AssemblyName>tap</AssemblyName>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <Platforms>x86;x64;AnyCPU</Platforms>
-    <Configurations>Debug;Release;NetCore</Configurations>
     <RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
   </PropertyGroup>
   
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-    <OutputPath>$(SolutionDir)bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE;KEYSIGHT_INTERNAL</DefineConstants>
-    <Optimize>false</Optimize>
     <DebugType>full</DebugType>
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   
-  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-    <OutputPath>$(SolutionDir)bin\Release\</OutputPath>
-    <Optimize>true</Optimize>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)'=='NetCore'">
-    <TargetFramework>netcoreapp2.1</TargetFramework>
-    <RuntimeIdentifiers>linux-x64</RuntimeIdentifiers>
-    <OutputPath>$(SolutionDir)bin\Release\</OutputPath>
-    <Optimize>true</Optimize>
-    <RunWorkingDirectory>$(SolutionDir)bin\Release\</RunWorkingDirectory>
-  </PropertyGroup>
-  
-  <PropertyGroup Condition="'$(Configuration)'=='NetCoreDebug'">
-  <TargetFramework>netcoreapp2.1</TargetFramework>
-  <RuntimeIdentifiers>linux-x64</RuntimeIdentifiers>
-  <OutputPath>$(SolutionDir)bin\Debug\</OutputPath>
-  <DefineConstants>TRACE;DEBUG</DefineConstants>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Platform)'=='x86'">
-    <PlatformTarget>x86</PlatformTarget>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Platform)'=='x64'">
-    <PlatformTarget>x64</PlatformTarget>
-  </PropertyGroup>
-
   <Target Name="RemoveDepsJson" AfterTargets="Publish">
     <Exec Command="rm $(PublishDir)tap.deps.json" />
     <Exec Command="rm $(PublishDir)tap.runtimeconfig.json" />
