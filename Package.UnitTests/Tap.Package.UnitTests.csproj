@@ -3,7 +3,6 @@
   <Import Project="$(SolutionDir)Common.Exe.targets"/>
   
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.1</TargetFramework>
     <OutputType>Library</OutputType>
     <AssemblyName>OpenTap.Package.UnitTests</AssemblyName>
     <RootNamespace>OpenTap.Package.UnitTests</RootNamespace>

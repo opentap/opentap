@@ -1,11 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 <Import Project="$(SolutionDir)Common.targets"/>
   <PropertyGroup>
-    <TargetFramework>netcoreapp2.1</TargetFramework>
     <OutputType>Library</OutputType>
     <AssemblyName>OpenTap.UnitTests</AssemblyName>
     <RootNamespace>OpenTap.UnitTests</RootNamespace>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
   
   <ItemGroup>
