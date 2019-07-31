@@ -57,7 +57,7 @@ namespace OpenTap
             }
         }
 
-        // <summary> Pretends that the current thread is a different thread while evaluating 'action'. 
+        /// <summary> Pretends that the current thread is a different thread while evaluating 'action'. 
         /// This affects the functionality of ThreadHeirachyLocals and TapThread.Current. 
         /// This overload also specifies which parent thread should be used.</summary>
         public static void WithNewContext(Action action, TapThread parent)
