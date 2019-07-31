@@ -1,9 +1,11 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
     <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <TargetFramework>net462</TargetFramework>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <TargetFramework>net462</TargetFramework>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)'=='NetCore'">

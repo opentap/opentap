@@ -1,6 +1,6 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <TargetFramework>net462</TargetFramework>
+        <TargetFrameworks>net462;netstandard2</TargetFrameworks>
         <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
         <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
@@ -11,12 +11,14 @@
         <Platforms>x86;x64;AnyCPU</Platforms>
     </PropertyGroup>
 
-    <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+        <TargetFramework>net462</TargetFramework>
         <OutputPath>$(SolutionDir)bin/Debug/</OutputPath>
         <Optimize>false</Optimize>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+        <TargetFramework>net462</TargetFramework>
         <OutputPath>$(SolutionDir)bin\Release\</OutputPath>
         <DebugType>pdbonly</DebugType>
         <DefineConstants>TRACE</DefineConstants>
