@@ -6,12 +6,12 @@
         <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
         <LangVersion>7.2</LangVersion>
         <Configurations>Debug;Release;NetCore;NetCoreDebug</Configurations>
+        <DefineConstants>DEBUG;TRACE</DefineConstants>
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
         <Platforms>x86;x64;AnyCPU</Platforms>
     </PropertyGroup>
 
     <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-        <DefineConstants>DEBUG;TRACE</DefineConstants>
         <OutputPath>$(SolutionDir)bin/Debug/</OutputPath>
         <Optimize>false</Optimize>
     </PropertyGroup>
@@ -30,6 +30,7 @@
         <PlatformTarget>x64</PlatformTarget>
         <OutputPath>$(SolutionDir)bin\Release\</OutputPath>
         <Optimize>true</Optimize>
+        <DefineConstants>TRACE</DefineConstants>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     </PropertyGroup>
 
@@ -47,6 +48,8 @@
   <PropertyGroup Condition="'$(Platform)'=='x64'">
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
+
+  
 
 
 </Project>

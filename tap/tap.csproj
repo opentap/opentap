@@ -11,6 +11,18 @@
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
   
+  <ItemGroup Condition="'$(Configuration)'=='NetCoreDebug'">
+    <None Include="$(SolutionDir)/Shared/tap.runtimeconfig.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  
+<ItemGroup Condition="'$(Configuration)'=='NetCore'">
+    <None Include="$(SolutionDir)/Shared/tap.runtimeconfig.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
   <Target Name="RemoveDepsJson" AfterTargets="Publish">
     <Exec Command="rm $(PublishDir)tap.deps.json" />
     <Exec Command="rm $(PublishDir)tap.runtimeconfig.json" />
