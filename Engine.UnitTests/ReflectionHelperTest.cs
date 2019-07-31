@@ -36,6 +36,8 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void MemoryMappedApiTest()
         {
+            if(OpenTap.OperatingSystem.Current == OpenTap.OperatingSystem.Linux) 
+                return;  // this feature is currently not supported on Linux.
             var api = new MemoryMappedApi();
             var strings = new[] { "asd", "cxze", "" };
             foreach(var str in strings)

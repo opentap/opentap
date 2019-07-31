@@ -257,6 +257,7 @@ namespace OpenTap
         /// <param name="name">The (Optional) name of the new OpenTAP thread. </param>
         public TapThread Enqueue(Action action, string name = "")
         {
+            if(cancelSrc.IsCancellationRequested) throw new Exception("ThreadManager has been disposed.");
             var newThread = new TapThread(TapThread.Current, action, name);
             workQueue.Enqueue(newThread);
             freeWorkSemaphore.Release();

@@ -924,7 +924,7 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void DeserializeLegacyTapPlan()
         {
-            var stream = File.OpenRead("TestTestPlans\\FiveDelays.TapPlan");
+            var stream = File.OpenRead("TestTestPlans/FiveDelays.TapPlan");
             TestPlan plan = (TestPlan)new TapSerializer().Deserialize(stream, type: TypeData.FromType(typeof(TestPlan)));
 
             var childSteps = plan.ChildTestSteps.OfType<DelayStep>().ToArray();
