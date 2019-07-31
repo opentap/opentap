@@ -605,6 +605,26 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual("test", inst.VisaAddress);
         }
 
+        [Test]
+        public void SerializeDeserializeNullResource()
+        {
+            IInstrument instr = new ScpiDummyInstrument();
+            InstrumentSettings.Current.Add(instr);
+            try
+            {
+                ScpiTestStep step = new ScpiTestStep();
+                step.Instrument = null;
+                var xml = new TapSerializer().SerializeToString(step);
+                Assert.IsTrue(xml.Contains($"<Instrument />"));
+                var deserializedStep = new TapSerializer().DeserializeFromString(xml) as ScpiTestStep;
+                Assert.AreEqual(step.Instrument, deserializedStep.Instrument);
+            }
+            finally
+            {
+                InstrumentSettings.Current.Remove(instr);
+            }
+        }
+
         public class StringObject
         {
             public string TheString { get; set; }

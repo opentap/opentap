@@ -618,34 +618,34 @@ namespace OpenTap.Plugins
                             try
                             {
                                 object val = subProp.GetValue(obj);
-                                    if (val != null)
+                                if (val != null || ComponentSettingsList.HasContainer(((TypeData)subProp.TypeDescriptor).Type)) // Don't write elements for null values (assuming that is the default). Except for
+                                {                                                                                               // Resources (things that has a ComponentSettings list), here we know that the default it not null.
+                                    var enu = val as IEnumerable;
+                                    if (enu != null && enu.GetEnumerator().MoveNext() == false) // the value is an empty IEnumerable
                                     {
-                                        var enu = val as IEnumerable;
-                                        if (enu != null && enu.GetEnumerator().MoveNext() == false) // the value is an empty IEnumerable
+                                        var defaultAttr = subProp.GetAttribute<DefaultValueAttribute>();
+                                        if (defaultAttr != null && defaultAttr.Value == null)
+                                            continue;
+                                    }
+                                    var attr = subProp.GetAttribute<XmlElementAttribute>();
+                                    if (subProp.TypeDescriptor is TypeData cst && cst.Type.HasInterface<IList>() && cst.Type.IsGenericType && attr != null)
+                                    {
+                                        // Special case to mimic old .NET XmlSerializer behavior
+                                        foreach (var item in enu)
                                         {
-                                            var defaultAttr = subProp.GetAttribute<DefaultValueAttribute>();
-                                            if (defaultAttr != null && defaultAttr.Value == null)
-                                                continue;
-                                        }
-                                        var attr = subProp.GetAttribute<XmlElementAttribute>();
-                                        if (subProp.TypeDescriptor is TypeData cst && cst.Type.HasInterface<IList>() && cst.Type.IsGenericType && attr != null)
-                                        {
-                                            // Special case to mimic old .NET XmlSerializer behavior
-                                            foreach (var item in enu)
-                                            {
-                                                string name = attr.ElementName ?? subProp.Name;
-                                                XElement elem2 = new XElement(XmlConvert.EncodeLocalName(name));
-                                                Serializer.Serialize(elem2, item, TypeData.FromType(cst.Type.GetGenericArguments().First()));
-                                                elem.Add(elem2);
-                                            }
-                                        }
-                                        else
-                                        {
-                                            XElement elem2 = new XElement(XmlConvert.EncodeLocalName(subProp.Name));
-                                            Serializer.Serialize(elem2, val, subProp.TypeDescriptor);
+                                            string name = attr.ElementName ?? subProp.Name;
+                                            XElement elem2 = new XElement(XmlConvert.EncodeLocalName(name));
+                                            Serializer.Serialize(elem2, item, TypeData.FromType(cst.Type.GetGenericArguments().First()));
                                             elem.Add(elem2);
                                         }
                                     }
+                                    else
+                                    {
+                                        XElement elem2 = new XElement(XmlConvert.EncodeLocalName(subProp.Name));
+                                        Serializer.Serialize(elem2, val, subProp.TypeDescriptor);
+                                        elem.Add(elem2);
+                                    }
+                                }
                             }
                             catch (Exception e)
                             {
