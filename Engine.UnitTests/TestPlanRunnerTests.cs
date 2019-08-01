@@ -86,88 +86,7 @@ namespace OpenTap.Engine.UnitTests
 
         }
 
-        class TapProcessContainer
-        {
-            public Process TapProcess;
-            public string ConsoleOutput = "";
-            Task consoleListener;
-            bool procStarted = false;
-            void go(){
-                procStarted = TapProcess.Start();
-                StringBuilder ConsoleOutput = new StringBuilder();
-                var procOutput = TapProcess.StandardOutput;
-                var procOutput2 = TapProcess.StandardError;
-                void consoleOutputLoader()
-                {
-                    char[] buffer = new char[100];
-
-                    while (!procOutput.EndOfStream)
-                    {
-                        int read = procOutput.Read(buffer, 0, buffer.Length);
-                        ConsoleOutput.Append(buffer, 0, read);
-                        int read2 = procOutput2.Read(buffer, 0, buffer.Length);
-                        ConsoleOutput.Append(buffer, 0, read2);
-                        Thread.Sleep(10);
-                    }
-                    this.ConsoleOutput = ConsoleOutput.ToString();
-                }
-                consoleListener = Task.Factory.StartNew(new Action(consoleOutputLoader));
-            }
-            public static TapProcessContainer StartFromArgs(string args)
-            {
-                Process proc = new Process();
-
-                var container = new TapProcessContainer { TapProcess = proc };
-                
-
-                var file = Path.GetDirectoryName(typeof(PluginManager).Assembly.Location);
-                var files = new []{Path.Combine(file, "tap.exe"), Path.Combine(file, "tap"), Path.Combine(file, "tap.dll")};
-                global::OpenTap.Log.CreateSource("test").Debug($"location: {file}");
-                var program = files.First(File. Exists);
-                if(program.Contains(".dll")){
-                    program = "dotnet";
-                    args = $"\"{file}/tap.dll\" " + args;
-                }
-
-                proc.StartInfo = new ProcessStartInfo(program, args)
-                {
-                    UseShellExecute = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardInput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                };
-                proc.StartInfo.UseShellExecute = false;
-
-                container.go();
-                return container;
-            }
-
-
-
-            public void WaitForEnd()
-            {
-                TapProcess.WaitForExit();
-                consoleListener.Wait();
-            }
-
-            public void WriteLine(string str)
-            {
-                TapProcess.StandardInput.WriteLine(str);
-            }
-
-            public void Kill()
-            {
-                try
-                {
-                    TapProcess.Kill();
-                }
-                catch
-                {
-
-                }
-            }
-        }
+        
 
         class RpcManager
         {
@@ -235,6 +154,90 @@ namespace OpenTap.Engine.UnitTests
             }
             
             Assert.IsTrue(argumentNullExceptionCaught, "ArgumentNullException was not thrown");
+        }
+    }
+    public class TapProcessContainer
+    {
+        public Process TapProcess;
+        public string ConsoleOutput = "";
+        Task consoleListener;
+        bool procStarted = false;
+        void go()
+        {
+            procStarted = TapProcess.Start();
+            StringBuilder ConsoleOutput = new StringBuilder();
+            var procOutput = TapProcess.StandardOutput;
+            var procOutput2 = TapProcess.StandardError;
+            void consoleOutputLoader()
+            {
+                char[] buffer = new char[100];
+
+                while (!procOutput.EndOfStream)
+                {
+                    int read = procOutput.Read(buffer, 0, buffer.Length);
+                    ConsoleOutput.Append(buffer, 0, read);
+                    int read2 = procOutput2.Read(buffer, 0, buffer.Length);
+                    ConsoleOutput.Append(buffer, 0, read2);
+                    Thread.Sleep(10);
+                }
+                this.ConsoleOutput = ConsoleOutput.ToString();
+            }
+            consoleListener = Task.Factory.StartNew(new Action(consoleOutputLoader));
+        }
+        public static TapProcessContainer StartFromArgs(string args)
+        {
+            Process proc = new Process();
+
+            var container = new TapProcessContainer { TapProcess = proc };
+
+
+            var file = Path.GetDirectoryName(typeof(PluginManager).Assembly.Location);
+            var files = new[] { Path.Combine(file, "tap.exe"), Path.Combine(file, "tap"), Path.Combine(file, "tap.dll") };
+            global::OpenTap.Log.CreateSource("test").Debug($"location: {file}");
+            var program = files.First(File.Exists);
+            if (program.Contains(".dll"))
+            {
+                program = "dotnet";
+                args = $"\"{file}/tap.dll\" " + args;
+            }
+
+            proc.StartInfo = new ProcessStartInfo(program, args)
+            {
+                UseShellExecute = true,
+                RedirectStandardOutput = true,
+                RedirectStandardInput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+            };
+            proc.StartInfo.UseShellExecute = false;
+
+            container.go();
+            return container;
+        }
+
+
+
+        public void WaitForEnd()
+        {
+            TapProcess.WaitForExit();
+            consoleListener.Wait();
+        }
+
+        public void WriteLine(string str)
+        {
+            TapProcess.StandardInput.WriteLine(str);
+        }
+
+        public void Kill()
+        {
+            try
+            {
+                TapProcess.Kill();
+            }
+            catch
+            {
+
+            }
         }
     }
 }

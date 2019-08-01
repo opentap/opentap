@@ -2,6 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Emit;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -16,6 +17,8 @@ namespace OpenTap.Engine.UnitTests
             public byte[] Bytes;
             public bool Success;
 
+            public string Log;
+
             Assembly assembly;
             public Assembly GetAssembly(){
                 if(assembly == null){
@@ -26,7 +29,7 @@ namespace OpenTap.Engine.UnitTests
         }
 
         public static Result BuildCode(string code, string moduleName){
-
+            
             var metadataref = new List<MetadataReference> { };
             // Detect the file location for the library that defines the object type
             var systemRefLocation=typeof(object).GetTypeInfo().Assembly.Location;
@@ -90,6 +93,7 @@ namespace OpenTap.Engine.UnitTests
             md.Add(Assembly.GetEntryAssembly());
             foreach (var path in md)
             {
+                if(path == null) continue;
                 var r = MetadataReference.CreateFromFile(path.Location);
                 metadataref.Add(r);
             }
@@ -103,10 +107,11 @@ namespace OpenTap.Engine.UnitTests
                 options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, true, platform: Platform.AnyCpu, assemblyIdentityComparer: DesktopAssemblyIdentityComparer.Default)
                 .WithReportSuppressedDiagnostics(true)
                 );
+            
 
             using(var ms = new MemoryStream()){
                 var result= compilation.Emit(ms);
-                return new Result{Success = result.Success, Bytes = ms.ToArray()};
+                return new Result{Success = result.Success, Bytes = ms.ToArray(), Log = string.Join("\n", result.Diagnostics)};
             }
         }
     }

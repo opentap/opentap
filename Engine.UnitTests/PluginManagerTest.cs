@@ -250,6 +250,7 @@ namespace OpenTap.Engine.UnitTests
             var dll = string.Format("Keysight.Tap.Engine.TestModule_{0}.dll", Guid.NewGuid());
             int prevcnt = PluginManager.GetAllPlugins().Count();
             var results = CodeGen.BuildCode(code, Path.GetFileNameWithoutExtension(dll));
+            
             Assert.IsTrue(results.Success);
             try
             {

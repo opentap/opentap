@@ -47,6 +47,9 @@ SolutionDir=. dotnet publish -c NetCore -r linux-x64 tap/tap.csproj
 ```
 *Note, the last line is there to ensure getting the right System.Runtime.dll.*
 
+This creates a *Release* build. For a debug build set *NetCoreDebug* instead of *NetCore* when building.
+
+
 ## Testing
 OpenTAP can be tested using NUnit. 
 
@@ -58,8 +61,13 @@ Using Visual Studio 2017, open OpenTAP.sln and run the tests in the TestExplorer
 
 To run the entire test suite on Linux, run:
 
+```sh
+dotnet test -c NetCore # Or NetCoreDebug
 ```
-dotnet test -c NetCore
+
+To debug the unittests, set the VSTEST_HOST_DEBUG environment variable to '1'. This causes dotnet test to wait for a debugger to become attached. 
+```sh
+export VSTEST_HOST_DEBUG=1
 ```
 
 ## Contributing

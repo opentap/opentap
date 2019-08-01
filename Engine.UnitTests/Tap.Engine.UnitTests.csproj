@@ -1,5 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-<Import Project="$(SolutionDir)Common.targets"/>
+<Import Project="$(SolutionDir)Common.Exe.targets"/>
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <AssemblyName>OpenTap.UnitTests</AssemblyName>
@@ -9,6 +9,9 @@
   <ItemGroup>
     <None Remove="LegacyPlatformSettings.xml" />
     <None Remove="LegacyResultSettings.xml" />
+    <None Update="TestTestPlans\*.TapPlan">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <ItemGroup>
@@ -29,10 +32,5 @@
     <ProjectReference Include="..\BasicSteps\Tap.Plugins.BasicSteps.csproj" />
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
     <ProjectReference Include="..\Package\Tap.Package.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Update="TestTestPlans\*.TapPlan">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 </Project>

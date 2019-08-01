@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
- <Import Project="$(SolutionDir)Common.targets"/>
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>OpenTap.Plugins.BasicSteps</AssemblyName>
@@ -14,8 +13,6 @@
     <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.1" />
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
   </ItemGroup>
 

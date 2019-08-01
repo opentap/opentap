@@ -25,18 +25,10 @@ namespace OpenTap.Package.UnitTests
             string defFileName = "generated_package.xml";
             using (var stream = File.Create(defFileName))
                 definition.SaveTo(stream);
-            var startinfo = new ProcessStartInfo
-            {
-                FileName = Path.GetFileName(Path.Combine(Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location), "tap.exe")),
-                Arguments = "package create " + defFileName,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false
-            };
-            var p = Process.Start(startinfo);
-            p.WaitForExit();
-            string output = p.StandardOutput.ReadToEnd();
-            output += p.StandardError.ReadToEnd();
+
+            var proc = OpenTap.Engine.UnitTests.TapProcessContainer.StartFromArgs("package create " + defFileName); 
+            proc.WaitForEnd();
+            string output = proc.ConsoleOutput;
             string outputFile = definition.Name + "." + definition.Version + ".TapPackage";
             if (File.Exists(outputFile))
                 return outputFile;
@@ -304,7 +296,7 @@ namespace OpenTap.Package.UnitTests
             var dep1Def = new PackageDef();
             dep1Def.Name = "UninstallPackage";
             dep1Def.Version = SemanticVersion.Parse("0.2");
-            dep1Def.AddFile("SubDir\\UninstallText.txt");
+            dep1Def.AddFile("SubDir/UninstallText.txt");
             Directory.CreateDirectory("SubDir");
             string dep1File = DummyPackageGenerator.GeneratePackage(dep1Def);
 

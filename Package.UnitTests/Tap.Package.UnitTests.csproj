@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="$(SolutionDir)Common.targets"/>
   <Import Project="$(SolutionDir)Common.Exe.targets"/>
   
   <PropertyGroup>

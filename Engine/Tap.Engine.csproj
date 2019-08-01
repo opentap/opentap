@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="$(SolutionDir)Common.targets"/>
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -7,11 +6,9 @@
     <AssemblyName>OpenTap</AssemblyName>
     <RootNamespace>OpenTap</RootNamespace>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-    <DocumentationFile>$(SolutionDir)bin\Release\OpenTap.xml</DocumentationFile>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)'=='NetCore'">
+  
+  <PropertyGroup Condition="'$(IsDebug)'!='true'">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>  
     <DocumentationFile>$(SolutionDir)bin\Release\OpenTap.xml</DocumentationFile>    
   </PropertyGroup>
 

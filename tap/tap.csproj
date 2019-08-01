@@ -1,23 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="$(SolutionDir)Common.targets"/>
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>tap</AssemblyName>
     <RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
   </PropertyGroup>
-  
-  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-    <DebugType>full</DebugType>
-    <DebugSymbols>true</DebugSymbols>
-  </PropertyGroup>
-  
+
   <ItemGroup Condition="'$(Configuration)'=='NetCoreDebug'">
     <None Include="$(SolutionDir)/Shared/tap.runtimeconfig.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-  
-<ItemGroup Condition="'$(Configuration)'=='NetCore'">
+
+  <ItemGroup Condition="'$(Configuration)'=='NetCore'">
     <None Include="$(SolutionDir)/Shared/tap.runtimeconfig.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

@@ -63,7 +63,7 @@ namespace OpenTap.Package.UnitTests
             var tap = new PackageIdentifier("OpenTAP", SemanticVersion.Parse("7.4"), CpuArchitecture.Unspecified, "Windows");
             
             // ReceivePackageList.
-            var allPackages = manager.GetPackages(new PackageSpecifier(), tap);
+            var allPackages = manager.GetPackages(new PackageSpecifier(os: "Windows"), tap);
             Assert.IsTrue(allPackages.Length > 0);
             
             #region GetPackages
