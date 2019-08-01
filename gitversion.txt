@@ -1,0 +1,28 @@
+# This file specifies the (first part of the) version number and some options used by the
+# "tap sdk gitversion" command and the $(gitversion) macro in package.xml
+
+# This is the version number that will be used. Prerelease numbers are calculated by 
+# counting git commits since the last change in this value.
+version = 9.1.0
+
+# A version is determined to be a "beta" prerelease if it originates from the default branch
+# The default branch is the first branch that matches the following regular expession.
+# Uncomment to change the default.
+#beta branch = integration
+
+# When specified multiple times later sprcifications of "beta branch" will only be tried
+# if earlier ones did not match any branches in the git repository
+#beta branch = develop
+#beta branch = dev
+#beta branch = master
+
+# A version is determined to be a "rc" prerelease if it originates from a branch that matches
+# the following regular expression.
+# Uncomment to change the default.
+#release branch = release[0-9x]*
+
+# A version is determined to be a release (no prerelease identifiers, just the version number
+# specified in this file), if it originates from a commit that has an annotated tag that matches
+# the following regular expression. (Note that the actual value of the tag is not used).
+# Uncomment to change the default.
+#release tag = v\d+\.\d+

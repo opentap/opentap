@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package Name="OpenTAP" xmlns="http://opentap.io/schemas/package" InfoLink="http://www.keysight.com/find/TAP" Version="$(GitVersion)" OS="Linux" Architecture="x64">
+  <Description>OpenTAP contains the core components of the software. It controls test plan (list of test steps) execution and provides access to functionality offered by the plugins. This covers logging functionality, result handling (database) and instrument communication (user-developed hardware drivers, for example). OpenTAP also includes a CLI and a plugin manager that finds and handles plugins (test steps, DUT and Instrument interfaces, etc.). 
+    <Status>Released</Status>
+    <Organisation>Keysight Technologies</Organisation>
+  </Description>
+  <Files>
+    <File Path="OpenTap.dll">
+        <SetAssemblyInfo Attributes="Version"/>
+        <!-- <Sign Certificate="Keysight Technologies, Inc."/> -->
+    </File>
+    <File Path="OpenTap.Cli.dll">
+        <SetAssemblyInfo Attributes="Version"/>
+        <!-- <Sign Certificate="Keysight Technologies, Inc."/> -->
+    </File>
+    <File Path="OpenTap.Package.dll">
+        <SetAssemblyInfo Attributes="Version"/>
+        <!-- <Sign Certificate="Keysight Technologies, Inc."/> -->
+    </File>
+    <File Path="OpenTap.Plugins.BasicSteps.dll">
+        <SetAssemblyInfo Attributes="Version"/>
+        <!-- <Sign Certificate="Keysight Technologies, Inc."/> -->
+    </File>
+    <File Path="tap.dll" >
+        <SetAssemblyInfo Attributes="Version"/>
+        <!-- <Sign Certificate="Keysight Technologies, Inc."/> -->
+    </File>
+    
+    <File Path="tap"/>
+        
+    <File Path="System.Native.a"  />
+    <File Path="System.Net.Http.Native.a"  />
+    <File Path="System.Net.Security.Native.a"  />
+    <File Path="System.IO.Compression.Native.a"  />
+    <File Path="System.Security.Cryptography.Native.OpenSsl.a"  />
+    
+
+    <File Path="LibGit2Sharp.dll"  />
+    <File Path="libgit2-4aecb64.so"  />
+    <File Path="libclrjit.so"  />
+    <File Path="libcoreclr.so"  />
+    <File Path="libcoreclrtraceptprovider.so"  />
+    <File Path="libdbgshim.so"  />
+    <File Path="libhostfxr.so"  />
+    <File Path="libhostpolicy.so"  />
+    <File Path="libmscordaccore.so"  />
+    <File Path="libmscordbi.so"  />
+    <File Path="libsos.so"  />
+    <File Path="libsosplugin.so"  />
+    <File Path="System.Globalization.Native.so"  />
+    <File Path="System.IO.Compression.Native.so"  />
+    <File Path="System.Native.so"  />
+    <File Path="System.Net.Http.Native.so"  />
+    <File Path="System.Net.Security.Native.so"  />
+    <File Path="System.Security.Cryptography.Native.OpenSsl.so"  />
+    <File Path="Microsoft.CodeAnalysis.CSharp.dll"  />
+    <File Path="Microsoft.CodeAnalysis.dll"  />
+    <File Path="Microsoft.CSharp.dll"  />
+    <File Path="Microsoft.VisualBasic.dll"  />
+    <File Path="Microsoft.Win32.Primitives.dll"  />
+    <File Path="Microsoft.Win32.Registry.dll"  />
+    <File Path="Mono.Cecil.dll"  />
+    <File Path="mscorlib.dll"  />
+    <File Path="netstandard.dll"  />
+    <File Path="SOS.NETCore.dll"  />
+    <File Path="System.AppContext.dll"  />
+    <File Path="System.Buffers.dll"  />
+    <File Path="System.Collections.Concurrent.dll"  />
+    <File Path="System.Collections.dll"  />
+    <File Path="System.Collections.Immutable.dll"  />
+    <File Path="System.Collections.NonGeneric.dll"  />
+    <File Path="System.Collections.Specialized.dll"  />
+    <File Path="System.ComponentModel.Annotations.dll"  />
+    <File Path="System.ComponentModel.DataAnnotations.dll"  />
+    <File Path="System.ComponentModel.dll"  />
+    <File Path="System.ComponentModel.EventBasedAsync.dll"  />
+    <File Path="System.ComponentModel.Primitives.dll"  />
+    <File Path="System.ComponentModel.TypeConverter.dll"  />
+    <File Path="System.Configuration.dll"  />
+    <File Path="System.Console.dll"  />
+    <File Path="System.Core.dll"  />
+    <File Path="System.Data.Common.dll"  />
+    <File Path="System.Data.dll"  />
+    <File Path="System.Diagnostics.Contracts.dll"  />
+    <File Path="System.Diagnostics.Debug.dll"  />
+    <File Path="System.Diagnostics.DiagnosticSource.dll"  />
+    <File Path="System.Diagnostics.FileVersionInfo.dll"  />
+    <File Path="System.Diagnostics.Process.dll"  />
+    <File Path="System.Diagnostics.StackTrace.dll"  />
+    <File Path="System.Diagnostics.TextWriterTraceListener.dll"  />
+    <File Path="System.Diagnostics.Tools.dll"  />
+    <File Path="System.Diagnostics.TraceSource.dll"  />
+    <File Path="System.Diagnostics.Tracing.dll"  />
+    <File Path="System.dll"  />
+    <File Path="System.Drawing.dll"  />
+    <File Path="System.Drawing.Primitives.dll"  />
+    <File Path="System.Dynamic.Runtime.dll"  />
+    <File Path="System.Globalization.Calendars.dll"  />
+    <File Path="System.Globalization.dll"  />
+    <File Path="System.Globalization.Extensions.dll"  />
+    <File Path="System.IO.Compression.dll"  />
+    <File Path="System.IO.Compression.Brotli.dll"  />
+    <File Path="System.IO.Compression.FileSystem.dll"  />
+    <File Path="System.IO.Compression.ZipFile.dll"  />
+    <File Path="System.IO.dll"  />
+    <File Path="System.IO.FileSystem.AccessControl.dll"  />
+    <File Path="System.IO.FileSystem.dll"  />
+    <File Path="System.IO.FileSystem.DriveInfo.dll"  />
+    <File Path="System.IO.FileSystem.Primitives.dll"  />
+    <File Path="System.IO.FileSystem.Watcher.dll"  />
+    <File Path="System.IO.IsolatedStorage.dll"  />
+    <File Path="System.IO.MemoryMappedFiles.dll"  />
+    <File Path="System.IO.Packaging.dll"  />
+    <File Path="System.IO.Pipes.dll"  />
+    <File Path="System.IO.Pipes.AccessControl.dll"  />
+    <File Path="System.IO.UnmanagedMemoryStream.dll"  />
+    <File Path="System.Linq.dll"  />
+    <File Path="System.Linq.Expressions.dll"  />
+    <File Path="System.Linq.Parallel.dll"  />
+    <File Path="System.Linq.Queryable.dll"  />
+    <File Path="System.Memory.dll"  />
+    <File Path="System.Net.dll"  />
+    <File Path="System.Net.Http.dll"  />
+    <File Path="System.Net.HttpListener.dll"  />
+    <File Path="System.Net.Mail.dll"  />
+    <File Path="System.Net.NameResolution.dll"  />
+    <File Path="System.Net.NetworkInformation.dll"  />
+    <File Path="System.Net.Ping.dll"  />
+    <File Path="System.Net.Primitives.dll"  />
+    <File Path="System.Net.Requests.dll"  />
+    <File Path="System.Net.Security.dll"  />
+    <File Path="System.Net.ServicePoint.dll"  />
+    <File Path="System.Net.Sockets.dll"  />
+    <File Path="System.Net.WebClient.dll"  />
+    <File Path="System.Net.WebHeaderCollection.dll"  />
+    <File Path="System.Net.WebProxy.dll"  />
+    <File Path="System.Net.WebSockets.Client.dll"  />
+    <File Path="System.Net.WebSockets.dll"  />
+    <File Path="System.Numerics.dll"  />
+    <File Path="System.Numerics.Vectors.dll"  />
+    <File Path="System.ObjectModel.dll"  />
+    <File Path="System.Private.CoreLib.dll"  />
+    <File Path="System.Private.DataContractSerialization.dll"  />
+    <File Path="System.Private.Uri.dll"  />
+    <File Path="System.Private.Xml.dll"  />
+    <File Path="System.Private.Xml.Linq.dll"  />
+    <File Path="System.Reflection.DispatchProxy.dll"  />
+    <File Path="System.Reflection.dll"  />
+    <File Path="System.Reflection.Emit.dll"  />
+    <File Path="System.Reflection.Emit.ILGeneration.dll"  />
+    <File Path="System.Reflection.Emit.Lightweight.dll"  />
+    <File Path="System.Reflection.Extensions.dll"  />
+    <File Path="System.Reflection.Metadata.dll"  />
+    <File Path="System.Reflection.Primitives.dll"  />
+    <File Path="System.Reflection.TypeExtensions.dll"  />
+    <File Path="System.Resources.Reader.dll"  />
+    <File Path="System.Resources.ResourceManager.dll"  />
+    <File Path="System.Resources.Writer.dll"  />
+    <File Path="System.Runtime.CompilerServices.VisualC.dll"  />
+    <File Path="System.Runtime.dll"  />
+    <File Path="System.Runtime.Extensions.dll"  />
+    <File Path="System.Runtime.Handles.dll"  />
+    <File Path="System.Runtime.InteropServices.dll"  />
+    <File Path="System.Runtime.InteropServices.RuntimeInformation.dll"  />
+    <File Path="System.Runtime.InteropServices.WindowsRuntime.dll"  />
+    <File Path="System.Runtime.Loader.dll"  />
+    <File Path="System.Runtime.Numerics.dll"  />
+    <File Path="System.Runtime.Serialization.dll"  />
+    <File Path="System.Runtime.Serialization.Formatters.dll"  />
+    <File Path="System.Runtime.Serialization.Json.dll"  />
+    <File Path="System.Runtime.Serialization.Primitives.dll"  />
+    <File Path="System.Runtime.Serialization.Xml.dll"  />
+    <File Path="System.Security.AccessControl.dll"  />
+    <File Path="System.Security.Claims.dll"  />
+    <File Path="System.Security.Cryptography.Algorithms.dll"  />
+    <File Path="System.Security.Cryptography.Cng.dll"  />
+    <File Path="System.Security.Cryptography.Csp.dll"  />
+    <File Path="System.Security.Cryptography.Encoding.dll"  />
+    <File Path="System.Security.Cryptography.OpenSsl.dll"  />
+    <File Path="System.Security.Cryptography.Primitives.dll"  />
+    <File Path="System.Security.Cryptography.X509Certificates.dll"  />
+    <File Path="System.Security.dll"  />
+    <File Path="System.Security.Principal.dll"  />
+    <File Path="System.Security.Principal.Windows.dll"  />
+    <File Path="System.Security.SecureString.dll"  />
+    <File Path="System.ServiceModel.Web.dll"  />
+    <File Path="System.ServiceProcess.dll"  />
+    <File Path="System.Text.Encoding.CodePages.dll"  />
+    <File Path="System.Text.Encoding.dll"  />
+    <File Path="System.Text.Encoding.Extensions.dll"  />
+    <File Path="System.Text.RegularExpressions.dll"  />
+    <File Path="System.Threading.dll"  />
+    <File Path="System.Threading.Overlapped.dll"  />
+    <File Path="System.Threading.Tasks.Dataflow.dll"  />
+    <File Path="System.Threading.Tasks.dll"  />
+    <File Path="System.Threading.Tasks.Extensions.dll"  />
+    <File Path="System.Threading.Tasks.Parallel.dll"  />
+    <File Path="System.Threading.Thread.dll"  />
+    <File Path="System.Threading.ThreadPool.dll"  />
+    <File Path="System.Threading.Timer.dll"  />
+    <File Path="System.Transactions.dll"  />
+    <File Path="System.Transactions.Local.dll"  />
+    <File Path="System.ValueTuple.dll"  />
+    <File Path="System.Web.dll"  />
+    <File Path="System.Web.HttpUtility.dll"  />
+    <File Path="System.Windows.dll"  />
+    <File Path="System.Xml.dll"  />
+    <File Path="System.Xml.Linq.dll"  />
+    <File Path="System.Xml.ReaderWriter.dll"  />
+    <File Path="System.Xml.Serialization.dll"  />
+    <File Path="System.Xml.XDocument.dll"  />
+    <File Path="System.Xml.XmlDocument.dll"  />
+    <File Path="System.Xml.XmlSerializer.dll"  />
+    <File Path="System.Xml.XPath.dll"  />
+    <File Path="System.Xml.XPath.XDocument.dll"  />
+    <File Path="WindowsBase.dll"  />
+    <File Path="Demonstration.TapPackage"  />
+  </Files>
+  <PackageActionExtensions>
+    <ActionStep ActionName="install" ExeFile="chmod" Arguments="+x tap"  />
+  </PackageActionExtensions>
+</Package>
