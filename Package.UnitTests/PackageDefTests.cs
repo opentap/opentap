@@ -293,6 +293,8 @@ namespace OpenTap.Package.UnitTests
                 Directory.Delete("Packages2", true);
 
             Directory.Move("Packages", "Packages2");
+            File.Copy("Packages2/DependencyTest.dll", "DependencyTest.dll", true);
+
             try
             {
                 Directory.CreateDirectory("Packages");
@@ -326,8 +328,8 @@ namespace OpenTap.Package.UnitTests
 
                     def.Dependencies.Add(new PackageDependency( "rv", VersionSpecifier.Parse("1.2")));
 
-                    def.AddFile("ResultsViewer.exe");
-                    def.Files[0].DependentAssemblyNames.AddRange(PluginManager.GetSearcher().Assemblies.First(f => f.Name == "ResultsViewer").References);
+                    def.AddFile("DependencyTest.dll");
+                    def.Files[0].DependentAssemblyNames.AddRange(PluginManager.GetSearcher().Assemblies.First(f => f.Name == "DependencyTest").References);
 
                     var searcher = new PluginSearcher();
                     searcher.Search(Directory.GetCurrentDirectory());
@@ -347,8 +349,8 @@ namespace OpenTap.Package.UnitTests
 
                     def.Dependencies.Add(new PackageDependency("gui", VersionSpecifier.Parse("1.2") ));
 
-                    def.AddFile("ResultsViewer.exe");
-                    def.Files[0].DependentAssemblyNames.AddRange(PluginManager.GetSearcher().Assemblies.First(f => f.Name == "ResultsViewer").References);
+                    def.AddFile("DependencyTest.dll");
+                    def.Files[0].DependentAssemblyNames.AddRange(PluginManager.GetSearcher().Assemblies.First(f => f.Name == "DependencyTest").References);
 
                     var searcher = new PluginSearcher();
                     searcher.Search(Directory.GetCurrentDirectory());

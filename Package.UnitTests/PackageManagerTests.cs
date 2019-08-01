@@ -53,7 +53,7 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void HttpRepositoryManagerTest()
         {
-            var manager = new HttpPackageRepository("http://packages.opentap.keysight.com/");
+            var manager = new HttpPackageRepository("http://packages.opentap.io/");
             RepositoryManagerReceivePackageList(manager);
             TestDownload(manager);
         }

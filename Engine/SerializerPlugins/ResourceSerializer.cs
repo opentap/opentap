@@ -44,31 +44,33 @@ namespace OpenTap.Plugins
                     {
                         // we need to load this asynchronously to avoid recursively 
                         // serializing another ComponentSettings.
+                        if(string.IsNullOrWhiteSpace(content))
                         {
-                            var obj = fetchObject(t, (o, i) => (o as IResource).Name.Trim() == content, src);
-                            if (obj != null)
-                            {
-                                if (obj is IResource resource && resource.Name != content && !string.IsNullOrWhiteSpace(content))
-                                {
-                                    TestPlanChanged = true;
-                                    var msg = $"Missing '{content}'. Using '{resource.Name}' instead.";
-                                    if (elem.Parent.Element("Name") != null)
-                                        msg = $"Missing '{content}' used by '{elem.Parent.Element("Name").Value}.{elem.Name.ToString()}. Using '{resource.Name}' instead.'";
-                                    Log.Info(msg);
-                                    Serializer.PushError(elem, msg);
-                                }
-                                setter(obj);
-                                return;
-                            }
-                            if (!string.IsNullOrWhiteSpace(content))
+                            setter(null);
+                            return;
+                        }
+                        var obj = fetchObject(t, (o, i) => (o as IResource).Name.Trim() == content, src);
+                        if (obj != null)
+                        {
+                            if (obj is IResource resource && resource.Name != content && !string.IsNullOrWhiteSpace(content))
                             {
                                 TestPlanChanged = true;
-                                var msg = $"Missing '{content}'.";
+                                var msg = $"Missing '{content}'. Using '{resource.Name}' instead.";
                                 if (elem.Parent.Element("Name") != null)
-                                    msg = $"Missing '{content}' used by '{elem.Parent.Element("Name").Value}.{elem.Name.ToString()}'";
+                                    msg = $"Missing '{content}' used by '{elem.Parent.Element("Name").Value}.{elem.Name.ToString()}. Using '{resource.Name}' instead.'";
                                 Log.Info(msg);
                                 Serializer.PushError(elem, msg);
                             }
+                            setter(obj);
+                        }
+                        else
+                        {
+                            TestPlanChanged = true;
+                            var msg = $"Missing '{content}'.";
+                            if (elem.Parent.Element("Name") != null)
+                                msg = $"Missing '{content}' used by '{elem.Parent.Element("Name").Value}.{elem.Name.ToString()}'";
+                            Log.Info(msg);
+                            Serializer.PushError(elem, msg);
                         }
                     });
                     return true;

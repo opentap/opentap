@@ -662,7 +662,7 @@ namespace OpenTap
                             plan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
                         }
 
-                        if (resources.All(r => r.Resource.IsConnected))
+                        if (resources.All(r => r.Resource?.IsConnected ?? false))
                             return;
 
                         // Call ILockManagers before checking for null
@@ -741,9 +741,12 @@ namespace OpenTap
                                 resourceDependencies[step] = resources.Select(x => x.Resource).ToList();
                                 foreach (ResourceNode n in resources)
                                 {
-                                    if (!resourceReferenceCount.ContainsKey(n.Resource))
-                                        resourceReferenceCount[n.Resource] = 0;
-                                    resourceReferenceCount[n.Resource] += 1;
+                                    if (n.Resource is IResource resource)
+                                    {
+                                        if (!resourceReferenceCount.ContainsKey(resource))
+                                            resourceReferenceCount[resource] = 0;
+                                        resourceReferenceCount[resource] += 1;
+                                    }
                                 }
                             }
                             

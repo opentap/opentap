@@ -285,10 +285,10 @@ namespace OpenTap
             {
                 TestStepExtensions.GetObjectSettings<IResource, object, ResourceNode>(new object[] { r }, true, (res, prop) =>
                    {
-                       var node = tree.FirstOrDefault(n => n.Resource == res && n.Depender == prop);
-                       if (node != null)
-                           node.References.Add(new ResourceReference(r, prop));
-                       return node;
+                       var nodeRepresentingResource = tree.FirstOrDefault(n => n.Resource == res);
+                       if (nodeRepresentingResource != null)
+                           nodeRepresentingResource.References.Add(new ResourceReference(r, prop));
+                       return nodeRepresentingResource;
                    });
             }
             return tree;

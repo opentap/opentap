@@ -51,38 +51,29 @@ namespace OpenTap.Package
     [DebuggerDisplay("{FileName} ({RelativeDestinationPath})")]
     public class PackageFile
     {
-        private string _FileName = null;
         /// <summary>
-        /// The filename of this file.
+        /// The location of this file.
         /// </summary>
         [XmlIgnore]
         public string FileName
         {
-            get
-            {
-                if (_FileName == null)
-                    // When this type is deserialized from an xml file, FileName will 
-                    // be unset, so we use the value from RelativeDestinationPath
-                    return RelativeDestinationPath;
-                else
-                    return _FileName;
-            }
-            set { _FileName = value; }
+            set => sourcePath = value;
+            // When this type is deserialized from an xml file, FileName will 
+            // be unset, so we use the value from RelativeDestinationPath
+            get => sourcePath ??  RelativeDestinationPath;
         }
 
+    
+        string sourcePath;
+
+        /// <summary> Source of the file. Can be different from RelativeDestinationPath. </summary>
         [XmlAttribute("SourcePath")]
         [DefaultValue(null)]
+        [XmlIgnore]
         public string SourcePath
         {
-            get
-            {
-                return null;
-            }
-            set
-            {
-                if (value != null)
-                    FileName = value;
-            }
+            get => sourcePath;
+            set => sourcePath = value;
         }
 
         /// <summary>

@@ -87,6 +87,7 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        [Repeat(2)]
         public void BreakAbortStepRunNull()
         {
             TestPlan testPlan = new TestPlan();
@@ -98,20 +99,40 @@ namespace OpenTap.Engine.UnitTests
             testPlan.Steps.Add(step2);
             testPlan.Steps.Add(step3);
 
-
-            SemaphoreSlim sem = new SemaphoreSlim(0);
-            var tapThread = TapThread.Start(() =>
+            TapThread.WithNewContext(() =>
             {
+                var planThread = TapThread.Current;
+                testPlan.BreakOffered += (s, e) => planThread.Abort();
                 testPlan.Execute();
-                sem.Release();
+                Assert.IsTrue(TapThread.Current.AbortToken.IsCancellationRequested);
             });
-
-            testPlan.BreakOffered += (s, e) => tapThread.Abort();
-            
-            sem.Wait();
+            Assert.IsFalse(TapThread.Current.AbortToken.IsCancellationRequested);
 
             foreach (var step in testPlan.Steps)
                 Assert.IsNull(step.StepRun);
+        }
+
+        static ThreadHierarchyLocal<object> tapThreadLocalObject = new ThreadHierarchyLocal<object>();
+        [Test]
+        public void HierarchyLocalWithThreads()
+        {
+            // This test verifies that ThreadHierarchyLocal work with different thread contexts.
+            //
+            tapThreadLocalObject.LocalValue = (int)5;
+            // At child thread level it should be 5.
+            TapThread.WithNewContext(() => Assert.AreEqual(5, (int)tapThreadLocalObject.LocalValue));
+            TapThread.WithNewContext(() =>
+            {
+                tapThreadLocalObject.LocalValue = (int)6;
+                // At child-child thread level it should be 6.    
+                TapThread.WithNewContext(() => Assert.AreEqual(6, (int)tapThreadLocalObject.LocalValue));
+            });
+            
+            // At this level it should still be 5.
+            TapThread.WithNewContext(() => Assert.AreEqual(5, (int)tapThreadLocalObject.LocalValue));
+            
+            // for no parent it should not have been set.
+            TapThread.WithNewContext(() => Assert.IsNull(tapThreadLocalObject.LocalValue), parent: null);
         }
 
         [Test]

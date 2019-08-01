@@ -58,10 +58,13 @@ namespace OpenTap.Package
 
             List<IPackageRepository> repositories = new List<IPackageRepository>();
 
-            if (Repository == null)
-                repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager));
-            else
-                repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
+            if (Installed == false)
+            {
+                if (Repository == null)
+                    repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager));
+                else 
+                    repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
+            }
 
             if (Target == null)
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();

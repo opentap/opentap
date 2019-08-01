@@ -310,6 +310,7 @@ namespace OpenTap
         /// </summary>
         internal void StartResourcePromptAsync(TestPlanRun planRun, IEnumerable<IResource> resources)
         {
+            resources = resources.Where(x => x != null).ToArray();
             bool AnyMetaData = false;
             planRun.PromptWaitHandle.Reset();
             try
@@ -320,10 +321,10 @@ namespace OpenTap
                     var type = TypeData.GetTypeData(resource);
                     foreach (var __prop in type.GetMembers())
                     {
-                    IMemberData prop = __prop;
+                        IMemberData prop = __prop;
                         var attr = prop.GetAttribute<MetaDataAttribute>();
                         if (attr == null || attr.PromptUser == false) continue;
-                    AnyMetaData = true;
+                        AnyMetaData = true;
                     }
                 }
             }

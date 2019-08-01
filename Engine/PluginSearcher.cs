@@ -15,8 +15,7 @@ using System.Reflection.PortableExecutable;
 using System.Text;
 using Tap.Shared;
 
-[assembly:OpenTap.PluginAssembly(true)]
-
+[assembly: OpenTap.PluginAssembly(true)]
 namespace OpenTap
 {
     /// <summary>
@@ -363,6 +362,7 @@ namespace OpenTap
             {
                 if ((typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.NotPublic &&
                     (typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.Public &&
+                    (typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPrivate &&
                     (typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPublic)
                     return null;
             }

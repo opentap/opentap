@@ -15,18 +15,27 @@ namespace OpenTap.Package
     [Display("gitversion", Group: "sdk", Description: "Calculates a semantic version number for a specific git commit.")]
     public class GitVersionAction : OpenTap.Cli.ICliAction
     {
-        [CommandLineArgument("dir", Description = "Directory containing git repository to calculate the version number from.")]
-        public string RepoPath { get; set; }
-
-        [CommandLineArgument("log", Description = "Print git log for the last n commits including version numbers for each commit.")]
+        [CommandLineArgument("log",     Description = "Print git log for the last n commits including version numbers for each commit.")]
         public string PrintLog { get; set; }
 
         [UnnamedCommandLineArgument("ref", Required = false)]
         public string Sha { get; set; }
 
+        [CommandLineArgument("replace", Description = "Replace all occurrences of $(GitVersion) in the specified file.\nCannot be used together with --log.")]
+        public string ReplaceFile { get; set; }
+
+        [CommandLineArgument("fields",  Description = "Number of version fields to print/replace. Fields are: major, minor, patch,\n" +
+                                                      "prerelease and build metadata. E.g. --fields=2 results in only major and minor\n" +
+                                                      "fields in the version number. Default is 5 (all fields).")]
+        public int FieldCount { get; set; }
+
+        [CommandLineArgument("dir",     Description = "Directory containing git repository to calculate the version number from.")]
+        public string RepoPath { get; set; }
+
         public GitVersionAction()
         {
             RepoPath = Directory.GetCurrentDirectory();
+            FieldCount = 5;
         }
 
         public int Execute(CancellationToken cancellationToken)
@@ -36,15 +45,53 @@ namespace OpenTap.Package
                 DoPrintLog(cancellationToken);
                 return 0;
             }
+            TraceSource log = Log.CreateSource("GitVersion");
+            string versionString = null;
             using (GitVersionCalulator calc = new GitVersionCalulator(RepoPath))
             {
-                TraceSource log = Log.CreateSource("GitVersion");
                 if (String.IsNullOrEmpty(Sha))
-                    log.Info(calc.GetVersion().ToString());
+                    versionString = calc.GetVersion().ToString(FieldCount);
                 else
-                    log.Info(calc.GetVersion(Sha).ToString());
+                    versionString = calc.GetVersion(Sha).ToString(FieldCount);
             }
+            if (!String.IsNullOrEmpty(ReplaceFile))
+            {
+                if (!File.Exists(ReplaceFile))
+                {
+                    log.Error("File '{0}' given in --replace argument could not be found.", Path.GetFullPath(ReplaceFile));
+                    return 1;
+                }
+                int replaceLineCount = DoReplaceFile(ReplaceFile, versionString);
+                if (replaceLineCount == 0)
+                    log.Warning("Nothing to replace. '$(GitVersion)' was not found in {0}.", ReplaceFile);
+                else
+                    log.Info("Replaced '$(GitVersion)' with '{0}' in {1} line(s) of {2}", versionString, replaceLineCount, ReplaceFile);
+                return 0;
+            }
+            log.Info(versionString);
             return 0;
+        }
+
+        private static int DoReplaceFile(string fileName, string versionString)
+        {
+            int replaceLineCount = 0;
+            using (var input = File.OpenText(fileName))
+            using (var output = new StreamWriter(fileName + ".tmp"))
+            {
+                string line;
+                while (null != (line = input.ReadLine()))
+                {
+                    if (line.Contains("$(GitVersion)"))
+                    {
+                        replaceLineCount++;
+                        line = line.Replace("$(GitVersion)", versionString);
+                    }
+                    output.WriteLine(line);
+                }
+            }
+            //File.Replace(fileName + ".tmp", fileName, fileName + ".org");
+            File.Replace(fileName + ".tmp", fileName, null);
+            return replaceLineCount;
         }
 
         private void DoPrintLog(CancellationToken cancellationToken)
@@ -206,7 +253,7 @@ namespace OpenTap.Package
                         DrawPositionSpacer(commitPosition[c] + 1, maxPosition);
 
                         Console.ForegroundColor = versionColor;
-                        Console.Write(versionCalculater.GetVersion(c));
+                        Console.Write(versionCalculater.GetVersion(c).ToString(FieldCount));
                         Console.ForegroundColor = defaultColor;
 
                         Console.Write(" - ");

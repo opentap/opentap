@@ -118,8 +118,9 @@ namespace OpenTap.Plugins.BasicSteps
             this.iteration += 1;
             OnPropertyChanged("IterationInfo");
             var AdditionalParams = new List<ResultParameter> { new ResultParameter("", "Iteration", this.iteration) };
-            var runs = RunChildSteps(AdditionalParams, BreakLoopRequested).ToList();
-            runs.ForEach(r => r.WaitForCompletion());
+            var runs = RunChildSteps(AdditionalParams, BreakLoopRequested);
+            foreach (var r in runs)
+                r.WaitForCompletion();
             return getCurrentVerdict();
         }
 
