@@ -97,6 +97,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <EmbeddedResource Include="ExamplePackage.xml" />
+    <Content Include="Packages\DependencyTest.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="Packages\Test.package.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

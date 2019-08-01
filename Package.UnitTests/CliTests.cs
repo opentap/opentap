@@ -370,10 +370,10 @@ namespace OpenTap.Package.UnitTests
         {
             int exitCode;
             // TODO: we need the --version part below because the release version of License Injector does not yet support OpenTAP 9.x, when it does, we can remove it again.
-            string output = RunPackageCli("install \"License Injector\" -r http://packages.opentap.keysight.com --version \"-beta\" -f", out exitCode);
+            string output = RunPackageCli("install \"Demonstration\" -r http://packages.opentap.io -f", out exitCode);
             Assert.AreEqual(0, exitCode, "Unexpected exit code: " + output);
-            Assert.IsTrue(output.Contains("Installed License Injector"));
-            output = RunPackageCli("uninstall \"License Injector\" -f", out exitCode);
+            Assert.IsTrue(output.Contains("Installed Demonstration"));
+            output = RunPackageCli("uninstall \"Demonstration\" -f", out exitCode);
             Assert.AreEqual(0, exitCode, "Unexpected exit code: " + output);
         }
 
@@ -427,7 +427,7 @@ namespace OpenTap.Package.UnitTests
             if (!File.Exists(Path.Combine(Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location), opentapPackageXmlPath)))
             {
                 // Sign package is needed to create opentap
-                string packageXml = CreateOpenTapPackageXmlWithoutSignElement("../../opentap/opentapCE.package.xml");
+                string packageXml = CreateOpenTapPackageXmlWithoutSignElement("../../opentapCE.package.xml");
                 string createOpenTap = $"create -v {packageXml} --install -o Packages/OpenTAP.TapPackage";
                 string output = RunPackageCliWrapped(createOpenTap, out exitCode, workingDir);
                 Assert.AreEqual(0, exitCode, "Error creating OpenTAP package. Log:\n" + output);
