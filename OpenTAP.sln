@@ -23,8 +23,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "nuget", "nuget", "{B2B5AFDA
 		nuget\build\OpenTap.props = nuget\build\OpenTap.props
 		nuget\build\OpenTap.targets = nuget\build\OpenTap.targets
 	EndProjectSection
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tap.Package", "Package\Tap.Package.csproj", "{FC73F73C-BD97-4DDC-AD7B-5A990CB4AF6B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tap.Package", "Package\Tap.Package.csproj", "{FC73F73C-BD97-4DDC-AD7B-5A990CB4AF6B}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
