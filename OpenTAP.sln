@@ -37,6 +37,8 @@ Global
 		NetCore|x86 = NetCore|x86
 		Release|x64 = Release|x64
 		Release|x86 = Release|x86
+		NetCoreDebug|x64 = NetCoreDebug|x64
+		NetCoreDebug|x86 = NetCoreDebug|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{57145555-3F78-44C3-BA7F-B5EDAA2B573C}.Debug|x64.ActiveCfg = Debug|Any CPU
