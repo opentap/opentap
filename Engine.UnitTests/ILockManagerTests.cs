@@ -16,12 +16,14 @@ namespace OpenTap.UnitTests
             static public List<IEnumerable<IResourceReferences>> AfterCloseArgs = new List<IEnumerable<IResourceReferences>>();
             public void AfterClose(IEnumerable<IResourceReferences> resources, CancellationToken abortToken)
             {
-                AfterCloseArgs.Add(resources);
+                if(isEnabled)
+                    AfterCloseArgs.Add(resources);
             }
             static public List<IEnumerable<IResourceReferences>> BeforeOpenArgs = new List<IEnumerable<IResourceReferences>>();
             public void BeforeOpen(IEnumerable<IResourceReferences> resources, CancellationToken abortToken)
             {
-                BeforeOpenArgs.Add(resources);
+                if(isEnabled)
+                    BeforeOpenArgs.Add(resources);
             }
             static bool isEnabled = false;
             public static void Enable()
