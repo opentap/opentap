@@ -87,6 +87,7 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void CircularResourceReference()
         {
+            EngineSettings.Current.ResourceManagerType = new ResourceTaskManager();
             InstrumentSettings.Current.Clear();
             try
             {
@@ -113,6 +114,7 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void CircularResource2Reference()
         {
+            EngineSettings.Current.ResourceManagerType = new ResourceTaskManager();
             InstrumentSettings.Current.Clear();
             try
             {
@@ -137,6 +139,7 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void DependentResourceNull()
         {
+            EngineSettings.Current.ResourceManagerType = new ResourceTaskManager();
             InstrumentSettings.Current.Clear();
             try
             {
