@@ -24,43 +24,23 @@ namespace OpenTap.UnitTests
             {
                 if(isEnabled)
                     BeforeOpenArgs.Add(resources);
-                if (ReplaceNullResources)
-                {
-                    // If some resources are still null at this stage, ILockManager is expected to set them. Otherwise the plan run will error out with "Instrument not configured for step..." error
-                    try
-                    {
-                        foreach (var r in resources)
-                        {
-                            if (r.Resource != null)
-                                continue;
-                            foreach (var step in r.References)
-                            {
-                                var instrument = InstrumentSettings.Current.First();
-                                if (step.Property.GetValue(step.Instance) == null)
-                                {
-                                    step.Property.SetValue(step.Instance, InstrumentSettings.Current.First());
-                                    r.Resource = instrument;
-                                }
-                            }
-                        }
-                    }
-                    catch
-                    {
-
-                    }
-                }
+                if (BeforeOpenEffect != null)
+                    BeforeOpenEffect(resources);
             }
             static bool isEnabled = false;
-            static bool ReplaceNullResources = false;
-            public static void Enable(bool replaceNullResources = false)
+            public static Action<IEnumerable<IResourceReferences>> BeforeOpenEffect = null;
+            public static void Enable()
             {
                 isEnabled = true;
-                ReplaceNullResources = replaceNullResources;
                 AfterCloseArgs.Clear();
                 BeforeOpenArgs.Clear();
             }
 
-            public static void Disable() => isEnabled = false;
+            public static void Disable()
+            {
+                isEnabled = false;
+                BeforeOpenEffect = null;
+            }
         }
 
         public class InstrumentTestStep : TestStep
@@ -171,6 +151,32 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(step2.GetType().GetProperty("Instrument1"), arg2.First().References.First().Property, "ResourceReference references unexpected property.");
         }
 
+        private void SetNullResources(IEnumerable<IResourceReferences> resources)
+        {
+            // If some resources are still null at this stage, ILockManager is expected to set them. Otherwise the plan run will error out with "Instrument not configured for step..." error
+            try
+            {
+                foreach (var r in resources)
+                {
+                    if (r.Resource != null)
+                        continue;
+                    foreach (var step in r.References)
+                    {
+                        var instrument = InstrumentSettings.Current.First();
+                        if (step.Property.GetValue(step.Instance) == null)
+                        {
+                            step.Property.SetValue(step.Instance, InstrumentSettings.Current.First());
+                            r.Resource = instrument;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+
+            }
+        }
+
         [Test]
         public void SimpleResourceNullPropertyTest()
         {
@@ -181,7 +187,8 @@ namespace OpenTap.UnitTests
             TestPlan plan = new TestPlan();
             ITestStep step1 = new InstrumentTestStep() { Instrument = null };
             plan.Steps.Add(step1);
-            UnitTestingLockManager.Enable(true);
+            UnitTestingLockManager.Enable();
+            UnitTestingLockManager.BeforeOpenEffect = SetNullResources;
             var run = plan.Execute();
             UnitTestingLockManager.Disable();
 
@@ -208,7 +215,8 @@ namespace OpenTap.UnitTests
             TestPlan plan = new TestPlan();
             ITestStep step1 = new DoubleInstrumentTestStep() { Instrument1 = null, Instrument2 = null };
             plan.Steps.Add(step1);
-            UnitTestingLockManager.Enable(true);
+            UnitTestingLockManager.Enable();
+            UnitTestingLockManager.BeforeOpenEffect = SetNullResources;
             var run = plan.Execute();
             UnitTestingLockManager.Disable();
 
