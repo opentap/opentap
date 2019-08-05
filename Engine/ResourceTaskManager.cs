@@ -780,7 +780,7 @@ namespace OpenTap
                         IEnumerable<IResource> usedResources;
                         lock (resourceLock)
                         {
-                            usedResources = resourceDependencies[step];
+                            usedResources = resourceDependencies[step].Where(r => r is IResource);
                             resourceDependencies.Remove(step);
                             foreach (IResource res in usedResources)
                             {
