@@ -1,5 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-<Import Project="$(SolutionDir)Common.Exe.targets"/>
+<Import Project="../Common.Exe.targets"/>
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <AssemblyName>OpenTap.UnitTests</AssemblyName>

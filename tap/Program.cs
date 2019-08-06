@@ -13,6 +13,8 @@ namespace tap
     {
         static void Main(string[] args)
         {
+            var start = DateTime.Now;
+            
             Environment.SetEnvironmentVariable("OPENTAP_INIT_DIRECTORY", typeof(Program).Assembly.Location);
             // in case TPM needs to update Tap.Cli.dll, we load it from memory to not keep the file in use
             Assembly asm = null;
@@ -43,7 +45,6 @@ namespace tap
                 Environment.ExitCode = 7;
                 return;
             }
-            Console.WriteLine($"{System.IO.Directory.GetCurrentDirectory()}");
             if (asm == null)
             {
                 Console.WriteLine($"{System.IO.Directory.GetCurrentDirectory()}");
@@ -51,6 +52,7 @@ namespace tap
                 Environment.ExitCode = 8;
                 return;
             }
+
             
             var type = asm.GetType(entrypoint);
             var method = type.GetMethod("Go", BindingFlags.Static | BindingFlags.Public);

@@ -32,6 +32,9 @@ namespace OpenTap
             inputInterface?.RequestUserInput(dataObject, TimeSpan.MaxValue, modal);
         }
 
+        /// <summary> Currently selected interface. </summary>
+        public static object Interface => inputInterface;
+
         static IUserInputInterface inputInterface;
         static IUserInterface userInterface;
         /// <summary> Sets the current user input interface. This should almost never be called from user code. </summary>

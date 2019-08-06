@@ -3,6 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.329
 MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "nuget", "nuget", "{B2B5AFDA-56F7-49AA-8615-4640581242A3}"
+	ProjectSection(SolutionItems) = preProject
+		nuget\OpenTAP.nuspec = nuget\OpenTAP.nuspec
+		nuget\build\OpenTap.props = nuget\build\OpenTap.props
+		nuget\build\OpenTap.targets = nuget\build\OpenTap.targets
+	EndProjectSection
+EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tap.Plugins.BasicSteps", "BasicSteps\Tap.Plugins.BasicSteps.csproj", "{57145555-3F78-44C3-BA7F-B5EDAA2B573C}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tap.Cli", "Cli\Tap.Cli.csproj", "{1EB4D48C-5719-483D-82DE-017F6B1634E6}"
@@ -15,16 +22,9 @@ Project("{D954291E-2A0B-460D-934E-DC6B0785DB48}") = "Tap.Shared", "Shared\Tap.Sh
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "tap", "tap\tap.csproj", "{C2C29219-4ED1-4197-85BB-BBD96286686F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tap.Package.UnitTests", "Package.UnitTests\Tap.Package.UnitTests.csproj", "{0875C7B8-47A5-4CF5-A6CA-8B2367D87799}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tap.Package.UnitTests", "Package.UnitTests\Tap.Package.UnitTests.csproj", "{0875C7B8-47A5-4CF5-A6CA-8B2367D87799}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "nuget", "nuget", "{B2B5AFDA-56F7-49AA-8615-4640581242A3}"
-	ProjectSection(SolutionItems) = preProject
-		nuget\OpenTAP.nuspec = nuget\OpenTAP.nuspec
-		nuget\build\OpenTap.props = nuget\build\OpenTap.props
-		nuget\build\OpenTap.targets = nuget\build\OpenTap.targets
-	EndProjectSection
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tap.Package", "Package\Tap.Package.csproj", "{FC73F73C-BD97-4DDC-AD7B-5A990CB4AF6B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tap.Package", "Package\Tap.Package.csproj", "{FC73F73C-BD97-4DDC-AD7B-5A990CB4AF6B}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
@@ -35,10 +35,10 @@ Global
 		Debug|x86 = Debug|x86
 		NetCore|x64 = NetCore|x64
 		NetCore|x86 = NetCore|x86
-		Release|x64 = Release|x64
-		Release|x86 = Release|x86
 		NetCoreDebug|x64 = NetCoreDebug|x64
 		NetCoreDebug|x86 = NetCoreDebug|x86
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{57145555-3F78-44C3-BA7F-B5EDAA2B573C}.Debug|x64.ActiveCfg = Debug|Any CPU

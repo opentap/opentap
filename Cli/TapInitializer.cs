@@ -8,16 +8,37 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using OpenTap.Diagnostic;
 
 namespace OpenTap
 {
     internal static class TapInitializer
     {
         private static readonly SimpleTapAssemblyResolver tapAssemblyResolver = new SimpleTapAssemblyResolver();
+
+        public class InitTraceListener : ILogListener {
+            public List<Event> allEvents = new List<Event>();
+            public void EventsLogged(IEnumerable<Event> events)
+            {
+                lock(allEvents)
+                    allEvents.AddRange(events);
+            }
+            public void Flush(){
+
+            }
+            public static InitTraceListener Instance = new InitTraceListener();  
+        }
+
         internal static void Initialize()
         {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            
             AppDomain.CurrentDomain.AssemblyResolve += tapAssemblyResolver.Resolve;
+            //AppDomain.CurrentDomain.AssemblyLoad +=(s,e) => {
+            //    Console.WriteLine(" " + sw.ElapsedMilliseconds + " : " + e.LoadedAssembly.FullName);
+            //};
             ContinueInitialization();
+            //Console.WriteLine("Init2: " + sw.ElapsedMilliseconds);
         }
 
         internal static void ContinueInitialization()
@@ -25,7 +46,9 @@ namespace OpenTap
             // We only needed the resolver to get into this method (requires OpenTAP, which requires netstandard)
             // Remove so we avoid race condition with OpenTap AssemblyResolver.
             AppDomain.CurrentDomain.AssemblyResolve -= tapAssemblyResolver.Resolve;
-            PluginManager.SearchAsync();
+            OpenTap.Log.AddListener(InitTraceListener.Instance);
+            PluginManager.Search();
+            OpenTap.Log.RemoveListener(InitTraceListener.Instance);
         }
     }
 
@@ -35,16 +58,20 @@ namespace OpenTap
     /// </summary>
     internal class SimpleTapAssemblyResolver
     {
-        private List<string> assemblies { get; set; }
-
+        Dictionary<string, string> asmlookup = new Dictionary<string, string>();
         public SimpleTapAssemblyResolver()
         {
-
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            
             string curAssemblyFolder = Path.GetDirectoryName(Environment.GetEnvironmentVariable("OPENTAP_INIT_DIRECTORY"));
             string currentDir = Path.GetDirectoryName(curAssemblyFolder);
-            assemblies = Directory.EnumerateFiles(currentDir, "*.*", SearchOption.AllDirectories)
+            var assemblies = Directory.EnumerateFiles(currentDir, "*.*", SearchOption.AllDirectories)
                 .Where(s => s.EndsWith(".dll", StringComparison.InvariantCultureIgnoreCase) || s.EndsWith(".exe", StringComparison.InvariantCultureIgnoreCase))
                 .ToList();
+            foreach(var assembly in assemblies){
+                var name = Path.GetFileNameWithoutExtension(assembly).ToLower();
+                asmlookup[name] = assembly;
+            }
         }
 
         internal Assembly Resolve(object sender, ResolveEventArgs args)
@@ -52,16 +79,10 @@ namespace OpenTap
             // Ignore missing resources
             if (args.Name.Contains(".resources"))
                 return null;
-
+            Console.WriteLine("Load: " + args.Name);
             string filename = args.Name.Split(',')[0].ToLower();
-            string assembly = assemblies.FirstOrDefault(s => Path.GetFileNameWithoutExtension(s).ToLower() == filename);
-
-            // check for assemblies already loaded
-            Assembly loadedAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(a => a.FullName == args.Name);
-            if (loadedAssembly != null)
-                return loadedAssembly;
-            
-            if (!string.IsNullOrWhiteSpace(assembly))
+                        
+            if (asmlookup.TryGetValue(filename, out string assembly)) 
                 return Assembly.LoadFrom(assembly);
 
             Console.Error.WriteLine($"Asked to resolve {filename}, but couldn't");

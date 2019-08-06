@@ -4,7 +4,7 @@
     <TargetFramework>net462</TargetFramework>
     </PropertyGroup>
 
-    <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <PropertyGroup Condition="'$(Configuration)' == 'Release' ">
     <TargetFramework>net462</TargetFramework>
     </PropertyGroup>
 

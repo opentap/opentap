@@ -144,7 +144,7 @@ namespace OpenTap.Cli
 
             SessionLogs.Rename(EngineSettings.Current.SessionLogPath.Expand(date: Process.GetCurrentProcess().StartTime));
 
-            if (!NonInteractive)
+            if (!NonInteractive && UserInput.Interface == null)
             {
                 CliUserInputInterface.Load();
             }

@@ -87,10 +87,7 @@ namespace OpenTap
         }
         public static SharedLibrary Load(string name)
         {
-            Console.ReadLine();
             var handle = LoadLib(name);
-            Console.ReadLine();
-            Console.WriteLine($"Loaded {name}: {handle}");
             if(handle == null) return null;
 
             return new SharedLibrary(handle);

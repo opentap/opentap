@@ -1,6 +1,5 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <TargetFramework>net462</TargetFramework>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
@@ -10,10 +9,15 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <Platforms>x86;x64;AnyCPU</Platforms>
     <IsDebug>false</IsDebug>
+    <TargetFramework>net462</TargetFramework>
+    <TargetFrameworkIdentifier>.NETFramework</TargetFrameworkIdentifier>
+    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+    
+    
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
-    <TargetFramework>net462</TargetFramework>
+    
     <IsDebug>true</IsDebug>
   </PropertyGroup>
 
@@ -26,6 +30,9 @@
     <RuntimeIdentifiers>linux-x64</RuntimeIdentifiers>
     <PlatformTarget>x64</PlatformTarget>
     <Optimize>true</Optimize>
+    <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
+    <TargetFrameworkVersion></TargetFrameworkVersion>
+    
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='NetCoreDebug'">
@@ -33,6 +40,9 @@
     <RuntimeIdentifiers>linux-x64</RuntimeIdentifiers>
     <PlatformTarget>x64</PlatformTarget>
     <IsDebug>true</IsDebug>
+    <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
+    <TargetFrameworkVersion></TargetFrameworkVersion>
+    
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsDebug)'=='true'">
@@ -49,15 +59,9 @@
     <Optimize>true</Optimize>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Platform)'=='x86'">
-    <PlatformTarget>x86</PlatformTarget>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Platform)'=='x64'">
-    <PlatformTarget>x64</PlatformTarget>
-  </PropertyGroup>
-
-
-
-
+  <Target Name="RemoveSatelliteAssemblies" AfterTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+        <ReferenceCopyLocalPaths Remove="@(ReferenceSatellitePaths)" />
+    </ItemGroup>
+  </Target>
 </Project>

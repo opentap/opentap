@@ -32,8 +32,8 @@
     <File Path="Dependencies\Mono.Cecil.0.10.1.0\LICENSE.txt" SourcePath="..\..\Installer\Assets\Mono.Cecil.License.txt"  />
     <File Path="Dependencies\System.Runtime.InteropServices.RuntimeInformation.4.0.2.0\System.Runtime.InteropServices.RuntimeInformation.dll"  SourcePath="System.Runtime.InteropServices.RuntimeInformation.dll"/>
     <File Path="OpenTapApiReference.chm"                                            SourcePath="..\..\Help/OpenTapApiReference.chm"/>
-    <File Path="Dependencies/Microsoft.CodeAnalysis.2.10.0.0/LICENSE.txt"           SourcePath="..\..\Installer\Assets\dotnet_library_license.txt"  />
-    <File Path="Dependencies/Microsoft.CodeAnalysis.CSharp.2.10.0.0/LICENSE.txt"    SourcePath="..\..\Installer\Assets\dotnet_library_license.txt"  />
+    <File Path="Dependencies/Microsoft.CodeAnalysis.2.10.0.0/LICENSE.txt"           SourcePath="dotnet_library_license.txt"  />
+    <File Path="Dependencies/Microsoft.CodeAnalysis.CSharp.2.10.0.0/LICENSE.txt"    SourcePath="dotnet_library_license.txt"  />
     <File Path="Dependencies/Microsoft.CSharp.4.0.4.0/LICENSE.txt"                  SourcePath="..\..\packages\System.ValueTuple.4.5.0\LICENSE.txt"  />
     <File Path="Dependencies/netstandard.2.0.0.0/LICENSE.txt"                       SourcePath="..\..\packages\System.ValueTuple.4.5.0\LICENSE.txt"  />
     <File Path="Dependencies/System.Collections.4.0.11.0/LICENSE.txt"               SourcePath="..\..\Installer\Assets\dotnet_library_license.txt"  />

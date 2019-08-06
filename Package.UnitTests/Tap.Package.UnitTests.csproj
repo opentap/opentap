@@ -1,6 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="$(SolutionDir)Common.Exe.targets"/>
-  
+  <Import Project="../Common.Exe.targets"/>
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <AssemblyName>OpenTap.Package.UnitTests</AssemblyName>
@@ -26,9 +25,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <EmbeddedResource Include="ExamplePackage.xml" />
-    <Content Include="Packages\DependencyTest.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
     <Content Include="Packages\Test.package.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

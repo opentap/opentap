@@ -31,7 +31,7 @@ namespace OpenTap.Engine.UnitTests
                 StringAssert.Contains(inlog, part);
             }
 
-            Assert.AreEqual(SessionLogs.GetSessionLogFilePath(), "LogTest/Log2.txt");
+            Assert.AreEqual(Path.GetFullPath(SessionLogs.GetSessionLogFilePath()), Path.GetFullPath("LogTest/Log2.txt"));
             SessionLogs.Rename(currentName);
             Assert.AreEqual(currentName, SessionLogs.GetSessionLogFilePath());
             Assert.IsFalse(File.Exists("Log1.txt"));

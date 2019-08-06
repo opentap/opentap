@@ -11,6 +11,10 @@ namespace OpenTap
 {
     internal class ConsoleTraceListener : TraceListener
     {
+        
+        public static void SetStartupTime(DateTime time){
+            globalTimer = time.Ticks;
+        }
         private static long globalTimer = DateTime.Now.Ticks;
         private readonly bool isVerbose;
         private readonly bool isQuiet;
