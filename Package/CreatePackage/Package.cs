@@ -390,6 +390,21 @@ namespace OpenTap.Package
                 var asms = searchedFiles.Where(sf => PathUtils.AreEqual(f.FileName, sf.Location)).ToList();
                 if (asms.Count == 0 && (Path.GetExtension(f.FileName).Equals(".dll", StringComparison.OrdinalIgnoreCase) || Path.GetExtension(f.FileName).Equals(".exe", StringComparison.OrdinalIgnoreCase)))
                 {
+                    if (File.Exists(f.FileName))
+                    {
+                        // If the pluginSearcher found assemblies that are located somewhere not expected by the package definition, the package might appear broken.
+                        // But if the file found by the pluginSearcher is the same as the one expected by the package definition we should not count it as broken.
+                        // This could cause a package to not be added as a dependencies. 
+                        // E.g. when debugging and the OpenTAP.Cli.dll is both in the root build dir and in "Packages/OpenTAP"
+
+                        var fileData = File.ReadAllBytes(f.FileName);
+                        var asmsIdenticalFilename = searchedFiles.Where(sf => Path.GetFileName(f.FileName) == Path.GetFileName(sf.Location));
+                        var asmsIdentical = asmsIdenticalFilename.Where(sf => File.ReadAllBytes(sf.Location).SequenceEqual(fileData));
+
+                        if (asmsIdentical.Any())
+                            return asmsIdentical.ToList();
+                    }
+
                     if (!brokenPackageNames.Contains(pkgDef.Name) && IsDotNetAssembly(f.FileName))
                     {
                         brokenPackageNames.Add(pkgDef.Name);

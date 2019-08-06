@@ -75,11 +75,9 @@ namespace OpenTap.Package
                     continue;
 
                 string exefile = step.ExeFile;
-                if (Path.IsPathRooted(step.ExeFile) == false)
+                // If path is relative, check if file is in fact in ExecutorClient.ExeDir (isolated mode)
+                if (!Path.IsPathRooted(step.ExeFile) && File.Exists(Path.Combine(ExecutorClient.ExeDir, step.ExeFile)))
                     exefile = Path.Combine(ExecutorClient.ExeDir, step.ExeFile);
-
-                if (File.Exists(exefile) == false)
-                    throw new Exception($"Could not find file '{step.ExeFile}' from ActionStep '{step.ActionName}'.");
 
                 // Upgrade to ok output
                 res = ActionResult.Ok;

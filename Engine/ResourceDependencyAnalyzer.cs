@@ -285,7 +285,17 @@ namespace OpenTap
             {
                 TestStepExtensions.GetObjectSettings<IResource, object, ResourceNode>(new object[] { r }, true, (res, prop) =>
                    {
-                       var nodeRepresentingResource = tree.FirstOrDefault(n => n.Resource == res);
+                       var nodes = tree.Where(n => n.Resource == res);
+                       if(nodes.Count() > 1)
+                       {
+                           // Normally we would expect that the tree only contains one node representing each resource. 
+                           // In case of null resources however, we want one node per property, such that ILockManager.BeforeOpen()
+                           // has a chance to set each property to a different resource instance.
+                           if (res != null)
+                               throw new Exception($"Duplicate entry for Resource '{res.Name}' in tree.");
+                           nodes = nodes.Where(n => n.Depender == prop);
+                       }
+                       var nodeRepresentingResource = nodes.FirstOrDefault();
                        if (nodeRepresentingResource != null)
                            nodeRepresentingResource.References.Add(new ResourceReference(r, prop));
                        return nodeRepresentingResource;
@@ -295,3 +305,4 @@ namespace OpenTap
         }
     }
 }
+
