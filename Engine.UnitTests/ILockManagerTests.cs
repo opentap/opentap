@@ -1,5 +1,6 @@
 ﻿using NUnit.Framework;
 using OpenTap.EngineUnitTestUtils;
+using OpenTap.Plugins.BasicSteps;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -269,5 +270,34 @@ namespace OpenTap.UnitTests
 
         }
 
+        [TestCase(typeof(LazyResourceManager), 3)]
+        [TestCase(typeof(ResourceTaskManager), 1)]
+        public void BeforeOpenAfterCloseCallCountTest(Type managerType, int expectedCount)
+        {
+            EngineSettings.Current.ResourceManagerType = (IResourceManager)Activator.CreateInstance(managerType);
+            IInstrument instr1 = new SomeInstrument() { Name = "INSTR1" };
+            IInstrument instr2 = new SomeInstrument() { Name = "INSTR2" };
+            InstrumentSettings.Current.Add(instr1);
+            InstrumentSettings.Current.Add(instr2);
+            Log.AddListener(new DiagnosticTraceListener());
+            TestPlan plan = new TestPlan();
+            ITestStep step1 = new DoubleInstrumentTestStep() { Instrument1 = instr1, Instrument2 = instr2 };
+            plan.Steps.Add(step1);
+            ITestStep step2 = new InstrumentTestStep() { Instrument = instr1 };
+            plan.Steps.Add(step2);
+            ITestStep step4 = new InstrumentTestStep() { Instrument = instr1 }; // a step uses the same instrument as another step to test that this 
+            plan.Steps.Add(step4);
+            ITestStep step3 = new DelayStep() { DelaySecs = 0 }; // a step without any Resource properties. To check that this does not create a call to BeforeOpen
+            plan.Steps.Add(step3);
+            UnitTestingLockManager.Enable();
+            UnitTestingLockManager.BeforeOpenEffect = SetNullResources;
+            var run = plan.Execute();
+            UnitTestingLockManager.Disable();
+
+            Assert.IsFalse(run.FailedToStart, "Plan run failed.");
+            Assert.AreEqual(Verdict.NotSet, run.Verdict);
+            Assert.AreEqual(expectedCount, UnitTestingLockManager.BeforeOpenArgs.Count(), "BeforeOpen hook called an unexpected number of times.");
+            Assert.AreEqual(expectedCount, UnitTestingLockManager.AfterCloseArgs.Count(), "AfterClose hook called an unexpected number of times.");
+        }
     }
 }
