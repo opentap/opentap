@@ -490,7 +490,8 @@ namespace OpenTap.Package.SetAsmInfo
                         attr.ConstructorArguments[0] = new CustomAttributeArgument(attr.ConstructorArguments[0].Type, infoVersion.ToString());
                 }
 
-                asm.Write(filename);
+                using (var stream = File.Open(filename, FileMode.OpenOrCreate))
+                    asm.Write(stream);
             }
         }
 
