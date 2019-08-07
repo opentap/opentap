@@ -13,8 +13,6 @@ namespace tap
     {
         static void Main(string[] args)
         {
-            var start = DateTime.Now;
-            
             Environment.SetEnvironmentVariable("OPENTAP_INIT_DIRECTORY", typeof(Program).Assembly.Location);
             // in case TPM needs to update Tap.Cli.dll, we load it from memory to not keep the file in use
             Assembly asm = null;
@@ -47,13 +45,11 @@ namespace tap
             }
             if (asm == null)
             {
-                Console.WriteLine($"{System.IO.Directory.GetCurrentDirectory()}");
                 Console.WriteLine("Missing OpenTAP CLI. Please try reinstalling OpenTAP.");
                 Environment.ExitCode = 8;
                 return;
             }
 
-            
             var type = asm.GetType(entrypoint);
             var method = type.GetMethod("Go", BindingFlags.Static | BindingFlags.Public);
             method.Invoke(null, Array.Empty<object>());

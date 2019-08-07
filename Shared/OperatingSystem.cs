@@ -52,47 +52,4 @@ namespace OpenTap
             }
         }
     }
-
-    internal class SharedLibrary {
-
-        [DllImport("kernel32.dll")]
-        static extern IntPtr LoadLibrary(string filename);
-
-        [DllImport("kernel32.dll")]
-        static extern IntPtr GetProcAddress(IntPtr hModule, string procname);
-
-
-        [DllImport("libdl.so")]
-        static extern IntPtr dlopen(string filename, int flags);
-
-        const int RTLD_GLOBAL = 0x00100;
-        delegate IntPtr loadLibType(string name);
-        static loadLibType LoadLib;
-
-        static SharedLibrary(){
-            
-            if(OperatingSystem.Current == OperatingSystem.Linux)
-            {
-                LoadLib = (name) => dlopen(name, RTLD_GLOBAL);
-            }
-            else{
-                LoadLib = LoadLibrary;
-            }
-
-        }
-
-        IntPtr handle;
-        public SharedLibrary(IntPtr handle){
-            this.handle = handle;
-        }
-        public static SharedLibrary Load(string name)
-        {
-            var handle = LoadLib(name);
-            if(handle == null) return null;
-
-            return new SharedLibrary(handle);
-        }
-
-    }
-
 }

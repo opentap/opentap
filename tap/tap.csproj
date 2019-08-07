@@ -6,12 +6,7 @@
     <RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(Configuration)'=='NetCoreDebug'">
-    <None Include="$(SolutionDir)/Shared/tap.runtimeconfig.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-  <ItemGroup Condition="'$(Configuration)'=='NetCore'">
+  <ItemGroup Condition="'$(IsNetStandard)'=='true'">
     <None Include="$(SolutionDir)/Shared/tap.runtimeconfig.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

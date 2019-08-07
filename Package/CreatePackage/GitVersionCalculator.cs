@@ -113,9 +113,6 @@ namespace OpenTap.Package
             }
         }
 
-        static GitVersionCalulator(){
-            //SharedLibrary.Load("git2");
-        }
         /// <summary>
         /// Instanciates a new <see cref="GitVersionCalulator"/> to work on a specified git repository.
         /// </summary>
@@ -129,7 +126,6 @@ namespace OpenTap.Package
                 if (repositoryDir == null)
                     throw new ArgumentException("Directory is not a git repository.", "repositoryDir");
             }
-            
             repo = new LibGit2Sharp.Repository(repositoryDir);
         }
 
