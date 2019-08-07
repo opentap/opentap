@@ -17,11 +17,11 @@ namespace OpenTap
         private static readonly SimpleTapAssemblyResolver tapAssemblyResolver = new SimpleTapAssemblyResolver();
 
         public class InitTraceListener : ILogListener {
-            public List<Event> allEvents = new List<Event>();
+            public List<Event> AllEvents = new List<Event>();
             public void EventsLogged(IEnumerable<Event> events)
             {
-                lock(allEvents)
-                    allEvents.AddRange(events);
+                lock(AllEvents)
+                    AllEvents.AddRange(events);
             }
             public void Flush(){
 
@@ -31,14 +31,8 @@ namespace OpenTap
 
         internal static void Initialize()
         {
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            
             AppDomain.CurrentDomain.AssemblyResolve += tapAssemblyResolver.Resolve;
-            //AppDomain.CurrentDomain.AssemblyLoad +=(s,e) => {
-            //    Console.WriteLine(" " + sw.ElapsedMilliseconds + " : " + e.LoadedAssembly.FullName);
-            //};
             ContinueInitialization();
-            //Console.WriteLine("Init2: " + sw.ElapsedMilliseconds);
         }
 
         internal static void ContinueInitialization()
@@ -61,8 +55,6 @@ namespace OpenTap
         Dictionary<string, string> asmlookup = new Dictionary<string, string>();
         public SimpleTapAssemblyResolver()
         {
-            var sw = System.Diagnostics.Stopwatch.StartNew();
-            
             string curAssemblyFolder = Path.GetDirectoryName(Environment.GetEnvironmentVariable("OPENTAP_INIT_DIRECTORY"));
             string currentDir = Path.GetDirectoryName(curAssemblyFolder);
             var assemblies = Directory.EnumerateFiles(currentDir, "*.*", SearchOption.AllDirectories)
@@ -79,7 +71,6 @@ namespace OpenTap
             // Ignore missing resources
             if (args.Name.Contains(".resources"))
                 return null;
-            Console.WriteLine("Load: " + args.Name);
             string filename = args.Name.Split(',')[0].ToLower();
                         
             if (asmlookup.TryGetValue(filename, out string assembly)) 

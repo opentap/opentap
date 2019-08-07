@@ -263,7 +263,6 @@ namespace OpenTap.Engine.UnitTests
             {
                 File.Delete(dll);
             }
-
         }
 
         [Test]
