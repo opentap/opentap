@@ -7,23 +7,23 @@
   <Files>
     <File Path="OpenTap.dll">
         <SetAssemblyInfo Attributes="Version"/>
-        <!-- <Sign Certificate="Keysight Technologies, Inc."/> -->
+        <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
     <File Path="Packages/OpenTAP/OpenTap.Cli.dll" SourcePath="OpenTap.Cli.dll">
         <SetAssemblyInfo Attributes="Version"/>
-        <!-- <Sign Certificate="Keysight Technologies, Inc."/> -->
+        <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
     <File Path="OpenTap.Package.dll">
         <SetAssemblyInfo Attributes="Version"/>
-        <!-- <Sign Certificate="Keysight Technologies, Inc."/> -->
+        <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
     <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" SourcePath="OpenTap.Plugins.BasicSteps.dll">
         <SetAssemblyInfo Attributes="Version"/>
-        <!-- <Sign Certificate="Keysight Technologies, Inc."/> -->
+        <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
     <File Path="tap.exe" >
         <SetAssemblyInfo Attributes="Version"/>
-        <!-- <Sign Certificate="Keysight Technologies, Inc."/> -->
+        <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
     <File Path="LICENSE.txt"  SourcePath="..\..\LICENSE.txt"/>
     <File Path="Dependencies\LibGit2Sharp.0.25.0.0\git2-4aecb64.dll" SourcePath="lib\win32\x64\git2-4aecb64.dll"  />

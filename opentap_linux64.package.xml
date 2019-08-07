@@ -7,23 +7,23 @@
   <Files>
     <File Path="OpenTap.dll">
         <SetAssemblyInfo Attributes="Version"/>
-        <!-- <Sign Certificate="Keysight Technologies, Inc."/> -->
+        <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
     <File Path="OpenTap.Cli.dll">
         <SetAssemblyInfo Attributes="Version"/>
-        <!-- <Sign Certificate="Keysight Technologies, Inc."/> -->
+        <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
     <File Path="OpenTap.Package.dll">
         <SetAssemblyInfo Attributes="Version"/>
-        <!-- <Sign Certificate="Keysight Technologies, Inc."/> -->
+        <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
     <File Path="OpenTap.Plugins.BasicSteps.dll">
         <SetAssemblyInfo Attributes="Version"/>
-        <!-- <Sign Certificate="Keysight Technologies, Inc."/> -->
+        <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
     <File Path="tap.dll" >
         <SetAssemblyInfo Attributes="Version"/>
-        <!-- <Sign Certificate="Keysight Technologies, Inc."/> -->
+        <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
     
     <File Path="tap"/>
