@@ -22,7 +22,7 @@ namespace OpenTap
     public static class PluginManager
     {
         private static readonly TraceSource log = Log.CreateSource("PluginManager");
-        private static ManualResetEventSlim searchTask = new ManualResetEventSlim();
+        private static ManualResetEventSlim searchTask = new ManualResetEventSlim(true);
         private static PluginSearcher searcher;
         static object implicitSearchLock = new object();
         static TapAssemblyResolver assemblyResolver;
@@ -158,14 +158,24 @@ namespace OpenTap
             }
             return specializations;
         }
-        
+        static object startSearcherLock = new object();
         /// <summary>
         /// Returns the <see cref="PluginSearcher"/> used to search for plugins.
         /// This will search for plugins if not done already (i.e. call and wait for <see cref="PluginManager.SearchAsync()"/>)
         /// </summary>
         public static PluginSearcher GetSearcher()
         {
+            
             searchTask.Wait();
+            if (searcher == null)
+            {
+                // If the search task has not been started, do it now.
+                lock (startSearcherLock)
+                {
+                    if(searcher == null)
+                        Search();
+                }
+            }
             return searcher; // Wait for the search to complete (and get the result)
         }
 

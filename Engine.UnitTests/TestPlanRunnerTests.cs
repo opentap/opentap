@@ -172,7 +172,7 @@ namespace OpenTap.Engine.UnitTests
             {
                 char[] buffer = new char[100];
 
-                while (!procOutput.EndOfStream)
+                while (!procOutput.EndOfStream || !procOutput2.EndOfStream)
                 {
                     int read = procOutput.Read(buffer, 0, buffer.Length);
                     ConsoleOutput.Append(buffer, 0, read);
