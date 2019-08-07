@@ -34,6 +34,9 @@
     <None Include="../Installer/Assets/dotnet_library_license.txt">
        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="../Installer/Assets/dotnet_library_mit_license.txt">
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     
   </ItemGroup>
 
