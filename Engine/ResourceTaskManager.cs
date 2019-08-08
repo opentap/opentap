@@ -792,7 +792,7 @@ namespace OpenTap
                                 {
                                     resourceReferenceCount[res] -= 1;
                                 }
-                                usedResources = usedResources.Where(x => resourceReferenceCount[x] == 0);
+                                usedResources = usedResources.Where(x => resourceReferenceCount[x] == 0).ToList();
                             }
 
                             CloseResources(usedResources);
