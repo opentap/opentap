@@ -13,7 +13,8 @@ namespace tap
     {
         static void Main(string[] args)
         {
-            Environment.SetEnvironmentVariable("OPENTAP_INIT_DIRECTORY", typeof(Program).Assembly.Location);
+            // OPENTAP_INIT_DIRECTORY: Executing assembly is null when running with 'dotnet tap.dll' hence the following environment variable can be used.
+            Environment.SetEnvironmentVariable("OPENTAP_INIT_DIRECTORY", Path.GetDirectoryName(typeof(Program).Assembly.Location));
             // in case TPM needs to update Tap.Cli.dll, we load it from memory to not keep the file in use
             Assembly asm = null;
             string entrypoint = "OpenTap.Cli.TapEntry";
