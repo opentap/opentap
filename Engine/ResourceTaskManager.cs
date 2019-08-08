@@ -602,15 +602,18 @@ namespace OpenTap
             }
         }
 
-        private void CloseResources(IEnumerable<IResource> toClose, bool fullyClose = false)
+        private void CloseResources(IEnumerable<IResource> toClose)
         {
-            Task.WaitAll(toClose.Select(res => RequestResourceClose(res)).ToArray());
-            lock (resourceWithBeforeOpenCalled)
+            if (toClose.Any())
             {
-                var nodes = resourceWithBeforeOpenCalled.Where(rn => toClose.Contains(rn.Resource)).ToList();
-                lockManager.AfterClose(nodes, CancellationToken.None);
-                foreach (var node in nodes)
-                    resourceWithBeforeOpenCalled.Remove(node);
+                Task.WaitAll(toClose.Select(res => RequestResourceClose(res)).ToArray());
+                lock (resourceWithBeforeOpenCalled)
+                {
+                    var nodes = resourceWithBeforeOpenCalled.Where(rn => toClose.Contains(rn.Resource)).ToList();
+                    lockManager.AfterClose(nodes, CancellationToken.None);
+                    foreach (var node in nodes)
+                        resourceWithBeforeOpenCalled.Remove(node);
+                }
             }
         }
 
@@ -702,57 +705,58 @@ namespace OpenTap
                     if (item is ITestStep step)
                     {
                         var resources = ResourceManagerUtils.GetResourceNodes(new List<object> { step });
-
-                        // Call ILockManagers before checking for null
-
-                        try
+                        if (resources.Any())
                         {
-                            lockManager.BeforeOpen(resources, cancellationToken);
-                        }
-                        finally
-                        {
-                            lock (resourceWithBeforeOpenCalled)
+                            // Call ILockManagers before checking for null
+                            try
                             {
-                                resourceWithBeforeOpenCalled.AddRange(resources);
+                                lockManager.BeforeOpen(resources, cancellationToken);
                             }
-                        }
-                        var plan = step.GetParent<TestPlan>();
-                        plan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
-
-                        try
-                        {
-                            // Check null resources
-                            if (resources.Any(res => res.Resource == null))
+                            finally
                             {
-                                step.CheckResources();
-
-                                // Now check resources since we know one of them should have a null resource
-                                resources.ForEach(res =>
+                                lock (resourceWithBeforeOpenCalled)
                                 {
-                                    if (res.StrongDependencies.Contains(null) || res.WeakDependencies.Contains(null))
-                                        throw new Exception(String.Format("Resource property not set on resource {0}. Please configure resource.", res.Resource));
-                                });
-                            }
-                        }
-                        finally
-                        {
-                            lock (resourceLock)
-                            {
-                                resourceDependencies[step] = resources.Select(x => x.Resource).ToList();
-                                foreach (ResourceNode n in resources)
-                                {
-                                    if (n.Resource is IResource resource)
-                                    {
-                                        if (!resourceReferenceCount.ContainsKey(resource))
-                                            resourceReferenceCount[resource] = 0;
-                                        resourceReferenceCount[resource] += 1;
-                                    }
+                                    resourceWithBeforeOpenCalled.AddRange(resources);
                                 }
                             }
-                            
-                            OpenResources(resources, cancellationToken);
+                            var plan = step.GetParent<TestPlan>();
+                            plan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
+
+                            try
+                            {
+                                // Check null resources
+                                if (resources.Any(res => res.Resource == null))
+                                {
+                                    step.CheckResources();
+
+                                    // Now check resources since we know one of them should have a null resource
+                                    resources.ForEach(res =>
+                                    {
+                                        if (res.StrongDependencies.Contains(null) || res.WeakDependencies.Contains(null))
+                                            throw new Exception(String.Format("Resource property not set on resource {0}. Please configure resource.", res.Resource));
+                                    });
+                                }
+                            }
+                            finally
+                            {
+                                lock (resourceLock)
+                                {
+                                    resourceDependencies[step] = resources.Select(x => x.Resource).ToList();
+                                    foreach (ResourceNode n in resources)
+                                    {
+                                        if (n.Resource is IResource resource)
+                                        {
+                                            if (!resourceReferenceCount.ContainsKey(resource))
+                                                resourceReferenceCount[resource] = 0;
+                                            resourceReferenceCount[resource] += 1;
+                                        }
+                                    }
+                                }
+
+                                OpenResources(resources, cancellationToken);
+                            }
+                            WaitHandle.WaitAny(new[] { planRun.PromptWaitHandle, planRun.MainThread.AbortToken.WaitHandle });
                         }
-                        WaitHandle.WaitAny(new[] { planRun.PromptWaitHandle, planRun.MainThread.AbortToken.WaitHandle });
                     }
                     break;
             }
@@ -770,26 +774,29 @@ namespace OpenTap
                 case TestPlanExecutionStage.Open:
                 case TestPlanExecutionStage.Execute:
                     lock (resourceLock)
-                        CloseResources(Resources, true);
+                        CloseResources(Resources);
 
                     break;
 
                 case TestPlanExecutionStage.Run:
                     if (item is ITestStep step)
                     {
-                        IEnumerable<IResource> usedResources;
-                        lock (resourceLock)
+                        if (resourceDependencies.TryGetValue(step, out List<IResource> usedResourcesRaw))
                         {
-                            usedResources = resourceDependencies[step].Where(r => r is IResource);
-                            resourceDependencies.Remove(step);
-                            foreach (IResource res in usedResources)
+                            IEnumerable<IResource> usedResources;
+                            lock (resourceLock)
                             {
-                                resourceReferenceCount[res] -= 1;
+                                usedResources = usedResourcesRaw.Where(r => r is IResource);
+                                resourceDependencies.Remove(step);
+                                foreach (IResource res in usedResources)
+                                {
+                                    resourceReferenceCount[res] -= 1;
+                                }
+                                usedResources = usedResources.Where(x => resourceReferenceCount[x] == 0).ToList();
                             }
-                            usedResources = usedResources.Where(x => resourceReferenceCount[x] == 0);
-                        }
 
-                        CloseResources(usedResources);
+                            CloseResources(usedResources);
+                        }
                     }
                     break;
             }

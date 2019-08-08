@@ -195,7 +195,8 @@ namespace OpenTap
                         if (PrintTestPlanRunSummary)
                             summaryListener.OnTestPlanRunStart(run); // Call this to ensure that the correct planrun is being summarized
 
-                        run.UpgradeVerdict(Verdict.Error);
+                        if(run.Verdict < Verdict.Aborted)
+                            run.Verdict = Verdict.Error;
                     }
 
                     for (int i = run.StepsWithPrePlanRun.Count - 1; i >= 0; i--)

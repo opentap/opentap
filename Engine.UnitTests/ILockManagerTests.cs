@@ -1,7 +1,9 @@
 ﻿using NUnit.Framework;
-using OpenTap.Engine.UnitTests;
+using OpenTap.EngineUnitTestUtils;
+using OpenTap.Plugins.BasicSteps;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -24,43 +26,23 @@ namespace OpenTap.UnitTests
             {
                 if(isEnabled)
                     BeforeOpenArgs.Add(resources);
-                if (ReplaceNullResources)
-                {
-                    // If some resources are still null at this stage, ILockManager is expected to set them. Otherwise the plan run will error out with "Instrument not configured for step..." error
-                    try
-                    {
-                        foreach (var r in resources)
-                        {
-                            if (r.Resource != null)
-                                continue;
-                            foreach (var step in r.References)
-                            {
-                                var instrument = InstrumentSettings.Current.First();
-                                if (step.Property.GetValue(step.Instance) == null)
-                                {
-                                    step.Property.SetValue(step.Instance, InstrumentSettings.Current.First());
-                                    r.Resource = instrument;
-                                }
-                            }
-                        }
-                    }
-                    catch
-                    {
-
-                    }
-                }
+                if (BeforeOpenEffect != null)
+                    BeforeOpenEffect(resources);
             }
             static bool isEnabled = false;
-            static bool ReplaceNullResources = false;
-            public static void Enable(bool replaceNullResources = false)
+            public static Action<IEnumerable<IResourceReferences>> BeforeOpenEffect = null;
+            public static void Enable()
             {
                 isEnabled = true;
-                ReplaceNullResources = replaceNullResources;
                 AfterCloseArgs.Clear();
                 BeforeOpenArgs.Clear();
             }
 
-            public static void Disable() => isEnabled = false;
+            public static void Disable()
+            {
+                isEnabled = false;
+                BeforeOpenEffect = null;
+            }
         }
 
         public class InstrumentTestStep : TestStep
@@ -171,6 +153,32 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(step2.GetType().GetProperty("Instrument1"), arg2.First().References.First().Property, "ResourceReference references unexpected property.");
         }
 
+        private void SetNullResources(IEnumerable<IResourceReferences> resources)
+        {
+            // If some resources are still null at this stage, ILockManager is expected to set them. Otherwise the plan run will error out with "Instrument not configured for step..." error
+            try
+            {
+                foreach (var r in resources)
+                {
+                    if (r.Resource != null)
+                        continue;
+                    foreach (var step in r.References)
+                    {
+                        var instrument = InstrumentSettings.Current.First();
+                        if (step.Property.GetValue(step.Instance) == null)
+                        {
+                            step.Property.SetValue(step.Instance, InstrumentSettings.Current.First());
+                            r.Resource = instrument;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+
+            }
+        }
+
         [Test]
         public void SimpleResourceNullPropertyTest()
         {
@@ -181,7 +189,8 @@ namespace OpenTap.UnitTests
             TestPlan plan = new TestPlan();
             ITestStep step1 = new InstrumentTestStep() { Instrument = null };
             plan.Steps.Add(step1);
-            UnitTestingLockManager.Enable(true);
+            UnitTestingLockManager.Enable();
+            UnitTestingLockManager.BeforeOpenEffect = SetNullResources;
             var run = plan.Execute();
             UnitTestingLockManager.Disable();
 
@@ -208,7 +217,8 @@ namespace OpenTap.UnitTests
             TestPlan plan = new TestPlan();
             ITestStep step1 = new DoubleInstrumentTestStep() { Instrument1 = null, Instrument2 = null };
             plan.Steps.Add(step1);
-            UnitTestingLockManager.Enable(true);
+            UnitTestingLockManager.Enable();
+            UnitTestingLockManager.BeforeOpenEffect = SetNullResources;
             var run = plan.Execute();
             UnitTestingLockManager.Disable();
 
@@ -225,7 +235,69 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(step1.GetType().GetProperty("Instrument1"), arg1.First().References.First().Property, "ResourceReference references unexpected property.");
             Assert.AreEqual(step1.GetType().GetProperty("Instrument2"), arg1.Last().References.First().Property, "ResourceReference references unexpected property.");
         }
+
+        [TestCase(typeof(LazyResourceManager), typeof(OperationCanceledException), Verdict.Aborted)]
+        [TestCase(typeof(LazyResourceManager), typeof(Exception),Verdict.Error)]
+        [TestCase(typeof(ResourceTaskManager), typeof(OperationCanceledException), Verdict.Aborted)]
+        [TestCase(typeof(ResourceTaskManager), typeof(Exception), Verdict.Error)]
+        public void BeforeOpenExceptionTest(Type managerType, Type exceptionType, Verdict expectedVerdict)
+        {
+            EngineSettings.Current.ResourceManagerType = (IResourceManager)Activator.CreateInstance(managerType);
+            IInstrument instr1 = new SomeInstrument() { Name = "INSTR1" };
+            InstrumentSettings.Current.Add(instr1);
+            TestPlan plan = new TestPlan();
+            ITestStep step1 = new InstrumentTestStep() { Instrument = instr1 };
+            plan.Steps.Add(step1);
+            UnitTestingLockManager.Enable();
+            UnitTestingLockManager.BeforeOpenEffect = r => throw (Exception)Activator.CreateInstance(exceptionType,new string[] { "Custom exception message" });
+            var logListener = new TestTraceListener();
+            Log.AddListener(logListener);
+            try
+            {
+                var run = plan.Execute();
+                Assert.AreEqual(expectedVerdict, run.Verdict);
+            }
+            finally
+            {
+                Log.RemoveListener(logListener);
+                UnitTestingLockManager.Disable();
+            }
+            StringAssert.Contains("Custom exception message", logListener.GetLog());
+            if(expectedVerdict == Verdict.Error)
+                StringAssert.IsMatch(": Error .+Custom exception message", logListener.GetLog());
+            else
+                StringAssert.IsMatch(": Warning .+Custom exception message", logListener.GetLog());
+
+        }
+
+        [TestCase(typeof(LazyResourceManager), 3)]
+        [TestCase(typeof(ResourceTaskManager), 1)]
+        public void BeforeOpenAfterCloseCallCountTest(Type managerType, int expectedCount)
+        {
+            EngineSettings.Current.ResourceManagerType = (IResourceManager)Activator.CreateInstance(managerType);
+            IInstrument instr1 = new SomeInstrument() { Name = "INSTR1" };
+            IInstrument instr2 = new SomeInstrument() { Name = "INSTR2" };
+            InstrumentSettings.Current.Add(instr1);
+            InstrumentSettings.Current.Add(instr2);
+            Log.AddListener(new DiagnosticTraceListener());
+            TestPlan plan = new TestPlan();
+            ITestStep step1 = new DoubleInstrumentTestStep() { Instrument1 = instr1, Instrument2 = instr2 };
+            plan.Steps.Add(step1);
+            ITestStep step2 = new InstrumentTestStep() { Instrument = instr1 };
+            plan.Steps.Add(step2);
+            ITestStep step4 = new InstrumentTestStep() { Instrument = instr1 }; // a step uses the same instrument as another step to test that this 
+            plan.Steps.Add(step4);
+            ITestStep step3 = new DelayStep() { DelaySecs = 0 }; // a step without any Resource properties. To check that this does not create a call to BeforeOpen
+            plan.Steps.Add(step3);
+            UnitTestingLockManager.Enable();
+            UnitTestingLockManager.BeforeOpenEffect = SetNullResources;
+            var run = plan.Execute();
+            UnitTestingLockManager.Disable();
+
+            Assert.IsFalse(run.FailedToStart, "Plan run failed.");
+            Assert.AreEqual(Verdict.NotSet, run.Verdict);
+            Assert.AreEqual(expectedCount, UnitTestingLockManager.BeforeOpenArgs.Count(), "BeforeOpen hook called an unexpected number of times.");
+            Assert.AreEqual(expectedCount, UnitTestingLockManager.AfterCloseArgs.Count(), "AfterClose hook called an unexpected number of times.");
+        }
     }
-
-
 }
