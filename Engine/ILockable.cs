@@ -77,32 +77,23 @@ namespace OpenTap
 
         public LockManager()
         {
-            managers = PluginManager.GetPlugins<ILockManager>().Select(t => (ILockManager)t.CreateInstance()).ToList();
+            managers = PluginManager.GetPlugins<ILockManager>().OrderByDescending(t => t.GetDisplayAttribute().Order).Select(t => (ILockManager)t.CreateInstance()).ToList();
         }
-
-        void managerAction(IEnumerable<IResourceReferences> resources, CancellationToken cancellationToken, Action<ILockManager> f)
-        {
-            if (resources.Count() == 0) return;
-
-            try
-            {
-                if (managers.Count > 1)
-                    managers.AsParallel().WithCancellation(cancellationToken).ForAll(f);
-                else
-                    managers.ForEach(f);
-            }
-            catch (OperationCanceledException)
-            { }
-        }
-
+        
         internal void BeforeOpen(IEnumerable<IResourceReferences> resources, CancellationToken cancellationToken)
         {
-            managerAction(resources, cancellationToken, t => t.BeforeOpen(resources, cancellationToken));
+            foreach (ILockManager lockManager in managers)
+            {
+                lockManager.BeforeOpen(resources, cancellationToken);
+            }
         }
 
         internal void AfterClose(IEnumerable<IResourceReferences> resources, CancellationToken cancellationToken)
         {
-            managerAction(resources,cancellationToken, t => t.AfterClose(resources, cancellationToken));
+            foreach (ILockManager lockManager in managers.Reverse<ILockManager>())
+            {
+                lockManager.AfterClose(resources, cancellationToken);
+            }
         }
     }
 }

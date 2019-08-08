@@ -30,13 +30,16 @@
     <None Include="../Installer/Assets/dotnet_library_license.txt">
        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="../Installer/Assets/dotnet_library_mit_license.txt">
+    <None Include="../Installer/Assets/dotnet_mit_license.txt">
        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="../Installer/Assets/libgit2sharp.license.md">
        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="../Installer/Assets/Mono.Cecil.License.txt">
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="../Installer/Assets/Dotnet.Glob.License.txt">
        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

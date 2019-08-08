@@ -1,9 +1,4 @@
 variables:
-  DOTFUSCATOR_VERSION: "1.0.0+79e06524"
-  OBFUSCAR_VERSION: "1.0.2+a8c731f7"
-  SIGN_VERSION: "1.0.0+06a84572"
-  TAP_SIGN_ADDRESS: "10.114.0.10"
-  BUNDLE_INSTALLER_VERSION: "2.1.0-beta.8"
   PACKAGE_REPO_URL: "http://packages.opentap.io"
 
 stages:
@@ -200,95 +195,114 @@ TestPackage:
 # Stage: package                            #
 #############################################
 
-#Package-Windows:
-#  stage: package
-#  image: registry.gitlab.com/opentap/buildrunners/signrunner:latest
-#  tags: [ docker, windows ]
-#  dependencies:
-#     - Build-x64
-#     - Doc-API
-#  script:
-#         - nuget restore OpenTAP.sln
-#         - cd bin/Release64
-#         #- .\tap.exe package install -f "/repo/Sign.TapPackage"
-#         - cmd /C ".\tap.exe package create -v ../../opentapCE.package.xml -o Packages/OpenTAP/OpenTAP-CE.TapPackage --install"
-#  artifacts:
-#    when: on_success
-#    expire_in: 1 day
-#    paths:
-#       - "bin/Release64/Packages/"
-#       - "bin/Release64/Dependencies"
-#
-#Package-Linux:
-#  stage: package
-#  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
-#  tags: [ docker, windows ]
-#  dependencies:
-#     - Build-x86
-#     - Build-Linux64
-#  script:
-#         -  mv bin\Release\linux-x64 bin\linux-x64
-#         -  pushd bin\linux-x64\publish
-#         -  ../../Release/tap package download --os Linux --architecture x64 -f -r $env:PACKAGE_REPO_URL -t . Demonstration
-#         -  mv "Demonstration*.TapPackage" "Demonstration.TapPackage"
-#         -  cmd /C "..\..\Release\tap package create -v ../../../opentap_linux64.package.xml -o Packages/TAPLinux.TapPackage --install"
-#         -  cp Packages/TAPLinux.TapPackage ../../../TAPLinux.TapPackage
-#  artifacts:
-#    when: on_success
-#    expire_in: 1 week
-#    paths:
-#       - TAPLinux.TapPackage
-#       - bin/linux-x64/publish
+Package-Windows:
+  stage: package
+  image: registry.gitlab.com/opentap/buildrunners/signrunner:latest
+  tags: [ docker, windows ]
+  only:
+    - tags
+    - /^release.*$/
+    - master
+  dependencies:
+     - Build-x64
+     - Doc-API
+  script:
+         - nuget restore OpenTAP.sln
+         - cd bin/Release64
+         - .\tap.exe package install -f "/repo/Sign.TapPackage"
+         - cmd /C ".\tap.exe package create -v ../../opentapCE.package.xml -o Packages/OpenTAP/OpenTAP-CE.TapPackage --install"
+  artifacts:
+    when: on_success
+    expire_in: 1 day
+    paths:
+       - "bin/Release64/Packages/"
+       - "bin/Release64/Dependencies"
+
+Package-Linux:
+  stage: package
+  image: registry.gitlab.com/opentap/buildrunners/signrunner:latest
+  tags: [ docker, windows ]
+  only:
+    - tags
+    - /^release.*$/
+    - master
+  dependencies:
+     - Build-x86
+     - Build-Linux64
+  script:
+         -  mv bin\Release\linux-x64 bin\linux-x64
+         -  pushd bin\linux-x64\publish
+         -  ../../Release/tap package download --os Linux --architecture x64 -f -r $env:PACKAGE_REPO_URL -t . Demonstration
+         -  mv "Demonstration*.TapPackage" "Demonstration.TapPackage"
+         - ../../Release/tap package install -f "/repo/Sign.TapPackage"
+         -  cmd /C "..\..\Release\tap package create -v ../../../opentap_linux64.package.xml -o Packages/TAPLinux.TapPackage --install"
+         -  cp Packages/TAPLinux.TapPackage ../../../TAPLinux.TapPackage
+  artifacts:
+    when: on_success
+    expire_in: 1 week
+    paths:
+       - TAPLinux.TapPackage
+       - bin/linux-x64/publish
 
 
 # #############################################
 # # Stage: deploy                             #
 # #############################################
 
-#Installer-Windows:
-#  stage: deploy
-#  image: registry.gitlab.com/opentap/buildrunners/inno
-#  tags: [ docker, windows ]
-#  dependencies:
-#     - Build-x64
-#     - Package-Windows
-#  script:
-#         - pushd bin\Release64
-#         - $version = ./tap.exe sdk gitversion
-#         - echo "OpenTAP.$($version).exe"
-#
-#         - ./tap.exe package install -f -v "/BundleInstaller.TapPackage"
-#         - Remove-Item "Packages\Bundle Installer\Assets\LICENSES.txt"
-#
-#         - ./tap.exe sdk create-bundle --no-gui --tap64 "Packages/OpenTAP/OpenTAP-CE.TapPackage" -x ../../Installer/Assets/opentapCE.installer.xml setup.exe
-#         - Move-Item setup.exe ..\..\OpenTAP.$($version).exe
-#  artifacts:
-#    expire_in: 1 week
-#    paths:
-#       - "*.exe"
-#
-#Installer-Linux:
-#  stage: deploy
-#  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
-#  tags: [ docker, windows ]
-#  dependencies:
-#     - Package-Linux
-#  script:
-#         - Invoke-WebRequest https://netcologne.dl.sourceforge.net/project/gnuwin32/tar/1.13-1/tar-1.13-1-bin.exe -Outfile tarsetup.exe
-#         - Start-process .\tarsetup.exe -NoNewWindow -Wait -ArgumentList "/SILENT"
-#
-#         - $str = cat "LinuxInstructions/INSTALL.sh"
-#         - $str -replace "\r\n", "\n" > INSTALL.sh
-#         - $str = cat "LinuxInstructions/README"
-#         - $str -replace "\r\n", "\n" > README
-#
-#         - cmd /C '"C:\Program Files (x86)\GnuWin32\bin\tar.exe" -cf "TAP2018.tar" TAPLinux.TapPackage INSTALL.sh README'
-#  artifacts:
-#    when: on_success
-#    expire_in: 1 week
-#    paths:
-#       - "TAPLinux.TapPackage"
-#       - "TAP2018.tar"
+Installer-Windows:
+  stage: deploy
+  image: registry.gitlab.com/opentap/buildrunners/inno
+  tags: [ docker, windows ]
+  only:
+    - tags
+    - /^release.*$/
+    - master
+  dependencies:
+     - Build-x64
+     - Package-Windows
+  script:
+         - pushd bin\Release64
+         - $version = ./tap.exe sdk gitversion
+         - echo "OpenTAP.$($version).exe"
+
+         - ./tap.exe package install -f -v "/BundleInstaller.TapPackage"
+         - Remove-Item "Packages\Bundle Installer\Assets\LICENSES.txt"
+
+         - ./tap.exe sdk create-bundle --sign "Keysight Technologies, Inc" --no-gui --tap64 "Packages/OpenTAP/OpenTAP-CE.TapPackage" -x ../../Installer/Assets/opentapCE.installer.xml setup.exe
+         - Move-Item setup.exe ..\..\OpenTAP.$($version).exe
+  artifacts:
+    expire_in: 1 week
+    paths:
+       - "*.exe"
+
+Installer-Linux:
+  stage: deploy
+  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  tags: [ docker, windows ]
+  only:
+    - tags
+    - /^release.*$/
+    - master
+  dependencies:
+     - Package-Linux
+  script:
+         - Invoke-WebRequest https://netcologne.dl.sourceforge.net/project/gnuwin32/tar/1.13-1/tar-1.13-1-bin.exe -Outfile tarsetup.exe
+         - Start-process .\tarsetup.exe -NoNewWindow -Wait -ArgumentList "/SILENT"
+
+         - $path=(get-item -path "./").Fullname
+         - $str=[IO.File]::ReadAllText($path + "/LinuxInstructions/INSTALL.sh") -replace "`r`n", "`n"
+         - ([IO.File]::WriteAllText($path + "/INSTALL.sh", $str))
+
+         - $str=[IO.File]::ReadAllText($path + "/LinuxInstructions/README") -replace "`r`n", "`n"
+         - ([IO.File]::WriteAllText($path + "/README", $str))
+
+         - cmd /C '"C:\Program Files (x86)\GnuWin32\bin\tar.exe" -cf "TAP2018.tar" TAPLinux.TapPackage INSTALL.sh README'
+  artifacts:
+    when: on_success
+    expire_in: 1 week
+    paths:
+       - "TAPLinux.TapPackage"
+       - "TAP2018.tar"
 
 # TAPBaseDockerImageRelease:
 #   image: gitlab.it.keysight.com:4567/tap/linuxbuildrunners/dockerbuild:latest

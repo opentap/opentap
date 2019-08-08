@@ -56,7 +56,7 @@ namespace OpenTap.Package
                     return Execute(pluginInstaller, this, package, force, target);
                 }
                 else
-                    return ExecutePackageActionSteps(package, force);
+                    return ExecutePackageActionSteps(package, force, target);
             }
             catch (Exception ex)
             {
@@ -65,7 +65,7 @@ namespace OpenTap.Package
             }
         }
 
-        internal ActionResult ExecutePackageActionSteps(PackageDef package, bool force)
+        internal ActionResult ExecutePackageActionSteps(PackageDef package, bool force, string workingDirectory)
         {
             ActionResult res = ActionResult.NothingToDo;
 
@@ -82,12 +82,12 @@ namespace OpenTap.Package
                 // Upgrade to ok output
                 res = ActionResult.Ok;
 
-                log.Debug("Running '{0}' with arguments: '{1}'.", exefile, step.Arguments);
+                log.Debug($"Running '{exefile}' in '{workingDirectory}' with arguments: '{step.Arguments}'.");
 
                 var pi = new ProcessStartInfo(exefile, step.Arguments);
 
                 pi.CreateNoWindow = step.CreateNoWindow;
-                pi.WorkingDirectory = ExecutorClient.ExeDir;
+                pi.WorkingDirectory = workingDirectory;
                 pi.Environment.Remove(ExecutorSubProcess.EnvVarNames.ParentProcessExeDir);
 
                 try
@@ -373,7 +373,7 @@ namespace OpenTap.Package
 
             try
             {
-                if (action.ExecutePackageActionSteps(package, force) == ActionResult.Error)
+                if (action.ExecutePackageActionSteps(package, force, target) == ActionResult.Error)
                     throw new Exception();
             }
             catch
