@@ -110,6 +110,9 @@ namespace OpenTap
                 List<IMemberData> m = new List<IMemberData>();
                 foreach (var prop in Load().GetPropertiesTap())
                 {
+                    if(prop.GetMethod.GetParameters().Length > 0){
+                        continue;
+                    }
                     m.Add(MemberData.Create(prop));
                 }
 
