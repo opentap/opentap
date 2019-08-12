@@ -744,6 +744,9 @@ namespace OpenTap
                         
                     }
                 }
+                catch (Exception ex) when(ex.InnerException is System.ComponentModel.LicenseException lex){
+                    log.Warning("Unable to load '{0}'. {1}", settingsType.GetDisplayAttribute().GetFullName(), lex.Message);
+                }
                 catch (Exception ex)
                 {
                     if (ex.InnerException != null)
