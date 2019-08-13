@@ -132,7 +132,7 @@ namespace OpenTap.Cli
             }
 
             EngineSettings.LoadWorkingDirectory(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
-
+            
             Assembly assembly = Assembly.GetExecutingAssembly();
 
             Console.WriteLine($"OpenTAP Command Line Interface {FileVersionInfo.GetVersionInfo(assembly.Location).ProductVersion}\n");
@@ -142,7 +142,6 @@ namespace OpenTap.Cli
                 TestPlanRunner.SetSettingsDir(Settings);
             }
 
-            SessionLogs.Rename(EngineSettings.Current.SessionLogPath.Expand(date: Process.GetCurrentProcess().StartTime));
 
             if (!NonInteractive && UserInput.Interface == null)
             {

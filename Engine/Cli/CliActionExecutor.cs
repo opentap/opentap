@@ -160,7 +160,21 @@ namespace OpenTap.Cli
                     return -1;
             }
 
-            if (selectedCommand != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.
+            {   // setup logging to be relative to the executing assembly.
+                var logpath = EngineSettings.Current.SessionLogPath.Expand(date: Process.GetCurrentProcess().StartTime);
+                if (Path.IsPathRooted(logpath) == false)
+                {
+                    var dir = Path.GetDirectoryName(typeof(SessionLogs).Assembly.Location);
+                    if (ExecutorClient.IsRunningIsolated)
+                    {
+                        dir = ExecutorClient.ExeDir;
+                    }
+                    logpath = Path.Combine(dir, logpath);
+                }
+                SessionLogs.Rename(logpath);
+            }
+
+            if (selectedCommand != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
                 CliUserInputInterface.Load();
             Type selectedType = selectedCommand.Load();
             if(selectedType == null)
@@ -168,8 +182,15 @@ namespace OpenTap.Cli
                 Console.WriteLine("Error loading command {0}", selectedCommand.Name);
                 return -2;
             }
-            var inst = selectedType.CreateInstance();
-            var packageAction = (ICliAction)inst;
+
+            ICliAction packageAction = null;
+            try{
+                packageAction = (ICliAction) selectedType.CreateInstance();
+            }catch(TargetInvocationException e1) when (e1.InnerException is System.ComponentModel.LicenseException e){
+                Console.Error.WriteLine("Unable to load CLI Action '{0}'", selectedType.GetDisplayAttribute().GetFullName());
+                Console.Error.WriteLine(e.Message);
+                return -4;
+            }
 
             if (packageAction == null)
             {
