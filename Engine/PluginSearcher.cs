@@ -979,6 +979,8 @@ namespace OpenTap
                         verString = pv.ToString(3);
                     else if(Version.TryParse(FileVersionInfo.GetVersionInfo(asm.Location).FileVersion, out Version fv))
                         verString = fv.ToString(3);
+                    else
+                        verString = "0.0.0";
 
                 }
                 if (String.IsNullOrEmpty(verString) || !SemanticVersion.TryParse(verString, out ver))

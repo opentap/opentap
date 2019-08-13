@@ -544,7 +544,7 @@ namespace OpenTap.Package.UnitTests
         public void FileRepositoryManagerTest()
         {
             string pkgContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
-<Package Name=""BasicSteps"" xmlns=""http://keysight.com/schemas/TAP/Package"">
+<Package Name=""BasicSteps"" xmlns=""http://keysight.com/schemas/TAP/Package"" OS=""Linux,Windows"">
  <Files>
   <File Path=""__BASICSTEPS_DLL__"">
     <UseVersion/>

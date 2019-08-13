@@ -18,11 +18,11 @@ namespace OpenTap.Engine.UnitTests
         {
             TestPlan plan1 = null;
             TestPlan plan2 = null;
-            using (Stream str = File.OpenRead("TestTestPlans\\FiveDelays.TapPlan"))
+            using (Stream str = File.OpenRead("TestTestPlans/FiveDelays.TapPlan"))
             {
                 plan1 = TestPlan.Load(str, "FiveDelays.TapPlan");
             }
-            using (Stream str = File.OpenRead("TestTestPlans\\FiveDelays.TapPlan"))
+            using (Stream str = File.OpenRead("TestTestPlans/FiveDelays.TapPlan"))
             {
                 plan2 = TestPlan.Load(str, "FiveDelays.TapPlan");
             }
@@ -34,7 +34,7 @@ namespace OpenTap.Engine.UnitTests
         public void TestStepRunChildrenResultListenerTest()
         {
             TestPlan plan1 = null;
-            using (Stream str = File.OpenRead("TestTestPlans\\FiveDelays.TapPlan"))
+            using (Stream str = File.OpenRead("TestTestPlans/FiveDelays.TapPlan"))
             {
                 plan1 = TestPlan.Load(str, "FiveDelays.TapPlan");
             }
@@ -45,7 +45,7 @@ namespace OpenTap.Engine.UnitTests
             listener.AssertErrors();
         }
 
-        [DisplayName("Test\\TestStepId")]
+        [Display("TestStepId", Group: "Test")]
         public class TestResultListener : ResultListener
         {
             public TestResultListener()

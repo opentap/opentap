@@ -61,7 +61,7 @@ Build-x86:
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
   script:
-         - nuget restore
+         - MSBuild OpenTAP.sln /t:restore /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /m
          - dotnet restore -r win7-x86
          - MSBuild OpenTAP.sln /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /m
          - dotnet build tap\tap.csproj -c Release -r win-x86
@@ -76,7 +76,7 @@ Build-x64:
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
   script: 
-         - nuget restore
+         - MSBuild /t:restore OpenTAP.sln /p:Configuration=Release /p:Platform=x64 /target:Rebuild /p:DefineConstants="TRACE" /m
          - dotnet restore -r win7-x64
          - MSBuild OpenTAP.sln /p:Configuration=Release /p:Platform=x64 /target:Rebuild /p:DefineConstants="TRACE" /m
          - dotnet build tap\tap.csproj -c Release -r win-x64
@@ -92,8 +92,7 @@ WarningTest:
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
   script: 
-         - nuget restore
-         - dotnet restore
+         - MSBuild OpenTAP.sln /t:restore /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /p:TreatWarningsAsErrors="true" /m
          - MSBuild OpenTAP.sln /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /p:TreatWarningsAsErrors="true" /m
 
 
@@ -109,7 +108,7 @@ TestEngine:
   dependencies:
      - Build-x86
   script:
-         - nuget restore OpenTAP.sln
+         - MSBuild OpenTAP.sln /t:restore /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /m
          - packages/NUnit.ConsoleRunner.3.9.0/tools/nunit3-console.exe bin/Release/OpenTap.UnitTests.dll --labels=All
   artifacts:
     when: always
@@ -126,7 +125,7 @@ TestPackage:
      - Build-x86
   script:
          - copy-item -r "Package.UnitTests/Packages" bin/Release
-         - nuget restore OpenTAP.sln
+         - MSBuild OpenTAP.sln /t:restore /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /m
          - packages/NUnit.ConsoleRunner.3.9.0/tools/nunit3-console.exe bin/Release/OpenTap.Package.UnitTests.dll --labels=All
   artifacts:
     when: always

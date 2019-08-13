@@ -603,6 +603,30 @@ namespace OpenTap
         }
     }
 
+    class BooleanValueAnnotation : IStringValueAnnotation
+    {
+        AnnotationCollection annotation;
+        public BooleanValueAnnotation(AnnotationCollection annotation)
+        {
+            this.annotation = annotation;
+        }
+
+        bool parseBool(string str){
+            if(string.Compare(str, "true",true) == 0)
+               return true;
+            if(string.Compare(str, "false",true) == 0)
+               return false;
+            throw new FormatException("Unable to parse string as boolean.");
+        
+        }
+        public string Value
+        {
+            get => annotation.Get<IObjectValueAnnotation>().Value?.ToString(); 
+            set => annotation.Get<IObjectValueAnnotation>().Value = parseBool((string)value);
+        }
+
+    }
+
     class MergedValueAnnotation : IObjectValueAnnotation, IOwnedAnnotation
     {
         public IEnumerable<AnnotationCollection> Merged => merged;
@@ -2008,6 +2032,9 @@ namespace OpenTap
                 if (type.IsNumeric())
                 {
                     annotation.Add(new NumberAnnotation(annotation));
+                }
+                if(type == typeof(bool)){
+                    annotation.Add(new BooleanValueAnnotation(annotation));
                 }
                 if (type == typeof(string))
                     annotation.Add(new StringValueAnnotation(annotation));

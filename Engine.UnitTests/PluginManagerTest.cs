@@ -179,24 +179,11 @@ namespace OpenTap.Engine.UnitTests
             cs += "[assembly: Guid(\"634896ca-7e6a-c66d-5ef7-2c2d2a5c3f31\")]\n";
             cs += "[assembly: AssemblyVersion(\"" + version + "\")]\n";
             cs += "public class " + testStepName + " { public void Run(){} }";
-
-            CSharpCodeProvider provider = new CSharpCodeProvider();
-            CompilerParameters parameters = new CompilerParameters();
-            parameters.ReferencedAssemblies.Add("System.dll");
-            
-            parameters.GenerateInMemory = false;
-            parameters.GenerateExecutable = false;
-            parameters.OutputAssembly = Path.Combine(Path.GetTempPath(), Path.GetFileName(assemblyFileName));
-            CompilerResults results = provider.CompileAssemblyFromSource(parameters, cs);
-            if (results.Errors.HasErrors)
-            {
-                var errors = results.Errors.Cast<CompilerError>().Select(err => err.ToString());
-                Assert.Inconclusive(String.Join("\r\n", errors));
-            }
-
+            var asmname = Path.GetFileNameWithoutExtension(assemblyFileName);
+            var buildResult = CodeGen.BuildCode(cs, asmname);
+            Assert.IsTrue(buildResult.Success);
             DeleteFile(assemblyFileName);
-            File.Move(results.PathToAssembly, assemblyFileName);
-            DeleteFile(results.PathToAssembly);
+            File.WriteAllBytes(assemblyFileName, buildResult.Bytes);
         }
 
         [Test]
@@ -205,9 +192,9 @@ namespace OpenTap.Engine.UnitTests
             Directory.CreateDirectory("Test1");
             Directory.CreateDirectory("Test2");
             Directory.CreateDirectory("Test3");
-            GenerateAssemblyWithVersion("Test1\\Dual1.dll", "MyStep1", version: "1.0.0");
-            GenerateAssemblyWithVersion("Test2\\Dual1.dll", "MyStep1", version: "1.2.0");
-            GenerateAssemblyWithVersion("Test3\\Dual1.dll", "MyStep1", version: "1.1.0");
+            GenerateAssemblyWithVersion("Test1/Dual1.dll", "MyStep1", version: "1.0.0");
+            GenerateAssemblyWithVersion("Test2/Dual1.dll", "MyStep1", version: "1.2.0");
+            GenerateAssemblyWithVersion("Test3/Dual1.dll", "MyStep1", version: "1.1.0");
             PluginManager.SearchAsync().Wait();
             var asm1 = Assembly.Load("Dual1");
             Assert.IsTrue(asm1.GetName().Version.Minor == 2);
@@ -253,36 +240,28 @@ namespace OpenTap.Engine.UnitTests
 
             // the new assembly must have a GUID.
             var classname = "cls" + Guid.NewGuid().ToString().Replace("-", "");
-            var cls =
+            var code =
                   "using OpenTap;\nusing System.Runtime.InteropServices;\nusing System.Reflection;\n"
                 + "using System.Runtime.CompilerServices;\n[assembly: Guid(\"__GUID__\")]\n"
                 + "namespace test{public class __NAME__ : TestStep\n{\npublic override void Run(){}\n}}\n";
-            cls = cls.Replace("__NAME__", classname).Replace("__GUID__", Guid.NewGuid().ToString());
+            code = code.Replace("__NAME__", classname).Replace("__GUID__", Guid.NewGuid().ToString());
 
-            var dll = string.Format("Keysight.Tap.Engine.TestModule_{0}.dll", Guid.NewGuid());
-            CSharpCodeProvider provider = new CSharpCodeProvider();
-            CompilerParameters parameters = new CompilerParameters();
-            parameters.ReferencedAssemblies.Add("System.dll");
-            parameters.ReferencedAssemblies.Add("OpenTap.dll");
-            parameters.ReferencedAssemblies.Add("netstandard.dll");
-            parameters.GenerateInMemory = false;
-            parameters.GenerateExecutable = false;
-            parameters.OutputAssembly = dll;
-            parameters.CompilerOptions = "/platform:AnyCPU";
             
+            var dll = string.Format("Keysight.Tap.Engine.TestModule_{0}.dll", Guid.NewGuid());
             int prevcnt = PluginManager.GetAllPlugins().Count();
+            var results = CodeGen.BuildCode(code, Path.GetFileNameWithoutExtension(dll));
+            
+            Assert.IsTrue(results.Success);
             try
             {
-                CompilerResults results = provider.CompileAssemblyFromSource(parameters, cls);
-                Assert.IsTrue(results.Errors.Count == 0);
-                PluginManager.SearchAsync(); // start a new search to find the new assembly
+                File.WriteAllBytes(dll, results.Bytes);
+                PluginManager.SearchAsync(); // starta new search to find the new assembly
                 int postcnt = PluginManager.GetAllPlugins().Count();
                 Assert.IsTrue(prevcnt == postcnt - 1);
             }
             finally
             {
                 File.Delete(dll);
-                PluginManager.SearchAsync(); // start a new search now that the dll is not there anymore.
             }
         }
 
@@ -438,7 +417,7 @@ namespace OpenTap.Engine.UnitTests
                 }
             }
 
-            PluginManager.DirectoriesToSearch.Add(Path.GetFullPath(@"..\ResolveAssemblyVersions\"));
+            PluginManager.DirectoriesToSearch.Add(Path.GetFullPath(@"../ResolveAssemblyVersions/"));
             var asm4 = Assembly.Load("ResolveAssemblyVersions.2, Version=2.3.0.0, Culture=neutral, PublicKeyToken=null");
             var asm5 = Assembly.Load("ResolveAssemblyVersions.2, Version=2.1.0.0, Culture=neutral, PublicKeyToken=null");
 

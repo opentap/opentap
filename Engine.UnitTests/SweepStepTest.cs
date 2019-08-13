@@ -262,7 +262,7 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void RepeatWithReferenceOutsideStep()
         {
-            var stream = File.OpenRead("TestTestPlans\\whiletest.TapPlan");
+            var stream = File.OpenRead("TestTestPlans/whiletest.TapPlan");
             TestPlan plan = (TestPlan)new TapSerializer().Deserialize(stream, type: TypeData.FromType(typeof(TestPlan)));
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Pass, run.Verdict);

@@ -4,14 +4,10 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using NUnit.Framework;
-using System.Diagnostics;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 using System.Threading;
-using System.Text;
-using System.IO;
 using OpenTap.Cli;
-
+using OpenTap;
 namespace OpenTap.Engine.UnitTests
 {
     [TestFixture]
@@ -75,109 +71,13 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
-        class TapProcessContainer
+        [Test]
+        public void TestProcessContainer()
         {
-            public Process TapProcess;
-            public string ConsoleOutput = "";
-            Task<string> consoleListener;
-            bool procStarted = false;
-            public static TapProcessContainer StartFromArgs(string args)
-            {
-                Process proc = new Process();
-
-                var container = new TapProcessContainer { TapProcess = proc };
-                container.consoleListener = Task.Factory.StartNew(new Func<string>(container.consoleOutputLoader));
-                var program = Path.Combine(Path.GetDirectoryName(typeof(PluginManager).Assembly.Location), "tap.exe");
-                proc.StartInfo = new ProcessStartInfo(program, args)
-                {
-                    UseShellExecute = true,
-                    RedirectStandardOutput = true,
-                    RedirectStandardInput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                };
-                proc.StartInfo.UseShellExecute = false;
-
-                container.procStarted = proc.Start();
-                Thread.Sleep(200);
-                return container;
-            }
-
-            string consoleOutputLoader()
-            {
-                while (!procStarted) Thread.Sleep(10);
-
-                StringBuilder ConsoleOutput = new StringBuilder();
-
-                var procOutput = TapProcess.StandardOutput;
-                var procOutput2 = TapProcess.StandardError;
-                char[] buffer = new char[100];
-
-                while (!procOutput.EndOfStream)
-                {
-                    int read = procOutput.Read(buffer, 0, buffer.Length);
-                    ConsoleOutput.Append(buffer, 0, read);
-                    int read2 = procOutput2.Read(buffer, 0, buffer.Length);
-                    ConsoleOutput.Append(buffer, 0, read2);
-                    Thread.Sleep(10);
-                }
-                this.ConsoleOutput = ConsoleOutput.ToString();
-                return ConsoleOutput.ToString();
-            }
-
-            public void WaitForEnd()
-            {
-                TapProcess.WaitForExit();
-                ConsoleOutput = consoleListener.Result;
-            }
-
-            public void WriteLine(string str)
-            {
-                TapProcess.StandardInput.WriteLine(str);
-            }
-
-            public void Kill()
-            {
-                try
-                {
-                    TapProcess.Kill();
-                }
-                catch
-                {
-
-                }
-            }
+            var proc = TapProcessContainer.StartFromArgs("package list");
+            proc.WaitForEnd();
+            Assert.AreEqual(0, proc.TapProcess.ExitCode);
         }
-
-        class RpcManager
-        {
-            TapProcessContainer[] processes;
-            public RpcManager(params TapProcessContainer[] args)
-            {
-                processes = args;
-            }
-
-            public void Await(Func<bool> fcn)
-            {
-                Await(fcn, TimeSpan.FromSeconds(20));
-            }
-
-            public void Await(Func<bool> fcn, TimeSpan timeout)
-            {
-                Stopwatch sw = Stopwatch.StartNew();
-                while (!fcn())
-                {
-                    if (sw.Elapsed > timeout) throw new TimeoutException();
-                    foreach (var proc in processes)
-                        Assert.IsFalse(proc.TapProcess.HasExited);
-
-                    Thread.Sleep(1);
-                }
-                Thread.Sleep(100);
-            }
-        }
-
-     
 
         private string CreateCsvTestFile(string[] names, object[] values)
         {
@@ -210,7 +110,7 @@ namespace OpenTap.Engine.UnitTests
             }
             catch(ArgumentNullException ex)
             {
-                Assert.AreEqual("Value cannot be null.\r\nParameter name: plan", ex.Message);
+                Assert.AreEqual($"Value cannot be null.{Environment.NewLine}Parameter name: plan", ex.Message);
                 argumentNullExceptionCaught = true;
             }
             

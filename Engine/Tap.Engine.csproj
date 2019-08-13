@@ -1,43 +1,15 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <RuntimeFrameworkVersion>2.1.0</RuntimeFrameworkVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <LangVersion>7.2</LangVersion>
     <AssemblyOriginatorKeyFile>Keysight.Tap.snk</AssemblyOriginatorKeyFile>
     <AssemblyName>OpenTap</AssemblyName>
     <RootNamespace>OpenTap</RootNamespace>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <Configurations>Debug;Release;NetCore</Configurations>
   </PropertyGroup>
-
-  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-    <OutputPath>$(SolutionDir)bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE;KEYSIGHT_INTERNAL</DefineConstants>
+  
+  <PropertyGroup Condition="'$(IsDebug)'!='true'">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>  
+    <DocumentationFile>$(SolutionDir)bin\Release\OpenTap.xml</DocumentationFile>    
   </PropertyGroup>
-
-  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-    <OutputPath>$(SolutionDir)bin\Release\</OutputPath>
-    <DebugType>pdbonly</DebugType>
-    <DefineConstants>TRACE</DefineConstants>
-    <Optimize>true</Optimize>
-    <DocumentationFile>..\..\bin\Release\OpenTap.xml</DocumentationFile>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)'=='NetCore'">
-    <OutputPath>$(SolutionDir)bin\Release\</OutputPath>
-    <DebugType>pdbonly</DebugType>
-    <DefineConstants>TRACE</DefineConstants>
-    <Optimize>true</Optimize>
-    <DocumentationFile>..\..\bin\Release\OpenTap.xml</DocumentationFile>
-  </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Remove="Licensing\*" />
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
@@ -46,10 +18,30 @@
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.1" />
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis" Version="2.10">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="2.10" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="Properties\" />
+    <None Include="../Installer/Assets/dotnet_library_license.txt">
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="../Installer/Assets/dotnet_mit_license.txt">
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="../Installer/Assets/libgit2sharp.license.md">
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="../Installer/Assets/Mono.Cecil.License.txt">
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="../Installer/Assets/Dotnet.Glob.License.txt">
+       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <Import Project="..\Shared\Tap.Shared.projitems" Label="Shared" />

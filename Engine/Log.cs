@@ -274,7 +274,6 @@ namespace OpenTap
     /// This class extends System.Diagnostics.Log to provide shorthand methods 
     /// for logging/tracing messages at different levels.
     /// </summary>
-    [EditorBrowsable(EditorBrowsableState.Never)] // prevents class from appearing in intellisense drop down
     public static class Log
     {
         private static ILogContext TapContext = LogFactory.CreateContext();

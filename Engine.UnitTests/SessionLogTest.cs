@@ -19,23 +19,23 @@ namespace OpenTap.Engine.UnitTests
 
             var currentName = SessionLogs.GetSessionLogFilePath();
             SessionLogs.Rename("Log1.txt");
-            SessionLogs.Rename("LogTest\\Log2.txt");
+            SessionLogs.Rename("LogTest/Log2.txt");
             string inlog = "This is written to log2";
             log.Debug(inlog);
             Log.Flush();
             SessionLogs.Flush();
-            var file = File.Open("LogTest\\Log2.txt", FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            var file = File.Open("LogTest/Log2.txt", FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
             using (var reader = new StreamReader(file))
             {
                 var part = reader.ReadToEnd();
                 StringAssert.Contains(inlog, part);
             }
 
-            Assert.AreEqual(SessionLogs.GetSessionLogFilePath(), "LogTest\\Log2.txt");
+            Assert.AreEqual(Path.GetFullPath(SessionLogs.GetSessionLogFilePath()), Path.GetFullPath("LogTest/Log2.txt"));
             SessionLogs.Rename(currentName);
             Assert.AreEqual(currentName, SessionLogs.GetSessionLogFilePath());
             Assert.IsFalse(File.Exists("Log1.txt"));
-            Assert.IsFalse(File.Exists("LogTest\\Log2.txt"));
+            Assert.IsFalse(File.Exists("LogTest/Log2.txt"));
             Assert.IsTrue(Directory.Exists("LogTest"));
         }
     }
