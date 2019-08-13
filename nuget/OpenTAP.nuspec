@@ -15,6 +15,7 @@
     <references>
     	<reference file="OpenTap.dll"/>
     </references>
+    <license type="expression">MPL-2.0</license>
   </metadata>
   <files>
     <file src="build/payload/OpenTap.dll" target="lib/net461" />
