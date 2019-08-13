@@ -4,4 +4,5 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System.Runtime.CompilerServices;
 
+[assembly: System.Reflection.AssemblyTitle("OpenTap.Package")]
 [assembly: InternalsVisibleTo("OpenTap.Package.UnitTests")] // This is just for unit testing
