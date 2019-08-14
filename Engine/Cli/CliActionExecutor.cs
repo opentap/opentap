@@ -64,10 +64,11 @@ namespace OpenTap.Cli
 
 
         /// <summary> 
-        /// Used as command line interface of OpenTAP (PluginManager must have searched for assemblies before this method is called)
+        /// Used as command line interface of OpenTAP (PluginManager must have searched for assemblies before this method is called).
+        /// This calls Execute with commandline arguments given to this environment and sets Environment.ExitCode. 
         /// </summary>
-        public static int Execute(){
-            return Execute(Environment.GetCommandLineArgs().Skip(1).ToArray());
+        public static void Execute(){
+            Environment.ExitCode = Execute(Environment.GetCommandLineArgs().Skip(1).ToArray());
         }
 
         /// <summary>
@@ -154,7 +155,7 @@ namespace OpenTap.Cli
                 }
                 Console.WriteLine("\nRun \"tap.exe <command> [<subcommand>] -h\" to get additional help for a specific command.\n");
 
-                if (args.Count() == 0 || args.Any(s => s.ToLower() == "--help" || s.ToLower() == "-h"))
+                if (args.Length == 0 || args.Any(s => s.ToLower() == "--help" || s.ToLower() == "-h"))
                     return 0;
                 else
                     return -1;
