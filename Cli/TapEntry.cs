@@ -161,7 +161,7 @@ namespace OpenTap.Cli
         static void wrapGoInProcess()
         {
             DebuggerAttacher.TryAttach();
-            Environment.ExitCode = CliActionExecutor.Execute();
+            CliActionExecutor.Execute();
         }
 
         public static void Go()
