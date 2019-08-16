@@ -42,7 +42,7 @@
   <Target Name="InstallOpenTapPackages"
         Condition="'$(BuildingInsideVisualStudio)' == 'true'"
         Inputs="$(MSBuildProjectFullPath)"
-        Outputs="$(OutDir)Packages/%(AdditionalOpenTapPackage.Identity)/package.xml"
+        Outputs="@(AdditionalOpenTapPackage-> '$(OutDir)Packages/%(Identity)/package.xml')"
         DependsOnTargets="CopyOpenTapPayloadFiles" AfterTargets="CopyOpenTapPayloadFiles">
     <Exec Command="$(OutDir)tap.exe package install --dependencies --force &quot;%(AdditionalOpenTapPackage.Identity)&quot;"
           LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" />
