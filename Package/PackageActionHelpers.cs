@@ -150,7 +150,7 @@ namespace OpenTap.Package
                             throw new Exception("TapPackages file contains multiple variants of the same package. Unable to autoselect a suitable one.");
                         }
                     }
-                    else
+                    else if (string.IsNullOrWhiteSpace(packageName) == false)
                     {
                         packages.Add(new PackageSpecifier(packageName, version != null ? VersionSpecifier.Parse(version) : null, arch, OS));
                     }
