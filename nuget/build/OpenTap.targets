@@ -12,7 +12,8 @@
                      HasTrailingSlash('$(OutDir)') And
                      Exists('$(OutDir)')"
           Inputs="@(PackagePayloadFiles)"
-          Outputs="@(PackagePayloadFiles -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')">
+          Outputs="@(PackagePayloadFiles -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')"
+          BeforeTargets="Build;PostBuildEvent">
     <Copy SourceFiles="@(PackagePayloadFiles)"
           DestinationFiles="@(PackagePayloadFiles -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')" />
   </Target>
@@ -21,7 +22,8 @@
           Condition="'$(CleanOpenTapPayloadFiles)' != 'false' And
                      '$(OutDir)' != '' And
                      HasTrailingSlash('$(OutDir)') And
-                     Exists('$(OutDir)')">
+                     Exists('$(OutDir)')"
+          BeforeTargets="Clean">
     <ItemGroup>
       <PackagePayloadFilesToClean Include="@(PackagePayloadFiles -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')"
                                   Exclude="$(OutDir)Editor.exe"/>
@@ -36,31 +38,25 @@
                      '$(OpenTapPackageDefinitionPath)' != '' And
                      Exists('$(OpenTapPackageDefinitionPath)')"
           AfterTargets="Build">
-    <PackageTask Dir="$(OutDir)" ConfFile="$(ProjectDir)\$(OpenTapPackageDefinitionPath)"/>
+    <Exec Command=".\tap.exe package create &quot;$(ProjectDir)\$(OpenTapPackageDefinitionPath)&quot;" WorkingDirectory="$(OutDir)" LogStandardErrorAsError="true" />
   </Target>
 
   <Target Name="InstallOpenTapPackages"
-        Condition="'$(BuildingInsideVisualStudio)' == 'true'"
         Inputs="$(MSBuildProjectFullPath)"
         Outputs="@(AdditionalOpenTapPackage-> '$(OutDir)Packages/%(Identity)/package.xml')"
         DependsOnTargets="CopyOpenTapPayloadFiles" AfterTargets="CopyOpenTapPayloadFiles">
-    <Exec Command="$(OutDir)tap.exe package install --dependencies --force &quot;%(AdditionalOpenTapPackage.Identity)&quot;"
-          LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" />
+    <Exec Command=".\tap.exe package install --dependencies --force &quot;%(AdditionalOpenTapPackage.Identity)&quot;"
+          Condition="'%(AdditionalOpenTapPackage.Repository)' == '' AND '%(AdditionalOpenTapPackage.Version)' == ''"
+          LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
+    <Exec Command=".\tap.exe package install --dependencies --force &quot;%(AdditionalOpenTapPackage.Identity)&quot; -r &quot;%(AdditionalOpenTapPackage.Repository)&quot;"
+          Condition="'%(AdditionalOpenTapPackage.Repository)' != '' AND '%(AdditionalOpenTapPackage.Version)' == ''"
+          LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
+    <Exec Command=".\tap.exe package install --dependencies --force &quot;%(AdditionalOpenTapPackage.Identity)&quot; --version &quot;%(AdditionalOpenTapPackage.Version)&quot;"
+          Condition="'%(AdditionalOpenTapPackage.Repository)' == '' AND '%(AdditionalOpenTapPackage.Version)' != ''"
+          LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
+    <Exec Command=".\tap.exe package install --dependencies --force &quot;%(AdditionalOpenTapPackage.Identity)&quot; -r &quot;%(AdditionalOpenTapPackage.Repository)&quot; --version &quot;%(AdditionalOpenTapPackage.Version)&quot;"
+          Condition="'%(AdditionalOpenTapPackage.Repository)' != '' AND '%(AdditionalOpenTapPackage.Version)' != ''"
+          LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
   </Target>
-
-  <PropertyGroup>
-    <PostBuildEventDependsOn>
-      $(PostBuildEventDependsOn);
-      CopyOpenTapPayloadFiles;
-    </PostBuildEventDependsOn>
-    <BuildDependsOn>
-      $(BuildDependsOn);
-      CopyOpenTapPayloadFiles;
-    </BuildDependsOn>
-    <CleanDependsOn>
-      $(CleanDependsOn);
-      CleanOpenTapPayloadFiles;
-    </CleanDependsOn>
-  </PropertyGroup>
 
 </Project>
