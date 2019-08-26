@@ -36,7 +36,3 @@ ENV TAP_PATH="/opt/tap"
 # Test TAP
 RUN tap -h
 RUN tap package list -v
-
-# Run a test plan
-#COPY ../../Tap/Engine.UnitTests/TestTestPlans .
-#RUN tap run testMultiReferencePlan.TapPlan -v

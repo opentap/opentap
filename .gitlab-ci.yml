@@ -6,6 +6,7 @@ stages:
   - test
   - package
   - deploy
+  - docker
 
 #############################################
 # Stage: build                              #
@@ -310,74 +311,79 @@ Installer-Linux:
        - "TAPLinux.TapPackage"
        - "TAP2018.tar"
 
-# TAPBaseDockerImageRelease:
-#   image: gitlab.it.keysight.com:4567/tap/linuxbuildrunners/dockerbuild:latest
-#   stage: deploy
-#   only:
-#     refs:
-#       - /^[vV][0-9]+\.[0-9]+\.[0-9]+$/
-#   tags:
-#     - docker,ubuntu18.4
-#   dependencies:
-#      - Package-BaseUbuntu
-#   script: |
-#           version=$(cat .gitversion | sed -nr 's/version *= *([0-9]+\.[0-9]+)\.[0-9]+/\1/p')
-#           docker login -u gitlab-ci-token -p $CI_JOB_TOKEN gitlab.it.keysight.com:4567
-#           cp TAPLinux.TapPackage opentap
-#           cd opentap
-#           docker build -t gitlab.it.keysight.com:4567/tap/tap:latest .
-#           docker push gitlab.it.keysight.com:4567/tap/tap:latest
-#           docker tag gitlab.it.keysight.com:4567/tap/tap:latest gitlab.it.keysight.com:4567/tap/tap:$version
-#           docker push gitlab.it.keysight.com:4567/tap/tap:$version
 
-# TAPBaseDockerImageRC:
-#   image: gitlab.it.keysight.com:4567/tap/linuxbuildrunners/dockerbuild:latest
-#   stage: deploy
-#   only:
-#     - /^release[0-9]+x$/
-#   tags:
-#     - docker,ubuntu18.4
-#   dependencies:
-#      - Package-BaseUbuntu
-#   script: |
-#           docker login -u gitlab-ci-token -p $CI_JOB_TOKEN gitlab.it.keysight.com:4567
-#           cp TAPLinux.TapPackage opentap
-#           cd opentap
-#           docker build -t gitlab.it.keysight.com:4567/tap/tap:rc .
-#           docker push gitlab.it.keysight.com:4567/tap/tap:rc
+# #############################################
+# # Stage: docker                             #
+# #############################################
+.DockerLinuxBuild:
+  image: 
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  dependencies:
+     - Installer-Linux
+  stage: docker
+  tags: [ docker, gce ]
+  script:
+        - cp TAPLinux.TapPackage docker/Linux/TAPLinux.TapPackage
+        - cd docker/Linux
+        - echo "{\"auths\":{\"https://index.docker.io/v1/\":{\"username\":\"$DOCKER_USER\", \"password\":\"$DOCKER_PASS\"}}}" > /kaniko/.docker/config.json
+        - /kaniko/executor --context=$CI_PROJECT_DIR/docker/Linux --dockerfile=Dockerfile --destination=opentapio/opentap:$version-ubuntu18.04
 
+DockerLinux-Release:
+  extends: .DockerLinuxBuild
+  only:
+    - tags
+  before_script:
+        - version=$(cat .gitversion | sed -nr 's/version *= *([0-9]+\.[0-9]+)\.[0-9]+/\1/p')
 
-# TAPBaseDockerImageBeta:
-#   image: gitlab.it.keysight.com:4567/tap/linuxbuildrunners/dockerbuild:latest
-#   stage: deploy
-#   only:
-#     - /^integration$/
-#   tags:
-#     - docker,ubuntu18.4
-#   dependencies:
-#      - Package-BaseUbuntu
-#   script: |
-#           docker login -u gitlab-ci-token -p $CI_JOB_TOKEN gitlab.it.keysight.com:4567
-#           cp TAPLinux.TapPackage opentap
-#           cd opentap
-#           docker build -t gitlab.it.keysight.com:4567/tap/tap:beta .
-#           docker push gitlab.it.keysight.com:4567/tap/tap:beta
+DockerLinux-RC:
+  extends: .DockerLinuxBuild
+  only:
+    - /^release.*$/
+  before_script:
+        - version=rc
 
-# TAPBaseDockerImageAlpha:
-#   image: gitlab.it.keysight.com:4567/tap/linuxbuildrunners/dockerbuild:latest
-#   stage: deploy
-#   when: manual
-#   except:
-#     - /^release[0-9]+x$/
-#     - /^rc[0-9]+x$/
-#     - /^integration$/
-#   tags:
-#     - docker,ubuntu18.4
-#   dependencies:
-#      - Package-BaseUbuntu
-#   script: |
-#           docker login -u gitlab-ci-token -p $CI_JOB_TOKEN gitlab.it.keysight.com:4567
-#           cp TAPLinux.TapPackage opentap
-#           cd opentap
-#           docker build -t gitlab.it.keysight.com:4567/tap/tap:alpha .
-#           docker push gitlab.it.keysight.com:4567/tap/tap:alpha
+DockerLinux-Beta:
+  extends: .DockerLinuxBuild
+  only:
+    - master
+  before_script:
+        - version=beta
+
+.DockerWindowsBuild:
+  stage: docker
+  tags:
+    - docker-build,windows,1809
+  dependencies:
+     - Installer-Windows
+  script:
+        - new-item OpenTAP.9.2.exe
+        - copy-item OpenTAP.*.exe docker/Windows/OpenTAP.exe
+        - cd docker/Windows
+        - docker login -u $env:DOCKER_USER -p $env:DOCKER_PASS
+        - docker build -t opentapio/opentap:$env:version-windows1809 .
+        - docker push opentapio/opentap:$env:version-windows1809
+        - docker logout
+
+DockerWindows-Release:
+  extends: .DockerWindowsBuild
+  only:
+    - tags
+  before_script:
+        - $match = cat .\.gitversion | select-string 'version *= *([0-9]+\.[0-9]+)\.[0-9]+'
+        - $env:version=$match.Matches.Groups[1].Value
+        - echo $env:version
+
+DockerWindows-rc:
+  extends: .DockerWindowsBuild
+  only:
+    - /^release.*$/
+  before_script:
+        - $env:version="rc"
+
+DockerWindows-beta:
+  extends: .DockerWindowsBuild
+  only:
+    - master
+  before_script:
+        - $env:version="beta"
