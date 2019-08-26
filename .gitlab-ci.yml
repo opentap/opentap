@@ -133,23 +133,29 @@ TestPackage:
     paths:
        - "TestResult.xml"
 
-# TestUbuntu:
-#   image: buildpack-deps:bionic
-#   tags: [docker, ubuntu18.4]
-#   stage: test
-#   dependencies:
-#      - Package-BaseUbuntu
-#   script: |
-#           cp -r opentap/Engine.UnitTests/TestTestPlans bin/linux-x64/publish
-#           cd bin/linux-x64/publish
-#           chmod +x tap
-#           echo "./tap run -v TestTestPlans/testMultiReferencePlan.TapPlan
-#  if [ \$? -eq 20 ]
-#  then echo \"OK\"
-#  else false
-#  fi" >./run_ubuntu_test.sh
-#           chmod +x ./run_ubuntu_test.sh
-#           bash run_ubuntu_test.sh
+.LinuxScript:
+  tags: [ docker, gce ]
+  dependencies:
+     - Build-Linux64
+  script:
+        - cp -r Engine.UnitTests/TestTestPlans bin/Release/linux-x64/publish
+        - cd bin/Release/linux-x64/publish
+        - chmod +x tap
+        - echo "./tap run -v TestTestPlans/testMultiReferencePlan.TapPlan; if [ \$? -eq 20 ]; then echo \"OK\"; else false; fi" >./run_ubuntu_test.sh
+        - chmod +x ./run_ubuntu_test.sh
+        - bash run_ubuntu_test.sh
+
+TestUbuntu:
+  stage: test
+  image: microsoft/dotnet:2.1-sdk-stretch
+  extends: .LinuxScript
+
+TestCentos7:
+  stage: test
+  image: 
+    name: stefanholst0/dotnet-21-centos7-root:latest
+    entrypoint: [ "" ]
+  extends: .LinuxScript
 
 # TestUbuntuPackaged:
 #   image: buildpack-deps:bionic
