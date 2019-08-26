@@ -15,6 +15,10 @@
     <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(SolutionDir)' == ''">
+    <SolutionDir>..\</SolutionDir>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
     <IsDebug>true</IsDebug>
   </PropertyGroup>
