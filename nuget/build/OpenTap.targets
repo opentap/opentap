@@ -25,8 +25,7 @@
                      Exists('$(OutDir)')"
           BeforeTargets="Clean">
     <ItemGroup>
-      <PackagePayloadFilesToClean Include="@(PackagePayloadFiles -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')"
-                                  Exclude="$(OutDir)Editor.exe"/>
+      <PackagePayloadFilesToClean Include="@(PackagePayloadFiles -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')"/>
     </ItemGroup>
     <Delete Files="@(PackagePayloadFilesToClean)" />
   </Target>
