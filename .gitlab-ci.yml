@@ -357,7 +357,7 @@ PublishPackages-Beta:
   stage: docker
   tags: [ docker, gce ]
   script:
-        - mv OpenTAP.Linux.TapPackage docker/Linux/OpenTAP.Linux.TapPackage
+        - mv OpenTAP.*.Linux.TapPackage docker/Linux/OpenTAP.Linux.TapPackage
         - cd docker/Linux
         - echo "{\"auths\":{\"https://index.docker.io/v1/\":{\"username\":\"$DOCKER_USER\", \"password\":\"$DOCKER_PASS\"}}}" > /kaniko/.docker/config.json
         - /kaniko/executor --context=$CI_PROJECT_DIR/docker/Linux --dockerfile=Dockerfile --destination=opentapio/opentap:$version-ubuntu18.04
