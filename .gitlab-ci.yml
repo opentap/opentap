@@ -217,13 +217,14 @@ Package-Windows:
          - nuget restore OpenTAP.sln
          - cd bin/Release64
          - .\tap.exe package install -f "/repo/Sign.TapPackage"
-         - cmd /C ".\tap.exe package create -v ../../opentapCE.package.xml -o Packages/OpenTAP/OpenTAP-CE.TapPackage --install"
+         - cmd /C ".\tap.exe package create -v ../../opentapCE.package.xml -o Packages/OpenTAP/OpenTAP.Windows.TapPackage"
+         - $version=$(./tap sdk gitversion)
+         - copy-item Packages/OpenTAP/OpenTAP.Windows.TapPackage ../../OpenTAP.$version.Windows.TapPackage
   artifacts:
     when: on_success
     expire_in: 1 day
     paths:
-       - "bin/Release64/Packages/"
-       - "bin/Release64/Dependencies"
+       - OpenTAP.*.Windows.TapPackage
 
 Package-Linux:
   stage: package
@@ -237,19 +238,19 @@ Package-Linux:
      - Build-x86
      - Build-Linux64
   script:
-         -  mv bin\Release\linux-x64 bin\linux-x64
-         -  pushd bin\linux-x64\publish
-         -  ../../Release/tap package download --os Linux --architecture x64 -f -r $env:PACKAGE_REPO_URL -t . Demonstration
-         -  mv "Demonstration*.TapPackage" "Demonstration.TapPackage"
+         - mv bin\Release\linux-x64 bin\linux-x64
+         - pushd bin\linux-x64\publish
+         - ../../Release/tap package download --os Linux --architecture x64 -f -r $env:PACKAGE_REPO_URL -t . Demonstration
+         - mv "Demonstration*.TapPackage" "Demonstration.TapPackage"
          - ../../Release/tap package install -f "/repo/Sign.TapPackage"
-         -  cmd /C "..\..\Release\tap package create -v ../../../opentap_linux64.package.xml -o Packages/TAPLinux.TapPackage --install"
-         -  cp Packages/TAPLinux.TapPackage ../../../TAPLinux.TapPackage
+         - cmd /C "..\..\Release\tap package create -v ../../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage"
+         - $version=$(./tap sdk gitversion)
+         - cp Packages/OpenTAP.Linux.TapPackage ../../../OpenTAP.$version.Linux.TapPackage
   artifacts:
     when: on_success
     expire_in: 1 week
     paths:
-       - TAPLinux.TapPackage
-       - bin/linux-x64/publish
+       - OpenTAP.*.Linux.TapPackage
 
 
 # #############################################
@@ -275,7 +276,7 @@ Installer-Windows:
          - ./tap.exe package install -f -v "/BundleInstaller.TapPackage"
          - Remove-Item "Packages\Bundle Installer\Assets\LICENSES.txt"
 
-         - ./tap.exe sdk create-bundle --sign "Keysight Technologies, Inc" --no-gui --tap64 "Packages/OpenTAP/OpenTAP-CE.TapPackage" -x ../../Installer/Assets/opentapCE.installer.xml setup.exe
+         - ./tap.exe sdk create-bundle --sign "Keysight Technologies, Inc" --no-gui --tap64 "../../OpenTAP.$version.Windows.TapPackage" -x ../../Installer/Assets/opentapCE.installer.xml setup.exe
          - Move-Item setup.exe ..\..\OpenTAP.$($version).exe
   artifacts:
     expire_in: 1 week
@@ -303,13 +304,45 @@ Installer-Linux:
          - $str=[IO.File]::ReadAllText($path + "/LinuxInstructions/README") -replace "`r`n", "`n"
          - ([IO.File]::WriteAllText($path + "/README", $str))
 
-         - cmd /C '"C:\Program Files (x86)\GnuWin32\bin\tar.exe" -cf "TAP2018.tar" TAPLinux.TapPackage INSTALL.sh README'
+         - cmd /C '"C:\Program Files (x86)\GnuWin32\bin\tar.exe" -cf "OpenTAP.tar" OpenTAP.*.Linux.TapPackage INSTALL.sh README'
   artifacts:
     when: on_success
     expire_in: 1 week
     paths:
-       - "TAPLinux.TapPackage"
-       - "TAP2018.tar"
+       - "OpenTAP.tar"
+
+
+.PublishPackage:
+  stage: deploy
+  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  tags: [ docker, windows ]
+  variables:
+    GIT_STRATEGY: none
+  dependencies:
+     - Build-x64
+     - Package-Windows
+     - Package-Linux
+  script:
+      - cd bin/Release64
+      - ./tap package install -f PackagePublish
+      - tap package publish -r http://packages.opentap.io -k $PUBLIC_REPO_PASS OpenTAP*.TapPackage
+
+
+PublishPackages-Release:
+  extends: .PublishPackage
+  only:
+    - tags
+
+PublishPackages-RC:
+  extends: .PublishPackage
+  only:
+    - /^release.*$/
+
+PublishPackages-Beta:
+  extends: .PublishPackage
+  only:
+    - master
+  when: manual
 
 
 # #############################################
@@ -324,7 +357,7 @@ Installer-Linux:
   stage: docker
   tags: [ docker, gce ]
   script:
-        - cp TAPLinux.TapPackage docker/Linux/TAPLinux.TapPackage
+        - mv OpenTAP.Linux.TapPackage docker/Linux/OpenTAP.Linux.TapPackage
         - cd docker/Linux
         - echo "{\"auths\":{\"https://index.docker.io/v1/\":{\"username\":\"$DOCKER_USER\", \"password\":\"$DOCKER_PASS\"}}}" > /kaniko/.docker/config.json
         - /kaniko/executor --context=$CI_PROJECT_DIR/docker/Linux --dockerfile=Dockerfile --destination=opentapio/opentap:$version-ubuntu18.04
@@ -357,12 +390,11 @@ DockerLinux-Beta:
   dependencies:
      - Installer-Windows
   script:
-        - new-item OpenTAP.9.2.exe
         - copy-item OpenTAP.*.exe docker/Windows/OpenTAP.exe
         - cd docker/Windows
         - docker login -u $env:DOCKER_USER -p $env:DOCKER_PASS
-        - docker build -t opentapio/opentap:$env:version-windows1809 .
-        - docker push opentapio/opentap:$env:version-windows1809
+        - docker build -t opentapio/opentap:$env:version-windowsserver1809 .
+        - docker push opentapio/opentap:$env:version-windowsserver1809
         - docker logout
 
 DockerWindows-Release:
