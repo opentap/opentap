@@ -244,7 +244,7 @@ Package-Linux:
          - mv "Demonstration*.TapPackage" "Demonstration.TapPackage"
          - ../../Release/tap package install -f "/repo/Sign.TapPackage"
          - cmd /C "..\..\Release\tap package create -v ../../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage"
-         - $version=$(./tap sdk gitversion)
+         - $version=$(..\..\Release\tap sdk gitversion)
          - cp Packages/OpenTAP.Linux.TapPackage ../../../OpenTAP.$version.Linux.TapPackage
   artifacts:
     when: on_success
@@ -396,7 +396,7 @@ Publish-Nuget-Manuel:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
   dependencies:
-     - Installer-Linux
+     - Package-Linux
   stage: publish
   tags: [ docker, gce ]
   script:
