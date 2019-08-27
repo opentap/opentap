@@ -5,8 +5,8 @@ stages:
   - build
   - test
   - package
-  - deploy
-  - docker
+  - installer
+  - publish
 
 #############################################
 # Stage: build                              #
@@ -254,11 +254,36 @@ Package-Linux:
 
 
 # #############################################
-# # Stage: deploy                             #
+# # Stage: installer                             #
 # #############################################
 
+Package-NuGet:
+  stage: installer
+  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  tags: [ docker, windows ]
+  only:
+    - tags
+    - /^release.*$/
+    - master
+  dependencies:
+    - Build-x64
+    - Package-Windows
+  script:
+    - mkdir nuget/build/payload
+    - cd bin/Release64
+    - Move-Item "../../OpenTAP.*.Windows.TapPackage" OpenTAP.TapPackage
+    - .\tap.exe package install --target "../../nuget/build/payload" OpenTAP.TapPackage -f
+    - .\tap.exe sdk gitversion --replace ../../nuget/OpenTAP.nuspec --fields 4
+    - cd ../../nuget/
+    - nuget update -self
+    - nuget pack OpenTAP.nuspec -OutputDirectory ../
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - "*.nupkg"
+
 Installer-Windows:
-  stage: deploy
+  stage: installer
   image: registry.gitlab.com/opentap/buildrunners/inno
   tags: [ docker, windows ]
   only:
@@ -284,7 +309,7 @@ Installer-Windows:
        - "*.exe"
 
 Installer-Linux:
-  stage: deploy
+  stage: installer
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
   only:
@@ -312,8 +337,12 @@ Installer-Linux:
        - "OpenTAP.tar"
 
 
+#############################################
+# Stage: publish                            #
+#############################################
+
 .PublishPackage:
-  stage: deploy
+  stage: publish
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
   variables:
@@ -326,7 +355,6 @@ Installer-Linux:
       - cd bin/Release64
       - ./tap package install -f PackagePublish
       - tap package publish -r http://packages.opentap.io -k $PUBLIC_REPO_PASS OpenTAP*.TapPackage
-
 
 PublishPackages-Release:
   extends: .PublishPackage
@@ -344,17 +372,32 @@ PublishPackages-Beta:
     - master
   when: manual
 
+Publish-Nuget:
+  stage: publish
+  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  tags: [ docker, windows ]
+  dependencies:
+     - Package-NuGet
+  variables:
+    GIT_STRATEGY: none
+  only:
+    - tags
+    - /^release.*$/
+  script: nuget push OpenTAP.*.nupkg $NUGET_KEY -NonInteractive
 
-# #############################################
-# # Stage: docker                             #
-# #############################################
+Publish-Nuget-Manuel:
+  extends: Publish-Nuget
+  only:
+    - master
+  when: manual
+
 .DockerLinuxBuild:
   image: 
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
   dependencies:
      - Installer-Linux
-  stage: docker
+  stage: publish
   tags: [ docker, gce ]
   script:
         - mv OpenTAP.*.Linux.TapPackage docker/Linux/OpenTAP.Linux.TapPackage
@@ -384,7 +427,7 @@ DockerLinux-Beta:
         - version=beta
 
 .DockerWindowsBuild:
-  stage: docker
+  stage: publish
   tags:
     - docker-build,windows,1809
   dependencies:
