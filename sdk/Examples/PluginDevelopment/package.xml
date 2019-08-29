@@ -1,0 +1,20 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+InfoLink: Specifies a location where additional information about the package can be found.
+Version: The version of the package. This can be automatically updated from GIT.
+Configuration: Can be any kind of information, such as bit version or git branch name. 
+
+For Version the following macro is available (Only works if the project directory is under Git source control):
+$(GitVersion) - Gets the version from Git in the recommended format Major.Minor.Build-PreRelease+CommitHash.BranchName.
+-->
+<Package Name="Plugin Development" 
+         xmlns="http://opentap.io/schemas/package"
+         InfoLink="http://www.keysight.com/" 
+         Version="0.1.0-alpha">
+  <Description>Example source code for developers using OpenTAP</Description>
+  <Files>
+    <File Path="OpenTap.Plugins.PluginDevelopment.dll">
+    	<SetAssemblyInfo Attributes="Version"/>
+    </File>
+  </Files>
+</Package>

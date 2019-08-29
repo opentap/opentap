@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package Name="SDK" xmlns="http://opentap.io/schemas/package" InfoLink="http://www.keysight.com/find/TAP" Version="$(GitVersion)">
+  <Description>OpenTAP’s SDK contains code example files, an MSBuild task to help create TapPackage files and the developer guide. This package demonstrates the core capabilities of OpenTAP and makes it faster and simpler to develop custom Test Automation solutions, especially for new developers.
+    <Status>Released</Status>
+    <Organisation>Keysight Technologies</Organisation>
+    <Prerequisites>Visual Studio 2015 or newer</Prerequisites>
+  </Description>
+  <Dependencies>
+    <PackageDependency Package="OpenTAP" Version="^$(GitVersion)" />
+      </Dependencies>
+  <Files>
+    <File Path="Packages/SDK/Keysight.OpenTap.Sdk.MSBuild.dll">
+        <SetAssemblyInfo Attributes="Version"/>
+    </File>
+    <File Path="OpenTap.xml"/>
+    <File Path="Packages/SDK/PackageSchema.xsd"/>
+    <File Path="Packages/SDK/OpenTAP Developer Guide.pdf" SourcePath="../../sdk/Examples/OpenTAP Developer Guide.pdf"/>
+    <File Path="Packages/SDK/Examples/Examples.sln"/>
+    <File Path="Packages/SDK/Examples/ExamplePlugin\ExamplePlugin.csproj"/>
+    <File Path="Packages/SDK/Examples/ExamplePlugin\GeneratorInstrument.cs"/>
+    <File Path="Packages/SDK/Examples/ExamplePlugin\LowPassFilterDut.cs"/>
+    <File Path="Packages/SDK/Examples/ExamplePlugin\MeasurePeakAmplitudeTestStep.cs"/>
+    <File Path="Packages/SDK/Examples/ExamplePlugin\package.xml"/>
+    <File Path="Packages/SDK/Examples/ExamplePlugin\SomeSampleData.txt"/>
+    <File Path="Packages/SDK/Examples/ExamplePlugin\Properties\AssemblyInfo.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment\package.xml"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment\PluginDevelopment.csproj"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment\GUI\*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment\InstrumentsAndDuts\*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment\Properties\AssemblyInfo.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment\ResultListeners\*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment\TestSteps\DynamicStep.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment\TestSteps\Attributes\*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment\TestSteps\InputOutput\*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment\TestSteps\ParentChild\*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment\TestSteps\PublishResults\*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment\TestSteps\Step Execution\*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment\TestSteps\Step Settings\*.cs"/>
+    <File Path="Packages/SDK/Examples/TestPlanExecution\BuildTestPlan.Api\App.config"/>
+    <File Path="Packages/SDK/Examples/TestPlanExecution\BuildTestPlan.Api\BuildTestPlan.Api.csproj"/>
+    <File Path="Packages/SDK/Examples/TestPlanExecution\BuildTestPlan.Api\Program.cs"/>
+    <File Path="Packages/SDK/Examples/TestPlanExecution\BuildTestPlan.Api\Properties\AssemblyInfo.cs"/>
+    <File Path="Packages/SDK/Examples/TestPlanExecution\RunTestPlan.Api\App.config"/>
+    <File Path="Packages/SDK/Examples/TestPlanExecution\RunTestPlan.Api\Program.cs"/>
+    <File Path="Packages/SDK/Examples/TestPlanExecution\RunTestPlan.Api\RunTestPlan.Api.csproj"/>
+    <File Path="Packages/SDK/Examples/TestPlanExecution\RunTestPlan.Api\Properties\AssemblyInfo.cs"/>
+  </Files>
+</Package>

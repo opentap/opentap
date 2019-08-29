@@ -1,0 +1,2 @@
+﻿TAP packages can contain more than just C# dlls.
+This file is an example of how the package.xml file can contain other types of files. 

@@ -252,6 +252,32 @@ Package-Linux:
     paths:
        - OpenTAP.*.Linux.TapPackage
 
+Package-SDK:
+  stage: package
+  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  tags: [ docker, windows ]
+  only:
+    - tags
+    - /^release.*$/
+    - master
+  dependencies:
+     - Build-x86
+     - Build-DevGuide
+  script:
+         - cd sdk
+         - MSBuild OpenTap.Sdk.sln /p:Configuration=Release /target:Rebuild
+         - cd ../bin/Release
+         - Copy-Item "../../sdk/Examples" "Packages/SDK/Examples" -Recurse
+         - Copy-Item "Keysight.OpenTap.Sdk.MSBuild.dll" "Packages/SDK/Keysight.OpenTap.Sdk.MSBuild.dll"
+         - Copy-Item "../../Package/PackageSchema.xsd" "Packages/SDK/PackageSchema.xsd"
+         - ./tap package create ../../sdk/sdk.package.xml
+         - Move-Item "*.TapPackage" "../.."
+  artifacts:
+    when: on_success
+    expire_in: 1 week
+    paths:
+       - "SDK.*.TapPackage"
+
 
 # #############################################
 # # Stage: installer                             #
@@ -351,10 +377,11 @@ Installer-Linux:
      - Build-x64
      - Package-Windows
      - Package-Linux
+     - Package-SDK
   script:
       - cd bin/Release64
       - ./tap package install -f PackagePublish
-      - tap package publish -r http://packages.opentap.io -k $PUBLIC_REPO_PASS OpenTAP*.TapPackage
+      - ./tap package publish -r http://packages.opentap.io -k $PUBLIC_REPO_PASS ../../*.TapPackage
 
 PublishPackages-Release:
   extends: .PublishPackage
