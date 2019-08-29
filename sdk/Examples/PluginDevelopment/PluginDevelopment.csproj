@@ -40,36 +40,21 @@
       <HintPath>$(TAP_PATH)\OpenTap.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Keysight.OpenTap.Gui, Version=5.0.390.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>$(TAP_PATH)\Editor.exe</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Keysight.OpenTap.Wpf, Version=5.0.390.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>$(TAP_PATH)\Packages\WPF Controls\Keysight.OpenTap.Wpf.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="PresentationCore" />
-    <Reference Include="PresentationFramework" />
     <Reference Include="System" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Windows.Forms" />
+    <Reference Include="WindowsBase" />
     <Reference Include="System.Xaml" />
     <Reference Include="System.Xml.Linq" />
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
-    <Reference Include="WindowsBase" />
     <Reference Include="netstandard" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="GUI\DockablePanel.cs" />
     <Compile Include="GUI\ExampleSettings.cs" />
     <Compile Include="GUI\UserInputExample.cs" />
     <Compile Include="GUI\TestPlanCustomImportExport.cs" />
-    <Compile Include="GUI\ToolsMenu.cs" />
     <Compile Include="InstrumentsAndDuts\ConnectionStep.cs" />
     <Compile Include="InstrumentsAndDuts\FourPortDut.cs" />
     <Compile Include="InstrumentsAndDuts\InterfaceBasedInstrument.cs" />
@@ -114,7 +99,6 @@
     <Compile Include="TestSteps\Attributes\UnitAttributeExample.cs" />
     <Compile Include="TestSteps\Step Execution\OfferBreakExample.cs" />
     <Compile Include="GUI\CustomBenchSettings.cs" />
-    <Compile Include="GUI\CustomControlProvider.cs"/>
     <Compile Include="GUI\IPAnnotation.cs"/>
     <Compile Include="InstrumentsAndDuts\SimpleInstrument.cs" />
     <Compile Include="InstrumentsAndDuts\UsingDutAndInstStep.cs" />

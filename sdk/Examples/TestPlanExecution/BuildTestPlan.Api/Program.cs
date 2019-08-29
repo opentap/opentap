@@ -17,7 +17,6 @@ using System.IO;
 using System.Reflection;
 using OpenTap;
 using OpenTap.Plugins.BasicSteps;
-using Keysight.OpenTap.Plugins.Csv;
 
 
 // This examples shows how to build, save and execute a test plan using TAP API.
@@ -66,7 +65,7 @@ namespace OpenTap.TestPlanExecution.BuildTestplan.Api
             // Alternatively, the ResultListeners could be defined in settings files.
             List<ResultListener> resultListeners = new List<ResultListener>();
             resultListeners.Add(new LogResultListener());
-            resultListeners.Add(new CsvResultListener());
+            //resultListeners.Add(new Keysight.OpenTap.Plugins.Csv.CsvResultListener());
 
             // Execute the TestPlan. This is the equivalent of the Run button in the TAP GUI.
             myTestPlan.Execute(resultListeners);
