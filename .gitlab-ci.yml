@@ -82,11 +82,10 @@ Build-x64:
          - MSBuild OpenTAP.sln /p:Configuration=Release /p:Platform=x64 /target:Rebuild /p:DefineConstants="TRACE" /m
          - dotnet build tap\tap.csproj -c Release -r win-x64
          - Remove-Item -recurse "bin\Release\Packages"
-         - Move-Item bin\Release bin\Release64
   artifacts:
     expire_in: 1 week
     paths:
-       - bin/Release64/
+       - bin/Release/
 
 WarningTest:
   stage: build
@@ -206,6 +205,8 @@ Package-Windows64:
   stage: package
   image: registry.gitlab.com/opentap/buildrunners/signrunner:latest
   tags: [ docker, windows ]
+  variables: 
+    ErrorActionPreference: stop
   only:
     - tags
     - /^release.*$/
@@ -214,8 +215,7 @@ Package-Windows64:
      - Build-x64
      - Doc-API
   script:
-         - nuget restore OpenTAP.sln
-         - cd bin/Release64
+         - cd bin/Release
          - .\tap.exe package install -f "/repo/Sign.TapPackage"
          - $version=$(./tap sdk gitversion)
          - cmd /C ".\tap.exe package create -v ../../opentapCE.package.xml -o ../../OpenTAP.$version.x64.Windows.TapPackage"
@@ -306,7 +306,7 @@ Package-NuGet:
     - Package-Windows64
   script:
     - mkdir nuget/build/payload
-    - cd bin/Release64
+    - cd bin/Release
     - Move-Item "../../OpenTAP.*.Windows.TapPackage" OpenTAP.TapPackage
     - .\tap.exe package install --target "../../nuget/build/payload" OpenTAP.TapPackage -f
     - .\tap.exe sdk gitversion --replace ../../nuget/OpenTAP.nuspec --fields 4
@@ -330,7 +330,7 @@ Installer-Windows:
      - Build-x64
      - Package-Windows64
   script:
-         - pushd bin\Release64
+         - pushd bin\Release
          - $version = ./tap.exe sdk gitversion
          - echo "OpenTAP.$($version).exe"
 
@@ -390,7 +390,7 @@ Installer-Linux:
      - Package-Linux
      - Package-SDK
   script:
-      - cd bin/Release64
+      - cd bin/Release
       - ./tap package install -f PackagePublish
       - ./tap package publish -r http://packages.opentap.io -k $PUBLIC_REPO_PASS ../../*.TapPackage
 
