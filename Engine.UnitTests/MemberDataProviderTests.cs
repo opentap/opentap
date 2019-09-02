@@ -282,6 +282,8 @@ namespace OpenTap.Engine.UnitTests
 
             public List<ScpiInstrument> Instruments { get; set; } = new List<ScpiInstrument>();
 
+            [AvailableValues(nameof(Instruments))]
+            public IResource ResourceWithAvailable { get; set; }
             public double? NullableDouble { get; set; }
             public class Data1
             {
@@ -426,6 +428,18 @@ namespace OpenTap.Engine.UnitTests
                         // index out of bounds
                     }
                     member.Read();
+                }
+
+                if (mem.Member.Name == nameof(DataInterfaceTestClass.ResourceWithAvailable))
+                {
+                    // Verify that "AvailableValuesAnnotation" is chosen over "ResourceAnnotation".
+                    Assert.AreEqual(2, member.Count(x => x is IAvailableValuesAnnotation));
+                    var firstAvail = member.Get<IAvailableValuesAnnotation>().ToString();
+                    var firstAvailName = "AvailableValuesAnnotation";
+                    Assert.IsTrue(firstAvail.Contains(firstAvailName));
+                    var secondAvail = member.GetAll<IAvailableValuesAnnotation>().Last();
+                    var secondAvailName = "ResourceAnnotation";
+                    Assert.IsTrue(secondAvail.ToString().Contains(secondAvailName));
                 }
             }
             annotations.Write(testobj);
