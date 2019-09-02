@@ -107,6 +107,8 @@ TestEngine:
   tags: [ docker, windows ]
   dependencies:
      - Build-x86
+  needs:
+     - Build-x86
   script:
          - MSBuild OpenTAP.sln /t:restore /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /m
          - packages/NUnit.ConsoleRunner.3.9.0/tools/nunit3-console.exe bin/Release/OpenTap.UnitTests.dll --labels=All
@@ -123,6 +125,8 @@ TestPackage:
   tags: [ docker, windows ]
   dependencies:
      - Build-x86
+  needs:
+     - Build-x86
   script:
          - copy-item -r "Package.UnitTests/Packages" bin/Release
          - MSBuild OpenTAP.sln /t:restore /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /m
@@ -136,6 +140,8 @@ TestPackage:
 .LinuxScript:
   tags: [ docker, gce ]
   dependencies:
+     - Build-Linux64
+  needs:
      - Build-Linux64
   script:
         - cp -r Engine.UnitTests/TestTestPlans bin/Release/linux-x64/publish
@@ -214,6 +220,9 @@ Package-Windows64:
   dependencies:
      - Build-x64
      - Doc-API
+  needs:
+     - Build-x64
+     - Doc-API
   script:
          - cd bin/Release
          - .\tap.exe package install -f "/repo/Sign.TapPackage"
@@ -228,6 +237,9 @@ Package-Windows64:
 Package-Windows32:
   extends: Package-Windows64
   dependencies:
+     - Build-x86
+     - Doc-API
+  needs:
      - Build-x86
      - Doc-API
   before_script:
@@ -247,6 +259,9 @@ Package-Linux:
   dependencies:
      - Build-x86
      - Build-Linux64
+  needs:
+     - Build-x86
+     - Build-Linux64    
   script:
          - mv bin\Release\linux-x64 bin\linux-x64
          - pushd bin\linux-x64\publish
@@ -271,6 +286,9 @@ Package-SDK:
     - /^release.*$/
     - master
   dependencies:
+     - Build-x86
+     - Build-DevGuide
+  needs:
      - Build-x86
      - Build-DevGuide
   script:
