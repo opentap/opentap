@@ -202,7 +202,7 @@ TestCentos7:
 # Stage: package                            #
 #############################################
 
-Package-Windows:
+Package-Windows64:
   stage: package
   image: registry.gitlab.com/opentap/buildrunners/signrunner:latest
   tags: [ docker, windows ]
@@ -217,14 +217,24 @@ Package-Windows:
          - nuget restore OpenTAP.sln
          - cd bin/Release64
          - .\tap.exe package install -f "/repo/Sign.TapPackage"
-         - cmd /C ".\tap.exe package create -v ../../opentapCE.package.xml -o Packages/OpenTAP/OpenTAP.Windows.TapPackage"
          - $version=$(./tap sdk gitversion)
-         - copy-item Packages/OpenTAP/OpenTAP.Windows.TapPackage ../../OpenTAP.$version.Windows.TapPackage
+         - cmd /C ".\tap.exe package create -v ../../opentapCE.package.xml -o ../../OpenTAP.$version.x64.Windows.TapPackage
   artifacts:
     when: on_success
     expire_in: 1 day
     paths:
        - OpenTAP.*.Windows.TapPackage
+
+Package-Windows32:
+  extends: Package-Windows64
+  dependencies:
+     - Build-x86
+     - Doc-API
+  before_script:
+         - sed -i 's/Architecture="x64"/Architecture="x86"/' opentapCE.package.xml
+  after_script:
+         - $version=$(./bin/Release/tap sdk gitversion)
+         - Move-Item OpenTAP.$version.x64.Windows.TapPackage OpenTAP.$version.x86.Windows.TapPackage 
 
 Package-Linux:
   stage: package
@@ -293,7 +303,7 @@ Package-NuGet:
     - master
   dependencies:
     - Build-x64
-    - Package-Windows
+    - Package-Windows64
   script:
     - mkdir nuget/build/payload
     - cd bin/Release64
@@ -318,7 +328,7 @@ Installer-Windows:
     - master
   dependencies:
      - Build-x64
-     - Package-Windows
+     - Package-Windows64
   script:
          - pushd bin\Release64
          - $version = ./tap.exe sdk gitversion
@@ -375,7 +385,8 @@ Installer-Linux:
     GIT_STRATEGY: none
   dependencies:
      - Build-x64
-     - Package-Windows
+     - Package-Windows64
+     - Package-Windows32
      - Package-Linux
      - Package-SDK
   script:
