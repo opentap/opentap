@@ -218,7 +218,7 @@ Package-Windows64:
          - cd bin/Release64
          - .\tap.exe package install -f "/repo/Sign.TapPackage"
          - $version=$(./tap sdk gitversion)
-         - cmd /C ".\tap.exe package create -v ../../opentapCE.package.xml -o ../../OpenTAP.$version.x64.Windows.TapPackage
+         - cmd /C ".\tap.exe package create -v ../../opentapCE.package.xml -o ../../OpenTAP.$version.x64.Windows.TapPackage"
   artifacts:
     when: on_success
     expire_in: 1 day
@@ -231,7 +231,7 @@ Package-Windows32:
      - Build-x86
      - Doc-API
   before_script:
-         - sed -i 's/Architecture="x64"/Architecture="x86"/' opentapCE.package.xml
+         - (get-content .\opentapCE.package.xml) | %{$_ -replace 'Architecture="x64"','Architecture="x86"'} | set-content .\opentapCE.package.xml
   after_script:
          - $version=$(./bin/Release/tap sdk gitversion)
          - Move-Item OpenTAP.$version.x64.Windows.TapPackage OpenTAP.$version.x86.Windows.TapPackage 
@@ -337,7 +337,7 @@ Installer-Windows:
          - ./tap.exe package install -f -v "/BundleInstaller.TapPackage"
          - Remove-Item "Packages\Bundle Installer\Assets\LICENSES.txt"
 
-         - ./tap.exe sdk create-bundle --sign "Keysight Technologies, Inc" --no-gui --tap64 "../../OpenTAP.$version.Windows.TapPackage" -x ../../Installer/Assets/opentapCE.installer.xml setup.exe
+         - ./tap.exe sdk create-bundle --sign "Keysight Technologies, Inc" --no-gui --tap64 "../../OpenTAP.$version.x64.Windows.TapPackage" -x ../../Installer/Assets/opentapCE.installer.xml setup.exe
          - Move-Item setup.exe ..\..\OpenTAP.$($version).exe
   artifacts:
     expire_in: 1 week
