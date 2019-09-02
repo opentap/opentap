@@ -5,7 +5,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Xml.Serialization;
 
 namespace OpenTap
@@ -155,9 +154,9 @@ namespace OpenTap
         /// <returns></returns>
         public override bool Equals(object obj)
         {
-            var other = obj as IInput;
-            if (other == null) return false;
-            return other.Step == Step && other.Property == Property;
+            if(obj is IInput other)
+                return other.Step == Step && other.Property == Property;
+            return false;
         }
 
         /// <summary> Gets the hash code.</summary>
@@ -177,16 +176,10 @@ namespace OpenTap
 
         /// <summary> Compares two Input for equality.</summary>
         /// <returns></returns>
-        public static bool operator==(Input<T> a, Input<T> b)
-        {
-            return a.Equals(b);
-        }
+        public static bool operator==(Input<T> a, Input<T> b) => object.Equals(a, b);
 
         /// <summary> Compares two Input for inequality.</summary>
         /// <returns></returns>
-        public static bool operator !=(Input<T> a, Input<T> b)
-        {
-            return !a.Equals(b);
-        }
+        public static bool operator !=(Input<T> a, Input<T> b) => !(a == b);
     }
 }
