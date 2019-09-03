@@ -409,7 +409,7 @@ Installer-Linux:
      - Package-SDK
   script:
       - cd bin/Release
-      - ./tap package install -f PackagePublish
+      - ./tap package install -f PackagePublish --version beta
       - ./tap package publish -r http://packages.opentap.io -k $PUBLIC_REPO_PASS ../../*.TapPackage
 
 PublishPackages-Release:
@@ -439,7 +439,7 @@ Publish-Nuget:
   only:
     - tags
     - /^release.*$/
-  script: nuget push OpenTAP.*.nupkg $NUGET_KEY -NonInteractive
+  script: nuget push OpenTAP.*.nupkg $NUGET_KEY -NonInteractive -Source https://api.nuget.org/v3/index.json
 
 Publish-Nuget-Manuel:
   extends: Publish-Nuget
