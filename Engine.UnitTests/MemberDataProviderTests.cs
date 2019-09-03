@@ -312,7 +312,7 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual("AAA", sval);
             InstrumentSettings.Current.Add(new GenericScpiInstrument());
             DataInterfaceTestClass testobj = new DataInterfaceTestClass();
-
+            
             AnnotationCollection annotations = AnnotationCollection.Annotate(testobj, Array.Empty<IAnnotation>());
             var disp = annotations.Get<DisplayAttribute>();
             Assert.IsNotNull(disp);
@@ -475,13 +475,37 @@ namespace OpenTap.Engine.UnitTests
 
             var smem = mem.Members.FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name == nameof(SweepLoop.SweepMembers));
             {
-                var select = smem.Get<IMultiSelect>();
-                var avail = smem.Get<IAvailableValuesAnnotation>();
+                {
+                    var select = smem.Get<IMultiSelect>();
+                    var avail = smem.Get<IAvailableValuesAnnotation>();
 
-                Assert.AreEqual(4, avail.AvailableValues.Cast<object>().Count()); // DelayStep only has on property.
-                select.Selected = smem.Get<IAvailableValuesAnnotation>().AvailableValues;
-                annotation.Write(sweep);
-                annotation.Read(sweep);
+                    select.Selected = new object[] { };
+                    annotation.Write(sweep);
+                    annotation.Read(sweep);
+                    Assert.AreEqual(0, select.Selected.Cast<object>().Count());
+
+                    select.Selected = new object[] {avail.AvailableValues.Cast<object>().First()};
+                    annotation.Write(sweep);
+                    annotation.Read(sweep);
+                    Assert.AreEqual(3, select.Selected.Cast<object>().Count());
+
+                    Assert.AreEqual(4, avail.AvailableValues.Cast<object>().Count()); // DelayStep only has on property.
+                    select.Selected = smem.Get<IAvailableValuesAnnotation>().AvailableValues;
+                    annotation.Write(sweep);
+                    annotation.Read(sweep);
+                }
+                if(false){
+                    var avail = smem.Get<IAvailableValuesAnnotationProxy>();
+                    var select = smem.Get<IMultiSelectAnnotationProxy>();
+                    select.SelectedValues = new AnnotationCollection[] {};
+                    annotation.Write(sweep);
+                    annotation.Read(sweep);
+                    
+                    select.SelectedValues = avail.AvailableValues.Take(1).ToArray();
+                    annotation.Write(sweep);
+                    annotation.Read(sweep);
+                    
+                }
             }
 
             var smem2 = mem.Members.FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name == nameof(SweepLoop.SweepParameters));
@@ -525,10 +549,22 @@ namespace OpenTap.Engine.UnitTests
                     var delay_value2 = delay_element2.Get<IStringValueAnnotation>();
                     // SweepLoop should copy the previous value for new rows.
                     Assert.IsTrue(delay_value2.Value.Contains("0.1 s"));
-                    
                 }
+                annotation.Write();
+                annotation.Read();
+                {
+                    var elem = collection.AnnotatedElements.First();
+                    var members2 = elem.Get<IMembersAnnotation>().Members;
+                    var mem2 = members2.FirstOrDefault(m => m.Get<IMemberAnnotation>().Member.Name.Contains("DelaySecs"));
+                    mem2.Get<IStringValueAnnotation>().Value = "1.123 s";
+                    annotation.Write();
+                    annotation.Read();
+                    var nowvalue = mem2.Get<IStringValueAnnotation>().Value;
+                    Assert.AreEqual("1.123 s", nowvalue);
+                }
+
             }
-            annotation.Write();
+            
             var rlistener = new OpenTap.Engine.UnitTests.PlanRunCollectorListener() { CollectResults = true };
             var plan = new TestPlan();
             plan.ChildTestSteps.Add(sweep);

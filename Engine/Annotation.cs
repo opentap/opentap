@@ -1992,8 +1992,6 @@ namespace OpenTap
                     annotation.Add(dp);
             }
 
-            var rdonly = annotation.Get<ReadOnlyMemberAnnotation>();
-
             var availMem = annotation.Get<AvailableMemberAnnotation>();
             if (availMem != null)
             {
@@ -2012,7 +2010,6 @@ namespace OpenTap
                 }
                 if (mem.Member.Writable == false)
                 {
-                    var currentaccess = annotation.Get<IAccessAnnotation>();
                     annotation.Add(new ReadOnlyMemberAnnotation());
                 }
             }
@@ -2196,11 +2193,10 @@ namespace OpenTap
             }
 
             AnnotationCollection a;
-            bool listTarget = false;
+            
             public AvailableValuesAnnotationProxy(AnnotationCollection a)
             {
                 this.a = a;
-                listTarget = a.Get<ICollectionAnnotation>() != null;
             }
 
             public void Read(object source)
@@ -2296,23 +2292,12 @@ namespace OpenTap
         class MultiSelectProxy : IMultiSelectAnnotationProxy
         {
             IEnumerable<AnnotationCollection> annotations
-            {
-                get
-                {
-                    return annotation.Get<IAvailableValuesAnnotationProxy>().AvailableValues;
-                }
-            }
+                => annotation.Get<IAvailableValuesAnnotationProxy>().AvailableValues;
 
             IEnumerable selection
             {
-                get
-                {
-                    return annotation.Get<IMultiSelect>().Selected as IEnumerable;
-                }
-                set
-                {
-                    annotation.Get<IMultiSelect>().Selected = value;
-                }
+                get => annotation.Get<IMultiSelect>().Selected;
+                set => annotation.Get<IMultiSelect>().Selected = value;
             }
 
             public IEnumerable<AnnotationCollection> SelectedValues
