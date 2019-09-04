@@ -7,6 +7,7 @@ stages:
   - package
   - installer
   - publish
+  - integrationtest
 
 #############################################
 # Stage: build                              #
@@ -511,3 +512,34 @@ DockerWindows-beta:
     - master
   before_script:
         - $env:version="beta"
+
+# Installs TAP, builds SDK, and tries to install the demonstration plugin. Finally it runs any test rules that it might have
+TestSdkExamples:
+  stage: integrationtest
+  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  tags: [ docker, windows ]
+  only:
+    - tags
+    - /^release.*$/
+    - master
+  dependencies:
+     - Installer-Windows
+     - Package-SDK
+  needs:
+     - Installer-Windows
+     - Package-SDK
+  variables:
+    GIT_STRATEGY: none
+  script: |
+          move OpenTAP.*.exe setup.exe
+          setup.exe /VERYSILENT /LOG="install_log.txt" /InstallPath="%programfiles%\OpenTAP\"
+          move SDK.*.TapPackage $(TAP_PATH)\SDK.TapPackage
+          cd $(TAP_PATH)
+          .\tap.exe install SDK.TapPackage
+          nuget restore Sdk\Examples\Examples.sln
+          MSBuild Sdk\Examples\Examples.sln /p:Configuration=Release /target:Rebuild /p:TreatWarningsAsErrors="true" /m
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+       - "install_log.txt"
