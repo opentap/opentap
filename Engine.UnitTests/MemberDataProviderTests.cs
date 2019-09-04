@@ -1,4 +1,4 @@
-﻿using OpenTap.Plugins.BasicSteps;
+using OpenTap.Plugins.BasicSteps;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
@@ -596,8 +596,6 @@ namespace OpenTap.Engine.UnitTests
             var mem2 = desc.GetMember("SimpleNumber");
             var annotation2 = named.GetMember(mem2);
             var unit2 = annotation2.Get<UnitAttribute>();
-            var errors = annotation2.Get<ErrorAnnotation>();
-            errors.Errors.Clear();
             var num = annotation2.Get<IStringValueAnnotation>();
             var currentVal = num.Value;
             num.Value = "4";
@@ -606,7 +604,7 @@ namespace OpenTap.Engine.UnitTests
                 num.Value = "asd";
             }catch(Exception e)
             {
-                errors.Errors.Add(e.Message);
+                
             }
             currentVal = num.Value;
             Assert.AreEqual(currentVal, "4 Hz");

@@ -203,13 +203,37 @@ namespace OpenTap
         /// </remarks>
         /// <typeparam name="BaseType">find types that descends from this type.</typeparam>
         /// <returns>A read-only collection of types.</returns>
-        public static ReadOnlyCollection<System.Type> GetPlugins<BaseType>()
+        public static ReadOnlyCollection<Type> GetPlugins<BaseType>()
         {
-            return GetPlugins(typeof(BaseType));
+            return StaticPluginTypeCache<BaseType>.Get();
+        }
+
+        /// <summary>
+        /// Cache structure to lock-free optimize BaseType type lookups. 
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        class StaticPluginTypeCache<T>
+        {
+            static ReadOnlyCollection<Type> list;
+            static int changeid = 0;
+
+            public static ReadOnlyCollection<Type> Get()
+            {
+                var changeid2 = PluginManager.ChangeID;
+                if (changeid != changeid2)
+                {
+                    list = null;
+                    changeid = changeid2;
+                }
+
+                if (list == null)
+                    list = GetPlugins(typeof(T));
+                return list;
+            }
         }
         
         /// <summary>
-        /// Gets the AssembliyData for the OpenTap.dll assembly.
+        /// Gets the AssemblyData for the OpenTap.dll assembly.
         /// This will search for plugins if not done already (i.e. call and wait for <see cref="PluginManager.SearchAsync()"/>)
         /// </summary>
         public static AssemblyData GetOpenTapAssembly()
@@ -249,6 +273,7 @@ namespace OpenTap
             finally
             {
                 searchTask.Set();
+                ChangeID++;
             }
         }
 
@@ -419,6 +444,7 @@ namespace OpenTap
 
         #region Version ResultParameters
         static Memorizer<Assembly, ResultParameter> AssemblyVersions = new Memorizer<Assembly, ResultParameter>(GetVersionResultParameter) { SoftSizeDecayTime = TimeSpan.FromDays(10) };
+        static int ChangeID = 0;
 
         private static ResultParameter GetVersionResultParameter(Assembly assembly)
         {
