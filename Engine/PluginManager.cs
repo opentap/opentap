@@ -24,7 +24,6 @@ namespace OpenTap
         private static readonly TraceSource log = Log.CreateSource("PluginManager");
         private static ManualResetEventSlim searchTask = new ManualResetEventSlim(true);
         private static PluginSearcher searcher;
-        static object implicitSearchLock = new object();
         static TapAssemblyResolver assemblyResolver;
 
         /// <summary>
@@ -219,15 +218,18 @@ namespace OpenTap
 
             public static ReadOnlyCollection<Type> Get()
             {
-                var changeid2 = PluginManager.ChangeID;
-                if (changeid != changeid2)
+                var changeIdNew = PluginManager.ChangeID;
+                if (changeid != changeIdNew)
                 {
                     list = null;
-                    changeid = changeid2;
                 }
 
                 if (list == null)
+                {
                     list = GetPlugins(typeof(T));
+                    changeid = changeIdNew;
+                }
+
                 return list;
             }
         }
@@ -251,7 +253,8 @@ namespace OpenTap
         public static Task SearchAsync()
         {
             searchTask.Reset();
-            TapThread.Start(Search);
+            ChangeID++;
+            TapThread.Start(Search);  
             return Task.Run(() => GetSearcher());
         }
         
@@ -259,6 +262,7 @@ namespace OpenTap
         public static void Search(){
             searchTask.Reset();
             assemblyResolver.Invalidate(DirectoriesToSearch);
+            ChangeID++;
             try
             {
                 IEnumerable<string> fileNames = assemblyResolver.FileFinder.AllAssemblies();
@@ -273,7 +277,6 @@ namespace OpenTap
             finally
             {
                 searchTask.Set();
-                ChangeID++;
             }
         }
 
