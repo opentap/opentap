@@ -82,11 +82,10 @@ Build-x64:
          - MSBuild OpenTAP.sln /p:Configuration=Release /p:Platform=x64 /target:Rebuild /p:DefineConstants="TRACE" /m
          - dotnet build tap\tap.csproj -c Release -r win-x64
          - Remove-Item -recurse "bin\Release\Packages"
-         - Move-Item bin\Release bin\Release64
   artifacts:
     expire_in: 1 week
     paths:
-       - bin/Release64/
+       - bin/Release/
 
 WarningTest:
   stage: build
@@ -108,6 +107,8 @@ TestEngine:
   tags: [ docker, windows ]
   dependencies:
      - Build-x86
+  needs:
+     - Build-x86
   script:
          - MSBuild OpenTAP.sln /t:restore /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /m
          - packages/NUnit.ConsoleRunner.3.9.0/tools/nunit3-console.exe bin/Release/OpenTap.UnitTests.dll --labels=All
@@ -124,6 +125,8 @@ TestPackage:
   tags: [ docker, windows ]
   dependencies:
      - Build-x86
+  needs:
+     - Build-x86
   script:
          - copy-item -r "Package.UnitTests/Packages" bin/Release
          - MSBuild OpenTAP.sln /t:restore /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /m
@@ -137,6 +140,8 @@ TestPackage:
 .LinuxScript:
   tags: [ docker, gce ]
   dependencies:
+     - Build-Linux64
+  needs:
      - Build-Linux64
   script:
         - cp -r Engine.UnitTests/TestTestPlans bin/Release/linux-x64/publish
@@ -202,10 +207,12 @@ TestCentos7:
 # Stage: package                            #
 #############################################
 
-Package-Windows:
+Package-Windows64:
   stage: package
   image: registry.gitlab.com/opentap/buildrunners/signrunner:latest
   tags: [ docker, windows ]
+  variables: 
+    ErrorActionPreference: stop
   only:
     - tags
     - /^release.*$/
@@ -213,18 +220,33 @@ Package-Windows:
   dependencies:
      - Build-x64
      - Doc-API
+  needs:
+     - Build-x64
+     - Doc-API
   script:
-         - nuget restore OpenTAP.sln
-         - cd bin/Release64
+         - cd bin/Release
          - .\tap.exe package install -f "/repo/Sign.TapPackage"
-         - cmd /C ".\tap.exe package create -v ../../opentapCE.package.xml -o Packages/OpenTAP/OpenTAP.Windows.TapPackage"
          - $version=$(./tap sdk gitversion)
-         - copy-item Packages/OpenTAP/OpenTAP.Windows.TapPackage ../../OpenTAP.$version.Windows.TapPackage
+         - cmd /C ".\tap.exe package create -v ../../opentapCE.package.xml -o ../../OpenTAP.$version.x64.Windows.TapPackage"
   artifacts:
     when: on_success
     expire_in: 1 day
     paths:
        - OpenTAP.*.Windows.TapPackage
+
+Package-Windows32:
+  extends: Package-Windows64
+  dependencies:
+     - Build-x86
+     - Doc-API
+  needs:
+     - Build-x86
+     - Doc-API
+  before_script:
+         - (get-content .\opentapCE.package.xml) | %{$_ -replace 'Architecture="x64"','Architecture="x86"'} | set-content .\opentapCE.package.xml
+  after_script:
+         - $version=$(./bin/Release/tap sdk gitversion)
+         - Move-Item OpenTAP.$version.x64.Windows.TapPackage OpenTAP.$version.x86.Windows.TapPackage 
 
 Package-Linux:
   stage: package
@@ -237,6 +259,9 @@ Package-Linux:
   dependencies:
      - Build-x86
      - Build-Linux64
+  needs:
+     - Build-x86
+     - Build-Linux64    
   script:
          - mv bin\Release\linux-x64 bin\linux-x64
          - pushd bin\linux-x64\publish
@@ -261,6 +286,9 @@ Package-SDK:
     - /^release.*$/
     - master
   dependencies:
+     - Build-x86
+     - Build-DevGuide
+  needs:
      - Build-x86
      - Build-DevGuide
   script:
@@ -293,10 +321,10 @@ Package-NuGet:
     - master
   dependencies:
     - Build-x64
-    - Package-Windows
+    - Package-Windows64
   script:
     - mkdir nuget/build/payload
-    - cd bin/Release64
+    - cd bin/Release
     - Move-Item "../../OpenTAP.*.Windows.TapPackage" OpenTAP.TapPackage
     - .\tap.exe package install --target "../../nuget/build/payload" OpenTAP.TapPackage -f
     - .\tap.exe sdk gitversion --replace ../../nuget/OpenTAP.nuspec --fields 4
@@ -318,16 +346,16 @@ Installer-Windows:
     - master
   dependencies:
      - Build-x64
-     - Package-Windows
+     - Package-Windows64
   script:
-         - pushd bin\Release64
+         - pushd bin\Release
          - $version = ./tap.exe sdk gitversion
          - echo "OpenTAP.$($version).exe"
 
          - ./tap.exe package install -f -v "/BundleInstaller.TapPackage"
          - Remove-Item "Packages\Bundle Installer\Assets\LICENSES.txt"
 
-         - ./tap.exe sdk create-bundle --sign "Keysight Technologies, Inc" --no-gui --tap64 "../../OpenTAP.$version.Windows.TapPackage" -x ../../Installer/Assets/opentapCE.installer.xml setup.exe
+         - ./tap.exe sdk create-bundle --sign "Keysight Technologies, Inc" --no-gui --tap64 "../../OpenTAP.$version.x64.Windows.TapPackage" -x ../../Installer/Assets/opentapCE.installer.xml setup.exe
          - Move-Item setup.exe ..\..\OpenTAP.$($version).exe
   artifacts:
     expire_in: 1 week
@@ -375,11 +403,12 @@ Installer-Linux:
     GIT_STRATEGY: none
   dependencies:
      - Build-x64
-     - Package-Windows
+     - Package-Windows64
+     - Package-Windows32
      - Package-Linux
      - Package-SDK
   script:
-      - cd bin/Release64
+      - cd bin/Release
       - ./tap package install -f PackagePublish
       - ./tap package publish -r http://packages.opentap.io -k $PUBLIC_REPO_PASS ../../*.TapPackage
 

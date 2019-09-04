@@ -23,7 +23,7 @@ namespace OpenTap.Engine.UnitTests
     {
         [Test]
         public void InputBasicTests()
-        {
+        {   
             var prop = TypeData.FromType(typeof(DelayStep)).GetMember(nameof(DelayStep.DelaySecs));
             DelayStep delay = new DelayStep();
             Input<double> secs = new Input<double>() { Step = delay, Property = prop};
@@ -52,7 +52,28 @@ namespace OpenTap.Engine.UnitTests
                 Assert.IsTrue(step2.Input.Step == plan2.ChildTestSteps[0]);
             }
         }
-        
+
+        [Test]
+        public void NullInputTest()
+        {
+            Input<double> a = null;
+            Input<double> b = null;
+            Assert.IsTrue(a == b);
+            a = new Input<double>(){};
+            Assert.IsTrue(a != b);
+            b = new Input<double>(){};
+
+            var prop = TypeData.FromType(typeof(DelayStep)).GetMember(nameof(DelayStep.DelaySecs));
+            DelayStep delay = new DelayStep();
+
+            Assert.IsTrue(a == b);
+            a.Step = delay;
+            a.Property = prop;
+            Assert.IsTrue(a != b);
+            b.Step = delay;
+            b.Property = prop;
+            Assert.IsTrue(a == b);
+        }
     }
 
     [AllowAnyChild]
