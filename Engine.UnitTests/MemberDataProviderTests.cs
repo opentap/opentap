@@ -494,18 +494,6 @@ namespace OpenTap.Engine.UnitTests
                     annotation.Write(sweep);
                     annotation.Read(sweep);
                 }
-                if(false){
-                    var avail = smem.Get<IAvailableValuesAnnotationProxy>();
-                    var select = smem.Get<IMultiSelectAnnotationProxy>();
-                    select.SelectedValues = new AnnotationCollection[] {};
-                    annotation.Write(sweep);
-                    annotation.Read(sweep);
-                    
-                    select.SelectedValues = avail.AvailableValues.Take(1).ToArray();
-                    annotation.Write(sweep);
-                    annotation.Read(sweep);
-                    
-                }
             }
 
             var smem2 = mem.Members.FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name == nameof(SweepLoop.SweepParameters));
@@ -602,7 +590,7 @@ namespace OpenTap.Engine.UnitTests
             try
             {
                 num.Value = "asd";
-            }catch(Exception e)
+            }catch(Exception)
             {
                 
             }
