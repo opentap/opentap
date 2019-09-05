@@ -334,10 +334,10 @@ Installer-Windows:
   stage: installer
   image: registry.gitlab.com/opentap/buildrunners/inno
   tags: [ docker, windows ]
-  only:
-    - tags
-    - /^release.*$/
-    - master
+  #only:
+  #  - tags
+  #  - /^release.*$/
+  #  - master
   dependencies:
      - Build-x64
      - Package-Windows64
@@ -518,10 +518,10 @@ TestSdkExamples:
   stage: integrationtest
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
-  only:
-    - tags
-    - /^release.*$/
-    - master
+  #only:
+  #  - tags
+  #  - /^release.*$/
+  #  - master
   dependencies:
      - Installer-Windows
      - Package-SDK
