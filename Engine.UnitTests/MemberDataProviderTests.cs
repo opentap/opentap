@@ -303,6 +303,15 @@ namespace OpenTap.Engine.UnitTests
 
             [DirectoryPath]
             public Enabled<string> EnabledDirectoryString { get; set; }
+            
+            [Display("Do Something")]
+            [Browsable(true)]
+            public void ButtonExample()
+            {
+                Clicks++;
+            }
+
+            public int Clicks;
         }
         
         [Test]
@@ -333,6 +342,16 @@ namespace OpenTap.Engine.UnitTests
                 if(mem.Member.Name == nameof(DataInterfaceTestClass.SelectableValues))
                 {
 
+                }
+
+                if (mem.Member.Name == nameof(DataInterfaceTestClass.ButtonExample))
+                {
+                    var member2 = member.Get<IMethodAnnotation>();
+                    member2.Invoke();
+                    Assert.AreEqual(1, testobj.Clicks);
+                    var access = member.Get<IAccessAnnotation>();
+                    Assert.IsTrue(access.IsVisible);
+                    Assert.IsTrue(access.IsReadOnly);
                 }
                 if (mem.Member.Name == nameof(DataInterfaceTestClass.EnabledDirectoryString))
                 {
