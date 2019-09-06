@@ -245,6 +245,9 @@ namespace OpenTap.Engine.UnitTests
             [Unit("s")]
             [AvailableValues("AvailableNumbers")]
             public Enabled<double> FromAvailable2 { get; set; } = new Enabled<double>();
+            
+            [MultipleAvailableValues(nameof(AvailableNumbers))]
+            public List<double> SelectedMulti { get; set; } = new List<double>{1,2}; 
 
             [Unit("s")]
             public IEnumerable<double> AvailableNumbers { get; set; } = new double[] { 1, 2, 3, 4, 5 };
@@ -440,6 +443,13 @@ namespace OpenTap.Engine.UnitTests
                     var secondAvail = member.GetAll<IAvailableValuesAnnotation>().Last();
                     var secondAvailName = "ResourceAnnotation";
                     Assert.IsTrue(secondAvail.ToString().Contains(secondAvailName));
+                }
+
+                if (mem.Member.Name == nameof(DataInterfaceTestClass.SelectedMulti))
+                {
+                    var proxy = member.Get<IMultiSelectAnnotationProxy>();
+                    var avail = member.Get<IAvailableValuesAnnotationProxy>();
+                    proxy.SelectedValues = avail.AvailableValues;
                 }
             }
             annotations.Write(testobj);
