@@ -572,11 +572,11 @@ namespace OpenTap
         public static IEnumerable<TestStepRun> RunChildSteps(this ITestStep Step, TestPlanRun currentPlanRun, TestStepRun currentStepRun, IEnumerable<ResultParameter> attachedParameters, CancellationToken cancellationToken)
         {
             if (currentPlanRun == null)
-                throw new ArgumentNullException("currentPlanRun");
+                throw new ArgumentNullException(nameof(currentPlanRun));
             if (currentStepRun == null)
-                throw new ArgumentNullException("currentStepRun");
+                throw new ArgumentNullException(nameof(currentStepRun));
             if (Step == null)
-                throw new ArgumentNullException("Step");
+                throw new ArgumentNullException(nameof(Step));
             if (Step.StepRun == null)
                 throw new Exception("Cannot run child steps outside the Run method.");
 
@@ -596,9 +596,15 @@ namespace OpenTap
                     if (cancellationToken.IsCancellationRequested) break;
 
                     // note: The following is copied inside TestPlanExecution.cs
-                    if (run.SuggestedNextStep != null)
+                    if (run.SuggestedNextStep is Guid id)
                     {
-                        var stepidx = steps.IndexWhen(x => x.Id == run.SuggestedNextStep);
+                        if (id == Step.Id)
+                        {
+                            // If suggested next step is the parent step, skip executing child steps.
+                            break;
+                        }
+
+                        var stepidx = steps.IndexWhen(x => x.Id == id);
                         if (stepidx != -1)
                             i = stepidx - 1;
                         // if skip to next step, dont add it to the wait queue.
