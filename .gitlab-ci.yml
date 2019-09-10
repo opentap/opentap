@@ -322,13 +322,20 @@ Package-NuGet:
   dependencies:
     - Build-x64
     - Package-Windows64
+    - Build-Linux64
   script:
+    - dotnet build -c NetCore tap/tap.csproj
     - mkdir nuget/build/payload
     - cd bin/Release
     - Move-Item "../../OpenTAP.*.Windows.TapPackage" OpenTAP.TapPackage
     - .\tap.exe package install --target "../../nuget/build/payload" OpenTAP.TapPackage -f
     - .\tap.exe sdk gitversion --replace ../../nuget/OpenTAP.nuspec --fields 4
     - cd ../../nuget/
+    - Move-Item ../bin/Release/linux-x64/publish/tap build/payload/
+    - Move-Item ../bin/Release/linux-x64/publish/tap.dll build/payload/
+    - $LibGitFolderName = $(Get-ChildItem -directory ./build/payload/Dependencies/LibGit2Sharp* -Name)
+    - Move-Item ../bin/Release/linux-x64/publish/libgit2-*.so build/payload/Dependencies/$LibGitFolderName/
+    - Move-Item ../bin/Release/tap.runtimeconfig.json build/payload/
     - nuget update -self
     - nuget pack OpenTAP.nuspec -OutputDirectory ../
   artifacts:
