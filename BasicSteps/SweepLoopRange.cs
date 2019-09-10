@@ -8,9 +8,9 @@ using System.Linq;
 using System.ComponentModel;
 using System.Reflection;
 using System.Xml.Serialization;
-using System.Data;
 using System.Text;
 using System.Xml.Linq;
+using System.Threading;
 
 namespace OpenTap.Plugins.BasicSteps
 {
@@ -111,14 +111,23 @@ namespace OpenTap.Plugins.BasicSteps
         {
             if (SweepProperties.Count == 0)
                 throw new InvalidOperationException("No parameters selected to sweep");
+            validateSweepMutex.WaitOne();
+            validateSweepMutex.ReleaseMutex();
         }
 
         ITypeData SweepType => SweepProperties.FirstOrDefault()?.TypeDescriptor;
-        bool isRunning => StepRun != null;
+
+        // Check if the test plan is running before validating sweeps.
+        // the validateSweep might have been started before the plan started.
+        // hence we use the validateSweeepMutex to ensure that validation is done before 
+        // the plan starts.
+        bool isRunning => GetParent<TestPlan>()?.IsRunning ?? false;
+        Mutex validateSweepMutex = new Mutex();
         string validateSweep(decimal Value)
         {   // Mostly copied from Run
             if (SweepProperties.Count == 0) return "";
             if (isRunning) return ""; // Avoid changing the value during run when the gui asks for validation errors.
+            if (!validateSweepMutex.WaitOne(0)) return "";
             StringBuilder sb = new StringBuilder();
 
             var sets = GetPropertySets(ChildTestSteps).ToList();
@@ -152,6 +161,7 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 for (int i = 0; i < sets.Count; i++)
                     sets[i].SetValue(originalValues[i], false);
+                validateSweepMutex.ReleaseMutex();
             }
         }
 
@@ -247,7 +257,7 @@ namespace OpenTap.Plugins.BasicSteps
             return LinearRange((decimal)logs, (decimal)loge, points).Select(x => (decimal)Math.Pow(10, (double)x));
         }
         
-
+        
         public override void Run()
         {
             base.Run();
