@@ -361,6 +361,14 @@ namespace OpenTap.Engine.UnitTests
             LoopStep step = new LoopStep();
             step.ChildTestSteps.Add(new AutomationStep());
         }
+
+        [Test]
+        public void TestGuid()
+        {
+            var a = new DelayStep();
+            var b = new DelayStep();
+            Assert.AreNotEqual(a.Id, b.Id);
+        }
     }
 
     [TestFixture]

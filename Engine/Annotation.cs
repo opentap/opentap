@@ -400,7 +400,7 @@ namespace OpenTap
             }
             set
             {
-                if(NullableType != null && value == "")
+               if(NullableType != null && value == "")
                 {
                     var val = annotation.Get<IObjectValueAnnotation>();
                     val.Value = null;
