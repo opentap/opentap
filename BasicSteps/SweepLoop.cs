@@ -918,8 +918,12 @@ namespace OpenTap.Plugins.BasicSteps
 
                 var sparams = (List<SweepParam>)fac.Get<IObjectValueAnnotation>().Value;
                 count = sparams?.FirstOrDefault()?.Values.Length ?? 0;
-                rowAnnotations.Clear();
-                annotations.Clear();
+                if (sparams.Select(x => x.Member).ToHashSet().SetEquals(rowAnnotations.Keys.ToHashSet()) == false)
+                {
+                    // if the columns has changed..
+                    rowAnnotations.Clear();
+                    annotations.Clear();
+                }
             }
 
             public void Write(object source)
