@@ -213,6 +213,7 @@ Package-Windows64:
   tags: [ docker, windows ]
   variables: 
     ErrorActionPreference: stop
+    Architecture: x64
   dependencies:
      - Build-x64
      - Doc-API
@@ -220,11 +221,11 @@ Package-Windows64:
      - Build-x64
      - Doc-API
   script:
-         - if (!$PROTECTED_BRANCH) { Set-Content .\opentapCE.package.xml  -Value (get-content .\opentapCE.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
+         - if (!$PROTECTED_BRANCH) { Set-Content .\opentap.$Architecture.package.xml  -Value (get-content .\opentap.$Architecture.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
          - cd bin/Release
          - .\tap.exe package install -f "/repo/Sign.TapPackage"
          - $version=$(./tap sdk gitversion)
-         - cmd /C ".\tap.exe package create -v ../../opentapCE.package.xml -o ../../OpenTAP.$version.x64.Windows.TapPackage"
+         - cmd /C ".\tap.exe package create -v ../../opentap.$Architecture.package.xml -o ../../OpenTAP.$version.$Architecture.Windows.TapPackage"
   artifacts:
     when: on_success
     expire_in: 1 day
@@ -239,11 +240,8 @@ Package-Windows32:
   needs:
      - Build-x86
      - Doc-API
-  before_script:
-         - (get-content .\opentapCE.package.xml) | %{$_ -replace 'Architecture="x64"','Architecture="x86"'} | set-content .\opentapCE.package.xml
-  after_script:
-         - $version=$(./bin/Release/tap sdk gitversion)
-         - Move-Item OpenTAP.$version.x64.Windows.TapPackage OpenTAP.$version.x86.Windows.TapPackage 
+  variables:
+    Architecture: x86
 
 Package-Linux:
   stage: package
@@ -309,17 +307,18 @@ Package-NuGet:
     - Package-Windows64
     - Build-Linux64
   script:
+    - Move-Item bin/Release/linux-x64/publish/ bin/Linux/
     - dotnet build -c NetCore tap/tap.csproj
     - mkdir nuget/build/payload
     - cd bin/Release
     - Move-Item "../../OpenTAP.*.Windows.TapPackage" OpenTAP.TapPackage
-    - .\tap.exe package install --target "../../nuget/build/payload" OpenTAP.TapPackage -f
+    - .\tap.exe package install --target "../../nuget/build/payload" OpenTAP.TapPackage -f -v
     - .\tap.exe sdk gitversion --replace ../../nuget/OpenTAP.nuspec --fields 4
     - cd ../../nuget/
-    - Move-Item ../bin/Release/linux-x64/publish/tap build/payload/
-    - Move-Item ../bin/Release/linux-x64/publish/tap.dll build/payload/
+    - Move-Item ../bin/Linux/tap build/payload/
+    - Move-Item ../bin/Linux/tap.dll build/payload/
     - $LibGitFolderName = $(Get-ChildItem -directory ./build/payload/Dependencies/LibGit2Sharp* -Name)
-    - Move-Item ../bin/Release/linux-x64/publish/libgit2-*.so build/payload/Dependencies/$LibGitFolderName/
+    - Move-Item ../bin/Linux/libgit2-*.so build/payload/Dependencies/$LibGitFolderName/
     - Move-Item ../bin/Release/tap.runtimeconfig.json build/payload/
     - nuget update -self
     - nuget pack OpenTAP.nuspec -OutputDirectory ../
