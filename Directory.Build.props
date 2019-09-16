@@ -15,10 +15,6 @@
     <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(SolutionDir)' == ''">
-    <SolutionDir>..\</SolutionDir>
-  </PropertyGroup>
-
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
     <IsDebug>true</IsDebug>
   </PropertyGroup>
@@ -36,14 +32,14 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsDebug)'=='true'">
-    <OutputPath>$(SolutionDir)bin\Debug\</OutputPath>
+    <OutputPath>$(MSBuildThisFileDirectory)bin\Debug\</OutputPath>
     <Optimize>false</Optimize>
     <DebugType>full</DebugType>
     <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsDebug)'!='true'">
-    <OutputPath>$(SolutionDir)bin\Release\</OutputPath>
+    <OutputPath>$(MSBuildThisFileDirectory)bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>

@@ -282,11 +282,10 @@ Package-SDK:
      - Build-x86
      - Build-DevGuide
   script:
-         - cd sdk
-         - MSBuild OpenTap.Sdk.sln /p:Configuration=Release /target:Rebuild
-         - cd ../bin/Release
+         - cd bin/Release
+         - .\tap.exe package install -f "/repo/Sign.TapPackage"
+         - .\tap.exe package create ../../opentapCE.package.xml --install
          - Copy-Item "../../sdk/Examples" "Packages/SDK/Examples" -Recurse
-         - Copy-Item "Keysight.OpenTap.Sdk.MSBuild.dll" "Packages/SDK/Keysight.OpenTap.Sdk.MSBuild.dll"
          - Copy-Item "../../Package/PackageSchema.xsd" "Packages/SDK/PackageSchema.xsd"
          - ./tap package create ../../sdk/sdk.package.xml
          - Move-Item "*.TapPackage" "../.."
