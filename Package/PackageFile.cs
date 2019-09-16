@@ -15,6 +15,7 @@ using System.Xml.Serialization;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
+using System.Threading.Tasks;
 
 namespace OpenTap.Package
 {
@@ -387,7 +388,8 @@ namespace OpenTap.Package
         {
             var root = XElement.Load(stream);
             List<PackageDef> packages = new List<PackageDef>();
-            foreach (XNode node in root.Nodes())
+
+            Parallel.ForEach(root.Nodes(), node =>
             {
                 using (Stream str = new MemoryStream())
                 {
@@ -402,7 +404,8 @@ namespace OpenTap.Package
                         throw new XmlException("Invalid XML");
                     }
                 }
-            }
+            });
+
             return packages;
         }
 

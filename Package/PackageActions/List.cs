@@ -81,7 +81,7 @@ namespace OpenTap.Package
             if (string.IsNullOrEmpty(Name))
             {
                 var packages = installed.ToList();
-                packages.AddRange(PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, new PackageSpecifier("", versionSpec, Architecture, OS)));
+                packages.AddRange(PackageRepositoryHelpers.GetPackageNameAndVersionFromAllRepos(repositories, new PackageSpecifier("", versionSpec, Architecture, OS)));
 
                 if (Installed)
                     packages = packages.Where(p => installed.Any(i => i.Name == p.Name)).ToList();
