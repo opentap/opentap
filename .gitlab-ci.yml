@@ -282,7 +282,7 @@ Package-SDK:
   script:
          - cd bin/Release
          - .\tap.exe package install -f "/repo/Sign.TapPackage"
-         - .\tap.exe package create ../../opentapCE.package.xml --install
+         - .\tap.exe package create ../../opentap.x86.package.xml --install
          - Copy-Item "../../sdk/Examples" "Packages/SDK/Examples" -Recurse
          - Copy-Item "../../Package/PackageSchema.xsd" "Packages/SDK/PackageSchema.xsd"
          - ./tap package create ../../sdk/sdk.package.xml
