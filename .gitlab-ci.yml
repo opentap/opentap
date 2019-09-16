@@ -271,18 +271,20 @@ Package-Linux:
 
 Package-SDK:
   stage: package
-  image: registry.gitlab.com/opentap/buildrunners/signrunner:latest
+  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
   dependencies:
      - Build-x86
      - Build-DevGuide
+     - Doc-API
   needs:
      - Build-x86
      - Build-DevGuide
+     - Doc-API
   script:
+         - Set-Content .\opentap.x86.package.xml  -Value (get-content .\opentap.x86.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch)
          - cd bin/Release
-         - .\tap.exe package install -f "/repo/Sign.TapPackage"
-         - .\tap.exe package create ../../opentap.x86.package.xml --install
+         - .\tap.exe package create ../../opentap.x86.package.xml --install -v
          - Copy-Item "../../sdk/Examples" "Packages/SDK/Examples" -Recurse
          - Copy-Item "../../Package/PackageSchema.xsd" "Packages/SDK/PackageSchema.xsd"
          - ./tap package create ../../sdk/sdk.package.xml
