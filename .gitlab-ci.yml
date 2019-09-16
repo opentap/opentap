@@ -271,7 +271,7 @@ Package-Linux:
 
 Package-SDK:
   stage: package
-  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  image: registry.gitlab.com/opentap/buildrunners/signrunner:latest
   tags: [ docker, windows ]
   dependencies:
      - Build-x86
