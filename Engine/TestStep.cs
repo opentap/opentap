@@ -592,10 +592,13 @@ namespace OpenTap
                     if (step.Enabled == false) continue;
 
                     var run = step.DoRun(currentPlanRun, currentStepRun, attachedParameters);
-                    
+
+                    if (!run.Skipped)
+                        runs.Add(run);
+
                     if (cancellationToken.IsCancellationRequested) break;
 
-                    // note: The following is copied inside TestPlanExecution.cs
+                    // note: The following is slightly modified from something inside TestPlanExecution.cs
                     if (run.SuggestedNextStep is Guid id)
                     {
                         if (id == Step.Id)
@@ -609,10 +612,7 @@ namespace OpenTap
                             i = stepidx - 1;
                         // if skip to next step, dont add it to the wait queue.
                     }
-                    else
-                    {
-                        runs.Add(run);
-                    }
+                    
                     TapThread.ThrowIfAborted();
                 }
             }
@@ -757,6 +757,7 @@ namespace OpenTap
             Step.OfferBreak(stepRun, true);
             if (stepRun.SuggestedNextStep != null) {
                 Step.StepRun = null;
+                stepRun.Skipped = true;
                 return stepRun;
             }
 
