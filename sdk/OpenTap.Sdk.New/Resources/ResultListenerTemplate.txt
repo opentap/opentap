@@ -1,0 +1,33 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.ComponentModel;
+using OpenTap;
+
+namespace {0}
+{
+    [Display("{1}")]
+    public class {1} : ResultListener
+    {
+        #region Settings
+        // ToDo: Add property here for each parameter the end user should be able to change
+        #endregion
+        public {1}()
+        {
+            // ToDo: Set default values for properties / settings.
+        }
+
+        public override void Open()
+        {
+            base.Open();
+            //Add resource open code.
+        }
+
+        public override void Close()
+        {
+            //Add resource close code.
+            base.Close();
+        }
+    }
+}

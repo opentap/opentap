@@ -79,6 +79,7 @@ namespace OpenTap.Plugins.BasicSteps
                         UserInput.Request(req, false);
                         if (req.Response == WaitForInputResult1.No)
                         {
+                            Log.Debug("User requested to end test plan execution. Aborting test plan run.");
                             PlanRun.MainThread.Abort();
                         }
                         break;

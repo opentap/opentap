@@ -254,11 +254,15 @@ namespace OpenTap
                 if (val2 != null)
                     _members = TypeData.GetTypeData(val2).GetMembers();
                 if (members.Count == _members.Count()) return members.Values;
-
-                foreach (var item in val.ReflectionInfo.GetMembers())
+                if (members.Count == 0)
                 {
-                    if (members.ContainsKey(item)) continue;
-                    members[item] = GetMember(item);
+                    members = new Dictionary<IMemberData, AnnotationCollection>(_members.Count());
+                }
+
+                var members2 = val.ReflectionInfo.GetMembers();
+                foreach (var item in members2)
+                {
+                    GetMember(item);
                 }
 
                 return members.Values;
@@ -339,13 +343,6 @@ namespace OpenTap
         }
     }
 
-    class ErrorAnnotation : IErrorAnnotation
-    {
-        public List<string> Errors { get; set; } = new List<string>();
-
-        IEnumerable<string> IErrorAnnotation.Errors => Errors;
-    }
-
     class ValidationErrorAnnotation : IErrorAnnotation, IOwnedAnnotation
     {
         IMemberAnnotation mem;
@@ -359,12 +356,15 @@ namespace OpenTap
         {
             get
             {
+                doRead();
                 if (string.IsNullOrWhiteSpace(error) == false)
-                    yield return error;
+                    return new []{error};
+                return Array.Empty<string>();
             }
         }
 
-        public void Read(object source)
+        private IDataErrorInfo source;
+        void doRead()
         {
             if (source is IDataErrorInfo err)
             {
@@ -376,7 +376,14 @@ namespace OpenTap
                 {
                     error = e.Message;
                 }
+
+                source = null;
             }
+        }
+        
+        public void Read(object source)
+        {
+            this.source = source as IDataErrorInfo;
         }
 
         public void Write(object source)
@@ -386,7 +393,7 @@ namespace OpenTap
     }
 
 
-    class NumberAnnotation : IStringValueAnnotation
+    class NumberAnnotation : IStringValueAnnotation, IErrorAnnotation
     {
         public Type NullableType { get; set; }
         string currentError;
@@ -407,13 +414,14 @@ namespace OpenTap
             }
             set
             {
-                if(NullableType != null && value == "")
+               if(NullableType != null && value == "")
                 {
                     var val = annotation.Get<IObjectValueAnnotation>();
                     val.Value = null;
                     return;
                 }
-                string newerror = null;
+
+                currentError = null;
                 var unit = annotation.Get<UnitAttribute>();
                 if (annotation.Get<IReflectionAnnotation>()?.ReflectionInfo is TypeData cst)
                 {
@@ -424,20 +432,9 @@ namespace OpenTap
                     }
                     catch(Exception e)
                     {
-                        newerror = e.Message;
+                        currentError = e.Message;
                     }
-                    finally
-                    {
-                        var err = annotation.Get<ErrorAnnotation>();
-                        if (err != null)
-                        {
-                            if (currentError != null)
-                                err.Errors.Remove(currentError);
-                            currentError = newerror;
-                            if (currentError != null)
-                                err.Errors.Add(currentError);
-                        }
-                    }
+                    
                     if (number != null)
                     {
                         var val = annotation.Get<IObjectValueAnnotation>();
@@ -456,6 +453,8 @@ namespace OpenTap
         {
             this.annotation = mem;
         }
+
+        public IEnumerable<string> Errors => currentError == null ? Array.Empty<string>() : new []{currentError};
     }
 
     class TimeSpanAnnotation : IStringValueAnnotation
@@ -825,12 +824,10 @@ namespace OpenTap
             this.others = others;
         }
     }
-    class DefaultValueAnnotation : IObjectValueAnnotation, IOwnedAnnotation
+    class DefaultValueAnnotation : IObjectValueAnnotation, IOwnedAnnotation, IErrorAnnotation
     {
-        string currentError;
         AnnotationCollection annotation;
         object currentValue;
-        
         
         bool wasRead = false;
         bool wasSet = false;
@@ -871,7 +868,7 @@ namespace OpenTap
             if (wasSet == false) return;
             var m = annotation.Get<IMemberAnnotation>();
             if (m.Member.Writable == false) return;
-            string newerror = null;
+            error = null;
             try
             {
                 if(object.Equals(currentValue, m.Member.GetValue(source)) == false)
@@ -879,29 +876,19 @@ namespace OpenTap
             }
             catch (Exception _e)
             {
-                newerror = _e.GetInnerMostExceptionMessage();
-            }
-            finally
-            {
-                var err = annotation.Get<ErrorAnnotation>();
-                if (err != null)
-                {
-                    if (currentError != null)
-                    {
-                        err.Errors.Remove(currentError);
-                    }
-                    currentError = newerror;
-                    if (currentError != null)
-                        err.Errors.Add(currentError);
-                }
+                error = _e.GetInnerMostExceptionMessage();
             }
         }
+
+        string error = null;
+
+        public IEnumerable<string> Errors => error == null ? Array.Empty<string>() : new[] {error};
     }
     class ObjectValueAnnotation : IObjectValueAnnotation, IReflectionAnnotation
     {
         public object Value { get; set; }
 
-        public ITypeData ReflectionInfo { get; private set; }
+        public ITypeData ReflectionInfo { get; }
 
         public ObjectValueAnnotation(object value, ITypeData reflect)
         {
@@ -2025,7 +2012,6 @@ namespace OpenTap
 
             var mem = annotation.Get<IMemberAnnotation>();
 
-            annotation.Add(new ErrorAnnotation());
             if (mem != null)
             { 
                 if (annotation.Get<IObjectValueAnnotation>() == null)
@@ -2064,8 +2050,6 @@ namespace OpenTap
                     annotation.Add(dp);
             }
 
-            var rdonly = annotation.Get<ReadOnlyMemberAnnotation>();
-
             var availMem = annotation.Get<AvailableMemberAnnotation>();
             if (availMem != null)
             {
@@ -2084,7 +2068,6 @@ namespace OpenTap
                 }
                 if (mem.Member.Writable == false)
                 {
-                    var currentaccess = annotation.Get<IAccessAnnotation>();
                     annotation.Add(new ReadOnlyMemberAnnotation());
                 }
             }
@@ -2092,7 +2075,7 @@ namespace OpenTap
             if (reflect?.ReflectionInfo is TypeData csharpType)
             {
                 var type = csharpType.Load();
-                bool isNullable = type.DescendsTo(typeof(Nullable<>));
+                bool isNullable = type.IsPrimitive == false && type.IsGenericType && type.IsValueType && type.DescendsTo(typeof(Nullable<>));
                 if (isNullable)
                 {
                     Type type2 = type.GetGenericArguments().FirstOrDefault();
@@ -2119,41 +2102,45 @@ namespace OpenTap
                     annotation.Add(new MetaDataPromptAnnotation(annotation));
                 }
 
-                if (type.DescendsTo(typeof(IEnumerable<>)) && type != typeof(String))
+                if (type.IsPrimitive == false)
                 {
                     annotation.Add(new BasicCollectionAnnotation(annotation));
-                    var innerType = type.GetEnumerableElementType();
-                    if (innerType.IsNumeric())
+                    if (type != typeof(String) && csharpType.ElementType != null)
                     {
-                        annotation.Add(new NumberSequenceAnnotation(annotation));
-                    }
-                    else
-                    {
-                        annotation.Add(new GenericSequenceAnnotation(annotation));
-                        if (innerType.DescendsTo(typeof(IResource)))
+                        var innerType = csharpType.ElementType;
+                        if (innerType.IsNumeric)
                         {
-                            annotation.Add(new ResourceAnnotation(annotation, innerType));
-                            annotation.Add(new MultiResourceSelector(annotation, innerType));
+                            annotation.Add(new NumberSequenceAnnotation(annotation));
                         }
-                        else if (innerType.DescendsTo(typeof(ViaPoint)))
-                            annotation.Add(new ViaPointAnnotation(annotation));
-                        
+                        else
+                        {
+                            annotation.Add(new GenericSequenceAnnotation(annotation));
+                            if (innerType.DescendsTo(typeof(IResource)))
+                            {
+                                annotation.Add(new ResourceAnnotation(annotation, innerType.Type));
+                                annotation.Add(new MultiResourceSelector(annotation, innerType.Type));
+                            }
+                            else if (innerType.DescendsTo(typeof(ViaPoint)))
+                                annotation.Add(new ViaPointAnnotation(annotation));
+                        }
                     }
-                }
-                if (type.IsEnum)
-                {
-                    annotation.Add(new EnumValuesAnnotation(type, annotation));
-                    annotation.Add(new EnumStringAnnotation(type, annotation));
 
-                    if (type.HasAttribute<FlagsAttribute>())
+                    if (type.IsEnum)
                     {
-                        annotation.Add(new FlagEnumAnnotation(annotation.Get<IObjectValueAnnotation>(), type));
+                        annotation.Add(new EnumValuesAnnotation(type, annotation));
+                        annotation.Add(new EnumStringAnnotation(type, annotation));
+
+                        if (csharpType.HasFlags())
+                        {
+                            annotation.Add(new FlagEnumAnnotation(annotation.Get<IObjectValueAnnotation>(), type));
+                        }
                     }
+
+                    if (type.IsValueType == false && type.DescendsTo(typeof(IResource)))
+                        annotation.Add(new ResourceAnnotation(annotation, type));
+                    else if (type.IsValueType == false && type.DescendsTo(typeof(ITestStep)))
+                        annotation.Add(new TestStepSelectAnnotation(annotation));
                 }
-                if (type.DescendsTo(typeof(IResource)))
-                    annotation.Add(new ResourceAnnotation(annotation, type));
-                else if (type.DescendsTo(typeof(ITestStep)))
-                    annotation.Add(new TestStepSelectAnnotation(annotation));
             }
             
             if(mem != null)
@@ -2194,7 +2181,7 @@ namespace OpenTap
                 if (tp.GetMembers().Any() && !csharpPrimitive)
                 {
                     annotation.Add(new MembersAnnotation(annotation));
-                    if (tp.DescendsTo(typeof(Enabled<>)))
+                    if (tp.DescendsTo(typeof(IEnabled)))
                     {
                         annotation.Add(new EnabledAnnotation(annotation));
                     }
@@ -2277,11 +2264,10 @@ namespace OpenTap
             }
 
             AnnotationCollection a;
-            bool listTarget = false;
+            
             public AvailableValuesAnnotationProxy(AnnotationCollection a)
             {
                 this.a = a;
-                listTarget = a.Get<ICollectionAnnotation>() != null;
             }
 
             public void Read(object source)
@@ -2376,7 +2362,7 @@ namespace OpenTap
         }
         class MultiSelectProxy : IMultiSelectAnnotationProxy
         {
-            IEnumerable<AnnotationCollection> annotations => annotation.Get<IAvailableValuesAnnotationProxy>().AvailableValues;
+            IEnumerable<AnnotationCollection> annotations  => annotation.Get<IAvailableValuesAnnotationProxy>().AvailableValues;
 
             IEnumerable selection
             {
@@ -2561,12 +2547,18 @@ namespace OpenTap
         bool stop = false;
         int offset = 0;
         
+        [ThreadStatic] static List<IAnnotator> Annotators;
         /// <summary> </summary>
         public AnnotationResolver()
         {
             var annotatorTypes = PluginManager.GetPlugins<IAnnotator>();
-            annotators = annotatorTypes.Select(x => Activator.CreateInstance(x)).OfType<IAnnotator>().ToList();
-            annotators.Sort((x, y) => x.Priority.CompareTo(y.Priority));
+            if (Annotators == null || Annotators.Count != annotatorTypes.Count)
+            {
+                Annotators = annotatorTypes.Select(x => Activator.CreateInstance(x)).OfType<IAnnotator>().ToList();
+                Annotators.Sort((x, y) => x.Priority.CompareTo(y.Priority));
+            }
+
+            annotators = Annotators;
         }
 
         /// <summary>
@@ -2622,7 +2614,7 @@ namespace OpenTap
         /// <summary>
         /// The list of annotation that the is object represents.
         /// </summary>
-        private List<IAnnotation> Annotations = new List<IAnnotation>();
+        private List<IAnnotation> Annotations = new List<IAnnotation>(16);
         /// <summary> </summary>
         public AnnotationCollection()
         {

@@ -214,9 +214,9 @@ namespace OpenTap
         /// <typeparam name="T"></typeparam>
         /// <param name="mem"></param>
         /// <returns></returns>
-        static public bool HasAttribute<T>(this IReflectionData mem)
+        static public bool HasAttribute<T>(this IReflectionData mem) where T: class
         {
-            return mem.Attributes.OfType<T>().Any();
+            return mem.GetAttribute<T>() != null;
         }
 
         /// <summary> Gets the attribute of type T from mem. </summary>
@@ -225,7 +225,21 @@ namespace OpenTap
         /// <returns></returns>
         static public T GetAttribute<T>(this IReflectionData mem)
         {
-            return mem.GetAttributes<T>().FirstOrDefault();
+            if (mem.Attributes is object[] array)
+            {
+                // performance optimization: faster iterations if we know its an array.
+                foreach (var thing in array)
+                    if (thing is T x)
+                        return x;
+            }
+            else
+            {
+                foreach (var thing in mem.Attributes)
+                    if (thing is T x)
+                        return x;
+            }
+
+            return default;
         }
 
         /// <summary> Gets all the attributes of type T.</summary>

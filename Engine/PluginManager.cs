@@ -24,7 +24,6 @@ namespace OpenTap
         private static readonly TraceSource log = Log.CreateSource("PluginManager");
         private static ManualResetEventSlim searchTask = new ManualResetEventSlim(true);
         private static PluginSearcher searcher;
-        static object implicitSearchLock = new object();
         static TapAssemblyResolver assemblyResolver;
 
         /// <summary>
@@ -203,13 +202,40 @@ namespace OpenTap
         /// </remarks>
         /// <typeparam name="BaseType">find types that descends from this type.</typeparam>
         /// <returns>A read-only collection of types.</returns>
-        public static ReadOnlyCollection<System.Type> GetPlugins<BaseType>()
+        public static ReadOnlyCollection<Type> GetPlugins<BaseType>()
         {
-            return GetPlugins(typeof(BaseType));
+            return StaticPluginTypeCache<BaseType>.Get();
+        }
+
+        /// <summary>
+        /// Cache structure to lock-free optimize BaseType type lookups. 
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        class StaticPluginTypeCache<T>
+        {
+            static ReadOnlyCollection<Type> list;
+            static int changeid = 0;
+
+            public static ReadOnlyCollection<Type> Get()
+            {
+                var changeIdNew = PluginManager.ChangeID;
+                if (changeid != changeIdNew)
+                {
+                    list = null;
+                }
+
+                if (list == null)
+                {
+                    list = GetPlugins(typeof(T));
+                    changeid = changeIdNew;
+                }
+
+                return list;
+            }
         }
         
         /// <summary>
-        /// Gets the AssembliyData for the OpenTap.dll assembly.
+        /// Gets the AssemblyData for the OpenTap.dll assembly.
         /// This will search for plugins if not done already (i.e. call and wait for <see cref="PluginManager.SearchAsync()"/>)
         /// </summary>
         public static AssemblyData GetOpenTapAssembly()
@@ -227,7 +253,8 @@ namespace OpenTap
         public static Task SearchAsync()
         {
             searchTask.Reset();
-            TapThread.Start(Search);
+            ChangeID++;
+            TapThread.Start(Search);  
             return Task.Run(() => GetSearcher());
         }
         
@@ -235,6 +262,7 @@ namespace OpenTap
         public static void Search(){
             searchTask.Reset();
             assemblyResolver.Invalidate(DirectoriesToSearch);
+            ChangeID++;
             try
             {
                 IEnumerable<string> fileNames = assemblyResolver.FileFinder.AllAssemblies();
@@ -419,6 +447,7 @@ namespace OpenTap
 
         #region Version ResultParameters
         static Memorizer<Assembly, ResultParameter> AssemblyVersions = new Memorizer<Assembly, ResultParameter>(GetVersionResultParameter) { SoftSizeDecayTime = TimeSpan.FromDays(10) };
+        static int ChangeID = 0;
 
         private static ResultParameter GetVersionResultParameter(Assembly assembly)
         {

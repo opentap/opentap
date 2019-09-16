@@ -19,7 +19,6 @@ using System.Runtime.CompilerServices;
 namespace OpenTap
 {
     /// <summary>
-    /// An abstract class for TestSteps. 
     /// All TestSteps that are instances of the TestStep abstract class should override the <see cref="TestStep.Run"/> method. 
     /// Additionally, the  <see cref="TestStep.PrePlanRun"/> and <see cref="TestStep.PostPlanRun"/> methods can be overridden.
     /// </summary>
@@ -27,12 +26,10 @@ namespace OpenTap
     /// <see cref="ITestStep"/> can also be inherited from instead.
     /// </remarks>
     [ComVisible(true)]
-    //[ClassInterface(ClassInterfaceType.AutoDual)]
     [Guid("d0b06600-7bac-47fb-9251-f834e420623f")]
     public abstract class TestStep : ValidatingObject, ITestStep
     {
         #region Properties
-        private Verdict _Verdict = Verdict.NotSet;
         /// <summary>
         /// Gets or sets the verdict. Only available during test step run. 
         /// The value of this property will be propagated to the TestStepRun when the step run completes.
@@ -41,11 +38,7 @@ namespace OpenTap
         [ColumnDisplayName(Order : -99, IsReadOnly : true)]
         [XmlIgnore]
         [Output]
-        public Verdict Verdict
-        {
-            get { return _Verdict; }
-            set { _Verdict = value; }
-        }
+        public Verdict Verdict { get; set; }
 
         bool enabled = true;
         /// <summary>
@@ -55,7 +48,7 @@ namespace OpenTap
         [Display("Enabled", Group: "Common", Order: 20000, Collapsed: true)]
         public bool Enabled
         {
-            get { return enabled; }
+            get => enabled; 
             set
             {
                 if (enabled == value) return;
@@ -65,26 +58,29 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Gets or sets boolean indicating whether this step is readonly in the TestPlan
+        /// Gets or sets boolean indicating whether this step is read-only in the TestPlan. 
+        /// This is mostly a declaration of intent, GUIs should respect it, but few things enforces it.
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
         public bool IsReadOnly { get; set; }
 
         private string name;
-        ///  <summary>
-        ///  Name of the step intended to be read and set by the user.
-        ///  Different across instances of the same type.
+        /// <summary>
+        /// Gets or sets the name of the TestStep instance. Not allowed to be null.
+        /// In many cases the name is unique within a test plan, but this should not be assumed, use <see cref="Id"/>for an unique identifier.
+        /// May not be null.
         /// </summary>
         [ColumnDisplayName("Step Name", Order : -100)]
         [Display("Step Name", Group: "Common", Order: 20001, Collapsed: true)]
         public string Name
         {
-            get { return name; }
+            get => name;
             set
             {
                 if (value == null)
                     throw new ArgumentNullException("value", "TestStep.Name cannot be null.");
+                if (value == name) return;
                 name = value;
                 OnPropertyChanged(nameof(Name));
             }
@@ -95,10 +91,7 @@ namespace OpenTap
         /// </summary>
         [ColumnDisplayName("Step Type", Order : 1)]
         [Browsable(false)]
-        public string TypeName
-        {
-            get { return GetType().GetDisplayAttribute().GetFullName(); }
-        }
+        public string TypeName => GetType().GetDisplayAttribute().GetFullName();
 
         private TestStepList _ChildTestSteps;
         /// <summary>
@@ -108,12 +101,12 @@ namespace OpenTap
         [Browsable(false)]
         public TestStepList ChildTestSteps
         {
-            get { return _ChildTestSteps; }
+            get => _ChildTestSteps; 
             set
             {
                 _ChildTestSteps = value;
                 _ChildTestSteps.Parent = this;
-                OnPropertyChanged("ChildTestSteps");
+                OnPropertyChanged(nameof(ChildTestSteps));
             }
         }
         
@@ -132,10 +125,7 @@ namespace OpenTap
         /// <summary>
         /// The enumeration of all enabled Child Steps.
         /// </summary>
-        public IEnumerable<ITestStep> EnabledChildSteps
-        {
-            get { return this.GetEnabledChildSteps(); }
-        }
+        public IEnumerable<ITestStep> EnabledChildSteps => this.GetEnabledChildSteps();
         
         /// <summary>
         /// Version of this test step.
@@ -208,7 +198,7 @@ namespace OpenTap
         public static string[] GenerateDefaultNames(Type stepType)
         {
             if (stepType == null)
-                throw new ArgumentNullException("stepType");
+                throw new ArgumentNullException(nameof(stepType));
             var disp = stepType.GetDisplayAttribute();
             return disp.Group.Append(disp.Name).ToArray();
         }
@@ -452,22 +442,10 @@ namespace OpenTap
         [XmlIgnore]
         public TestStepRun StepRun { get; set; }
 
-        #region ID
-
-        private Guid _Id = Guid.NewGuid();
-
-        /// <summary>
-        /// Unique ID used to store references to test steps. 
-        /// </summary>
+        /// <summary> Gets or sets the ID used to uniquely identify a test step within a test plan. </summary>
         [XmlAttribute("Id")]
         [Browsable(false)]
-        public Guid Id
-        {
-            get { return _Id; }
-            set { _Id = value; }
-        }
-
-        #endregion
+        public Guid Id { get; set; } = Guid.NewGuid();
     }
 
     /// <summary>

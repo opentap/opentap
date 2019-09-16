@@ -10,6 +10,7 @@ using System.ComponentModel;
 using System.Reflection;
 using System.Xml.Serialization;
 using System.Collections;
+using System.Threading;
 
 namespace OpenTap.Plugins.BasicSteps
 {
@@ -292,16 +293,19 @@ namespace OpenTap.Plugins.BasicSteps
             return parameters;
         }
 
-        bool isRunning => StepRun != null;
-
+        // Check if the test plan is running before validating sweeps.
+        // the validateSweep might have been started before the plan started.
+        // hence we use the validateSweeepMutex to ensure that validation is done before 
+        // the plan starts.
+        bool isRunning => GetParent<TestPlan>()?.IsRunning ?? false;
+        Mutex validateSweepMutex = new Mutex();
         string validateSweep()
         {   // Mostly copied from Run
             if (SweepParameters.Count <= 0) return "";
             if (sweepParameters.All(p => p.Values.Length == 0)) return "No values selected to sweep";
-            sanitizeSweepParams();
-
             if (isRunning) return ""; // Avoid changing the value during run when the gui asks for validation errors.
-
+            if (!validateSweepMutex.WaitOne(0)) return "";
+            sanitizeSweepParams();
             var oldParams = SweepParameters.Select(param => getSweepParameterValues(param, ChildTestSteps)).ToList();
             try
             {
@@ -342,6 +346,7 @@ namespace OpenTap.Plugins.BasicSteps
                         foreach(var i2 in kvp.Value)
                             i2.Item1.SetValue(kvp.Key, i2.Item2);
                     }
+                validateSweepMutex.ReleaseMutex();
             }
         }
 
@@ -376,6 +381,8 @@ namespace OpenTap.Plugins.BasicSteps
         
         public override void PrePlanRun()
         {
+            validateSweepMutex.WaitOne();
+            validateSweepMutex.ReleaseMutex();
             if (sweepParameters == null)
                 sweepParameters = new List<SweepParam>();
 
@@ -911,8 +918,12 @@ namespace OpenTap.Plugins.BasicSteps
 
                 var sparams = (List<SweepParam>)fac.Get<IObjectValueAnnotation>().Value;
                 count = sparams?.FirstOrDefault()?.Values.Length ?? 0;
-                rowAnnotations.Clear();
-                annotations.Clear();
+                if (sparams.Select(x => x.Member).ToHashSet().SetEquals(rowAnnotations.Keys.ToHashSet()) == false)
+                {
+                    // if the columns has changed..
+                    rowAnnotations.Clear();
+                    annotations.Clear();
+                }
             }
 
             public void Write(object source)

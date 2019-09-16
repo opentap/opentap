@@ -1,9 +1,11 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-  <ItemGroup>
-    <PackagePayloadFiles Condition="'$(MSBuildThisFileDirectory)' != '' And
-                                   HasTrailingSlash('$(MSBuildThisFileDirectory)')"
-                         Include="$(MSBuildThisFileDirectory)payload\**\*"/>
+  <ItemGroup Condition="'$(MSBuildThisFileDirectory)' != '' And HasTrailingSlash('$(MSBuildThisFileDirectory)') And '$(OS)' == 'Unix'">
+    <PackagePayloadFiles Include="$(MSBuildThisFileDirectory)payload\**\*" Exclude="$(MSBuildThisFileDirectory)payload\tap.exe;$(MSBuildThisFileDirectory)payload\Dependencies\*\git2-*.dll"/>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(MSBuildThisFileDirectory)' != '' And HasTrailingSlash('$(MSBuildThisFileDirectory)') And '$(OS)' != 'Unix'">
+    <PackagePayloadFiles Include="$(MSBuildThisFileDirectory)payload\**\*" Exclude="$(MSBuildThisFileDirectory)payload\tap;$(MSBuildThisFileDirectory)payload\tap.dll;$(MSBuildThisFileDirectory)payload\tap.runtimeconfig.json;$(MSBuildThisFileDirectory)payload\Dependencies\*\libgit2-*.so"/>
   </ItemGroup>
 
   <Target Name="CopyOpenTapPayloadFiles"
@@ -37,23 +39,23 @@
                      '$(OpenTapPackageDefinitionPath)' != '' And
                      Exists('$(OpenTapPackageDefinitionPath)')"
           AfterTargets="Build">
-    <Exec Command=".\tap.exe package create &quot;$(ProjectDir)\$(OpenTapPackageDefinitionPath)&quot;" WorkingDirectory="$(OutDir)" LogStandardErrorAsError="true" />
+    <Exec Command=".\tap package create &quot;$(ProjectDir)\$(OpenTapPackageDefinitionPath)&quot;" WorkingDirectory="$(OutDir)" LogStandardErrorAsError="true" />
   </Target>
 
   <Target Name="InstallOpenTapPackages"
         Inputs="$(MSBuildProjectFullPath)"
         Outputs="@(AdditionalOpenTapPackage-> '$(OutDir)Packages/%(Identity)/package.xml')"
         DependsOnTargets="CopyOpenTapPayloadFiles" AfterTargets="CopyOpenTapPayloadFiles">
-    <Exec Command=".\tap.exe package install --dependencies --force &quot;%(AdditionalOpenTapPackage.Identity)&quot;"
+    <Exec Command=".\tap package install --dependencies --force &quot;%(AdditionalOpenTapPackage.Identity)&quot;"
           Condition="'%(AdditionalOpenTapPackage.Repository)' == '' AND '%(AdditionalOpenTapPackage.Version)' == ''"
           LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
-    <Exec Command=".\tap.exe package install --dependencies --force &quot;%(AdditionalOpenTapPackage.Identity)&quot; -r &quot;%(AdditionalOpenTapPackage.Repository)&quot;"
+    <Exec Command=".\tap package install --dependencies --force &quot;%(AdditionalOpenTapPackage.Identity)&quot; -r &quot;%(AdditionalOpenTapPackage.Repository)&quot;"
           Condition="'%(AdditionalOpenTapPackage.Repository)' != '' AND '%(AdditionalOpenTapPackage.Version)' == ''"
           LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
-    <Exec Command=".\tap.exe package install --dependencies --force &quot;%(AdditionalOpenTapPackage.Identity)&quot; --version &quot;%(AdditionalOpenTapPackage.Version)&quot;"
+    <Exec Command=".\tap package install --dependencies --force &quot;%(AdditionalOpenTapPackage.Identity)&quot; --version &quot;%(AdditionalOpenTapPackage.Version)&quot;"
           Condition="'%(AdditionalOpenTapPackage.Repository)' == '' AND '%(AdditionalOpenTapPackage.Version)' != ''"
           LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
-    <Exec Command=".\tap.exe package install --dependencies --force &quot;%(AdditionalOpenTapPackage.Identity)&quot; -r &quot;%(AdditionalOpenTapPackage.Repository)&quot; --version &quot;%(AdditionalOpenTapPackage.Version)&quot;"
+    <Exec Command=".\tap package install --dependencies --force &quot;%(AdditionalOpenTapPackage.Identity)&quot; -r &quot;%(AdditionalOpenTapPackage.Repository)&quot; --version &quot;%(AdditionalOpenTapPackage.Version)&quot;"
           Condition="'%(AdditionalOpenTapPackage.Repository)' != '' AND '%(AdditionalOpenTapPackage.Version)' != ''"
           LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
   </Target>

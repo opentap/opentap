@@ -3,10 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.ComponentModel;
 using System.Threading;
-using System.Xml.Serialization;
-using OpenTap;
 
 namespace OpenTap.Plugins.BasicSteps
 {
@@ -19,7 +16,7 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Timeout", Description: "The timeout to end executing after.")]
         public double Timeout
         {
-            get { return timeout; }
+            get => timeout;
             set
             {
                 if (value >= 0)
@@ -70,6 +67,7 @@ namespace OpenTap.Plugins.BasicSteps
 
                 if (sw.Elapsed.TotalSeconds > this.Timeout && plan.IsInBreak == false)
                 {
+                    Log.Debug("Timeout occured aborting thread.");
                     timedOut = true;
                     thread.Abort();
                     sem.Wait();

@@ -1,0 +1,16 @@
+﻿using System;
+using System.Threading;
+using OpenTap;
+using OpenTap.Cli;
+
+namespace {0}
+{
+    [Display("{1}", "Description of action.", "{0}")]
+    public class {1} : ICliAction
+    {
+        public int Execute(CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+    }
+}
