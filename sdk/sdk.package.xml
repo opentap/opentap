@@ -10,7 +10,10 @@
       </Dependencies>
   <Files>
     <File Path="Packages/SDK/Keysight.OpenTap.Sdk.MSBuild.dll">
-        <SetAssemblyInfo Attributes="Version"/>
+      <SetAssemblyInfo Attributes="Version"/>
+    </File>
+    <File Path="Packages/SDK/OpenTap.Sdk.New.dll">
+      <SetAssemblyInfo Attributes="Version"/>
     </File>
     <File Path="OpenTap.xml"/>
     <File Path="Packages/SDK/PackageSchema.xsd"/>

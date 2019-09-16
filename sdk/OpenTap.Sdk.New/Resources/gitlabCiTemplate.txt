@@ -1,0 +1,26 @@
+stages:
+  - build
+  - publish
+
+BuildAndPackage:
+  image: opentapio/opentap:beta-ubuntu18.04
+  stage: build
+  tags: [ docker, gce ]
+  script:
+    - dotnet restore
+    - dotnet build -c Release
+  artifacts:
+    expire_in: 1 week
+    paths:
+    - "bin/Release/{0}*.TapPackage"
+
+Publish:
+  image: opentapio/opentap:beta-ubuntu18.04
+  stage: publish
+  tags: [ docker, gce ]
+  when: manual
+  dependencies:
+    - BuildAndPackage
+  script:
+    - tap package install PackagePublish
+    - tap package publish "bin/Release/{0}*.TapPackage"
