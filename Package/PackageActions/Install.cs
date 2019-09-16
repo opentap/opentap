@@ -99,7 +99,8 @@ namespace OpenTap.Package
             }
             catch (Exception e)
             {
-                log.Info("Could not download one or more TAP packages.");
+                log.Info("Could not download one or more packages.");
+                log.Info(e.Message);
                 log.Debug(e);
                 RaiseError(e);
                 return 6;

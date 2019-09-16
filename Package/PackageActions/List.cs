@@ -14,7 +14,7 @@ namespace OpenTap.Package
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
-        [CommandLineArgument("all", Description = "List all versions of a package when using the <Name> argument.", ShortName = "a")]
+        [CommandLineArgument("all", Description = "List all versions of a package when using the <Name> argument. Lists package compatible with the machine by default.", ShortName = "a")]
         public bool All { get; set; }
 
         [CommandLineArgument("installed", Description = "Only show packages that are installed.", ShortName = "i")]
@@ -72,7 +72,7 @@ namespace OpenTap.Package
             HashSet<PackageDef> installed = new Installation(Target).GetPackages().ToHashSet();
 
 
-            VersionSpecifier versionSpec = VersionSpecifier.Any;
+            VersionSpecifier versionSpec = VersionSpecifier.Parse("^");
             if (!String.IsNullOrWhiteSpace(Version))
             {
                 versionSpec = VersionSpecifier.Parse(Version);
@@ -95,8 +95,7 @@ namespace OpenTap.Package
 
                 if (All)
                 {
-                    log.Info($"All available versions of '{Name}':\n");
-                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name);
+                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name).Distinct().ToList();
                     var versionsCount = versions.Count;
                     if (versionsCount == 0) // No versions
                     {
@@ -118,26 +117,31 @@ namespace OpenTap.Package
                 else
                 {
                     var opentap = new Installation(Target).GetOpenTapPackage();
-                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name, opentap);
+                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name, opentap).Distinct().ToList();
 
                     if (versions.Any() == false) // No compatible versions
                     {
-                        log.Warning($"There are no compatible versions of '{Name}'.");
                         versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name).ToList();
                         if (versions.Any())
+                        {
+                            log.Warning($"There are no compatible versions of '{Name}'.");
                             log.Info($"There are {versions.Count} incompatible versions available. Use '--all' to show these.");
+                        }
+                        else
+                            log.Warning($"Package '{Name}' could not be found in any repository.");
 
                         return 0;
                     }
 
-                    versions = versions.Where(v => versionSpec.IsCompatible(v.Version)).ToList(); // Filter compatible versions
-                    if (versions.Any() == false) // No versions that are compatible
+                    if (versions.Where(v => versionSpec.IsCompatible(v.Version)).Any() == false) // No versions that are compatible
                     {
                         if (string.IsNullOrEmpty(Version))
                             log.Warning($"There are no released versions of '{Name}'.");
                         else
                             log.Warning($"Package '{Name}' does not exists with version '{Version}'.");
 
+                        var anyPrereleaseSpecifier = new VersionSpecifier(versionSpec.Major, versionSpec.Minor, versionSpec.Patch, versionSpec.PreRelease, versionSpec.BuildMetadata, VersionMatchBehavior.AnyPrerelease | versionSpec.MatchBehavior);
+                        versions = versions.Where(v => anyPrereleaseSpecifier.IsCompatible(v.Version)).ToList();
                         if (versions.Any())
                             log.Info($"There are {versions.Count} pre-released versions available. Use '--version <pre-release>' (e.g. '--version rc') or '--all' to show these.");
 
@@ -181,10 +185,10 @@ namespace OpenTap.Package
                 var installedPackage = installed.FirstOrDefault(p => p.Name == plugin.Name);
                 var latestPackage = packages.Where(p => p.Name == plugin.Name).OrderByDescending(p => p.Version).FirstOrDefault();
 
-                string logMessage = string.Format(string.Format("{{0,-{0}}} - {{1,-{1}}} - {{2}}", nameLen, verLen), plugin.Name, (installedPackage ?? plugin).Version, installedPackage != null ? "installed" : "");
+                string logMessage = string.Format($"{{0,-{nameLen}}} - {{1,-{verLen}}}{{2}}", plugin.Name, (installedPackage ?? plugin).Version, installedPackage != null ? " - installed" : "");
 
                 if (installedPackage != null && installedPackage?.Version?.CompareTo(latestPackage.Version) < 0)
-                    logMessage += " - update available";
+                    logMessage += $" - update available ({latestPackage.Version})";
 
                 // assuming that all dlls in the package requires has the same or distinct license requirements. 
                 // Duplicates are made if one file requires X|Y and the other X|Z or even Y|X.

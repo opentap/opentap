@@ -71,6 +71,9 @@ namespace OpenTap.Cli
 
             var args = ap.Parse(parameters);
 
+            if (args.MissingArguments.Any())
+                throw new Exception($"Command line argument '{args.MissingArguments.FirstOrDefault().LongName}' is missing an argument.");
+
             if (args.Contains("help"))
             {
                 printOptions(action.GetType().GetAttribute<DisplayAttribute>().Name, ap.AllOptions, unnamedArgToProp);
