@@ -213,10 +213,6 @@ Package-Windows64:
   tags: [ docker, windows ]
   variables: 
     ErrorActionPreference: stop
-  only:
-    - tags
-    - /^release.*$/
-    - master
   dependencies:
      - Build-x64
      - Doc-API
@@ -224,6 +220,7 @@ Package-Windows64:
      - Build-x64
      - Doc-API
   script:
+         - if (!$PROTECTED_BRANCH) { Set-Content .\opentapCE.package.xml  -Value (get-content .\opentapCE.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
          - cd bin/Release
          - .\tap.exe package install -f "/repo/Sign.TapPackage"
          - $version=$(./tap sdk gitversion)
@@ -252,10 +249,6 @@ Package-Linux:
   stage: package
   image: registry.gitlab.com/opentap/buildrunners/signrunner:latest
   tags: [ docker, windows ]
-  only:
-    - tags
-    - /^release.*$/
-    - master
   dependencies:
      - Build-x86
      - Build-Linux64
@@ -263,6 +256,7 @@ Package-Linux:
      - Build-x86
      - Build-Linux64    
   script:
+         - if (!$PROTECTED_BRANCH) { Set-Content .\opentap_linux64.package.xml  -Value (get-content .\opentap_linux64.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
          - mv bin\Release\linux-x64 bin\linux-x64
          - pushd bin\linux-x64\publish
          - ../../Release/tap package download --os Linux --architecture x64 -f -r $env:PACKAGE_REPO_URL -t . Demonstration
@@ -281,10 +275,6 @@ Package-SDK:
   stage: package
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
-  only:
-    - tags
-    - /^release.*$/
-    - master
   dependencies:
      - Build-x86
      - Build-DevGuide
@@ -315,10 +305,6 @@ Package-NuGet:
   stage: installer
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
-  only:
-    - tags
-    - /^release.*$/
-    - master
   dependencies:
     - Build-x64
     - Package-Windows64
