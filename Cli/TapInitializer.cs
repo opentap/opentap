@@ -59,7 +59,7 @@ namespace OpenTap
             if(curAssemblyFolder == null)
                 curAssemblyFolder =  new Uri(Assembly.GetExecutingAssembly().CodeBase).LocalPath;
             string currentDir = Path.GetDirectoryName(curAssemblyFolder);
-            var assemblies = Directory.EnumerateFiles(currentDir, "*.*", SearchOption.AllDirectories)
+            var assemblies = Tap.Shared.PathUtils.IterateDirectories(currentDir, "*.*", SearchOption.AllDirectories)
                 .Where(s => s.EndsWith(".dll", StringComparison.InvariantCultureIgnoreCase) || s.EndsWith(".exe", StringComparison.InvariantCultureIgnoreCase))
                 .ToList();
             foreach(var assembly in assemblies){

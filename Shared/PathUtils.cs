@@ -45,5 +45,35 @@ namespace Tap.Shared
         {
             return NormalizePath(path1) == NormalizePath(path2);
         }
+
+        public static IEnumerable<string> IterateDirectories(string rootPath, string patternMatch, SearchOption searchOption)
+        {
+            if (searchOption == SearchOption.AllDirectories)
+            {
+                IEnumerable<string> subDirs = Array.Empty<string>();
+                try
+                {
+                    subDirs = Directory.EnumerateDirectories(rootPath);
+                }
+                catch (UnauthorizedAccessException) { }
+                catch (PathTooLongException) { }
+
+                foreach (var dir in subDirs)
+                {
+                    foreach (var f in IterateDirectories(dir, patternMatch, searchOption))
+                        yield return f;
+                }
+            }
+
+            IEnumerable<string> files = Array.Empty<string>();
+            try
+            {
+                files = Directory.EnumerateFiles(rootPath, patternMatch);
+            }
+            catch (UnauthorizedAccessException) { }
+
+            foreach (var file in files)
+                yield return file;
+        }
     }
 }
