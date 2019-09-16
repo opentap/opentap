@@ -46,6 +46,9 @@ namespace Tap.Shared
             return NormalizePath(path1) == NormalizePath(path2);
         }
 
+        /// <summary>
+        /// Similar to Directory.EnumerateFiles but will ignore any UnauthorizedAccessException or PathTooLongException that occur while walking the directory tree.
+        /// </summary>
         public static IEnumerable<string> IterateDirectories(string rootPath, string patternMatch, SearchOption searchOption)
         {
             if (searchOption == SearchOption.AllDirectories)
