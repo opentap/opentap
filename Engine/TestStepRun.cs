@@ -148,6 +148,9 @@ namespace OpenTap
         [XmlIgnore]
         public bool SupportsJumpTo { get; set; }
 
+        /// <summary> This step run was skipped without execution. </summary>
+        internal bool Skipped { get; set; }
+
         /// <summary>
         /// The path name of the steps. E.g the name of the step combined with all of its parent steps.
         /// </summary>

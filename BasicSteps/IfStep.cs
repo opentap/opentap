@@ -18,8 +18,10 @@ namespace OpenTap.Plugins.BasicSteps
         {
             [Display("Run Children")]
             RunChildren,
-            [Display("Break Loop")]
+            [Display("Break Loop", "Break out of the current loop")]
             BreakLoop,
+            [Display("Continue Loop", "Skip steps until the parent step regains control.")]
+            ContinueLoop,
             [Display("Abort Test Plan")]
             AbortTestPlan,
             [Display("Wait For User")]
@@ -72,6 +74,10 @@ namespace OpenTap.Plugins.BasicSteps
                         Log.Info("Condition is true, aborting TestPlan run.");
                         string msg = String.Format("TestPlan aborted by \"If\" Step ({2} of {0} was {1})", InputVerdict.Step.Name, InputVerdict.Value, InputVerdict.PropertyName);
                         PlanRun.MainThread.Abort();
+                        break;
+                    case IfStepAction.ContinueLoop:
+                        Log.Info("Condition is true, skipping sibling steps.");
+                        StepRun.SuggestedNextStep = (Parent as ITestStep)?.Id;
                         break;
                     case IfStepAction.WaitForUser:
                         Log.Info("Condition is true, waiting for user input.");
