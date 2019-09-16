@@ -4,7 +4,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build",
+            "label": "build Debug (netcore)",
             "command": "dotnet",
             "type": "shell",
             "args": [
@@ -23,7 +23,7 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "buildsdk",
+            "label": "build Release (netcore)",
             "command": "dotnet",
             "type": "shell",
             "args": [
@@ -32,9 +32,65 @@
                 "/property:GenerateFullPaths=true",
                 // Do not generate summary otherwise it leads to duplicate errors in Problems panel
                 "/consoleloggerparameters:NoSummary",
-                "sdk/OpenTap.Sdk.New/OpenTap.Sdk.New.csproj",
                 "--configuration", 
-                "NetCoreDebug"
+                "NetCore"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "silent"
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "restore (netframework)",
+            "command": "msbuild",
+            "type": "shell",
+            "args": [
+                "/t:restore",
+                // Ask dotnet build to generate full paths for file names.
+                "/property:GenerateFullPaths=true",
+                // Do not generate summary otherwise it leads to duplicate errors in Problems panel
+                "/consoleloggerparameters:NoSummary",
+                "/p:Configuration=Debug",
+                "/p:Platform=x64"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "silent"
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build Debug (netframework)",
+            "dependsOn" : [ "restore (msbuild)" ],
+            "command": "msbuild",
+            "type": "shell",
+            "args": [
+                // Ask dotnet build to generate full paths for file names.
+                "/property:GenerateFullPaths=true",
+                // Do not generate summary otherwise it leads to duplicate errors in Problems panel
+                "/consoleloggerparameters:NoSummary",
+                "/p:Configuration=Debug",
+                "/p:Platform=x64"
+            ],
+            "group": "build",
+            "presentation": {
+                "reveal": "silent"
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "build Release (netframework)",
+            "dependsOn" : [ "restore (msbuild)" ],
+            "command": "msbuild",
+            "type": "shell",
+            "args": [
+                // Ask dotnet build to generate full paths for file names.
+                "/property:GenerateFullPaths=true",
+                // Do not generate summary otherwise it leads to duplicate errors in Problems panel
+                "/consoleloggerparameters:NoSummary",
+                "/p:Configuration=Release",
+                "/p:Platform=x64"
             ],
             "group": "build",
             "presentation": {
