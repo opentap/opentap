@@ -20,8 +20,7 @@ namespace OpenTap
         {
             return $"{type.FullName}";
         }
-        static ConditionalWeakTable<Type, TypeData> dict
-    = new ConditionalWeakTable<Type, TypeData>();
+        static ConditionalWeakTable<Type, TypeData> dict = new ConditionalWeakTable<Type, TypeData>();
 
         Type type;
 
@@ -47,13 +46,62 @@ namespace OpenTap
         {
             this.type = type;
             this.Name = type.FullName;
+            postload();
         }
 
+        bool postLoaded = false;
+        object loadLock = new object();
+        void postload()
+        {
+            if (postLoaded) return;
+            lock (loadLock)
+            {
+                if (postLoaded) return;
+                Load();
+                var elementType = type.GetEnumerableElementType();
+                if (elementType != null)
+                    this.elementType = FromType(elementType);
+                typecode = Type.GetTypeCode(type);
+                hasFlags = this.HasAttribute<FlagsAttribute>();
+                postLoaded = true;
+            }
+        }
+
+        internal bool IsNumeric
+        {
+            get
+            {
+                postload();
+                if (type.IsEnum)
+                    return false;
+                switch (typecode)
+                {
+                    case TypeCode.Byte:
+                    case TypeCode.SByte:
+                    case TypeCode.UInt16:
+                    case TypeCode.UInt32:
+                    case TypeCode.UInt64:
+                    case TypeCode.Int16:
+                    case TypeCode.Int32:
+                    case TypeCode.Int64:
+                    case TypeCode.Decimal:
+                    case TypeCode.Double:
+                    case TypeCode.Single:
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+        }
+
+        TypeCode typecode = TypeCode.Object;
+
+        IEnumerable<object> attributes = null;
         /// <summary> 
         /// The attributes of this type. 
         /// Accessing this property causes the underlying Assembly to be loaded if it is not already.
         /// </summary>
-        public IEnumerable<object> Attributes => Load().GetAllCustomAttributes();
+        public IEnumerable<object> Attributes => attributes ?? (attributes = Load().GetAllCustomAttributes());
 
         /// <summary> The base type of this type. </summary>
         public ITypeData BaseType
@@ -63,6 +111,18 @@ namespace OpenTap
                 if (BaseTypes.Any())
                     return BaseTypes.First();
                 return Load().BaseType == null ? null : TypeData.FromType(Load().BaseType);
+            }
+        }
+
+        TypeData elementType;
+
+        /// <summary> If this is a collection type, then this is the element type. Otherwise null. </summary>
+        internal TypeData ElementType
+        {
+            get
+            {
+                postload();
+                return elementType;
             }
         }
 
@@ -121,6 +181,13 @@ namespace OpenTap
                 members = m.ToArray();
             }
             return members;
+        }
+
+        bool hasFlags;
+        internal bool HasFlags()
+        {
+            postload();
+            return hasFlags;
         }
     }
 
@@ -227,7 +294,7 @@ namespace OpenTap
         /// <summary>
         /// The declaring type of this member.
         /// </summary>
-        public ITypeData DeclaringType { get; private set; }
+        public ITypeData DeclaringType { get; }
 
         /// <summary> Gets if the member is writable. </summary>
         public bool Writable
@@ -251,27 +318,26 @@ namespace OpenTap
                 switch (Member)
                 {
                     case PropertyInfo Property: return Property.CanRead && Property.GetGetMethod() != null;
-                    case FieldInfo Field: return true;
+                    case FieldInfo _: return true;
                     default: return false;
                 }
             }
         }
 
-        /// <summary>
-        /// The type descriptor for the object that this member can hold.
-        /// </summary>
-        public ITypeData TypeDescriptor
+        ITypeData typeDescriptor;
+
+        /// <summary> The type descriptor for the object that this member can hold. </summary>
+        public ITypeData TypeDescriptor => typeDescriptor ?? (typeDescriptor = getTypeDescriptor());
+        
+        ITypeData getTypeDescriptor()
         {
-            get
+            switch (Member)
             {
-                switch (Member)
-                {
-                    case PropertyInfo Property: return TypeData.FromType(Property.PropertyType);
-                    case FieldInfo Field: return TypeData.FromType(Field.FieldType);
-                    case MethodInfo Method: return TypeData.FromType(createDelegateType(Method));
-                    default: throw new InvalidOperationException("Unsupported member type: " + Member);
-                }
-            }
+                case PropertyInfo Property: return TypeData.FromType(Property.PropertyType);
+                case FieldInfo Field: return TypeData.FromType(Field.FieldType);
+                case MethodInfo Method: return TypeData.FromType(createDelegateType(Method));
+                default: throw new InvalidOperationException("Unsupported member type: " + Member);
+            }   
         }
 
         /// <summary> Gets a string representation of this CSharpTYpe. </summary>
@@ -306,5 +372,4 @@ namespace OpenTap
             return TypeData.FromType(type);
         }
     }
-
 }
