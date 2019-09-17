@@ -17,9 +17,6 @@
                 "NetCoreDebug"
             ],
             "group": "build",
-            "presentation": {
-                "reveal": "silent"
-            },
             "problemMatcher": "$msCompile"
         },
         {
@@ -36,9 +33,6 @@
                 "NetCore"
             ],
             "group": "build",
-            "presentation": {
-                "reveal": "silent"
-            },
             "problemMatcher": "$msCompile"
         },
         {
@@ -55,9 +49,6 @@
                 "/p:Platform=x64"
             ],
             "group": "build",
-            "presentation": {
-                "reveal": "silent"
-            },
             "problemMatcher": "$msCompile"
         },
         {
@@ -74,9 +65,6 @@
                 "/p:Platform=x64"
             ],
             "group": "build",
-            "presentation": {
-                "reveal": "silent"
-            },
             "problemMatcher": "$msCompile"
         },
         {
@@ -93,9 +81,6 @@
                 "/p:Platform=x64"
             ],
             "group": "build",
-            "presentation": {
-                "reveal": "silent"
-            },
             "problemMatcher": "$msCompile"
         }
     ]

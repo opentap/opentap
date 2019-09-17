@@ -12,7 +12,8 @@
             "program": "${workspaceFolder}/bin/Debug/tap.dll",
             "args": [ "package", "list", "--verbose"],
             "cwd": "${workspaceFolder}/bin/Debug",
-            "console": "internalConsole",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
             "stopAtEntry": false
         },
         {
@@ -23,7 +24,8 @@
             "program": "${workspaceFolder}/bin/Debug/tap.dll",
             "args": [ "sdk", "new", "project", "Test"],
             "cwd": "${workspaceFolder}/bin/Debug",
-            "console": "internalConsole",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
             "stopAtEntry": false
         },
         {
