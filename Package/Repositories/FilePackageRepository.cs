@@ -157,6 +157,24 @@ namespace OpenTap.Package
                 .Distinct()
                 .ToArray();
         }
+        public string[] GetPackageNames(string @class, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
+        {
+            if (allPackages == null)
+                LoadPath(cancellationToken);
+
+            if (this.allPackages == null || this.allFiles == null) return null;
+            var packages = this.allPackages.Where(p => p.Class == @class).ToList();
+
+            // Check if package dependencies are compatible
+            compatibleWith = CheckCompatibleWith(compatibleWith);
+            if (compatibleWith != null)
+                packages = packages.Where(p => p.Dependencies.All(d => compatibleWith.All(r => IsCompatible(d, r)))).ToList();
+
+            return packages
+                .Select(p => p.Name)
+                .Distinct()
+                .ToArray();
+        }
         public PackageVersion[] GetPackageVersions(string packageName, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             if (allPackages == null)
@@ -307,42 +325,44 @@ namespace OpenTap.Package
             var allPackages = new List<PackageDef>();
             var packagesFiles = allFiles.Where(f => f.Extension.ToLower() == ".tappackages").ToHashSet();
 
-            foreach (var packagesFile in packagesFiles)
+            // Deserializer .TapPackages files
+            Parallel.ForEach(packagesFiles, packagesFile =>
             {
                 List<PackageDef> packages;
                 try
                 {
                     packages = PackageDef.FromPackages(packagesFile.FullName);
-                    if (packages == null) continue;
+                    if (packages == null) return;
                 }
                 catch
                 {
-                    continue;
+                    return;
                 }
 
                 packages.ForEach(p => p.Location = packagesFile.FullName);
                 allPackages.AddRange(packages);
-            }
-            
-            foreach (var pluginFile in allFiles)
+            });
+
+            // Deserialize all regular packages
+            Parallel.ForEach(allFiles, pluginFile =>
             {
                 if (packagesFiles.Contains(pluginFile))
-                    continue;
+                    return;
 
                 PackageDef package;
                 try
                 {
                     package = PackageDef.FromPackage(pluginFile.FullName);
-                    if (package == null) continue;
+                    if (package == null) return;
                 }
                 catch
                 {
-                    continue;
+                    return;
                 }
                 package.Location = pluginFile.FullName;
                 allPackages.Add(package);
-            }
-
+            });
+            
             return allPackages.ToArray();
         }
         private List<PackageDef> GetAllPackages(List<string> allFiles)
@@ -367,7 +387,7 @@ namespace OpenTap.Package
                                 allPackages = PackageDef.ManyFromXml(str).ToList();
     
                             // Check if any files has been replaced
-                            if (allPackages.Any(p => !allFiles.Any(f => p.Location == f)))
+                            if (allPackages.Any(p => !allFiles.Any(f => p?.Location == f)))
                                 allPackages = null;
     
                             // Check if the cache is the newest file

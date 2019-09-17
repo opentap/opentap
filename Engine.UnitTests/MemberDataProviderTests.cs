@@ -518,7 +518,7 @@ namespace OpenTap.Engine.UnitTests
                     annotation.Read(sweep);
                     Assert.AreEqual(3, select.Selected.Cast<object>().Count());
 
-                    Assert.AreEqual(4, avail.AvailableValues.Cast<object>().Count()); // DelayStep only has on property.
+                    Assert.AreEqual(2, avail.AvailableValues.Cast<object>().Count()); // DelayStep only has on property.
                     select.Selected = smem.Get<IAvailableValuesAnnotation>().AvailableValues;
                     annotation.Write(sweep);
                     annotation.Read(sweep);
@@ -532,7 +532,7 @@ namespace OpenTap.Engine.UnitTests
                 collection.AnnotatedElements = collection.AnnotatedElements.Append(new_element).ToArray();
                 var new_element_members = new_element.Get<IMembersAnnotation>();
                 var members = new_element_members.Members.ToArray();
-                Assert.AreEqual(4, members.Length);
+                Assert.AreEqual(2, members.Length);
 
                 var enabled_element = members[0];
                 Assert.IsTrue(enabled_element.Get<IMemberAnnotation>().Member.Name == "Enabled");

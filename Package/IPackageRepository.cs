@@ -198,6 +198,41 @@ namespace OpenTap.Package
     internal class PackageRepositoryHelpers
     {
         private static TraceSource log = Log.CreateSource("PackageRepository");
+        private static VersionSpecifier RequiredApiVersion = new VersionSpecifier(3, 1, 0, "", "", VersionMatchBehavior.Compatible | VersionMatchBehavior.AnyPrerelease); // Required for GraphQL
+
+        internal static List<PackageDef> GetPackageNameAndVersionFromAllRepos(List<IPackageRepository> repositories, PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
+        {
+            var list = new List<PackageDef>();
+            try
+            {
+                string query = 
+                    @"query Query {
+                            packages(distinctName:true) {
+                            name
+                            version
+                        }
+                    }";
+
+                Parallel.ForEach(repositories, repo =>
+                {
+                    if (repo is HttpPackageRepository httprepo && httprepo.Version != null && RequiredApiVersion.IsCompatible(httprepo.Version))
+                    {
+                        var json = httprepo.Query(query);
+                        foreach (var item in json["packages"])
+                            list.Add(new PackageDef() { Name = item["name"].ToString(), Version = SemanticVersion.Parse(item["version"].ToString()) });
+                    }
+                    else
+                        list.AddRange(repo.GetPackages(id, compatibleWith));
+                });
+            }
+            catch (AggregateException ex)
+            {
+                foreach (var inner in ex.InnerExceptions)
+                    log.Error(inner);
+                log.Error(ex);
+            }
+            return list;
+        }
 
         internal static List<PackageDef> GetPackagesFromAllRepos(List<IPackageRepository> repositories, PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
         {

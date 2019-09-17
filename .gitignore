@@ -7,6 +7,7 @@
 TestResults/
 *.dat
 .vs/
+nuget/build/payload
 
 # Temp files from git merges:
 *.orig

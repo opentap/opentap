@@ -589,7 +589,20 @@ namespace OpenTap.Plugins.BasicSteps
                     return string.Format("{0} selected", count);
                 }
             }
-
+            
+            static HashSet<IMemberData> getBlockedMembers()
+            {
+                HashSet<IMemberData> members = new HashSet<IMemberData>();
+                var sweeploop = TypeData.FromType(typeof(SweepLoop));
+                members.Add(sweeploop.GetMember(nameof(SweepLoop.SweepMembers)));
+                members.Add(sweeploop.GetMember(nameof(SweepLoop.SweepParameters)));
+                var step = TypeData.FromType(typeof(TestStep));
+                
+                members.Add(step.GetMember(nameof(TestStep.Enabled)));
+                members.Add(step.GetMember(nameof(TestStep.Name)));
+                return members;
+            }
+            static HashSet<IMemberData> blockedMembers = getBlockedMembers();
             public void Read(object source)
             {
                 if (source is ITestStep == false) return;
@@ -598,10 +611,10 @@ namespace OpenTap.Plugins.BasicSteps
 
                 Dictionary<IMemberData, object> members = new Dictionary<IMemberData, object>();
                 getPropertiesForItem((ITestStep)source, members);
+                
                 foreach(var member in members)
                 {
-                    var mem = member.Key;
-                    if (mem.DeclaringType.DescendsTo(typeof(SweepLoop)) && (mem.Name == nameof(SweepLoop.SweepMembers) || mem.Name == nameof(SweepLoop.SweepParameters)))
+                    if (blockedMembers.Contains(member.Key)) 
                         continue;
                     var anot = AnnotationCollection.Create(null, member.Key);
                     var access = anot.Get<ReadOnlyMemberAnnotation>();

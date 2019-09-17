@@ -5,14 +5,27 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "tap package list (.NET Core)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build Debug (netcore)",
+            "program": "${workspaceFolder}/bin/Debug/tap.dll",
+            "args": [ "package", "list", "--verbose"],
+            "cwd": "${workspaceFolder}/bin/Debug",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
+            "stopAtEntry": false
+        },
+        {
             "name": "tap new project (.NET Core)",
             "type": "coreclr",
             "request": "launch",
-            "preLaunchTask": "build",
+            "preLaunchTask": "build Debug (netcore)",
             "program": "${workspaceFolder}/bin/Debug/tap.dll",
             "args": [ "sdk", "new", "project", "Test"],
             "cwd": "${workspaceFolder}/bin/Debug",
-            "console": "internalConsole",
+            "console": "integratedTerminal",
+            "internalConsoleOptions": "neverOpen",
             "stopAtEntry": false
         },
         {

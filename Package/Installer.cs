@@ -127,16 +127,16 @@ namespace OpenTap.Package
                     return false;
                 }
 
-                int progressPercent = 10;
-                OnProgressUpdate(progressPercent, "");
+                double progressPercent = 10;
+                OnProgressUpdate((int)progressPercent, "");
 
                 PluginInstaller pi = new PluginInstaller();
 
                 foreach (string fileName in PackagePaths)
                 {
-                    OnProgressUpdate(progressPercent, string.Format("Running command '{0}' on {1}", command, Path.GetFileNameWithoutExtension(fileName)));
-                    Stopwatch timer = Stopwatch.StartNew();
                     PackageDef pkg = PackageDef.FromXml(fileName);
+                    OnProgressUpdate((int)progressPercent, string.Format("Running command '{0}' on '{1}'", command, pkg.Name));
+                    Stopwatch timer = Stopwatch.StartNew();
                     var res = pi.ExecuteAction(pkg, command, force, TapDir);
 
                     if (res == ActionResult.Error)
@@ -151,7 +151,7 @@ namespace OpenTap.Package
                     else
                         log.Info(timer, string.Format("{1} {0} version {2}.", pkg.Name, verb, pkg.Version));
 
-                    progressPercent += 80 / PackagePaths.Count();
+                    progressPercent += (double)80 / PackagePaths.Count();
                 }
                 OnProgressUpdate(90, "");
 
