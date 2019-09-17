@@ -264,6 +264,12 @@ namespace OpenTap.Package
         }
 
         /// <summary>
+        /// Name of the group that this package belongs to. Groups can be nested in other groups, in which case this string will have several entries separated with '/' or '\'. May be empty or null. UIs may use this information to show a list of packages as a tree structure.
+        /// </summary>
+        [XmlAttribute]
+        public string Group { get; set; }
+
+        /// <summary>
         /// Returns version as a <see cref="SemanticVersion"/>.
         /// </summary>
         /// <returns></returns>
