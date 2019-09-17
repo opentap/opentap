@@ -2146,11 +2146,15 @@ namespace OpenTap
             if(mem != null)
             {
                 if (mem.Member.GetAttribute<AvailableValuesAttribute>() is AvailableValuesAttribute avail)
-                    annotation.Add(new AvailableValuesAnnotation(annotation, avail.PropertyName));
-                if (mem.Member.GetAttribute<MultipleAvailableValuesAttribute>() is MultipleAvailableValuesAttribute
-                    avail2)
                 {
-                    annotation.Add(new MultipleAvailableValuesAnnotation(annotation, avail2.PropertyName));
+                    if (mem.Member.TypeDescriptor.DescendsTo(typeof(IEnumerable<>)) && mem.Member.TypeDescriptor.IsA(typeof(string)) == false)
+                    {
+                        annotation.Add(new MultipleAvailableValuesAnnotation(annotation, avail.PropertyName));
+                    }
+                    else
+                    {
+                        annotation.Add(new AvailableValuesAnnotation(annotation, avail.PropertyName));
+                    }
                 }
             }
 

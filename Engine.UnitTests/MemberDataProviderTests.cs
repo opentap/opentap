@@ -246,7 +246,7 @@ namespace OpenTap.Engine.UnitTests
             [AvailableValues("AvailableNumbers")]
             public Enabled<double> FromAvailable2 { get; set; } = new Enabled<double>();
             
-            [MultipleAvailableValues(nameof(AvailableNumbers))]
+            [AvailableValues(nameof(AvailableNumbers))]
             public List<double> SelectedMulti { get; set; } = new List<double>{1,2}; 
 
             [Unit("s")]

@@ -43,21 +43,4 @@ namespace OpenTap
             this.PropertyName = propertyName;
         }
     }
-
-    /// <summary> Similar to <see cref="AvailableValuesAttribute"/>, but specifies that multiple values can be selected at the same time. </summary>
-    [AttributeUsage(AttributeTargets.Property)]
-    public class MultipleAvailableValuesAttribute : Attribute
-    {
-        /// <summary> The name of the property from which to select available values. </summary>
-        public string PropertyName { get; }
-
-        /// <summary>
-        /// Creates a new MultipleAvailableValuesAttributes.
-        /// </summary>
-        /// <param name="propertyName">The property name from which values can be selected.</param>
-        public MultipleAvailableValuesAttribute(string propertyName)
-        {
-            PropertyName = propertyName;
-        }
-    }
 }
