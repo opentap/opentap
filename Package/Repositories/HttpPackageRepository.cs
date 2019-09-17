@@ -27,7 +27,7 @@ namespace OpenTap.Package
     {
         private static TraceSource log = Log.CreateSource("HttpPackageRepository");
         private const string ApiVersion = "3.0";
-        private const string MinRepoVersion = "3.0.0";
+        private VersionSpecifier MinRepoVersion = new VersionSpecifier(3, 0, 0, "", "", VersionMatchBehavior.AnyPrerelease | VersionMatchBehavior.Compatible);
         private string defaultUrl;
 
         public bool IsSilent;
@@ -299,7 +299,7 @@ namespace OpenTap.Package
             if (serializer.CanDeserialize(reader) == false)
                 throw new NotSupportedException($"'{defaultUrl}' is not a package repository.");
             var version = serializer.Deserialize(reader) as string;
-            if (SemanticVersion.TryParse(version, out _version) && SemanticVersion.Parse(MinRepoVersion).IsCompatible(Version) == false)
+            if (SemanticVersion.TryParse(version, out _version) && MinRepoVersion.IsCompatible(_version) == false)
                 throw new NotSupportedException($"The repository '{defaultUrl}' is not supported.", new Exception($"Repository version '{Version}' is not compatible with min required version '{MinRepoVersion}'."));
         }
 
