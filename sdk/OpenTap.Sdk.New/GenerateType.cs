@@ -1,4 +1,4 @@
-﻿//            Copyright Keysight Technologies 2012-2019
+//            Copyright Keysight Technologies 2012-2019
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
@@ -17,7 +17,7 @@ namespace OpenTap.Sdk.New
         public TraceSource log = Log.CreateSource("New");
 
         [CommandLineArgument("out", ShortName = "o", Description = "Path to generated file.")]
-        public string output { get; set; }
+        public virtual string output { get; set; }
 
         public abstract int Execute(CancellationToken cancellationToken);
 
@@ -32,18 +32,28 @@ namespace OpenTap.Sdk.New
                 UserInput.Request(request, true);
 
                 if (request.Override == RequestEnum.No)
-                    throw new Exception("File was not overridden.");
+                {
+                    log.Info("File was not overridden.");
+                    return;
+                }
             }
 
             if (!Directory.Exists(Path.GetDirectoryName(filepath)) && string.IsNullOrWhiteSpace(Path.GetDirectoryName(filepath)) == false)
                 Directory.CreateDirectory(Path.GetDirectoryName(filepath));
 
             File.WriteAllText(filepath, content);
+            log.Info($"Generated file: {filepath}");
         }
 
         protected string TryGetNamespace()
         {
-            var csprojFiles = Directory.GetFiles(Directory.GetCurrentDirectory(), "*.csproj", SearchOption.AllDirectories);
+            string dir = output;
+            if (output == null)
+                dir = Directory.GetCurrentDirectory();
+            else if (output.EndsWith("/") == false)
+                dir = Path.GetDirectoryName(dir);
+
+            var csprojFiles = Directory.GetFiles(dir, "*.csproj", SearchOption.TopDirectoryOnly);
             var csprojPath = csprojFiles.FirstOrDefault();
 
             if (string.IsNullOrWhiteSpace(csprojPath) == false)
@@ -55,7 +65,7 @@ namespace OpenTap.Sdk.New
                     return Path.GetFileNameWithoutExtension(csprojPath);
             }
 
-            throw new Exception("Could not find project file ('.csproj') in current directory.\nNote: Add a new project with 'tap sdk generate project <name>'.");
+            throw new Exception($"Could not find project file ('.csproj') in '{dir}'.\nNote: You can create a new project with 'tap sdk new project <name>'.");
         }
 
         protected string ReplaceInTemplate(string content, params string[] fields)

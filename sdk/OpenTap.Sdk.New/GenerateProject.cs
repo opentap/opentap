@@ -15,21 +15,27 @@ namespace OpenTap.Sdk.New
     [Display("project", "OpenTAP C# Project (.csproj). Including a new TestStep, TestPlan and package.xml.", Groups: new[] { "sdk", "new" })]
     public class GenerateProject : GenerateType
     {
+        [CommandLineArgument("out", ShortName = "o", Description = "Destination directory for generated files.")]
+        public override string output { get => base.output; set => base.output = value; }
+
         [UnnamedCommandLineArgument("name", Required = true)]
         public string Name { get; set; }
 
         public override int Execute(CancellationToken cancellationToken)
         {
+            if (Directory.Exists(output) == false)
+                Directory.CreateDirectory(output);
+
             using (var reader = new StreamReader(Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("OpenTap.Sdk.New.Resources.csprojTemplate.txt")))
             {
                 var content = ReplaceInTemplate(reader.ReadToEnd(), Name);
-                WriteFile(output ?? Path.Combine(Directory.GetCurrentDirectory(), Name + ".csproj"), content);
+                WriteFile(Path.Combine(output ?? Directory.GetCurrentDirectory(), Name + ".csproj"), content);
             }
 
-            new GenerateTestStep() { Name = "MyFirstTestStep" }.Execute(cancellationToken);
-            new GenerateTestPlan() { Name = "MyFirstTestPlan" }.Execute(cancellationToken);
-            new GeneratePackageXml() { Name = this.Name }.Execute(cancellationToken);
+            new GenerateTestStep() { Name = "MyFirstTestStep", output = Path.Combine(output ?? Directory.GetCurrentDirectory(), "MyFirstTestStep.cs") }.Execute(cancellationToken);
+            new GenerateTestPlan() { Name = "MyFirstTestPlan", output = Path.Combine(output ?? Directory.GetCurrentDirectory(), "MyFirstTestPlan.cs") }.Execute(cancellationToken);
+            new GeneratePackageXml() { Name = this.Name, output = Path.Combine(output ?? Directory.GetCurrentDirectory(), "package.xml") }.Execute(cancellationToken);
 
             return 0;
         }
