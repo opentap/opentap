@@ -1359,24 +1359,90 @@ namespace OpenTap
                 {
                     if (lst2.IsReadOnly)
                         rdonly = true;
-                    if (!rdonly)
-                        lst2.Clear();
-                    int index = 0;
-                    foreach (var elem in annotatedElements)
-                    {
-                        var val = elem.Get<IObjectValueAnnotation>().Value;
 
-                        elem.Write(val);
-                        if (!rdonly)
+                    if (!rdonly && !lst2.IsFixedSize)
+                    {
+                        // this clause contains a special case for lists
+                        // Emulate adding/removing elements to the list
+                        // calculate the changes so that fewest possible changes are done
+                        // to the source list.
+
+                        foreach (var elem in annotatedElements)
                         {
-                            if (lst2.IsFixedSize)
+                            var val = elem.Get<IObjectValueAnnotation>().Value;
+                            elem.Write(val);
+                        }
+
+                        var values = annotatedElements.Select(x => x.Get<IObjectValueAnnotation>().Value).ToList();
+
+                        {   // remove elements that does no longer exists.
+
+                            var hsh = values.ToHashSet();
+                            for (int i = 0; i < lst2.Count; i++)
                             {
-                                lst2[index] = val;
-                                index++;
+                                var e = lst2[i];
+                                if (hsh.Contains(e) == false)
+                                {
+                                    lst2.RemoveAt(i);
+                                    i--;
+                                }
                             }
-                            else
+                        }
+
+                        // now iteratively add/move elements
+                        // so that lst2 becomes the same as 'values'
+
+                        int i2 = 0;
+                        for (int i1 = 0; i1 < values.Count; i1++, i2++)
+                        {
+                            if (i1 >= lst2.Count)
                             {
-                                lst2.Add(val);
+                                lst2.Add(values[i1]);
+                                continue;
+                            }
+                            if (lst2[i2] == values[i1])
+                                continue; // same element.. we can continue.
+
+                            for(int i3 = i2; i2 < lst2.Count; i3++)
+                            {
+                                // before inserting the element check that it does not figure further ahead in the list.
+                                // if this is the case, remove it. This handles cases where things has been moved.
+                                if(values[i1] == lst2[i3])
+                                {
+                                    var item = lst2[i3];
+                                    lst2.RemoveAt(i3);
+                                    break;
+                                }
+                            }
+                            lst2.Insert(i2, values[i1]);
+                        }
+                        while (lst2.Count > values.Count)
+                        {
+                            lst2.RemoveAt(lst2.Count - 1);
+                        }
+                    }
+                    else
+                    {
+
+                        if (!rdonly)
+                            lst2.Clear();
+                        int index = 0;
+                        foreach (var elem in annotatedElements)
+                        {
+                            var val = elem.Get<IObjectValueAnnotation>().Value;
+
+                            elem.Write(val);
+                            if (!rdonly)
+                            {
+                                if (lst2.IsFixedSize)
+                                {
+                                    lst2[index] = val;
+                                    index++;
+                                }
+                                else
+                                {
+                                    lst2.Add(val);
+                                }
                             }
                         }
                     }

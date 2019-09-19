@@ -58,9 +58,12 @@ namespace OpenTap
             {
                 if (postLoaded) return;
                 Load();
-                var elementType = type.GetEnumerableElementType();
-                if (elementType != null)
-                    this.elementType = FromType(elementType);
+                if (type != typeof(string))
+                {
+                    var elementType = type.GetEnumerableElementType();
+                    if (elementType != null)
+                        this.elementType = FromType(elementType);
+                }
                 typecode = Type.GetTypeCode(type);
                 hasFlags = this.HasAttribute<FlagsAttribute>();
                 postLoaded = true;
