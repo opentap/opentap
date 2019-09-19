@@ -24,6 +24,16 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+
+        [Test]
+        public void MacroExpandTest()
+        {
+            EngineSettings.Current.StationName = "__station_name__";
+            var macro = new MacroString() { Text = "test<Date> <Station>" };
+            var result = macro.Expand();
+            Assert.IsTrue(result.EndsWith(EngineSettings.Current.StationName));
+        }
+
         [Test]
         public void LogResultListener()
         {

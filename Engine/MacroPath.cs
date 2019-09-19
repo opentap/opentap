@@ -81,77 +81,80 @@ namespace OpenTap
         /// <returns>The expanded string.</returns>
         public string Expand(TestPlanRun run, DateTime? date, string testPlanDir, Dictionary<string, object> replacements)
         {
-            
             ITestStepParent context = Context;
-            var replacers = new Dictionary<string, object>();
-            if (testPlanDir != null)
-                replacers["TestPlanDir"] = testPlanDir;
-            if (date != null)
-                replacers["Date"] = date;
             
-            var met = ResultParameters.GetComponentSettingsMetadata();
-            foreach (var v in met)
+            IEnumerable<(string, object)> getMacro()
             {
-                if(v.IsMetaData)
-                    replacers[v.MacroName ?? v.Name] = v.Value;
-            }
+                // note: macros are case-insensitive.
 
-            if (run != null)
-            {
-                foreach (var v in run.Parameters.Concat(ResultParameters.GetMetadataFromObject(run)))
-                {
-                    if (v.IsMetaData == false)
-                        continue;
-                    if (replacers.ContainsKey(v.Name) == false)
+                if(testPlanDir != null)
+                    yield return ("TestPlanDir", testPlanDir);
+
+                if (date != null)
+                    yield return ("date", date);
+                
+                if(replacements != null)
+                    foreach (var elem in replacements)
+                        yield return (elem.Key, elem.Value);
+
+                if (run != null) {
+                    var runparams = run.Parameters.Concat(ResultParameters.GetMetadataFromObject(run)).Where(y => y.IsMetaData);
+                    
+                    foreach(var v in runparams)
                     {
                         var path = v.Value;
-                        if (path is string && System.IO.File.Exists((string)path))
+                        if (path is string s && System.IO.File.Exists(s))
                         {
-                            path = System.IO.Path.GetDirectoryName((string)path);
+                            path = System.IO.Path.GetDirectoryName(s);
                         }
-                        replacers[v.MacroName ?? v.Name] = path;
+                        yield return (v.Name, path);
+                        yield return (v.MacroName, path);
                     }
                 }
-            }
-            ITestStepParent ctx = context;
-            while (ctx != null)
-            {
-                var p = ResultParameters.GetMetadataFromObject(ctx);
-                foreach (var v in p)
+                
+                ITestStepParent ctx = context;
+                while (ctx != null)
                 {
-                    if (v.IsMetaData == false)
-                        continue;
-                    if (replacers.ContainsKey(v.MacroName) == false)
+                    var p = ResultParameters.GetMetadataFromObject(ctx);
+                    foreach (var v in p)
                     {
+                        if (v.IsMetaData == false)
+                            continue;
                         var path = v.Value;
-                        if (path is string && System.IO.File.Exists((string)path))
+                        if (path is string s && System.IO.File.Exists(s))
                         {
-                            path = System.IO.Path.GetDirectoryName((string)path);
+                            path = System.IO.Path.GetDirectoryName(s);
                         }
-                        replacers[v.MacroName ?? v.Name] = path;
+                        yield return (v.Name, path);
+                        yield return (v.MacroName, path);
+                    }
+                    ctx = ctx.Parent;
+                }
+                yield return ("date", DateTime.Now);
+                yield return ("Verdict", Verdict.NotSet);
+
+                var met = ResultParameters.GetComponentSettingsMetadataLazy(false);
+                
+                foreach (var ps in met)
+                {
+                    foreach (var v in ps)
+                    {
+                        if (v.IsMetaData == false) continue;
+
+                        var path = v.Value;
+                        if (path is string s && System.IO.File.Exists(s))
+                        {
+                            path = System.IO.Path.GetDirectoryName(s);
+                        }
+                        yield return (v.Name, path);
+                        yield return (v.MacroName, path);
                     }
                 }
-                ctx = ctx.Parent;
+
+                
             }
-            if (!replacers.ContainsKey("Date"))
-                replacers["Date"] = DateTime.Now;
-            if (!replacers.ContainsKey("Verdict"))
-                replacers["Verdict"] = Verdict.NotSet;
-            if(replacements != null)
-                foreach (var rep in replacements)
-                    replacers[rep.Key] = rep.Value;
-            var text = Text;
-
-            var replacers2 = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase);
-
-            foreach (var kv in replacers)
-            {
-                var value = StringConvertProvider.GetString(kv.Value);
-                replacers2.Add(kv.Key, value);
-            }
-
-            text = ReplaceMacros(text, replacers2);
-            return Environment.ExpandEnvironmentVariables(text);
+            
+            return ReplaceMacros(Text, getMacro().Select(x => (x.Item1, StringConvertProvider.GetString(x.Item2))));
         }
 
         /// <summary> Expands the text.</summary>
@@ -170,27 +173,40 @@ namespace OpenTap
         /// If the macro name does not exist in the expanders dictionary.
         /// </summary>
         /// <param name="userString">The string to replace macros in.</param>
-        /// <param name="macroDef">The macro definitions.</param>
+        /// <param name="keyvaluepairs">The macro definitions.</param>
         /// <param name="macroDefault">Default value if MacroName is not in macroDef.</param>
         /// <returns>A string with macros expanded.</returns>
-        internal static string ReplaceMacros(string userString, Dictionary<string, string> macroDef, string macroDefault = "TBD")
+        internal static string ReplaceMacros(string userString, IEnumerable<(string,string)> keyvaluepairs, string macroDefault = "TBD")
         {
+            var cmp = StringComparer.InvariantCultureIgnoreCase;
+            Dictionary<string, string> cache = new Dictionary<string, string>(cmp);
+            IEnumerator<(string, string)> valueiterator = keyvaluepairs.GetEnumerator();
+            string getMacroDef(string key)
+            {
+                if (cache.TryGetValue(key, out string val))
+                    return val;
+                while(valueiterator != null)
+                {
+                    if (valueiterator.MoveNext() == false)
+                        return macroDefault;
+                    var kv = valueiterator.Current;
+
+                    if (kv.Item1 == null) continue;
+                    if (cache.ContainsKey(kv.Item1))
+                        continue;
+                    cache[kv.Item1] = kv.Item2;
+                    if (cmp.Compare(kv.Item1, key) == 0)
+                        return kv.Item2;
+                }
+                return macroDefault;
+            }
             List<macroLocation> macroLocations = macroLocation.GetMacroLocations(userString);
             int removed = 0;
             foreach (var mloc in macroLocations)
             {
 
                 int taglen = mloc.MacroTagLength;
-                string inserted;
-                if (macroDef.ContainsKey(mloc.MacroName))
-                {
-                    inserted = macroDef[mloc.MacroName];
-                }
-            
-                else
-                {
-                    inserted = macroDefault;
-                }
+                string inserted = getMacroDef(mloc.MacroName);
 
                 userString = userString.Remove(mloc.MacroTagBegin - removed, mloc.MacroTagLength);
                 userString = userString.Insert(mloc.MacroTagBegin - removed, inserted);
