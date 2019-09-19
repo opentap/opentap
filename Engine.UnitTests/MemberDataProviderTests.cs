@@ -239,7 +239,7 @@ namespace OpenTap.Engine.UnitTests
             [AvailableValues("AvailableNumbers")]
             [Display("From Available")]
             [Unit("s")]
-        
+
             public double FromAvailable { get; set; }
 
             [Unit("s")]
@@ -252,11 +252,11 @@ namespace OpenTap.Engine.UnitTests
             public bool ThingEnabled { get; set; }
             [EnabledIf("ThingEnabled", true, HideIfDisabled = true)]
             public string ICanBeEnabled { get; set; }
-            
+
             [Flags]
             public enum MultiSelectEnum
             {
-                
+
                 A = 1,
                 B = 2,
                 C = 4
@@ -298,6 +298,8 @@ namespace OpenTap.Engine.UnitTests
                 get => list.AsReadOnly();
                 set { }
             }
+
+            public List<Data1> Data2List { get; set; } = new List<Data1> { new Data1 { X = "1" } };
 
             public Data1[] DataArray { get; set; } = new Data1[] { new Data1 { X = "5" }, new Data1 { X = "Y" } };
 
@@ -430,6 +432,40 @@ namespace OpenTap.Engine.UnitTests
                     var annotated = prox.AnnotatedElements.ToArray();
                     member.Write();
                 }
+                if (mem.Member.Name == nameof(DataInterfaceTestClass.Data2List))
+                {
+                    
+
+                    var prox = member.Get<ICollectionAnnotation>();
+                    
+
+                    void addElement(string text)
+                    {
+                        var newelem = prox.NewElement();
+                        newelem.Get<IMembersAnnotation>().Members.FirstOrDefault().Get<IStringValueAnnotation>().Value = text;
+                        prox.AnnotatedElements = prox.AnnotatedElements.Append(newelem);
+                    }
+
+                    member.Write();
+                    prox.AnnotatedElements = prox.AnnotatedElements.Skip(1);
+                    addElement("2");
+                    addElement("3");
+                    addElement("4");
+                    member.Write();
+                    var lst = testobj.Data2List;
+                    Assert.IsTrue(lst[0].X == "2" && lst[1].X == "3" && lst[2].X == "4" && lst.Count == 3);
+
+                    prox.AnnotatedElements = prox.AnnotatedElements.Reverse();
+                    member.Write();
+                    Assert.IsTrue(lst[2].X == "2" && lst[1].X == "3" && lst[0].X == "4" && lst.Count == 3);
+                    var tmplst = prox.AnnotatedElements.ToList();
+                    tmplst.RemoveAt(1);
+                    prox.AnnotatedElements = tmplst;
+                    member.Write();
+                    Assert.IsTrue(lst[1].X == "2" && lst[0].X == "4" && lst.Count == 2);
+
+
+                }
                 if (mem.Member.Name == nameof(DataInterfaceTestClass.DataArray))
                 {
                     var prox = member.Get<ICollectionAnnotation>();
@@ -462,6 +498,7 @@ namespace OpenTap.Engine.UnitTests
                 }
             }
             annotations.Write(testobj);
+
         }
 
         public class Delay2Step : TestStep
