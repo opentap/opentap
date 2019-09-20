@@ -13,7 +13,8 @@
             "args": ["run", "<tap plan>", "-c", "-v"],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen"
         },
         {
             "name": "Debug .NET Core (Linux)",
@@ -24,7 +25,8 @@
             "args": ["run", "<tap plan>", "-c", "-v"],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false,
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen"
         }
     ]
 }
