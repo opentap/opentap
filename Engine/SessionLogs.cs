@@ -92,6 +92,9 @@ namespace OpenTap
             }
 
             CurrentLogFile = tempLogFileName;
+
+            // Log debugging information of the current process.
+            log.Debug($"Running '{string.Join(" ", Environment.GetCommandLineArgs())}' in '{Directory.GetCurrentDirectory()}'.");
         }
 
         private static void FlushOnExit(object sender, EventArgs e)
