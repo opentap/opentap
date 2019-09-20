@@ -245,6 +245,9 @@ namespace OpenTap.Engine.UnitTests
             [Unit("s")]
             [AvailableValues("AvailableNumbers")]
             public Enabled<double> FromAvailable2 { get; set; } = new Enabled<double>();
+            
+            [AvailableValues(nameof(AvailableNumbers))]
+            public List<double> SelectedMulti { get; set; } = new List<double>{1,2}; 
 
             [Unit("s")]
             public IEnumerable<double> AvailableNumbers { get; set; } = new double[] { 1, 2, 3, 4, 5 };
@@ -315,6 +318,7 @@ namespace OpenTap.Engine.UnitTests
 
             public int Clicks;
         }
+
         
         [Test]
         public void DataInterfaceProviderTest2()
@@ -495,6 +499,18 @@ namespace OpenTap.Engine.UnitTests
                     var secondAvail = member.GetAll<IAvailableValuesAnnotation>().Last();
                     var secondAvailName = "ResourceAnnotation";
                     Assert.IsTrue(secondAvail.ToString().Contains(secondAvailName));
+                }
+
+                if (mem.Member.Name == nameof(DataInterfaceTestClass.SelectedMulti))
+                {
+                    var proxy = member.Get<IMultiSelectAnnotationProxy>();
+                    var avail = member.Get<IAvailableValuesAnnotationProxy>();
+                    proxy.SelectedValues = avail.AvailableValues;
+                    annotations.Write(testobj);
+                    Assert.IsTrue(testobj.SelectedMulti.ToHashSet().SetEquals(testobj.AvailableNumbers));
+                    proxy.SelectedValues = Array.Empty<AnnotationCollection>();
+                    annotations.Write(testobj);
+                    Assert.AreEqual(0, testobj.SelectedMulti.Count);
                 }
             }
             annotations.Write(testobj);
@@ -876,6 +892,27 @@ namespace OpenTap.Engine.UnitTests
 
             mems[0].Write();
             mems[1].Write();
+        }
+        class InputAnnotationStep : TestStep
+        {
+            public Input<Verdict> Input { get; set; } = new Input<Verdict>();
+            public override void Run() { }
+        }
+        [Test]
+        public void AnnotatedInputTest()
+        {
+            var plan = new TestPlan();
+            plan.Steps.Add(new DelayStep());
+            InputAnnotationStep step;
+            plan.Steps.Add(step = new InputAnnotationStep());
+
+            var annotation = AnnotationCollection.Annotate(step);
+            var inputMember = annotation.Get<INamedMembersAnnotation>().GetMember(TypeData.FromType(typeof(InputAnnotationStep)).GetMember(nameof(InputAnnotationStep.Input)));
+            var proxy = inputMember.Get<IAvailableValuesAnnotationProxy>();
+            proxy.SelectedValue = proxy.AvailableValues.Skip(1). FirstOrDefault(); //skip 'None'.
+            annotation.Write(step);
+
+            Assert.IsTrue(step.Input.Step == plan.Steps[0]);
         }
     }
 }
