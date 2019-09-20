@@ -373,7 +373,7 @@ namespace OpenTap.Package.UnitTests
         public void InstallFileWithMissingDependencyTest()
         {
             var def = new PackageDef();
-            def.Name = "Dummy";
+            def.Name = "Dummy2";
             def.Version = SemanticVersion.Parse("1.0");
             def.AddFile("Dummy.txt");
             def.Dependencies.Add(new PackageDependency("Missing", VersionSpecifier.Parse("1.0")));
@@ -382,7 +382,7 @@ namespace OpenTap.Package.UnitTests
             try
             {
                 int exitCode;
-                string output = RunPackageCli("install Dummy -y", out exitCode);
+                string output = RunPackageCli("install Dummy2 -y", out exitCode);
                 //Assert.AreNotEqual(0, exitCode, "Unexpected exit code");
                 StringAssert.Contains("'Missing' with a version compatible with 1.0", output);
             }
