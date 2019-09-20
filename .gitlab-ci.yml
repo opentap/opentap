@@ -110,8 +110,8 @@ TestEngine:
   needs:
      - Build-x86
   script:
-         - MSBuild OpenTAP.sln /t:restore /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /m
-         - packages/NUnit.ConsoleRunner.3.9.0/tools/nunit3-console.exe bin/Release/OpenTap.UnitTests.dll --labels=All
+         - $ErrorActionPreference = "Stop"
+         - dotnet vstest bin/Release/OpenTap.UnitTests.dll
   artifacts:
     when: always
     expire_in: 1 week
@@ -128,9 +128,9 @@ TestPackage:
   needs:
      - Build-x86
   script:
+         - $ErrorActionPreference = "Stop"
          - copy-item -r "Package.UnitTests/Packages" bin/Release
-         - MSBuild OpenTAP.sln /t:restore /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /m
-         - packages/NUnit.ConsoleRunner.3.9.0/tools/nunit3-console.exe bin/Release/OpenTap.Package.UnitTests.dll --labels=All
+         - dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll
   artifacts:
     when: always
     expire_in: 1 week
