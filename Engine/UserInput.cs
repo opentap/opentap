@@ -218,7 +218,6 @@ namespace OpenTap
                     {
                         pleaseEnter = false;
                         options = new List<string>();
-                        Console.WriteLine();
 
                         int index = 0;
                         var current_value = proxy.SelectedValue;
@@ -277,7 +276,7 @@ namespace OpenTap
                         errors = err?.Errors;
 
                         _message.Write();
-                        if (errors.Any())
+                        if (errors?.Any() == true)
                         {
                             Console.WriteLine("Unable to parse value {0}", read);
                             goto start;
