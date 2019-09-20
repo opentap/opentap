@@ -185,11 +185,14 @@ namespace OpenTap.Cli
 
                     foreach (var cmd in CliActionTree.Root.SubCommands)
                     {
-                        Console.WriteLine($"  {cmd.Name}");
-                        foreach (var subcmd in cmd.SubCommands)
+                        if (cmd.IsGroup || cmd.Type.IsBrowsable)
                         {
-                            if (subcmd.IsGroup || subcmd.Type.IsBrowsable)
-                                Console.WriteLine($"    {subcmd.Name.PadRight(22)}{(subcmd.IsGroup ? "" : subcmd.Type.Display.Description)}");
+                            Console.WriteLine($"  {cmd.Name.PadRight(22)}{(cmd.IsGroup ? "" : cmd.Type.Display.Description)}");
+                            foreach (var subcmd in cmd.SubCommands)
+                            {
+                                if (subcmd.IsGroup || subcmd.Type.IsBrowsable)
+                                    Console.WriteLine($"    {subcmd.Name.PadRight(22)}{(subcmd.IsGroup ? "" : subcmd.Type.Display.Description)}");
+                            }
                         }
                     }
                 }
