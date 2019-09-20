@@ -171,12 +171,7 @@ namespace OpenTap
                 run.WaitForCompletion();
                 execStage.UpgradeVerdict(run.Verdict);
             }
-
-            if (TapThread.Current.AbortToken.IsCancellationRequested)
-            {
-                execStage.Verdict = Verdict.Aborted;
-            }
-
+           
             Log.Debug(planRunOnlyTimer, "Test step runs finished.");
             
             return failState.Ok;
@@ -480,8 +475,9 @@ namespace OpenTap
                     eh.BeforeTestPlanExecute(tp);
                     successfulHooks.Add(eh);
                 });
-
-                return tp.DoExecute(resultListeners, metaDataParameters, stepsOverride, executionHooks);
+                TestPlanRun run = null;
+                TapThread.WithNewContext(() => run = tp.DoExecute(resultListeners, metaDataParameters, stepsOverride, executionHooks));
+                return run;
             }
             finally
             {
