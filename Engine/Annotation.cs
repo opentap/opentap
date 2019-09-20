@@ -34,23 +34,7 @@ namespace OpenTap
         object Value { get; set; }
     }
 
-    ///// <summary>
-    ///// Specifies that an annotation depends on one or more other annotation(s).
-    ///// </summary>
-    //public class AnnotationAggregatorAttribute: Attribute
-    //{
-    //    /// <summary>
-    //    /// Specifies that an annotation depends on one or more other annotation(s)
-    //    /// </summary>
-    //    /// <param name="types">Which types it depends on</param>
-    //    public AnnotationAggregatorAttribute(params Type[] types)
-    //    {
-
-    //    }
-    //}
-
     /// <summary> Specifies how available values proxies are implemented. This class should rarely be implemented. Consider implementing just IAvailableValuesAnnotation instead.</summary>
-    //[AnnotationAggregator(typeof(IAvailableValuesAnnotation))]
     public interface IAvailableValuesAnnotationProxy : IAnnotation
     {
         /// <summary> Annotated available values. </summary>
@@ -60,7 +44,6 @@ namespace OpenTap
     }
     /// <summary> Specifies how suggested value proxies are implemented. This class should rarely be implemented. Consider implementing just ISuggestedValuesAnnotation instead.</summary>
 
-    //[AnnotationAggregator(typeof(ISuggestedValuesAnnotation))]
     public interface ISuggestedValuesAnnotationProxy : IAnnotation
     {
         /// <summary>
@@ -89,9 +72,7 @@ namespace OpenTap
         IEnumerable AvailableValues { get; }
     }
 
-    /// <summary>
-    /// Defines a suggested values implementation. 
-    /// </summary>
+    /// <summary> Defines a suggested values implementation.  </summary>
     public interface ISuggestedValuesAnnotation : IAnnotation
     {
         /// <summary> The currently suggested values </summary>
@@ -154,18 +135,14 @@ namespace OpenTap
     /// <summary> Marks that an annotation reflects a member of an object. </summary>
     public interface IMemberAnnotation : IReflectionAnnotation
     {
-        /// <summary>
-        /// Gets the member.
-        /// </summary>
+        /// <summary> Gets the member. </summary>
         IMemberData Member { get; }
     }
 
     /// <summary> Reflects the type of the object value being annotated.</summary>
     public interface IReflectionAnnotation : IAnnotation
     {
-        /// <summary>
-        /// The reflection info object.
-        /// </summary>
+        /// <summary> The reflection info object. </summary>
         ITypeData ReflectionInfo { get; }
     }
 
@@ -226,8 +203,8 @@ namespace OpenTap
     /// <summary> Interface for providing annotations with a way of explaining the value. </summary>
     public interface IValueDescriptionAnnotation : IAnnotation
     {
-        /// <summary> Should return an</summary>
-        /// <returns></returns>
+        /// <summary> Description of a value. </summary>
+        /// <returns>A string describing the current value.</returns>
         string Describe();
     }
 
@@ -910,7 +887,6 @@ namespace OpenTap
     {
         double IAnnotator.Priority => 1;
 
-        //[AnnotationAggregator(typeof(IMemberAnnotation))]
         class AvailableValuesAnnotation : IAvailableValuesAnnotation
         {
             string availableValuesMember;
@@ -931,11 +907,6 @@ namespace OpenTap
             {
                 availableValuesMember = available;
                 this.annotation = annotation;
-            }
-
-            public void Annotate(AnnotationCollection anntotation)
-            {
-                //annotation.
             }
         }
         
@@ -974,7 +945,7 @@ namespace OpenTap
         }
         
         
-        class InputStepAnnotation : IAvailableValuesAnnotation, IObjectValueAnnotation
+        class InputStepAnnotation : IAvailableValuesAnnotation, IObjectValueAnnotation, IOwnedAnnotation
         {
             struct InputThing
             {
@@ -1061,20 +1032,41 @@ namespace OpenTap
 
             IInput getInput() => annotation.GetAll<IObjectValueAnnotation>().FirstOrDefault(x => x != this && x.Value is IInput)?.Value as IInput;
 
+            public void Read(object source)
+            {
+                setValue = null;
+            }
+
+            public void Write(object source)
+            {
+                if(setValue is InputThing v)
+                {
+                    var inp = getInput();
+                    if(inp != null)
+                    {
+                        inp.Step = v.Step;
+                        inp.Property = v.Member;
+                    }
+                }
+            }
+
+            InputThing? setValue = null;
+
             public object Value
             {
                 get
                 {
-                    var current = getInput();
-                    if (current == null) return null;
-                    return InputThing.FromInput(current);
+                    if(setValue.HasValue == false)
+                    {
+                        var input = getInput();
+                        if(input != null)
+                            setValue = InputThing.FromInput(input);
+                    }
+
+                    return setValue;
                 }
 
-                set {
-                    var inp = getInput();
-                    inp.Step = ((InputThing)value).Step;
-                    inp.Property = ((InputThing)value).Member;
-                }
+                set => setValue = value as InputThing?;
             }
 
             AnnotationCollection annotation;

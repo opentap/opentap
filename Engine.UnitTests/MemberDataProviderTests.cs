@@ -893,5 +893,26 @@ namespace OpenTap.Engine.UnitTests
             mems[0].Write();
             mems[1].Write();
         }
+        class InputAnnotationStep : TestStep
+        {
+            public Input<Verdict> Input { get; set; } = new Input<Verdict>();
+            public override void Run() { }
+        }
+        [Test]
+        public void AnnotatedInputTest()
+        {
+            var plan = new TestPlan();
+            plan.Steps.Add(new DelayStep());
+            InputAnnotationStep step;
+            plan.Steps.Add(step = new InputAnnotationStep());
+
+            var annotation = AnnotationCollection.Annotate(step);
+            var inputMember = annotation.Get<INamedMembersAnnotation>().GetMember(TypeData.FromType(typeof(InputAnnotationStep)).GetMember(nameof(InputAnnotationStep.Input)));
+            var proxy = inputMember.Get<IAvailableValuesAnnotationProxy>();
+            proxy.SelectedValue = proxy.AvailableValues.Skip(1). FirstOrDefault(); //skip 'None'.
+            annotation.Write(step);
+
+            Assert.IsTrue(step.Input.Step == plan.Steps[0]);
+        }
     }
 }
