@@ -543,7 +543,7 @@ namespace OpenTap.Engine.UnitTests
                     select.Selected = new object[] {avail.AvailableValues.Cast<object>().First()};
                     annotation.Write(sweep);
                     annotation.Read(sweep);
-                    Assert.AreEqual(3, select.Selected.Cast<object>().Count());
+                    Assert.AreEqual(1, select.Selected.Cast<object>().Count());
 
                     Assert.AreEqual(2, avail.AvailableValues.Cast<object>().Count()); // DelayStep only has on property.
                     select.Selected = smem.Get<IAvailableValuesAnnotation>().AvailableValues;
