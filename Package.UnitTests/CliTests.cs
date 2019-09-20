@@ -411,20 +411,24 @@ namespace OpenTap.Package.UnitTests
             Assert.IsFalse(installedAfter.Any(p => p.Name == packageName), "Package '" + packageName + "' was not uninstalled.");
         }
 
-
-
-        private static string RunPackageCli(string args, out int exitCode, string workingDir = null)
+        internal static void CreateOpenTAPPackage()
         {
+            string installDir = Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location);
             string opentapPackageXmlPath = "Packages/OpenTap/package.xml";
-            if (!File.Exists(Path.Combine(Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location), opentapPackageXmlPath)))
+            if (!File.Exists(Path.Combine(installDir, opentapPackageXmlPath)))
             {
                 // Sign package is needed to create opentap
-                string packageXml = CreateOpenTapPackageXmlWithoutSignElement("../../opentapCE.package.xml");
+                string packageXml = CreateOpenTapPackageXmlWithoutSignElement("../../opentap.x86.package.xml");
                 string createOpenTap = $"create -v {packageXml} --install -o Packages/OpenTAP.TapPackage";
-                string output = RunPackageCliWrapped(createOpenTap, out exitCode, workingDir);
+                string output = RunPackageCliWrapped(createOpenTap, out int exitCode, installDir);
                 Assert.AreEqual(0, exitCode, "Error creating OpenTAP package. Log:\n" + output);
                 File.Delete(packageXml);
             }
+        }
+
+        private static string RunPackageCli(string args, out int exitCode, string workingDir = null)
+        {
+            CreateOpenTAPPackage();
             return RunPackageCliWrapped(args, out exitCode, workingDir);
         }
 
