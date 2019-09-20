@@ -95,9 +95,18 @@ namespace OpenTap
         /// <param name="verdict"></param>
         internal void UpgradeVerdict(Verdict verdict)
         {
-            if (this.Verdict < verdict)
-                this.Verdict = verdict;
+            // locks are slow. 
+            // Hence first check if a verdict upgrade is needed, then do the actual upgrade.
+            if (Verdict < verdict)
+            {
+                lock (upgradeVerdictLock)
+                {
+                    if (Verdict < verdict)
+                        Verdict = verdict;
+                }
+            }
         }
+        readonly object upgradeVerdictLock = new object();
     }
 
     /// <summary>

@@ -345,7 +345,7 @@ namespace OpenTap.Engine.UnitTests
             var planrun = testPlan.Execute();
             ResultSettings.Current.Remove(pl);
 
-            Assert.AreEqual(0, pl.StepRuns.Count);
+            Assert.AreEqual(1, pl.StepRuns.Count);
             Assert.AreEqual(1, pl.PlanRuns.Count);
             Assert.AreEqual(Verdict.Error, pl.PlanRuns.ElementAt(0).Verdict);
         }
