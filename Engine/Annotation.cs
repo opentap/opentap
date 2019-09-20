@@ -1337,7 +1337,7 @@ namespace OpenTap
             }
         }
 
-        class BasicCollectionAnnotation : IBasicCollectionAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation
+        class BasicCollectionAnnotation : IBasicCollectionAnnotation, IOwnedAnnotation
         {
             public IEnumerable Elements { get; set; }
             IEnumerable origin;
@@ -1389,9 +1389,7 @@ namespace OpenTap
                     isWriting = false;
                 }
             }
-
-            public string Value => Elements?.Cast<object>().Count().ToString() ?? "0" ;
-
+            
             readonly AnnotationCollection annotations;
 
             public BasicCollectionAnnotation(AnnotationCollection annotations)
@@ -2162,9 +2160,9 @@ namespace OpenTap
 
                 if (type.IsPrimitive == false)
                 {
-                    annotation.Add(new BasicCollectionAnnotation(annotation));
                     if (type != typeof(String) && csharpType.ElementType != null)
                     {
+                        annotation.Add(new BasicCollectionAnnotation(annotation));
                         var innerType = csharpType.ElementType;
                         if (innerType.IsNumeric)
                         {
