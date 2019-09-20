@@ -318,6 +318,7 @@ namespace OpenTap.Engine.UnitTests
 
             public int Clicks;
         }
+
         
         [Test]
         public void DataInterfaceProviderTest2()
@@ -505,6 +506,11 @@ namespace OpenTap.Engine.UnitTests
                     var proxy = member.Get<IMultiSelectAnnotationProxy>();
                     var avail = member.Get<IAvailableValuesAnnotationProxy>();
                     proxy.SelectedValues = avail.AvailableValues;
+                    annotations.Write(testobj);
+                    Assert.IsTrue(testobj.SelectedMulti.ToHashSet().SetEquals(testobj.AvailableNumbers));
+                    proxy.SelectedValues = Array.Empty<AnnotationCollection>();
+                    annotations.Write(testobj);
+                    Assert.AreEqual(0, testobj.SelectedMulti.Count);
                 }
             }
             annotations.Write(testobj);
