@@ -11,6 +11,12 @@ namespace OpenTap.Package
 {
     internal class PackageFileSerializerPlugin : TapSerializerPlugin
     {
+        List<ICustomPackageData> plugins = null;
+        public PackageFileSerializerPlugin()
+        {
+            plugins = CustomPackageActionHelper.GetAllData();
+        }
+
         public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
         {
             if (node.Name.LocalName == "File" && t.IsA(typeof(PackageFile)))
@@ -33,15 +39,11 @@ namespace OpenTap.Package
                     }
                 }
 
-                List<ICustomPackageData> plugins = CustomPackageActionHelper.GetAllData();
-
                 foreach (XElement elm in node.Elements())
                 {
                     if (elm.Name.LocalName == "Plugins")
                     {
-                        List<PluginFile> pluginFiles = new List<PluginFile>();
-                        Serializer.Deserialize(elm, o => pluginFiles = o as List<PluginFile>, pluginFiles.GetType());
-                        packageFile.Plugins = pluginFiles;
+                        Serializer.Deserialize(elm, o => packageFile.Plugins = o as List<PluginFile>, typeof(List<PluginFile>));
                         continue;
                     }
 
@@ -51,15 +53,15 @@ namespace OpenTap.Package
                         continue;
                     }
 
-                    IEnumerable<ICustomPackageData> handlingPlugins = plugins.Where(s => s.GetType().GetDisplayAttribute().Name == elm.Name.LocalName);
+                    var handlingPlugins = plugins.Where(s => s.GetType().GetDisplayAttribute().Name == elm.Name.LocalName).ToArray();
 
 
-                    if (handlingPlugins != null && handlingPlugins.Count() > 0)
+                    if (handlingPlugins.Length > 0)
                     {
-                        if (handlingPlugins.Count() > 1)
+                        if (handlingPlugins.Length > 1)
                             Log.Warning($"Detected multiple plugins able to handle XMl tag {elm.Name.LocalName}. Unexpected behavior may occur.");
 
-                        ICustomPackageData p = handlingPlugins.FirstOrDefault();
+                        ICustomPackageData p = handlingPlugins[0];
                         if(elm.HasAttributes || !elm.IsEmpty)
                             Serializer.Deserialize(elm, o => p = (ICustomPackageData)o, p.GetType());
                         packageFile.CustomData.Add(p);

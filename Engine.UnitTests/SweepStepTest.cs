@@ -262,10 +262,88 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void RepeatWithReferenceOutsideStep()
         {
-            var stream = File.OpenRead("TestTestPlans\\whiletest.TapPlan");
+            var stream = File.OpenRead("TestTestPlans/whiletest.TapPlan");
             TestPlan plan = (TestPlan)new TapSerializer().Deserialize(stream, type: TypeData.FromType(typeof(TestPlan)));
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Pass, run.Verdict);
         }
+
+        [Test]
+        public void SweepRaceBug()
+        {
+            // test that validation rules can be checked while the test plan is running
+            // without causing an error. The validation rules does not need to do actual validation
+            // but since SweepLoop and SweepLoopRange modifies its child steps this could cause an error
+            // as shown by SweepRaceBugCheckStep and SweepRaceBugStep.
+            var plan = new TestPlan();
+            var repeat = new RepeatStep { Count =  10, Action = RepeatStep.RepeatStepAction.Fixed_Count};
+            var loop = new SweepLoop();
+            repeat.ChildTestSteps.Add(loop);
+            loop.ChildTestSteps.Add(new SweepRaceBugStep(){});
+            loop.ChildTestSteps.Add(new SweepRaceBugCheckStep(){ });
+            var steptype = TypeData.FromType(typeof(SweepRaceBugStep)); 
+            var member = steptype.GetMember(nameof(SweepRaceBugStep.Frequency));
+            var member2 = TypeData.FromType(typeof(SweepRaceBugCheckStep)).GetMember(nameof(SweepRaceBugCheckStep.Frequency2));
+
+            var lst = new List<SweepParam>();
+            double[] values = new double[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+            lst.Add(new SweepParam(new[] { member}, values.Cast<object>().ToArray()));
+            lst.Add(new SweepParam(new[] { member2 }, values.Cast<object>().ToArray()));
+            loop.SweepParameters = lst;
+
+            var loopRange = new SweepLoopRange();
+            loopRange.SweepProperties = new List<IMemberData> { member, member2 };
+            loopRange.SweepStart = 1;
+            loopRange.SweepEnd = 10;
+            loopRange.SweepPoints = 10;
+            loopRange.ChildTestSteps.Add(new SweepRaceBugStep() { });
+            loopRange.ChildTestSteps.Add(new SweepRaceBugCheckStep() { });
+            var repeat2 = new RepeatStep { Count = 10, Action = RepeatStep.RepeatStepAction.Fixed_Count };
+            
+            repeat2.ChildTestSteps.Add(loopRange);
+            var parallel = new ParallelStep();
+            plan.ChildTestSteps.Add(parallel);
+            parallel.ChildTestSteps.Add(repeat);
+            parallel.ChildTestSteps.Add(repeat2);
+
+            TestPlanRun run = null;
+            TapThread.Start(() => run = plan.Execute());
+            TapThread.Start(() =>
+            {
+                while (run == null)
+                {
+                    loopRange.Error.ToList();
+                }
+            });
+            while(run == null)
+            {
+                loop.Error.ToList();
+            }
+            
+            Assert.AreEqual(Verdict.NotSet, run.Verdict);
+       }
+
+        public class SweepRaceBugStep : TestStep
+        {
+            public double Frequency { get; set; }
+            public double SharedFrequency { get; set; }
+            public bool Check { get; set; }
+            public override void Run()
+            {
+                SharedFrequency = Frequency;   
+            }
+        }
+        public class SweepRaceBugCheckStep : TestStep
+        {
+            public double Frequency2 { get; set; }
+            public override void Run()
+            {
+                
+                if ((Parent.ChildTestSteps[0] as SweepRaceBugStep).SharedFrequency != Frequency2)
+                    throw new Exception("Error occured");
+                
+            }
+        }
+
     }
 }

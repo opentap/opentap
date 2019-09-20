@@ -193,8 +193,8 @@ namespace OpenTap.Engine.UnitTests
 
                 ms.Seek(0, SeekOrigin.Begin);
 
-                TestPlan deserialized = TestPlan.Load(ms, target.Path);
-                var step = deserialized.ChildTestSteps.First() as TimespanStep;
+                TestPlan deserialized = TestPlan.Load(ms, null);
+                var step = (TimespanStep)deserialized.ChildTestSteps.First();
 
                 Assert.AreNotEqual(null, step, "Expected step");
                 Assert.AreEqual(targetStep.TestProp, step.TestProp);
@@ -944,7 +944,7 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void DeserializeLegacyTapPlan()
         {
-            var stream = File.OpenRead("TestTestPlans\\FiveDelays.TapPlan");
+            var stream = File.OpenRead("TestTestPlans/FiveDelays.TapPlan");
             TestPlan plan = (TestPlan)new TapSerializer().Deserialize(stream, type: TypeData.FromType(typeof(TestPlan)));
 
             var childSteps = plan.ChildTestSteps.OfType<DelayStep>().ToArray();
@@ -963,8 +963,8 @@ namespace OpenTap.Engine.UnitTests
                 var ser = new TapSerializer();
 
                 ser.GetSerializer<Plugins.ExternalParameterSerializer>()
-                    .PreloadedValues["path1"] = "TestTestPlans\\testReferencedPlan3.TapPlan";
-                TestPlan plan = (TestPlan)ser.DeserializeFromFile("TestTestPlans\\testMultiReferencePlan.TapPlan");
+                    .PreloadedValues["path1"] = "TestTestPlans/testReferencedPlan3.TapPlan";
+                TestPlan plan = (TestPlan)ser.DeserializeFromFile("TestTestPlans/testMultiReferencePlan.TapPlan");
 
                 // The last step is a SetVerdict step, which points into the last TestPlanReferenceStep.
                 // inside that there should be a SetVerdict that results in an inconclusive verdict.

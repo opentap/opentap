@@ -277,6 +277,7 @@ namespace OpenTap
                 bf = _bf;
                 return true;
             }
+            bf = default(BigFloat);
 
             return false;
 

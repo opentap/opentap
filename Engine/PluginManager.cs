@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Diagnostics;
 using System.Collections.ObjectModel;
 using System.Collections.Concurrent;
+using System.Threading;
 using System.Threading.Tasks;
 using Tap.Shared;
 
@@ -21,8 +22,8 @@ namespace OpenTap
     public static class PluginManager
     {
         private static readonly TraceSource log = Log.CreateSource("PluginManager");
-        private static Task<PluginSearcher> searchTask;
-        static object implicitSearchLock = new object();
+        private static ManualResetEventSlim searchTask = new ManualResetEventSlim(true);
+        private static PluginSearcher searcher;
         static TapAssemblyResolver assemblyResolver;
 
         /// <summary>
@@ -78,17 +79,17 @@ namespace OpenTap
         {
             public static ReadOnlyCollection<Type> GetPlugins(Type pluginBaseType)
             {
-
-                if (searchTask == null ||  lastUsedSearcher != searchTask.Result)
+                
+                if (searcher == null ||  lastUsedSearcher != searcher)
                 {
                     lock (pluginsSelection)
                     {
                         if (searchTask == null)
-                            SearchAsync(); // if a search has not yet been started, do it now.
+                            Search(); // if a search has not yet been started, do it now.
 
-                        if (lastUsedSearcher != searchTask.Result)
+                        if (lastUsedSearcher != searcher)
                         {
-                            lastUsedSearcher = searchTask.Result;
+                            lastUsedSearcher = searcher;
                             pluginsSelection.InvalidateAll();
                         }
                     }
@@ -102,7 +103,7 @@ namespace OpenTap
                     throw new ArgumentNullException("pluginBaseType");
 
                 
-                PluginSearcher searcher = searchTask.Result; // Wait for the search to complete (and get the result)
+                PluginSearcher searcher = GetSearcher(); // Wait for the search to complete (and get the result)
                 var unloadedPlugins = PluginManager.GetPlugins(searcher, pluginBaseType.FullName);
                 if (unloadedPlugins.Count == 0)
                     return emptyTypes;
@@ -156,19 +157,25 @@ namespace OpenTap
             }
             return specializations;
         }
-        
+        static object startSearcherLock = new object();
         /// <summary>
         /// Returns the <see cref="PluginSearcher"/> used to search for plugins.
         /// This will search for plugins if not done already (i.e. call and wait for <see cref="PluginManager.SearchAsync()"/>)
         /// </summary>
         public static PluginSearcher GetSearcher()
         {
-            lock (implicitSearchLock)
+            
+            searchTask.Wait();
+            if (searcher == null)
             {
-                if (searchTask == null)
-                    SearchAsync(); // if a search has not yet been started, do it now.
+                // If the search task has not been started, do it now.
+                lock (startSearcherLock)
+                {
+                    if(searcher == null)
+                        Search();
+                }
             }
-            return searchTask.Result; // Wait for the search to complete (and get the result)
+            return searcher; // Wait for the search to complete (and get the result)
         }
 
         /// <summary>
@@ -195,13 +202,40 @@ namespace OpenTap
         /// </remarks>
         /// <typeparam name="BaseType">find types that descends from this type.</typeparam>
         /// <returns>A read-only collection of types.</returns>
-        public static ReadOnlyCollection<System.Type> GetPlugins<BaseType>()
+        public static ReadOnlyCollection<Type> GetPlugins<BaseType>()
         {
-            return GetPlugins(typeof(BaseType));
+            return StaticPluginTypeCache<BaseType>.Get();
+        }
+
+        /// <summary>
+        /// Cache structure to lock-free optimize BaseType type lookups. 
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        class StaticPluginTypeCache<T>
+        {
+            static ReadOnlyCollection<Type> list;
+            static int changeid = 0;
+
+            public static ReadOnlyCollection<Type> Get()
+            {
+                var changeIdNew = PluginManager.ChangeID;
+                if (changeid != changeIdNew)
+                {
+                    list = null;
+                }
+
+                if (list == null)
+                {
+                    list = GetPlugins(typeof(T));
+                    changeid = changeIdNew;
+                }
+
+                return list;
+            }
         }
         
         /// <summary>
-        /// Gets the AssembliyData for the OpenTap.dll assembly.
+        /// Gets the AssemblyData for the OpenTap.dll assembly.
         /// This will search for plugins if not done already (i.e. call and wait for <see cref="PluginManager.SearchAsync()"/>)
         /// </summary>
         public static AssemblyData GetOpenTapAssembly()
@@ -218,25 +252,34 @@ namespace OpenTap
         /// </summary>
         public static Task SearchAsync()
         {
-
-            searchTask = Task<PluginSearcher>.Run(() =>
-            {
-                assemblyResolver.Invalidate(DirectoriesToSearch);
-                try
-                {
-                    List<string> fileNames = assemblyResolver.FileFinder.AllAssemblies().ToList();
-                    return SearchAndAddToStore(fileNames);
-                }
-                catch (Exception e)
-                {
-                    log.Error("Caught exception while searching for plugins: '{0}'", e.Message);
-                    log.Debug(e);
-                    return null;
-                }
-            });
-
-            return searchTask;
+            searchTask.Reset();
+            ChangeID++;
+            TapThread.Start(Search);  
+            return Task.Run(() => GetSearcher());
         }
+        
+        ///<summary>Searches for plugins.</summary>
+        public static void Search(){
+            searchTask.Reset();
+            assemblyResolver.Invalidate(DirectoriesToSearch);
+            ChangeID++;
+            try
+            {
+                IEnumerable<string> fileNames = assemblyResolver.FileFinder.AllAssemblies();
+                searcher = SearchAndAddToStore(fileNames);
+            }
+            catch (Exception e)
+            {
+                log.Error("Caught exception while searching for plugins: '{0}'", e.Message);
+                log.Debug(e);
+                searcher = null;
+            }
+            finally
+            {
+                searchTask.Set();
+            }
+        }
+
 
         /// <summary>
         /// This method is required to redirect searches for certain assemblies, in case they are not the same version number.
@@ -404,6 +447,7 @@ namespace OpenTap
 
         #region Version ResultParameters
         static Memorizer<Assembly, ResultParameter> AssemblyVersions = new Memorizer<Assembly, ResultParameter>(GetVersionResultParameter) { SoftSizeDecayTime = TimeSpan.FromDays(10) };
+        static int ChangeID = 0;
 
         private static ResultParameter GetVersionResultParameter(Assembly assembly)
         {

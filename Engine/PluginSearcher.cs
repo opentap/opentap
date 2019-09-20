@@ -471,7 +471,9 @@ namespace OpenTap
                                 string displayDescription = GetStringIfNotNull(valueString.FixedArguments[1].Value);
                                 string displayGroup = GetStringIfNotNull(valueString.FixedArguments[2].Value);
                                 double displayOrder = double.Parse(GetStringIfNotNull(valueString.FixedArguments[3].Value));
-                                DisplayAttribute attrInstance = new DisplayAttribute(displayName, displayDescription, displayGroup, displayOrder);
+                                bool displayCollapsed = bool.Parse(GetStringIfNotNull(valueString.FixedArguments[4].Value));
+                                string[] displayGroups = GetStringArrayIfNotNull(valueString.FixedArguments[5].Value);
+                                DisplayAttribute attrInstance = new DisplayAttribute(displayName, displayDescription, displayGroup, displayOrder, displayCollapsed, displayGroups);
                                 plugin.Display = attrInstance;
                             }
                             break;
@@ -521,6 +523,13 @@ namespace OpenTap
             if (obj == null)
                 return null;
             return obj.ToString();
+        }
+
+        private static string[] GetStringArrayIfNotNull(object obj)
+        {
+            if (obj == null)
+                return null;
+            return (obj as IEnumerable<CustomAttributeTypedArgument<TypeData>>).Select(o => o.Value.ToString()).ToArray();
         }
 
         /// <summary>
@@ -979,6 +988,8 @@ namespace OpenTap
                         verString = pv.ToString(3);
                     else if(Version.TryParse(FileVersionInfo.GetVersionInfo(asm.Location).FileVersion, out Version fv))
                         verString = fv.ToString(3);
+                    else
+                        verString = "0.0.0";
 
                 }
                 if (String.IsNullOrEmpty(verString) || !SemanticVersion.TryParse(verString, out ver))

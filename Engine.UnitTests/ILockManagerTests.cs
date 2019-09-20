@@ -4,6 +4,7 @@ using OpenTap.Plugins.BasicSteps;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -235,40 +236,72 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(step1.GetType().GetProperty("Instrument1"), arg1.First().References.First().Property, "ResourceReference references unexpected property.");
             Assert.AreEqual(step1.GetType().GetProperty("Instrument2"), arg1.Last().References.First().Property, "ResourceReference references unexpected property.");
         }
-
-        [TestCase(typeof(LazyResourceManager), typeof(OperationCanceledException), Verdict.Aborted)]
-        [TestCase(typeof(LazyResourceManager), typeof(Exception),Verdict.Error)]
-        [TestCase(typeof(ResourceTaskManager), typeof(OperationCanceledException), Verdict.Aborted)]
-        [TestCase(typeof(ResourceTaskManager), typeof(Exception), Verdict.Error)]
-        public void BeforeOpenExceptionTest(Type managerType, Type exceptionType, Verdict expectedVerdict)
+        
+        [TestCase(typeof(LazyResourceManager), typeof(OperationCanceledException), Verdict.Aborted, false)]
+        [TestCase(typeof(LazyResourceManager), typeof(Exception), Verdict.Error, false)]
+        [TestCase(typeof(ResourceTaskManager), typeof(OperationCanceledException), Verdict.Aborted, false)]
+        [TestCase(typeof(ResourceTaskManager), typeof(Exception), Verdict.Error, false)]
+        [TestCase(typeof(LazyResourceManager), typeof(OperationCanceledException), Verdict.Aborted, true)]
+        [TestCase(typeof(LazyResourceManager), typeof(Exception), Verdict.Error, true)]
+        [TestCase(typeof(ResourceTaskManager), typeof(OperationCanceledException), Verdict.Aborted, true)]
+        [TestCase(typeof(ResourceTaskManager), typeof(Exception), Verdict.Error, true)]
+        public void BeforeOpenExceptionTest(Type managerType, Type exceptionType, Verdict expectedVerdict, bool withParallel)
         {
             EngineSettings.Current.ResourceManagerType = (IResourceManager)Activator.CreateInstance(managerType);
             IInstrument instr1 = new SomeInstrument() { Name = "INSTR1" };
             InstrumentSettings.Current.Add(instr1);
-            TestPlan plan = new TestPlan();
-            ITestStep step1 = new InstrumentTestStep() { Instrument = instr1 };
-            plan.Steps.Add(step1);
-            UnitTestingLockManager.Enable();
-            UnitTestingLockManager.BeforeOpenEffect = r => throw (Exception)Activator.CreateInstance(exceptionType,new string[] { "Custom exception message" });
-            var logListener = new TestTraceListener();
-            Log.AddListener(logListener);
             try
             {
-                var run = plan.Execute();
-                Assert.AreEqual(expectedVerdict, run.Verdict);
+                TestPlan plan = new TestPlan();
+                ITestStep step1 = new InstrumentTestStep() { Instrument = instr1 };
+                if (withParallel)
+                {
+                    var par = new ParallelStep();
+                    par.ChildTestSteps.Add(step1);
+                    step1 = par;
+                }
+                plan.Steps.Add(step1);
+                ITestStep lastStep = new LogStep() { Name="Last Step", LogMessage="Last Step Ran" };
+                plan.Steps.Add(lastStep);
+                UnitTestingLockManager.Enable();
+                UnitTestingLockManager.BeforeOpenEffect = r => throw (Exception)Activator.CreateInstance(exceptionType, new string[] { "Custom exception message" });
+                var logListener = new TestTraceListener();
+                Log.AddListener(logListener);
+                //string logFileName = Path.Combine(Path.GetDirectoryName(PluginManager.GetOpenTapAssembly().Location), $"BeforeOpenExceptionTest({managerType},{exceptionType},{withParallel}).txt");
+                //if (File.Exists(logFileName)) File.Delete(logFileName);
+                //var fileListener = new FileTraceListener(logFileName);
+                //Log.AddListener(fileListener);
+                try
+                {
+                    var run = plan.Execute();
+                    Assert.AreEqual(expectedVerdict, run.Verdict);
+                }
+                finally
+                {
+                    Log.RemoveListener(logListener);
+                    //Log.RemoveListener(fileListener);
+                    UnitTestingLockManager.Disable();
+                }
+
+                // We should have the custom exception message in the log
+                StringAssert.Contains("Custom exception message", logListener.GetLog());
+
+                if (expectedVerdict == Verdict.Error)
+                    StringAssert.IsMatch(": Error .+Custom exception message", logListener.GetLog());
+                else
+                    StringAssert.IsMatch(": Warning .+Custom exception message", logListener.GetLog());
+
+                // The last step should not have run:
+                if(exceptionType == typeof(OperationCanceledException))
+                    StringAssert.DoesNotContain("Last Step Ran", logListener.GetLog());
+                
             }
             finally
             {
-                Log.RemoveListener(logListener);
-                UnitTestingLockManager.Disable();
+                InstrumentSettings.Current.Remove(instr1);
             }
-            StringAssert.Contains("Custom exception message", logListener.GetLog());
-            if(expectedVerdict == Verdict.Error)
-                StringAssert.IsMatch(": Error .+Custom exception message", logListener.GetLog());
-            else
-                StringAssert.IsMatch(": Warning .+Custom exception message", logListener.GetLog());
-
         }
+
 
         [TestCase(typeof(LazyResourceManager), 3)]
         [TestCase(typeof(ResourceTaskManager), 1)]

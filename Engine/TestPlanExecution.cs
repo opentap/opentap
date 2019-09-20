@@ -152,19 +152,17 @@ namespace OpenTap
                 var step = steps[i];
                 if (step.Enabled == false) continue;
                 var run = step.DoRun(execStage, null);
-
+                if (!run.Skipped)
+                    runs.Add(run);
                 // note: The following is copied inside TestStep.cs
-                if (run.SuggestedNextStep != null)
+                if (run.SuggestedNextStep is Guid id)
                 {
-                    int nextindex = steps.IndexWhen(x => x.Id == run.SuggestedNextStep);
+                    int nextindex = steps.IndexWhen(x => x.Id == id);
                     if (nextindex >= 0)
                         i = nextindex - 1;
                     // if skip to next step, dont add it to the wait queue.
                 }
-                else
-                {
-                    runs.Add(run);
-                }
+                
             }
 
             // Now wait for them to actually complete. They might defer internally.
@@ -173,12 +171,7 @@ namespace OpenTap
                 run.WaitForCompletion();
                 execStage.UpgradeVerdict(run.Verdict);
             }
-
-            if (TapThread.Current.AbortToken.IsCancellationRequested)
-            {
-                execStage.Verdict = Verdict.Aborted;
-            }
-
+           
             Log.Debug(planRunOnlyTimer, "Test step runs finished.");
             
             return failState.Ok;
@@ -482,8 +475,9 @@ namespace OpenTap
                     eh.BeforeTestPlanExecute(tp);
                     successfulHooks.Add(eh);
                 });
-
-                return tp.DoExecute(resultListeners, metaDataParameters, stepsOverride, executionHooks);
+                TestPlanRun run = null;
+                TapThread.WithNewContext(() => run = tp.DoExecute(resultListeners, metaDataParameters, stepsOverride, executionHooks));
+                return run;
             }
             finally
             {

@@ -1,105 +1,30 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(SolutionDir)packages\NUnit3TestAdapter.3.12.0\build\net35\NUnit3TestAdapter.props" Condition="Exists('$(SolutionDir)packages\NUnit3TestAdapter.3.12.0\build\net35\NUnit3TestAdapter.props')" />
-  <Import Project="$(SolutionDir)packages\LibGit2Sharp.NativeBinaries.1.0.252\build\net461\LibGit2Sharp.NativeBinaries.props" Condition="Exists('$(SolutionDir)packages\LibGit2Sharp.NativeBinaries.1.0.252\build\net461\LibGit2Sharp.NativeBinaries.props')" />
-  <Import Project="$(SolutionDir)packages\NUnit.3.11.0\build\NUnit.props" Condition="Exists('$(SolutionDir)packages\NUnit.3.11.0\build\NUnit.props')" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="../Common.Exe.targets"/>
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{0875C7B8-47A5-4CF5-A6CA-8B2367D87799}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>OpenTap.Package.UnitTests</RootNamespace>
     <AssemblyName>OpenTap.Package.UnitTests</AssemblyName>
-    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <ProjectTypeGuids>{3AC096D0-A1C2-E12C-1390-A8335801FDAB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
-    <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
-    <VSToolsPath Condition="'$(VSToolsPath)' == ''">$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)</VSToolsPath>
-    <ReferencePath>$(ProgramFiles)\Common Files\microsoft shared\VSTT\$(VisualStudioVersion)\UITestExtensionPackages</ReferencePath>
-    <IsCodedUITest>False</IsCodedUITest>
-    <TestProjectType>UnitTest</TestProjectType>
-    <NuGetPackageImportStamp>
-    </NuGetPackageImportStamp>
+    <RootNamespace>OpenTap.Package.UnitTests</RootNamespace>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>$(SolutionDir)bin\Debug\</OutputPath>
-    <DefineConstants>TRACE;DEBUG;KEYSIGHT_INTERNAL</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <LangVersion>7</LangVersion>
-    <PlatformTarget>x86</PlatformTarget>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>$(SolutionDir)bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
+  
   <ItemGroup>
-    <Reference Include="LibGit2Sharp, Version=0.25.0.0, Culture=neutral, PublicKeyToken=7cbde695407f0333, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)packages\LibGit2Sharp.0.25.4\lib\netstandard2.0\LibGit2Sharp.dll</HintPath>
-    </Reference>
-    <Reference Include="nunit.framework, Version=3.11.0.0, Culture=neutral, PublicKeyToken=2638cd05610744eb, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)packages\NUnit.3.11.0\lib\net45\nunit.framework.dll</HintPath>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.ValueTuple, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>$(SolutionDir)packages\System.ValueTuple.4.5.0\lib\net461\System.ValueTuple.dll</HintPath>
-    </Reference>
-    <Reference Include="System.Xml" />
-    <Reference Include="System.Xml.Linq" />
-  </ItemGroup>
-  <Choose>
-    <When Condition="('$(VisualStudioVersion)' == '10.0' or '$(VisualStudioVersion)' == '') and '$(TargetFrameworkVersion)' == 'v3.5'">
-      <ItemGroup>
-        <Reference Include="Microsoft.VisualStudio.QualityTools.UnitTestFramework, Version=10.1.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL" />
-      </ItemGroup>
-    </When>
-    <Otherwise />
-  </Choose>
-  <ItemGroup>
-    <Compile Include="CliTests.cs" />
-    <Compile Include="GitHelperTests.cs" />
-    <Compile Include="IVersionConverterTests.cs" />
-    <Compile Include="PackageDefLoadSaveCompare.cs" />
-    <Compile Include="PackageDefTests.cs" />
-    <Compile Include="PackageFileTest.cs" />
-    <Compile Include="PackageManagerTests.cs" />
-    <Compile Include="PluginInstallerTests.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Resources.cs" />
+    <ProjectReference Include="..\BasicSteps\Tap.Plugins.BasicSteps.csproj" />
+    <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
+    <ProjectReference Include="..\Engine.UnitTests\Tap.Engine.UnitTests.csproj" />
+    <ProjectReference Include="..\Package\Tap.Package.csproj" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.9.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="2.10.0" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
+    <PackageReference Include="Nunit" Version="3.11.0" />
+    <PackageReference Include="Nunit.ConsoleRunner" Version="3.9.0"/>
+    <PackageReference Include="Nunit3TestAdapter" Version="3.12.0" />
+    <PackageReference Include="System.CodeDom" Version="4.5.0" />
+
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\BasicSteps\Tap.Plugins.BasicSteps.csproj">
-      <Project>{3473f513-e8a9-41a0-8d31-9ad03a69455a}</Project>
-      <Name>Tap.Plugins.BasicSteps</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Engine\Tap.Engine.csproj">
-      <Project>{62a89e1f-75b9-431c-998f-05693958c3da}</Project>
-      <Name>Tap.Engine</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Package\Tap.Package.csproj">
-      <Project>{616cf48e-0087-4105-89d3-fb6ef625bf45}</Project>
-      <Name>Tap.Package</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config">
-      <SubType>Designer</SubType>
-    </None>
     <None Include="TapPackages\MyPlugin1.TapPackage">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <EmbeddedResource Include="ExamplePackage.xml" />
-    <Content Include="Packages\DependencyTest.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
     <Content Include="Packages\Test.package.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
@@ -154,8 +79,6 @@
     <None Include="TapPackages\REST-API.1.1.180-rc+cbe0b1c4.TapPackages">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-  <ItemGroup>
     <Content Include="TapPackages\MyPlugin2.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -165,8 +88,6 @@
     <Content Include="TapPackages\Tap.7.0.0.0.x64.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-  </ItemGroup>
-  <ItemGroup>
     <None Include="TapPackages\MyPlugin3.TapPackage">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -174,21 +95,4 @@
   <ItemGroup>
     <Folder Include="Keysight\Tap\" />
   </ItemGroup>
-  <Import Project="$(VSToolsPath)\TeamTest\Microsoft.TestTools.targets" Condition="Exists('$(VSToolsPath)\TeamTest\Microsoft.TestTools.targets')" />
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
-    <PropertyGroup>
-      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
-    </PropertyGroup>
-    <Error Condition="!Exists('$(SolutionDir)packages\NUnit.3.11.0\build\NUnit.props')" Text="$([System.String]::Format('$(ErrorText)', '$(SolutionDir)packages\NUnit.3.11.0\build\NUnit.props'))" />
-    <Error Condition="!Exists('$(SolutionDir)packages\LibGit2Sharp.NativeBinaries.1.0.252\build\net461\LibGit2Sharp.NativeBinaries.props')" Text="$([System.String]::Format('$(ErrorText)', '$(SolutionDir)packages\LibGit2Sharp.NativeBinaries.1.0.252\build\net461\LibGit2Sharp.NativeBinaries.props'))" />
-    <Error Condition="!Exists('$(SolutionDir)packages\NUnit3TestAdapter.3.12.0\build\net35\NUnit3TestAdapter.props')" Text="$([System.String]::Format('$(ErrorText)', '$(SolutionDir)packages\NUnit3TestAdapter.3.12.0\build\net35\NUnit3TestAdapter.props'))" />
-  </Target>
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
 </Project>

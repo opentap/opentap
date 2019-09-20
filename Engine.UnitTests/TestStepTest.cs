@@ -9,6 +9,7 @@ using System.ComponentModel;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
 using OpenTap;
+using OpenTap.Engine.UnitTests.TestTestSteps;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -361,6 +362,14 @@ namespace OpenTap.Engine.UnitTests
             LoopStep step = new LoopStep();
             step.ChildTestSteps.Add(new AutomationStep());
         }
+
+        [Test]
+        public void TestGuid()
+        {
+            var a = new DelayStep();
+            var b = new DelayStep();
+            Assert.AreNotEqual(a.Id, b.Id);
+        }
     }
 
     [TestFixture]
@@ -436,6 +445,26 @@ namespace OpenTap.Engine.UnitTests
             {
                 System.Threading.Thread.CurrentThread.CurrentCulture = culture;
             }
+        }
+
+        [Test]
+        public void ContinueLoop()
+        {
+            var sequence = new SequenceStep();
+            var verdict1 = new VerdictStep {VerdictOutput = Verdict.Pass};
+            var ifstep = new IfStep() {Action = IfStep.IfStepAction.ContinueLoop, TargetVerdict = Verdict.Pass};
+            ifstep.InputVerdict.Property = TypeData.GetTypeData(verdict1).GetMember(nameof(VerdictStep.Verdict));
+            ifstep.InputVerdict.Step = verdict1;
+            var verdict2 = new VerdictStep() {VerdictOutput = Verdict.Fail};
+            sequence.ChildTestSteps.Add(verdict1);
+            sequence.ChildTestSteps.Add(ifstep); // instructed to skip the last verdict step
+            sequence.ChildTestSteps.Add(verdict2); // if this step runs the plan will get the verdict 'fail'.
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(sequence);
+
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, run.Verdict);
+
         }
 
     }

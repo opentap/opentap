@@ -268,6 +268,60 @@ namespace OpenTap
             return new ResultParameters(componentSettings.SelectMany(GetMetadataFromObject).ToArray());// get metadata from each.
         }
 
+        
+        /// <summary>
+        /// Lazily pull result parameters from component settings. Reduces the number of component settings XML that needs to be deserialized.
+        /// </summary>
+        /// <param name="includeObjects">If objects in componentsettingslists should be included.</param>
+        /// <returns></returns>
+        internal static IEnumerable<ResultParameters> GetComponentSettingsMetadataLazy(bool includeObjects)
+        {
+            TypeData engineSettingsType = TypeData.FromType(typeof(EngineSettings));
+            AssemblyData engineAssembly = engineSettingsType.Assembly;
+
+            int orderer(TypeData tp)
+            {
+                // always start with EngineSettings
+                // prefer engine assemblies 
+                // then loaded assemblies
+                // then everything else.
+                if (tp == engineSettingsType)
+                    return 3;
+                if (tp.Assembly == engineAssembly)
+                    return 2;
+                if (tp.Assembly.Status == LoadStatus.Loaded)
+                    return 1;
+                return 0;
+            }
+
+            var types = TypeData.FromType(typeof(ComponentSettings))
+                .DerivedTypes.OrderByDescending(orderer).ToArray();
+
+            foreach (var tp in types)
+            {
+                var t = tp.Load();
+                var componentSetting = ComponentSettings.GetCurrent(t);
+                if (componentSetting != null)
+                {
+                    yield return GetMetadataFromObject(componentSetting);
+                }
+            }
+            if (includeObjects == false) yield break;
+            foreach (var tp in types)
+            {
+                var t = tp.Load();
+                var componentSetting = ComponentSettings.GetCurrent(t);
+                if(componentSetting is IEnumerable elements)
+                {
+                    foreach(var elem in elements)
+                    {
+                        yield return GetMetadataFromObject(elem);
+                    }
+                }
+            }
+        }
+
+
         /// <summary>
         /// Adds a new parameter to the resultParams list. if the parameter value is of the type Resource, every parameter from it is added, but not the origin object.
         /// </summary>

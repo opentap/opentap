@@ -215,11 +215,7 @@ namespace OpenTap
                     kw.Value.Wait();
                 }
             }
-            if (MainThread.AbortToken.IsCancellationRequested)
-                Verdict = Verdict.Aborted;
         }
-
-        
 
         /// <summary>
         /// Returns the number of threads queued.
@@ -320,6 +316,7 @@ namespace OpenTap
 
         internal void AddTestStepRunCompleted(TestStepRun stepRun)
         {
+            UpgradeVerdict(stepRun.Verdict);
             var instant = Stopwatch.GetTimestamp();
             
             ScheduleInResultProcessingThread<IResultListener>(listener =>

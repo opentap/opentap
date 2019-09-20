@@ -19,7 +19,6 @@ using System.Runtime.CompilerServices;
 namespace OpenTap
 {
     /// <summary>
-    /// An abstract class for TestSteps. 
     /// All TestSteps that are instances of the TestStep abstract class should override the <see cref="TestStep.Run"/> method. 
     /// Additionally, the  <see cref="TestStep.PrePlanRun"/> and <see cref="TestStep.PostPlanRun"/> methods can be overridden.
     /// </summary>
@@ -27,12 +26,10 @@ namespace OpenTap
     /// <see cref="ITestStep"/> can also be inherited from instead.
     /// </remarks>
     [ComVisible(true)]
-    //[ClassInterface(ClassInterfaceType.AutoDual)]
     [Guid("d0b06600-7bac-47fb-9251-f834e420623f")]
     public abstract class TestStep : ValidatingObject, ITestStep
     {
         #region Properties
-        private Verdict _Verdict = Verdict.NotSet;
         /// <summary>
         /// Gets or sets the verdict. Only available during test step run. 
         /// The value of this property will be propagated to the TestStepRun when the step run completes.
@@ -41,11 +38,7 @@ namespace OpenTap
         [ColumnDisplayName(Order : -99, IsReadOnly : true)]
         [XmlIgnore]
         [Output]
-        public Verdict Verdict
-        {
-            get { return _Verdict; }
-            set { _Verdict = value; }
-        }
+        public Verdict Verdict { get; set; }
 
         bool enabled = true;
         /// <summary>
@@ -55,7 +48,7 @@ namespace OpenTap
         [Display("Enabled", Group: "Common", Order: 20000, Collapsed: true)]
         public bool Enabled
         {
-            get { return enabled; }
+            get => enabled; 
             set
             {
                 if (enabled == value) return;
@@ -65,26 +58,29 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Gets or sets boolean indicating whether this step is readonly in the TestPlan
+        /// Gets or sets boolean indicating whether this step is read-only in the TestPlan. 
+        /// This is mostly a declaration of intent, GUIs should respect it, but few things enforces it.
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
         public bool IsReadOnly { get; set; }
 
         private string name;
-        ///  <summary>
-        ///  Name of the step intended to be read and set by the user.
-        ///  Different across instances of the same type.
+        /// <summary>
+        /// Gets or sets the name of the TestStep instance. Not allowed to be null.
+        /// In many cases the name is unique within a test plan, but this should not be assumed, use <see cref="Id"/>for an unique identifier.
+        /// May not be null.
         /// </summary>
         [ColumnDisplayName("Step Name", Order : -100)]
         [Display("Step Name", Group: "Common", Order: 20001, Collapsed: true)]
         public string Name
         {
-            get { return name; }
+            get => name;
             set
             {
                 if (value == null)
                     throw new ArgumentNullException("value", "TestStep.Name cannot be null.");
+                if (value == name) return;
                 name = value;
                 OnPropertyChanged(nameof(Name));
             }
@@ -95,10 +91,7 @@ namespace OpenTap
         /// </summary>
         [ColumnDisplayName("Step Type", Order : 1)]
         [Browsable(false)]
-        public string TypeName
-        {
-            get { return GetType().GetDisplayAttribute().GetFullName(); }
-        }
+        public string TypeName => GetType().GetDisplayAttribute().GetFullName();
 
         private TestStepList _ChildTestSteps;
         /// <summary>
@@ -108,12 +101,12 @@ namespace OpenTap
         [Browsable(false)]
         public TestStepList ChildTestSteps
         {
-            get { return _ChildTestSteps; }
+            get => _ChildTestSteps; 
             set
             {
                 _ChildTestSteps = value;
                 _ChildTestSteps.Parent = this;
-                OnPropertyChanged("ChildTestSteps");
+                OnPropertyChanged(nameof(ChildTestSteps));
             }
         }
         
@@ -132,10 +125,7 @@ namespace OpenTap
         /// <summary>
         /// The enumeration of all enabled Child Steps.
         /// </summary>
-        public IEnumerable<ITestStep> EnabledChildSteps
-        {
-            get { return this.GetEnabledChildSteps(); }
-        }
+        public IEnumerable<ITestStep> EnabledChildSteps => this.GetEnabledChildSteps();
         
         /// <summary>
         /// Version of this test step.
@@ -144,7 +134,7 @@ namespace OpenTap
         [Browsable(false)]
         public string Version
         {
-            get { return this.GetType().Assembly?.GetSemanticVersion().ToString(); }
+            get => this.GetType().Assembly?.GetSemanticVersion().ToString();
             set
             {
                 var installedVersion = this.GetType().Assembly?.GetSemanticVersion();
@@ -208,7 +198,7 @@ namespace OpenTap
         public static string[] GenerateDefaultNames(Type stepType)
         {
             if (stepType == null)
-                throw new ArgumentNullException("stepType");
+                throw new ArgumentNullException(nameof(stepType));
             var disp = stepType.GetDisplayAttribute();
             return disp.Group.Append(disp.Name).ToArray();
         }
@@ -452,22 +442,10 @@ namespace OpenTap
         [XmlIgnore]
         public TestStepRun StepRun { get; set; }
 
-        #region ID
-
-        private Guid _Id = Guid.NewGuid();
-
-        /// <summary>
-        /// Unique ID used to store references to test steps. 
-        /// </summary>
+        /// <summary> Gets or sets the ID used to uniquely identify a test step within a test plan. </summary>
         [XmlAttribute("Id")]
         [Browsable(false)]
-        public Guid Id
-        {
-            get { return _Id; }
-            set { _Id = value; }
-        }
-
-        #endregion
+        public Guid Id { get; set; } = Guid.NewGuid();
     }
 
     /// <summary>
@@ -572,11 +550,11 @@ namespace OpenTap
         public static IEnumerable<TestStepRun> RunChildSteps(this ITestStep Step, TestPlanRun currentPlanRun, TestStepRun currentStepRun, IEnumerable<ResultParameter> attachedParameters, CancellationToken cancellationToken)
         {
             if (currentPlanRun == null)
-                throw new ArgumentNullException("currentPlanRun");
+                throw new ArgumentNullException(nameof(currentPlanRun));
             if (currentStepRun == null)
-                throw new ArgumentNullException("currentStepRun");
+                throw new ArgumentNullException(nameof(currentStepRun));
             if (Step == null)
-                throw new ArgumentNullException("Step");
+                throw new ArgumentNullException(nameof(Step));
             if (Step.StepRun == null)
                 throw new Exception("Cannot run child steps outside the Run method.");
 
@@ -592,21 +570,27 @@ namespace OpenTap
                     if (step.Enabled == false) continue;
 
                     var run = step.DoRun(currentPlanRun, currentStepRun, attachedParameters);
-                    
+
+                    if (!run.Skipped)
+                        runs.Add(run);
+
                     if (cancellationToken.IsCancellationRequested) break;
 
-                    // note: The following is copied inside TestPlanExecution.cs
-                    if (run.SuggestedNextStep != null)
+                    // note: The following is slightly modified from something inside TestPlanExecution.cs
+                    if (run.SuggestedNextStep is Guid id)
                     {
-                        var stepidx = steps.IndexWhen(x => x.Id == run.SuggestedNextStep);
+                        if (id == Step.Id)
+                        {
+                            // If suggested next step is the parent step, skip executing child steps.
+                            break;
+                        }
+
+                        var stepidx = steps.IndexWhen(x => x.Id == id);
                         if (stepidx != -1)
                             i = stepidx - 1;
                         // if skip to next step, dont add it to the wait queue.
                     }
-                    else
-                    {
-                        runs.Add(run);
-                    }
+                    
                     TapThread.ThrowIfAborted();
                 }
             }
@@ -711,13 +695,9 @@ namespace OpenTap
                 TestPlan.Log.Warning("OpenTAP is currently configured to abort run on verdict {0}. This can be changed in Engine Settings.", Step.Verdict);
                 planRun.MainThread.Abort(String.Format("Verdict of '{0}' was '{1}'.", Step.Name, Step.Verdict));
             }
-            else  if (Step.Verdict == Verdict.Aborted)
+            if (Step.Verdict == Verdict.Aborted)
             {
-                throw new OperationCanceledException(String.Format("Verdict of '{0}' was 'Abort'.", Step.Name), TapThread.Current.AbortToken);
-            }
-            else
-            {
-                return;
+                planRun.MainThread.Abort(String.Format("Step '{0}' was aborted.", Step.Name));
             }
         }
         
@@ -751,62 +731,75 @@ namespace OpenTap
             Step.OfferBreak(stepRun, true);
             if (stepRun.SuggestedNextStep != null) {
                 Step.StepRun = null;
+                stepRun.Skipped = true;
                 return stepRun;
             }
 
-            // Signal step is going to execute
-            planRun.ExecutionHooks.ForEach(eh => eh.BeforeTestStepExecute(Step));
-            planRun.ResourceManager.BeginStep(planRun, Step, TestPlanExecutionStage.Run, TapThread.Current.AbortToken);
+            TapThread.ThrowIfAborted(); // if an OfferBreak handler called TestPlan.Abort, abort now.
 
-            TestPlan.Log.Info(stepPath + " started.");
-
+            IResultSource resultSource = null;
             // To properly support single stepping stopwatch has to be below offerBreak
             // since OfferBreak requires a TestStepRun, this has to be re-instantiated.
             var swatch = Stopwatch.StartNew();
-
-            TapThread.ThrowIfAborted(); // if an OfferBreak handler called TestPlan.Abort, abort now.
-            stepRun.StartStepRun(); // set verdict to running, set Timestamp.
-
-            IResultSource resultSource = null;
             try
             {
-                planRun.AddTestStepRunStart(stepRun);
+                try
+                {
+                    // Signal step is going to execute
+                    planRun.ExecutionHooks.ForEach(eh => eh.BeforeTestStepExecute(Step));
 
-                if (Step is TestStep)
-                    resultSource = (Step as TestStep).Results = new ResultSource(stepRun, planRun);
+                    try
+                    {
+                        // tell result listeners the step started.
+                        planRun.ResourceManager.BeginStep(planRun, Step, TestPlanExecutionStage.Run, TapThread.Current.AbortToken);
+                        try
+                        {
+                            if (Step is TestStep _step)
+                                resultSource = _step.Results = new ResultSource(stepRun, planRun);
 
-                Step.Run();
-                TapThread.ThrowIfAborted();
-                //checkStepFailure(Step, planRun);
-            }
-            catch (ThreadAbortException)
-            {
-                if(Step.Verdict < Verdict.Aborted)
-                    Step.Verdict = Verdict.Aborted;
-                throw;
-            }
-            catch(OperationCanceledException)
-            {
-                if(Step.Verdict < Verdict.Aborted)
-                    Step.Verdict = Verdict.Aborted;
-                throw;
+                            TestPlan.Log.Info(stepPath + " started.");
+                            stepRun.StartStepRun(); // set verdict to running, set Timestamp.
+                            planRun.AddTestStepRunStart(stepRun);
+                            Step.Run();
+                            TapThread.ThrowIfAborted();
+                        }
+                        finally
+                        {
+                             planRun.AddTestStepStateUpdate(stepRun.TestStepId, stepRun, StepState.Deferred);   
+                        }
+                    }
+                    finally
+                    {
+                        planRun.ResourceManager.EndStep(Step, TestPlanExecutionStage.Run);
+                    }
+                }
+                finally
+                {
+                    planRun.ExecutionHooks.ForEach(eh => eh.AfterTestStepExecute(Step));
+                }
             }
             catch (Exception e)
             {
-                while (e is AggregateException a && a.InnerExceptions.Count == 1)
+                
+                if (e is ThreadAbortException || e is OperationCanceledException)
                 {
-                        e = a.InnerException;
+                    if (Step.Verdict < Verdict.Aborted)
+                        Step.Verdict = Verdict.Aborted;
+                    if(e.Message == new OperationCanceledException().Message)
+                        TestPlan.Log.Warning("Step '{0}' was canceled.", stepPath);
+                    else
+                        TestPlan.Log.Warning("Step '{0}' was canceled with message '{1}'.", stepPath, e.Message);
                 }
-                Step.Verdict = Verdict.Error; //use UpgradeVerdict.
-                TestPlan.Log.Error("{0} failed, moving on. The error was '{1}'.", stepPath, e.Message);
+                else
+                {
+                    Step.Verdict = Verdict.Error;
+                    TestPlan.Log.Error("{0} failed. The error was '{1}'.", stepPath, e.Message);
+                }
                 TestPlan.Log.Debug(e);
             }
             finally
             {
-                planRun.AddTestStepStateUpdate(stepRun.TestStepId, stepRun, StepState.Deferred);
-                planRun.ResourceManager.EndStep(Step, TestPlanExecutionStage.Run);
-                planRun.ExecutionHooks.ForEach(eh => eh.AfterTestStepExecute(Step));
-                
+                // if it was a ThreadAbortException we need 'finally'.
                 void completeAction(Task runTask)
                 {
                     try
@@ -815,33 +808,20 @@ namespace OpenTap
                     }
                     catch (Exception e)
                     {
-                        
-                        while (e is AggregateException a && a.InnerExceptions.Count == 1)
+                        if (e is ThreadAbortException || e is OperationCanceledException)
                         {
-                            e = a.InnerException;
-                        }
-
-                        if (e is ThreadAbortException)
-                        {
-                            if(Step.Verdict < Verdict.Aborted)
-                                Step.Verdict = Verdict.Aborted;
-                            throw;
-                        }
-
-                        if (e is OperationCanceledException e2)
-                        {
-                            TestPlan.Log.Info("Stopping TestPlan. {0}", e2.Message);
                             if (Step.Verdict < Verdict.Aborted)
                                 Step.Verdict = Verdict.Aborted;
-                            throw;
+                            if (e.Message == new OperationCanceledException().Message)
+                                TestPlan.Log.Warning("Step '{0}' was canceled.", stepPath);
+                            else
+                                TestPlan.Log.Warning("Step '{0}' was canceled with message '{1}'.", stepPath, e.Message);
                         }
-                        else if (e is AggregateException a)
+                        else
                         {
-                            if (a.InnerExceptions.Count == 1)
-                                e = a.InnerException;
+                            Step.Verdict = Verdict.Error;
+                            TestPlan.Log.Error("{0} failed. The error was '{1}'.", stepPath, e.Message);
                         }
-                        Step.Verdict = Verdict.Error; //use UpgradeVerdict.
-                        TestPlan.Log.Error("{0} failed, moving on. The error was '{1}'.", stepPath, e.Message);
                         TestPlan.Log.Debug(e);
                     }
                     finally
@@ -866,7 +846,6 @@ namespace OpenTap
                         }
 
                         planRun.AddTestStepRunCompleted(stepRun);
-
                         checkStepFailure(Step, planRun);
                     }
                 }
@@ -876,6 +855,7 @@ namespace OpenTap
                 else
                     completeAction(Task.FromResult(0));
             }
+            
             return stepRun;
         }
         internal static void CheckResources(this ITestStep Step)

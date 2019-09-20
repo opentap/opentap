@@ -2,6 +2,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -25,10 +27,25 @@ namespace OpenTap.Package
     {
         private static TraceSource log = Log.CreateSource("HttpPackageRepository");
         private const string ApiVersion = "3.0";
-        private const string MinRepoVersion = "3.0.0";
+        private VersionSpecifier MinRepoVersion = new VersionSpecifier(3, 0, 0, "", "", VersionMatchBehavior.AnyPrerelease | VersionMatchBehavior.Compatible);
         private string defaultUrl;
 
         public bool IsSilent;
+        private SemanticVersion _version;
+        public SemanticVersion Version
+        {
+            get
+            {
+                if (_version == null)
+                    CheckRepoApiVersion();
+
+                return _version;
+            }
+            private set
+            {
+                _version = value;
+            }
+        }
 
         public HttpPackageRepository(string url)
         {
@@ -141,7 +158,7 @@ namespace OpenTap.Package
             }
         }
         
-        private string downloadPackagesString(string args, string data = null, string contentType = null)
+        private string downloadPackagesString(string args, string data = null, string contentType = null, string accept = null)
         {
             string xmlText = null;
             try
@@ -149,7 +166,7 @@ namespace OpenTap.Package
                 using (WebClient wc = new WebClient())
                 {
                     wc.Proxy = WebRequest.GetSystemWebProxy();
-                    wc.Headers.Add(HttpRequestHeader.Accept, "application/xml");
+                    wc.Headers.Add(HttpRequestHeader.Accept, accept ?? "application/xml");
                     wc.Headers.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
 
                     if (data != null)
@@ -256,9 +273,11 @@ namespace OpenTap.Package
         {
             string tryDownload(string url)
             {
-                using (var wc = new WebClient())
+                using (HttpClient hc = new HttpClient())
                 {
-                    try { return wc.DownloadString(url); }
+                    hc.DefaultRequestHeaders.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
+                    hc.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/xml");
+                    try { return hc.GetStringAsync(url).Result; }
                     catch { return null; }
                 }
             }
@@ -280,8 +299,8 @@ namespace OpenTap.Package
             if (serializer.CanDeserialize(reader) == false)
                 throw new NotSupportedException($"'{defaultUrl}' is not a package repository.");
             var version = serializer.Deserialize(reader) as string;
-            if (SemanticVersion.TryParse(version, out var semver) && semver.IsCompatible(SemanticVersion.Parse(MinRepoVersion)) == false)
-                throw new NotSupportedException($"The repository '{defaultUrl}' is not supported.", new Exception($"Repository version '{semver}' is not compatible with min required version '{MinRepoVersion}'."));
+            if (SemanticVersion.TryParse(version, out _version) && MinRepoVersion.IsCompatible(_version) == false)
+                throw new NotSupportedException($"The repository '{defaultUrl}' is not supported.", new Exception($"Repository version '{Version}' is not compatible with min required version '{MinRepoVersion}'."));
         }
 
         PackageDef[] packagesFromXml(string xmlText)
@@ -402,6 +421,47 @@ namespace OpenTap.Package
                 throw new Exception($"Invalid xml from package repository at '{defaultUrl}'.");
             }
         }
+        public string[] GetPackageNames(string @class, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
+        {
+            string response;
+
+            var arg = string.Format("/{0}/GetPackageNames?class={1}", ApiVersion, Uri.EscapeDataString(@class));
+            if (compatibleWith == null || compatibleWith.Length == 0)
+                response = downloadPackagesString(arg);
+            else
+            {
+                using (Stream stream = new MemoryStream())
+                {
+                    compatibleWith = CheckCompatibleWith(compatibleWith);
+                    PackageDef.SaveManyTo(stream, ConvertToPackageDef(compatibleWith));
+                    stream.Seek(0, 0);
+                    string data = new StreamReader(stream).ReadToEnd();
+
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    response = downloadPackagesString(arg, data, "application/xml");
+                }
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            try
+            {
+                using (var ms = new MemoryStream(Encoding.UTF8.GetBytes(response)))
+                using (var tr = new StreamReader(ms))
+                {
+                    var root = XElement.Load(tr);
+                    return root.Nodes().OfType<XElement>().Select(e => e.Value).ToArray();
+                }
+            }
+            catch (XmlException)
+            {
+                log.Debug("Redirected url '{0}'", Url);
+                log.Debug(response);
+
+                throw new Exception($"Invalid xml from package repository at '{defaultUrl}'.");
+            }
+        }
 
         public PackageVersion[] GetPackageVersions(string packageName, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
@@ -439,7 +499,8 @@ namespace OpenTap.Package
 
             if (!string.IsNullOrWhiteSpace(package.Name)) endpoint = "/GetPackage/" + Uri.EscapeDataString(package.Name);
 
-            reqs.Add(string.Format("version={0}", Uri.EscapeDataString(package.Version.ToString())));
+            if (!string.IsNullOrEmpty(package.Version.ToString()))
+                reqs.Add(string.Format("version={0}", Uri.EscapeDataString(package.Version.ToString())));
             if (!string.IsNullOrWhiteSpace(package.OS))
                 reqs.Add(string.Format("os={0}", Uri.EscapeDataString(package.OS)));
             if (package.Architecture != CpuArchitecture.AnyCPU)
@@ -503,5 +564,12 @@ namespace OpenTap.Package
             return latestPackages.ToArray();
         }
         #endregion
+
+        public JObject Query(string query)
+        {
+            var response = downloadPackagesString($"/3.1/query", query, "application/json", "application/json");
+            var json = JObject.Parse(response);
+            return json;
+        }
     }
 }

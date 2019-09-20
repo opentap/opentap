@@ -341,12 +341,16 @@ namespace OpenTap
         {
             if (enumType.IsArray)
                 return enumType.GetElementType();
-
-            var ienumInterface = enumType.GetInterface("IEnumerable`1") ?? enumType;
+            var ienumInterface = enumType.GetInterface(typeof(IEnumerable<>).Name);
             if (ienumInterface != null)
                 return ienumInterface.GetGenericArguments().FirstOrDefault();
 
-            return typeof(object);
+            if(enumType.IsInterface && enumType.IsGenericType && enumType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            {
+                return enumType.GetGenericArguments().FirstOrDefault();
+            }
+
+            return null;
         }
 
         /// <summary>

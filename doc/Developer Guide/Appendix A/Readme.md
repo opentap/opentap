@@ -1,10 +1,12 @@
 Appendix A: Attribute Details
 =============================
+
 ## Display
 The **Display** attribute is the most commonly used OpenTAP attribute. This attribute:
 
 -	Can be applied to class names (impacting the appearance in dialogs, such as the Add New Step dialog), or to properties (impacting appearance in the Step Settings Panel).
 -	Has the following signature in its constructor:
+
 ```csharp
 (string Name, string Description = "", string Group = null, double Order = 0D, bool Collapsed = false, string[] Groups = null)
 ```
@@ -13,6 +15,7 @@ The **Display** attribute is the most commonly used OpenTAP attribute. This attr
 -	Supports a **Group** or **Groups** of parameters to enable you to organize the presentation of the items in the Test Automation Editor.
 
 The parameters are ordered starting with the most frequently used parameters first. The following examples show example code and the resulting Editor appearance:
+
 ```csharp
 // Defining the name and description.
 [Display("MyName", "MyDescription")]
@@ -41,7 +44,8 @@ The **HideIfDisabled** optional parameter of EnabledIf makes it possible to hide
 
 Multiple EnabledIf statements can be used at the same time. In this case all of them must be enabled (following the logical *AND* behavior) to make the setting enabled. If another behavior is wanted, an extra property (hidden to the user) can be created and referenced to implement another logic. In interaction with HideIfDisabled, the enabling property of that specific EnabledIf attribute must return false for the property to be hidden.
 
-In the following code, BandwidthOverride is enabled when **Radio Standard** = GSM. 
+In the following code, BandwidthOverride is enabled when **Radio Standard** = GSM.
+
 ```csharp
 public class EnabledIfExample : TestStep
 {
@@ -70,6 +74,7 @@ public class EnabledIfExample : TestStep
     #endregion Settings
 }
 ```
+
 When **Radio Standard** is set to GSM in the step settings, both **Override Bandwidth** options are then displayed:
 
 ![](appendix_img2.PNG)
@@ -85,10 +90,12 @@ Using the Flags attribute results in a multiple select in the Editor, as shown b
 
 ## FilePath and DirectoryPath Attributes 
 The FilePath and DirectoryPath attributes can be used on a string-type property to indicate the string is a file or a folder system path. When this attribute is present, the Editor displays a browse button allowing the user to choose a file or folder. These attributes can be used as follows:
+
 ```csharp
 [FilePath]
 public string MyFilePath { get; set; }
 ```
+
 This results in the following user control in the Editor:
 
 ![](appendix_img4.PNG)
@@ -98,15 +105,17 @@ The DirectoryPath attribute works the same as the FilePath attribute, but in the
 The FilePath attribute supports specifying file type as well.
 
 It can be done by writing the file extension as such:
+
 ```csharp
 [FilePath(FilePathAttribute.BehaviorChoice.Open, "csv");
 ```
 
 Or it can be done by specifying a more advanced filter expression as shown below.
 
-``````csharp
+```csharp
 [FilePath(FilePathAttribute.BehaviorChoice.Open, "Comma Separated Files (*.csv)|*.csv| Tab Separated Files (*.tsv) | *.tsv| All Files | *.*)]");
 ```
+
 The syntax works as follows:
 ```[Name_1] | [file extensions 1] | [Name_2] | [file extensions 2] ...```
 
@@ -134,13 +143,16 @@ See the `TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\Attributes\U
 
 ## XmlIgnore Attribute
 The XmlIgnore attribute indicates that a setting should not be serialized. If XmlIgnore is set for a property, the property will not show up in the Editor. If you want to NOT serialize the setting AND show it in the Editor, then use the Browsable(true) attribute, as shown below:
+
 ```csharp
 // Editable property not serialized to XML 
 [Browsable(true)]
 [XmlIgnore]
 public double NotSerializedVisible { get; set; } 
 ```
+
 Properties that represent instrument settings (like the one below) should not be serialized as they will result in run-time errors:
+
 ```csharp
 [XmlIgnore]
 public double Power
@@ -149,5 +161,3 @@ public double Power
     get; { return ScpiQuery<double>(":SOURce:POWer:LEVel:IMMediate:AMPLitude?"); }
 }
 ```
-
-

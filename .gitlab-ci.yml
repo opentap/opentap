@@ -5,7 +5,8 @@ stages:
   - build
   - test
   - package
-  - deploy
+  - installer
+  - publish
 
 #############################################
 # Stage: build                              #
@@ -61,7 +62,7 @@ Build-x86:
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
   script:
-         - nuget restore
+         - MSBuild OpenTAP.sln /t:restore /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /m
          - dotnet restore -r win7-x86
          - MSBuild OpenTAP.sln /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /m
          - dotnet build tap\tap.csproj -c Release -r win-x86
@@ -76,24 +77,22 @@ Build-x64:
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
   script: 
-         - nuget restore
+         - MSBuild /t:restore OpenTAP.sln /p:Configuration=Release /p:Platform=x64 /target:Rebuild /p:DefineConstants="TRACE" /m
          - dotnet restore -r win7-x64
          - MSBuild OpenTAP.sln /p:Configuration=Release /p:Platform=x64 /target:Rebuild /p:DefineConstants="TRACE" /m
          - dotnet build tap\tap.csproj -c Release -r win-x64
          - Remove-Item -recurse "bin\Release\Packages"
-         - Move-Item bin\Release bin\Release64
   artifacts:
     expire_in: 1 week
     paths:
-       - bin/Release64/
+       - bin/Release/
 
 WarningTest:
   stage: build
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
   script: 
-         - nuget restore
-         - dotnet restore
+         - MSBuild OpenTAP.sln /t:restore /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /p:TreatWarningsAsErrors="true" /m
          - MSBuild OpenTAP.sln /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /p:TreatWarningsAsErrors="true" /m
 
 
@@ -108,9 +107,11 @@ TestEngine:
   tags: [ docker, windows ]
   dependencies:
      - Build-x86
+  needs:
+     - Build-x86
   script:
-         - nuget restore OpenTAP.sln
-         - packages/NUnit.ConsoleRunner.3.9.0/tools/nunit3-console.exe bin/Release/OpenTap.UnitTests.dll --labels=All
+         - $ErrorActionPreference = "Stop"
+         - dotnet vstest bin/Release/OpenTap.UnitTests.dll
   artifacts:
     when: always
     expire_in: 1 week
@@ -124,33 +125,43 @@ TestPackage:
   tags: [ docker, windows ]
   dependencies:
      - Build-x86
+  needs:
+     - Build-x86
   script:
+         - $ErrorActionPreference = "Stop"
          - copy-item -r "Package.UnitTests/Packages" bin/Release
-         - nuget restore OpenTAP.sln
-         - packages/NUnit.ConsoleRunner.3.9.0/tools/nunit3-console.exe bin/Release/OpenTap.Package.UnitTests.dll --labels=All
+         - dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll
   artifacts:
     when: always
     expire_in: 1 week
     paths:
        - "TestResult.xml"
 
-# TestUbuntu:
-#   image: buildpack-deps:bionic
-#   tags: [docker, ubuntu18.4]
-#   stage: test
-#   dependencies:
-#      - Package-BaseUbuntu
-#   script: |
-#           cp -r opentap/Engine.UnitTests/TestTestPlans bin/linux-x64/publish
-#           cd bin/linux-x64/publish
-#           chmod +x tap
-#           echo "./tap run -v TestTestPlans/testMultiReferencePlan.TapPlan
-#  if [ \$? -eq 20 ]
-#  then echo \"OK\"
-#  else false
-#  fi" >./run_ubuntu_test.sh
-#           chmod +x ./run_ubuntu_test.sh
-#           bash run_ubuntu_test.sh
+.LinuxScript:
+  tags: [ docker, gce ]
+  dependencies:
+     - Build-Linux64
+  needs:
+     - Build-Linux64
+  script:
+        - cp -r Engine.UnitTests/TestTestPlans bin/Release/linux-x64/publish
+        - cd bin/Release/linux-x64/publish
+        - chmod +x tap
+        - echo "./tap run -v TestTestPlans/testMultiReferencePlan.TapPlan; if [ \$? -eq 20 ]; then echo \"OK\"; else false; fi" >./run_ubuntu_test.sh
+        - chmod +x ./run_ubuntu_test.sh
+        - bash run_ubuntu_test.sh
+
+TestUbuntu:
+  stage: test
+  image: microsoft/dotnet:2.1-sdk-stretch
+  extends: .LinuxScript
+
+TestCentos7:
+  stage: test
+  image: 
+    name: stefanholst0/dotnet-21-centos7-root:latest
+    entrypoint: [ "" ]
+  extends: .LinuxScript
 
 # TestUbuntuPackaged:
 #   image: buildpack-deps:bionic
@@ -196,62 +207,130 @@ TestPackage:
 # Stage: package                            #
 #############################################
 
-Package-Windows:
+Package-Windows64:
   stage: package
   image: registry.gitlab.com/opentap/buildrunners/signrunner:latest
   tags: [ docker, windows ]
-  only:
-    - tags
-    - /^release.*$/
-    - master
+  variables: 
+    ErrorActionPreference: stop
+    Architecture: x64
   dependencies:
      - Build-x64
      - Doc-API
+  needs:
+     - Build-x64
+     - Doc-API
   script:
-         - nuget restore OpenTAP.sln
-         - cd bin/Release64
+         - if (!$PROTECTED_BRANCH) { Set-Content .\opentap.$Architecture.package.xml  -Value (get-content .\opentap.$Architecture.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
+         - cd bin/Release
          - .\tap.exe package install -f "/repo/Sign.TapPackage"
-         - cmd /C ".\tap.exe package create -v ../../opentapCE.package.xml -o Packages/OpenTAP/OpenTAP-CE.TapPackage --install"
+         - $version=$(./tap sdk gitversion)
+         - cmd /C ".\tap.exe package create -v ../../opentap.$Architecture.package.xml -o ../../OpenTAP.$version.$Architecture.Windows.TapPackage"
   artifacts:
     when: on_success
     expire_in: 1 day
     paths:
-       - "bin/Release64/Packages/"
-       - "bin/Release64/Dependencies"
+       - OpenTAP.*.Windows.TapPackage
+
+Package-Windows32:
+  extends: Package-Windows64
+  dependencies:
+     - Build-x86
+     - Doc-API
+  needs:
+     - Build-x86
+     - Doc-API
+  variables:
+    Architecture: x86
 
 Package-Linux:
   stage: package
   image: registry.gitlab.com/opentap/buildrunners/signrunner:latest
   tags: [ docker, windows ]
-  only:
-    - tags
-    - /^release.*$/
-    - master
   dependencies:
      - Build-x86
      - Build-Linux64
+  needs:
+     - Build-x86
+     - Build-Linux64    
   script:
-         -  mv bin\Release\linux-x64 bin\linux-x64
-         -  pushd bin\linux-x64\publish
-         -  ../../Release/tap package download --os Linux --architecture x64 -f -r $env:PACKAGE_REPO_URL -t . Demonstration
-         -  mv "Demonstration*.TapPackage" "Demonstration.TapPackage"
+         - if (!$PROTECTED_BRANCH) { Set-Content .\opentap_linux64.package.xml  -Value (get-content .\opentap_linux64.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
+         - mv bin\Release\linux-x64 bin\linux-x64
+         - pushd bin\linux-x64\publish
+         - ../../Release/tap package download --os Linux --architecture x64 -f -r $env:PACKAGE_REPO_URL -t . Demonstration
+         - mv "Demonstration*.TapPackage" "Demonstration.TapPackage"
          - ../../Release/tap package install -f "/repo/Sign.TapPackage"
-         -  cmd /C "..\..\Release\tap package create -v ../../../opentap_linux64.package.xml -o Packages/TAPLinux.TapPackage --install"
-         -  cp Packages/TAPLinux.TapPackage ../../../TAPLinux.TapPackage
+         - cmd /C "..\..\Release\tap package create -v ../../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage"
+         - $version=$(..\..\Release\tap sdk gitversion)
+         - cp Packages/OpenTAP.Linux.TapPackage ../../../OpenTAP.$version.Linux.TapPackage
   artifacts:
     when: on_success
     expire_in: 1 week
     paths:
-       - TAPLinux.TapPackage
-       - bin/linux-x64/publish
+       - OpenTAP.*.Linux.TapPackage
+
+Package-SDK:
+  stage: package
+  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  tags: [ docker, windows ]
+  dependencies:
+     - Build-x86
+     - Build-DevGuide
+     - Doc-API
+  needs:
+     - Build-x86
+     - Build-DevGuide
+     - Doc-API
+  script:
+         - Set-Content .\opentap.x86.package.xml  -Value (get-content .\opentap.x86.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch)
+         - cd bin/Release
+         - .\tap.exe package create ../../opentap.x86.package.xml --install -v
+         - Copy-Item "../../sdk/Examples" "Packages/SDK/Examples" -Recurse
+         - Copy-Item "../../Package/PackageSchema.xsd" "Packages/SDK/PackageSchema.xsd"
+         - ./tap package create ../../sdk/sdk.package.xml
+         - Move-Item "*.TapPackage" "../.."
+  artifacts:
+    when: on_success
+    expire_in: 1 week
+    paths:
+       - "SDK.*.TapPackage"
 
 
 # #############################################
-# # Stage: deploy                             #
+# # Stage: installer                             #
 # #############################################
+
+Package-NuGet:
+  stage: installer
+  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  tags: [ docker, windows ]
+  dependencies:
+    - Build-x64
+    - Package-Windows64
+    - Build-Linux64
+  script:
+    - Move-Item bin/Release/linux-x64/publish/ bin/Linux/
+    - dotnet build -c NetCore tap/tap.csproj
+    - mkdir nuget/build/payload
+    - cd bin/Release
+    - Move-Item "../../OpenTAP.*.Windows.TapPackage" OpenTAP.TapPackage
+    - .\tap.exe package install --target "../../nuget/build/payload" OpenTAP.TapPackage -f -v
+    - .\tap.exe sdk gitversion --replace ../../nuget/OpenTAP.nuspec --fields 4
+    - cd ../../nuget/
+    - Move-Item ../bin/Linux/tap build/payload/
+    - Move-Item ../bin/Linux/tap.dll build/payload/
+    - $LibGitFolderName = $(Get-ChildItem -directory ./build/payload/Dependencies/LibGit2Sharp* -Name)
+    - Move-Item ../bin/Linux/libgit2-*.so build/payload/Dependencies/$LibGitFolderName/
+    - Move-Item ../bin/Release/tap.runtimeconfig.json build/payload/
+    - nuget update -self
+    - nuget pack OpenTAP.nuspec -OutputDirectory ../
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - "*.nupkg"
 
 Installer-Windows:
-  stage: deploy
+  stage: installer
   image: registry.gitlab.com/opentap/buildrunners/inno
   tags: [ docker, windows ]
   only:
@@ -260,16 +339,16 @@ Installer-Windows:
     - master
   dependencies:
      - Build-x64
-     - Package-Windows
+     - Package-Windows64
   script:
-         - pushd bin\Release64
+         - pushd bin\Release
          - $version = ./tap.exe sdk gitversion
          - echo "OpenTAP.$($version).exe"
 
          - ./tap.exe package install -f -v "/BundleInstaller.TapPackage"
          - Remove-Item "Packages\Bundle Installer\Assets\LICENSES.txt"
 
-         - ./tap.exe sdk create-bundle --sign "Keysight Technologies, Inc" --no-gui --tap64 "Packages/OpenTAP/OpenTAP-CE.TapPackage" -x ../../Installer/Assets/opentapCE.installer.xml setup.exe
+         - ./tap.exe sdk create-bundle --sign "Keysight Technologies, Inc" --no-gui --tap64 "../../OpenTAP.$version.x64.Windows.TapPackage" -x ../../Installer/Assets/opentapCE.installer.xml setup.exe
          - Move-Item setup.exe ..\..\OpenTAP.$($version).exe
   artifacts:
     expire_in: 1 week
@@ -277,7 +356,7 @@ Installer-Windows:
        - "*.exe"
 
 Installer-Linux:
-  stage: deploy
+  stage: installer
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
   only:
@@ -297,82 +376,138 @@ Installer-Linux:
          - $str=[IO.File]::ReadAllText($path + "/LinuxInstructions/README") -replace "`r`n", "`n"
          - ([IO.File]::WriteAllText($path + "/README", $str))
 
-         - cmd /C '"C:\Program Files (x86)\GnuWin32\bin\tar.exe" -cf "TAP2018.tar" TAPLinux.TapPackage INSTALL.sh README'
+         - cmd /C '"C:\Program Files (x86)\GnuWin32\bin\tar.exe" -cf "OpenTAP.tar" OpenTAP.*.Linux.TapPackage INSTALL.sh README'
   artifacts:
     when: on_success
     expire_in: 1 week
     paths:
-       - "TAPLinux.TapPackage"
-       - "TAP2018.tar"
-
-# TAPBaseDockerImageRelease:
-#   image: gitlab.it.keysight.com:4567/tap/linuxbuildrunners/dockerbuild:latest
-#   stage: deploy
-#   only:
-#     refs:
-#       - /^[vV][0-9]+\.[0-9]+\.[0-9]+$/
-#   tags:
-#     - docker,ubuntu18.4
-#   dependencies:
-#      - Package-BaseUbuntu
-#   script: |
-#           version=$(cat .gitversion | sed -nr 's/version *= *([0-9]+\.[0-9]+)\.[0-9]+/\1/p')
-#           docker login -u gitlab-ci-token -p $CI_JOB_TOKEN gitlab.it.keysight.com:4567
-#           cp TAPLinux.TapPackage opentap
-#           cd opentap
-#           docker build -t gitlab.it.keysight.com:4567/tap/tap:latest .
-#           docker push gitlab.it.keysight.com:4567/tap/tap:latest
-#           docker tag gitlab.it.keysight.com:4567/tap/tap:latest gitlab.it.keysight.com:4567/tap/tap:$version
-#           docker push gitlab.it.keysight.com:4567/tap/tap:$version
-
-# TAPBaseDockerImageRC:
-#   image: gitlab.it.keysight.com:4567/tap/linuxbuildrunners/dockerbuild:latest
-#   stage: deploy
-#   only:
-#     - /^release[0-9]+x$/
-#   tags:
-#     - docker,ubuntu18.4
-#   dependencies:
-#      - Package-BaseUbuntu
-#   script: |
-#           docker login -u gitlab-ci-token -p $CI_JOB_TOKEN gitlab.it.keysight.com:4567
-#           cp TAPLinux.TapPackage opentap
-#           cd opentap
-#           docker build -t gitlab.it.keysight.com:4567/tap/tap:rc .
-#           docker push gitlab.it.keysight.com:4567/tap/tap:rc
+       - "OpenTAP.tar"
 
 
-# TAPBaseDockerImageBeta:
-#   image: gitlab.it.keysight.com:4567/tap/linuxbuildrunners/dockerbuild:latest
-#   stage: deploy
-#   only:
-#     - /^integration$/
-#   tags:
-#     - docker,ubuntu18.4
-#   dependencies:
-#      - Package-BaseUbuntu
-#   script: |
-#           docker login -u gitlab-ci-token -p $CI_JOB_TOKEN gitlab.it.keysight.com:4567
-#           cp TAPLinux.TapPackage opentap
-#           cd opentap
-#           docker build -t gitlab.it.keysight.com:4567/tap/tap:beta .
-#           docker push gitlab.it.keysight.com:4567/tap/tap:beta
+#############################################
+# Stage: publish                            #
+#############################################
 
-# TAPBaseDockerImageAlpha:
-#   image: gitlab.it.keysight.com:4567/tap/linuxbuildrunners/dockerbuild:latest
-#   stage: deploy
-#   when: manual
-#   except:
-#     - /^release[0-9]+x$/
-#     - /^rc[0-9]+x$/
-#     - /^integration$/
-#   tags:
-#     - docker,ubuntu18.4
-#   dependencies:
-#      - Package-BaseUbuntu
-#   script: |
-#           docker login -u gitlab-ci-token -p $CI_JOB_TOKEN gitlab.it.keysight.com:4567
-#           cp TAPLinux.TapPackage opentap
-#           cd opentap
-#           docker build -t gitlab.it.keysight.com:4567/tap/tap:alpha .
-#           docker push gitlab.it.keysight.com:4567/tap/tap:alpha
+.PublishPackage:
+  stage: publish
+  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  tags: [ docker, windows ]
+  variables:
+    GIT_STRATEGY: none
+  dependencies:
+     - Build-x64
+     - Package-Windows64
+     - Package-Windows32
+     - Package-Linux
+     - Package-SDK
+  script:
+      - cd bin/Release
+      - ./tap package install -f PackagePublish --version beta
+      - ./tap package publish -r http://packages.opentap.io -k $PUBLIC_REPO_PASS ../../*.TapPackage
+
+PublishPackages-Release:
+  extends: .PublishPackage
+  only:
+    - tags
+
+PublishPackages-RC:
+  extends: .PublishPackage
+  only:
+    - /^release.*$/
+
+PublishPackages-Beta:
+  extends: .PublishPackage
+  only:
+    - master
+  when: manual
+
+Publish-Nuget:
+  stage: publish
+  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  tags: [ docker, windows ]
+  dependencies:
+     - Package-NuGet
+  variables:
+    GIT_STRATEGY: none
+  only:
+    - tags
+    - /^release.*$/
+  script: nuget push OpenTAP.*.nupkg $NUGET_KEY -NonInteractive -Source https://api.nuget.org/v3/index.json
+
+Publish-Nuget-Manuel:
+  extends: Publish-Nuget
+  only:
+    - master
+  when: manual
+
+.DockerLinuxBuild:
+  image: 
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  dependencies:
+     - Package-Linux
+  stage: publish
+  tags: [ docker, gce ]
+  script:
+        - mv OpenTAP.*.Linux.TapPackage docker/Linux/OpenTAP.Linux.TapPackage
+        - cd docker/Linux
+        - echo "{\"auths\":{\"https://index.docker.io/v1/\":{\"username\":\"$DOCKER_USER\", \"password\":\"$DOCKER_PASS\"}}}" > /kaniko/.docker/config.json
+        - /kaniko/executor --context=$CI_PROJECT_DIR/docker/Linux --dockerfile=Dockerfile --destination=opentapio/opentap:$version-ubuntu18.04
+
+DockerLinux-Release:
+  extends: .DockerLinuxBuild
+  only:
+    - tags
+  before_script:
+        - version=$(cat .gitversion | sed -nr 's/version *= *([0-9]+\.[0-9]+)\.[0-9]+/\1/p')
+
+DockerLinux-RC:
+  extends: .DockerLinuxBuild
+  only:
+    - /^release.*$/
+  before_script:
+        - version=rc
+
+DockerLinux-Beta:
+  extends: .DockerLinuxBuild
+  only:
+    - master
+  before_script:
+        - version=beta
+
+.DockerWindowsBuild:
+  stage: publish
+  tags:
+    - docker-build,windows,1809
+  dependencies:
+     - Installer-Windows
+  script:
+        - copy-item OpenTAP.*.exe docker/Windows/OpenTAP.exe
+        - cd docker/Windows
+        - docker login -u $env:DOCKER_USER -p $env:DOCKER_PASS
+        - docker build -t opentapio/opentap:$env:version-windowsserver1809 .
+        - docker push opentapio/opentap:$env:version-windowsserver1809
+        - docker logout
+
+DockerWindows-Release:
+  extends: .DockerWindowsBuild
+  only:
+    - tags
+  before_script:
+        - $match = cat .\.gitversion | select-string 'version *= *([0-9]+\.[0-9]+)\.[0-9]+'
+        - $env:version=$match.Matches.Groups[1].Value
+        - echo $env:version
+
+DockerWindows-rc:
+  extends: .DockerWindowsBuild
+  only:
+    - /^release.*$/
+  before_script:
+        - $env:version="rc"
+
+DockerWindows-beta:
+  extends: .DockerWindowsBuild
+  only:
+    - master
+  before_script:
+        - $env:version="beta"

@@ -90,7 +90,7 @@ namespace OpenTap.Package
             {
                 // Get package information
                 List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, ForceInstall, InstallDependencies, !ForceInstall);
-                if (packagesToInstall == null)
+                if (packagesToInstall?.Any() != true)
                     return 2;
 
                 // Download the packages
@@ -99,7 +99,8 @@ namespace OpenTap.Package
             }
             catch (Exception e)
             {
-                log.Info("Could not download one or more TAP packages.");
+                log.Info("Could not download one or more packages.");
+                log.Info(e.Message);
                 log.Debug(e);
                 RaiseError(e);
                 return 6;

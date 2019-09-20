@@ -91,7 +91,7 @@ internal static class Visa
 
     static Visa()
     {
-        bool IsWin32 = System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        bool IsWin32 = OpenTap.OperatingSystem.Current == OpenTap.OperatingSystem.Windows; 
 
         Func<IntPtr> LoadLib;
         Func<IntPtr, string, int, IntPtr> LoadSym;

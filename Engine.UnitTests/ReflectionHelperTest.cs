@@ -36,6 +36,8 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void MemoryMappedApiTest()
         {
+            if(OpenTap.OperatingSystem.Current == OpenTap.OperatingSystem.Linux) 
+                return;  // this feature is currently not supported on Linux.
             var api = new MemoryMappedApi();
             var strings = new[] { "asd", "cxze", "" };
             foreach(var str in strings)
@@ -256,6 +258,16 @@ namespace OpenTap.Engine.UnitTests
             {
                 Assert.AreEqual(OperatingSystem.Linux, OperatingSystem.Current);
             }
+        }
+
+        [Test]
+        public void TestDirSearch()
+        {
+            var opentapdir = Path.GetDirectoryName(typeof(TestPlan).Assembly.Location);
+            var opentapfile = Path.GetFileName(typeof(TestPlan).Assembly.Location);
+            var files = PathUtils.IterateDirectories(opentapdir, "*.dll", SearchOption.AllDirectories).ToArray();
+            var opentapdll = files.FirstOrDefault(x => Path.GetFileName(x) == opentapfile);
+            Assert.IsNotNull(opentapdll);
         }
 
     }

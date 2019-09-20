@@ -1,0 +1,5 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup Condition="'$(IsNetStandard)'=='true'">
+        <TargetFramework>netcoreapp2.1</TargetFramework>
+    </PropertyGroup>
+</Project>

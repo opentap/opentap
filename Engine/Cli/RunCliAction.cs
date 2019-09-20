@@ -143,7 +143,7 @@ namespace OpenTap.Cli
             }
 
 
-            if (!NonInteractive)
+            if (!NonInteractive && UserInput.Interface == null)
             {
                 CliUserInputInterface.Load();
             }

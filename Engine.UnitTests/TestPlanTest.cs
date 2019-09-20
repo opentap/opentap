@@ -345,7 +345,7 @@ namespace OpenTap.Engine.UnitTests
             var planrun = testPlan.Execute();
             ResultSettings.Current.Remove(pl);
 
-            Assert.AreEqual(0, pl.StepRuns.Count);
+            Assert.AreEqual(1, pl.StepRuns.Count);
             Assert.AreEqual(1, pl.PlanRuns.Count);
             Assert.AreEqual(Verdict.Error, pl.PlanRuns.ElementAt(0).Verdict);
         }
@@ -474,7 +474,7 @@ namespace OpenTap.Engine.UnitTests
                 if (i < depth - 1)
                 {
                     var step = new TestPlanReference();
-                    step.Filepath.Text = "<TestPlanDir>\\TestDir\\plan.TestPlan";
+                    step.Filepath.Text = "<TestPlanDir>/TestDir/plan.TestPlan";
                     plan.Steps.Add(step);
                 }
                 else
@@ -488,7 +488,7 @@ namespace OpenTap.Engine.UnitTests
                 plan.Save(filepath);
                 path = Path.Combine(path, "TestDir");
             }
-            var bigplan = TestPlan.Load("RelativeTestPlanTest_TestDir\\plan.TestPlan");
+            var bigplan = TestPlan.Load("RelativeTestPlanTest_TestDir/plan.TestPlan");
             var run = bigplan.Execute();
             Assert.AreEqual(depth, run.StepsWithPrePlanRun.Count);
             Directory.Delete("RelativeTestPlanTest_TestDir", true);

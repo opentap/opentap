@@ -190,19 +190,10 @@ namespace OpenTap.Engine.UnitTests
         {
             string cs = "public class ObjectTest { public void Run(){} }";
 
-            CSharpCodeProvider provider = new CSharpCodeProvider();
-            CompilerParameters parameters = new CompilerParameters();
-            parameters.ReferencedAssemblies.Add("System.dll");
-
-            parameters.GenerateInMemory = true;
-            parameters.GenerateExecutable = false;
-            CompilerResults results = provider.CompileAssemblyFromSource(parameters, cs);
-            if (results.Errors.HasErrors)
-            {
-                var errors = results.Errors.Cast<CompilerError>().Select(err => err.ToString());
-                Assert.Inconclusive(String.Join("\r\n", errors));
-            }
-            return results.CompiledAssembly;
+            var compilation = CodeGen.BuildCode(cs, Guid.NewGuid().ToString());
+            if(compilation.Success == false) 
+                throw new Exception("Unable to compile code");
+            return Assembly.Load(compilation.Bytes);
         }
 
         [Test]

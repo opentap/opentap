@@ -1,0 +1,65 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <LangVersion>7.2</LangVersion>
+    <Configurations>Debug;Release;NetCore;NetCoreDebug</Configurations>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <Platforms>x86;x64;AnyCPU</Platforms>
+    <IsDebug>false</IsDebug>
+    <IsNetStandard>false</IsNetStandard>
+    <TargetFramework>net462</TargetFramework> 
+    <TargetFrameworkIdentifier>.NETFramework</TargetFrameworkIdentifier>
+    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <IsDebug>true</IsDebug>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release'">
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='NetCore'">
+    <IsNetStandard>true</IsNetStandard>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='NetCoreDebug'">
+    <IsDebug>true</IsDebug>
+    <IsNetStandard>true</IsNetStandard>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(IsDebug)'=='true'">
+    <OutputPath>$(MSBuildThisFileDirectory)bin\Debug\</OutputPath>
+    <Optimize>false</Optimize>
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(IsDebug)'!='true'">
+    <OutputPath>$(MSBuildThisFileDirectory)bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(IsNetStandard)'=='true'">
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <RuntimeIdentifiers>linux-x64</RuntimeIdentifiers>
+    <PlatformTarget>x64</PlatformTarget>
+    <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
+    <TargetFrameworkVersion></TargetFrameworkVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(IsNetStandard)'!='true'">
+    <TargetFramework>net462</TargetFramework>
+  </PropertyGroup>
+
+  <Target Name="RemoveSatelliteAssemblies" AfterTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+        <ReferenceCopyLocalPaths Remove="@(ReferenceSatellitePaths)" />
+    </ItemGroup>
+  </Target>
+</Project>

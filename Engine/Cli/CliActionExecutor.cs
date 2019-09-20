@@ -16,6 +16,70 @@ using System.Runtime.CompilerServices;
 
 namespace OpenTap.Cli
 {
+    internal class CliActionTree
+    {
+        public string Name { get; set; }
+        public bool IsGroup => Type == null;
+        public TypeData Type { get; set; }
+        public List<CliActionTree> SubCommands { get; set; }
+
+        public static CliActionTree Root { get; internal set; }
+
+        static CliActionTree()
+        {
+            var commands = PluginManager.LocateTypeData(typeof(ICliAction).FullName).DerivedTypes.Where(t => !t.TypeAttributes.HasFlag(TypeAttributes.Abstract) && t.Display != null).ToList();
+            Root = new CliActionTree { Name = "tap" };
+            foreach (var item in commands)
+                ParseCommand(item, item.Display.Group, Root);
+        }
+
+        private static void ParseCommand(TypeData type, string[] group, CliActionTree command)
+        {
+            if (command.SubCommands == null)
+                command.SubCommands = new List<CliActionTree>();
+
+            // If group is not empty. Find command with first group name
+            if (group.Length > 0)
+            {
+                var existingCommand = command.SubCommands.FirstOrDefault(c => c.Name == group[0]);
+
+                if (existingCommand == null)
+                {
+                    existingCommand = new CliActionTree() { Name = group[0] };
+                    command.SubCommands.Add(existingCommand);
+                }
+
+                ParseCommand(type, group.Skip(1).ToArray(), existingCommand);
+            }
+            else
+            {
+                command.SubCommands.Add(new CliActionTree() { Name = type.Display.Name, Type = type, SubCommands = new List<CliActionTree>() });
+                command.SubCommands = command.SubCommands.OrderBy(c => c.Name).ToList();
+            }
+        }
+
+        public CliActionTree GetSubCommand(string[] args)
+        {
+            if (args.Length == 0)
+                return null;
+
+            foreach (var item in SubCommands)
+            {
+                if (item.Name == args[0])
+                {
+                    if (args.Length == 1 || item.SubCommands.Any() == false)
+                       return item;
+                    else
+                    {
+                        return item.GetSubCommand(args.Skip(1).ToArray());
+                    }
+                }
+            }
+
+            return null;
+        }
+    }
+
     /// <summary>
     /// Helper used to execute <see cref="ICliAction"/>s.
     /// </summary>
@@ -63,12 +127,19 @@ namespace OpenTap.Cli
         }
 
 
+        /// <summary> 
+        /// Used as command line interface of OpenTAP (PluginManager must have searched for assemblies before this method is called).
+        /// This calls Execute with commandline arguments given to this environment and sets Environment.ExitCode. 
+        /// </summary>
+        public static void Execute(){
+            Environment.ExitCode = Execute(Environment.GetCommandLineArgs().Skip(1).ToArray());
+        }
 
         /// <summary>
         /// Used as entrypoint for the command line interface of OpenTAP (PluginManager must have searched for assemblies before this method is called)
         /// </summary>
         [MethodImpl(MethodImplOptions.NoInlining)]
-        public static void Execute()
+        public static int Execute(params string[] args)
         {
             // Trigger plugin manager before anything else.
             if (ExecutorClient.IsRunningIsolated)
@@ -82,7 +153,6 @@ namespace OpenTap.Cli
                 }
             }
 
-            string[] args = Environment.GetCommandLineArgs().Skip(1).ToArray();
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
 
@@ -92,69 +162,64 @@ namespace OpenTap.Cli
             if(PluginManager.LocateTypeData(typeof(ICliAction).FullName).DerivedTypes == null)
             {
                 Console.WriteLine("No commands found. Please try reinstalling OpenTAP.");
-                Environment.ExitCode = 1;
-                return;
+                return 1;
             }
 
-            var commands = PluginManager.LocateTypeData(typeof(ICliAction).FullName).DerivedTypes.Where(t => !t.TypeAttributes.HasFlag(TypeAttributes.Abstract) && t.Display != null).ToList();
             TypeData selectedCommand = null;
             var requestedCommand = args.FirstOrDefault();
 
-            var groupedCommands = commands.Where(p => !string.IsNullOrWhiteSpace(p.Display.Group.FirstOrDefault())).ToLookup(s => s.Display.Group.FirstOrDefault());
-            var ungroupedCommands = commands.Where(p => string.IsNullOrWhiteSpace(p.Display.Group.FirstOrDefault()));
-
-            if(groupedCommands.Contains(requestedCommand))
-            {
-                if(args.Length >= 2)
-                {
-                    string subcommand = args[1];
-                    selectedCommand = groupedCommands[requestedCommand].FirstOrDefault(s => s.Display.Name == subcommand);
-                }
-            }
-
-            if(selectedCommand == null)
-                selectedCommand = ungroupedCommands.FirstOrDefault(s => s.Display.Name == requestedCommand);
-
+            // Find selected command
+            var selectedcmd = CliActionTree.Root.GetSubCommand(args);
+            if (selectedcmd?.Type != null && selectedcmd?.SubCommands.Any() != true)
+                selectedCommand = selectedcmd.Type;
 
             // Print default info
-            if (selectedCommand == null)
+            if (selectedCommand == null || selectedcmd == null)
             {
                 Console.WriteLine("OpenTAP Command Line Interface ({0})",Assembly.GetExecutingAssembly().GetSemanticVersion().ToString(4));
                 Console.WriteLine("Usage: tap <command> [<subcommand>] [<args>]\n");
-                Console.WriteLine("Valid commands are:");
 
-                var availableCommands = commands
-                    .Where(cmd => cmd.Display != null && cmd.IsBrowsable)
-                    .Select(s => string.IsNullOrWhiteSpace(s.Display.Group.FirstOrDefault()) ? s.Display.Name : s.Display.Group.FirstOrDefault())
-                    .Distinct()
-                    .ToList();
-
-                foreach (var command in availableCommands.OrderBy(s => s))
+                if (selectedcmd == null)
                 {
-                    if(groupedCommands.Any(s => s.Key == command))
+                    Console.WriteLine("Valid commands are:");
+
+                    foreach (var cmd in CliActionTree.Root.SubCommands)
                     {
-                        Console.WriteLine($"  {command}");
-                        foreach(var subcommand in groupedCommands.Where(s => s.Key == command).FirstOrDefault())
+                        if (cmd.IsGroup || cmd.Type.IsBrowsable)
                         {
-                            if(subcommand.IsBrowsable)
-                                Console.WriteLine($"    {subcommand.Display.Name.PadRight(22)}{subcommand.Display.Description}");
+                            Console.WriteLine($"  {cmd.Name.PadRight(22)}{(cmd.IsGroup ? "" : cmd.Type.Display.Description)}");
+                            foreach (var subcmd in cmd.SubCommands)
+                            {
+                                if (subcmd.IsGroup || subcmd.Type.IsBrowsable)
+                                    Console.WriteLine($"    {subcmd.Name.PadRight(22)}{(subcmd.IsGroup ? "" : subcmd.Type.Display.Description)}");
+                            }
                         }
                     }
-                    else
-                    {
-                        TypeData ungrped = ungroupedCommands.FirstOrDefault(s => s.Display.Name == command);
-                        if (ungrped.IsBrowsable)
-                            Console.WriteLine($"  {ungrped.Display.Name.PadRight(24)}{ungrped.Display.Description}");
-                    }
-
                 }
+                else
+                {
+                    Console.WriteLine($"Valid commands for '{selectedcmd.Name}':");
+                    var availableCommands = selectedcmd.SubCommands.Where(cmd => cmd.IsGroup || (cmd.Type.Display != null && cmd.Type.IsBrowsable)).Distinct().ToList();
+                    foreach (var cmd in availableCommands)
+                    {
+                        if (cmd.IsGroup || cmd.Type.IsBrowsable)
+                        {
+                            Console.WriteLine($"  {cmd.Name.PadRight(22)}{(cmd.IsGroup ? "" : cmd.Type.Display.Description)}");
+                            foreach (var subcmd in cmd.SubCommands)
+                            {
+                                if (subcmd.IsGroup || subcmd.Type.IsBrowsable)
+                                    Console.WriteLine($"    {subcmd.Name.PadRight(22)}{(subcmd.IsGroup ? "" : subcmd.Type.Display.Description)}");
+                            }
+                        }
+                    }
+                }
+
                 Console.WriteLine("\nRun \"tap.exe <command> [<subcommand>] -h\" to get additional help for a specific command.\n");
 
-                if (args.Count() == 0 || args.Any(s => s.ToLower() == "--help" || s.ToLower() == "-h"))
-                    Environment.ExitCode = 0;
+                if (args.Length == 0 || args.Any(s => s.ToLower() == "--help" || s.ToLower() == "-h"))
+                    return 0;
                 else
-                    Environment.ExitCode = -1;
-                return;
+                    return -1;
             }
 
             {   // setup logging to be relative to the executing assembly.
@@ -170,15 +235,14 @@ namespace OpenTap.Cli
                 }
                 SessionLogs.Rename(logpath);
             }
-            
-            if (selectedCommand != TypeData.FromType(typeof(RunCliAction))) // RunCliAction has --non-interactive flag and custom platform interaction handling.
+
+            if (selectedCommand != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
                 CliUserInputInterface.Load();
             Type selectedType = selectedCommand.Load();
             if(selectedType == null)
             {
-                Environment.ExitCode = -2;
                 Console.WriteLine("Error loading command {0}", selectedCommand.Name);
-                return;
+                return -2;
             }
 
             ICliAction packageAction = null;
@@ -187,15 +251,13 @@ namespace OpenTap.Cli
             }catch(TargetInvocationException e1) when (e1.InnerException is System.ComponentModel.LicenseException e){
                 Console.Error.WriteLine("Unable to load CLI Action '{0}'", selectedType.GetDisplayAttribute().GetFullName());
                 Console.Error.WriteLine(e.Message);
-                Environment.ExitCode = -4;
-                return;
+                return -4;
             }
 
             if (packageAction == null)
             {
-                Environment.ExitCode = -3;
                 Console.WriteLine("Error instanciating command {0}", selectedCommand.Name);
-                return;
+                return -3;
             }
 
             //packageAction.ProgressUpdate += (p, message) => log.Debug("{0}% {1}", p, message);
@@ -204,13 +266,13 @@ namespace OpenTap.Cli
 
             try
             {
-                int skip = string.IsNullOrWhiteSpace(selectedCommand.Display.Group.FirstOrDefault()) ? 1 : 2; // If the selected command has a group, it takes two arguments to use the command. E.g. "package create". If not, it only takes 1 argument, E.g. "restapi".
-                Environment.ExitCode = packageAction.Execute(args.Skip(skip).ToArray());
+                int skip = selectedCommand.Display.Group.Length + 1; // If the selected command has a group, it takes two arguments to use the command. E.g. "package create". If not, it only takes 1 argument, E.g. "restapi".
+                return packageAction.Execute(args.Skip(skip).ToArray());
             }
             catch (ExitCodeException ec)
             {
                 log.Error(ec.Message);
-                Environment.ExitCode = ec.ExitCode;
+                return ec.ExitCode;
             }
             catch(ArgumentException ae)
             {
@@ -223,28 +285,29 @@ namespace OpenTap.Cli
                 log.Error(lines.First());
                 for(int i = 1;i<lines.Length;i++)
                     log.Debug(lines[i]);
-                Environment.ExitCode = -1;
+                return -1;
             }
             catch (OperationCanceledException ex)
             {
                 log.Error(ex.Message);
-                Environment.ExitCode = 1;
+                return 1;
             }
             catch (Exception ex)
             {
                 log.Error(ex.Message);
                 log.Debug(ex);
-                Environment.ExitCode = -1;
+                return -1;
             }
-
-            Log.Flush();
+            finally
+            {
+                Log.Flush();
+            }
         }
-
     }
    
     
 
-#if DEBUG && !NETSTANDARD2_0
+#if DEBUG2 && !NETSTANDARD2_0
     /// <summary>
     /// Helper class for interacting with the visual studio debugger. Does not build on .NET Core.
     /// </summary>

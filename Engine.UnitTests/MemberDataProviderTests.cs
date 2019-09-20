@@ -1,4 +1,4 @@
-﻿using OpenTap.Plugins.BasicSteps;
+using OpenTap.Plugins.BasicSteps;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
@@ -239,12 +239,15 @@ namespace OpenTap.Engine.UnitTests
             [AvailableValues("AvailableNumbers")]
             [Display("From Available")]
             [Unit("s")]
-        
+
             public double FromAvailable { get; set; }
 
             [Unit("s")]
             [AvailableValues("AvailableNumbers")]
             public Enabled<double> FromAvailable2 { get; set; } = new Enabled<double>();
+            
+            [AvailableValues(nameof(AvailableNumbers))]
+            public List<double> SelectedMulti { get; set; } = new List<double>{1,2}; 
 
             [Unit("s")]
             public IEnumerable<double> AvailableNumbers { get; set; } = new double[] { 1, 2, 3, 4, 5 };
@@ -252,11 +255,11 @@ namespace OpenTap.Engine.UnitTests
             public bool ThingEnabled { get; set; }
             [EnabledIf("ThingEnabled", true, HideIfDisabled = true)]
             public string ICanBeEnabled { get; set; }
-            
+
             [Flags]
             public enum MultiSelectEnum
             {
-                
+
                 A = 1,
                 B = 2,
                 C = 4
@@ -282,6 +285,8 @@ namespace OpenTap.Engine.UnitTests
 
             public List<ScpiInstrument> Instruments { get; set; } = new List<ScpiInstrument>();
 
+            [AvailableValues(nameof(Instruments))]
+            public IResource ResourceWithAvailable { get; set; }
             public double? NullableDouble { get; set; }
             public class Data1
             {
@@ -297,11 +302,23 @@ namespace OpenTap.Engine.UnitTests
                 set { }
             }
 
+            public List<Data1> Data2List { get; set; } = new List<Data1> { new Data1 { X = "1" } };
+
             public Data1[] DataArray { get; set; } = new Data1[] { new Data1 { X = "5" }, new Data1 { X = "Y" } };
 
             [DirectoryPath]
             public Enabled<string> EnabledDirectoryString { get; set; }
+            
+            [Display("Do Something")]
+            [Browsable(true)]
+            public void ButtonExample()
+            {
+                Clicks++;
+            }
+
+            public int Clicks;
         }
+
         
         [Test]
         public void DataInterfaceProviderTest2()
@@ -310,7 +327,7 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual("AAA", sval);
             InstrumentSettings.Current.Add(new GenericScpiInstrument());
             DataInterfaceTestClass testobj = new DataInterfaceTestClass();
-
+            
             AnnotationCollection annotations = AnnotationCollection.Annotate(testobj, Array.Empty<IAnnotation>());
             var disp = annotations.Get<DisplayAttribute>();
             Assert.IsNotNull(disp);
@@ -331,6 +348,16 @@ namespace OpenTap.Engine.UnitTests
                 if(mem.Member.Name == nameof(DataInterfaceTestClass.SelectableValues))
                 {
 
+                }
+
+                if (mem.Member.Name == nameof(DataInterfaceTestClass.ButtonExample))
+                {
+                    var member2 = member.Get<IMethodAnnotation>();
+                    member2.Invoke();
+                    Assert.AreEqual(1, testobj.Clicks);
+                    var access = member.Get<IAccessAnnotation>();
+                    Assert.IsTrue(access.IsVisible);
+                    Assert.IsTrue(access.IsReadOnly);
                 }
                 if (mem.Member.Name == nameof(DataInterfaceTestClass.EnabledDirectoryString))
                 {
@@ -409,6 +436,40 @@ namespace OpenTap.Engine.UnitTests
                     var annotated = prox.AnnotatedElements.ToArray();
                     member.Write();
                 }
+                if (mem.Member.Name == nameof(DataInterfaceTestClass.Data2List))
+                {
+                    
+
+                    var prox = member.Get<ICollectionAnnotation>();
+                    
+
+                    void addElement(string text)
+                    {
+                        var newelem = prox.NewElement();
+                        newelem.Get<IMembersAnnotation>().Members.FirstOrDefault().Get<IStringValueAnnotation>().Value = text;
+                        prox.AnnotatedElements = prox.AnnotatedElements.Append(newelem);
+                    }
+
+                    member.Write();
+                    prox.AnnotatedElements = prox.AnnotatedElements.Skip(1);
+                    addElement("2");
+                    addElement("3");
+                    addElement("4");
+                    member.Write();
+                    var lst = testobj.Data2List;
+                    Assert.IsTrue(lst[0].X == "2" && lst[1].X == "3" && lst[2].X == "4" && lst.Count == 3);
+
+                    prox.AnnotatedElements = prox.AnnotatedElements.Reverse();
+                    member.Write();
+                    Assert.IsTrue(lst[2].X == "2" && lst[1].X == "3" && lst[0].X == "4" && lst.Count == 3);
+                    var tmplst = prox.AnnotatedElements.ToList();
+                    tmplst.RemoveAt(1);
+                    prox.AnnotatedElements = tmplst;
+                    member.Write();
+                    Assert.IsTrue(lst[1].X == "2" && lst[0].X == "4" && lst.Count == 2);
+
+
+                }
                 if (mem.Member.Name == nameof(DataInterfaceTestClass.DataArray))
                 {
                     var prox = member.Get<ICollectionAnnotation>();
@@ -427,8 +488,33 @@ namespace OpenTap.Engine.UnitTests
                     }
                     member.Read();
                 }
+
+                if (mem.Member.Name == nameof(DataInterfaceTestClass.ResourceWithAvailable))
+                {
+                    // Verify that "AvailableValuesAnnotation" is chosen over "ResourceAnnotation".
+                    Assert.AreEqual(2, member.Count(x => x is IAvailableValuesAnnotation));
+                    var firstAvail = member.Get<IAvailableValuesAnnotation>().ToString();
+                    var firstAvailName = "AvailableValuesAnnotation";
+                    Assert.IsTrue(firstAvail.Contains(firstAvailName));
+                    var secondAvail = member.GetAll<IAvailableValuesAnnotation>().Last();
+                    var secondAvailName = "ResourceAnnotation";
+                    Assert.IsTrue(secondAvail.ToString().Contains(secondAvailName));
+                }
+
+                if (mem.Member.Name == nameof(DataInterfaceTestClass.SelectedMulti))
+                {
+                    var proxy = member.Get<IMultiSelectAnnotationProxy>();
+                    var avail = member.Get<IAvailableValuesAnnotationProxy>();
+                    proxy.SelectedValues = avail.AvailableValues;
+                    annotations.Write(testobj);
+                    Assert.IsTrue(testobj.SelectedMulti.ToHashSet().SetEquals(testobj.AvailableNumbers));
+                    proxy.SelectedValues = Array.Empty<AnnotationCollection>();
+                    annotations.Write(testobj);
+                    Assert.AreEqual(0, testobj.SelectedMulti.Count);
+                }
             }
             annotations.Write(testobj);
+
         }
 
         public class Delay2Step : TestStep
@@ -461,13 +547,25 @@ namespace OpenTap.Engine.UnitTests
 
             var smem = mem.Members.FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name == nameof(SweepLoop.SweepMembers));
             {
-                var select = smem.Get<IMultiSelect>();
-                var avail = smem.Get<IAvailableValuesAnnotation>();
+                {
+                    var select = smem.Get<IMultiSelect>();
+                    var avail = smem.Get<IAvailableValuesAnnotation>();
 
-                Assert.AreEqual(4, avail.AvailableValues.Cast<object>().Count()); // DelayStep only has on property.
-                select.Selected = smem.Get<IAvailableValuesAnnotation>().AvailableValues;
-                annotation.Write(sweep);
-                annotation.Read(sweep);
+                    select.Selected = new object[] { };
+                    annotation.Write(sweep);
+                    annotation.Read(sweep);
+                    Assert.AreEqual(0, select.Selected.Cast<object>().Count());
+
+                    select.Selected = new object[] {avail.AvailableValues.Cast<object>().First()};
+                    annotation.Write(sweep);
+                    annotation.Read(sweep);
+                    Assert.AreEqual(1, select.Selected.Cast<object>().Count());
+
+                    Assert.AreEqual(2, avail.AvailableValues.Cast<object>().Count()); // DelayStep only has on property.
+                    select.Selected = smem.Get<IAvailableValuesAnnotation>().AvailableValues;
+                    annotation.Write(sweep);
+                    annotation.Read(sweep);
+                }
             }
 
             var smem2 = mem.Members.FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name == nameof(SweepLoop.SweepParameters));
@@ -477,7 +575,7 @@ namespace OpenTap.Engine.UnitTests
                 collection.AnnotatedElements = collection.AnnotatedElements.Append(new_element).ToArray();
                 var new_element_members = new_element.Get<IMembersAnnotation>();
                 var members = new_element_members.Members.ToArray();
-                Assert.AreEqual(4, members.Length);
+                Assert.AreEqual(2, members.Length);
 
                 var enabled_element = members[0];
                 Assert.IsTrue(enabled_element.Get<IMemberAnnotation>().Member.Name == "Enabled");
@@ -511,10 +609,22 @@ namespace OpenTap.Engine.UnitTests
                     var delay_value2 = delay_element2.Get<IStringValueAnnotation>();
                     // SweepLoop should copy the previous value for new rows.
                     Assert.IsTrue(delay_value2.Value.Contains("0.1 s"));
-                    
                 }
+                annotation.Write();
+                annotation.Read();
+                {
+                    var elem = collection.AnnotatedElements.First();
+                    var members2 = elem.Get<IMembersAnnotation>().Members;
+                    var mem2 = members2.FirstOrDefault(m => m.Get<IMemberAnnotation>().Member.Name.Contains("DelaySecs"));
+                    mem2.Get<IStringValueAnnotation>().Value = "1.123 s";
+                    annotation.Write();
+                    annotation.Read();
+                    var nowvalue = mem2.Get<IStringValueAnnotation>().Value;
+                    Assert.AreEqual("1.123 s", nowvalue);
+                }
+
             }
-            annotation.Write();
+            
             var rlistener = new OpenTap.Engine.UnitTests.PlanRunCollectorListener() { CollectResults = true };
             var plan = new TestPlan();
             plan.ChildTestSteps.Add(sweep);
@@ -546,17 +656,15 @@ namespace OpenTap.Engine.UnitTests
             var mem2 = desc.GetMember("SimpleNumber");
             var annotation2 = named.GetMember(mem2);
             var unit2 = annotation2.Get<UnitAttribute>();
-            var errors = annotation2.Get<ErrorAnnotation>();
-            errors.Errors.Clear();
             var num = annotation2.Get<IStringValueAnnotation>();
             var currentVal = num.Value;
             num.Value = "4";
             try
             {
                 num.Value = "asd";
-            }catch(Exception e)
+            }catch(Exception)
             {
-                errors.Errors.Add(e.Message);
+                
             }
             currentVal = num.Value;
             Assert.AreEqual(currentVal, "4 Hz");
@@ -784,6 +892,27 @@ namespace OpenTap.Engine.UnitTests
 
             mems[0].Write();
             mems[1].Write();
+        }
+        class InputAnnotationStep : TestStep
+        {
+            public Input<Verdict> Input { get; set; } = new Input<Verdict>();
+            public override void Run() { }
+        }
+        [Test]
+        public void AnnotatedInputTest()
+        {
+            var plan = new TestPlan();
+            plan.Steps.Add(new DelayStep());
+            InputAnnotationStep step;
+            plan.Steps.Add(step = new InputAnnotationStep());
+
+            var annotation = AnnotationCollection.Annotate(step);
+            var inputMember = annotation.Get<INamedMembersAnnotation>().GetMember(TypeData.FromType(typeof(InputAnnotationStep)).GetMember(nameof(InputAnnotationStep.Input)));
+            var proxy = inputMember.Get<IAvailableValuesAnnotationProxy>();
+            proxy.SelectedValue = proxy.AvailableValues.Skip(1). FirstOrDefault(); //skip 'None'.
+            annotation.Write(step);
+
+            Assert.IsTrue(step.Input.Step == plan.Steps[0]);
         }
     }
 }

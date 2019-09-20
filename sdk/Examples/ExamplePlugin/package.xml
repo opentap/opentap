@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+InfoLink: Specifies a location where additional information about the package can be found.
+Version: The version of the package. Must be in a semver 2.0 compatible format. This can be automatically updated from GIT.
+
+For Version the following macro is available (Only works if the project directory is under Git source control):
+$(GitVersion) - Gets the version from Git in the recommended format Major.Minor.Build-PreRelease+CommitHash.BranchName.
+-->
+<Package Name="Example Plugin"
+         xmlns="http://opentap.io/schemas/package"
+         InfoLink="http://www.keysight.com/"
+         Version="0.1.0-alpha">
+  <Description>Example plugin containing Instrument, DUT and TestStep.</Description>
+  <Files>
+    <File Path="Packages/Example Plugin/OpenTap.Plugins.ExamplePlugin.dll">
+      <!--SetAssemblyInfo updates assembly info according to package version.-->
+      <SetAssemblyInfo Attributes="Version"/>
+    </File>
+    <File Path="Packages/Example Plugin/SomeSampleData.txt"></File>
+  </Files>
+</Package>

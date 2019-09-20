@@ -95,9 +95,18 @@ namespace OpenTap
         /// <param name="verdict"></param>
         internal void UpgradeVerdict(Verdict verdict)
         {
-            if (this.Verdict < verdict)
-                this.Verdict = verdict;
+            // locks are slow. 
+            // Hence first check if a verdict upgrade is needed, then do the actual upgrade.
+            if (Verdict < verdict)
+            {
+                lock (upgradeVerdictLock)
+                {
+                    if (Verdict < verdict)
+                        Verdict = verdict;
+                }
+            }
         }
+        readonly object upgradeVerdictLock = new object();
     }
 
     /// <summary>
@@ -147,6 +156,9 @@ namespace OpenTap
         /// </summary>
         [XmlIgnore]
         public bool SupportsJumpTo { get; set; }
+
+        /// <summary> This step run was skipped without execution. </summary>
+        internal bool Skipped { get; set; }
 
         /// <summary>
         /// The path name of the steps. E.g the name of the step combined with all of its parent steps.

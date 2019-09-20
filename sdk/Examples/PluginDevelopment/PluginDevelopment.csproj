@@ -1,0 +1,127 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <StartAction>Program</StartAction>
+    <StartProgram>$(TAP_PATH)\Editor.exe</StartProgram>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProductVersion>8.0.30703</ProductVersion>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>{8800F7AE-667D-4A38-816C-3D0135703490}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>OpenTap.Plugins.PluginDevelopment</RootNamespace>
+    <AssemblyName>OpenTap.Plugins.PluginDevelopment</AssemblyName>
+    <!-- 'v4.5.2' removed because we only support 4.5.2-->
+    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>$(TAP_PATH)</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <LangVersion>6</LangVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>$(TAP_PATH)</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="OpenTap, Version=5.0.390.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>$(TAP_PATH)\OpenTap.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Xaml" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+    <Reference Include="netstandard" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="GUI\ExampleSettings.cs" />
+    <Compile Include="GUI\UserInputExample.cs" />
+    <Compile Include="GUI\TestPlanCustomImportExport.cs" />
+    <Compile Include="InstrumentsAndDuts\ConnectionStep.cs" />
+    <Compile Include="InstrumentsAndDuts\FourPortDut.cs" />
+    <Compile Include="InstrumentsAndDuts\InterfaceBasedInstrument.cs" />
+    <Compile Include="InstrumentsAndDuts\MeasureUsingConnectionsStep.cs" />
+    <Compile Include="InstrumentsAndDuts\ScpiInstrumentExample.cs" />
+    <Compile Include="InstrumentsAndDuts\SetSwitchStep.cs" />
+    <Compile Include="InstrumentsAndDuts\SetSwitchMatrixStep.cs" />
+    <Compile Include="InstrumentsAndDuts\SwitchMatrixInstrument.cs" />
+    <Compile Include="InstrumentsAndDuts\TwoPositionSwitchInstrument.cs" />
+    <Compile Include="InstrumentsAndDuts\TwoPortInstrument.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ResultListeners\EventResultListener.cs" />
+    <Compile Include="TestSteps\DynamicStep.cs" />
+    <Compile Include="TestSteps\PublishResults\SingleNameValuePair.cs" />
+    <Compile Include="TestSteps\PublishResults\SetOfNameValuePairs.cs" />
+    <Compile Include="TestSteps\Attributes\BrowsableAttributeExample.cs" />
+    <Compile Include="TestSteps\Attributes\DynamicNameDisplayAttribute.cs" />
+    <Compile Include="TestSteps\Attributes\PathAttributeExample.cs" />
+    <Compile Include="TestSteps\Attributes\FlagsAttributeExample.cs" />
+    <Compile Include="TestSteps\Attributes\ResultListenerIgnoreAttributeExample.cs" />
+    <Compile Include="TestSteps\Attributes\AvailableValuesAttributeExample.cs" />
+    <Compile Include="TestSteps\PublishResults\ResultsForXyArray.cs" />
+    <Compile Include="TestSteps\PublishResults\ResultsWithCustomClass.cs" />
+    <Compile Include="TestSteps\Attributes\ColumnDisplayAttributeExample.cs" />
+    <Compile Include="TestSteps\Step Execution\AccessingComponentSettings.cs" />
+    <Compile Include="GUI\ButtonCreation.cs" />
+    <Compile Include="TestSteps\Step Execution\DeferTaskStep.cs" />
+    <Compile Include="TestSteps\Step Settings\EnabledCheckBoxes.cs" />
+    <Compile Include="TestSteps\InputOutput\HandleInput.cs" />
+    <Compile Include="TestSteps\InputOutput\GenerateOutput.cs" />
+    <Compile Include="TestSteps\Step Execution\LogMessages.cs" />
+    <Compile Include="TestSteps\Attributes\DisplayAttributeExample.cs" />
+    <Compile Include="TestSteps\Attributes\ScpiAttributeExample.cs" />
+    <Compile Include="TestSteps\Step Execution\SetVerdict.cs" />
+    <Compile Include="TestSteps\Step Execution\AbortsTheTestPlan.cs" />
+    <Compile Include="TestSteps\ParentChild\ChildSeekingResources.cs" />
+    <Compile Include="TestSteps\ParentChild\ParentAnyChildren.cs" />
+    <Compile Include="TestSteps\ParentChild\ParentWithResources.cs" />
+    <Compile Include="TestSteps\Attributes\EnabledIfAttributeExample.cs" />
+    <Compile Include="InstrumentsAndDuts\SimpleDut.cs" />
+    <Compile Include="ResultListeners\ExampleResultListener.cs" />
+    <Compile Include="TestSteps\Attributes\UnitAttributeExample.cs" />
+    <Compile Include="TestSteps\Step Execution\OfferBreakExample.cs" />
+    <Compile Include="GUI\CustomBenchSettings.cs" />
+    <Compile Include="GUI\IPAnnotation.cs"/>
+    <Compile Include="InstrumentsAndDuts\SimpleInstrument.cs" />
+    <Compile Include="InstrumentsAndDuts\UsingDutAndInstStep.cs" />
+    <Compile Include="TestSteps\Step Settings\ListOfObjects.cs" />
+    <Compile Include="TestSteps\Step Settings\RuleValidation.cs" />
+    <Compile Include="TestSteps\Attributes\XmlIgnoreAttributeExample.cs" />
+  </ItemGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <Content Include="package.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <UsingTask TaskName="Keysight.OpenTap.Sdk.MSBuild.PackageTask" AssemblyFile="$(TAP_PATH)\Packages\SDK\Keysight.OpenTap.Sdk.MSBuild.dll" />
+  <Target Name="AfterBuild" Condition="'$(Configuration)' == 'Release' ">
+    <GetAssemblyIdentity AssemblyFiles="$(TargetPath)">
+      <Output TaskParameter="Assemblies" ItemName="TargetInfo" />
+    </GetAssemblyIdentity>
+    <PackageTask Dir="$(TargetDir)" ConfFile="$(ProjectDir)\package.xml" />
+  </Target>
+  <PropertyGroup>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
+</Project>

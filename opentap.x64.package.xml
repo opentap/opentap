@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package Name="OpenTAP" xmlns="http://opentap.io/schemas/package" InfoLink="http://www.keysight.com/find/TAP" Version="$(GitVersion)" OS="Windows" Architecture="x64">
+  <Description>OpenTAP contains the core components of the software. It controls test plan (list of test steps) execution and provides access to functionality offered by the plugins. This covers logging functionality, result handling (database) and instrument communication (user-developed hardware drivers, for example). OpenTAP also includes a CLI and a plugin manager that finds and handles plugins (test steps, DUT and Instrument interfaces, etc.). 
+    <Status>Released</Status>
+    <Organisation>Keysight Technologies</Organisation>
+  </Description>
+  <Files>
+    <File Path="OpenTap.dll">
+        <SetAssemblyInfo Attributes="Version"/>
+        <Sign Certificate="Keysight Technologies, Inc"/>
+    </File>
+    <File Path="Packages/OpenTAP/OpenTap.Cli.dll" SourcePath="OpenTap.Cli.dll">
+        <SetAssemblyInfo Attributes="Version"/>
+        <Sign Certificate="Keysight Technologies, Inc"/>
+    </File>
+    <File Path="OpenTap.Package.dll">
+        <SetAssemblyInfo Attributes="Version"/>
+        <Sign Certificate="Keysight Technologies, Inc"/>
+    </File>
+    <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" SourcePath="OpenTap.Plugins.BasicSteps.dll">
+        <SetAssemblyInfo Attributes="Version"/>
+        <Sign Certificate="Keysight Technologies, Inc"/>
+    </File>
+    <File Path="tap.exe" >
+        <SetAssemblyInfo Attributes="Version"/>
+        <Sign Certificate="Keysight Technologies, Inc"/>
+    </File>
+    <File Path="LICENSE.txt"  SourcePath="..\..\LICENSE.txt"/>
+    <File Path="Dependencies\LibGit2Sharp.0.25.0.0\git2-4aecb64.dll" SourcePath="lib\win32\x64\git2-4aecb64.dll"  />
+    <File Path="Dependencies\LibGit2Sharp.0.25.0.0\LICENSE.txt" SourcePath="libgit2sharp.license.md"  />
+
+    <File Path="Dependencies\Mono.Cecil.0.10.1.0\LICENSE.txt" SourcePath="Mono.Cecil.License.txt"  />
+    <File Path="Dependencies\System.Runtime.InteropServices.RuntimeInformation.4.0.2.0\System.Runtime.InteropServices.RuntimeInformation.dll"  SourcePath="System.Runtime.InteropServices.RuntimeInformation.dll"/>
+    <File Path="OpenTapApiReference.chm"                                            SourcePath="..\..\Help/OpenTapApiReference.chm"/>
+
+    <File Path="Dependencies/netstandard.2.0.0.0/LICENSE.txt"                       SourcePath="dotnet_mit_license.txt"/>
+    <File Path="Dependencies/System.Reflection.Metadata.1.4.3.0/LICENSE.txt"        SourcePath="dotnet_mit_license.txt"/>
+    <File Path="Dependencies/System.Collections.Immutable.1.2.3.0/LICENSE.txt"      SourcePath="dotnet_mit_license.txt"/>
+    <File Path="Dependencies/Microsoft.CSharp.4.0.4.0/LICENSE.txt"                  SourcePath="dotnet_mit_license.txt"/>
+    <File Path="Dependencies/System.ValueTuple.4.0.3.0/LICENSE.txt"                 SourcePath="dotnet_mit_license.txt"/>
+    <File Path="Dependencies/System.Runtime.4.1.2.0/LICENSE.txt"                    SourcePath="dotnet_library_license.txt"/>
+    <File Path="Dependencies/System.Collections.4.0.11.0/LICENSE.txt"               SourcePath="dotnet_library_license.txt"/>
+    <File Path="Dependencies/System.IO.4.1.2.0/LICENSE.txt"                         SourcePath="dotnet_library_license.txt"/>
+    <File Path="Dependencies/System.Runtime.Extensions.4.1.2.0/LICENSE.txt"         SourcePath="dotnet_library_license.txt"/>
+    <File Path="Dependencies/System.Linq.4.1.2.0/LICENSE.txt"                       SourcePath="dotnet_library_license.txt"/>
+    <File Path="Dependencies/DotNet.Glob.3.0.1.0/LICENSE.txt"                       SourcePath="Dotnet.Glob.License.txt"  />
+    <File Path="Dependencies/Newtonsoft.Json.12.0.0.0/LICENSE.txt"                  SourcePath="../../Installer/Assets/newtonsoft_mit_license.txt" />
+
+  </Files>
+</Package>
