@@ -559,12 +559,14 @@ namespace OpenTap.Package.UnitTests
                 if (File.Exists(pkgName))
                     File.Delete(pkgName);
                 File.WriteAllText(pkgName, pkgContent);
+                CliTests.CreateOpenTAPPackage(); // to get a dependency, OpenTAP first needs to be installed
                 var pkg = PackageDefExt.FromInputXml(pkgName);
                 CollectionAssert.IsNotEmpty(pkg.Dependencies,"Package has no dependencies.");
                 //Assert.AreEqual("OpenTAP", pkg.Dependencies.First().Name);
-                pkg.CreatePackage("BasicSteps.TapPackage", Directory.GetCurrentDirectory());
+                string installDir = Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location);
+                pkg.CreatePackage("BasicSteps.TapPackage", installDir);
 
-                List<IPackageRepository> repositories = new List<IPackageRepository>() { new FilePackageRepository(Directory.GetCurrentDirectory()) };
+                List<IPackageRepository> repositories = new List<IPackageRepository>() { new FilePackageRepository(installDir) };
 
                 var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, new PackageSpecifier());
                 CollectionAssert.IsNotEmpty(packages, "Repository does not list any packages.");
