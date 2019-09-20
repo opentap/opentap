@@ -258,7 +258,7 @@ namespace OpenTap.Package.UnitTests
             try
             {
                 int exitCode;
-                string output = RunPackageCli("install NoDepsPlugin", out exitCode);
+                string output = RunPackageCli("install NoDepsPlugin -f -y", out exitCode);
                 Assert.AreEqual(0, exitCode, "Unexpected exit code");
                 StringAssert.Contains("NoDepsPlugin", output);
                 Assert.IsTrue(File.Exists("Packages/NoDepsPlugin/Tap.Plugins.NoDepsPlugin.dll"));
