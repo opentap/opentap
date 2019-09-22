@@ -340,7 +340,10 @@ namespace OpenTap.Package
                 }
 
                 packages.ForEach(p => p.Location = packagesFile.FullName);
-                allPackages.AddRange(packages);
+                lock (allPackages)
+                {
+                    allPackages.AddRange(packages);
+                }
             });
 
             // Deserialize all regular packages
@@ -360,7 +363,11 @@ namespace OpenTap.Package
                     return;
                 }
                 package.Location = pluginFile.FullName;
-                allPackages.Add(package);
+
+                lock (allPackages)
+                {
+                    allPackages.Add(package);
+                }
             });
             
             return allPackages.ToArray();
