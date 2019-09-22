@@ -11,7 +11,7 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Xml.Linq;
-
+using OpenTap;
 [assembly:OpenTap.PluginAssembly(true)]
 
 namespace OpenTap.Package
@@ -146,7 +146,7 @@ namespace OpenTap.Package
             return false;
         }
 
-        static string getAssemblyLocation(ITypeData _x)
+        static string getAssemblyName(ITypeData _x)
         {
             
             if(_x is TypeData xx && xx.Type is Type x && x.Assembly != null && x.Assembly.IsDynamic == false)
@@ -154,7 +154,7 @@ namespace OpenTap.Package
                 try
                 {
                     // this can throw an exception, for example if the assembly is dynamic.
-                    return x.Assembly.Location;
+                    return Path.GetFileNameWithoutExtension(x.Assembly.Location.Replace("\\", "/"));
                 }
                 catch
                 {
@@ -180,8 +180,7 @@ namespace OpenTap.Package
                 if (WritePackageDependencies) // Allow a serializer futher down the stack to disable the <Package.Dependencies> tag
                 {
                     var pluginsNode = new XElement(PackageDependenciesName);
-
-                    var allassemblies = allTypes.Select(getAssemblyLocation).Where(x => x != null).ToHashSet();
+                    var allassemblies = allTypes.Select(getAssemblyName).Where(x => x != null).ToHashSet(StringComparer.InvariantCultureIgnoreCase);
                     var plugins = new Installation(Path.GetDirectoryName(Assembly.GetAssembly(typeof(PluginManager)).Location)).GetPackages();
 
                     List<PackageDef> packages = new List<PackageDef>();
@@ -190,7 +189,9 @@ namespace OpenTap.Package
                     {
                         foreach (var file in plugin.Files)
                         {
-                            if (allassemblies.Contains(Path.GetFullPath(file.FileName)))
+                            var filename = Path.GetFileNameWithoutExtension(file.FileName.Replace("\\", "/"));
+
+                            if (allassemblies.Contains(filename))
                             {
                                 packages.Add(plugin);
                                 break;
