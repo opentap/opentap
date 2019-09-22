@@ -23,7 +23,7 @@ namespace OpenTap.Sdk.New
 
         public override int Execute(CancellationToken cancellationToken)
         {
-            if (Directory.Exists(output) == false)
+            if (string.IsNullOrWhiteSpace(output) == false && Directory.Exists(output) == false)
                 Directory.CreateDirectory(output);
 
             using (var reader = new StreamReader(Assembly.GetExecutingAssembly()
@@ -34,7 +34,7 @@ namespace OpenTap.Sdk.New
             }
 
             new GenerateTestStep() { Name = "MyFirstTestStep", output = Path.Combine(output ?? Directory.GetCurrentDirectory(), "MyFirstTestStep.cs") }.Execute(cancellationToken);
-            new GenerateTestPlan() { Name = "MyFirstTestPlan", output = Path.Combine(output ?? Directory.GetCurrentDirectory(), "MyFirstTestPlan.cs") }.Execute(cancellationToken);
+            new GenerateTestPlan() { Name = "MyFirstTestPlan", output = Path.Combine(output ?? Directory.GetCurrentDirectory(), "MyFirstTestPlan.TapPlan") }.Execute(cancellationToken);
             new GeneratePackageXml() { Name = this.Name, output = Path.Combine(output ?? Directory.GetCurrentDirectory(), "package.xml") }.Execute(cancellationToken);
 
             return 0;
