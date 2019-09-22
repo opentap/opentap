@@ -146,7 +146,7 @@ namespace OpenTap.Package
             return false;
         }
 
-        static string getAssemblyLocation(ITypeData _x)
+        static string getAssemblyName(ITypeData _x)
         {
             
             if(_x is TypeData xx && xx.Type is Type x && x.Assembly != null && x.Assembly.IsDynamic == false)
@@ -154,7 +154,7 @@ namespace OpenTap.Package
                 try
                 {
                     // this can throw an exception, for example if the assembly is dynamic.
-                    return x.Assembly.Location;
+                    return Path.GetFileNameWithoutExtension(x.Assembly.Location);
                 }
                 catch
                 {
@@ -181,7 +181,7 @@ namespace OpenTap.Package
                 {
                     var pluginsNode = new XElement(PackageDependenciesName);
 
-                    var allassemblies = allTypes.Select(getAssemblyLocation).Where(x => x != null).ToHashSet();
+                    var allassemblies = allTypes.Select(getAssemblyName).Where(x => x != null).ToHashSet(StringComparer.InvariantCultureIgnoreCase);
                     var plugins = new Installation(Path.GetDirectoryName(Assembly.GetAssembly(typeof(PluginManager)).Location)).GetPackages();
 
                     List<PackageDef> packages = new List<PackageDef>();
@@ -190,7 +190,7 @@ namespace OpenTap.Package
                     {
                         foreach (var file in plugin.Files)
                         {
-                            if (allassemblies.Contains(Path.GetFullPath(file.FileName)))
+                            if (allassemblies.Contains(Path.GetFileNameWithoutExtension(file.FileName)))
                             {
                                 packages.Add(plugin);
                                 break;
