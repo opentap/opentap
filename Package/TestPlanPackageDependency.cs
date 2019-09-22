@@ -11,7 +11,7 @@ using System.Reflection;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Xml.Linq;
-
+using OpenTap;
 [assembly:OpenTap.PluginAssembly(true)]
 
 namespace OpenTap.Package
@@ -154,7 +154,7 @@ namespace OpenTap.Package
                 try
                 {
                     // this can throw an exception, for example if the assembly is dynamic.
-                    return Path.GetFileNameWithoutExtension(x.Assembly.Location);
+                    return Path.GetFileNameWithoutExtension(x.Assembly.Location.Replace("\\", "/"));
                 }
                 catch
                 {
@@ -166,6 +166,7 @@ namespace OpenTap.Package
 
         readonly HashSet<ITypeData> allTypes = new HashSet<ITypeData>();
         XElement endnode;
+        static global::OpenTap.TraceSource log = global::OpenTap.Log.CreateSource("package dependency");
         public override bool Serialize(XElement elem, object obj, ITypeData type)
         {
             //if (type == typeof(PackageDef))
@@ -180,7 +181,6 @@ namespace OpenTap.Package
                 if (WritePackageDependencies) // Allow a serializer futher down the stack to disable the <Package.Dependencies> tag
                 {
                     var pluginsNode = new XElement(PackageDependenciesName);
-
                     var allassemblies = allTypes.Select(getAssemblyName).Where(x => x != null).ToHashSet(StringComparer.InvariantCultureIgnoreCase);
                     var plugins = new Installation(Path.GetDirectoryName(Assembly.GetAssembly(typeof(PluginManager)).Location)).GetPackages();
 
@@ -190,7 +190,9 @@ namespace OpenTap.Package
                     {
                         foreach (var file in plugin.Files)
                         {
-                            if (allassemblies.Contains(Path.GetFileNameWithoutExtension(file.FileName)))
+var filename = Path.GetFileNameWithoutExtension(file.FileName.Replace("\\", "/"));
+
+                            if (allassemblies.Contains(filename))
                             {
                                 packages.Add(plugin);
                                 break;
