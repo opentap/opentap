@@ -166,7 +166,6 @@ namespace OpenTap.Package
 
         readonly HashSet<ITypeData> allTypes = new HashSet<ITypeData>();
         XElement endnode;
-        static global::OpenTap.TraceSource log = global::OpenTap.Log.CreateSource("package dependency");
         public override bool Serialize(XElement elem, object obj, ITypeData type)
         {
             //if (type == typeof(PackageDef))
@@ -190,7 +189,7 @@ namespace OpenTap.Package
                     {
                         foreach (var file in plugin.Files)
                         {
-var filename = Path.GetFileNameWithoutExtension(file.FileName.Replace("\\", "/"));
+                            var filename = Path.GetFileNameWithoutExtension(file.FileName.Replace("\\", "/"));
 
                             if (allassemblies.Contains(filename))
                             {
