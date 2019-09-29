@@ -702,15 +702,15 @@ namespace OpenTap
 
         }
 
-        /// <summary>
-        /// Gets the file where a ComponentSettingsType is saved.
-        /// </summary>
-        /// <param name="type"></param>
+        /// <summary> Gets the current file location where a ComponentSettings type is saved. </summary>
+        /// <param name="type"> Must be a ComponentSettings sub-class. </param>
         /// <returns></returns>
         static public string GetSaveFilePath(Type type)
         {
             if (type == null)
-                throw new ArgumentNullException("type");
+                throw new ArgumentNullException(nameof(type));
+            if (type.DescendsTo(typeof(ComponentSettings)) == false)
+                throw new ArgumentException("Type must inherit from ComponentSettings, otherwise it does not have a settings file.", nameof(type));
             var settingsGroup = type.GetAttribute<SettingsGroupAttribute>();
 
             bool isProfile = settingsGroup == null ? false : settingsGroup.Profile;
