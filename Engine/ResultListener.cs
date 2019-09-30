@@ -300,6 +300,7 @@ namespace OpenTap
             foreach (var tp in types)
             {
                 var t = tp.Load();
+                if (tp.CanCreateInstance == false) continue;
                 var componentSetting = ComponentSettings.GetCurrent(t);
                 if (componentSetting != null)
                 {
