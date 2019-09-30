@@ -72,6 +72,14 @@ namespace OpenTap
         IEnumerable AvailableValues { get; }
     }
 
+    /// <summary>
+    /// Enhances the IAvailableValuesAnnotation with a 'SelectedValue'. Having this ensures that objects that has been transformed can get read back in the correct way.
+    /// </summary>
+    public interface IAvailableValuesSelectedAnnotation : IAvailableValuesAnnotation
+    {
+        object SelectedValue { get; set; }
+    }
+
     /// <summary> Defines a suggested values implementation.  </summary>
     public interface ISuggestedValuesAnnotation : IAnnotation
     {
@@ -193,6 +201,12 @@ namespace OpenTap
         AnnotationCollection GetMember(IMemberData name);
     }
 
+    /// <summary> This attribute will cause the annotator to not generate a members annotation for this type.</summary>
+    [AttributeUsage(AttributeTargets.Class)]
+    public class BlockMembersAnnotationAttribute : Attribute
+    {
+
+    }
     /// <summary> Can be used to forward a set of members from one annotation to another.</summary>
     public interface IForwardedAnnotations : IAnnotation
     {
@@ -832,7 +846,14 @@ namespace OpenTap
         {
             if (annotation.Source == null) return;
             var m = annotation.Get<IMemberAnnotation>();
-            currentValue = m.Member.GetValue(annotation.Source);
+            try
+            {
+                currentValue = m.Member.GetValue(annotation.Source);
+            }
+            catch(System.Reflection.TargetInvocationException)
+            {
+                // the member itself threw an exception. 
+            }
         }
         public void Read(object source)
         {
@@ -1056,10 +1077,10 @@ namespace OpenTap
             {
                 get
                 {
-                    if(setValue.HasValue == false)
+                    if (setValue.HasValue == false)
                     {
                         var input = getInput();
-                        if(input != null)
+                        if (input != null)
                             setValue = InputThing.FromInput(input);
                     }
 
@@ -1153,10 +1174,12 @@ namespace OpenTap
             {
                 get
                 {
+                    if (!checkBrowsable) return true;
+
                     if (evalue != null)
                     {
                         var mem = enumType.GetMember(evalue.ToString()).FirstOrDefault();
-                        if(mem != null)
+                        if (mem != null)
                         {
                             return mem.IsBrowsable();
                         }
@@ -1167,10 +1190,12 @@ namespace OpenTap
 
             AnnotationCollection a;
             Type enumType;
+            bool checkBrowsable = false;
             public EnumStringAnnotation(Type enumType, AnnotationCollection annotation)
             {
                 this.a = annotation;
                 this.enumType = enumType;
+                checkBrowsable = enumType.GetMembers().Any(x => x.IsBrowsable() == false);
             }
         }
 
@@ -2240,7 +2265,8 @@ namespace OpenTap
                 bool csharpPrimitive = tp is TypeData cst && (cst.Type.IsPrimitive || cst.Type == typeof(string));
                 if (tp.GetMembers().Any() && !csharpPrimitive)
                 {
-                    annotation.Add(new MembersAnnotation(annotation));
+                    if(!tp.HasAttribute<BlockMembersAnnotationAttribute>())
+                        annotation.Add(new MembersAnnotation(annotation));
                     if (tp.DescendsTo(typeof(IEnabled)))
                     {
                         annotation.Add(new EnabledAnnotation(annotation));
@@ -2274,10 +2300,40 @@ namespace OpenTap
                     if (annotations == null)
                     {
                         var values = a.Get<IAvailableValuesAnnotation>()?.AvailableValues;
+
+
+                        if (a?.Get<MergedValueAnnotation>() is MergedValueAnnotation merged)
+                        {
+                            // Merged available value fields are the common of all the original available values.
+                            HashSet<object> values2 = null;
+                            foreach (var m in merged.Merged)
+                            {
+                                var e = m.Get<IAvailableValuesAnnotation>()?.AvailableValues as IEnumerable<object>;
+                                if (e == null) continue;
+                                if (values2 == null)
+                                {
+                                    values2 = new HashSet<object>(e);
+                                    continue;
+                                }
+
+                                foreach (var value in values2.ToArray())
+                                {
+                                    if (e.Contains(value) == false)
+                                    {
+                                        values2.Remove(value);
+                                    }
+                                }
+
+                            }
+                            values = values2;
+                        }
+
                         if (values != null)
                             prevValues = values.Cast<object>().ToArray();
                         else
+                        {
                             prevValues = Array.Empty<object>();
+                        }
                         
                         var readOnly = new ReadOnlyMemberAnnotation();
                         var lst = new List<AnnotationCollection>();
@@ -2304,22 +2360,31 @@ namespace OpenTap
             {
                 get
                 {
-                    var current = a.Get<IObjectValueAnnotation>()?.Value;
+                    object current;
+
+                    if (a.Get<IAvailableValuesSelectedAnnotation>() is IAvailableValuesSelectedAnnotation x)
+                        current = x.SelectedValue;
+                    else
+                        current = a.Get<IObjectValueAnnotation>()?.Value;
+
                     if (current == null) return null;
-                    foreach (var a in AvailableValues)
+                    foreach (var a2 in AvailableValues)
                     {
-                        if (object.Equals(current, a.Get<IObjectValueAnnotation>()?.Value))
+                        if (object.Equals(current, a2.Get<IObjectValueAnnotation>()?.Value))
                         {
-                            return a;
+                            return a2;
                         }
                     }
-                    var val = a.Get<IObjectValueAnnotation>().Value;
-                    return a.AnnotateSub(TypeData.GetTypeData(val), val, new ReadOnlyMemberAnnotation(), new AvailableMemberAnnotation(a));
+
+                    return a.AnnotateSub(TypeData.GetTypeData(current), current, new ReadOnlyMemberAnnotation(), new AvailableMemberAnnotation(a));
                 }
                 set
                 {
                     if (value == null) return;
-                    a.Get<IObjectValueAnnotation>().Value = value.Get<IObjectValueAnnotation>().Value;
+                    if (a.Get<IAvailableValuesSelectedAnnotation>() is IAvailableValuesSelectedAnnotation x)
+                        x.SelectedValue = value.Get<IObjectValueAnnotation>().Value; 
+                    else
+                        a.Get<IObjectValueAnnotation>().Value = value.Get<IObjectValueAnnotation>().Value;
                 }
             }
 
@@ -2464,19 +2529,44 @@ namespace OpenTap
                 this.annotations = annotations;
             }
 
-            public bool IsReadOnly { get; private set; }
+            bool isReadOnly = false;
+            public bool IsReadOnly
+            {
+                get
+                {
+                    doRead();
+                    return isReadOnly;
+                }
+            }
 
-            public bool IsVisible { get; private set; } = true;
+            bool isVisible = true;
+
+            public bool IsVisible {
+                get
+                {
+                    doRead();
+                    return isVisible;
+                }
+            }
+
+            bool wasRead = false;
+            void doRead()
+            {
+                if (wasRead) return;
+                wasRead = true;
+                isReadOnly = false;
+                isVisible = true;
+                foreach (var access in annotations.GetAll<IAccessAnnotation>())
+                {
+                    isReadOnly |= access.IsReadOnly;
+                    isVisible &= access.IsVisible;
+                }
+            }
 
             public void Read(object source)
             {
-                IsReadOnly = false;
-                IsVisible = true;
-                foreach (var access in annotations.GetAll<IAccessAnnotation>())
-                {
-                    IsReadOnly |= access.IsReadOnly;
-                    IsVisible &= access.IsVisible;
-                }
+                wasRead = false;
+                doRead();
             }
 
             public void Write(object source)
