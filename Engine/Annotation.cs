@@ -75,8 +75,9 @@ namespace OpenTap
     /// <summary>
     /// Enhances the IAvailableValuesAnnotation with a 'SelectedValue'. Having this ensures that objects that has been transformed can get read back in the correct way.
     /// </summary>
-    public interface IAvailableValuesSelectedAnnotation : IAvailableValuesAnnotation
+    interface IAvailableValuesSelectedAnnotation : IAvailableValuesAnnotation
     {
+        /// <summary> Gets or sets the selected value. </summary>
         object SelectedValue { get; set; }
     }
 
