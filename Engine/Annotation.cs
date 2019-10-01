@@ -202,12 +202,6 @@ namespace OpenTap
         AnnotationCollection GetMember(IMemberData name);
     }
 
-    /// <summary> This attribute will cause the annotator to not generate a members annotation for this type.</summary>
-    [AttributeUsage(AttributeTargets.Class)]
-    public class BlockMembersAnnotationAttribute : Attribute
-    {
-
-    }
     /// <summary> Can be used to forward a set of members from one annotation to another.</summary>
     public interface IForwardedAnnotations : IAnnotation
     {
@@ -967,7 +961,7 @@ namespace OpenTap
         }
         
         
-        class InputStepAnnotation : IAvailableValuesAnnotation, IObjectValueAnnotation, IOwnedAnnotation
+        class InputStepAnnotation : IAvailableValuesSelectedAnnotation, IOwnedAnnotation
         {
             struct InputThing
             {
@@ -1074,7 +1068,7 @@ namespace OpenTap
 
             InputThing? setValue = null;
 
-            public object Value
+            public object SelectedValue
             {
                 get
                 {
@@ -1100,7 +1094,27 @@ namespace OpenTap
 
         class EnumValuesAnnotation : IAvailableValuesAnnotation
         {
-            public IEnumerable AvailableValues => Enum.GetValues(enumType);
+            IEnumerable availableValues;
+            public IEnumerable AvailableValues
+            {
+                get
+                {
+                    if (availableValues == null)
+                    {
+                        bool isBrowsable(Enum e)
+                        {
+                            var mem = enumType.GetMember(e.ToString()).FirstOrDefault();
+                            if (mem != null)
+                                return mem.IsBrowsable();
+                            return true;
+                        }
+
+                        availableValues = Enum.GetValues(enumType).Cast<Enum>().Where(isBrowsable).ToArray();
+                    }
+                    return availableValues;
+                }
+            }
+                    
 
             Type enumType;
             AnnotationCollection a;
@@ -1111,7 +1125,7 @@ namespace OpenTap
             }
         }
 
-        class EnumStringAnnotation : IStringValueAnnotation, IAccessAnnotation
+        class EnumStringAnnotation : IStringValueAnnotation
         {
 
             string enumToString(Enum value)
@@ -1168,35 +1182,13 @@ namespace OpenTap
                         throw new FormatException($"Unable to parse {value} as an {enumType}");
                 }
             }
-
-            public bool IsReadOnly => false;
-
-            public bool IsVisible
-            {
-                get
-                {
-                    if (!checkBrowsable) return true;
-
-                    if (evalue != null)
-                    {
-                        var mem = enumType.GetMember(evalue.ToString()).FirstOrDefault();
-                        if (mem != null)
-                        {
-                            return mem.IsBrowsable();
-                        }
-                    }
-                    return true;
-                }
-            }
-
+            
             AnnotationCollection a;
             Type enumType;
-            bool checkBrowsable = false;
             public EnumStringAnnotation(Type enumType, AnnotationCollection annotation)
             {
                 this.a = annotation;
                 this.enumType = enumType;
-                checkBrowsable = enumType.GetMembers().Any(x => x.IsBrowsable() == false);
             }
         }
 
@@ -2266,8 +2258,7 @@ namespace OpenTap
                 bool csharpPrimitive = tp is TypeData cst && (cst.Type.IsPrimitive || cst.Type == typeof(string));
                 if (tp.GetMembers().Any() && !csharpPrimitive)
                 {
-                    if(!tp.HasAttribute<BlockMembersAnnotationAttribute>())
-                        annotation.Add(new MembersAnnotation(annotation));
+                    annotation.Add(new MembersAnnotation(annotation));
                     if (tp.DescendsTo(typeof(IEnabled)))
                     {
                         annotation.Add(new EnabledAnnotation(annotation));

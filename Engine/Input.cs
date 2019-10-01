@@ -35,7 +35,6 @@ namespace OpenTap
     /// When used in a TestStep, Input value should always be set in the constructor.
     /// </summary>
     /// <typeparam name="T"> Generic type parameter. </typeparam>
-    [BlockMembersAnnotation]
     public class Input<T> : IInput, IInputTypeRestriction
     {
         /// <summary> 

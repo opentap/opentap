@@ -800,10 +800,10 @@ namespace OpenTap.Engine.UnitTests
             var annotation = AnnotationCollection.Annotate(step1);
             var inputAnnotation = annotation.Get<IMembersAnnotation>().Members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member.Name == nameof(ReadInputStep.Input));
             var avail = inputAnnotation.Get<IAvailableValuesAnnotation>();
-            var setVal = avail as IObjectValueAnnotation;
+            var setVal = avail as IAvailableValuesSelectedAnnotation;
             foreach (var val in avail.AvailableValues.Cast<object>().ToArray())
             {
-                setVal.Value = val;
+                setVal.SelectedValue = val;
                 annotation.Write(step1);
                 Assert.IsFalse(step1.Input.Step == theParent);
             }
