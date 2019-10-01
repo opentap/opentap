@@ -133,7 +133,14 @@ namespace OpenTap
         /// returns true if an instance possibly can be created. 
         /// Accessing this property causes the underlying Assembly to be loaded if it is not already.
         /// </summary>
-        public bool CanCreateInstance => !_FailedLoad && Load().IsAbstract == false && Load().IsInterface == false && Load().GetConstructor(Array.Empty<Type>()) != null;
+        public bool CanCreateInstance {
+            get
+            {
+                if (_FailedLoad) return false;
+                var type = Load();
+                return type.IsAbstract == false && type.IsInterface == false && type.ContainsGenericParameters == false && type.GetConstructor(Array.Empty<Type>()) != null;
+            }       
+        }
 
         /// <summary>
         /// Creates a new object instance of this type.
