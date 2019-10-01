@@ -2309,7 +2309,7 @@ namespace OpenTap
                             HashSet<object> values2 = null;
                             foreach (var m in merged.Merged)
                             {
-                                var e = m.Get<IAvailableValuesAnnotation>()?.AvailableValues as IEnumerable<object>;
+                                var e = (m.Get<IAvailableValuesAnnotation>()?.AvailableValues as IEnumerable)?.Cast<object>();
                                 if (e == null) continue;
                                 if (values2 == null)
                                 {
