@@ -27,7 +27,6 @@ namespace Keysight.OpenTap.Sdk.MSBuild
     /// <summary>
     /// MSBuild Task to help package plugin. This task is used by the OpenTAP SDK project template
     /// </summary>
-    [LoadInSeparateAppDomain]
     [Serializable]
     public class PackageTask : Task
     {
