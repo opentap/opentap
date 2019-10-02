@@ -82,12 +82,8 @@ namespace OpenTap.Engine.UnitTests
             [Display(" abc ")]
             public int SweepProp { get; set; }
 
-            public static int Value = 0;
+            public int Value { get; private set; }
 
-            public override void PrePlanRun()
-            {
-                Value = 0;
-            }
 
             public override void Run()
             {
@@ -97,30 +93,49 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
-        public void RunSweep()
+        [TestCase(true)]
+        [TestCase(false)]
+        public void RunSweep(bool acrossRuns)
         {
             var tp = new TestPlan();
 
-            var sl = new SweepLoop();
+            var sl = new SweepLoop()
+            {
+                CrossPlan = acrossRuns ? SweepLoop.SweepBehaviour.Across_Runs : SweepLoop.SweepBehaviour.Within_Run
+            };
             
             var ds = new SweepTestStep();
 
             sl.ChildTestSteps.Add(ds);
-            sl.SweepParameters.Add(new SweepParam(new[] { TypeData.GetTypeData(ds).GetMember("SweepProp") }, 2, 5));
+            sl.SweepParameters.Add(new SweepParam(new[] { TypeData.GetTypeData(ds).GetMember("SweepProp") }, 2,3,5,7));
+            sl.EnabledRows = new bool[] { true, false, true, true };
 
             tp.ChildTestSteps.Add(sl);
 
-            using (var st = new System.IO.MemoryStream())
+            using (var st = new MemoryStream())
             {
                 tp.Save(st);
                 st.Seek(0, 0);
                 tp = TestPlan.Load(st, tp.Path);
             }
-
-            var pr = tp.Execute();
-
-            Assert.IsFalse(pr.FailedToStart);
-            Assert.AreEqual(7, SweepTestStep.Value);
+            ds = tp.ChildTestSteps[0].ChildTestSteps[0] as SweepTestStep;
+            if (acrossRuns)
+            {
+                foreach(var rowEnabled in sl.EnabledRows)
+                {
+                    if (rowEnabled)
+                    {
+                        var pr = tp.Execute();
+                        Assert.IsFalse(pr.FailedToStart);
+                    }
+                }
+            }
+            else
+            {
+                var pr = tp.Execute();
+                Assert.IsFalse(pr.FailedToStart);
+            }
+            Assert.AreEqual(14, ds.Value);
         }
 
         [Test]
