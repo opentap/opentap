@@ -524,6 +524,12 @@ namespace OpenTap.Engine.UnitTests
 
             [Display("Time Delay")]
             public double TimeDelay2 { get; set; }
+
+            [AvailableValues(nameof(AvailableValues))]
+            public string SelectedValue { get; set; }
+            public IEnumerable<string> AvailableValues => AvailableValuesField;
+            public IEnumerable<string> AvailableValuesField = new[] { "A", "B", "C" };
+
             public override void Run()
             {
                 if (TimeDelay != TimeDelay2)
@@ -542,6 +548,9 @@ namespace OpenTap.Engine.UnitTests
             var delay2 = new Delay2Step();
             sweep.ChildTestSteps.Add(delay2);
 
+            var delay3 = new Delay2Step() { AvailableValuesField = new[] { "A", "B", "D" } };
+            sweep.ChildTestSteps.Add(delay3);
+
             var annotation = AnnotationCollection.Annotate(sweep);
             var mem = annotation.Get<IMembersAnnotation>();
 
@@ -559,9 +568,9 @@ namespace OpenTap.Engine.UnitTests
                     select.Selected = new object[] {avail.AvailableValues.Cast<object>().First()};
                     annotation.Write(sweep);
                     annotation.Read(sweep);
-                    Assert.AreEqual(1, select.Selected.Cast<object>().Count());
+                    Assert.AreEqual(2, select.Selected.Cast<object>().Count());
 
-                    Assert.AreEqual(2, avail.AvailableValues.Cast<object>().Count()); // DelayStep only has on property.
+                    Assert.AreEqual(3, avail.AvailableValues.Cast<object>().Count()); // DelayStep only has on property.
                     select.Selected = smem.Get<IAvailableValuesAnnotation>().AvailableValues;
                     annotation.Write(sweep);
                     annotation.Read(sweep);
@@ -575,7 +584,7 @@ namespace OpenTap.Engine.UnitTests
                 collection.AnnotatedElements = collection.AnnotatedElements.Append(new_element).ToArray();
                 var new_element_members = new_element.Get<IMembersAnnotation>();
                 var members = new_element_members.Members.ToArray();
-                Assert.AreEqual(2, members.Length);
+                Assert.AreEqual(3, members.Length);
 
                 var enabled_element = members[0];
                 Assert.IsTrue(enabled_element.Get<IMemberAnnotation>().Member.Name == "Enabled");
@@ -585,6 +594,13 @@ namespace OpenTap.Engine.UnitTests
                 var delay_value = delay_element.Get<IStringValueAnnotation>();
                 Assert.IsTrue(delay_value.Value.Contains("0.1 s")); // the default value for DelayStep is 0.1s.
                 delay_value.Value = "0.1 s";
+
+                var selected_element = members[2];
+                var available_for_Select = selected_element.Get<IAvailableValuesAnnotationProxy>();
+                // Since they only have two available values in common, the list should only contain those two elements.
+                Assert.IsTrue(available_for_Select.AvailableValues.Cast<object>().Count() == 2);
+
+
                 annotation.Write();
                 var firstDelay = sweep.SweepParameters.First().Values.ElementAt(0);
                 Assert.AreEqual(0.1, (double)firstDelay);
@@ -632,7 +648,7 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(Verdict.NotSet, run.Verdict);
 
             // one of the sweep rows was disabled.
-            Assert.AreEqual(10 - 1 , rlistener.StepRuns.Count);
+            Assert.AreEqual(13 , rlistener.StepRuns.Count);
         }
         
         [Test]
@@ -784,10 +800,10 @@ namespace OpenTap.Engine.UnitTests
             var annotation = AnnotationCollection.Annotate(step1);
             var inputAnnotation = annotation.Get<IMembersAnnotation>().Members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member.Name == nameof(ReadInputStep.Input));
             var avail = inputAnnotation.Get<IAvailableValuesAnnotation>();
-            var setVal = avail as IObjectValueAnnotation;
+            var setVal = avail as IAvailableValuesSelectedAnnotation;
             foreach (var val in avail.AvailableValues.Cast<object>().ToArray())
             {
-                setVal.Value = val;
+                setVal.SelectedValue = val;
                 annotation.Write(step1);
                 Assert.IsFalse(step1.Input.Step == theParent);
             }
@@ -913,6 +929,25 @@ namespace OpenTap.Engine.UnitTests
             annotation.Write(step);
 
             Assert.IsTrue(step.Input.Step == plan.Steps[0]);
+        }
+
+        [Test]
+        public void IfVerdictReadError()
+        {
+            TestPlan plan = new TestPlan();
+            IfStep ifStep = new IfStep();
+            plan.ChildTestSteps.Add(ifStep);
+            var annotations = AnnotationCollection.Annotate(ifStep);
+            if (annotations.Get<IMembersAnnotation>() is IMembersAnnotation members)
+            {
+                var ifAnnotations = members.Members.FirstOrDefault();
+                if (ifAnnotations.Get<IMembersAnnotation>() is IMembersAnnotation thisIsGoingToCrash)
+                {
+                    var err = thisIsGoingToCrash.Members;
+                    err.FirstOrDefault().Read();
+                }
+                ifAnnotations.Read();
+            }
         }
     }
 }
