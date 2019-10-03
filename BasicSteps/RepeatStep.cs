@@ -87,11 +87,16 @@ namespace OpenTap.Plugins.BasicSteps
         {
             get
             {
+                
+                uint _iteration = iteration;
+                if(GetParent<TestPlan>().IsRunning == false)
+                    _iteration = 0;
+
                 if(MaxCount.IsEnabled && Action != RepeatStepAction.Fixed_Count)
-                    return string.Format("{0} of {1}", iteration, MaxCount.Value);
+                    return string.Format("{0} of {1}", _iteration, MaxCount.Value);
                 if(Action == RepeatStepAction.Fixed_Count)
-                     return string.Format("{0} of {1}", iteration, Count);
-                return string.Format("{0}", iteration);
+                     return string.Format("{0} of {1}", _iteration, Count);
+                return string.Format("{0}", _iteration);
             }
         }
 
