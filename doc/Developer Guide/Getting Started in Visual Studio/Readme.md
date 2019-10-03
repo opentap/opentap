@@ -16,7 +16,6 @@ See the following sections:
 
 -	[Build and View the Example Plugin Project](#build-and-view-the-example-plugin-project) provides a quick overview on how to build this plugin and see its contents.
 -	[Contents of the Plugin Development Project](#contents-of-the-plugin-development-project)  shows the many resources and test steps in this project. Follow the process in the previous section to build and view the project.
--	[Create a Project with the OpenTAP Plugin Template](#create-a-project-with-the-opentap-plugin-template) describes how to get started on your own project.
 
 ### Build and View the Example Plugin Project
 The Example Plugin project creates a basic plugin package that contains a test step, a DUT resource, and an instrument resource. Follow these steps to build the project and view the results in OpenTAP: 
@@ -84,4 +83,3 @@ Follow the same process to build and view the **Plugin Development** project (`T
 ![](PluginDev_img4.PNG)
 
 To remove these examples, go to the installation folder and delete the **OpenTAP.Plugins.PluginDevelopment.dll** and **OpenTAP.Plugins.PluginDevelopment.pdb** files.
-
