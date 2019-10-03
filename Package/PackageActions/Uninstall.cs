@@ -28,6 +28,12 @@ namespace OpenTap.Package
             if (Packages == null)
                 throw new Exception("No packages specified.");
 
+            if (Force == false && Packages.Any(p => p == "OpenTAP") && Target == ExecutorClient.ExeDir)
+            {
+                log.Error("Aborting request to uninstall the OpenTAP package that is currently executing as that would brick this installation. Use --force to uninstall anyway.");
+                return -4;
+            }
+
             Installer installer = new Installer(Target, cancellationToken) { DoSleep = false };
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;
