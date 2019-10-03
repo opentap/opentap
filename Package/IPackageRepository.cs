@@ -207,7 +207,7 @@ namespace OpenTap.Package
             {
                 string query = 
                     @"query Query {
-                            packages(distinctName:true) {
+                            packages(distinctName:true" + (id != null ? $",version:\"{id.Version}\",os:\"{id.OS}\",architecture:\"{id.Architecture}\"" : "") + @") {
                             name
                             version
                         }

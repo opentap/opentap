@@ -32,6 +32,10 @@ namespace OpenTap.Engine.UnitTests
             var macro = new MacroString() { Text = "test<Date> <Station>" };
             var result = macro.Expand();
             Assert.IsTrue(result.EndsWith(EngineSettings.Current.StationName));
+
+            macro.Text = macro.Text + "<ThisIsTBD>";
+            var result2 = macro.Expand(); // Since ThisIsTBD does not exist, we have to run thrugh all possible expansions.
+            Assert.IsTrue(result2.EndsWith("TBD"));
         }
 
         [Test]
