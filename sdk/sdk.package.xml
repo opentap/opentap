@@ -39,6 +39,9 @@
     <File Path="Packages/SDK/Examples/PluginDevelopment\TestSteps\PublishResults\*.cs"/>
     <File Path="Packages/SDK/Examples/PluginDevelopment\TestSteps\Step Execution\*.cs"/>
     <File Path="Packages/SDK/Examples/PluginDevelopment\TestSteps\Step Settings\*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment.Gui\PluginDevelopment.Gui.csproj"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment.Gui\Properties\AssemblyInfo.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment.Gui\GUI\*.cs"/>
     <File Path="Packages/SDK/Examples/TestPlanExecution\BuildTestPlan.Api\App.config"/>
     <File Path="Packages/SDK/Examples/TestPlanExecution\BuildTestPlan.Api\BuildTestPlan.Api.csproj"/>
     <File Path="Packages/SDK/Examples/TestPlanExecution\BuildTestPlan.Api\Program.cs"/>
