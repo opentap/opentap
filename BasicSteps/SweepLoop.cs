@@ -34,26 +34,20 @@ namespace OpenTap.Plugins.BasicSteps
         
         [Output]
         [Display("Iteration", "Shows the iteration of the loop that is currently running or about to run.", Order: 3)]
-        public string IterationInfo
-        {
-            get
-            {
-                return string.Format("{0} of {1}", Iteration + 1, EnabledRows.Length);
-            }
-        }
+        public string IterationInfo => string.Format("{0} of {1}", Iteration + 1, EnabledRows.Length);
 
         [Browsable(false)]
         public bool[] EnabledRows { get; set; } = Array.Empty<bool>();
 
         internal int Iteration
         {
-            get { return currentIteration; }
+            get => currentIteration;
             set
             {
                 if (currentIteration != value)
                 {
                     currentIteration = value;
-                    OnPropertyChanged("IterationInfo");
+                    OnPropertyChanged(nameof(IterationInfo));
                 }
             }
         }
@@ -69,7 +63,7 @@ namespace OpenTap.Plugins.BasicSteps
         [DeserializeOrder(1)]
         public List<SweepParam> SweepParameters
         {
-            get { return sweepParameters; }
+            get => sweepParameters;
             set
             {
                 crossPlanSweepIndex = 0;
@@ -403,12 +397,26 @@ namespace OpenTap.Plugins.BasicSteps
             }       
         }
 
+        void acrossRunsGotoEnabledSweepIndex()
+        {
+            if (crossPlanSweepIndex >= EnabledRows.Length)
+                crossPlanSweepIndex = 0;
+            for(int i = 0; i < EnabledRows.Length; i++)
+            {
+                if (EnabledRows[crossPlanSweepIndex])
+                    return;
+                crossPlanSweepIndex++;
+                if (crossPlanSweepIndex >= EnabledRows.Length)
+                    crossPlanSweepIndex = 0;
+            }
+            throw new InvalidOperationException("No rows enabled!");
+        }
+
         public override void Run()
         {
             base.Run();
             if (SweepParameters.Count == 0) return;
-            int valuesCount = EnabledRows.Count(v => v);
-            if (valuesCount == 0)
+            if (EnabledRows.Count(v => v) == 0)
                 return;
 
             if (CrossPlan == SweepBehaviour.Across_Runs)
@@ -416,13 +424,8 @@ namespace OpenTap.Plugins.BasicSteps
                 var AdditionalParams = RegisterAdditionalParams(crossPlanSweepIndex);
 
                 // loop until the parameters are enabled.
-                while (false == EnabledRows[crossPlanSweepIndex])
-                {
-                    crossPlanSweepIndex++;
-                    if (crossPlanSweepIndex >= valuesCount)
-                        crossPlanSweepIndex = 0;
-                }
-
+                acrossRunsGotoEnabledSweepIndex();
+                
                 StringBuilder logMessage = new StringBuilder("Setting sweep parameters for next run (");
                 try
                 {
@@ -438,8 +441,7 @@ namespace OpenTap.Plugins.BasicSteps
                 RunChildSteps(AdditionalParams, BreakLoopRequested);
 
                 crossPlanSweepIndex++;
-                if (crossPlanSweepIndex >= valuesCount)
-                    crossPlanSweepIndex = 0;
+                acrossRunsGotoEnabledSweepIndex();
 
                 Iteration = crossPlanSweepIndex;
             }
