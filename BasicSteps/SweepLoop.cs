@@ -397,6 +397,21 @@ namespace OpenTap.Plugins.BasicSteps
             }       
         }
 
+        void acrossRunsGotoEnabledSweepIndex()
+        {
+            if (crossPlanSweepIndex >= EnabledRows.Length)
+                crossPlanSweepIndex = 0;
+            for(int i = 0; i < EnabledRows.Length; i++)
+            {
+                if (EnabledRows[crossPlanSweepIndex])
+                    return;
+                crossPlanSweepIndex++;
+                if (crossPlanSweepIndex >= EnabledRows.Length)
+                    crossPlanSweepIndex = 0;
+            }
+            throw new InvalidOperationException("No rows enabled!");
+        }
+
         public override void Run()
         {
             base.Run();
@@ -409,13 +424,8 @@ namespace OpenTap.Plugins.BasicSteps
                 var AdditionalParams = RegisterAdditionalParams(crossPlanSweepIndex);
 
                 // loop until the parameters are enabled.
-                while (false == EnabledRows[crossPlanSweepIndex])
-                {
-                    crossPlanSweepIndex++;
-                    if (crossPlanSweepIndex >= EnabledRows.Length)
-                        crossPlanSweepIndex = 0;
-                }
-
+                acrossRunsGotoEnabledSweepIndex();
+                
                 StringBuilder logMessage = new StringBuilder("Setting sweep parameters for next run (");
                 try
                 {
@@ -431,12 +441,7 @@ namespace OpenTap.Plugins.BasicSteps
                 RunChildSteps(AdditionalParams, BreakLoopRequested);
 
                 crossPlanSweepIndex++;
-                while (false == EnabledRows[crossPlanSweepIndex])
-                {
-                    crossPlanSweepIndex++;
-                    if (crossPlanSweepIndex >= EnabledRows.Length)
-                        crossPlanSweepIndex = 0;
-                }
+                acrossRunsGotoEnabledSweepIndex();
 
                 Iteration = crossPlanSweepIndex;
             }

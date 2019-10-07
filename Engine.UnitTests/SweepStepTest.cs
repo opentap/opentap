@@ -93,9 +93,7 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
-        [TestCase(true)]
-        [TestCase(false)]
-        public void RunSweep(bool acrossRuns)
+        public void RunSweep([Values(true,false)] bool acrossRuns, [Values(true, false)]bool allEnabled)
         {
             var tp = new TestPlan();
 
@@ -108,7 +106,7 @@ namespace OpenTap.Engine.UnitTests
 
             sl.ChildTestSteps.Add(ds);
             sl.SweepParameters.Add(new SweepParam(new[] { TypeData.GetTypeData(ds).GetMember("SweepProp") }, 2,3,5,7));
-            sl.EnabledRows = new bool[] { true, false, true, true };
+            sl.EnabledRows = new bool[] { true, allEnabled, true, true };
 
             tp.ChildTestSteps.Add(sl);
 
@@ -127,6 +125,7 @@ namespace OpenTap.Engine.UnitTests
                     {
                         var pr = tp.Execute();
                         Assert.IsFalse(pr.FailedToStart);
+                        Assert.AreEqual(Verdict.NotSet, pr.Verdict);
                     }
                 }
             }
@@ -135,7 +134,10 @@ namespace OpenTap.Engine.UnitTests
                 var pr = tp.Execute();
                 Assert.IsFalse(pr.FailedToStart);
             }
-            Assert.AreEqual(14, ds.Value);
+            if(allEnabled)
+                Assert.AreEqual(17, ds.Value);
+            else
+                Assert.AreEqual(14, ds.Value);
         }
 
         [Test]
