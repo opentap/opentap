@@ -13,7 +13,7 @@ using OpenTap.Cli;
 namespace OpenTap.Package
 {
     [Display("install", Group: "package", Description: "Install one or more packages.")]
-    public class PackageInstallAction : LockingPackageAction
+    public class PackageInstallAction : IsolatedPackageAction
     {
         [CommandLineArgument("force", Description = "Install packages even if it results in some being broken.", ShortName = "f")]
         public bool ForceInstall { get; set; }

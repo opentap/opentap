@@ -2,63 +2,20 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
+
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Security.Cryptography;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using OpenTap.Cli;
 
 namespace OpenTap.Package
 {
-    public abstract class LockingPackageAction : PackageAction
+    public abstract class IsolatedPackageAction : LockingPackageAction
     {
-        internal const string CommandLineArgumentRepositoryDescription = "Search this repository for packages instead of using\nsettings from 'Package Manager.xml'.";
-        internal const string CommandLineArgumentVersionDescription = "Version of the package. Prepend it with '^' to specify the latest compatible version. E.g. '^9.0.0'. By omitting '^' only the exact version will be matched.";
-        internal const string CommandLineArgumentOsDescription = "Override which OS to target.";
-        internal const string CommandLineArgumentArchitectureDescription = "Override which CPU to target.";
-
-        /// <summary>
-        /// Unlockes the package action to allow multiple running at the same time.
-        /// </summary>
-        public bool Unlocked { get; set; }
-
-        /// <summary>
-        /// The location to apply the command to. The default is the location of OpenTap.PackageManager.exe
-        /// </summary>
-        [CommandLineArgument("target", Description = "The location where the command is applied. The default is the directory of the application itself.", ShortName = "t")]
-        public string Target { get; set; }
-
-
-        private static string GetLocalInstallationDir()
-        {
-            return Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-        }
-
-        /// <summary>
-        /// Get the named mutex used to lock the specified OpenTAP installation directory while it is being changed.
-        /// </summary>
-        /// <param name="target">The OpenTAP installation directory</param>
-        /// <returns></returns>
-        public static Mutex GetMutex(string target)
-        {
-            if (target == null)
-                throw new ArgumentNullException(nameof(target));
-
-            var fullDir = Path.GetFullPath(target).Replace('\\', '/');
-            var hasher = SHA256.Create();
-            var hash = hasher.ComputeHash(Encoding.UTF8.GetBytes(fullDir));
-
-            return new Mutex(false, "Keysight.Tap.Package InstallLock " + BitConverter.ToString(hash).Replace("-", ""));
-        }
-
         public override int Execute(CancellationToken cancellationToken)
         {
             if (String.IsNullOrEmpty(Target))
@@ -76,49 +33,33 @@ namespace OpenTap.Package
                 if (!ExecutorClient.IsRunningIsolated) // are we already running isolated?
                 {
                     // Detected Executor, try to run running isolated...
-                    bool runIsolated = false;
-                    bool force = true;
-                    if (this is PackageInstallAction install)
+                    if (RunIsolated(target: Target, isolatedAction: this))
+                        return 0; // we succeeded in "recursively" running everything isolated from a different process, we are done now.
+                    else
                     {
-                        runIsolated = true;
-                        force = install.ForceInstall;
-                    }
-                    if (this is PackageUninstallAction uninstall)
-                    {
-                        runIsolated = true;
-                        force = uninstall.Force;
-                    }
-                    if (runIsolated)
-                    {
-                        if (RunIsolated(target: Target))
-                            return 0; // we succeeded in "recursively" running everything isolated from a different process, we are done now.
+                        var exec = Path.GetFileName(Assembly.GetEntryAssembly().Location);
+                        if (this is PackageInstallAction installAction && installAction.ForceInstall || this is PackageUninstallAction uninstallAction && uninstallAction.Force)
+                            log.Warning($"Unable to run isolated because {exec} was not installed through a package.");
                         else
-                        {
-                            var exec = Path.GetFileName(Assembly.GetEntryAssembly().Location);
-                            if (force)
-                                log.Warning($"Unable to run isolated because {exec} was not installed through a package.");
-                            else
-                                throw new InvalidOperationException($"Unable to run isolated because {exec} was not installed through a package. Use --force to try to install anyway.");
-                        }
+                            throw new InvalidOperationException($"Unable to run isolated because {exec} was not installed through a package. Use --force to try to install anyway.");
                     }
                 }
             }
 
-            using (Mutex state = GetMutex(Target))
-            {
-                if (Unlocked == false && !state.WaitOne(0))
-                {
-                    throw new ExitCodeException(5, "Cannot perform operation while another OpenTAP Package Manager is running.");
-                }
-
-                return LockedExecute(cancellationToken);
-            }
+            return base.Execute(cancellationToken);
         }
 
-        protected abstract int LockedExecute(CancellationToken cancellationToken);
-
-        public static bool RunIsolated(string application = null, string target = null)
+        private static string NormalizePath(string path)
         {
+            return Path.GetFullPath(new Uri(path).LocalPath)
+                       .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                       .ToUpperInvariant();
+        }
+
+
+        private static bool RunIsolated(string application = null, string target = null, IsolatedPackageAction isolatedAction = null)
+        {
+
             using (var tpmClient = new ExecutorClient())
             {
                 var packages = new Installation(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)).GetPackages();
@@ -130,7 +71,7 @@ namespace OpenTap.Package
                         {
                             var filePath = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), pkgfile.FileName);
 
-                            if (string.Equals(filePath, file, StringComparison.OrdinalIgnoreCase))
+                            if (string.Equals(NormalizePath(filePath), NormalizePath(file), StringComparison.OrdinalIgnoreCase))
                             {
                                 return package;
                             }
@@ -144,6 +85,12 @@ namespace OpenTap.Package
                 if (pkg == null)
                     return false;
                 var dependencies = pkg.Dependencies.ToList();
+
+                // If the executing IsolatedPackageAction does not origin from OpenTAP package, we need to include it when we copy and run isolated
+                var isolatedActionPackage = findPackageWithFile(Path.GetFullPath(isolatedAction.GetType().Assembly.Location));
+                if (isolatedActionPackage is object && pkg.Name != isolatedActionPackage.Name)
+                    if (!dependencies.Any(p => p.Name == isolatedActionPackage.Name))
+                        dependencies.Add(new PackageDependency(isolatedActionPackage.Name, new VersionSpecifier(isolatedActionPackage.Version, VersionMatchBehavior.Compatible)));
 
                 // when installing/uninstalling packages we might need to use custom package actions as well.
                 var extraDependencies = PluginManager.GetPlugins<ICustomPackageAction>().Select(t => t.Assembly.Location).Distinct().ToList();
@@ -233,4 +180,5 @@ namespace OpenTap.Package
             }
         }
     }
+
 }
