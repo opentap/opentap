@@ -19,9 +19,9 @@ using System.Runtime.InteropServices;
 // "stamp" stage.
 // Format is x.y.z.w where x and y is defined by a git tag, z is the number 
 // of commits since that tag and w is the first 8 digits of the git commit hash.
-[assembly: AssemblyVersion("9.3.0.0")]
-[assembly: AssemblyFileVersion("9.3.0.0")]
-[assembly: AssemblyInformationalVersion("9.3.0-Development")]
+[assembly: AssemblyVersion("9.4.0.0")]
+[assembly: AssemblyFileVersion("9.4.0.0")]
+[assembly: AssemblyInformationalVersion("9.4.0-Development")]
 
 // Configuration is updated automatically by the build in the "stamp" stage.
 // Value of this attribute is the name of the git branch.
