@@ -833,7 +833,6 @@ namespace OpenTap.Engine.UnitTests
             {
                 var val = sweep.SweepParameters[1].Values.GetValue(i);
                 var val1 = sweep.SweepParameters[1].Values.GetValue(0);
-               
                 Assert.AreNotSame(val, val1);
                 Assert.IsNull(((IInput)val1).Step);
             }
@@ -841,6 +840,17 @@ namespace OpenTap.Engine.UnitTests
             var swep = AnnotationCollection.Annotate(sweep);
 
             swep.Write();
+            var sweepMembers = swep.Get<IMembersAnnotation>().Members.First(x => x.Get<IMemberAnnotation>().Member.Name == nameof(SweepLoop.SweepMembers));
+            var availableValues = sweepMembers.Get<IAvailableValuesAnnotation>().AvailableValues.OfType<IMemberData>().ToArray();
+            // DelaySecs, InputVerdict, TargetVerdict, Action. -> Verify that TestStep.Name or Enabled is not in there.
+            Assert.AreEqual(4, availableValues.Length); 
+            Assert.IsFalse(availableValues.Contains(TypeData.FromType(typeof(TestStep)).GetMember(nameof(TestStep.Name))));
+            Assert.IsFalse(availableValues.Contains(TypeData.FromType(typeof(TestStep)).GetMember(nameof(TestStep.Enabled))));
+            Assert.IsTrue(availableValues.Contains(TypeData.FromType(typeof(DelayStep)).GetMember(nameof(DelayStep.DelaySecs))));
+            Assert.IsTrue(availableValues.Contains(TypeData.FromType(typeof(IfStep)).GetMember(nameof(IfStep.InputVerdict))));
+            Assert.IsTrue(availableValues.Contains(TypeData.FromType(typeof(IfStep)).GetMember(nameof(IfStep.TargetVerdict))));
+            Assert.IsTrue(availableValues.Contains(TypeData.FromType(typeof(IfStep)).GetMember(nameof(IfStep.Action))));
+
             var sweepParameters = swep.Get<IMembersAnnotation>().Members.First(x => x.Get<IMemberAnnotation>().Member.Name == nameof(SweepLoop.SweepParameters));
             var elements = sweepParameters.Get<ICollectionAnnotation>().AnnotatedElements;
             int i2 = 0;
@@ -856,7 +866,6 @@ namespace OpenTap.Engine.UnitTests
                     var currentValue = ifMember.Get<IObjectValueAnnotation>().Value;
                     var avail = ifMember.Get<IAvailableValuesAnnotationProxy>();
                     avail.SelectedValue = avail.AvailableValues.Last();
-
                 }
                 i2++;
             }
@@ -869,7 +878,6 @@ namespace OpenTap.Engine.UnitTests
                 Assert.AreNotSame(val, val1);
                 Assert.IsNotNull(((IInput)val1).Step);
             }
-
         }
 
         public class EnabledVirtualBaseClass : TestStep

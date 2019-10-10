@@ -46,6 +46,7 @@ namespace OpenTap
         /// </summary>
         [ColumnDisplayName("", Order : -101)]
         [Display("Enabled", Group: "Common", Order: 20000, Collapsed: true)]
+        [TestPlanFixed]
         public bool Enabled
         {
             get => enabled; 
@@ -73,13 +74,14 @@ namespace OpenTap
         /// </summary>
         [ColumnDisplayName("Step Name", Order : -100)]
         [Display("Step Name", Group: "Common", Order: 20001, Collapsed: true)]
+        [TestPlanFixed]
         public string Name
         {
             get => name;
             set
             {
                 if (value == null)
-                    throw new ArgumentNullException("value", "TestStep.Name cannot be null.");
+                    throw new ArgumentNullException(nameof(value), "TestStep.Name cannot be null.");
                 if (value == name) return;
                 name = value;
                 OnPropertyChanged(nameof(Name));
