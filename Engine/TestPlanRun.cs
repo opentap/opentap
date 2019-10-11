@@ -7,7 +7,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
@@ -29,9 +28,8 @@ namespace OpenTap
         private TestPlan plan = null;
 
         string planXml = null;
-        /// <summary>
-        /// XML for the running test plan.
-        /// </summary>
+
+        /// <summary> XML for the running test plan. </summary>
         [DataMember]
         public string TestPlanXml
         {
@@ -50,9 +48,10 @@ namespace OpenTap
             }
         }
 
-        /// <summary>
-        /// Name of the running test plan.
-        /// </summary>
+        /// <summary> The SHA1 hash of XML of the test plan.</summary>
+        public string Hash => Parameters[nameof(Hash)]?.ToString();
+
+        /// <summary> Name of the running test plan. </summary>
         [DataMember]
         [MetaData(macroName: "TestPlanName")]
         public string TestPlanName
@@ -61,9 +60,7 @@ namespace OpenTap
             private set => Parameters[nameof(TestPlanName)] = value;
         }
 
-        /// <summary>
-        /// A property that is set by the TestPlan execution logic to indicate whether the TestPlan failed to start the TestPlan.
-        /// </summary>
+        /// <summary> Set by the TestPlan execution logic to indicate whether the TestPlan failed to start the TestPlan. </summary>
         [DataMember]
         public bool FailedToStart { get; set; }
 
@@ -89,10 +86,7 @@ namespace OpenTap
         internal readonly bool IsCompositeRun;
 
         #region Result propagation dispatcher system
-
-
         
-
         bool isBusy()
         {
             foreach(var worker in resultWorkers.Values)
@@ -133,8 +127,6 @@ namespace OpenTap
                         var elapsed = sw.Elapsed;
                         if (elapsed.TotalMilliseconds > 50)
                             resultLog.Debug(elapsed, "Waited for result processing for {0}", worker.Key);
-
-
                     }
                 }
             }
@@ -423,7 +415,7 @@ namespace OpenTap
                 if (testPlanXml != null)
                 {
                     TestPlanXml = testPlanXml;
-                    Parameters.Add(new ResultParameter("Test Plan", "Hash", GetHash(Encoding.UTF8.GetBytes(testPlanXml)), new MetaDataAttribute(), 0));
+                    Parameters.Add(new ResultParameter("Test Plan", nameof(Hash), GetHash(Encoding.UTF8.GetBytes(testPlanXml)), new MetaDataAttribute(), 0));
                     return;
                 }
                 using (var memstr = new MemoryStream(128))
@@ -433,7 +425,7 @@ namespace OpenTap
                         plan.Save(memstr);
                         var testPlanBytes = memstr.ToArray();
                         TestPlanXml = Encoding.UTF8.GetString(testPlanBytes);
-                        Parameters.Add(new ResultParameter("Test Plan", "Hash", GetHash(testPlanBytes), new MetaDataAttribute(), 0));
+                        Parameters.Add(new ResultParameter("Test Plan", nameof(Hash), GetHash(testPlanBytes), new MetaDataAttribute(), 0));
                     }
                     catch (Exception e)
                     {
@@ -470,12 +462,27 @@ namespace OpenTap
             this.StartTimeStamp = startTimeStamp;
             this.IsCompositeRun = original.IsCompositeRun;
             Id = original.Id;
-            serializePlanTask = original.serializePlanTask;
-            TestPlanXml = original.TestPlanXml;
+            serializePlanTask = Task.Factory.StartNew(() =>
+            {
+                using (var memstr = new MemoryStream(128))
+                {
+                    try
+                    {
+                        plan.Save(memstr);
+                        var testPlanBytes = memstr.ToArray();
+                        TestPlanXml = Encoding.UTF8.GetString(testPlanBytes);
+                        Parameters.Add(new ResultParameter("Test Plan", nameof(Hash), GetHash(testPlanBytes), new MetaDataAttribute(), 0));
+                    }
+                    catch (Exception e)
+                    {
+                        log.Warning("Unable to XML serialize test plan.");
+                        log.Debug(e);
+                    }
+                }
+            });
             TestPlanName = original.TestPlanName;
             this.plan = original.plan;
         }
         #endregion
-
     }
 }
