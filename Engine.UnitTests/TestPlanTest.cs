@@ -300,6 +300,58 @@ namespace OpenTap.Engine.UnitTests
 
         }
 
+        class HashCheckResultListener : ResultListener
+        {
+            TestPlan plan;
+            public HashCheckResultListener(TestPlan plan) => this.plan = plan;
+
+            public override void OnTestPlanRunStart(TestPlanRun planRun)
+            {
+                string getHash(string testPlanXml)
+                {
+                    // this is the same code as inside TestPlanRun.
+                    using (var algo = System.Security.Cryptography.SHA1.Create())
+                        return BitConverter.ToString(algo.ComputeHash(System.Text.Encoding.UTF8.GetBytes(testPlanXml)), 0, 8).Replace("-", string.Empty);
+                }
+
+                var newxml = new TapSerializer().SerializeToString(plan);
+
+                if (newxml != planRun.TestPlanXml)
+                    planRun.MainThread.Abort(); // cause Verdict.Abort.
+
+                if(planRun.Hash != getHash(newxml))
+                    planRun.MainThread.Abort();
+
+            }
+        }
+
+        [Test]
+        public void TestPlanHash()
+        {
+            var plan = new TestPlan();
+            var step = new LogStep { LogMessage = "A" };
+            plan.ChildTestSteps.Add(step);
+            plan.Open(new[] { new HashCheckResultListener(plan) });
+            Assert.AreEqual(Verdict.NotSet, plan.Execute().Verdict);
+            step.LogMessage = "B";
+            Assert.AreEqual(Verdict.NotSet, plan.Execute().Verdict);
+            plan.Close();
+        }
+
+        class AbortImmediatelyResultListener : ResultListener
+        {
+            public override void OnTestPlanRunStart(TestPlanRun planRun) => planRun.MainThread.Abort();
+        }
+
+        [Test]
+        public void TestPlanAbortFromResultListener()
+        {
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(new DelayStep());
+            var run = plan.Execute(new[] { new AbortImmediatelyResultListener() });
+            Assert.AreEqual(Verdict.Aborted, run.Verdict);
+        }
+
         /// <summary> Tests to see if a prerun error in a teststep results in the run of the result listeners.</summary>
         [Test]
         public void TestStepPrePostRunExceptionsIntoResultListener()
@@ -1666,7 +1718,7 @@ namespace OpenTap.Engine.UnitTests
         {
             Assert(IsConnected == false);
             base.Open();
-            
+                
         }
 
         public override void Close()
