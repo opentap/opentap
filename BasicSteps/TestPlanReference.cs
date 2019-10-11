@@ -42,7 +42,7 @@ namespace OpenTap.Plugins.BasicSteps
         [Browsable(true)]
         [FilePath(FilePathAttribute.BehaviorChoice.Open, "TapPlan")]
         [DeserializeOrder(1.0)]
-        [TestPlanFixed]
+        [Unsweepable]
         public MacroString Filepath
         {
             get => filepath; 

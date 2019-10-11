@@ -33,7 +33,7 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Sweep Parameters", Order: -4, Description: "Test step parameters that should be swept. The variable must be a numeric type.")]
         [XmlIgnore]
         [Browsable(true)]
-        [TestPlanFixed]
+        [Unsweepable]
         public List<IMemberData> SweepProperties { get; set; }
 
         [Display("Start", Order: -2, Description: "The parameter value where the sweep will start.")]

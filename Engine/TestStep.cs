@@ -46,7 +46,7 @@ namespace OpenTap
         /// </summary>
         [ColumnDisplayName("", Order : -101)]
         [Display("Enabled", Group: "Common", Order: 20000, Collapsed: true)]
-        [TestPlanFixed]
+        [Unsweepable]
         public bool Enabled
         {
             get => enabled; 
@@ -74,7 +74,7 @@ namespace OpenTap
         /// </summary>
         [ColumnDisplayName("Step Name", Order : -100)]
         [Display("Step Name", Group: "Common", Order: 20001, Collapsed: true)]
-        [TestPlanFixed]
+        [Unsweepable]
         public string Name
         {
             get => name;

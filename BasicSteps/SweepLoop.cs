@@ -57,7 +57,7 @@ namespace OpenTap.Plugins.BasicSteps
         public bool SweepParametersEnabled => sweepParameters.Count > 0;
 
         List<SweepParam> sweepParameters = new List<SweepParam>();
-        [TestPlanFixed]
+        [Unsweepable]
         [Display("Sweep Values", Order: 2, Description: "Select the ranges of values to sweep.")]
         [EnabledIf(nameof(SweepParametersEnabled), true)]
         [DeserializeOrder(1)]
@@ -102,7 +102,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         [XmlIgnore]
         [Browsable(true)]
-        [TestPlanFixed]
+        [Unsweepable]
         [Display("Sweep Parameters", Order: 1, Description: "Select which child step settings to sweep.")]
         public IEnumerable<IMemberData> SweepMembers
         {
@@ -130,7 +130,7 @@ namespace OpenTap.Plugins.BasicSteps
         }
 
         [Display("Sweep Mode", Description: "Loop through the sweep values in a single TestPlan run or change values between runs.", Order:0)]
-        [TestPlanFixed]
+        [Unsweepable]
         public SweepBehaviour CrossPlan
         {
             get => _CrossPlan;
@@ -593,7 +593,7 @@ namespace OpenTap.Plugins.BasicSteps
                     return string.Format("{0} selected", count);
                 }
             }
-            static bool memberCanSweep(IMemberData mem) => false == mem.HasAttribute<TestPlanFixedAttribute>();
+            static bool memberCanSweep(IMemberData mem) => false == mem.HasAttribute<UnsweepableAttribute>();
             public void Read(object source)
             {
                 if (source is ITestStep == false) return;
@@ -1006,7 +1006,7 @@ namespace OpenTap.Plugins.BasicSteps
 
                 Selected = (source as SweepLoopRange).SweepProperties.ToArray();
             }
-            static bool memberCanSweep(IMemberData mem) => false == mem.HasAttribute<TestPlanFixedAttribute>();
+            static bool memberCanSweep(IMemberData mem) => false == mem.HasAttribute<UnsweepableAttribute>();
             void getPropertiesForItem(ITestStep step, Dictionary<IMemberData, object> members)
             {
                 foreach (ITestStep cs in step.ChildTestSteps)

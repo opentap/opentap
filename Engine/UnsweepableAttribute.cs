@@ -6,7 +6,7 @@ using System;
 
 namespace OpenTap
 {
-    /// <summary> Can be used to mark a property that should should not be changed during test plan execution or that should generally be excluded from automation. </summary>
+    /// <summary> Marks a property on a test step that should be fixed during test plan execution. This means it should be excluded from e.g. sweep loops.</summary>
     [AttributeUsage(AttributeTargets.Property)]
-    public class TestPlanFixedAttribute : Attribute { }
+    public class UnsweepableAttribute : Attribute { }
 }
