@@ -20,7 +20,7 @@ namespace OpenTap
     /// </summary>
     public partial class TestPlan : INotifyPropertyChanged, ITestStepParent
     {
-        internal static readonly TraceSource Log = OpenTap.Log.CreateSource("TestPlan");        
+        internal static readonly TraceSource Log = OpenTap.Log.CreateSource(nameof(TestPlan));        
         private TestStepList _Steps;
         private ITestPlanRunMonitor[] monitors; // For locking/unlocking or generally monitoring test plan start/stop.
         
@@ -35,34 +35,28 @@ namespace OpenTap
         /// </summary>
         public TestStepList Steps
         {
-            get
-            {
-                return _Steps;
-            }
+            get => _Steps;
             set
             {
                 if (value == _Steps) return;
                 _Steps = value;
                 _Steps.Parent = this;
-                OnPropertyChanged("Steps");
-                OnPropertyChanged("ChildTestSteps");
+                OnPropertyChanged(nameof(Steps));
+                OnPropertyChanged(nameof(ChildTestSteps));
             }
         }
 
         /// <summary>
         /// List of test steps that make up this plan.  
         /// </summary>
-        public TestStepList ChildTestSteps
-        {
-            get { return _Steps; }
-        }
+        public TestStepList ChildTestSteps => _Steps;
 
 
         /// <summary>
         /// Always null for test plan.
         /// </summary>
         [XmlIgnore]
-        public ITestStepParent Parent { get { return null; } set { } }
+        public ITestStepParent Parent { get => null; set { } }
 
         /// <summary>
         /// Gets the subset of steps that are enabled.
@@ -104,10 +98,7 @@ namespace OpenTap
         /// <summary>
         /// True if the test plan is waiting in a break.
         /// </summary>
-        public bool IsInBreak
-        {
-            get { return breakRefCount > 0; }
-        }
+        public bool IsInBreak => breakRefCount > 0; 
 
         int breakRefCount = 0;
 
@@ -145,16 +136,13 @@ namespace OpenTap
         [XmlAttribute]
         public bool Locked
         {
-            get
-            {
-                return locked;
-            }
+            get => locked;
             set
             {
                 if (value != locked)
                 {
                     locked = value;
-                    OnPropertyChanged("Locked");
+                    OnPropertyChanged(nameof(Locked));
                 }
             }
         }
@@ -169,8 +157,6 @@ namespace OpenTap
             }
             get => _currentRun;
         }
-
-
 
         /// <summary> True if this TestPlan is currently running. </summary>
         public bool IsRunning => CurrentRun != null;

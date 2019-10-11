@@ -8,7 +8,6 @@ using System.Linq;
 using System.ComponentModel;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
-using OpenTap;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 
 namespace OpenTap.Engine.UnitTests
@@ -331,6 +330,16 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(dict.ContainsKey("sub/Index"));
             Assert.IsTrue(dict.ContainsKey("sub/Index2") == false);
             Console.WriteLine(param);
+        }
+    }
+
+    [TestFixture]
+    public class TestStepTestFixture : EngineTestBase
+    {
+        [Test]
+        public void SetStepNameToNullThrows()
+        {
+            Assert.Throws<ArgumentNullException>(() => new DelayStep { Name = null });
         }
     }
 

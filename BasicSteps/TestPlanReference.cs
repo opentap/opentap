@@ -34,7 +34,7 @@ namespace OpenTap.Plugins.BasicSteps
         ITestStepParent parent;
         // The PlanDir of 'this' should be ignored when calculating Filepath, so the MacroString context is set to the parent.
         [XmlIgnore]
-        public override ITestStepParent Parent { get { return parent; } set { Filepath.Context = value; parent = value; } }
+        public override ITestStepParent Parent { get => parent; set { Filepath.Context = value; parent = value; } }
 
         MacroString filepath = new MacroString();
         string currentlyLoaded = null;
@@ -42,6 +42,7 @@ namespace OpenTap.Plugins.BasicSteps
         [Browsable(true)]
         [FilePath(FilePathAttribute.BehaviorChoice.Open, "TapPlan")]
         [DeserializeOrder(1.0)]
+        [Unsweepable]
         public MacroString Filepath
         {
             get => filepath; 
@@ -65,10 +66,7 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
         
-        public string Path
-        {
-            get { return Filepath.Expand(); }
-        }
+        public string Path => Filepath.Expand();
 
         bool isExpandingPlanDir = false;
         [MetaData(macroName: "TestPlanDir")]
@@ -247,7 +245,6 @@ namespace OpenTap.Plugins.BasicSteps
             loadTestPlan();
         }
         
-        
         public void loadTestPlan()
         {
             ChildTestSteps.Clear();
@@ -255,8 +252,6 @@ namespace OpenTap.Plugins.BasicSteps
             if (string.IsNullOrWhiteSpace(Filepath))
             {
                 ForwardedParameters = Array.Empty<ExternalParameter>();
-
-                //Log.Warning("No test plan configured.");
                 return;
             }
             
@@ -360,10 +355,7 @@ namespace OpenTap.Plugins.BasicSteps
             return false;
         }
 
-        public override int GetHashCode()
-        {
-            return Object.GetHashCode() ^ 0x1111234;
-        }
+        public override int GetHashCode() => Object.GetHashCode() ^ 0x1111234;
 
         public ITypeData InnerDescriptor;
         public TestPlanReference Object;
