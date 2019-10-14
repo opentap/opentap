@@ -32,6 +32,6 @@ chmod -R +w .
 chmod +x tap
 
 cd $BIN_DIR
-ln -s $DEST_DIR/tap tap
+ln -s -f $DEST_DIR/tap tap
 
 cd "$CUR_DIR"
