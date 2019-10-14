@@ -462,6 +462,7 @@ namespace OpenTap
             this.StartTimeStamp = startTimeStamp;
             this.IsCompositeRun = original.IsCompositeRun;
             Id = original.Id;
+            this.plan = original.plan;
             serializePlanTask = Task.Factory.StartNew(() =>
             {
                 using (var memstr = new MemoryStream(128))
@@ -481,7 +482,6 @@ namespace OpenTap
                 }
             });
             TestPlanName = original.TestPlanName;
-            this.plan = original.plan;
         }
         #endregion
     }
