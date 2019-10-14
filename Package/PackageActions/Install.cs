@@ -15,8 +15,8 @@ namespace OpenTap.Package
     [Display("install", Group: "package", Description: "Install one or more packages.")]
     public class PackageInstallAction : IsolatedPackageAction
     {
-        [CommandLineArgument("force", Description = "Install packages even if it results in some being broken.", ShortName = "f")]
-        public bool ForceInstall { get; set; }
+        [Obsolete("Use Force instead.")]
+        public bool ForceInstall { get => Force; set => Force = value; }
 
         [CommandLineArgument("dependencies", Description = "Install dependencies without asking. This is always enabled when installing bundle packages.", ShortName = "y")]
         public bool InstallDependencies { get; set; }
@@ -81,7 +81,7 @@ namespace OpenTap.Package
                 repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
 
             bool installError = false;
-            var installer = new Installer(Target, cancellationToken) { DoSleep = false, ForceInstall = ForceInstall };
+            var installer = new Installer(Target, cancellationToken) { DoSleep = false, ForceInstall = Force };
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;
             installer.Error += ex => installError = true;
@@ -89,7 +89,7 @@ namespace OpenTap.Package
             try
             {
                 // Get package information
-                List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, ForceInstall, InstallDependencies, !ForceInstall);
+                List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force, InstallDependencies, !Force);
                 if (packagesToInstall?.Any() != true)
                     return 2;
 
@@ -106,10 +106,10 @@ namespace OpenTap.Package
                 return 6;
             }
             // Check dependencies
-            var issue = DependencyChecker.CheckDependencies(targetInstallation, installer.PackagePaths, ForceInstall ? LogEventType.Warning : LogEventType.Error);
+            var issue = DependencyChecker.CheckDependencies(targetInstallation, installer.PackagePaths, Force ? LogEventType.Warning : LogEventType.Error);
             if (issue == DependencyChecker.Issue.BrokenPackages)
             {
-                if (!ForceInstall)
+                if (!Force)
                 {
                     log.Info("To fix the package conflict uninstall or update the conflicted packages.");
                     log.Info("To install packages despite the conflicts, use the --force option.");

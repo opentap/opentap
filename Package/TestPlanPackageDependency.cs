@@ -63,7 +63,7 @@ namespace OpenTap.Package
 
             if (req.Response == UserRequest.Install)
             {
-                var ins = new PackageInstallAction() { Packages = new[] { name }, ForceInstall = true, Version = version.ToString() };
+                var ins = new PackageInstallAction() { Packages = new[] { name }, Force = true, Version = version.ToString() };
                 try
                 {
                     int ok = ins.Execute(new CancellationToken());
