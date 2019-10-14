@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace OpenTap
 {
@@ -225,6 +226,12 @@ namespace OpenTap
             }
         }
 
+        TaskCompletionSource<int> tcs = new TaskCompletionSource<int>();
+
+        /// <summary> Creates a task from this TapThread. </summary>
+        /// <returns></returns>
+        public Task AsTask() => tcs.Task;
+
         internal void Process()
         {
             if (action == null) throw new InvalidOperationException("TapThread cannot be executed twice.");
@@ -238,7 +245,8 @@ namespace OpenTap
                 Status = TapThreadStatus.Completed;
                 // set action to null to signal that it has been processed.
                 // also to allow GC to clean up closures.
-                action = null; 
+                action = null;
+                tcs.SetResult(0);
             }
         }
 

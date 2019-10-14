@@ -254,8 +254,7 @@ namespace OpenTap
         {
             searchTask.Reset();
             ChangeID++;
-            TapThread.Start(Search);  
-            return Task.Run(() => GetSearcher());
+            return TapThread.Start(Search).AsTask();
         }
         
         ///<summary>Searches for plugins.</summary>

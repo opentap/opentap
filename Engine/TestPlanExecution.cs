@@ -8,7 +8,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
@@ -383,23 +382,14 @@ namespace OpenTap
         /// <returns>TestPlanRun results, no StepResults.</returns>
         public Task<TestPlanRun> ExecuteAsync(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride, CancellationToken cancellationToken)
         {
-            Task<TestPlanRun> result = Task.Run(() =>
+            Task<TestPlanRun> result = Task.Run(async () =>
             {
-                var sem = new SemaphoreSlim(0);
                 TestPlanRun testPlanRun = null;
-                TapThread.Start(() =>
+                await TapThread.Start(() =>
                 {
-                    try
-                    {
-                        cancellationToken.Register(TapThread.Current.Abort);
-                        testPlanRun = Execute(resultListeners, metaDataParameters, stepsOverride);
-                    }
-                    finally
-                    {
-                        sem.Release();
-                    }
-                }, "Plan Thread");
-                sem.Wait();
+                    cancellationToken.Register(TapThread.Current.Abort);
+                    testPlanRun = Execute(resultListeners, metaDataParameters, stepsOverride);
+                }, "Plan Thread").AsTask();
                 
                 return testPlanRun;
             });
@@ -647,7 +637,7 @@ namespace OpenTap
                     //Avoid entering the finally clause.
                     Thread.Sleep(500);
                 }
-                else if (e is System.ComponentModel.LicenseException)
+                else if (e is LicenseException)
                 {
                     Log.Error(e.Message);
                     execStage.UpgradeVerdict(Verdict.Error);
