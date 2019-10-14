@@ -116,6 +116,7 @@ namespace OpenTap
                 {
                     using (TimeoutOperation.Create(() => PrintWaitingMessage(new List<IResource>() { resultListener })))
                         execStage.ResourceManager.WaitUntilResourcesOpened(TapThread.Current.AbortToken, resultListener);
+                    execStage.WaitForSerialization();
                     resultListener.OnTestPlanRunStart(execStage);
                 }
                 catch (OperationCanceledException) when(execStage.MainThread.AbortToken.IsCancellationRequested)
