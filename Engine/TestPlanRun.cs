@@ -23,8 +23,8 @@ namespace OpenTap
     [DataContract(IsReference = true)]
     public class TestPlanRun : TestRun
     {
-        private static readonly TraceSource log =  OpenTap.Log.CreateSource("TestPlan");
-        private static readonly TraceSource resultLog =  OpenTap.Log.CreateSource("Resources");
+        private static readonly TraceSource log = Log.CreateSource("TestPlan");
+        private static readonly TraceSource resultLog = Log.CreateSource("Resources");
         private TestPlan plan = null;
 
         string planXml = null;
@@ -37,9 +37,7 @@ namespace OpenTap
             {
                 if (planXml != null)
                     return planXml;
-                if (serializePlanTask == null)
-                    return null;
-                serializePlanTask.Wait();
+                WaitForSerialization();
                 return planXml;
             }
             private set
@@ -48,12 +46,15 @@ namespace OpenTap
             }
         }
 
+        /// <summary> Waits for the test plan to be serialized. </summary>
+        internal void WaitForSerialization() => serializePlanTask?.Wait(TapThread.Current.AbortToken);
+
         /// <summary> The SHA1 hash of XML of the test plan.</summary>
         public string Hash => Parameters[nameof(Hash)]?.ToString();
 
         /// <summary> Name of the running test plan. </summary>
         [DataMember]
-        [MetaData(macroName: "TestPlanName")]
+        [MetaData(macroName: nameof(TestPlanName))]
         public string TestPlanName
         {
             get => Parameters[nameof(TestPlanName)].ToString(); 
