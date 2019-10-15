@@ -57,7 +57,7 @@ namespace OpenTap.Plugins.BasicSteps
         public bool SweepParametersEnabled => sweepParameters.Count > 0;
 
         List<SweepParam> sweepParameters = new List<SweepParam>();
-
+        [Unsweepable]
         [Display("Sweep Values", Order: 2, Description: "Select the ranges of values to sweep.")]
         [EnabledIf(nameof(SweepParametersEnabled), true)]
         [DeserializeOrder(1)]
@@ -102,6 +102,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         [XmlIgnore]
         [Browsable(true)]
+        [Unsweepable]
         [Display("Sweep Parameters", Order: 1, Description: "Select which child step settings to sweep.")]
         public IEnumerable<IMemberData> SweepMembers
         {
@@ -129,6 +130,7 @@ namespace OpenTap.Plugins.BasicSteps
         }
 
         [Display("Sweep Mode", Description: "Loop through the sweep values in a single TestPlan run or change values between runs.", Order:0)]
+        [Unsweepable]
         public SweepBehaviour CrossPlan
         {
             get => _CrossPlan;
@@ -591,20 +593,7 @@ namespace OpenTap.Plugins.BasicSteps
                     return string.Format("{0} selected", count);
                 }
             }
-            
-            static HashSet<IMemberData> getBlockedMembers()
-            {
-                HashSet<IMemberData> members = new HashSet<IMemberData>();
-                var sweeploop = TypeData.FromType(typeof(SweepLoop));
-                members.Add(sweeploop.GetMember(nameof(SweepLoop.SweepMembers)));
-                members.Add(sweeploop.GetMember(nameof(SweepLoop.SweepParameters)));
-                var step = TypeData.FromType(typeof(TestStep));
-                
-                members.Add(step.GetMember(nameof(TestStep.Enabled)));
-                members.Add(step.GetMember(nameof(TestStep.Name)));
-                return members;
-            }
-            static HashSet<IMemberData> blockedMembers = getBlockedMembers();
+            static bool memberCanSweep(IMemberData mem) => false == mem.HasAttribute<UnsweepableAttribute>();
             public void Read(object source)
             {
                 if (source is ITestStep == false) return;
@@ -616,7 +605,7 @@ namespace OpenTap.Plugins.BasicSteps
                 
                 foreach(var member in members)
                 {
-                    if (blockedMembers.Contains(member.Key)) 
+                    if (!memberCanSweep(member.Key)) 
                         continue;
                     var anot = AnnotationCollection.Create(null, member.Key);
                     var access = anot.Get<ReadOnlyMemberAnnotation>();
@@ -1017,7 +1006,7 @@ namespace OpenTap.Plugins.BasicSteps
 
                 Selected = (source as SweepLoopRange).SweepProperties.ToArray();
             }
-
+            static bool memberCanSweep(IMemberData mem) => false == mem.HasAttribute<UnsweepableAttribute>();
             void getPropertiesForItem(ITestStep step, Dictionary<IMemberData, object> members)
             {
                 foreach (ITestStep cs in step.ChildTestSteps)
@@ -1026,7 +1015,7 @@ namespace OpenTap.Plugins.BasicSteps
                     {
                         if (member.TypeDescriptor is TypeData t)
                         {
-                            if (t.Type.IsNumeric() && members.ContainsKey(member) == false)
+                            if (t.Type.IsNumeric() && members.ContainsKey(member) == false && memberCanSweep(member))
                             {
                                 members.Add(member, member.GetValue(cs));
                             }

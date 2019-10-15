@@ -116,14 +116,20 @@ namespace OpenTap
                 {
                     using (TimeoutOperation.Create(() => PrintWaitingMessage(new List<IResource>() { resultListener })))
                         execStage.ResourceManager.WaitUntilResourcesOpened(TapThread.Current.AbortToken, resultListener);
+                    execStage.WaitForSerialization();
                     resultListener.OnTestPlanRunStart(execStage);
                 }
-                        catch (Exception ex)
+                catch (OperationCanceledException) when(execStage.MainThread.AbortToken.IsCancellationRequested)
+                {
+                    // test plan thread was aborted, this is OK.
+                }
+                catch (Exception ex)
                 {
                     Log.Error("Error in OnTestPlanRunStart for '{0}': '{1}'", resultListener, ex.Message);
                     Log.Debug(ex);
                     resultListenerError = true;
                 }
+                
             }, true);
             
             if (resultListenerError)

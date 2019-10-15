@@ -45,6 +45,10 @@ namespace OpenTap
                     }
                 }
             }
+            catch(TargetInvocationException tie)
+            {
+                Console.WriteLine("Exception when running IDebugger.AttachDebugger: {0}", tie.InnerException.Message);
+            }
             catch(Exception e)
             {
                 Console.WriteLine("Caught exception {0}", e.Message);
