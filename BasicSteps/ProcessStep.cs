@@ -147,7 +147,7 @@ namespace OpenTap.Plugins.BasicSteps
                             Log.Error("Timed out while waiting for application. Trying to kill process...");
 
                             process.Kill();
-                            UpgradeVerdict(Verdict.Aborted);
+                            UpgradeVerdict(Verdict.Fail);
                         }
 
                     }
