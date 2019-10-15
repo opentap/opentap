@@ -63,7 +63,7 @@ namespace OpenTap.Package
         }
 
 
-        private static void RunIsolated(string application = null, string target = null, IsolatedPackageAction isolatedAction = null)
+        internal static void RunIsolated(string application = null, string target = null, IsolatedPackageAction isolatedAction = null)
         {
 
             using (var tpmClient = new ExecutorClient())
@@ -92,14 +92,17 @@ namespace OpenTap.Package
                     throw new InvalidOperationException($"{Path.GetFileName(exec)} was not installed through a package.");
                 var dependencies = pkg.Dependencies.ToList();
 
-                // If the executing IsolatedPackageAction does not origin from OpenTAP package, we need to include it when we copy and run isolated
-                var actionAsm = isolatedAction.GetType().Assembly.Location;
-                PackageDef isolatedActionPackage = findPackageWithFile(Path.GetFullPath(actionAsm));
-                if (isolatedActionPackage == null)
-                    throw new InvalidOperationException($"{Path.GetFileName(actionAsm)} was not installed through a package.");
-                if (pkg.Name != isolatedActionPackage.Name)
-                    if (!dependencies.Any(p => p.Name == isolatedActionPackage.Name))
-                        dependencies.Add(new PackageDependency(isolatedActionPackage.Name, new VersionSpecifier(isolatedActionPackage.Version, VersionMatchBehavior.Compatible)));
+                if(isolatedAction != null)
+                {
+                    // If the executing IsolatedPackageAction does not origin from OpenTAP package, we need to include it when we copy and run isolated
+                    var actionAsm = isolatedAction.GetType().Assembly.Location;
+                    PackageDef isolatedActionPackage = findPackageWithFile(Path.GetFullPath(actionAsm));
+                    if (isolatedActionPackage == null)
+                        throw new InvalidOperationException($"{Path.GetFileName(actionAsm)} was not installed through a package.");
+                    if (pkg.Name != isolatedActionPackage.Name)
+                        if (!dependencies.Any(p => p.Name == isolatedActionPackage.Name))
+                            dependencies.Add(new PackageDependency(isolatedActionPackage.Name, new VersionSpecifier(isolatedActionPackage.Version, VersionMatchBehavior.Compatible)));
+                }
 
                 // when installing/uninstalling packages we might need to use custom package actions as well.
                 var extraDependencies = PluginManager.GetPlugins<ICustomPackageAction>().Select(t => t.Assembly.Location).Distinct().ToList();
