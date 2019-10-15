@@ -83,6 +83,20 @@ namespace OpenTap.Package
         }
 
         protected abstract int LockedExecute(CancellationToken cancellationToken);
+
+        [Obsolete("Inherit from IsolatedPackageAction instead.")]
+        public static bool RunIsolated(string application = null, string target = null)
+        {
+            try
+            {
+                IsolatedPackageAction.RunIsolated(application,target);
+                return true;
+            }
+            catch(InvalidOperationException)
+            {
+                return false;
+            }
+        }
     }
 
 }

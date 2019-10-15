@@ -11,11 +11,15 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenTap.Cli;
 
 namespace OpenTap.Package
 {
     public abstract class IsolatedPackageAction : LockingPackageAction
     {
+        [CommandLineArgument("force", Description = "Try to run in spite of errors.", ShortName = "f")]
+        public bool Force { get; set; }
+
         public override int Execute(CancellationToken cancellationToken)
         {
             if (String.IsNullOrEmpty(Target))
@@ -33,15 +37,17 @@ namespace OpenTap.Package
                 if (!ExecutorClient.IsRunningIsolated) // are we already running isolated?
                 {
                     // Detected Executor, try to run running isolated...
-                    if (RunIsolated(target: Target, isolatedAction: this))
-                        return 0; // we succeeded in "recursively" running everything isolated from a different process, we are done now.
-                    else
+                    try
                     {
-                        var exec = Path.GetFileName(Assembly.GetEntryAssembly().Location);
-                        if (this is PackageInstallAction installAction && installAction.ForceInstall || this is PackageUninstallAction uninstallAction && uninstallAction.Force)
-                            log.Warning($"Unable to run isolated because {exec} was not installed through a package.");
+                        RunIsolated(target: Target, isolatedAction: this);
+                        return 0; // we succeeded in "recursively" running everything isolated from a different process, we are done now.
+                    }
+                    catch (Exception ex)
+                    {
+                        if (this.Force)
+                            log.Warning($"Not running isolated because of error: {ex.Message}");
                         else
-                            throw new InvalidOperationException($"Unable to run isolated because {exec} was not installed through a package. Use --force to try to install anyway.");
+                            throw new InvalidOperationException($"Error when trying to run isolated (Use --force to try to run anyway): {ex.Message}",ex);
                     }
                 }
             }
@@ -57,7 +63,7 @@ namespace OpenTap.Package
         }
 
 
-        private static bool RunIsolated(string application = null, string target = null, IsolatedPackageAction isolatedAction = null)
+        internal static void RunIsolated(string application = null, string target = null, IsolatedPackageAction isolatedAction = null)
         {
 
             using (var tpmClient = new ExecutorClient())
@@ -81,16 +87,22 @@ namespace OpenTap.Package
                 }
 
                 var exec = application ?? Assembly.GetEntryAssembly().Location;
-                var pkg = findPackageWithFile(Path.GetFullPath(exec));
+                PackageDef pkg = findPackageWithFile(Path.GetFullPath(exec));
                 if (pkg == null)
-                    return false;
+                    throw new InvalidOperationException($"{Path.GetFileName(exec)} was not installed through a package.");
                 var dependencies = pkg.Dependencies.ToList();
 
-                // If the executing IsolatedPackageAction does not origin from OpenTAP package, we need to include it when we copy and run isolated
-                var isolatedActionPackage = findPackageWithFile(Path.GetFullPath(isolatedAction.GetType().Assembly.Location));
-                if (isolatedActionPackage is object && pkg.Name != isolatedActionPackage.Name)
-                    if (!dependencies.Any(p => p.Name == isolatedActionPackage.Name))
-                        dependencies.Add(new PackageDependency(isolatedActionPackage.Name, new VersionSpecifier(isolatedActionPackage.Version, VersionMatchBehavior.Compatible)));
+                if(isolatedAction != null)
+                {
+                    // If the executing IsolatedPackageAction does not origin from OpenTAP package, we need to include it when we copy and run isolated
+                    var actionAsm = isolatedAction.GetType().Assembly.Location;
+                    PackageDef isolatedActionPackage = findPackageWithFile(Path.GetFullPath(actionAsm));
+                    if (isolatedActionPackage == null)
+                        throw new InvalidOperationException($"{Path.GetFileName(actionAsm)} was not installed through a package.");
+                    if (pkg.Name != isolatedActionPackage.Name)
+                        if (!dependencies.Any(p => p.Name == isolatedActionPackage.Name))
+                            dependencies.Add(new PackageDependency(isolatedActionPackage.Name, new VersionSpecifier(isolatedActionPackage.Version, VersionMatchBehavior.Compatible)));
+                }
 
                 // when installing/uninstalling packages we might need to use custom package actions as well.
                 var extraDependencies = PluginManager.GetPlugins<ICustomPackageAction>().Select(t => t.Assembly.Location).Distinct().ToList();
@@ -103,7 +115,7 @@ namespace OpenTap.Package
                     }
                 }
 
-                var deps = OpenTap.Utils.FlattenHeirarchy(dependencies, dep => (IEnumerable<PackageDependency>)packages.FirstOrDefault(x => x.Name == dep.Name && !dependencies.Any(s => s.Name == dep.Name))?.Dependencies ?? Array.Empty<PackageDependency>(), distinct: true);
+                var deps = OpenTap.Utils.FlattenHeirarchy(dependencies, dep => (IEnumerable<PackageDependency>)packages.FirstOrDefault(x => x.Name == dep.Name)?.Dependencies ?? Array.Empty<PackageDependency>(), distinct: true);
 
                 if (false == deps.Any(x => x.Name == pkg.Name))
                 {
@@ -114,7 +126,7 @@ namespace OpenTap.Package
                 foreach (var d in deps)
                 {
                     if (!packages.Any(p => p.Name == d.Name && d.Version.IsCompatible(p.Version)))
-                        throw new Exception($"Unable to run isolated. Cannot find needed dependency '{d.Name}'.");
+                        throw new Exception($"Cannot find needed dependency '{d.Name}'.");
                     var package = packages.First(p => p.Name == d.Name && d.Version.IsCompatible(p.Version));
                     var defPath = String.Join("/", PackageDef.PackageDefDirectory, package.Name, PackageDef.PackageDefFileName);
                     if (File.Exists(defPath))
@@ -138,11 +150,6 @@ namespace OpenTap.Package
                     foreach (var name in brokenPackages)
                         log.Warning($"Package '{name}' has missing files and is broken.");
                 }
-#if DEBUG && !NETCOREAPP
-                // in debug builds tap.exe tries to attach a debugger using EnvDTE.dll, that dll needs to be copied as well.
-                if (File.Exists("EnvDTE.dll"))
-                    allFiles.Add("EnvDTE.dll");
-#endif
 
                 string tempFolder = Path.GetFullPath(FileSystemHelper.CreateTempDirectory());
 
@@ -175,7 +182,6 @@ namespace OpenTap.Package
 
                     tpmClient.MessageServer("run " + newname);
                     tpmClient.Dispose();
-                    return true;
                 }
             }
         }

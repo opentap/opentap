@@ -13,9 +13,6 @@ namespace OpenTap.Package
     [Display("uninstall", Group: "package", Description: "Uninstall one or more packages.")]
     public class PackageUninstallAction : IsolatedPackageAction
     {
-        [CommandLineArgument("force", Description = "Try to uninstall packages completely even if some steps fail.", ShortName = "f")]
-        public bool Force { get; set; }
-
         [CommandLineArgument("ignore-missing", Description = "Ignore names of packages that could not be found.", ShortName = "i")]
         public bool IgnoreMissing { get; set; }
 
