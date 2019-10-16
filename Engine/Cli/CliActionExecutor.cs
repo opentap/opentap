@@ -153,6 +153,16 @@ namespace OpenTap.Cli
                 }
             }
 
+            var execThread = TapThread.Current;
+            try
+            {
+                Console.CancelKeyPress += (s, e) => execThread.Abort();
+            }
+            catch
+            {
+
+            }
+
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
 
