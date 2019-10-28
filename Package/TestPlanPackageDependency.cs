@@ -8,10 +8,8 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.Serialization;
 using System.Threading;
 using System.Xml.Linq;
-using OpenTap;
 [assembly:OpenTap.PluginAssembly(true)]
 
 namespace OpenTap.Package
@@ -24,10 +22,7 @@ namespace OpenTap.Package
         const string NameName = "Name";
         const string VersionName = "Version";
 
-        public override double Order
-        {
-            get { return 100; }
-        }
+        public override double Order => 100; 
 
         public enum UserRequest
         {
@@ -148,13 +143,12 @@ namespace OpenTap.Package
 
         static string getAssemblyName(ITypeData _x)
         {
-            
             if(_x is TypeData xx && xx.Type is Type x && x.Assembly != null && x.Assembly.IsDynamic == false)
             {
                 try
                 {
                     // this can throw an exception, for example if the assembly is dynamic.
-                    return Path.GetFileNameWithoutExtension(x.Assembly.Location.Replace("\\", "/"));
+                    return Path.GetFileName(x.Assembly.Location.Replace("\\", "/"));
                 }
                 catch
                 {
@@ -168,8 +162,6 @@ namespace OpenTap.Package
         XElement endnode;
         public override bool Serialize(XElement elem, object obj, ITypeData type)
         {
-            //if (type == typeof(PackageDef))
-            //    return false; // TODO: fix this in a less hacky way
             if (!allTypes.Add(type))
                 return false;
             if (endnode == null)
@@ -189,7 +181,7 @@ namespace OpenTap.Package
                     {
                         foreach (var file in plugin.Files)
                         {
-                            var filename = Path.GetFileNameWithoutExtension(file.FileName.Replace("\\", "/"));
+                            var filename = Path.GetFileName(file.FileName.Replace("\\", "/"));
 
                             if (allassemblies.Contains(filename))
                             {
