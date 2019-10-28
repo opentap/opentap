@@ -107,8 +107,8 @@ namespace OpenTap
         {
             SessionLogPath = new MacroString { Text = "SessionLogs/SessionLog <Date>.txt" };
             ResultLatencyLimit = 3.0;
-            OperatorName = Environment.ExpandEnvironmentVariables("%USERNAME%");
-            StationName = System.Environment.MachineName;
+            OperatorName = Environment.GetEnvironmentVariable("USERNAME") ?? Environment.GetEnvironmentVariable("USER") ?? "";
+            StationName = Environment.MachineName;
 
             // Set OpenTAP to abort on step error by default.
             AbortTestPlan = AbortTestPlanType.Step_Error;
