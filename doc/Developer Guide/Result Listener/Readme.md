@@ -32,11 +32,11 @@ When extending the ResultListener class, the following methods can be overwritte
 
 These methods are called by OpenTAP and are guaranteed to be called in a certain order:
 
-1.	**OnTestPlanRunStart** - Called when the test plan starts and all resources have been opened (including Result Listeners). It takes a TestPlanRun argument, containing parameters for the plan run. 
+1. **OnTestPlanRunStart** - Called when the test plan starts and all resources have been opened (including Result Listeners). It takes a TestPlanRun argument, containing parameters for the plan run. 
 2. **OnTestStepRunStart** - Called for each step when the step execution starts.
 3. **OnResultPublished** - Called for each published result from the test step. This method is not called at all for test steps which do not publish any results.  
 4. **OnTestStepRunCompleted** - Called for each step when the step execution stops. At this point it is guaranteed that the test step does not publish more results.
-5.	**OnTestPlanRunCompleted** - Called when the test plan run finishes. This is called once during a test plan execution. The TestPlanRun object contains information regarding the run, including the duration and final verdict. The LogStream contains the log file produced by the plan run. 
+5. **OnTestPlanRunCompleted** - Called when the test plan run finishes. This is called once during a test plan execution. The TestPlanRun object contains information regarding the run, including the duration and final verdict. The LogStream contains the log file produced by the plan run. 
 
 To illustrate the sequence of the above-mentioned methods, consider the following figure:
 
@@ -46,7 +46,7 @@ Note that if a step publishes multiple results the OnResultPublished method is c
 
 The five methods described here run on a separate thread, and do NOT run synchronously with the test plan. That is important because the design of this class is to handle results, but NOT specifically to use the above methods to control external operations. The non-synchronous behavior was designed to allow faster throughput.
 
-It is possible to abort the test plan execution in case the result listener fails or encounters an error.  This is done by calling the TestPlanRun.RequestAbort() method.
+It is possible to abort the test plan execution in case the result listener fails or encounters an error.  This is done by calling the `PlanRun.MainThread.Abort()` method.
 
 ## OpenTAP SQL Database
 Interacting with the predefined databases or interfacing to an unsupported database requires DB knowledge. 
