@@ -671,11 +671,19 @@ namespace OpenTap.Package
             {
                 foreach (PackageFile file in inputPaths)
                 {
+                    var sw = Stopwatch.StartNew();
                     var relFileName = file.RelativeDestinationPath.Replace('\\', '/'); // Use forward slash as directory separators
                     var ZipPart = zip.CreateEntry(relFileName, System.IO.Compression.CompressionLevel.Optimal);
-                    byte[] B = File.ReadAllBytes(file.FileName);
-                    using (var str = ZipPart.Open())
-                        str.Write(B, 0, B.Length);
+                    
+                    using (var instream = File.OpenRead(file.FileName))
+                    {
+                        using (var outstream = ZipPart.Open())
+                        {
+                            var compressTask = instream.CopyToAsync(outstream, 2048, TapThread.Current.AbortToken);
+                            ConsoleUtils.PrintProgressTillEnd(compressTask, "Compressing", () => instream.Position, () => instream.Length);
+                        }
+                    }
+                    log.Debug(sw, "Compressed '{0}'", file.FileName);
                 }
 
                 // add the metadata xml file:

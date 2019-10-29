@@ -271,7 +271,7 @@ namespace OpenTap.Package
                     
                     string path = Uri.UnescapeDataString(part.FullName).Replace('\\', '/');
                     path = Path.Combine(destinationDir, path).Replace('\\', '/');
-                    
+                    var sw = Stopwatch.StartNew();
                     
                     int Retries = 0, MaxRetries = 10;
                     while(true)
@@ -282,14 +282,19 @@ namespace OpenTap.Package
                             var deflate_stream = part.Open();
                             using (var fileStream = File.Create(path))
                             {
-                                deflate_stream.CopyTo(fileStream);
+                                var task = deflate_stream.CopyToAsync(fileStream, 4096, TapThread.Current.AbortToken);
+                                ConsoleUtils.PrintProgressTillEnd(task, "Decompressing", ()=> fileStream.Position, ()=> part.Length);
                             }
-
+                            log.Debug(sw, "Decompressed {0}", path);
                             installedParts.Add(path);
                             break;
                         }
-                        catch
+                        catch (OperationCanceledException)
                         {
+                            throw;
+                        }
+                        catch
+                        {                            
                             if(Path.GetFileNameWithoutExtension(path) == "tap")
                                 break; // this is ok tap.exe (or just tap on linux) is not designed to be overwritten
 

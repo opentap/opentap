@@ -74,7 +74,6 @@ namespace OpenTap.Package
         private async Task DoDownloadPackage(PackageDef package, string destination, CancellationToken cancellationToken)
         {
             bool finished = false;
-            Timer timer = null;
             try
             {
                 HttpClientHandler hch = new HttpClientHandler();
@@ -107,31 +106,8 @@ namespace OpenTap.Package
                         throw new HttpRequestException($"The download request failed with {response.StatusCode}.");
 
                     var totalSize = response.Content.Headers.ContentLength ?? -1L;
-                    const int bufferSize = 1024 * 1024; // Try reading 1 MB at a time
-                    double offset = 0;
-                    var buffer = new byte[bufferSize];
-                    bool canRead = true;
-                    timer = new Timer(c =>
-                    {
-                        // Calculate progress
-                        Console.Write($"Downloading [{new String('=', (int)((offset / totalSize) * 30))}{new String(' ', 30 - (int)((offset / totalSize) * 30))}] {(offset / totalSize) * 100:0.00}%.\r");
-                    }, null, 0, 1000);
-
-                    do
-                    {
-                        // Start reading from stream
-                        var task = responseStream.ReadAsync(buffer, 0, bufferSize, cancellationToken);
-                        
-                        // Read stream
-                        var readLength = await task;
-                        
-                        // Write to file
-                        await fileStream.WriteAsync(buffer, 0, readLength, cancellationToken);
-                        
-                        canRead = readLength > 0;
-                        offset += readLength;
-                    } 
-                    while (canRead);
+                    var task = responseStream.CopyToAsync(fileStream, 4096, cancellationToken);
+                    ConsoleUtils.PrintProgressTillEnd(task, "Downloading", () => fileStream.Position, () => totalSize);
                 }
 
                 finished = true;
@@ -146,12 +122,6 @@ namespace OpenTap.Package
             }
             finally
             {
-                // Stop timer
-                if(timer != null)
-                {
-                    timer.Dispose();
-                    log.Flush();
-                }
                 
                 if ((!finished || cancellationToken.IsCancellationRequested) && File.Exists(destination))
                     File.Delete(destination);
