@@ -233,7 +233,7 @@ The time duration tags make it possible to do more advanced post timing analysis
 ### Exception Logging
 Errors are generally expressed as exceptions. Exceptions thrown during test step execution prevents the step from finishing. If an exception is thrown in a test step run method, it will abort the execution of the test step. The exception will be caught by the TestPlan and it will gracefully stop the plan, unless configured continue in the Engine Settings.
 
-A step can abort the test plan run by calling `PlanRun.MainThread.Abort();`, but it is generally best to let the user decide whether to stop on errors or not.
+A step can abort the test plan run by calling the `PlanRun.MainThread.Abort()` method. If you have multiple steps in a plan, the engine will check if abort is requested between the `Run()` methods of succeeding steps. If you have a step, which takes a long time to execute, you can call the `OpenTap.TapThread.ThrowIfAborted()` method to check if abort is requested during the execution of the step.
 
 A message is written to the log when a step throws an exception. The log message contains information on source file and line number if debugging symbols (.pdb files) are available and **Settings > GUI > Show Source Code Links** is enabled.
 

@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 using OpenTap.Diagnostic;
 
 namespace OpenTap
@@ -92,4 +93,35 @@ namespace OpenTap
             }
         }
     }
+
+    static class ConsoleUtils
+    {
+        static void printProgress(string header, long pos, long len)
+        {
+            const int MB = 1000000;
+            Console.Write($"{header} [{new string('=', (int)(30 * pos / len))}{new string(' ', (int)(30 - 30 * pos / len))}] {100.0 * pos / len:0.00}% ({pos / MB} of {len/MB}MB) \r");
+        }
+        
+        public static void PrintProgressTillEnd(Task task, string header, Func<long> pos, Func<long> len)
+        {
+            const int update_delay_ms = 1000;
+
+            if (task.Wait(update_delay_ms)) return;
+            try
+            {
+                do
+                {
+                    printProgress(header, pos(), len());
+                }
+                while (!task.Wait(update_delay_ms));
+                printProgress(header, len(), len());
+            }
+            finally
+            {
+                Console.WriteLine();
+            }
+        }
+
+    }
+
 }

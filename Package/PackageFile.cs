@@ -455,10 +455,11 @@ namespace OpenTap.Package
                 foreach (var part in zip.Entries)
                 {
                     FileSystemHelper.EnsureDirectory(part.FullName);
-                    var deflate_stream = part.Open();
-                    using (var fileStream = File.Create(part.FullName))
+                    var instream = part.Open();
+                    using (var outstream = File.Create(part.FullName))
                     {
-                        deflate_stream.CopyTo(fileStream);
+                        var task = instream.CopyToAsync(outstream, 4096, TapThread.Current.AbortToken);
+                        ConsoleUtils.PrintProgressTillEnd(task, "Decompressing", () => instream.Position, () => instream.Length);
                     }
                     
                     var package = FromPackage(part.FullName);
