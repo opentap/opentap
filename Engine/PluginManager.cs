@@ -253,6 +253,7 @@ namespace OpenTap
         public static Task SearchAsync()
         {
             searchTask.Reset();
+            searcher = null;
             ChangeID++;
             TapThread.Start(Search);  
             return Task.Run(() => GetSearcher());
@@ -261,6 +262,7 @@ namespace OpenTap
         ///<summary>Searches for plugins.</summary>
         public static void Search(){
             searchTask.Reset();
+            searcher = null;
             assemblyResolver.Invalidate(DirectoriesToSearch);
             ChangeID++;
             try
