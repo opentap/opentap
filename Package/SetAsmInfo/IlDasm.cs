@@ -18,7 +18,11 @@ namespace OpenTap.Package.SetAsmInfo
         {
             string[] windowsSdkPaths = new[]
             {
+                @"Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8 Tools\",
                 @"Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.7.2 Tools\",
+                @"Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.7.1 Tools\",
+                @"Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.7 Tools\",
+                @"Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.6.2 Tools\",
                 @"Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.6.1 Tools\",
                 @"Microsoft SDKs\Windows\v10.0A\bin\",
                 @"Microsoft SDKs\Windows\v8.0A\bin\NETFX 4.0 Tools\",
