@@ -6,6 +6,7 @@ using System;
 using NUnit.Framework;
 using System.Linq;
 using System.Reflection;
+using System.IO;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -51,6 +52,42 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsNotNull(stepType);
 
             CollectionAssert.IsSubsetOf(searcher.PluginTypes.ToList(), searcher.AllTypes.Values);
+        }
+
+        [Test]
+        public void SameAssemblyTwice()
+        {
+            PluginSearcher searcher = new PluginSearcher();
+            try
+            {
+                Directory.CreateDirectory("SameAssemblyTwiceTestDir");
+                File.Copy("OpenTap.UnitTests.dll", "SameAssemblyTwiceTestDir/OpenTap.UnitTests.dll",true);
+                searcher.Search(new string[] { "OpenTap.UnitTests.dll", "OpenTap.dll", "SameAssemblyTwiceTestDir/OpenTap.UnitTests.dll" });
+                Assert.AreEqual(2, searcher.Assemblies.Count());
+            }
+            finally
+            {
+                Directory.Delete("SameAssemblyTwiceTestDir",true);
+            }
+        }
+
+        [Test]
+        public void SearchTwice()
+        {
+            PluginSearcher searcher = new PluginSearcher();
+            try
+            {
+                Directory.CreateDirectory("SameAssemblyTwiceTestDir");
+                File.Copy("OpenTap.UnitTests.dll", "SameAssemblyTwiceTestDir/OpenTap.UnitTests.dll", true);
+                searcher.Search(new string[] { "OpenTap.UnitTests.dll" });
+                Assert.AreEqual(1, searcher.Assemblies.Count());
+                searcher.Search(new string[] { "OpenTap.dll" });
+                Assert.AreEqual(2, searcher.Assemblies.Count());
+            }
+            finally
+            {
+                Directory.Delete("SameAssemblyTwiceTestDir", true);
+            }
         }
     }
 }

@@ -9,7 +9,6 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Reflection;
 using System.Diagnostics;
-using System.Globalization;
 using Tap.Shared;
 using System.Runtime.InteropServices;
 using System.Xml.Serialization;
@@ -38,9 +37,11 @@ namespace OpenTap.Package
                             // if the file is already in its destination dir use that instead.
                             // That file is much more likely to be inside the OpenTAP dir we already searched.
                             string fullPath = Path.GetFullPath(def.FileName);
-                            string dir = Path.GetDirectoryName(fullPath);
-                            
-                            AssemblyData assembly = searchedAssemblies.FirstOrDefault(a => PathUtils.AreEqual(a.Location, fullPath));
+
+                            // Find the file in searchedAssemblies using its full name because
+                            // searchedAssemblies will only contain AssemblyInfos with Distinct FullNames
+                            string fullName = AssemblyName.GetAssemblyName(fullPath).FullName;
+                            AssemblyData assembly = searchedAssemblies.FirstOrDefault(a => AssemblyName.GetAssemblyName(a.Location).FullName == fullName);
 
                             if (assembly != null)
                             {
@@ -78,7 +79,7 @@ namespace OpenTap.Package
                                         def.Plugins.Add(plugin);
                                     }
                                 }
-                                def.DependentAssemblyNames = assembly.References.ToList();
+                                def.DependentAssemblies = assembly.References.ToList();
                             }
                             else
                             {
@@ -145,7 +146,7 @@ namespace OpenTap.Package
                 throw new AggregateException("Missing files", exceptions);
             
             pkgDef.Date = DateTime.UtcNow;
-            
+
             // Copy to output directory first
             foreach(var file in pkgDef.Files)
             {
@@ -385,34 +386,40 @@ namespace OpenTap.Package
             var installed = new Installation(Directory.GetCurrentDirectory()).GetPackages().Where(p => p.Name != pkg.Name).ToList();
             
             List<string> brokenPackageNames = new List<string>();
-            var packageAssemblies = new Memorizer<PackageDef, List<AssemblyData>>(pkgDef => pkgDef.Files.SelectMany(f =>
+
+            List<AssemblyData> getPackageAssemblues(PackageDef pkgDef)
             {
-                var asms = searchedFiles.Where(sf => PathUtils.AreEqual(f.FileName, sf.Location)).ToList();
-                if (asms.Count == 0 && (Path.GetExtension(f.FileName).Equals(".dll", StringComparison.OrdinalIgnoreCase) || Path.GetExtension(f.FileName).Equals(".exe", StringComparison.OrdinalIgnoreCase)))
+                List<AssemblyData> output = new List<AssemblyData>();
+                foreach(var f in pkgDef.Files)
                 {
-                    if (File.Exists(f.FileName))
+                    var asms = searchedFiles.Where(sf => PathUtils.AreEqual(f.FileName, sf.Location))
+                        .Where(sf => IsDotNetAssembly(sf.Location)).ToList();
+                    if (asms.Count == 0 && (Path.GetExtension(f.FileName).Equals(".dll", StringComparison.OrdinalIgnoreCase) || Path.GetExtension(f.FileName).Equals(".exe", StringComparison.OrdinalIgnoreCase)))
                     {
-                        // If the pluginSearcher found assemblies that are located somewhere not expected by the package definition, the package might appear broken.
-                        // But if the file found by the pluginSearcher is the same as the one expected by the package definition we should not count it as broken.
-                        // This could cause a package to not be added as a dependencies. 
-                        // E.g. when debugging and the OpenTAP.Cli.dll is both in the root build dir and in "Packages/OpenTAP"
+                        if (File.Exists(f.FileName))
+                        {
+                            // If the pluginSearcher found assemblies that are located somewhere not expected by the package definition, the package might appear broken.
+                            // But if the file found by the pluginSearcher is the same as the one expected by the package definition we should not count it as broken.
+                            // This could cause a package to not be added as a dependencies. 
+                            // E.g. when debugging and the OpenTAP.Cli.dll is both in the root build dir and in "Packages/OpenTAP"
+                            var asmsIdenticalFilename = searchedFiles.Where(sf => Path.GetFileName(f.FileName) == Path.GetFileName(sf.Location));
+                            var asmsIdentical = asmsIdenticalFilename.Where(sf => PathUtils.CompareFiles(f.FileName, sf.Location));
+                            output.AddRange(asmsIdentical);
+                            continue;
+                        }
 
-                        var fileData = File.ReadAllBytes(f.FileName);
-                        var asmsIdenticalFilename = searchedFiles.Where(sf => Path.GetFileName(f.FileName) == Path.GetFileName(sf.Location));
-                        var asmsIdentical = asmsIdenticalFilename.Where(sf => File.ReadAllBytes(sf.Location).SequenceEqual(fileData));
-
-                        if (asmsIdentical.Any())
-                            return asmsIdentical.ToList();
+                        if (!brokenPackageNames.Contains(pkgDef.Name) && IsDotNetAssembly(f.FileName))
+                        {
+                            brokenPackageNames.Add(pkgDef.Name);
+                            log.Warning($"Package '{pkgDef.Name}' is not installed correctly?  Referenced file '{f.FileName}' was not found.");
+                        }
                     }
-
-                    if (!brokenPackageNames.Contains(pkgDef.Name) && IsDotNetAssembly(f.FileName))
-                    {
-                        brokenPackageNames.Add(pkgDef.Name);
-                        log.Warning($"Package '{pkgDef.Name}' is not installed correctly?  Referenced file '{f.FileName}' was not found.");
-                    }
+                    output.AddRange(asms);
                 }
-                return asms;
-            }).ToList());
+                return output;
+            };
+
+            var packageAssemblies = new Memorizer<PackageDef, List<AssemblyData>>(getPackageAssemblues);
 
             var missingPackage = new List<string>();
 
@@ -448,7 +455,7 @@ namespace OpenTap.Package
 
                 // Find our dependencies and subtract the above two lists
                 var dependentAssemblyNames = pkg.Files
-                    .SelectMany(fs => fs.DependentAssemblyNames)
+                    .SelectMany(fs => fs.DependentAssemblies)
                     .Where(r => r.Name != "mscorlib") // Special case. We should not bundle the framework assemblies.
                     .Where(r => !anyOffered.Any(of => AssemblyRefUtils.IsCompatibleReference(of, r)))
                     .Distinct().Where(x => !excludeAdd.Contains(x.Name)).ToList();
@@ -490,14 +497,14 @@ namespace OpenTap.Package
 
                             if (foundAsm != null)
                             {
-                                var depender = pkg.Files.FirstOrDefault(f => f.DependentAssemblyNames.Contains(unknown));
+                                var depender = pkg.Files.FirstOrDefault(f => f.DependentAssemblies.Contains(unknown));
                                 if (depender == null)
                                     log.Warning("Adding dependent assembly '{0}' to package. It was not found in any other packages.", Path.GetFileName(foundAsm.Location));
                                 else
                                     log.Info($"'{Path.GetFileName(depender.FileName)}' dependents on '{unknown.Name}' version '{unknown.Version}'. Adding dependency to package, it was not found in any other packages.");
 
                                 var destPath = string.Format("Dependencies/{0}.{1}/{2}", Path.GetFileNameWithoutExtension(foundAsm.Location), foundAsm.Version.ToString(), Path.GetFileName(foundAsm.Location));
-                                pkg.Files.Add(new PackageFile { SourcePath = foundAsm.Location, RelativeDestinationPath = destPath, DependentAssemblyNames = foundAsm.References.ToList() });
+                                pkg.Files.Add(new PackageFile { SourcePath = foundAsm.Location, RelativeDestinationPath = destPath, DependentAssemblies = foundAsm.References.ToList() });
 
                                 // Copy the file to the actual directory so we can rely on it actually existing where we say the package has it.
                                 if (!File.Exists(destPath))
@@ -562,7 +569,7 @@ namespace OpenTap.Package
 
             string tempDir = Path.GetTempPath() + Path.GetRandomFileName();
             Directory.CreateDirectory(tempDir);
-
+            log.Debug("Using temporary folder at '{0}'", tempDir);
             try
             {
                 log.Info("Updating package version.");
@@ -581,7 +588,7 @@ namespace OpenTap.Package
             }
             finally
             {
-                Directory.Delete(tempDir, true);
+                FileSystemHelper.DeleteDirectory(tempDir);
             }
         }
 
@@ -616,31 +623,22 @@ namespace OpenTap.Package
 
                 log.Debug("Updating version info for '{0}'", file.FileName);
 
-                try
+
+                // Assume we can't open the file for writing (could be because we are trying to modify TPM or the engine), and copy to the same filename in a subdirectory
+                var versionedOutput = Path.Combine(tempDir, "Versioned");
+
+                var origFilename = Path.GetFileName(file.FileName);
+                var tempName = Path.Combine(versionedOutput, origFilename);
+                int i = 1;
+                while (File.Exists(tempName))
                 {
-                    using (File.OpenWrite(file.FileName))
-                    {
-
-                    }
+                    tempName = Path.Combine(versionedOutput, origFilename + i.ToString());
+                    i++;
                 }
-                catch
-                {
-                    // Assume we can't open the file for writing (could be because we are trying to modify TPM or the engine), and copy to the same filename in a subdirectory
-                    var versionedOutput = Path.Combine(tempDir, "Versioned");
 
-                    var origFilename = Path.GetFileName(file.FileName);
-                    var tempName = Path.Combine(versionedOutput, origFilename);
-                    int i = 1;
-                    while (File.Exists(tempName))
-                    {
-                        tempName = Path.Combine(versionedOutput, origFilename + i.ToString());
-                        i++;
-                    }
-
-                    Directory.CreateDirectory(Path.GetDirectoryName(tempName));
-                    ProgramHelper.FileCopy(file.FileName, tempName);
-                    file.SourcePath = tempName;
-                }
+                Directory.CreateDirectory(Path.GetDirectoryName(tempName));
+                ProgramHelper.FileCopy(file.FileName, tempName);
+                file.SourcePath = tempName;
 
                 SemanticVersion fVersion = null;
                 Version fVersionShort = null;

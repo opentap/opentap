@@ -78,5 +78,46 @@ namespace Tap.Shared
             foreach (var file in files)
                 yield return file;
         }
+
+        static bool compareFileStreams(FileStream f1, FileStream f2)
+        {
+            if (f1.Length != f2.Length) return false;
+            const int bufferSize = 4096;
+            const int u64len1 = bufferSize / 8;
+            byte[] buffer1 = new byte[bufferSize];
+            byte[] buffer2 = new byte[bufferSize];
+            while (true)
+            {
+                int count = f1.Read(buffer1, 0, bufferSize);
+                if (count == 0) return true;
+                f2.Read(buffer2, 0, bufferSize);
+
+                int u64len = u64len1;
+                if (count < bufferSize)
+                    u64len = (count / 8 + 1);
+
+                for (int i = 0; i < u64len; i++)
+                {
+                    if (BitConverter.ToInt64(buffer1, i * 8) != BitConverter.ToInt64(buffer2, i * 8))
+                        return false;
+                }
+            }
+        }
+
+        public static bool CompareFiles(string file1, string file2)
+        {
+            if (PathUtils.AreEqual(file1, file2))
+                return true;
+            try
+            {
+                using (var f1 = File.Open(file1, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (var f2 = File.Open(file2, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    return compareFileStreams(f1, f2);
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 }
