@@ -104,7 +104,7 @@ namespace OpenTap.Package
         /// Dependent assemblies.
         /// </summary>
         [XmlIgnore]
-        internal List<AssemblyData> DependentAssemblyNames { get; set; }
+        internal List<AssemblyData> DependentAssemblies { get; set; }
 
         /// <summary>
         /// License required by the plugin file.
@@ -118,7 +118,7 @@ namespace OpenTap.Package
         /// </summary>
         public PackageFile()
         {
-            DependentAssemblyNames = new List<AssemblyData>();
+            DependentAssemblies = new List<AssemblyData>();
             Plugins = new List<PluginFile>();
             IgnoredDependencies = new List<string>();
             CustomData = new List<ICustomPackageData>();

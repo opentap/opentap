@@ -80,7 +80,7 @@ namespace OpenTap
                     // this ensures that System.Runtime.InteropServices.RuntimeInformation.dll is loaded. (issue #4000).
                     .StartNew(PluginManager.Load)
                     // then get the system info on a separate thread (it takes ~1s)
-                    .ContinueWith(tsk => SystemInfo());
+                    .ContinueWith(tsk => SystemInfo()); 
 
                 AppDomain.CurrentDomain.ProcessExit += FlushOnExit;
                 AppDomain.CurrentDomain.UnhandledException += FlushOnExit;
@@ -94,7 +94,7 @@ namespace OpenTap
             CurrentLogFile = tempLogFileName;
 
             // Log debugging information of the current process.
-            log.Debug($"Running '{string.Join(" ", Environment.GetCommandLineArgs())}' in '{Directory.GetCurrentDirectory()}'.");
+            log.Debug($"Running '{Environment.CommandLine}' in '{Directory.GetCurrentDirectory()}'.");
         }
 
         private static void FlushOnExit(object sender, EventArgs e)

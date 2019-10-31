@@ -100,7 +100,7 @@ namespace OpenTap.Package.UnitTests
             string inputFilename = "Packages/test2/package.xml";
             PackageDef pkg = PackageDefExt.FromInputXml(inputFilename);
             
-            Assert.AreEqual(pkg.Files?.FirstOrDefault()?.Plugins?.FirstOrDefault(p => p.Type == typeof(IfStep).FullName)?.BaseType, "Test Step");
+            Assert.AreEqual("Test Step",pkg.Files?.FirstOrDefault()?.Plugins?.FirstOrDefault(p => p.Type == typeof(IfStep).FullName)?.BaseType);
             Assert.AreEqual(pkg.Files?.FirstOrDefault()?.Plugins.FirstOrDefault(p => p.Type == typeof(GenericScpiInstrument).FullName)?.BaseType, "Instrument");
         }
 
@@ -250,7 +250,7 @@ namespace OpenTap.Package.UnitTests
                     def.AddFile(tmp);
 
                     var bs = PluginManager.GetSearcher().Assemblies.First(asm => asm.Name == "OpenTap.Plugins.BasicSteps");
-                    def.Files[0].DependentAssemblyNames.Add(bs);
+                    def.Files[0].DependentAssemblies.Add(bs);
 
                     var searcher = new PluginSearcher();
                     searcher.Search(Directory.GetCurrentDirectory());
@@ -267,7 +267,7 @@ namespace OpenTap.Package.UnitTests
                     def.AddFile(tmp);
 
                     var bs = PluginManager.GetSearcher().Assemblies.First(asm => asm.Name == "OpenTap.Plugins.BasicSteps");
-                    def.Files[0].DependentAssemblyNames.Add(bs);
+                    def.Files[0].DependentAssemblies.Add(bs);
 
                     var searcher = new PluginSearcher();
                     searcher.Search(Directory.GetCurrentDirectory());
@@ -329,7 +329,7 @@ namespace OpenTap.Package.UnitTests
                     def.Dependencies.Add(new PackageDependency( "rv", VersionSpecifier.Parse("1.2")));
 
                     def.AddFile("DependencyTest.dll");
-                    def.Files[0].DependentAssemblyNames.AddRange(PluginManager.GetSearcher().Assemblies.First(f => f.Name == "DependencyTest").References);
+                    def.Files[0].DependentAssemblies.AddRange(PluginManager.GetSearcher().Assemblies.First(f => f.Name == "DependencyTest").References);
 
                     var searcher = new PluginSearcher();
                     searcher.Search(Directory.GetCurrentDirectory());
@@ -350,7 +350,7 @@ namespace OpenTap.Package.UnitTests
                     def.Dependencies.Add(new PackageDependency("gui", VersionSpecifier.Parse("1.2") ));
 
                     def.AddFile("DependencyTest.dll");
-                    def.Files[0].DependentAssemblyNames.AddRange(PluginManager.GetSearcher().Assemblies.First(f => f.Name == "DependencyTest").References);
+                    def.Files[0].DependentAssemblies.AddRange(PluginManager.GetSearcher().Assemblies.First(f => f.Name == "DependencyTest").References);
 
                     var searcher = new PluginSearcher();
                     searcher.Search(Directory.GetCurrentDirectory());

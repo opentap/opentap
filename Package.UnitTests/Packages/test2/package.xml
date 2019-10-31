@@ -2,10 +2,10 @@
 <Package Name="Test2" Version="1.2.3+4" xmlns="http://opentap.io/schemas/package">
   <Files>
     <File Path="OpenTap.Plugins.BasicSteps.dll">
-    	<UseVersion/>
+      <UseVersion/>
     </File>
-	<File Path="OpenTap.Package.UnitTests.dll">
-		<UseVersion/>
-	</File>
+    <File Path="OpenTap.Package.UnitTests.dll">
+      <UseVersion/>
+    </File>
   </Files>
 </Package>
