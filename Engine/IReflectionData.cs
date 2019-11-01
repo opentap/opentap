@@ -68,112 +68,105 @@ namespace OpenTap
         bool CanCreateInstance { get; }
     }
 
-    /// <summary>
-    /// Type info provider. Provides type info for a given object. 
-    /// </summary>
+    /// <summary> Type info provider. Provides type info for a given object. </summary>
     [Display("TypeInfo Provider")]
     public interface ITypeDataProvider : ITapPlugin
     {
-        /// <summary>
-        /// Gets the type info from an identifier.
-        /// </summary>
+        /// <summary> Gets the type info from an identifier. </summary>
         ITypeData GetTypeData(string identifier);
-        /// <summary>
-        /// Gets the type info from an object.
-        /// </summary>
+
+        /// <summary> Gets the type info from an object. </summary>
         ITypeData GetTypeData(object obj);
 
-        /// <summary>
-        /// The priority of this type info provider. Note, this decides the order in which tyhe type info is resolved.
-        /// </summary>
+        /// <summary> The priority of this type info provider. Note, this decides the order in which tyhe type info is resolved. </summary>
         double Priority { get; }
     }
 
-
-    /// <summary> Can resolve a type info. </summary>
-    internal class TypeInfoResolver
+    /// <summary> Utility class for resolving dynamic type information. </summary>
+    public class TypeInfoResolver
     {
+        [ThreadStatic]
+        static TypeInfoResolver current;
 
-        internal TypeInfoResolver(List<ITypeDataProvider> providers)
+        object theobj;
+        List<ITypeDataProvider> providers = GetProviders();
+        /// <summary> Used by ITypeDataProviders to continue iteration locally. </summary>
+        public static ITypeData ResolveNext(object obj)
         {
-            this.providers = providers;
+            if (current == null || false == object.ReferenceEquals(current.theobj, obj)) throw new InvalidOperationException("TypeInfoResolver.ResolveNext can only be called during TypeResolution.");
+            return current.Iterate(obj);
         }
-        List<ITypeDataProvider> providers;
+
+        /// <summary> Used by ITypeDataProviders to continue iteration locally. </summary>
+        public static ITypeData ResolveNext(string typename)
+        {
+            if (current == null || false == object.ReferenceEquals(current.theobj, typename)) throw new InvalidOperationException("TypeInfoResolver.ResolveNext can only be called during TypeResolution.");
+            return current.Iterate(typename);
+        }
+        
+        internal TypeInfoResolver(object value) => this.theobj = value;
+
         int offset = 0;
-        /// <summary> Looks for a type info provider to provide the type for obj. </summary>
-        /// <param name="obj"></param>
-        public void Iterate(object obj)
+        
+        /// <summary> Resolve the type of an object. </summary>
+        internal ITypeData Iterate(object obj)
         {
-            while (offset < providers.Count && FoundType == null)
+            TypeInfoResolver prev = current;
+            current = this;
+            try
             {
-                var provider = providers[offset];
-                offset++;
-                FoundType = provider.GetTypeData(obj);
+                while (offset < providers.Count)
+                {
+                    var provider = providers[offset];
+                    offset++;
+                    if (provider.GetTypeData(obj) is ITypeData found)
+                        return found;
+                }
+                return null;
+            }
+            finally
+            {
+                current = prev;
             }
         }
 
-        /// <summary> Looks for a type info provider to provide the type for the obj string. </summary>
-        /// <param name="obj"></param>
-        public void Iterate(string obj)
+        /// <summary> Resolve a type based on string input. </summary>
+        internal ITypeData Iterate(string typename)
         {
-            while (offset < providers.Count && FoundType == null)
+            TypeInfoResolver prev = current;
+            current = this;
+            try
             {
-                var provider = providers[offset];
-                offset++;
-                FoundType = provider.GetTypeData(obj);
+                while (offset < providers.Count)
+                {
+                    var provider = providers[offset];
+                    offset++;
+                    if (provider.GetTypeData(typename) is ITypeData found)
+                        return found;
+                }
+                return null;
+            }
+            finally
+            {
+                current = prev;
             }
         }
 
-        /// <summary>
-        /// The found type info instance.
-        /// </summary>
-        public ITypeData FoundType { get; private set; }
-    }
-
-    /// <summary>
-    /// Helper method for TypeInfo.
-    /// </summary>
-    public partial class TypeData
-    {
-        static List<ITypeDataProvider> providers = new List<ITypeDataProvider>();
-        static List<ITypeDataProvider> Providers
+        static List<ITypeDataProvider> sproviders = new List<ITypeDataProvider>();
+        static List<ITypeDataProvider> GetProviders()
         {
-            get
-            {
-                var _providers = PluginManager.GetPlugins<ITypeDataProvider>();
-                if (providers.Count == _providers.Count) return providers;
-                providers = _providers.Select(x => Activator.CreateInstance(x)).OfType<ITypeDataProvider>().ToList();
-                providers.Sort((x, y) => y.Priority.CompareTo(x.Priority));
-                return providers;
-            }
-        }
-
-        /// <summary> Get the type info of an object. </summary>
-        /// <param name="obj"></param>
-        /// <returns></returns>
-        static public ITypeData GetTypeData(object obj)
-        {
-            if (obj == null) return TypeData.FromType(typeof(object));
-            var resolver = new TypeInfoResolver(Providers);
-            resolver.Iterate(obj);
-            return resolver.FoundType;
-        }
-
-        /// <summary> Gets the type info from a string. </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        static public ITypeData GetTypeData(string name)
-        {
-            var resolver = new TypeInfoResolver(Providers);
-            resolver.Iterate(name);
-            return resolver.FoundType;
+            var _sproviders = TypeData.FromType(typeof(ITypeDataProvider)).DerivedTypes;
+            if (sproviders.Count == _sproviders.Count()) return sproviders;
+            sproviders = _sproviders.Select(x => x.NewInstanceSafe()).OfType<ITypeDataProvider>().ToList();
+            sproviders.Sort((x, y) => y.Priority.CompareTo(x.Priority));
+            return sproviders;
         }
     }
 
     /// <summary> Helpers for work with ITypeInfo objects. </summary>
     public static class ReflectionDataExtensions
     {
-        /// <summary> returns tru if 'type' is a descendant of 'basetype'. </summary>
+        /// <summary> returns true if 'type' is a descendant of 'basetype'. </summary>
         /// <param name="type"></param>
         /// <param name="basetype"></param>
         /// <returns></returns>

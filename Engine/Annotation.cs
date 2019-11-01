@@ -176,6 +176,13 @@ namespace OpenTap
         IEnumerable Elements { get; set; }
     }
     
+    /// <summary> Used to mark a collection as fixed-size. </summary>
+    public interface IFixedSizeCollectionAnnotation : IAnnotation
+    {
+        /// <summary> Gets if the collection annotated is fixed size. </summary>
+        bool IsFixedSize { get; }
+    }
+
     /// <summary> Specifies that the annotation reflects some kind of collection.</summary>
     public interface ICollectionAnnotation : IAnnotation
     {
@@ -1355,9 +1362,12 @@ namespace OpenTap
             }
         }
 
-        class BasicCollectionAnnotation : IBasicCollectionAnnotation, IOwnedAnnotation
+        class BasicCollectionAnnotation : IBasicCollectionAnnotation, IOwnedAnnotation, IFixedSizeCollectionAnnotation
         {
             public IEnumerable Elements { get; set; }
+
+            public bool IsFixedSize => (Elements as IList)?.IsFixedSize ?? false;
+
             IEnumerable origin;
             public void Read(object source)
             {

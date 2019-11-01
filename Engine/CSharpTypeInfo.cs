@@ -13,13 +13,12 @@ using System.Runtime.CompilerServices;
 
 namespace OpenTap
 {
+    /// <summary> Represents a .NET type. </summary>
     public partial class TypeData : ITypeData
     {
         /// <summary> Creates a string value of this.</summary>
-        public override string ToString()
-        {
-            return $"{type.FullName}";
-        }
+        public override string ToString() => $"{type.FullName}";
+
         static ConditionalWeakTable<Type, TypeData> dict = new ConditionalWeakTable<Type, TypeData>();
 
         Type type;
@@ -178,18 +177,21 @@ namespace OpenTap
             if (members == null)
             {
                 List<IMemberData> m = new List<IMemberData>();
-                foreach (var prop in Load().GetPropertiesTap())
+                foreach (var mem in Load().GetPropertiesTap())
                 {
-                    if(prop.GetMethod.GetParameters().Length > 0){
+                    if(mem.GetMethod.GetParameters().Length > 0)
                         continue;
-                    }
-                    m.Add(MemberData.Create(prop));
+                    var member = MemberData.Create(mem);
+                    m.Add(member);
                 }
 
                 foreach (var mem in Load().GetMethodsTap())
                 {
                     if (mem.GetAttribute<BrowsableAttribute>()?.Browsable ?? false)
-                        m.Add(MemberData.Create(mem));
+                    {
+                        var member = MemberData.Create(mem);
+                        m.Add(member);
+                    }
                 }
                 members = m.ToArray();
             }
@@ -202,6 +204,17 @@ namespace OpenTap
             postload();
             return hasFlags;
         }
+
+        /// <summary> Get the type info of an object. </summary>
+        static public ITypeData GetTypeData(object obj)
+        {
+            if (obj == null) return FromType(typeof(object));
+            var resolver = new TypeInfoResolver(obj);
+            return resolver.Iterate(obj);
+        }
+
+        /// <summary> Gets the type info from a string. </summary>
+        static public ITypeData GetTypeData(string name) => new TypeInfoResolver(name).Iterate(name);
     }
 
     /// <summary>
@@ -229,15 +242,12 @@ namespace OpenTap
                 return dict.GetOrAdd(new MemberName { Name = info.Name, DeclaringType = info.DeclaringType }, x => new MemberData(x.Name, TypeData.FromType(x.DeclaringType)));
         }
 
-        /// <summary>
-        /// The System.Reflection.MemberInfo this represents.
-        /// </summary>
+        /// <summary> The System.Reflection.MemberInfo this represents. </summary>
         public readonly MemberInfo Member;
 
         private MemberData(string name, TypeData declaringType) : this(declaringType.Type.GetMember(name)[0], declaringType)
-        {
+        { }
 
-        }
         private MemberData(MemberInfo info, TypeData declaringType)
         {
             if (info == null)
@@ -247,12 +257,9 @@ namespace OpenTap
 
         }
         IEnumerable<object> attributes = null;
-        /// <summary>
-        /// The attributes of this member.
-        /// </summary>
-        public IEnumerable<object> Attributes => attributes ?? (attributes = Member.GetCustomAttributes());
 
-        
+        /// <summary> The attributes of this member. </summary>
+        public IEnumerable<object> Attributes => attributes ?? (attributes = Member.GetCustomAttributes());
 
         static Type createDelegateType(MethodInfo method)
         {
@@ -353,12 +360,8 @@ namespace OpenTap
             }   
         }
 
-        /// <summary> Gets a string representation of this CSharpTYpe. </summary>
-        /// <returns></returns>
-        public override string ToString()
-        {
-            return $"[{Name}]";
-        }
+        /// <summary> Gets a string representation of this CSharpType. </summary>
+        public override string ToString() => $"[{Name}]";
     }
 
     /// <summary> Type info provider for C# types. </summary>
