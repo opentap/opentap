@@ -41,7 +41,7 @@ namespace OpenTap.Package
                             // Find the file in searchedAssemblies using its name+version because
                             // searchedAssemblies will only contain AssemblyInfos with Distinct FullNames
                             AssemblyName name = AssemblyName.GetAssemblyName(fullPath);
-                            AssemblyData assembly = searchedAssemblies.FirstOrDefault(a => a.Name == name.Name && a.Version == name.Version);
+                            AssemblyData assembly = searchedAssemblies.FirstOrDefault(a => a.Name == name.Name && a.Version >= name.Version);
 
                             if (assembly != null)
                             {
