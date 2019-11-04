@@ -38,10 +38,10 @@ namespace OpenTap.Package
                             // That file is much more likely to be inside the OpenTAP dir we already searched.
                             string fullPath = Path.GetFullPath(def.FileName);
 
-                            // Find the file in searchedAssemblies using its full name because
+                            // Find the file in searchedAssemblies using its name+version because
                             // searchedAssemblies will only contain AssemblyInfos with Distinct FullNames
-                            string fullName = AssemblyName.GetAssemblyName(fullPath).FullName;
-                            AssemblyData assembly = searchedAssemblies.FirstOrDefault(a => AssemblyName.GetAssemblyName(a.Location).FullName == fullName);
+                            AssemblyName name = AssemblyName.GetAssemblyName(fullPath);
+                            AssemblyData assembly = searchedAssemblies.FirstOrDefault(a => a.Name == name.Name && a.Version == name.Version);
 
                             if (assembly != null)
                             {

@@ -403,9 +403,13 @@ namespace OpenTap.Package
                     {
                         (node as XElement).Save(str);
                         str.Seek(0, 0);
-                        lock (packages)
+                        var package = PackageDef.FromXml(str);
+                        if (package != null)
                         {
-                            packages.Add(PackageDef.FromXml(str));
+                            lock (packages)
+                            {
+                                packages.Add(package);
+                            }
                         }
                     }
                     else

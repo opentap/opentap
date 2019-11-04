@@ -218,11 +218,20 @@ namespace OpenTap.Package
                     if (repo is HttpPackageRepository httprepo && httprepo.Version != null && RequiredApiVersion.IsCompatible(httprepo.Version))
                     {
                         var json = httprepo.Query(query);
-                        foreach (var item in json["packages"])
-                            list.Add(new PackageDef() { Name = item["name"].ToString(), Version = SemanticVersion.Parse(item["version"].ToString()) });
+                        lock (list)
+                        {
+                            foreach (var item in json["packages"])
+                                list.Add(new PackageDef() { Name = item["name"].ToString(), Version = SemanticVersion.Parse(item["version"].ToString()) });
+                        }
                     }
                     else
-                        list.AddRange(repo.GetPackages(id, compatibleWith));
+                    {
+                        var packages = repo.GetPackages(id, compatibleWith);
+                        lock (list)
+                        {
+                            list.AddRange(packages);
+                        }
+                    }
                 });
             }
             catch (AggregateException ex)
@@ -241,7 +250,11 @@ namespace OpenTap.Package
             {
                 Parallel.ForEach(repositories, repo =>
                 {
-                    list.AddRange(repo.GetPackages(id, compatibleWith));
+                    var packages = repo.GetPackages(id, compatibleWith);
+                    lock (list)
+                    {
+                        list.AddRange(packages);
+                    }
                 });
             }
             catch (AggregateException ex)
@@ -260,7 +273,11 @@ namespace OpenTap.Package
             {
                 Parallel.ForEach(repositories, repo =>
                 {
-                    list.AddRange(repo.GetPackageVersions(packageName, compatibleWith));
+                    var packages = repo.GetPackageVersions(packageName, compatibleWith);
+                    lock (list)
+                    {
+                        list.AddRange(packages);
+                    }
                 });
             }
             catch (AggregateException ex)
