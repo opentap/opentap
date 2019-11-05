@@ -1366,7 +1366,15 @@ namespace OpenTap
         {
             public IEnumerable Elements { get; set; }
 
-            public bool IsFixedSize => (Elements as IList)?.IsFixedSize ?? false;
+            public bool IsFixedSize
+            {
+                get
+                {
+                    if (Elements is Array) return false; // to maintain backwards compatibility Array is not fixed size.
+                    if (Elements is IList l) return l.IsFixedSize;
+                    return false;
+                }
+            }
 
             IEnumerable origin;
             public void Read(object source)
