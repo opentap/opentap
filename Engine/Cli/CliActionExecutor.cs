@@ -88,45 +88,14 @@ namespace OpenTap.Cli
         private static TraceSource log = Log.CreateSource("tap");
         private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
-            Log.Flush();
-            if (e.ExceptionObject is AggregateException)
-                Console.WriteLine("Error: " + String.Join(" ", ((AggregateException)e.ExceptionObject).InnerExceptions.Select(i => i.Message)));
-            else if (e.ExceptionObject is Exception)
-                Console.WriteLine("Error: " + ((Exception)e.ExceptionObject).ToString());
-            else
-                return;
-            Environment.Exit(-4);
-        }
-
-        static bool tryParseEnumString(string str, Type type, out Enum result)
-        {
-            try
-            {   // Look for an exact match.
-                result = (Enum)Enum.Parse(type, str);
-                var values = Enum.GetValues(type);
-                if (Array.IndexOf(values, result) == -1)
-                    return false;
-                return true;
-            }
-            catch (ArgumentException)
+            if (e.ExceptionObject is Exception ex)
             {
-                // try a more robust parse method. (tolower, trim, '_'=' ')
-                str = str.Trim().ToLower();
-                var fixedNames = Enum.GetNames(type).Select(name => name.Trim().ToLower()).ToArray();
-                for (int i = 0; i < fixedNames.Length; i++)
-                {
-                    if (fixedNames[i] == str || fixedNames[i].Replace('_', ' ') == str)
-                    {
-                        result = (Enum)Enum.GetValues(type).GetValue(i);
-                        return true;
-                    }
-                }
+                log.Error("CurrentDomain Unhandled Exception: " + ex.Message);
+                log.Debug(ex);
+                log.Flush();
             }
-            result = null;
-            return false;
         }
-
-
+        
         /// <summary> 
         /// Used as command line interface of OpenTAP (PluginManager must have searched for assemblies before this method is called).
         /// This calls Execute with commandline arguments given to this environment and sets Environment.ExitCode. 

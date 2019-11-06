@@ -540,7 +540,7 @@ namespace OpenTap.Engine.UnitTests
 
             [Display("Time Delay")]
             public double TimeDelay2 { get; set; }
-
+            
             [AvailableValues(nameof(AvailableValues))]
             public string SelectedValue { get; set; }
             public IEnumerable<string> AvailableValues => AvailableValuesField;
@@ -1086,5 +1086,39 @@ namespace OpenTap.Engine.UnitTests
             var members = t.GetMembers(); // this will throw a StackOverflowException if the Embedding does not take care of the potential problem.
             Assert.AreEqual(2, members.Count());
         }
+
+        interface IReferencingStep : ITestStep
+        {
+            IReferencingStep ReferencedStep { get; set; }
+        }
+        class ReferencingStep : TestStep, IReferencingStep
+        {
+            public override void Run()
+            {
+                throw new NotImplementedException();
+            }
+
+            public IReferencingStep ReferencedStep { get; set; }
+        }
+
+        [Test]
+        public void ReferencedStepAnnotation()
+        {
+            var step1 = new ReferencingStep();
+            var step2 = new DelayStep();
+            var step3 = new ReferencingStep();
+            var plan = new TestPlan();
+            var member = TypeData.FromType(typeof(ReferencingStep)).GetMember(nameof(ReferencingStep.ReferencedStep));
+            plan.ChildTestSteps.AddRange(new ITestStep[] { step1, step2, step3 });
+            var a = AnnotationCollection.Annotate(step3);
+            var avail = a.Get<IMembersAnnotation>().Members.First(x => x.Get<IMemberAnnotation>().Member == member).Get<IAvailableValuesAnnotation>();
+            var values = avail.AvailableValues;
+            if(values.Cast<ITestStep>().Any(x => (x is IReferencingStep) == false))
+            {
+                Assert.Fail("List should only contain " + nameof(IReferencingStep));
+            }
+            Assert.AreEqual(plan.ChildTestSteps.Count(x => x is ReferencingStep), values.Cast<object>().Count());
+        }
+
     }
 }

@@ -1944,10 +1944,13 @@ namespace OpenTap
             {
                 get
                 {
-                    var sibling = annotation.Get<IMemberAnnotation>()?.Member.GetAttribute<StepSelectorAttribute>();
+                    var member = annotation.Get<IMemberAnnotation>()?.Member;
+                    if (member == null) return Enumerable.Empty<object>();
+                    var sibling = member.GetAttribute<StepSelectorAttribute>();
                     if (sibling == null) sibling = new StepSelectorAttribute(StepSelectorAttribute.FilterTypes.All);
                     var step = annotation.ParentAnnotation.Get<IObjectValueAnnotation>().Value as ITestStep;
-                    return getSteps(step, sibling.Filter);
+                    var basicType = member.TypeDescriptor;
+                    return getSteps(step, sibling.Filter).Where(x => TypeData.GetTypeData(x).DescendsTo(basicType));
                 }
             }
 
