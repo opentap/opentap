@@ -552,9 +552,8 @@ namespace OpenTap.Engine.UnitTests
             sweep.ChildTestSteps.Add(delay3);
 
             var annotation = AnnotationCollection.Annotate(sweep);
-            var mem = annotation.Get<IMembersAnnotation>();
 
-            var smem = mem.Members.FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name == nameof(SweepLoop.SweepMembers));
+            var smem = annotation.GetMember(nameof(SweepLoop.SweepMembers));
             {
                 {
                     var select = smem.Get<IMultiSelect>();
@@ -577,7 +576,7 @@ namespace OpenTap.Engine.UnitTests
                 }
             }
 
-            var smem2 = mem.Members.FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name == nameof(SweepLoop.SweepParameters));
+            var smem2 = annotation.GetMember(nameof(SweepLoop.SweepParameters));
             {
                 var collection = smem2.Get<ICollectionAnnotation>();
                 var new_element = collection.NewElement();
@@ -631,7 +630,7 @@ namespace OpenTap.Engine.UnitTests
                 {
                     var elem = collection.AnnotatedElements.First();
                     var members2 = elem.Get<IMembersAnnotation>().Members;
-                    var mem2 = members2.FirstOrDefault(m => m.Get<IMemberAnnotation>().Member.Name.Contains("DelaySecs"));
+                    var mem2 = elem.GetMember("DelaySecs");
                     mem2.Get<IStringValueAnnotation>().Value = "1.123 s";
                     annotation.Write();
                     annotation.Read();
@@ -641,7 +640,7 @@ namespace OpenTap.Engine.UnitTests
 
             }
             
-            var rlistener = new OpenTap.Engine.UnitTests.PlanRunCollectorListener() { CollectResults = true };
+            var rlistener = new PlanRunCollectorListener() { CollectResults = true };
             var plan = new TestPlan();
             plan.ChildTestSteps.Add(sweep);
             var run = plan.Execute(new[] { rlistener });
@@ -765,11 +764,11 @@ namespace OpenTap.Engine.UnitTests
             var val = mem.Get<IMembersAnnotation>();
             Assert.IsNotNull(val);
 
-            var useTimeoutMember = val.Members.First(x => x.Get<IMemberAnnotation>().Member.Name == nameof(DialogStep.UseTimeout));
+            var useTimeoutMember = mem.GetMember(nameof(DialogStep.UseTimeout));
             Assert.IsNull(useTimeoutMember.Get<IObjectValueAnnotation>().Value); // since one is different, this should be null.
             useTimeoutMember.Get<IObjectValueAnnotation>().Value = true; // set all UseTimeout to true.
 
-            var messageMember = val.Members.First(x => x.Get<IMemberAnnotation>().Member.Name == nameof(DialogStep.Message));
+            var messageMember = mem.GetMember(nameof(DialogStep.Message));
             string theMessage = "My message";
             messageMember.Get<IStringValueAnnotation>().Value = theMessage;
             mem.Write();
@@ -798,7 +797,7 @@ namespace OpenTap.Engine.UnitTests
             plan.ChildTestSteps.Add(step4);
 
             var annotation = AnnotationCollection.Annotate(step1);
-            var inputAnnotation = annotation.Get<IMembersAnnotation>().Members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member.Name == nameof(ReadInputStep.Input));
+            var inputAnnotation = annotation.GetMember(nameof(ReadInputStep.Input));
             var avail = inputAnnotation.Get<IAvailableValuesAnnotation>();
             var setVal = avail as IAvailableValuesSelectedAnnotation;
             foreach (var val in avail.AvailableValues.Cast<object>().ToArray())
@@ -851,18 +850,18 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(availableValues.Contains(TypeData.FromType(typeof(IfStep)).GetMember(nameof(IfStep.TargetVerdict))));
             Assert.IsTrue(availableValues.Contains(TypeData.FromType(typeof(IfStep)).GetMember(nameof(IfStep.Action))));
 
-            var sweepParameters = swep.Get<IMembersAnnotation>().Members.First(x => x.Get<IMemberAnnotation>().Member.Name == nameof(SweepLoop.SweepParameters));
+            var sweepParameters = swep.GetMember(nameof(SweepLoop.SweepParameters));
             var elements = sweepParameters.Get<ICollectionAnnotation>().AnnotatedElements;
             int i2 = 0;
             foreach(var elem in elements)
             {
                 {
-                    var delayMember = elem.Get<IMembersAnnotation>().Members.First(x => x.Get<IMemberAnnotation>().Member.Name == nameof(DelayStep.DelaySecs));
+                    var delayMember = elem.GetMember(nameof(DelayStep.DelaySecs));
                     var currentValue = (double)delayMember.Get<IObjectValueAnnotation>().Value;
                     Assert.AreEqual(values[i2], currentValue);
                 }
                 {
-                    var ifMember = elem.Get<IMembersAnnotation>().Members.First(x => x.Get<IMemberAnnotation>().Member.Name == nameof(IfStep.InputVerdict));
+                    var ifMember = elem.GetMember(nameof(IfStep.InputVerdict));
                     var currentValue = ifMember.Get<IObjectValueAnnotation>().Value;
                     var avail = ifMember.Get<IAvailableValuesAnnotationProxy>();
                     avail.SelectedValue = avail.AvailableValues.Last();
@@ -906,8 +905,7 @@ namespace OpenTap.Engine.UnitTests
 
             var annotation = AnnotationCollection.Annotate(new[] { obj, obj2 });
             annotation.Read();
-            var members = annotation.Get<IMembersAnnotation>();
-            var enabledValueAnnotation = members.Members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member.Name == "EnabledValue");
+            var enabledValueAnnotation = annotation.GetMember("EnabledValue");
             var val = enabledValueAnnotation.Get<IObjectValueAnnotation>().Value;
             var members2 = enabledValueAnnotation.Get<IMembersAnnotation>();
             var mems = members2.Members.ToArray();
@@ -989,6 +987,41 @@ namespace OpenTap.Engine.UnitTests
                 Assert.Fail("List should only contain " + nameof(IReferencingStep));
             }
             Assert.AreEqual(plan.ChildTestSteps.Count(x => x is ReferencingStep), values.Cast<object>().Count());
+        }
+
+        public class StepMultiSelectStep : TestStep
+        {
+            public DelayStep DelayStep { get; set; }
+            public List<DelayStep> DelaySteps { get; set; } = new List<DelayStep>();
+            public override void Run()
+            {
+                
+            }
+        }
+
+        [Test]
+        public void StepListMultiSelect()
+        {
+            var tp = new TestPlan();
+            tp.ChildTestSteps.Add(new DelayStep() { Name = "Delay 1" });
+            tp.ChildTestSteps.Add(new DelayStep() { Name = "Delay 2" });
+            StepMultiSelectStep step1 = new StepMultiSelectStep();
+            tp.ChildTestSteps.Add(step1);
+
+            var a = AnnotationCollection.Annotate(step1);
+            var delaySteps = a.GetMember("DelaySteps");
+            delaySteps.Get<IMultiSelectAnnotationProxy>().SelectedValues = delaySteps.Get<IAvailableValuesAnnotationProxy>().AvailableValues;
+            a.Write();
+            Assert.AreEqual(2, step1.DelaySteps.Distinct().Count());
+
+            var serializer = new TapSerializer();
+            var testplanxml = serializer.SerializeToString(tp);
+            var tp2 = (TestPlan)serializer.DeserializeFromString(testplanxml);
+            var d1 = tp2.ChildTestSteps[0];
+            var d2 = tp2.ChildTestSteps[1];
+            var m = (StepMultiSelectStep)tp2.ChildTestSteps[2];
+            Assert.IsTrue(m.DelaySteps[0] == d1);
+            Assert.IsTrue(m.DelaySteps[1] == d2);
         }
 
     }
