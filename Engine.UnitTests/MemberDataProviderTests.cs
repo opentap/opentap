@@ -318,6 +318,13 @@ namespace OpenTap.Engine.UnitTests
             }
 
             public int Clicks;
+
+            [Browsable(true)]
+            public int MethodExample(int X, int Y)
+            {
+                return X + Y;
+            }
+
         }
 
 
@@ -359,6 +366,14 @@ namespace OpenTap.Engine.UnitTests
                     var access = member.Get<IAccessAnnotation>();
                     Assert.IsTrue(access.IsVisible);
                     Assert.IsTrue(access.IsReadOnly);
+                }
+                if (mem.Member.Name == nameof(DataInterfaceTestClass.MethodExample))
+                {
+                    var methodAnnotation = member.Get<IMethodAnnotation>();
+                    Assert.IsNull(methodAnnotation); // MethodExample has arguments. Should be used by IMethodAnnotation.
+                    var del = (Delegate)member.Get<IObjectValueAnnotation>().Value;
+                    int result = (int)del.DynamicInvoke(5, 10);
+                    Assert.AreEqual(15, result);
                 }
                 if (mem.Member.Name == nameof(DataInterfaceTestClass.EnabledDirectoryString))
                 {
@@ -970,7 +985,7 @@ namespace OpenTap.Engine.UnitTests
         public class EmbeddedTest
         {
             // this should give EmbeddedTest all the virtual properties of DataInterfaceTestClass.
-            [Embedded]
+            [Embedded(IncludeOwnName = false)]
             public DataInterfaceTestClass EmbeddedThings { get; private set; } = new DataInterfaceTestClass();
         }
 
@@ -1006,6 +1021,70 @@ namespace OpenTap.Engine.UnitTests
             var str = ts.SerializeToString(obj);
             obj = (EmbeddedTest)ts.DeserializeFromString(str);
             Assert.AreEqual(500, obj.EmbeddedThings.SimpleNumber);
+        }
+
+        public class EmbA
+        {
+            public double X { get; set; }
+        }
+
+        public class EmbB
+        {
+            [Embedded(IncludeOwnName = false)]
+            public EmbA A { get; set; } = new EmbA();
+
+            [Embedded(NameAs = "A")]
+            public EmbA A2 { get; set; } = new EmbA();
+        }
+
+        public class EmbC
+        {
+            [Embedded]
+            public EmbB B { get; set; } = new EmbB();
+        }
+
+        [Test]
+        public void NestedEmbeddedTest()
+        {
+            var c = new EmbC();
+            c.B.A2.X = 5;
+            c.B.A.X = 35;
+            var embc_type = TypeData.GetTypeData(c);
+
+            var members = embc_type.GetMembers();
+            Assert.AreEqual(2, members.Count());
+
+            var mem = embc_type.GetMember("B.A.X");
+            
+            Assert.AreEqual(c.B.A2.X, (double)mem.GetValue(c));
+            mem.SetValue(c, 20);
+            Assert.AreEqual(c.B.A2.X, 20.0);
+
+            var mem2 = embc_type.GetMember("B.X");
+            Assert.AreEqual(c.B.A.X, (double)mem2.GetValue(c));
+
+            var ts = new TapSerializer();
+            var str = ts.SerializeToString(c);
+            var c2 = (EmbC)ts.DeserializeFromString(str);
+            Assert.AreNotEqual(c, c2);
+            Assert.AreEqual(c.B.A.X, c2.B.A.X);
+
+        }
+
+        public class EmbD
+        {
+            [Embedded]
+            public EmbD B { get; set; }
+            public int X { get; set; }
+        }
+
+        [Test]
+        public void RecursiveEmbeddedTest()
+        {
+            var d = new EmbD();
+            var t = TypeData.GetTypeData(d);
+            var members = t.GetMembers(); // this will throw a StackOverflowException if the Embedding does not take care of the potential problem.
+            Assert.AreEqual(2, members.Count());
         }
     }
 }

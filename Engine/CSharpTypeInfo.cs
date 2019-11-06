@@ -251,10 +251,10 @@ namespace OpenTap
         private MemberData(MemberInfo info, TypeData declaringType)
         {
             if (info == null)
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             this.Member = info;
             this.DeclaringType = declaringType;
-
+            
         }
         IEnumerable<object> attributes = null;
 
@@ -263,15 +263,10 @@ namespace OpenTap
 
         static Type createDelegateType(MethodInfo method)
         {
-            var parameters = method.GetParameters().Select(x => x.ParameterType).ToArray();
-            if (method.ReturnType == typeof(void))
-            {
-                return Expression.GetActionType(parameters);
-            }
-            else
-            {
+            var parameters = method.GetParameters().Select(x => x.ParameterType);
+            if (method.ReturnType != typeof(void))
                 return Expression.GetFuncType(parameters.Append(method.ReturnType).ToArray());
-            }
+            return Expression.GetActionType(parameters.ToArray());
         }
 
         /// <summary> Gets the value of this member.</summary> 
@@ -283,7 +278,7 @@ namespace OpenTap
             {
                 case PropertyInfo Property: return Property.GetValue(owner);
                 case FieldInfo Field: return Field.GetValue(owner);
-                case MethodInfo Method: return Delegate.CreateDelegate(createDelegateType(Method), owner, Method, false);
+                case MethodInfo Method: return Delegate.CreateDelegate(createDelegateType(Method), owner, Method, true);
                 default: throw new InvalidOperationException("Unsupported member type: " + Member);
             }
         }
