@@ -1912,7 +1912,7 @@ namespace OpenTap
             }
         }
 
-        class TestStepMultiSelectAnnotation : IAvailableValuesAnnotation, IMultiSelect
+        class TestStepMultiSelectAnnotation : IAvailableValuesAnnotation, IMultiSelect, IStringReadOnlyValueAnnotation
         {
             AnnotationCollection annotation;
             public TestStepMultiSelectAnnotation(AnnotationCollection annotation) => this.annotation = annotation;
@@ -1923,6 +1923,8 @@ namespace OpenTap
                 get => annotation.Get<IBasicCollectionAnnotation>().Elements;
                 set => annotation.Get<IBasicCollectionAnnotation>().Elements = value;
             }
+
+            public string Value => $"{Selected?.Cast<object>().Count()} Steps Selected";
         }
 
         class TestStepSelectAnnotation : IAvailableValuesAnnotation, IStringValueAnnotation

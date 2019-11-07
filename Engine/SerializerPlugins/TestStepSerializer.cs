@@ -131,6 +131,7 @@ namespace OpenTap.Plugins
             {
                 if (objp.CurrentMember.TypeDescriptor.DescendsTo(typeof(ITestStep)))
                 {
+                    elem.Attributes("type")?.Remove();
                     elem.Value = ((ITestStep)obj).Id.ToString();
                     return true;
                 }
@@ -141,6 +142,7 @@ namespace OpenTap.Plugins
                     {
                         if (tp != TypeData.FromType(typeof(TestStepList)))
                         {
+                            elem.Attributes("type")?.Remove();
                             elem.Value = ((ITestStep)obj).Id.ToString();
                             return true;
                         }

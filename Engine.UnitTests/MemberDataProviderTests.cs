@@ -992,7 +992,7 @@ namespace OpenTap.Engine.UnitTests
         public class StepMultiSelectStep : TestStep
         {
             public DelayStep DelayStep { get; set; }
-            public List<DelayStep> DelaySteps { get; set; } = new List<DelayStep>();
+            public List<ITestStep> DelaySteps { get; set; } = new List<ITestStep>();
             public override void Run()
             {
                 
@@ -1012,10 +1012,11 @@ namespace OpenTap.Engine.UnitTests
             var delaySteps = a.GetMember("DelaySteps");
             delaySteps.Get<IMultiSelectAnnotationProxy>().SelectedValues = delaySteps.Get<IAvailableValuesAnnotationProxy>().AvailableValues;
             a.Write();
-            Assert.AreEqual(2, step1.DelaySteps.Distinct().Count());
+            Assert.AreEqual(3, step1.DelaySteps.Distinct().Count());
 
             var serializer = new TapSerializer();
             var testplanxml = serializer.SerializeToString(tp);
+            Assert.IsTrue(testplanxml.Contains("<DelayStep>")); // ensure that it doesnt say type="" in the by-reference elements in the list.
             var tp2 = (TestPlan)serializer.DeserializeFromString(testplanxml);
             var d1 = tp2.ChildTestSteps[0];
             var d2 = tp2.ChildTestSteps[1];
