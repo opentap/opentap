@@ -110,123 +110,136 @@ namespace OpenTap.Plugins
                         }
                     }
                 }
-                var props = properties.ToLookup(x => x.GetAttributes<XmlElementAttribute>().FirstOrDefault()?.ElementName ?? x.Name);
-                var elements = element.Elements().ToArray();
-                HashSet<XElement> visited = new HashSet<XElement>();
-                double order = 0;
-                
-                while (visited.Count != elements.Length)
+
+                if (properties.FirstOrDefault(x => x.HasAttribute<XmlTextAttribute>()) is IMemberData mem2)
                 {
-                    double nextOrder = 1000;
-                    // since the object might be dynamically adding properties as other props are added.
-                    // we need to iterate a bit. Example: Test Plan Reference.
+                    object value;
+                    if (mem2.TypeDescriptor is TypeData td)
+                        value = readContentInternal(td.Load(), false, () => element.Value, element);
+                    else
+                        value = StringConvertProvider.FromString(element.Value, mem2.TypeDescriptor, null);
+                    mem2.SetValue(newobj, value);
+                }
+                else
+                {
+                    var props = properties.ToLookup(x => x.GetAttributes<XmlElementAttribute>().FirstOrDefault()?.ElementName ?? x.Name);
+                    var elements = element.Elements().ToArray();
+                    HashSet<XElement> visited = new HashSet<XElement>();
+                    double order = 0;
 
-                    int found = visited.Count;
-                    foreach (var element2 in elements)
+                    while (visited.Count != elements.Length)
                     {
-                        if (visited.Contains(element2)) continue;
-                        IMemberData property = null;
-                        var name = XmlConvert.DecodeName(element2.Name.LocalName);
-                        var propertyMatches = props[name];
+                        double nextOrder = 1000;
+                        // since the object might be dynamically adding properties as other props are added.
+                        // we need to iterate a bit. Example: Test Plan Reference.
 
-                        int hits = 0;
-                        foreach (var p in propertyMatches)
+                        int found = visited.Count;
+                        foreach (var element2 in elements)
                         {
-                            if (p.Writable || p.HasAttribute<XmlIgnoreAttribute>())
-                            {
-                                property = p;
-                                hits++;
-                            }
-                        }
+                            if (visited.Contains(element2)) continue;
+                            IMemberData property = null;
+                            var name = XmlConvert.DecodeName(element2.Name.LocalName);
+                            var propertyMatches = props[name];
 
-                        if (0 == hits)
-                        {
-                            try
+                            int hits = 0;
+                            foreach (var p in propertyMatches)
                             {
-
-                                if (property == null)
-                                    property = t2.GetMember(name);
-                                if (property == null)
-                                    property = t2.GetMembers().FirstOrDefault(x => x.Name == name);
-                            }
-                            catch { }
-                            if (property == null || property.Writable == false)
-                            {
-                                continue;
-                            }
-                            hits = 1;
-                        }
-                        if (hits > 1)
-                            Log.Warning(element2, "Multiple properties named '{0}' are available to the serializer in '{1}' this might give issues in serialization.", element2.Name.LocalName, t.GetAttribute<DisplayAttribute>().Name);
-                        
-                        if (property.GetAttribute<DeserializeOrderAttribute>() is DeserializeOrderAttribute orderAttr)
-                        {
-                            if(order < orderAttr.Order)
-                            {
-                                if (orderAttr.Order < nextOrder)
+                                if (p.Writable || p.HasAttribute<XmlIgnoreAttribute>())
                                 {
-                                    nextOrder = orderAttr.Order;
+                                    property = p;
+                                    hits++;
                                 }
-                                continue;
                             }
-                        }
-                        else
-                        {
-                            nextOrder = order;
-                        }
-                        visited.Add(element2);
-                        var prev = CurrentMember;
-                        CurrentMember = property;
-                        try
-                        {
-                            if (CurrentMember.HasAttribute<XmlIgnoreAttribute>()) // This property shouldn't have been in the file in the first place, but in case it is (because of a change or a bug), we shouldn't try to set it. (E.g. SweepLoopRange.SweepStep)
-                                if (!CurrentMember.HasAttribute<BrowsableAttribute>()) // In the special case we assume that this is some compatibility property that still needs to be set if present in the XML. (E.g. TestPlanReference.DynamicDataContents)
-                                    continue;
 
-                            if (property is MemberData mem && mem.Member is PropertyInfo Property && Property.PropertyType.HasInterface<IList>() && Property.PropertyType.IsGenericType && Property.HasAttribute<XmlElementAttribute>())
+                            if (0 == hits)
                             {
-                                // Special case to mimic old .NET XmlSerializer behavior
-                                var list = (IList)Property.GetValue(newobj);
-                                Action<object> setValue = x => list.Add(x);
-                                Serializer.Deserialize(element2, setValue, Property.PropertyType.GetGenericArguments().First());
+                                try
+                                {
+
+                                    if (property == null)
+                                        property = t2.GetMember(name);
+                                    if (property == null)
+                                        property = t2.GetMembers().FirstOrDefault(x => x.Name == name);
+                                }
+                                catch { }
+                                if (property == null || property.Writable == false)
+                                {
+                                    continue;
+                                }
+                                hits = 1;
+                            }
+                            if (hits > 1)
+                                Log.Warning(element2, "Multiple properties named '{0}' are available to the serializer in '{1}' this might give issues in serialization.", element2.Name.LocalName, t.GetAttribute<DisplayAttribute>().Name);
+
+                            if (property.GetAttribute<DeserializeOrderAttribute>() is DeserializeOrderAttribute orderAttr)
+                            {
+                                if (order < orderAttr.Order)
+                                {
+                                    if (orderAttr.Order < nextOrder)
+                                    {
+                                        nextOrder = orderAttr.Order;
+                                    }
+                                    continue;
+                                }
                             }
                             else
                             {
-                                Action<object> setValue = x => property.SetValue(newobj, x);
-                                Serializer.Deserialize(element2, setValue, property.TypeDescriptor);
+                                nextOrder = order;
                             }
-                        }
-                        catch (Exception e)
-                        {
-                            if (logWarnings)
+                            visited.Add(element2);
+                            var prev = CurrentMember;
+                            CurrentMember = property;
+                            try
                             {
-                                Log.Warning(element2, "Unable to set property '{0}'.", CurrentMember.Name);
-                                Log.Warning("Error was: \"{0}\".", e.Message);
-                                Log.Debug(e);
+                                if (CurrentMember.HasAttribute<XmlIgnoreAttribute>()) // This property shouldn't have been in the file in the first place, but in case it is (because of a change or a bug), we shouldn't try to set it. (E.g. SweepLoopRange.SweepStep)
+                                    if (!CurrentMember.HasAttribute<BrowsableAttribute>()) // In the special case we assume that this is some compatibility property that still needs to be set if present in the XML. (E.g. TestPlanReference.DynamicDataContents)
+                                        continue;
+
+                                if (property is MemberData mem && mem.Member is PropertyInfo Property && Property.PropertyType.HasInterface<IList>() && Property.PropertyType.IsGenericType && Property.HasAttribute<XmlElementAttribute>())
+                                {
+                                    // Special case to mimic old .NET XmlSerializer behavior
+                                    var list = (IList)Property.GetValue(newobj);
+                                    Action<object> setValue = x => list.Add(x);
+                                    Serializer.Deserialize(element2, setValue, Property.PropertyType.GetGenericArguments().First());
+                                }
+                                else
+                                {
+                                    Action<object> setValue = x => property.SetValue(newobj, x);
+                                    Serializer.Deserialize(element2, setValue, property.TypeDescriptor);
+                                }
                             }
+                            catch (Exception e)
+                            {
+                                if (logWarnings)
+                                {
+                                    Log.Warning(element2, "Unable to set property '{0}'.", CurrentMember.Name);
+                                    Log.Warning("Error was: \"{0}\".", e.Message);
+                                    Log.Debug(e);
+                                }
+                            }
+                            finally
+                            {
+                                CurrentMember = prev;
+                            }
+
                         }
-                        finally
+                        if (found == visited.Count && order == nextOrder)
                         {
-                            CurrentMember = prev;
+                            if (logWarnings && visited.Count < elements.Length)
+                            {
+                                // print a warning message if the element could not be deserialized.
+                                foreach (var elem in elements)
+                                {
+                                    if (visited.Contains(elem)) continue;
+                                    var message = string.Format("Unable to read element '{0}'. The property does not exist.", elem.Name.LocalName);
+                                    Serializer.PushError(elem, message);
+                                }
+                            }
+                            break;
                         }
+                        order = nextOrder;
 
                     }
-                    if (found == visited.Count && order == nextOrder)
-                    {
-                        if (logWarnings && visited.Count < elements.Length)
-                        {
-                            // print a warning message if the element could not be deserialized.
-                            foreach (var elem in elements)
-                            {
-                                if (visited.Contains(elem)) continue;
-                                var message = string.Format("Unable to read element '{0}'. The property does not exist.", elem.Name.LocalName);
-                                Serializer.PushError(elem, message);
-                            }
-                        }
-                        break;
-                    }
-                    order = nextOrder;
-                    
                 }
                 setter(newobj);
             }
@@ -604,7 +617,7 @@ namespace OpenTap.Plugins
                     var textvalue = xmlTextProp.GetValue(obj);
                     if (textvalue != null)
                     {
-                        Serializer.Serialize(elem, textvalue);
+                        Serializer.Serialize(elem, textvalue, xmlTextProp.TypeDescriptor);
                     }
                 }
                 else
