@@ -14,9 +14,9 @@
 
 namespace OpenTap.Plugins.PluginDevelopment
 {
-    [Display("Embedded Attribute Example", Groups: new[] { "Examples", "Plugin Development", "Attributes" },
+    [Display("Embed Properties Attribute Example", Groups: new[] { "Examples", "Plugin Development", "Attributes" },
         Description: "Example step that uses the Embedded attribute for embedding properties from other objects.")]
-    public class EmbeddedAttributeExample : TestStep
+    public class EmbedPropertiesAttributeExample : TestStep
     {
         /// <summary> This class could be used to share settings between multiple types of test steps. </summary>
         public class EmbeddedClass
@@ -25,12 +25,13 @@ namespace OpenTap.Plugins.PluginDevelopment
             [Unit("Hz")]
             public double Frequency { get; set; }
             [Unit("dBm")]
+            [Display("Power Level")]
             public double Power { get; set; }
         }
 
         // This causes the properties A and B to be embedded inside this class from the 
         // perspective of serialization and user interfaces.
-        [Embedded]
+        [EmbedProperties]
         public EmbeddedClass Embedded { get; set; } = new EmbeddedClass();
         
         public override void Run()
@@ -44,8 +45,8 @@ namespace OpenTap.Plugins.PluginDevelopment
         //    <Name>EmbeddedAttributeExample</Name>
         //    <ChildTestSteps />
         //    <!-- Notice Frequency and Power has been embedded in the test step: -->
-        //    <Frequency>0</Frequency>  
-        //    <Power>0</Power>
+        //    <Embedded.Frequency>0</Embedded.Frequency>
+        //    <Embedded.Power>0</Embedded.Power>
         // </EmbeddedAttributeExample>
     }
 }

@@ -209,12 +209,12 @@ namespace OpenTap
         static public ITypeData GetTypeData(object obj)
         {
             if (obj == null) return FromType(typeof(object));
-            var resolver = new TypeInfoResolver(obj);
-            return resolver.Iterate(obj);
+            var resolver = new TypeDataProviderStack();
+            return resolver.GetTypeData(obj);
         }
 
         /// <summary> Gets the type info from a string. </summary>
-        static public ITypeData GetTypeData(string name) => new TypeInfoResolver(name).Iterate(name);
+        static public ITypeData GetTypeData(string name) => new TypeDataProviderStack().GetTypeData(name);
     }
 
     /// <summary>

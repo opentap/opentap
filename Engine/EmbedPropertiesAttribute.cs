@@ -5,18 +5,27 @@ using System.Linq;
 
 namespace OpenTap
 {
-    /// <summary> This attribute is used to dynamically embed the properties of an object into another object. </summary>
+    /// <summary> 
+    /// This attribute is used to dynamically embed the properties of an object into another object.
+    /// </summary>
+    /// <remarks> 
+    /// A property of type PT declared on a type DT decorated with this attribute will not be visible in reflection information (ITypeData) for DT.
+    /// Instead all properties declared on PT will be visible on DT as though they had been declared there.
+    /// </remarks>
     [AttributeUsage(AttributeTargets.Property)]
-    public class EmbeddedAttribute : Attribute
+    public class EmbedPropertiesAttribute : Attribute
     {
         /// <summary> 
-        /// Whether to include the name of the embedded member. Eg, if the name should be 'EmbeddedProperty.X' or just 'X'.
-        /// Disabling this can cause name-clashing issues if multiple properties gets the same name. 
+        /// When true, property name of the owning property is used as prefix for embedded properties. E.g., the name will be 'EmbeddedProperty.X'.
+        /// A prefix can help prevent name-clashing issues if multiple properties gets the same name. 
         /// </summary>
-        public bool IncludeOwnName { get; set; } = true;
+        public bool PrefixPropertyName { get; set; } = true;
 
-        /// <summary> Creates a custom owner name. Only applicable if IncludeOwnName is true. </summary>
-        public string NameAs { get; set; } = null;
+        /// <summary> 
+        /// Custom prefix for embedded properties. This will overwrite PrefixPropertyName. 
+        /// A prefix can help prevent name-clashing issues if multiple properties gets the same name. 
+        /// </summary>
+        public string Prefix { get; set; } = null;
     }
 
     // 
@@ -37,14 +46,14 @@ namespace OpenTap
         public string Name { get; }
         public object GetValue(object owner) => innermember.GetValue(ownermember.GetValue(owner));
         public void SetValue(object owner, object value) => innermember.SetValue(ownermember.GetValue(owner), value);
-        public EmbeddedMemberData(IMemberData ownermember, IMemberData member, bool includeOwnName, string ownName)
+        public EmbeddedMemberData(IMemberData ownermember, IMemberData member, bool prefixPropertyName, string prefix)
         {
-            if (ownName == null)
-                ownName = ownermember.Name;
             this.ownermember = ownermember;
             innermember = member;
-            if (includeOwnName)
-                Name = ownName + "." + innermember.Name; 
+            if (prefix != null)
+                Name = prefix + "." + innermember.Name;
+            else if (prefixPropertyName)
+                Name = ownermember.Name + "." + innermember.Name; 
             else
                 Name = innermember.Name;
         }
@@ -60,7 +69,7 @@ namespace OpenTap
         public object CreateInstance(object[] arguments) => BaseType.CreateInstance(arguments);
         public IMemberData GetMember(string name) => GetMembers().FirstOrDefault(x => x.Name == name);
         IMemberData[] allMembers;
-        public IEnumerable<IMemberData> GetMembers() => allMembers ?? (allMembers = BaseType.GetMembers().Where(x => x.HasAttribute<EmbeddedAttribute>() == false).Concat(list_embedded_members()).ToArray());
+        public IEnumerable<IMemberData> GetMembers() => allMembers ?? (allMembers = BaseType.GetMembers().Where(x => x.HasAttribute<EmbedPropertiesAttribute>() == false).Concat(list_embedded_members()).ToArray());
         public override int GetHashCode() => BaseType.GetHashCode() ^ typeof(EmbeddedTypeData).GetHashCode();
         public override bool Equals(object obj)
         {
@@ -83,12 +92,12 @@ namespace OpenTap
 
             foreach (var member in BaseType.GetMembers())
             {
-                if (member.GetAttribute<EmbeddedAttribute>() is EmbeddedAttribute e)
+                if (member.GetAttribute<EmbedPropertiesAttribute>() is EmbedPropertiesAttribute e)
                 {
                     var members = member.TypeDescriptor.GetMembers();
                     foreach(var m in members)
                     {
-                        if (m.HasAttribute<EmbeddedAttribute>())
+                        if (m.HasAttribute<EmbedPropertiesAttribute>())
                         {
                             members = EmbeddedTypeDataProvider.FromTypeData(member.TypeDescriptor).GetMembers();
                             break;
@@ -96,7 +105,7 @@ namespace OpenTap
                     }
 
                     foreach (var innermember in members)
-                        embeddedMembers.Add(new EmbeddedMemberData(member, innermember, e.IncludeOwnName, e.NameAs));
+                        embeddedMembers.Add(new EmbeddedMemberData(member, innermember, e.PrefixPropertyName, e.Prefix));
                 }
             }
             currentlyListing.Remove(this);
@@ -105,7 +114,7 @@ namespace OpenTap
         public override string ToString() => $"EmbType:{Name}";
     }
 
-    class EmbeddedTypeDataProvider : ITypeDataProvider
+    class EmbeddedTypeDataProvider : IStackedTypeDataProvider
     {
         public double Priority => 10;
         internal const string exp = "emb:";
@@ -124,7 +133,7 @@ namespace OpenTap
 
         public static EmbeddedTypeData FromTypeData(ITypeData basetype) => Intern(new EmbeddedTypeData { BaseType = basetype });
 
-        public ITypeData GetTypeData(string identifier)
+        public ITypeData GetTypeData(string identifier, TypeDataProviderStack stack)
         {
             if (identifier.StartsWith(exp))
             {
@@ -135,10 +144,10 @@ namespace OpenTap
             return null;
         }
 
-        public ITypeData GetTypeData(object obj)
+        public ITypeData GetTypeData(object obj, TypeDataProviderStack stack)
         {
-            var typedata = TypeInfoResolver.ResolveNext(obj);
-            if(typedata.GetMembers().Any(x => x.HasAttribute<EmbeddedAttribute>()))
+            var typedata = stack.GetTypeData(obj);
+            if(typedata.GetMembers().Any(x => x.HasAttribute<EmbedPropertiesAttribute>()))
                 return FromTypeData(typedata);
             return typedata;
         }

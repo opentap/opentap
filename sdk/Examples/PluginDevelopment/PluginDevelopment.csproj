@@ -67,7 +67,7 @@
     <Compile Include="InstrumentsAndDuts\TwoPortInstrument.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ResultListeners\EventResultListener.cs" />
-    <Compile Include="TestSteps\Attributes\EmbeddedAttributeExample.cs" />
+    <Compile Include="TestSteps\Attributes\EmbedPropertiesAttributeExample.cs" />
     <Compile Include="TestSteps\DynamicStep.cs" />
     <Compile Include="TestSteps\PublishResults\SingleNameValuePair.cs" />
     <Compile Include="TestSteps\PublishResults\SetOfNameValuePairs.cs" />

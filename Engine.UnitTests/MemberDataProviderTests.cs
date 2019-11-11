@@ -985,7 +985,7 @@ namespace OpenTap.Engine.UnitTests
         public class EmbeddedTest
         {
             // this should give EmbeddedTest all the virtual properties of DataInterfaceTestClass.
-            [Embedded(IncludeOwnName = false)]
+            [EmbedProperties(PrefixPropertyName = false)]
             public DataInterfaceTestClass EmbeddedThings { get; private set; } = new DataInterfaceTestClass();
         }
 
@@ -1030,16 +1030,16 @@ namespace OpenTap.Engine.UnitTests
 
         public class EmbB
         {
-            [Embedded(IncludeOwnName = false)]
+            [EmbedProperties(PrefixPropertyName = false)]
             public EmbA A { get; set; } = new EmbA();
 
-            [Embedded(NameAs = "A")]
+            [EmbedProperties(Prefix = "A")]
             public EmbA A2 { get; set; } = new EmbA();
         }
 
         public class EmbC
         {
-            [Embedded]
+            [EmbedProperties]
             public EmbB B { get; set; } = new EmbB();
         }
 
@@ -1073,7 +1073,7 @@ namespace OpenTap.Engine.UnitTests
 
         public class EmbD
         {
-            [Embedded]
+            [EmbedProperties]
             public EmbD B { get; set; }
             public int X { get; set; }
         }

@@ -326,7 +326,7 @@ namespace OpenTap
         public static object CreateInstance(this Type t, params object[] args) => Activator.CreateInstance(t, args);
 
         /// <summary> Creates an instance of type t. If an error occurs it returns null and prints an error message. </summary>
-        public static object NewInstanceSafe(this ITypeData t, params object[] args)
+        public static object CreateInstanceSafe(this ITypeData t, params object[] args)
         {
             try
             {

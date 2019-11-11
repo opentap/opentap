@@ -24,7 +24,7 @@ namespace OpenTap
     /// <summary> A member of an object type. </summary>
     public interface IMemberData : IReflectionData
     {
-        /// <summary> The declaring type of this member. </summary>
+        /// <summary> The type on which this member is declared. </summary>
         ITypeData DeclaringType { get; }
         /// <summary> The underlying type of this member. </summary>
         ITypeData TypeDescriptor { get; }
@@ -68,98 +68,123 @@ namespace OpenTap
         bool CanCreateInstance { get; }
     }
 
-    /// <summary> Type info provider. Provides type info for a given object. </summary>
-    [Display("TypeInfo Provider")]
+    /// <summary>Hook into type reflection system. Provides type data for a given object or identifier. </summary>
+    [Display("TypeData Provider")]
     public interface ITypeDataProvider : ITapPlugin
     {
-        /// <summary> Gets the type info from an identifier. </summary>
+        /// <summary> Gets the type data from an identifier. </summary>
+        /// <param name="identifier">The identifier to get type information for.</param>
+        /// <returns>A representation of the type specified by identifier or null if this provider cannot handle the specified identifier.</returns>
         ITypeData GetTypeData(string identifier);
 
-        /// <summary> Gets the type info from an object. </summary>
+        /// <summary> Gets the type data from an object. </summary>
+        /// <param name="obj">The object to get type information for.</param>
+        /// <returns>A representation of the type of the specified object or null if this provider cannot handle the specified type of object.</returns>
         ITypeData GetTypeData(object obj);
 
-        /// <summary> The priority of this type info provider. Note, this decides the order in which tyhe type info is resolved. </summary>
+        /// <summary> The priority of this type info provider. Note, this decides the order in which the type info is resolved. </summary>
         double Priority { get; }
     }
 
-    /// <summary> Utility class for resolving dynamic type information. </summary>
-    public class TypeInfoResolver
+    /// <summary>Hook into type reflection system. Provides type data for a given object or identifier. This variant is aware of the stack of other providers running after itself.</summary>
+    [Display("Stacked TypeData Provider")]
+    public interface IStackedTypeDataProvider : ITapPlugin
     {
-        [ThreadStatic]
-        static TypeInfoResolver current;
+        /// <summary> Gets the type data from an identifier. </summary>
+        /// <param name="identifier">The identifier to get type information for.</param>
+        /// <param name="stack">Stack containing remaining ITypeDataProviders that have not yet been called.</param>
+        /// <returns>A representation of the type specified by identifier or null if this provider cannot handle the specified identifier.</returns>
+        ITypeData GetTypeData(string identifier, TypeDataProviderStack stack);
 
-        object theobj;
-        List<ITypeDataProvider> providers = GetProviders();
-        /// <summary> Used by ITypeDataProviders to continue iteration locally. </summary>
-        public static ITypeData ResolveNext(object obj)
-        {
-            if (current == null || false == object.ReferenceEquals(current.theobj, obj)) throw new InvalidOperationException("TypeInfoResolver.ResolveNext can only be called during TypeResolution.");
-            return current.Iterate(obj);
-        }
+        /// <summary> Gets the type data from an object. </summary>
+        /// <param name="obj">The object to get type information for.</param>
+        /// <param name="stack">Stack containing remaining ITypeDataProviders that have not yet been called.</param>
+        /// <returns>A representation of the type of the specified object or null if this provider cannot handle the specified type of object.</returns>
+        ITypeData GetTypeData(object obj, TypeDataProviderStack stack);
 
-        /// <summary> Used by ITypeDataProviders to continue iteration locally. </summary>
-        public static ITypeData ResolveNext(string typename)
-        {
-            if (current == null || false == object.ReferenceEquals(current.theobj, typename)) throw new InvalidOperationException("TypeInfoResolver.ResolveNext can only be called during TypeResolution.");
-            return current.Iterate(typename);
-        }
-        
-        internal TypeInfoResolver(object value) => this.theobj = value;
+        /// <summary> The priority of this type info provider. Note, this decides the order in which the type info is resolved. </summary>
+        double Priority { get; }
+    }
 
+    /// <summary> 
+    /// Represents a stack of ITypeDataProvider/IStackedTypeDataProvider that is used to get TypeData for a given type. 
+    /// The providers on this stack are called in order until a provider returuns a
+    /// </summary>
+    public class TypeDataProviderStack
+    {
+        List<object> providers;
         int offset = 0;
-        
-        /// <summary> Resolve the type of an object. </summary>
-        internal ITypeData Iterate(object obj)
+
+        internal TypeDataProviderStack()
         {
-            TypeInfoResolver prev = current;
-            current = this;
-            try
-            {
-                while (offset < providers.Count)
-                {
-                    var provider = providers[offset];
-                    offset++;
-                    if (provider.GetTypeData(obj) is ITypeData found)
-                        return found;
-                }
-                return null;
-            }
-            finally
-            {
-                current = prev;
-            }
+            offset = 0;
+            providers = GetProviders();
         }
 
-        /// <summary> Resolve a type based on string input. </summary>
-        internal ITypeData Iterate(string typename)
+        private TypeDataProviderStack(List<object> providers, int providerOffset)
         {
-            TypeInfoResolver prev = current;
-            current = this;
-            try
-            {
-                while (offset < providers.Count)
-                {
-                    var provider = providers[offset];
-                    offset++;
-                    if (provider.GetTypeData(typename) is ITypeData found)
-                        return found;
-                }
-                return null;
-            }
-            finally
-            {
-                current = prev;
-            }
+            this.providers = providers;
+            this.offset = providerOffset;
         }
 
-        static List<ITypeDataProvider> sproviders = new List<ITypeDataProvider>();
-        static List<ITypeDataProvider> GetProviders()
+        /// <summary> Gets the type data from an object. </summary>
+        /// <param name="obj">The object to get type information for.</param>
+        /// <returns>A representation of the type of the specified object or null if no providers can handle the specified type of object.</returns>
+        public ITypeData GetTypeData(object obj)
         {
-            var _sproviders = TypeData.FromType(typeof(ITypeDataProvider)).DerivedTypes;
-            if (sproviders.Count == _sproviders.Count()) return sproviders;
-            sproviders = _sproviders.Select(x => x.NewInstanceSafe()).OfType<ITypeDataProvider>().ToList();
-            sproviders.Sort((x, y) => y.Priority.CompareTo(x.Priority));
-            return sproviders;
+            while (offset < providers.Count)
+            {
+                var provider = providers[offset];
+                offset++;
+                if (provider is IStackedTypeDataProvider sp)
+                {
+                    var newStack = new TypeDataProviderStack(providers, offset);
+                    if (sp.GetTypeData(obj, newStack) is ITypeData found)
+                        return found;
+                }
+                else if (provider is ITypeDataProvider p)
+                {
+                    if (p.GetTypeData(obj) is ITypeData found)
+                        return found;
+                }
+            }
+            return null;
+        }
+
+        /// <summary> Gets the type data from an identifier. </summary>
+        /// <param name="identifier">The identifier to get type information for.</param>
+        /// <returns>A representation of the type specified by identifier or null if no providers can handle the specified identifier.</returns>
+        public ITypeData GetTypeData(string identifier)
+        {
+            while (offset < providers.Count)
+            {
+                var provider = providers[offset];
+                offset++;
+                if (provider is IStackedTypeDataProvider sp)
+                {
+                    var newStack = new TypeDataProviderStack(providers, offset);
+                    if (sp.GetTypeData(identifier, newStack) is ITypeData found)
+                        return found;
+                }
+                else if (provider is ITypeDataProvider p)
+                {
+                    if (p.GetTypeData(identifier) is ITypeData found)
+                        return found;
+                }
+            }
+            return null;
+        }
+
+        static List<object> providersCache = new List<object>();
+        static List<object> GetProviders()
+        {
+            var _providers = TypeData.FromType(typeof(ITypeDataProvider)).DerivedTypes;
+            _providers = _providers.Concat(TypeData.FromType(typeof(IStackedTypeDataProvider)).DerivedTypes);
+            if (providersCache.Count == _providers.Count()) return providersCache;
+            providersCache = _providers.Select(x => x.CreateInstanceSafe())
+                                       .OrderByDescending(x => (x as ITypeDataProvider)?.Priority ?? (x as IStackedTypeDataProvider).Priority)
+                                       .ToList();
+            return providersCache;
         }
     }
 
