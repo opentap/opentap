@@ -247,6 +247,12 @@ namespace OpenTap.Package
         public string FileType { get; set; }
 
         /// <summary>
+        /// Name of the owner of the package. There can be multiple owners of a package, in which case this string will have several entries separated with ','.
+        /// </summary>
+        [DefaultValue(null)]
+        public string Owner { get; set; }
+
+        /// <summary>
         /// The package class, this can be either 'package', 'bundle' or 'solution'.
         /// </summary>
         [XmlAttribute]
