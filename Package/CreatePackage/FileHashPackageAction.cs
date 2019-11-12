@@ -91,6 +91,7 @@ namespace OpenTap.Package
             log.Debug("Verifying package: {0}", pkg.Name);
             bool ok = true;
             bool inconclusive = false;
+            var brokenFiles = new List<(PackageFile, string)>();
             foreach (var file in pkg.Files)
             {
                 var filename = Path.GetFileName(file.FileName);
@@ -103,7 +104,7 @@ namespace OpenTap.Package
                 if(hash == null)
                 {
                     // hash not calculated for this package:
-                    log.Debug("No hash existing for '{0}'", file.FileName);
+                    brokenFiles.Add((file, "is missing checksum information."));
                     inconclusive = true;
                 }
                 else
@@ -111,8 +112,16 @@ namespace OpenTap.Package
                     var hash2 = new FileHashPackageAction.Hash(FileHashPackageAction.hashFile(file.FileName));
                     if (false == hash2.Equals(hash))
                     {
-                        log.Debug("Hash does not match for '{0}': {1} != {2}", file.FileName, hash.Value, hash2.Value);
+                        if (File.Exists(file.FileName))
+                        {
+                            brokenFiles.Add((file, "has non-matching checksum."));
+                        }
+                        else
+                        {
+                            brokenFiles.Add((file, "is missing."));
+                        }
                         ok = false;
+                        log.Debug("Hash does not match for '{0}'", file.FileName);
                     }
                     else
                     {
@@ -120,16 +129,23 @@ namespace OpenTap.Package
                     }
                 }
             }
+            void print_issues()
+            {
+                foreach (var x in brokenFiles)
+                    log.Info("The file {0} {1}", x.Item1.FileName, x.Item2);
+            }
             if (!ok)
             {
                 exitCode = 1;
                 log.Error("Package {0} not verified.", pkg.Name);
+                print_issues();
             }
             else
             {
                 if (inconclusive)
                 {
                     log.Warning("Package {0} is missing SHA1 checksum for verification.", pkg.Name);
+                    print_issues();
                 }
                 else
                 {
