@@ -132,24 +132,24 @@ namespace OpenTap.Package
             void print_issues()
             {
                 foreach (var x in brokenFiles)
-                    log.Info("The file {0} {1}", x.Item1.FileName, x.Item2);
+                    log.Info("The file '{0}' {1}", x.Item1.FileName, x.Item2);
             }
             if (!ok)
             {
                 exitCode = 1;
-                log.Error("Package {0} not verified.", pkg.Name);
+                log.Error("Package '{0}' not verified.", pkg.Name);
                 print_issues();
             }
             else
             {
                 if (inconclusive)
                 {
-                    log.Warning("Package {0} is missing SHA1 checksum for verification.", pkg.Name);
+                    log.Warning("Package '{0}' is missing SHA1 checksum for verification.", pkg.Name);
                     print_issues();
                 }
                 else
                 {
-                    log.Info("Package {0} verified.", pkg.Name);
+                    log.Info("Package '{0}' verified.", pkg.Name);
                 }
             }
         }
