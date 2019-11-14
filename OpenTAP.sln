@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.28307.329
+VisualStudioVersion = 15.0.28307.852
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "nuget", "nuget", "{B2B5AFDA-56F7-49AA-8615-4640581242A3}"
 	ProjectSection(SolutionItems) = preProject
@@ -31,6 +31,15 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTap.Sdk.MSBuild", "sdk\OpenTap.Sdk.MSBuild\OpenTap.Sdk.MSBuild.csproj", "{96E3A403-D625-4E55-864C-585004E470A8}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "OpenTap.Sdk.New", "sdk\OpenTap.Sdk.New\OpenTap.Sdk.New.csproj", "{02302CA3-FD57-477D-B469-08EEDFAC9827}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PluginDevelopment", "sdk\Examples\PluginDevelopment\PluginDevelopment.csproj", "{8800F7AE-667D-4A38-816C-3D0135703490}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1856EE05-7D06-4805-A9D6-1DAD2DD3034E} = {1856EE05-7D06-4805-A9D6-1DAD2DD3034E}
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{3DAC24C4-0A5C-41BC-A716-8472A8B52309}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExamplePlugin", "sdk\Examples\ExamplePlugin\ExamplePlugin.csproj", "{9BD72823-196E-4575-B779-DAF8FA3D17E9}"
 EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
@@ -267,6 +276,54 @@ Global
 		{02302CA3-FD57-477D-B469-08EEDFAC9827}.Release|x64.Build.0 = Release|Any CPU
 		{02302CA3-FD57-477D-B469-08EEDFAC9827}.Release|x86.ActiveCfg = Release|Any CPU
 		{02302CA3-FD57-477D-B469-08EEDFAC9827}.Release|x86.Build.0 = Release|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.Debug|x64.Build.0 = Debug|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.Debug|x86.Build.0 = Debug|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.NetCore|Any CPU.ActiveCfg = NetCoreDebug|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.NetCore|Any CPU.Build.0 = NetCoreDebug|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.NetCore|x64.ActiveCfg = NetCoreDebug|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.NetCore|x64.Build.0 = NetCoreDebug|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.NetCore|x86.ActiveCfg = NetCoreDebug|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.NetCore|x86.Build.0 = NetCoreDebug|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.NetCoreDebug|Any CPU.ActiveCfg = NetCoreDebug|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.NetCoreDebug|Any CPU.Build.0 = NetCoreDebug|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.NetCoreDebug|x64.ActiveCfg = NetCoreDebug|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.NetCoreDebug|x64.Build.0 = NetCoreDebug|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.NetCoreDebug|x86.ActiveCfg = NetCoreDebug|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.NetCoreDebug|x86.Build.0 = NetCoreDebug|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.Release|x64.ActiveCfg = Release|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.Release|x64.Build.0 = Release|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.Release|x86.ActiveCfg = Release|Any CPU
+		{8800F7AE-667D-4A38-816C-3D0135703490}.Release|x86.Build.0 = Release|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.Debug|x64.Build.0 = Debug|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.Debug|x86.Build.0 = Debug|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.NetCore|Any CPU.ActiveCfg = NetCoreDebug|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.NetCore|Any CPU.Build.0 = NetCoreDebug|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.NetCore|x64.ActiveCfg = NetCoreDebug|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.NetCore|x64.Build.0 = NetCoreDebug|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.NetCore|x86.ActiveCfg = NetCoreDebug|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.NetCore|x86.Build.0 = NetCoreDebug|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.NetCoreDebug|Any CPU.ActiveCfg = NetCoreDebug|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.NetCoreDebug|Any CPU.Build.0 = NetCoreDebug|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.NetCoreDebug|x64.ActiveCfg = NetCoreDebug|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.NetCoreDebug|x64.Build.0 = NetCoreDebug|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.NetCoreDebug|x86.ActiveCfg = NetCoreDebug|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.NetCoreDebug|x86.Build.0 = NetCoreDebug|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.Release|x64.ActiveCfg = Release|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.Release|x64.Build.0 = Release|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.Release|x86.ActiveCfg = Release|Any CPU
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -274,6 +331,9 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{96E3A403-D625-4E55-864C-585004E470A8} = {9670F100-1AE5-4D63-A12C-49A877E0C1AC}
 		{02302CA3-FD57-477D-B469-08EEDFAC9827} = {9670F100-1AE5-4D63-A12C-49A877E0C1AC}
+		{8800F7AE-667D-4A38-816C-3D0135703490} = {3DAC24C4-0A5C-41BC-A716-8472A8B52309}
+		{3DAC24C4-0A5C-41BC-A716-8472A8B52309} = {9670F100-1AE5-4D63-A12C-49A877E0C1AC}
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9} = {3DAC24C4-0A5C-41BC-A716-8472A8B52309}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {D905457C-5CCF-4F38-9428-197B6CD22A99}

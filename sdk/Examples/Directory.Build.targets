@@ -1,0 +1,6 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Target Name="CopyToBin" AfterTargets="AfterBuild">
+    <Copy SourceFiles="$(OutDir)$(AssemblyName).dll" DestinationFolder="$(TAP_PATH)"/>
+    <Copy SourceFiles="$(OutDir)$(AssemblyName).pdb" DestinationFolder="$(TAP_PATH)"/>
+  </Target>
+</Project>

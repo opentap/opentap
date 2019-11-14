@@ -1,0 +1,18 @@
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <IsDebug>true</IsDebug>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='NetCoreDebug'">
+    <IsDebug>true</IsDebug>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(IsDebug)'=='true'">
+    <TAP_PATH>$(MSBuildThisFileDirectory)..\..\bin\Debug\</TAP_PATH>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(IsDebug)'!='true'">
+    <TAP_PATH>$(MSBuildThisFileDirectory)..\..\bin\Release\</TAP_PATH>
+  </PropertyGroup>
+
+</Project>
