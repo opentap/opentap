@@ -96,7 +96,9 @@
             <xs:anyAttribute processContents="skip"/>
           </xs:complexType>
         </xs:element>
-      
+
+        <xs:element name="Owner" type="xs:string" minOccurs="0"/>
+        
       </xs:all>
       <xs:attribute name="Name" type="xs:string" use ="required"/>
       <xs:attribute name="Version" type="xs:string"/>

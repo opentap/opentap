@@ -9,6 +9,23 @@ using System.ComponentModel;
 
 namespace OpenTap.Engine.UnitTests
 {
+    [TestFixture]
+    public class TypeDataTest
+    {
+        class ClassWithPropertyWithoutGetter
+        {
+            // previously reflecting this with TypeData would cause an exception to happen.
+            public double MyValue { set { } }
+        }
+        [Test]
+        public void ClassPropertyWithoutGetter()
+        {
+            var type = TypeData.FromType(typeof(ClassWithPropertyWithoutGetter));
+            var members = type.GetMembers();
+            Assert.IsTrue(members.Any(x => x.Name == nameof(ClassWithPropertyWithoutGetter.MyValue)));
+        }
+    }
+
     public interface IExpandedObject
     {
         object GetValue(string name);

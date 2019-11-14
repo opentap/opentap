@@ -176,13 +176,17 @@ namespace OpenTap
         {
             if (members == null)
             {
-                List<IMemberData> m = new List<IMemberData>();
-                foreach (var mem in Load().GetPropertiesTap())
+                var props = Load().GetPropertiesTap();
+                List<IMemberData> m = new List<IMemberData>(props.Length);
+                foreach (var mem in props)
                 {
-                    if(mem.GetMethod.GetParameters().Length > 0)
+                    if(mem.GetMethod != null && mem.GetMethod.GetParameters().Length > 0)
                         continue;
-                    var member = MemberData.Create(mem);
-                    m.Add(member);
+                    
+                    if (mem.SetMethod != null && mem.SetMethod.GetParameters().Length != 1)
+                        continue;
+                    
+                    m.Add(MemberData.Create(mem));
                 }
 
                 foreach (var mem in Load().GetMethodsTap())
