@@ -179,10 +179,10 @@ The dependency and version information added by the Package Manager allows it to
 
 If the package has dependencies on other packages it is possible to create a file with the .TapPackages extension. This is essentially a zip file that contains the created package and all the other packages it depends on. This allows the installation of all necessary packages at the same time, thus making package distribution easier.
 
-### Example of UIs using Owner and Group
+### Example of UIs using Owner, Group and Class
 Following the image below:
 - The first `DMM` entry represent the group specified by the four following packages.
-- The small square icons signifies the package is a bundle.
+- The small square icons signifies the package is a bundle (class attribute).
 - The gray text `by: Keysight Technologies` signifies the owner of the package.
 
 ![](GroupOwner.png)
