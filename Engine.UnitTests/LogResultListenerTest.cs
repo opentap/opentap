@@ -36,6 +36,16 @@ namespace OpenTap.Engine.UnitTests
             macro.Text = macro.Text + "<ThisIsTBD>";
             var result2 = macro.Expand(); // Since ThisIsTBD does not exist, we have to run thrugh all possible expansions.
             Assert.IsTrue(result2.EndsWith("TBD"));
+
+            // Check that when chars that are invalid path characters are used it still works.
+            var prevStationName = EngineSettings.Current.StationName;
+            EngineSettings.Current.StationName = "esc!@#%^&*(~)_+{{}\":?>><,m\"\"''";
+
+            macro.Text = "<Station>";
+            var r = macro.Expand();
+            Assert.AreEqual(EngineSettings.Current.StationName, r);
+            EngineSettings.Current.StationName = prevStationName;
+
         }
 
         [Test]

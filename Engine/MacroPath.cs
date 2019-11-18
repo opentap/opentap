@@ -103,10 +103,6 @@ namespace OpenTap
                     foreach(var v in runparams)
                     {
                         var path = v.Value;
-                        if (path is string s && System.IO.File.Exists(s))
-                        {
-                            path = System.IO.Path.GetDirectoryName(s);
-                        }
                         yield return (v.Name, path);
                         yield return (v.MacroName, path);
                     }
@@ -121,10 +117,6 @@ namespace OpenTap
                         if (v.IsMetaData == false)
                             continue;
                         var path = v.Value;
-                        if (path is string s && System.IO.File.Exists(s))
-                        {
-                            path = System.IO.Path.GetDirectoryName(s);
-                        }
                         yield return (v.Name, path);
                         yield return (v.MacroName, path);
                     }
@@ -142,10 +134,6 @@ namespace OpenTap
                         if (v.IsMetaData == false) continue;
 
                         var path = v.Value;
-                        if (path is string s && System.IO.File.Exists(s))
-                        {
-                            path = System.IO.Path.GetDirectoryName(s);
-                        }
                         yield return (v.Name, path);
                         yield return (v.MacroName, path);
                     }
