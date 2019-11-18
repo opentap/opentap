@@ -109,6 +109,7 @@ namespace OpenTap.Package
                         ConsoleUtils.PrintProgressTillEnd(task, "Downloading", () => fileStream.Position, () => totalSize);
                     }
                 }
+
                 finished = true;
             }
             catch (Exception ex)
