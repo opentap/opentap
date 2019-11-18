@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -174,6 +175,14 @@ namespace OpenTap
         private static Dictionary<ITypeData, IEnumerable<ITypeData>> derivedTypesCache = new Dictionary<ITypeData, IEnumerable<ITypeData>>();
 
         /// <summary> Get all known types that derive from a given type.</summary>
+        /// <typeparam name="BaseType">Base type that all returned types descends to.</typeparam>
+        /// <returns>All known types that descends to the given base type.</returns>
+        public static IEnumerable<ITypeData> GetDerivedTypes<BaseType>()
+        {
+            return GetDerivedTypes(TypeData.FromType(typeof(BaseType)));
+        }
+
+        /// <summary> Get all known types that derive from a given type.</summary>
         /// <param name="baseType">Base type that all returned types descends to.</param>
         /// <returns>All known types that descends to the given base type.</returns>
         static public IEnumerable<ITypeData> GetDerivedTypes(ITypeData baseType)
@@ -213,10 +222,13 @@ namespace OpenTap
                     DerivedTypes.AddRange(td.DerivedTypes);
                     continue;
                 }
-                foreach (ITypeData type in searcher.Types)
+                if (searcher != null && searcher.Types != null)
                 {
-                    if (type.DescendsTo(baseType))
-                        DerivedTypes.Add(type);
+                    foreach (ITypeData type in searcher.Types)
+                    {
+                        if (type.DescendsTo(baseType))
+                            DerivedTypes.Add(type);
+                    }
                 }
             }
             derivedTypesCache[baseType] = DerivedTypes;
@@ -238,7 +250,7 @@ namespace OpenTap
         void Search();
     }
 
-    public class DotNetTypeDataSearcher : ITypeDataSearcher
+    internal class DotNetTypeDataSearcher : ITypeDataSearcher
     {
         /// <summary>
         /// Get all types found by the search. 
@@ -257,6 +269,14 @@ namespace OpenTap
     /// <summary> Helpers for work with ITypeInfo objects. </summary>
     public static class ReflectionDataExtensions
     {
+        /// <summary>
+        /// Creates an instance of this type using the default constructor.
+        /// </summary>
+        public static object CreateInstance(this ITypeData type)
+        {
+            return type.CreateInstance(Array.Empty<object>());
+        }
+
         /// <summary> returns tru if 'type' is a descendant of 'basetype'. </summary>
         /// <param name="type"></param>
         /// <param name="basetype"></param>
@@ -292,6 +312,7 @@ namespace OpenTap
             }
             return false;
         }
+
         /// <summary>
         /// Returns true if a reflection ifno has an attribute of type T.
         /// </summary>
@@ -309,6 +330,10 @@ namespace OpenTap
         /// <returns></returns>
         static public T GetAttribute<T>(this IReflectionData mem)
         {
+            if(typeof(T) == typeof(DisplayAttribute) && mem is TypeData td)
+            {
+                return (T)((object)td.Display);
+            }
             if (mem.Attributes is object[] array)
             {
                 // performance optimization: faster iterations if we know its an array.
@@ -324,6 +349,18 @@ namespace OpenTap
             }
 
             return default;
+        }
+
+        internal static bool IsBrowsable(this IReflectionData mem)
+        {
+            if (mem is TypeData td)
+            {
+                return td.IsBrowsable;
+            }
+            var attr = mem.GetAttribute<BrowsableAttribute>();
+            if (attr is null)
+                return true;
+            return attr.Browsable;
         }
 
         /// <summary> Gets all the attributes of type T.</summary>

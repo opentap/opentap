@@ -40,13 +40,7 @@ namespace OpenTap.Cli
         /// <returns>Return 0 to indicate success. Otherwise return a custom errorcode that will be set as the exitcode from the CLI.</returns>
         public static int Execute(this ICliAction action, string[] parameters)
         {
-            action.LogAssemblyNameAndVersion();
             return action.PerformExecute(parameters);
-        }
-
-        private static void LogAssemblyNameAndVersion(this ICliAction action)
-        {
-            log.Debug("{0} version {1}", Assembly.GetEntryAssembly().GetName().Name, Assembly.GetEntryAssembly().GetName().Version.ToString(3));
         }
     }
 }
