@@ -24,6 +24,72 @@ namespace OpenTap.Engine.UnitTests
             var members = type.GetMembers();
             Assert.IsTrue(members.Any(x => x.Name == nameof(ClassWithPropertyWithoutGetter.MyValue)));
         }
+
+        [Test]
+        public void SimpleDerivedTypesTest()
+        {
+            ITypeData baseType = TypeData.FromType(typeof(IResultListener));
+            var types = TypeData.GetDerivedTypes(baseType);
+            CollectionAssert.IsNotEmpty(types);
+            CollectionAssert.AllItemsAreNotNull(types);
+            CollectionAssert.AllItemsAreUnique(types);
+            Assert.IsTrue(types.All(t => t.DescendsTo(baseType)));
+        }
+
+        public class TypeDataSearcherTestImpl : ITypeDataSearcher
+        {
+            public class TypeDataTestImpl : ITypeData
+            {
+                public ITypeData BaseType { get; set; }
+
+                public bool CanCreateInstance => false;
+
+                public IEnumerable<object> Attributes => Array.Empty<object>();
+
+                public string Name { get; set; }
+
+                public object CreateInstance(object[] arguments)
+                {
+                    return null;
+                }
+
+                public IMemberData GetMember(string name)
+                {
+                    return null;
+                }
+
+                public IEnumerable<IMemberData> GetMembers()
+                {
+                    return null;
+                }
+            }
+
+
+            public static bool Enable = false;
+            public IEnumerable<ITypeData> Types { get; private set; }
+
+            public void Search()
+            {
+                if (Enable)
+                    Types = new List<ITypeData> { new TypeDataTestImpl() { Name = "UnitTestType", BaseType = TypeData.FromType(typeof(IResultListener)) } };
+                else
+                    Types = null;
+            }
+        }
+
+        [Test]
+        public void ITypeDataSearcherTest()
+        {
+            TypeDataSearcherTestImpl.Enable = true;
+            ITypeData baseType = TypeData.FromType(typeof(IResultListener));
+            var types = TypeData.GetDerivedTypes(baseType);
+            TypeDataSearcherTestImpl.Enable = false;
+            CollectionAssert.IsNotEmpty(types);
+            CollectionAssert.AllItemsAreNotNull(types);
+            CollectionAssert.AllItemsAreUnique(types);
+            Assert.IsTrue(types.All(t => t.DescendsTo(baseType)));
+            Assert.IsTrue(types.Any(t => t.Name == "UnitTestType"));
+        }
     }
 
     public interface IExpandedObject

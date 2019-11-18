@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace OpenTap
 {
@@ -131,7 +132,7 @@ namespace OpenTap
     }
 
     /// <summary>
-    /// Helper method for TypeInfo.
+    /// Factories for ITypeData
     /// </summary>
     public partial class TypeData
     {
@@ -167,6 +168,89 @@ namespace OpenTap
             var resolver = new TypeInfoResolver(Providers);
             resolver.Iterate(name);
             return resolver.FoundType;
+        }
+
+        private static List<ITypeDataSearcher> searchers = new List<ITypeDataSearcher>();
+        private static Dictionary<ITypeData, IEnumerable<ITypeData>> derivedTypesCache = new Dictionary<ITypeData, IEnumerable<ITypeData>>();
+
+        /// <summary> Get all known types that derive from a given type.</summary>
+        /// <param name="baseType">Base type that all returned types descends to.</param>
+        /// <returns>All known types that descends to the given base type.</returns>
+        static public IEnumerable<ITypeData> GetDerivedTypes(ITypeData baseType)
+        {
+            var searcherTypes = TypeData.FromType(typeof(ITypeDataSearcher)).DerivedTypes;
+            if(derivedTypesCache.ContainsKey(baseType) && searchers.Count == searcherTypes.Count())
+            {
+                return derivedTypesCache[baseType];
+            }
+            if (searchers.Count() != searcherTypes.Count())
+            {
+                var searchTasks = new List<Task>();
+                foreach (var st in searcherTypes)
+                {
+                    if (!searchers.Any(s => TypeData.GetTypeData(s) == st))
+                    {
+                        var searcher = (ITypeDataSearcher)st.CreateInstance(Array.Empty<object>());
+                        searchTasks.Add(Task.Run(() => searcher.Search()));
+                        searchers.Add(searcher);
+                    }
+                }
+                try
+                {
+                    Task.WaitAll(searchTasks.ToArray());
+                }
+                catch (Exception ex)
+                {
+                    log.Debug(ex);
+                }
+            }
+            List<ITypeData> DerivedTypes = new List<ITypeData>();
+            foreach (ITypeDataSearcher searcher in searchers)
+            {
+                if (searcher is DotNetTypeDataSearcher && baseType is TypeData td)
+                {
+                    // This is a performance shortcut.
+                    DerivedTypes.AddRange(td.DerivedTypes);
+                    continue;
+                }
+                foreach (ITypeData type in searcher.Types)
+                {
+                    if (type.DescendsTo(baseType))
+                        DerivedTypes.Add(type);
+                }
+            }
+            derivedTypesCache[baseType] = DerivedTypes;
+            return DerivedTypes;
+        }
+
+    }
+
+    /// <summary>
+    /// Searches for "types" and returns them as ITypeData objects. The OpenTAP type system calls all implementations of this.
+    /// </summary>
+    public interface ITypeDataSearcher
+    {
+        /// <summary> Get all types found by the search. </summary>
+        IEnumerable<ITypeData> Types { get; }
+        /// <summary>
+        /// Performs an implementation specific search for types. Generates ITypeData objects for all types found Types property.
+        /// </summary>
+        void Search();
+    }
+
+    public class DotNetTypeDataSearcher : ITypeDataSearcher
+    {
+        /// <summary>
+        /// Get all types found by the search. 
+        /// </summary>
+        public IEnumerable<ITypeData> Types { get; private set; }
+
+        /// <summary>
+        /// Performs an implementation specific search for types. Generates ITypeData objects for all types found Types property.
+        /// </summary>
+        public void Search()
+        {
+            Types = PluginManager.GetSearcher().AllTypes.Values;
         }
     }
 
