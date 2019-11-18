@@ -122,15 +122,19 @@ namespace OpenTap.Cli
                 }
             }
 
-            var execThread = TapThread.Current;
             try
             {
+                // Turn off the default system behavior when CTRL+C is pressed. 
+                // When Console.TreatControlCAsInput is false, CTRL+C is treated as an interrupt instead of as input.
+                Console.TreatControlCAsInput = false; 
+            }
+            catch { }
+            try
+            {
+                var execThread = TapThread.Current;
                 Console.CancelKeyPress += (s, e) => execThread.Abort();
             }
-            catch
-            {
-
-            }
+            catch { }
 
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;

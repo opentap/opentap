@@ -142,23 +142,7 @@ namespace OpenTap.Cli
                 return 1;
             }
 
-            CancellationTokenSource source = new CancellationTokenSource();
-            // Register handler for CTRL-C key press to enable user to cancel the run
-            try
-            {
-                Console.TreatControlCAsInput = false; // Turn off the default system behavior when CTRL+C is pressed. When Console.TreatControlCAsInput is false, CTRL+C is treated as an interrupt instead of as input.
-                Console.CancelKeyPress += (s, e) => 
-                {
-                    source.Cancel();
-                    e.Cancel = true;
-                };
-            }
-            catch (IOException)
-            {
-                
-            }
-            
-            return action.Execute(source.Token);
+            return action.Execute(TapThread.Current.AbortToken);
         }
 
         private static void printOptions(string passName, ArgumentCollection options, List<PropertyInfo> unnamed)
