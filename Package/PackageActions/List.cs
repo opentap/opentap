@@ -91,6 +91,20 @@ namespace OpenTap.Package
             else
             {
                 IPackageIdentifier package = installed.FirstOrDefault(p => p.Name == Name);
+
+                if (Installed)
+                {
+                    if (package is null)
+                    {
+                        log.Info($"{Name} is not installed");
+                        return -1;
+                    }
+
+                    log.Info(package.Version.ToString());
+                    return 0;
+                }
+
+
                 List<PackageVersion> versions = null;
 
                 if (All)
