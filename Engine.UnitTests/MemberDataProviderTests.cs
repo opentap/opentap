@@ -545,12 +545,19 @@ namespace OpenTap.Engine.UnitTests
             [AvailableValues(nameof(AvailableValues))]
             public string SelectedValue { get; set; }
             public IEnumerable<string> AvailableValues => AvailableValuesField;
-            public IEnumerable<string> AvailableValuesField = new[] { "A", "B", "C" };
+            public IEnumerable<string> AvailableValuesField = new string[0] ;
+            
+            [AvailableValues(nameof(AvailableValues))]
+            public List<string> SelectedValues { get; set; } = new List<string>();
+
+            public int ExpectedAvailableValuesCount; 
 
             public override void Run()
             {
                 if (TimeDelay != TimeDelay2)
                     throw new Exception($"{nameof(TimeDelay)} != {nameof(TimeDelay2)}");
+                if(SelectedValues.Count != ExpectedAvailableValuesCount)
+                    throw new Exception("Expected SelectedValues to be set to all AvailableValues");
             }
         }
 
@@ -562,10 +569,10 @@ namespace OpenTap.Engine.UnitTests
             var delay1 = new DelayStep();
             sweep.ChildTestSteps.Add(delay1);
 
-            var delay2 = new Delay2Step();
+            var delay2 = new Delay2Step() {AvailableValuesField = new[] { "A", "B", "C" }, ExpectedAvailableValuesCount = 2};
             sweep.ChildTestSteps.Add(delay2);
 
-            var delay3 = new Delay2Step() { AvailableValuesField = new[] { "A", "B", "D" } };
+            var delay3 = new Delay2Step() { AvailableValuesField = new[] { "A", "B", "D" }, ExpectedAvailableValuesCount = 2};
             sweep.ChildTestSteps.Add(delay3);
 
             var annotation = AnnotationCollection.Annotate(sweep);
@@ -584,9 +591,9 @@ namespace OpenTap.Engine.UnitTests
                     select.Selected = new object[] {avail.AvailableValues.Cast<object>().First()};
                     annotation.Write(sweep);
                     annotation.Read(sweep);
-                    Assert.AreEqual(2, select.Selected.Cast<object>().Count());
+                    Assert.AreEqual(3, select.Selected.Cast<object>().Count());
 
-                    Assert.AreEqual(3, avail.AvailableValues.Cast<object>().Count()); // DelayStep only has on property.
+                    Assert.AreEqual(4, avail.AvailableValues.Cast<object>().Count()); // DelayStep only has on property.
                     select.Selected = smem.Get<IAvailableValuesAnnotation>().AvailableValues;
                     annotation.Write(sweep);
                     annotation.Read(sweep);
@@ -600,7 +607,7 @@ namespace OpenTap.Engine.UnitTests
                 collection.AnnotatedElements = collection.AnnotatedElements.Append(new_element).ToArray();
                 var new_element_members = new_element.Get<IMembersAnnotation>();
                 var members = new_element_members.Members.ToArray();
-                Assert.AreEqual(3, members.Length);
+                Assert.AreEqual(4, members.Length);
 
                 var enabled_element = members[0];
                 Assert.IsTrue(enabled_element.Get<IMemberAnnotation>().Member.Name == "Enabled");
@@ -637,11 +644,21 @@ namespace OpenTap.Engine.UnitTests
                         enabled_element2.Get<IObjectValueAnnotation>().Value = false;
                     }
 
-                    var delay_element2 = new_element2_members[1];
+                    var delay_element2 = new_element2_members.First(x => x.Get<IMemberAnnotation>().Member.Name == "DelaySecs");
                     var delay_value2 = delay_element2.Get<IStringValueAnnotation>();
                     // SweepLoop should copy the previous value for new rows.
                     Assert.IsTrue(delay_value2.Value.Contains("0.1 s"));
                 }
+        
+                foreach (var elem in collection.AnnotatedElements)
+                {
+                    var selected_values_annotation = elem.Get<IMembersAnnotation>().Members.First(x => x.Get<IMemberAnnotation>().Member.Name == "SelectedValues");
+                    var sel = selected_values_annotation.Get<IMultiSelectAnnotationProxy>();
+                    Assert.IsNotNull(sel);
+                    var sel_avail = selected_values_annotation.Get<IAvailableValuesAnnotationProxy>();
+                    sel.SelectedValues = sel_avail.AvailableValues;
+                }
+                
                 annotation.Write();
                 annotation.Read();
                 {
