@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
 namespace OpenTap
@@ -91,44 +92,56 @@ namespace OpenTap
         double Priority { get; }
     }
 
-
     /// <summary> Can resolve a type info. </summary>
     internal class TypeInfoResolver
     {
+        internal TypeInfoResolver(List<ITypeDataProvider> providers) => this.providers = providers;
 
-        internal TypeInfoResolver(List<ITypeDataProvider> providers)
-        {
-            this.providers = providers;
-        }
-        List<ITypeDataProvider> providers;
+        readonly List<ITypeDataProvider> providers;
         int offset = 0;
         /// <summary> Looks for a type info provider to provide the type for obj. </summary>
-        /// <param name="obj"></param>
         public void Iterate(object obj)
         {
             while (offset < providers.Count && FoundType == null)
             {
                 var provider = providers[offset];
                 offset++;
-                FoundType = provider.GetTypeData(obj);
+                try
+                {
+                    FoundType = provider.GetTypeData(obj);
+                }
+                catch(Exception error)
+                {
+                    logProviderError(provider, error);
+                }
             }
         }
 
+        static void logProviderError(ITypeDataProvider provider, Exception error)
+        {
+            var log = Log.CreateSource(provider.GetType().Name);
+            log.Error("Unhandled error occured in type resolution: {0}", error.Message);
+            log.Debug(error);
+        }
         /// <summary> Looks for a type info provider to provide the type for the obj string. </summary>
-        /// <param name="obj"></param>
         public void Iterate(string obj)
         {
             while (offset < providers.Count && FoundType == null)
             {
                 var provider = providers[offset];
                 offset++;
-                FoundType = provider.GetTypeData(obj);
+                try
+                {
+                    FoundType = provider.GetTypeData(obj);
+                }
+                catch (Exception error)
+                {
+                    logProviderError(provider, error);
+                }
             }
         }
 
-        /// <summary>
-        /// The found type info instance.
-        /// </summary>
+        /// <summary> The found type info instance. </summary>
         public ITypeData FoundType { get; private set; }
     }
 
