@@ -906,7 +906,7 @@ namespace OpenTap
                             {
                                 if (onlyEnabled)
                                 {
-                                    bool isenabled = EnabledIfAttribute.IsEnabled(prop, attr, Step);
+                                    bool isenabled = EnabledIfAttribute.IsEnabled(attr, Step);
                                     if (isenabled == false)
                                         goto nextstep;
                                 }
