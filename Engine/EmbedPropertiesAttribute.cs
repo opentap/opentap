@@ -30,34 +30,128 @@ namespace OpenTap
 
     // 
     // The code below implements the embedded member data dynamic reflection.
-    // It creats a wrapper around existing types and gives them an extra layer
+    // It creates a wrapper around existing types and gives them an extra layer
     // which contains the added properties.
     //
 
     class EmbeddedMemberData : IMemberData
     {
-        IMemberData ownermember;
-        IMemberData innermember;
-        public ITypeData DeclaringType => ownermember.DeclaringType;
-        public ITypeData TypeDescriptor => innermember.TypeDescriptor;
-        public bool Writable => innermember.Writable;
-        public bool Readable => innermember.Readable;
-        public IEnumerable<object> Attributes => innermember.Attributes;
+        readonly IMemberData ownerMember;
+        readonly IMemberData innerMember;
+        public ITypeData DeclaringType => ownerMember.DeclaringType;
+        public ITypeData TypeDescriptor => innerMember.TypeDescriptor;
+        public bool Writable => innerMember.Writable;
+        public bool Readable => innerMember.Readable;
+
+        public IEnumerable<object> Attributes  => attributes ?? (attributes = loadAndTransformAttributes());
         public string Name { get; }
-        public object GetValue(object owner) => innermember.GetValue(ownermember.GetValue(owner));
-        public void SetValue(object owner, object value) => innermember.SetValue(ownermember.GetValue(owner), value);
-        public EmbeddedMemberData(IMemberData ownermember, IMemberData member, bool prefixPropertyName, string prefix)
+        public object GetValue(object owner) => innerMember.GetValue(ownerMember.GetValue(owner));
+        public void SetValue(object owner, object value) => innerMember.SetValue(ownerMember.GetValue(owner), value);
+        public EmbeddedMemberData(IMemberData ownerMember, IMemberData innerMember)
         {
-            this.ownermember = ownermember;
-            innermember = member;
-            if (prefix != null)
-                Name = prefix + "." + innermember.Name;
-            else if (prefixPropertyName)
-                Name = ownermember.Name + "." + innermember.Name; 
+            this.ownerMember = ownerMember;
+            this.innerMember = innerMember;
+            var embed = ownerMember.GetAttribute<EmbedPropertiesAttribute>();
+            if (embed.PrefixPropertyName)
+            {
+                var prefix_name = embed.Prefix ?? ownerMember.Name;
+                Name = prefix_name + "." + this.innerMember.Name;
+            }
             else
-                Name = innermember.Name;
+                Name = this.innerMember.Name;
         }
         public override string ToString() => $"EmbMem:{Name}";
+        
+        object[] attributes;
+
+        /// <summary>
+        /// Loads and transform the list of attributes.
+        /// Some attributes are sensitive to naming, the known ones are AvailableValuesAttribute,
+        /// SuggestedValueAttribute, and EnabledIf. Others might exist, but they are, for now, not supported.
+        /// When NoPrefix is set on EmbedProperties, then there is no issue, but with the prefix, those names also needs
+        /// to be transformed.
+        /// Additionally, there is some special behavior wanted for Display, for usability and to avoid name clashing:
+        ///   - If a Display name/group is set on the owner property, that should turn into a group for the embedded properties.
+        ///   - If there is no display name, use the prefix name for the group.
+        ///   - If there is no prefix name, don't touch DisplayAttribute.
+        /// </summary>
+        object[] loadAndTransformAttributes()
+        {
+
+            string prefix_name = null;
+            
+            var list = innerMember.Attributes.ToList();
+            
+            var embed = ownerMember.GetAttribute<EmbedPropertiesAttribute>();
+            if (embed.PrefixPropertyName)
+                prefix_name = embed.Prefix ?? ownerMember.Name;
+            
+            string[] pre_group1;
+            string pre_name;
+            {
+                var owner_display = ownerMember.GetAttribute<DisplayAttribute>();
+
+                if (owner_display == null)
+                {
+                    owner_display = new DisplayAttribute(embed.PrefixPropertyName ? ownerMember.Name : "");
+                    pre_group1 = owner_display.Group;
+                    pre_name = owner_display.Name;
+                }
+                else
+                {
+                    pre_group1 = Array.Empty<string>();
+                    pre_name = prefix_name;
+                }
+            }
+
+            string name;
+            string[] post_group;
+            var d = list.OfType<DisplayAttribute>().FirstOrDefault();
+            if (d != null)
+            {
+                list.Remove(d); // need to re-add a new DisplayAttribute.
+                name = d.Name;
+                post_group = d.Group;
+            }
+            else
+            {
+                name = Name;
+                post_group = Array.Empty<string>();
+            }
+
+            var groups = pre_group1.Concat(pre_name == null ? Array.Empty<string>() : new[] {pre_name}).Concat(post_group)
+                .ToArray();
+
+            d = new DisplayAttribute(name, Groups: groups,
+                Description: d?.Description ?? "", Order: d?.Order ?? 0.0, Collapsed: d?.Collapsed ?? false);
+
+            list.Add(d);
+
+            if (prefix_name != null)
+            {
+                // Transform properties that has issues with embedding. 
+                for (var i = 0; i < list.Count; i++)
+                {
+                    var item = list[i];
+                    if (item is AvailableValuesAttribute avail)
+                    {
+                        list[i] = new AvailableValuesAttribute(prefix_name + "." + avail.PropertyName);
+                    }
+                    else if (item is SuggestedValuesAttribute sug)
+                    {
+                        list[i] = new SuggestedValuesAttribute(prefix_name + "." + sug.PropertyName);
+                    }
+                    else if (item is EnabledIfAttribute enabled)
+                    {
+                        list[i] = new EnabledIfAttribute(prefix_name + "." + enabled.PropertyName, enabled.PropertyValues)
+                            {HideIfDisabled = enabled.HideIfDisabled};
+                    }
+                }
+            }
+
+            return attributes = list.ToArray();
+        }
+
     }
 
     class EmbeddedTypeData : ITypeData
@@ -105,7 +199,7 @@ namespace OpenTap
                     }
 
                     foreach (var innermember in members)
-                        embeddedMembers.Add(new EmbeddedMemberData(member, innermember, e.PrefixPropertyName, e.Prefix));
+                        embeddedMembers.Add(new EmbeddedMemberData(member, innermember));
                 }
             }
             currentlyListing.Remove(this);
@@ -121,14 +215,12 @@ namespace OpenTap
         static ConcurrentDictionary<EmbeddedTypeData, EmbeddedTypeData> internedValues = new ConcurrentDictionary<EmbeddedTypeData, EmbeddedTypeData>();
         static EmbeddedTypeData Intern(EmbeddedTypeData e)
         {
-            while (true)
-            {
-                if (internedValues.TryGetValue(e, out EmbeddedTypeData val))
-                    return val;
-                if (internedValues.TryAdd(e, e))
-                    return e;
-            }
-            throw new InvalidOperationException("Unable to intern type data");
+            if (internedValues.TryGetValue(e, out EmbeddedTypeData val))
+                return val;
+            if (internedValues.TryAdd(e, e))
+                return e;
+            internedValues.TryGetValue(e, out val);
+            return val; // fallback, not probable.
         }
 
         public static EmbeddedTypeData FromTypeData(ITypeData basetype) => Intern(new EmbeddedTypeData { BaseType = basetype });

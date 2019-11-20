@@ -632,7 +632,6 @@ namespace OpenTap.Engine.UnitTests
                 // Since they only have two available values in common, the list should only contain those two elements.
                 Assert.IsTrue(available_for_Select.AvailableValues.Cast<object>().Count() == 2);
 
-
                 annotation.Write();
                 var firstDelay = sweep.SweepParameters.First().Values.ElementAt(0);
                 Assert.AreEqual(0.1, (double)firstDelay);
@@ -1170,6 +1169,47 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(m.DelaySteps[0] == d1);
             Assert.IsTrue(m.DelaySteps[1] == d2);
         }
+        
+        /// <summary>  Class for testing embedding the same class twice and using attributes. </summary>
+        public class EmbeddedTest2
+        {
+            
+            [EmbedProperties(PrefixPropertyName = true, Prefix = "Emba")]
+            [Display("A")]
+            public DataInterfaceTestClass EmbeddedThingsA { get; private set; } = new DataInterfaceTestClass();
+            
+            
+            [EmbedProperties(PrefixPropertyName = true, Prefix = "Embb")]
+            [Display("B")]
+            public DataInterfaceTestClass EmbeddedThingsB { get; private set; } = new DataInterfaceTestClass();
+        }
 
+        
+        /// <summary>
+        /// This verifies that attributes sensitive to property names gets properly transformed.
+        /// This test verifies AvailableValuesAttribute and EnabledIfAttribute.
+        /// </summary>
+        [Test]
+        public void EmbeddedPropertiesReflectionAndAnnotation2()
+        { 
+            
+            var obj = new EmbeddedTest2();
+            var td = TypeData.GetTypeData(obj);
+            var annotated = AnnotationCollection.Annotate(obj);
+            annotated.Read();
+            var same = annotated.Get<IMembersAnnotation>().Members.First(x => x.Get<IMemberAnnotation>().Member.Name == "Emba.FromAvailable");
+            var availableValues = same.Get<IAvailableValuesAnnotation>().AvailableValues.Cast<object>().ToArray(); // this will most likely fail.
+            var prox = same.Get<IAvailableValuesAnnotationProxy>();
+            prox.SelectedValue = prox.AvailableValues.Last();
+            annotated.Write();
+            
+            var enabledAnnotation = annotated.Get<IMembersAnnotation>().Members.First(x => x.Get<IMemberAnnotation>().Member.Name == "Embb.ICanBeEnabled");
+            Assert.IsFalse(enabledAnnotation.Get<IAccessAnnotation>().IsVisible);
+            var enablingAnnotation = annotated.Get<IMembersAnnotation>().Members.First(x => x.Get<IMemberAnnotation>().Member.Name == "Embb.ThingEnabled");
+            enablingAnnotation.Get<IObjectValueAnnotation>().Value = true;
+            annotated.Write();
+            annotated.Read();
+            Assert.IsTrue(enabledAnnotation.Get<IAccessAnnotation>().IsVisible);
+        }
     }
 }
