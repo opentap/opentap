@@ -133,10 +133,7 @@ namespace OpenTap.Engine.UnitTests
 
             public double Priority => 1;
 
-            public ITypeData GetTypeData(string identifier)
-            {
-                throw new NotImplementedException();
-            }
+            public ITypeData GetTypeData(string identifier) => _types.FirstOrDefault(x => x.Name == identifier);
 
             public ITypeData GetTypeData(object obj)
             {
