@@ -218,13 +218,7 @@ namespace OpenTap.Cli
 
             if (selectedCommand != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
                 CliUserInputInterface.Load();
-            //Type selectedType = selectedCommand.Load();
-            //if(selectedType == null)
-            //{
-            //    Console.WriteLine("Error loading command {0}", selectedCommand.Name);
-            //    return -2;
-            //}
-
+            
             ICliAction packageAction = null;
             try{
                 packageAction = (ICliAction)selectedCommand.CreateInstance();
@@ -236,13 +230,9 @@ namespace OpenTap.Cli
 
             if (packageAction == null)
             {
-                Console.WriteLine("Error instanciating command {0}", selectedCommand.Name);
+                Console.WriteLine("Error instantiating command {0}", selectedCommand.Name);
                 return -3;
             }
-
-            //packageAction.ProgressUpdate += (p, message) => log.Debug("{0}% {1}", p, message);
-            //packageAction.Error += ex => log.Error(ex);
-           
 
             try
             {
