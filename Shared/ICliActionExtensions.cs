@@ -52,7 +52,7 @@ namespace OpenTap.Cli
 
                 var attr = prop.GetAttribute<CommandLineArgumentAttribute>();
 
-                var needsArg = prop.TypeDescriptor != TypeData.GetTypeData(typeof(bool));
+                var needsArg = prop.TypeDescriptor != TypeData.FromType(typeof(bool));
 
                 string description = "";
                 if (prop.HasAttribute<ObsoleteAttribute>())
