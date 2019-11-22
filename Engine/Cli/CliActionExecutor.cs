@@ -205,19 +205,34 @@ namespace OpenTap.Cli
                 else
                     return -1;
             }
-
+            
             {   // setup logging to be relative to the executing assembly.
                 var logpath = EngineSettings.Current.SessionLogPath.Expand(date: Process.GetCurrentProcess().StartTime);
-                if (Path.IsPathRooted(logpath) == false)
+                bool? isPathRooted = null;
+                try
                 {
-                    var dir = Path.GetDirectoryName(typeof(SessionLogs).Assembly.Location);
-                    if (ExecutorClient.IsRunningIsolated)
-                    {
-                        dir = ExecutorClient.ExeDir;
-                    }
-                    logpath = Path.Combine(dir, logpath);
+                    isPathRooted = Path.IsPathRooted(logpath);
                 }
-                SessionLogs.Rename(logpath);
+                catch
+                {
+                    log.Error("Path contains invalid characters: {0}", logpath);
+                }
+
+                if (isPathRooted.HasValue)
+                {
+                    if (isPathRooted.Value)
+                    {
+                        var dir = Path.GetDirectoryName(typeof(SessionLogs).Assembly.Location);
+                        if (ExecutorClient.IsRunningIsolated)
+                        {
+                            dir = ExecutorClient.ExeDir;
+                        }
+
+                        logpath = Path.Combine(dir, logpath);
+                    }
+
+                    SessionLogs.Rename(logpath);
+                }
             }
 
             if (selectedCommand != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
