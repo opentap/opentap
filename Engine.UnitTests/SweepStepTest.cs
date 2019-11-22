@@ -309,12 +309,13 @@ namespace OpenTap.Engine.UnitTests
             loop.SweepParameters = lst;
 
             var loopRange = new SweepLoopRange();
-            loopRange.SweepProperties = new List<IMemberData> { member, member2 };
+            
             loopRange.SweepStart = 1;
             loopRange.SweepEnd = 10;
             loopRange.SweepPoints = 10;
             loopRange.ChildTestSteps.Add(new SweepRaceBugStep() { });
             loopRange.ChildTestSteps.Add(new SweepRaceBugCheckStep() { });
+            loopRange.SweepProperties = new List<IMemberData> { member, member2 };
             var repeat2 = new RepeatStep { Count = 10, Action = RepeatStep.RepeatStepAction.Fixed_Count };
             
             repeat2.ChildTestSteps.Add(loopRange);

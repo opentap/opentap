@@ -682,8 +682,45 @@ namespace OpenTap.Engine.UnitTests
 
             // one of the sweep rows was disabled.
             Assert.AreEqual(13 , rlistener.StepRuns.Count);
+
+            { // verify that when child steps are deleted, the list is updated. 
+                sweep.ChildTestSteps.Remove(delay2);
+                sweep.ChildTestSteps.Remove(delay3);
+                annotation.Read();
+                var av = smem.Get<IAvailableValuesAnnotation>().AvailableValues.Cast<object>().ToList();
+                Assert.AreEqual(2, av.Count); // Select All + Time Delay.
+            }
         }
-        
+
+        [Test]
+        public void SweepLoopRangeCheck()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepLoopRange();
+            var delay = new DelayStep();
+            var delay2 = new Delay2Step();
+            sweep.ChildTestSteps.Add(delay);
+            sweep.ChildTestSteps.Add(delay2);
+            plan.ChildTestSteps.Add(sweep);
+
+            var a = AnnotationCollection.Annotate(sweep);
+            var member = TypeData.GetTypeData(sweep).GetMember(nameof(SweepLoopRange.SweepProperties));
+            var b = a.Get<IMembersAnnotation>().Members.First(x => x.Get<IMemberAnnotation>().Member == member);
+            var proxy = b.Get<IMultiSelectAnnotationProxy>();
+            var avail = b.Get<IAvailableValuesAnnotationProxy>();
+            proxy.SelectedValues = avail.AvailableValues;
+            a.Write();
+            Assert.AreEqual(3, sweep.SweepProperties.Count);
+            sweep.ChildTestSteps.Remove(delay); // this should cause the SweepProperty to be removed.
+            var delayStepType = TypeData.GetTypeData((delay));
+            Assert.AreEqual(2, sweep.SweepProperties.Count);
+            foreach (var mem in sweep.SweepProperties)
+            {
+                Assert.AreNotEqual(delayStepType, mem.DeclaringType);
+            }
+        }
+
+
         [Test]
         public void DataInterfaceProviderTest()
         {
