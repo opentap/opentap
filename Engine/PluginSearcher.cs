@@ -467,7 +467,7 @@ namespace OpenTap
                 plugin.AddPluginTypes(iface.PluginTypes);
                 if (iface.Name == PluginMarkerType.Name && plugin.PluginTypes == null)
                 {
-                    plugin.AddPluginType(plugin); // this inherrits directly from ITapPlugin (otherwise it should have been picked up earlier)
+                    plugin.AddPluginType(plugin); // this inherits directly from ITapPlugin (otherwise it should have been picked up earlier)
                 }
             }
             if (plugin.PluginTypes != null)

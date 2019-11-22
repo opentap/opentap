@@ -6,6 +6,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Xml.Serialization;
 using System.ComponentModel;
+using OpenTap.Cli;
+using System.Threading;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -24,6 +26,169 @@ namespace OpenTap.Engine.UnitTests
             var members = type.GetMembers();
             Assert.IsTrue(members.Any(x => x.Name == nameof(ClassWithPropertyWithoutGetter.MyValue)));
         }
+
+        [Test]
+        public void SimpleDerivedTypesTest()
+        {
+            ITypeData baseType = TypeData.FromType(typeof(IResultListener));
+            var types = TypeData.GetDerivedTypes(baseType);
+            CollectionAssert.IsNotEmpty(types);
+            CollectionAssert.AllItemsAreNotNull(types);
+            CollectionAssert.AllItemsAreUnique(types);
+            Assert.IsTrue(types.All(t => t.DescendsTo(baseType)));
+        }
+
+        public class TypeDataSearcherTestImpl : ITypeDataSearcher, ITypeDataProvider
+        {
+            public class MemberDataTestImpl : IMemberData
+            {
+                public ITypeData DeclaringType { get; set; }
+
+                public ITypeData TypeDescriptor { get; set; }
+
+                public bool Writable => true;
+
+                public bool Readable => true;
+
+                public IEnumerable<object> Attributes { get; set; }
+
+                public string Name { get; set; }
+
+                public object GetValue(object owner)
+                {
+                    return Value;
+                }
+
+                public void SetValue(object owner, object value)
+                {
+                    Value = value;
+                }
+
+                public static object Value { get; set; }
+            }
+
+
+            public class TypeDataTestImpl : ITypeData
+            {
+                public ITypeData BaseType { get; set; }
+
+                public bool CanCreateInstance => Creator != null;
+
+                public IEnumerable<object> Attributes => new object[] { new DisplayAttribute("unittesting") };
+
+                public string Name { get; set; }
+
+                public object CreateInstance(object[] arguments)
+                {
+                    return Creator.Invoke();
+                }
+
+
+                public IMemberData GetMember(string name)
+                {
+                    if (name == "Hello")
+                        return HelloMember;
+                    return null;
+                }
+
+                public IEnumerable<IMemberData> GetMembers()
+                {
+                    return new IMemberData[] { HelloMember };
+                }
+
+                private IMemberData HelloMember;
+                private Func<object> Creator;
+                public TypeDataTestImpl(string name, ITypeData baseType, Func<object> creator)
+                {
+                    Creator = creator;
+                    Name = name;
+                    BaseType = baseType;
+                    HelloMember = new MemberDataTestImpl()
+                    {
+                        Name = "Hello",
+                        Attributes = new object[] { new Cli.CommandLineArgumentAttribute("test") },
+                        TypeDescriptor = TypeData.FromType(typeof(string)),
+                        DeclaringType = this
+                    };
+                }
+            }
+
+
+            private static IEnumerable<ITypeData> _types = new List<ITypeData>
+            {
+                new TypeDataTestImpl( "UnitTestType", TypeData.FromType(typeof(IResultListener)),null),
+                new TypeDataTestImpl( "UnitTestCliActionType", TypeData.FromType(typeof(ICliAction)),() => new SomeTestAction())
+            };
+
+            public static bool Enable = false;
+            public IEnumerable<ITypeData> Types { get; private set; }
+
+            public void Search()
+            {
+                if (Enable)
+                    Types = _types;
+                else
+                    Types = null;
+            }
+
+            public double Priority => 1;
+
+            public ITypeData GetTypeData(string identifier) => _types.FirstOrDefault(x => x.Name == identifier);
+
+            public ITypeData GetTypeData(object obj)
+            {
+                if (obj is SomeTestAction)
+                    return _types.Last();
+                return null;
+            }
+        }
+
+        [Test]
+        public void ITypeDataSearcherTest()
+        {
+            TypeDataSearcherTestImpl.Enable = true;
+            ITypeData baseType = TypeData.FromType(typeof(IResultListener));
+            var types = TypeData.GetDerivedTypes(baseType);
+            TypeDataSearcherTestImpl.Enable = false;
+            CollectionAssert.IsNotEmpty(types);
+            CollectionAssert.AllItemsAreNotNull(types);
+            CollectionAssert.AllItemsAreUnique(types);
+            Assert.IsTrue(types.All(t => t.DescendsTo(baseType)));
+            Assert.IsTrue(types.Any(t => t.Name == "UnitTestType"));
+        }
+
+        [Browsable(false)]
+        private class SomeTestAction : ICliAction
+        {
+            public static bool WasRun = false;
+            public int Execute(CancellationToken cancellationToken)
+            {
+                WasRun = true;
+                return 0;
+            }
+        }
+
+
+
+        [Test]
+        public void ITypeDataSearcherTest2()
+        {
+            TypeDataSearcherTestImpl.Enable = true;
+            try
+            {
+                var actionTypes = TypeData.GetDerivedTypes<ICliAction>();
+                Assert.IsTrue(actionTypes.Any(t => t.Name.EndsWith("UnitTestCliActionType")));
+                SomeTestAction.WasRun = false;
+                CliActionExecutor.Execute(new string[] { "unittesting", "--test", "hello" });
+                Assert.IsTrue(SomeTestAction.WasRun);
+                Assert.AreEqual("hello", TypeDataSearcherTestImpl.MemberDataTestImpl.Value);
+            }
+            finally
+            {
+                TypeDataSearcherTestImpl.Enable = false;
+            }
+        }
+
     }
 
     public interface IExpandedObject
