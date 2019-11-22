@@ -107,6 +107,44 @@ namespace OpenTap.Engine.UnitTests
             ResultSettings.Current.Remove(rl);
         }
 
+        public class ResultObjectBase
+        {
+            public double Freq { get; set; }
+            public double Power { get; set; }
+        }
+
+        public class EvmResultObject : ResultObjectBase
+        {
+            public double Evm { get; set; }
+        }
+
+
+        [Test]
+        public void DerivedObjectResultTest()
+        {
+            TempResultListener rl = new TempResultListener();
+
+            ResultSettings.Current.Add(rl);
+
+            TestPlan plan = new TestPlan();
+            DelegateTestStep step = new DelegateTestStep();
+            ResultObjectBase result = new EvmResultObject() { Freq = 1, Power = 2, Evm = 3 };
+            step.RunAction = (Results) =>
+            {
+                Results.Publish(result);
+            };
+            plan.ChildTestSteps.Add(step);
+            TestPlanRunner.RunTestPlan(plan);
+
+            Assert.IsNotNull(rl.LastResult);
+            Assert.AreEqual("EvmResultObject", rl.LastResult.Name);
+            Assert.AreEqual(3, rl.LastResult.Columns.Length);
+            Assert.AreEqual(1, rl.LastResult.Rows);
+            Assert.AreEqual("Evm", rl.LastResult.Columns[0].Name);
+
+            ResultSettings.Current.Remove(rl);
+        }
+
         [Test]
         public void AnonymousObjectResultTest()
         {

@@ -6,6 +6,8 @@ using System.Diagnostics;
 using System.Linq;
 using System.Xml.Serialization;
 using System.ComponentModel;
+using OpenTap.Cli;
+using System.Threading;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -24,6 +26,169 @@ namespace OpenTap.Engine.UnitTests
             var members = type.GetMembers();
             Assert.IsTrue(members.Any(x => x.Name == nameof(ClassWithPropertyWithoutGetter.MyValue)));
         }
+
+        [Test]
+        public void SimpleDerivedTypesTest()
+        {
+            ITypeData baseType = TypeData.FromType(typeof(IResultListener));
+            var types = TypeData.GetDerivedTypes(baseType);
+            CollectionAssert.IsNotEmpty(types);
+            CollectionAssert.AllItemsAreNotNull(types);
+            CollectionAssert.AllItemsAreUnique(types);
+            Assert.IsTrue(types.All(t => t.DescendsTo(baseType)));
+        }
+
+        public class TypeDataSearcherTestImpl : ITypeDataSearcher, ITypeDataProvider
+        {
+            public class MemberDataTestImpl : IMemberData
+            {
+                public ITypeData DeclaringType { get; set; }
+
+                public ITypeData TypeDescriptor { get; set; }
+
+                public bool Writable => true;
+
+                public bool Readable => true;
+
+                public IEnumerable<object> Attributes { get; set; }
+
+                public string Name { get; set; }
+
+                public object GetValue(object owner)
+                {
+                    return Value;
+                }
+
+                public void SetValue(object owner, object value)
+                {
+                    Value = value;
+                }
+
+                public static object Value { get; set; }
+            }
+
+
+            public class TypeDataTestImpl : ITypeData
+            {
+                public ITypeData BaseType { get; set; }
+
+                public bool CanCreateInstance => Creator != null;
+
+                public IEnumerable<object> Attributes => new object[] { new DisplayAttribute("unittesting") };
+
+                public string Name { get; set; }
+
+                public object CreateInstance(object[] arguments)
+                {
+                    return Creator.Invoke();
+                }
+
+
+                public IMemberData GetMember(string name)
+                {
+                    if (name == "Hello")
+                        return HelloMember;
+                    return null;
+                }
+
+                public IEnumerable<IMemberData> GetMembers()
+                {
+                    return new IMemberData[] { HelloMember };
+                }
+
+                private IMemberData HelloMember;
+                private Func<object> Creator;
+                public TypeDataTestImpl(string name, ITypeData baseType, Func<object> creator)
+                {
+                    Creator = creator;
+                    Name = name;
+                    BaseType = baseType;
+                    HelloMember = new MemberDataTestImpl()
+                    {
+                        Name = "Hello",
+                        Attributes = new object[] { new Cli.CommandLineArgumentAttribute("test") },
+                        TypeDescriptor = TypeData.FromType(typeof(string)),
+                        DeclaringType = this
+                    };
+                }
+            }
+
+
+            private static IEnumerable<ITypeData> _types = new List<ITypeData>
+            {
+                new TypeDataTestImpl( "UnitTestType", TypeData.FromType(typeof(IResultListener)),null),
+                new TypeDataTestImpl( "UnitTestCliActionType", TypeData.FromType(typeof(ICliAction)),() => new SomeTestAction())
+            };
+
+            public static bool Enable = false;
+            public IEnumerable<ITypeData> Types { get; private set; }
+
+            public void Search()
+            {
+                if (Enable)
+                    Types = _types;
+                else
+                    Types = null;
+            }
+
+            public double Priority => 1;
+
+            public ITypeData GetTypeData(string identifier) => _types.FirstOrDefault(x => x.Name == identifier);
+
+            public ITypeData GetTypeData(object obj)
+            {
+                if (obj is SomeTestAction)
+                    return _types.Last();
+                return null;
+            }
+        }
+
+        [Test]
+        public void ITypeDataSearcherTest()
+        {
+            TypeDataSearcherTestImpl.Enable = true;
+            ITypeData baseType = TypeData.FromType(typeof(IResultListener));
+            var types = TypeData.GetDerivedTypes(baseType);
+            TypeDataSearcherTestImpl.Enable = false;
+            CollectionAssert.IsNotEmpty(types);
+            CollectionAssert.AllItemsAreNotNull(types);
+            CollectionAssert.AllItemsAreUnique(types);
+            Assert.IsTrue(types.All(t => t.DescendsTo(baseType)));
+            Assert.IsTrue(types.Any(t => t.Name == "UnitTestType"));
+        }
+
+        [Browsable(false)]
+        private class SomeTestAction : ICliAction
+        {
+            public static bool WasRun = false;
+            public int Execute(CancellationToken cancellationToken)
+            {
+                WasRun = true;
+                return 0;
+            }
+        }
+
+
+
+        [Test]
+        public void ITypeDataSearcherTest2()
+        {
+            TypeDataSearcherTestImpl.Enable = true;
+            try
+            {
+                var actionTypes = TypeData.GetDerivedTypes<ICliAction>();
+                Assert.IsTrue(actionTypes.Any(t => t.Name.EndsWith("UnitTestCliActionType")));
+                SomeTestAction.WasRun = false;
+                CliActionExecutor.Execute(new string[] { "unittesting", "--test", "hello" });
+                Assert.IsTrue(SomeTestAction.WasRun);
+                Assert.AreEqual("hello", TypeDataSearcherTestImpl.MemberDataTestImpl.Value);
+            }
+            finally
+            {
+                TypeDataSearcherTestImpl.Enable = false;
+            }
+        }
+
     }
 
     public interface IExpandedObject
@@ -561,12 +726,19 @@ namespace OpenTap.Engine.UnitTests
             [AvailableValues(nameof(AvailableValues))]
             public string SelectedValue { get; set; }
             public IEnumerable<string> AvailableValues => AvailableValuesField;
-            public IEnumerable<string> AvailableValuesField = new[] { "A", "B", "C" };
+            public IEnumerable<string> AvailableValuesField = new string[0] ;
+            
+            [AvailableValues(nameof(AvailableValues))]
+            public List<string> SelectedValues { get; set; } = new List<string>();
+
+            public int ExpectedAvailableValuesCount; 
 
             public override void Run()
             {
                 if (TimeDelay != TimeDelay2)
                     throw new Exception($"{nameof(TimeDelay)} != {nameof(TimeDelay2)}");
+                if(SelectedValues.Count != ExpectedAvailableValuesCount)
+                    throw new Exception("Expected SelectedValues to be set to all AvailableValues");
             }
         }
 
@@ -578,10 +750,10 @@ namespace OpenTap.Engine.UnitTests
             var delay1 = new DelayStep();
             sweep.ChildTestSteps.Add(delay1);
 
-            var delay2 = new Delay2Step();
+            var delay2 = new Delay2Step() {AvailableValuesField = new[] { "A", "B", "C" }, ExpectedAvailableValuesCount = 2};
             sweep.ChildTestSteps.Add(delay2);
 
-            var delay3 = new Delay2Step() { AvailableValuesField = new[] { "A", "B", "D" } };
+            var delay3 = new Delay2Step() { AvailableValuesField = new[] { "A", "B", "D" }, ExpectedAvailableValuesCount = 2};
             sweep.ChildTestSteps.Add(delay3);
 
             var annotation = AnnotationCollection.Annotate(sweep);
@@ -600,9 +772,9 @@ namespace OpenTap.Engine.UnitTests
                     select.Selected = new object[] { avail.AvailableValues.Cast<object>().First() };
                     annotation.Write(sweep);
                     annotation.Read(sweep);
-                    Assert.AreEqual(2, select.Selected.Cast<object>().Count());
+                    Assert.AreEqual(3, select.Selected.Cast<object>().Count());
 
-                    Assert.AreEqual(3, avail.AvailableValues.Cast<object>().Count()); // DelayStep only has on property.
+                    Assert.AreEqual(4, avail.AvailableValues.Cast<object>().Count()); // DelayStep only has on property.
                     select.Selected = smem.Get<IAvailableValuesAnnotation>().AvailableValues;
                     annotation.Write(sweep);
                     annotation.Read(sweep);
@@ -616,7 +788,7 @@ namespace OpenTap.Engine.UnitTests
                 collection.AnnotatedElements = collection.AnnotatedElements.Append(new_element).ToArray();
                 var new_element_members = new_element.Get<IMembersAnnotation>();
                 var members = new_element_members.Members.ToArray();
-                Assert.AreEqual(3, members.Length);
+                Assert.AreEqual(4, members.Length);
 
                 var enabled_element = members[0];
                 Assert.IsTrue(enabled_element.Get<IMemberAnnotation>().Member.Name == "Enabled");
@@ -652,11 +824,21 @@ namespace OpenTap.Engine.UnitTests
                         enabled_element2.Get<IObjectValueAnnotation>().Value = false;
                     }
 
-                    var delay_element2 = new_element2_members[1];
+                    var delay_element2 = new_element2_members.First(x => x.Get<IMemberAnnotation>().Member.Name == "DelaySecs");
                     var delay_value2 = delay_element2.Get<IStringValueAnnotation>();
                     // SweepLoop should copy the previous value for new rows.
                     Assert.IsTrue(delay_value2.Value.Contains("0.1 s"));
                 }
+        
+                foreach (var elem in collection.AnnotatedElements)
+                {
+                    var selected_values_annotation = elem.Get<IMembersAnnotation>().Members.First(x => x.Get<IMemberAnnotation>().Member.Name == "SelectedValues");
+                    var sel = selected_values_annotation.Get<IMultiSelectAnnotationProxy>();
+                    Assert.IsNotNull(sel);
+                    var sel_avail = selected_values_annotation.Get<IAvailableValuesAnnotationProxy>();
+                    sel.SelectedValues = sel_avail.AvailableValues;
+                }
+                
                 annotation.Write();
                 annotation.Read();
                 {
@@ -680,6 +862,41 @@ namespace OpenTap.Engine.UnitTests
 
             // one of the sweep rows was disabled.
             Assert.AreEqual(13, rlistener.StepRuns.Count);
+
+            { // verify that when child steps are deleted, the list is updated. 
+                sweep.ChildTestSteps.Remove(delay2);
+                sweep.ChildTestSteps.Remove(delay3);
+                annotation.Read();
+                var av = smem.Get<IAvailableValuesAnnotation>().AvailableValues.Cast<object>().ToList();
+                Assert.AreEqual(2, av.Count); // Select All + Time Delay.
+            }
+        }
+[Test]
+        public void SweepLoopRangeCheck()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepLoopRange();
+            var delay = new DelayStep();
+            var delay2 = new Delay2Step();
+            sweep.ChildTestSteps.Add(delay);
+            sweep.ChildTestSteps.Add(delay2);
+            plan.ChildTestSteps.Add(sweep);
+
+            var a = AnnotationCollection.Annotate(sweep);
+            var member = TypeData.GetTypeData(sweep).GetMember(nameof(SweepLoopRange.SweepProperties));
+            var b = a.Get<IMembersAnnotation>().Members.First(x => x.Get<IMemberAnnotation>().Member == member);
+            var proxy = b.Get<IMultiSelectAnnotationProxy>();
+            var avail = b.Get<IAvailableValuesAnnotationProxy>();
+            proxy.SelectedValues = avail.AvailableValues;
+            a.Write();
+            Assert.AreEqual(3, sweep.SweepProperties.Count);
+            sweep.ChildTestSteps.Remove(delay); // this should cause the SweepProperty to be removed.
+            var delayStepType = TypeData.GetTypeData((delay));
+            Assert.AreEqual(2, sweep.SweepProperties.Count);
+            foreach (var mem in sweep.SweepProperties)
+            {
+                Assert.AreNotEqual(delayStepType, mem.DeclaringType);
+            }
         }
 
         [Test]
