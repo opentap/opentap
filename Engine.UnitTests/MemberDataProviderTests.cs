@@ -699,6 +699,14 @@ namespace OpenTap.Engine.UnitTests
 
         }
 
+        [Flags]
+        public enum FlagTestEnum
+        {
+            A = 1,
+            B = 2,
+            C = 4
+        }
+        
         public class Delay2Step : TestStep
         {
             [Display("Time Delay")]
@@ -711,17 +719,16 @@ namespace OpenTap.Engine.UnitTests
             public string SelectedValue { get; set; }
             public IEnumerable<string> AvailableValues => AvailableValuesField;
             public IEnumerable<string> AvailableValuesField = new string[0] ;
-            
-            [AvailableValues(nameof(AvailableValues))]
-            public List<string> SelectedValues { get; set; } = new List<string>();
 
-            public int ExpectedAvailableValuesCount; 
+            public FlagTestEnum SelectedValues { get; set; } = FlagTestEnum.A;
+
+            public FlagTestEnum ExpectedValues = FlagTestEnum.A | FlagTestEnum.B | FlagTestEnum.C; 
 
             public override void Run()
             {
                 if (TimeDelay != TimeDelay2)
                     throw new Exception($"{nameof(TimeDelay)} != {nameof(TimeDelay2)}");
-                if(SelectedValues.Count != ExpectedAvailableValuesCount)
+                if(SelectedValues != ExpectedValues) //SelectedValues must be set to the ExpectedValues.
                     throw new Exception("Expected SelectedValues to be set to all AvailableValues");
             }
         }
@@ -734,10 +741,10 @@ namespace OpenTap.Engine.UnitTests
             var delay1 = new DelayStep();
             sweep.ChildTestSteps.Add(delay1);
 
-            var delay2 = new Delay2Step() {AvailableValuesField = new[] { "A", "B", "C" }, ExpectedAvailableValuesCount = 2};
+            var delay2 = new Delay2Step() {AvailableValuesField = new[] { "A", "B", "C" }};
             sweep.ChildTestSteps.Add(delay2);
 
-            var delay3 = new Delay2Step() { AvailableValuesField = new[] { "A", "B", "D" }, ExpectedAvailableValuesCount = 2};
+            var delay3 = new Delay2Step() { AvailableValuesField = new[] { "A", "B", "D" }};
             sweep.ChildTestSteps.Add(delay3);
 
             var annotation = AnnotationCollection.Annotate(sweep);
