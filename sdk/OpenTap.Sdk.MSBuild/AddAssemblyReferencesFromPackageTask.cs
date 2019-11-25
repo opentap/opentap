@@ -21,7 +21,6 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         [Required]
         public string TargetMsBuildFile { get; set; }
 
-        [Required]
         public string PackageNames { get; set; }
 
         [Required]
@@ -32,22 +31,25 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         public override bool Execute()
         {
             List<string> assembliesInPackages = new List<string>();
-            foreach (string packageName in PackageNames.Split(';'))
+            if (!String.IsNullOrEmpty(PackageNames))
             {
-                string packageDefPath = Path.Combine(PackageInstallDir, "Packages", packageName, "package.xml");
-                if (File.Exists(packageDefPath))
+                foreach (string packageName in PackageNames.Split(';'))
                 {
-                    var matches = dllRx.Matches(File.ReadAllText(packageDefPath));
-                    foreach (Match m in matches)
+                    string packageDefPath = Path.Combine(PackageInstallDir, "Packages", packageName, "package.xml");
+                    if (File.Exists(packageDefPath))
                     {
-                        if (m.Groups["name"].Success)
+                        var matches = dllRx.Matches(File.ReadAllText(packageDefPath));
+                        foreach (Match m in matches)
                         {
-                            string dllPath = m.Groups["name"].Value;
-                            if (dllPath.StartsWith("Dependencies"))
-                                continue;
-                            string absolutedllPath = Path.Combine(PackageInstallDir, dllPath);
-                            if (IsDotNetAssembly(absolutedllPath))
-                                assembliesInPackages.Add(dllPath);
+                            if (m.Groups["name"].Success)
+                            {
+                                string dllPath = m.Groups["name"].Value;
+                                if (dllPath.StartsWith("Dependencies"))
+                                    continue;
+                                string absolutedllPath = Path.Combine(PackageInstallDir, dllPath);
+                                if (IsDotNetAssembly(absolutedllPath))
+                                    assembliesInPackages.Add(dllPath);
+                            }
                         }
                     }
                 }
