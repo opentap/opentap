@@ -1238,12 +1238,13 @@ namespace OpenTap
                 }
             }
 
-            IObjectValueAnnotation val;
+            IObjectValueAnnotation val => annotation.Get<IObjectValueAnnotation>();
             Type enumType;
+            AnnotationCollection annotation;
 
-            public FlagEnumAnnotation(IObjectValueAnnotation val, Type enumType)
+            public FlagEnumAnnotation(AnnotationCollection annotation, Type enumType)
             {
-                this.val = val;
+                this.annotation = annotation;
                 this.enumType = enumType;
             }
         }
@@ -2223,7 +2224,7 @@ namespace OpenTap
 
                         if (csharpType.HasFlags())
                         {
-                            annotation.Add(new FlagEnumAnnotation(annotation.Get<IObjectValueAnnotation>(), type));
+                            annotation.Add(new FlagEnumAnnotation(annotation, type));
                         }
                     }
 
