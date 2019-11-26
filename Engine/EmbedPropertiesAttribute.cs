@@ -45,8 +45,20 @@ namespace OpenTap
 
         public IEnumerable<object> Attributes  => attributes ?? (attributes = loadAndTransformAttributes());
         public string Name { get; }
-        public object GetValue(object owner) => innerMember.GetValue(ownerMember.GetValue(owner));
-        public void SetValue(object owner, object value) => innerMember.SetValue(ownerMember.GetValue(owner), value);
+
+        public object GetValue(object owner)
+        {
+            var target = ownerMember.GetValue(owner);
+            if (target == null) return null;
+            return innerMember.GetValue(target);
+        }
+
+        public void SetValue(object owner, object value)
+        {
+            var target = ownerMember.GetValue(owner);
+            if (target == null) throw new NullReferenceException($"Embedded property object owner ('{ownerMember.Name}') is null.");
+            innerMember.SetValue(target, value);   
+        }
         public EmbeddedMemberData(IMemberData ownerMember, IMemberData innerMember)
         {
             this.ownerMember = ownerMember;
