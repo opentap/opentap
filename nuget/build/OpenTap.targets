@@ -46,7 +46,7 @@
                      Exists('$(OutDir)') And
                      '$(OpenTapPackageDefinitionPath)' != '' And
                      Exists('$(OpenTapPackageDefinitionPath)')"
-          AfterTargets="Build" DependsOnTargets="InstallOpenTapPackages">
+          AfterTargets="Build">
     <Exec Command=".\tap package create &quot;$(ProjectDir)\$(OpenTapPackageDefinitionPath)&quot;"
           Condition="'$(InstallCreatedOpenTapPackage)' != 'true'"
           WorkingDirectory="$(OutDir)" LogStandardErrorAsError="true" />
@@ -55,34 +55,35 @@
           WorkingDirectory="$(OutDir)" LogStandardErrorAsError="true" />
   </Target>
 
-  <ItemGroup>
-    <OpenTapPackagesToInstall Include="@(AdditionalOpenTapPackage)">
-      <Version>%(AdditionalOpenTapPackage.Version)</Version>
-      <Repository>%(AdditionalOpenTapPackage.Repository)</Repository>
-    </OpenTapPackagesToInstall>
-    <OpenTapPackagesToInstall Include="@(OpenTapPackageReference)">
-      <Version>%(AdditionalOpenTapPackage.Version)</Version>
-      <Repository>%(AdditionalOpenTapPackage.Repository)</Repository>
-    </OpenTapPackagesToInstall>
-    <OpenTapPackagesToReference Include="@(AdditionalOpenTapPackage->WithMetadataValue('Reference', 'true'))"/>
-    <OpenTapPackagesToReference Include="@(OpenTapPackageReference)" Exclude="@(OpenTapPackageReference->WithMetadataValue('Reference', 'false'))"/>
-  </ItemGroup>
+  <Target Name="ProcessOpenTapPackageList">
+    <ItemGroup>
+      <OpenTapPackagesToInstall Include="@(AdditionalOpenTapPackage)">
+        <Version>%(AdditionalOpenTapPackage.Version)</Version>
+        <Repository>%(AdditionalOpenTapPackage.Repository)</Repository>
+      </OpenTapPackagesToInstall>
+      <OpenTapPackagesToInstall Include="@(OpenTapPackageReference)">
+        <Version>%(OpenTapPackageReference.Version)</Version>
+        <Repository>%(OpenTapPackageReference.Repository)</Repository>
+      </OpenTapPackagesToInstall>
+    </ItemGroup>
+  </Target>
   
   <Target Name="InstallOpenTapPackages"
         Inputs="$(MSBuildProjectFullPath)"
         Outputs="@(OpenTapPackagesToInstall-> '$(OutDir)Packages/%(Identity)/package.xml')"
-        DependsOnTargets="CopyOpenTapPayloadFiles" AfterTargets="CopyOpenTapPayloadFiles">
-    <Exec Command=".\tap package install --dependencies --force &quot;%(OpenTapPackagesToInstall.Identity)&quot;"
-          Condition="'%(OpenTapPackagesToInstall.Repository)' == '' AND '%(OpenTapPackagesToInstall.Version)' == ''"
+        DependsOnTargets="CopyOpenTapPayloadFiles;ProcessOpenTapPackageList" 
+        BeforeTargets="Build" AfterTargets="CopyOpenTapPayloadFiles">
+    <Exec Command=".\tap package install --dependencies --force &quot;@(OpenTapPackagesToInstall)&quot;"
+          Condition="'%(Repository)' == '' AND '%(Version)' == ''"
           LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
-    <Exec Command=".\tap package install --dependencies --force &quot;%(OpenTapPackagesToInstall.Identity)&quot; -r &quot;%(OpenTapPackagesToInstall.Repository)&quot;"
-          Condition="'%(OpenTapPackagesToInstall.Repository)' != '' AND '%(OpenTapPackagesToInstall.Version)' == ''"
+    <Exec Command=".\tap package install --dependencies --force &quot;@(OpenTapPackagesToInstall)&quot; -r &quot;%(Repository)&quot;"
+          Condition="'%(Repository)' != '' AND '%(Version)' == ''"
           LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
-    <Exec Command=".\tap package install --dependencies --force &quot;%(OpenTapPackagesToInstall.Identity)&quot; --version &quot;%(OpenTapPackagesToInstall.Version)&quot;"
-          Condition="'%(OpenTapPackagesToInstall.Repository)' == '' AND '%(OpenTapPackagesToInstall.Version)' != ''"
+    <Exec Command=".\tap package install --dependencies --force &quot;@(OpenTapPackagesToInstall)&quot; --version &quot;%(Version)&quot;"
+          Condition="'%(Repository)' == '' AND '%(Version)' != ''"
           LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
-    <Exec Command=".\tap package install --dependencies --force &quot;%(OpenTapPackagesToInstall.Identity)&quot; -r &quot;%(OpenTapPackagesToInstall.Repository)&quot; --version &quot;%(AdditionalOpenTapPackage.Version)&quot;"
-          Condition="'%(OpenTapPackagesToInstall.Repository)' != '' AND '%(OpenTapPackagesToInstall.Version)' != ''"
+    <Exec Command=".\tap package install --dependencies --force &quot;@(OpenTapPackagesToInstall)&quot; -r &quot;%(Repository)&quot; --version &quot;%(Version)&quot;"
+          Condition="'%(Repository)' != '' AND '%(Version)' != ''"
           LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
   </Target>
 
@@ -91,6 +92,10 @@
       Inputs="$(MSBuildProjectFullPath)"
       Outputs="$(OpenTapAutogeneratedMsBuildReferenceFile)"
       DependsOnTargets="InstallOpenTapPackages" BeforeTargets="ResolveReferences">
+    <ItemGroup>
+      <OpenTapPackagesToReference Include="@(AdditionalOpenTapPackage->WithMetadataValue('Reference', 'true'))"/>
+      <OpenTapPackagesToReference Include="@(OpenTapPackageReference)" Exclude="@(OpenTapPackageReference->WithMetadataValue('Reference', 'false'))"/>
+    </ItemGroup>
     <AddAssemblyReferencesFromPackage PackageInstallDir="$(OutDir)"
                                       TargetMsBuildFile="$(OpenTapAutogeneratedMsBuildReferenceFile)"
                                       PackageNames="@(OpenTapPackagesToReference)"/>
