@@ -229,9 +229,9 @@ Package-Windows64:
   artifacts:
     when: on_success
     expose_as: 'Windows OpenTAP Package'
-    expire_in: 1 day
+    expire_in: 30 days
     paths:
-       - OpenTAP.*.Windows.TapPackage
+       - OpenTAP.$version.$Architecture.Windows.TapPackage
 
 Package-Windows32:
   extends: Package-Windows64
@@ -267,9 +267,9 @@ Package-Linux:
   artifacts:
     when: on_success
     expose_as: 'Linux OpenTAP Package'
-    expire_in: 1 week
+    expire_in: 30 days
     paths:
-       - OpenTAP.*.Linux.TapPackage
+       - OpenTAP.$(version).Linux.TapPackage
 
 Package-SDK:
   stage: package
@@ -327,8 +327,7 @@ Package-NuGet:
     - nuget update -self
     - nuget pack OpenTAP.nuspec -OutputDirectory ../
   artifacts:
-    expire_in: 1 week
-    expose_as: 'NuGet Package'
+    expire_in: 30 days
     paths:
       - "*.nupkg"
 
