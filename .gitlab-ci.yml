@@ -228,6 +228,7 @@ Package-Windows64:
          - cmd /C ".\tap.exe package create -v ../../opentap.$Architecture.package.xml -o ../../OpenTAP.$version.$Architecture.Windows.TapPackage"
   artifacts:
     when: on_success
+    expose_as: 'Windows OpenTAP Package'
     expire_in: 1 day
     paths:
        - OpenTAP.*.Windows.TapPackage
@@ -265,6 +266,7 @@ Package-Linux:
          - cp Packages/OpenTAP.Linux.TapPackage ../../../OpenTAP.$version.Linux.TapPackage
   artifacts:
     when: on_success
+    expose_as: 'Linux OpenTAP Package'
     expire_in: 1 week
     paths:
        - OpenTAP.*.Linux.TapPackage
@@ -326,6 +328,7 @@ Package-NuGet:
     - nuget pack OpenTAP.nuspec -OutputDirectory ../
   artifacts:
     expire_in: 1 week
+    expose_as: 'NuGet Package'
     paths:
       - "*.nupkg"
 
