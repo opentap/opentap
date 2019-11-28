@@ -583,6 +583,13 @@ namespace OpenTap.Package
                 // Sign
                 CustomPackageActionHelper.RunCustomActions(pkg, PackageActionStage.Create, new CustomPackageActionArgs(tempDir, false));
 
+                // Concat license required from all files. But only if the property has not manually been set.
+                if (string.IsNullOrEmpty(pkg.LicenseRequired))
+                {
+                    var licenses = pkg.Files.Select(f => f.LicenseRequired).Where(l => l != null).ToList();
+                    pkg.LicenseRequired = string.Join(", ", licenses.Distinct().Select(l => LicenseBase.FormatFriendly(l, false)).ToList());
+                }
+                
                 log.Info("Creating OpenTAP package.");
                 pkg.Compress(path, pkg.Files);
             }
