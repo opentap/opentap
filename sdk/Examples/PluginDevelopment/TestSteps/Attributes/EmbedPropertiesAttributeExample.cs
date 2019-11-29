@@ -31,7 +31,8 @@ namespace OpenTap.Plugins.PluginDevelopment
 
         // This causes the properties A and B to be embedded inside this class from the 
         // perspective of serialization and user interfaces.
-        [EmbedProperties]
+        [Display("Embedded")] // All settings embedded from EmbeddedClass, will get this name as group.
+        [EmbedProperties] //Set Prefix or PrefixOverrideProperty name to control the naming of embedded properties.
         public EmbeddedClass Embedded { get; set; } = new EmbeddedClass();
         
         public override void Run()
@@ -44,7 +45,7 @@ namespace OpenTap.Plugins.PluginDevelopment
         //    <Enabled>true</Enabled>
         //    <Name>EmbeddedAttributeExample</Name>
         //    <ChildTestSteps />
-        //    <!-- Notice Frequency and Power has been embedded in the test step: -->
+        //    <!-- Notice Frequency and Power has been embedded in the test step settings. -->
         //    <Embedded.Frequency>0</Embedded.Frequency>
         //    <Embedded.Power>0</Embedded.Power>
         // </EmbeddedAttributeExample>
