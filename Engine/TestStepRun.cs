@@ -173,29 +173,31 @@ namespace OpenTap
         public void WaitForCompletion()
         {
             if (completedEvent.IsSet) return;
-            var waits = new[] { completedEvent.WaitHandle, TapThread.Current.AbortToken.WaitHandle };
+            var currentThread = TapThread.Current;
+            if(StepThread == currentThread) throw new InvalidOperationException("StepRun.WaitForCompletion called from the thread itself. This will either cause a deadlock or do nothing.");
+            var waits = new[] { completedEvent.WaitHandle, currentThread.AbortToken.WaitHandle };
             WaitHandle.WaitAny(waits);
         }
 
+        /// <summary>  The thread in which the step is running. </summary>
+        public TapThread StepThread { get; private set; }
+
         #region Internal Members used by the TestPlan
 
-        /// <summary>
-        /// Called by TestStep.DoRun before running the step.
-        /// </summary>
+        /// <summary>  Called by TestStep.DoRun before running the step. </summary>
         internal void StartStepRun()
         {
+            if (Verdict != Verdict.NotSet)
+                throw new ArgumentOutOfRangeException("verdict", "StepRun.StartStepRun has already been called once.");
+            StepThread = TapThread.Current;
             StartTime = DateTime.Now;
             StartTimeStamp = Stopwatch.GetTimestamp();
-
-            if (Verdict != Verdict.NotSet)
-                throw new ArgumentOutOfRangeException("verdict");
         }
 
-        /// <summary>
-        /// Called by TestStep.DoRun after running the step.
-        /// </summary>
+        /// <summary> Called by TestStep.DoRun after running the step. </summary>
         internal void CompleteStepRun(TestPlanRun planRun, ITestStep step, TimeSpan runDuration)
         {
+            StepThread = null;
             // update values in the run. 
             var newparameters = ResultParameters.GetParams(step);
             foreach(var parameter in newparameters)

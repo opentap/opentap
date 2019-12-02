@@ -1040,8 +1040,11 @@ namespace OpenTap.Engine.UnitTests
             {
                 setVal.SelectedValue = val;
                 annotation.Write(step1);
-                Assert.IsFalse(step1.Input.Step == theParent);
             }
+
+            step1.Input.Step = theParent;
+            var run = plan.Execute();
+
         }
 
         [Test]

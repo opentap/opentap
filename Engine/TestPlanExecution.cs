@@ -174,7 +174,8 @@ namespace OpenTap
             // Now wait for them to actually complete. They might defer internally.
             foreach (var run in runs)
             {
-                run.WaitForCompletion();
+                if(run.StepThread != TapThread.Current)
+                    run.WaitForCompletion();
                 execStage.UpgradeVerdict(run.Verdict);
             }
            
@@ -354,9 +355,6 @@ namespace OpenTap
                             planRun.PromptWaitHandle.Set();
                         }
                     }, name: "Request Metadata");
-                    
-                
-                planRun.ResourcePromptReset = new System.Collections.Concurrent.ConcurrentStack<Action>();
             }
             else
             {
@@ -684,18 +682,6 @@ namespace OpenTap
                 foreach (var step in allSteps)
                     step.StepRun = null;
 
-                while (execStage.ResourcePromptReset.TryPop(out var action))
-                {
-                    try
-                    {
-                        action();
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error("Caught exception while resetting metadata. '{0}'", e.Message);
-                        Log.Debug(e);
-                    }
-                }
                 executingPlanRun.LocalValue = prevExecutingPlanRun;
                 CurrentRun = prevExecutingPlanRun;
             }
