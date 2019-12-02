@@ -18,7 +18,7 @@ Build-DevGuide:
   image: registry.gitlab.com/opentap/buildrunners/documentationgeneration:latest
   tags: [ docker, gce ]
   script: |
-           tap generate-pdf "doc/Developer Guide/Readme.md" --appendix "Appendix C: Migration Guide"="doc/Migration/Migrating from tap 8 to 9/Readme.md" --toc --skip-first-file --out "sdk/Examples/OpenTAP Developer Guide.pdf" --frontpage "doc/Developer Guide/Frontpage.html" --frontpage-file "doc/Developer Guide/Frontpage.png" --notices "doc/Developer Guide/Introduction/Notices.md"
+           tap generate-pdf "doc/Developer Guide/Readme.md" --toc --skip-first-file --out "sdk/Examples/OpenTAP Developer Guide.pdf" --frontpage "doc/Developer Guide/Frontpage.html" --frontpage-file "doc/Developer Guide/Frontpage.png" --notices "doc/Developer Guide/Introduction/Notices.md"
   artifacts:
     expire_in: 1 week
     paths:
