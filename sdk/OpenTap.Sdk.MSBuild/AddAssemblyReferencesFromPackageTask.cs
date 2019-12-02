@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using Microsoft.Build.Framework;
@@ -18,8 +19,10 @@ namespace Keysight.OpenTap.Sdk.MSBuild
     [Serializable]
     public class AddAssemblyReferencesFromPackage : Task
     {
-        [Required]
         public string TargetMsBuildFile { get; set; }
+
+        [Output]
+        public string[] Assemblies { get; set; }
 
         public string PackageNames { get; set; }
 
@@ -54,22 +57,27 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                     }
                 }
             }
-
-            using (StreamWriter str = File.CreateText(TargetMsBuildFile))
+            Log.LogMessage(MessageImportance.Normal, "Found these assemblies in OpenTAP references: " + String.Join(", ", assembliesInPackages));
+            if (TargetMsBuildFile != null)
             {
-                str.WriteLine("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>");
-                str.WriteLine("<Project ToolsVersion=\"14.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">");
-                str.WriteLine("  <ItemGroup>");
-
-                foreach (string asmPath in assembliesInPackages)
+                using (StreamWriter str = File.CreateText(TargetMsBuildFile))
                 {
-                    str.WriteLine("    <Reference Include=\"{0}\">",Path.GetFileNameWithoutExtension(asmPath));
-                    str.WriteLine("      <HintPath>$(OutDir)\\{0}</HintPath>", asmPath);
-                    str.WriteLine("    </Reference>");
+                    str.WriteLine("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>");
+                    str.WriteLine("<Project ToolsVersion=\"14.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">");
+                    str.WriteLine("  <ItemGroup>");
+
+                    foreach (string asmPath in assembliesInPackages)
+                    {
+                        str.WriteLine("    <Reference Include=\"{0}\">", Path.GetFileNameWithoutExtension(asmPath));
+                        str.WriteLine("      <HintPath>$(OutDir)\\{0}</HintPath>", asmPath);
+                        str.WriteLine("    </Reference>");
+                    }
+                    str.WriteLine("  </ItemGroup>");
+                    str.WriteLine("</Project>");
                 }
-                str.WriteLine("  </ItemGroup>");
-                str.WriteLine("</Project>");
             }
+            Assemblies = assembliesInPackages.ToArray();
+
 
             return true;
         }
