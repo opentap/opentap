@@ -168,19 +168,23 @@ namespace OpenTap
         private ManualResetEventSlim completedEvent = new ManualResetEventSlim(false);
         
         /// <summary>
-        /// Waits for the teststep run to be entirely done. This includes any deferred processing.
+        /// Waits for the test step run to be entirely done. This includes any deferred processing.
         /// </summary>
         public void WaitForCompletion()
         {
             if (completedEvent.IsSet) return;
+
             var currentThread = TapThread.Current;
-            if(StepThread == currentThread) throw new InvalidOperationException("StepRun.WaitForCompletion called from the thread itself. This will either cause a deadlock or do nothing.");
+            if(!WasDeferred && StepThread == currentThread) throw new InvalidOperationException("StepRun.WaitForCompletion called from the thread itself. This will either cause a deadlock or do nothing.");
             var waits = new[] { completedEvent.WaitHandle, currentThread.AbortToken.WaitHandle };
             WaitHandle.WaitAny(waits);
         }
 
         /// <summary>  The thread in which the step is running. </summary>
         public TapThread StepThread { get; private set; }
+
+        /// <summary> Set to true if the step execution has been deferred. </summary>
+        internal bool WasDeferred { get; set; }
 
         #region Internal Members used by the TestPlan
 

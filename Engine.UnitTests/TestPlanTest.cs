@@ -495,22 +495,64 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
-        //[Test]
-        public void TestLoadReferenceCodev2()
+        class PrePostPlanTestStep : TestStep
         {
-            for(int i = 0; i < 10; i++)
+            public bool VerifyPrePlanRun;
+            public bool VerifyPostPlanRun;
+            public bool VerifyRun;
+            public bool VerifyDefer;
+            public override void PrePlanRun()
             {
-                var pln = new TestPlan();
-                var del = new DelayStep();
-                pln.ChildTestSteps.Add(del);
-                pln.ExternalParameters.Add(del, TypeData.FromType(typeof(DelayStep)).GetMember("DelaySecs"));
-                var pms = new List<ExternalParameter>();
-                var sw = Stopwatch.StartNew();
-                //TestPlanReference._fromProperties(pln.ExternalParameters.Entries.ToList());
-                //var e = sw.Elapsed;
-                //Debug.WriteLine("time spent: {0}", e);
+                base.PrePlanRun();
+                VerifyPrePlanRun = false;
+                VerifyPostPlanRun = false;
+                VerifyRun = false;
+                VerifyDefer = false;
+                Assert.IsNotNull(PlanRun);
+                Assert.IsNull(StepRun);
+                VerifyPrePlanRun = true;
+            }
+            public override void Run()
+            {
+                VerifyRun = true;
+                Assert.IsNotNull(PlanRun);
+                Assert.IsNotNull(StepRun);
+                Results.Defer(() =>
+                {
+                    Assert.IsNotNull(PlanRun);
+                    Assert.IsNotNull(StepRun);
+                    VerifyDefer = true;
+                    UpgradeVerdict(Verdict.Pass);
+                });
+            }
+
+            public override void PostPlanRun()
+            {
+                base.PostPlanRun();
+                Assert.IsNotNull(PlanRun);
+                Assert.IsNull(StepRun);
+                VerifyPostPlanRun = true;
             }
         }
+
+        [Test]
+        public void VerifyPrePostPlanRun()
+        {
+            var tp = new TestPlan();
+            var step = new PrePostPlanTestStep();
+            tp.ChildTestSteps.Add(step);
+            for (int i = 0; i < 4; i++)
+            {
+                var run = tp.Execute();
+                Assert.AreEqual(Verdict.Pass, run.Verdict);
+                Assert.IsTrue(step.VerifyDefer);
+                Assert.IsTrue(step.VerifyRun);
+                Assert.IsTrue(step.VerifyPostPlanRun);
+                Assert.IsTrue(step.VerifyPrePlanRun);
+            }
+        }
+
+        
 
         [Test]
         public void RelativeTestPlanTest()
@@ -1223,16 +1265,6 @@ namespace OpenTap.Engine.UnitTests
                 TestPlanRunStarted = true;
                 base.OnTestPlanRunStart(planRun);
             }
-
-            public override void OnTestStepRunStart(TestStepRun stepRun)
-            {
-                base.OnTestStepRunStart(stepRun);
-            }
-
-            public override void OnTestPlanRunCompleted(TestPlanRun planRun, Stream logStream)
-            {
-                base.OnTestPlanRunCompleted(planRun, logStream);
-            }
         }
 
         class FcnUserInput : IUserInputInterface
@@ -1283,7 +1315,7 @@ namespace OpenTap.Engine.UnitTests
             
             try
             {
-                DummyDut dut1 = new DummyDut();
+                DummyDut dut1 = new DummyDut() {Comment = "Comment0", ID = "ID0"};
                 DutSettings.Current.Clear();
                 DutSettings.Current.Add(dut1);
                 TestPlan plan = new TestPlan();

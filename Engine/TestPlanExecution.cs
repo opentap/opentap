@@ -44,6 +44,7 @@ namespace OpenTap
                         planRun.AddTestStepStateUpdate(step.Id, null, StepState.PrePlanRun);
                         try
                         {
+                            step.PlanRun = planRun;
                             planRun.ResourceManager.BeginStep(planRun, step, TestPlanExecutionStage.PrePlanRun, TapThread.Current.AbortToken);
                             try
                             {
@@ -52,6 +53,7 @@ namespace OpenTap
                             finally
                             {
                                 planRun.ResourceManager.EndStep(step, TestPlanExecutionStage.PrePlanRun);
+                                step.PlanRun = null;
                             }
                         }
                         finally
@@ -174,8 +176,7 @@ namespace OpenTap
             // Now wait for them to actually complete. They might defer internally.
             foreach (var run in runs)
             {
-                if(run.StepThread != TapThread.Current)
-                    run.WaitForCompletion();
+                run.WaitForCompletion();
                 execStage.UpgradeVerdict(run.Verdict);
             }
            
@@ -213,6 +214,7 @@ namespace OpenTap
                                 try
                                 {
                                     run.ResourceManager.BeginStep(run, step, TestPlanExecutionStage.PostPlanRun, TapThread.Current.AbortToken);
+                                    step.PlanRun = run;
                                     try
                                     {
                                         step.PostPlanRun();
@@ -220,6 +222,7 @@ namespace OpenTap
                                     finally
                                     {
                                         run.ResourceManager.EndStep(step, TestPlanExecutionStage.PostPlanRun);
+                                        step.PlanRun = null;
                                     }
                                 }
                                 finally
