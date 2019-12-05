@@ -2003,14 +2003,12 @@ namespace OpenTap.Engine.UnitTests
             ObjectAssertEqual(expected, actual);
         }
 
-
         void testStringConvert(object value)
         {
             var strfmt = StringConvertProvider.GetString(value);
             var reparse = StringConvertProvider.FromString(strfmt, TypeData.FromType(value.GetType()), null);
             DynObjectAssertEqual(value, reparse);
         }
-
 
         [Test]
         public void StringConvertTest()
@@ -2045,6 +2043,7 @@ namespace OpenTap.Engine.UnitTests
                 testStringConvert(instr1);
                 testStringConvert(instr2);
                 testStringConvert(dut1);
+                testStringConvert(new List<IResource> { instr1, instr2, dut1 });
             }
             finally
             {
@@ -2059,6 +2058,10 @@ namespace OpenTap.Engine.UnitTests
             testStringConvert(new EngineSettings.AbortTestPlanType[] { EngineSettings.AbortTestPlanType.Step_Error, EngineSettings.AbortTestPlanType.Step_Error | EngineSettings.AbortTestPlanType.Step_Fail });
             testStringConvert(new double[] { 1, 2, 3, 4, 7, 8, 9, 0 });
             testStringConvert(new List<int> { 1, 2, 3, 4, 7, 8, 9, 0 });
+            testStringConvert(new List<string> { "A A\"\" A A,", "B \" B B,", "C,D", "" });
+            testStringConvert(new List<Verdict> { Verdict.Pass, Verdict.Fail,Verdict.Pass,Verdict.Aborted });
+            testStringConvert(new List<EngineSettings.AbortTestPlanType> { EngineSettings.AbortTestPlanType.Step_Error | EngineSettings.AbortTestPlanType.Step_Fail, EngineSettings.AbortTestPlanType.Step_Error });
+
             var reparse = (Verdict)StringConvertProvider.FromString("pass", TypeData.FromType(typeof(Verdict)), null);
             Assert.AreEqual(Verdict.Pass, reparse);
         }
