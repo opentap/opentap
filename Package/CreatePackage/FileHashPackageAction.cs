@@ -80,7 +80,7 @@ namespace OpenTap.Package
         [UnnamedCommandLineArgument("Package", Required = false)]
         public string Package { get; set; }
 
-        int exitCode = 0;
+        int exitCode;
 
         void verifyPackage(PackageDef pkg)
         {
@@ -167,11 +167,8 @@ namespace OpenTap.Package
                     log.Error("Unable to locate package '{0}'", Package);
                     log.Info("Installed packages are: {0}", string.Join(", ", packages.Select(x => x.Name)));
                     return 1;
-                }
-                else
-                {
-                    verifyPackage(pkg);
-                }
+                }  
+                verifyPackage(pkg);
             }
             return exitCode;
         }
