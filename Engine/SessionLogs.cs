@@ -52,6 +52,12 @@ namespace OpenTap
         public static void Initialize()
         {
             if (CurrentLogFile != null) return;
+            
+            if (ExecutorClient.IsRunningIsolated)
+            {   // Use the recent system logs from original directory to avoid leaking log files.
+                recentSystemlogs = new LineFile(Path.Combine(ExecutorClient.ExeDir, recentLogsFileName));
+            }
+
             var timestamp = System.Diagnostics.Process.GetCurrentProcess().StartTime.ToString("yyyy-MM-dd HH-mm-ss");
 
             // Path example: <TapDir>/SessionLogs/SessionLog <timestamp>.txt
@@ -185,7 +191,9 @@ namespace OpenTap
             }
         }
 
-        static LineFile recentSystemlogs = new LineFile(".recent_logs");
+        const string recentLogsFileName = ".recent_logs";
+        
+        static LineFile recentSystemlogs = new LineFile(recentLogsFileName);
 
         /// <summary>
         /// Renames a previously initialized temporary log file.

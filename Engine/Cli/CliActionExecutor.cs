@@ -205,37 +205,36 @@ namespace OpenTap.Cli
                 else
                     return -1;
             }
-            
-            {   // setup logging to be relative to the executing assembly.
+
+            try
+            {
+                // setup logging to be relative to the executing assembly.
+                // at this point SessionLogs.Initialize has already been called (PluginManager.Load).
+                // so the log is already being saved at a different location.
                 var logpath = EngineSettings.Current.SessionLogPath.Expand(date: Process.GetCurrentProcess().StartTime);
-                bool? isPathRooted = null;
-                try
+                bool isPathRooted = Path.IsPathRooted(logpath);
+                if (isPathRooted == false)
                 {
-                    isPathRooted = Path.IsPathRooted(logpath);
-                }
-                catch
-                {
-                    log.Error("Path contains invalid characters: {0}", logpath);
-                }
-
-                if (isPathRooted.HasValue)
-                {
-                    if (isPathRooted.Value)
+                    var dir = Path.GetDirectoryName(typeof(SessionLogs).Assembly.Location);
+                    if (ExecutorClient.IsRunningIsolated)
                     {
-                        var dir = Path.GetDirectoryName(typeof(SessionLogs).Assembly.Location);
-                        if (ExecutorClient.IsRunningIsolated)
-                        {
-                            dir = ExecutorClient.ExeDir;
-                        }
-
-                        logpath = Path.Combine(dir, logpath);
+                        // redirect the isolated log path to the non-isolated path.
+                        dir = ExecutorClient.ExeDir;
                     }
 
-                    SessionLogs.Rename(logpath);
+                    logpath = Path.Combine(dir, logpath);
                 }
+
+                SessionLogs.Rename(logpath);
+            }
+            catch (Exception e)
+            {
+                log.Error("Path defined in Engine settings contains invalid characters: {0}", EngineSettings.Current.SessionLogPath);
+                log.Debug(e);
             }
 
-            if (selectedCommand != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
+            if (selectedCommand != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null
+            ) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
                 CliUserInputInterface.Load();
             
             ICliAction packageAction = null;
