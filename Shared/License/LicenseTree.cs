@@ -14,9 +14,9 @@ namespace OpenTap
         internal abstract bool Matches(HashSet<string> licenses);
         internal abstract IEnumerable<LicenseBase> FindMatch(HashSet<string> licenses);
 
-        internal static string FormatFriendly(string licenseString)
+        internal static string FormatFriendly(string licenseString, bool humanReadable = true)
         {
-            return PrintLicense(Prune(LicenseParser.ParseString(licenseString)));
+            return PrintLicense(Prune(LicenseParser.ParseString(licenseString)), humanReadable);
         }
 
         private static LicenseBase Prune(LicenseBase real)
@@ -62,34 +62,45 @@ namespace OpenTap
             return real;
         }
 
-        private static string PrintLicense(LicenseBase license)
+        private static string PrintLicense(LicenseBase license, bool humanReadable)
         {
             if (license is LicenseAll)
             {
-                return string.Join(" and ", (license as LicenseAll).Licenses.Select(l =>
-                {
-                    string output = PrintLicense(l);
-                    if (l is LicenseAny)
-                        output = "(" + output + ")";
-                    return output;
-                }
-                ).Where(x => x != ""));
+                List<string> outputs = (license as LicenseAll).Licenses.Select(l =>
+                    {
+                        string output = PrintLicense(l, humanReadable);
+                        if (l is LicenseAny && !string.IsNullOrEmpty(output))
+                            output = "(" + output + ")";
+                        return output;
+                    }
+                ).ToList();
+
+                // If two licenses are required (&) and one of them is "secret" (not printed), then the other one should not be printed either.
+                // For example: KS8000A&{BenchVue} should yield no output, as {BenchVue} is hidden and KS8000A will not work on its own.
+                if (outputs.Any(s => string.IsNullOrEmpty(s))) 
+                    return "";
+                else
+                    return string.Join(humanReadable ? " and " : "&", outputs);
             }
             else if (license is LicenseAny)
             {
-                return string.Join(" or ", (license as LicenseAny).Licenses.Select(l =>
-                {
-                    string output = PrintLicense(l);
-                    if (l is LicenseAll)
-                        output = "(" + output + ")";
-                    return output;
-                }
+                return string.Join(humanReadable ? " or " : "|", (license as LicenseAny).Licenses.Select(l =>
+                    {
+                        string output = PrintLicense(l, humanReadable);
+                        if (l is LicenseAll && !string.IsNullOrEmpty(output))
+                            output = "(" + output + ")";
+                        return output;
+                    }
                 ).Where(x => x != ""));
             }
             else if (license is LicenseRequired)
             {
                 string featureSeed = (license as LicenseRequired).FeatureSeed;
-                return featureSeed.Contains("-INT") ? "" : featureSeed;
+
+                if (humanReadable && featureSeed.Contains("-INT")) // hide -INT licenses only when printing to the user, when printing to an xml file we need to keep the int license
+                    return "";
+                else
+                    return featureSeed;
             }
 
             return "";

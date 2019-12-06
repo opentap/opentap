@@ -67,6 +67,7 @@
     <Compile Include="InstrumentsAndDuts\TwoPortInstrument.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ResultListeners\EventResultListener.cs" />
+    <Compile Include="TestSteps\Attributes\EmbedPropertiesAttributeExample.cs" />
     <Compile Include="TestSteps\DynamicStep.cs" />
     <Compile Include="TestSteps\PublishResults\SingleNameValuePair.cs" />
     <Compile Include="TestSteps\PublishResults\SetOfNameValuePairs.cs" />
@@ -99,7 +100,7 @@
     <Compile Include="TestSteps\Attributes\UnitAttributeExample.cs" />
     <Compile Include="TestSteps\Step Execution\OfferBreakExample.cs" />
     <Compile Include="GUI\CustomBenchSettings.cs" />
-    <Compile Include="GUI\IPAnnotation.cs"/>
+    <Compile Include="GUI\IPAnnotation.cs" />
     <Compile Include="InstrumentsAndDuts\SimpleInstrument.cs" />
     <Compile Include="InstrumentsAndDuts\UsingDutAndInstStep.cs" />
     <Compile Include="TestSteps\Step Settings\ListOfObjects.cs" />
