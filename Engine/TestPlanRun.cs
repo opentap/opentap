@@ -73,8 +73,6 @@ namespace OpenTap
         internal IList<IResultListener> ResultListeners;
 
         internal ManualResetEvent PromptWaitHandle = new ManualResetEvent(false);
-        /// <summary> delegates for resetting values set during ResourcePromptTasks.</summary>
-        internal ConcurrentStack<Action> ResourcePromptReset { get; set; } = new ConcurrentStack<Action>();
 
         /// <summary> Gets if the plan should be aborted on fail verdicts.</summary>
         internal bool AbortOnStepFail { get; } = EngineSettings.Current.AbortTestPlan.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail);
