@@ -375,6 +375,18 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void DerivedTypesTest()
+        {
+            var ilist = TypeData.FromType(typeof(System.Collections.IList));
+            var cmplists = TypeData.FromType(typeof(ComponentSettings)).DerivedTypes.Where(x => x.DescendsTo(ilist));
+            var reslists = cmplists.Where(x => x.ElementType.DescendsTo(typeof(IResource))).ToArray();
+            var inst = reslists.Select(x => ComponentSettings.GetCurrent(x.Type));
+            Assert.IsTrue(reslists.Contains(TypeData.FromType(typeof(InstrumentSettings))));
+            Assert.IsFalse(reslists.Contains(TypeData.FromType(typeof(ConnectionSettings))));
+            Assert.IsTrue(inst.Contains(InstrumentSettings.Current));
+        }
+
+        [Test]
         public void MemberData2Test()
         {
             var obj = new MyExpandedObject() { MyProp1 = 10 };
@@ -430,6 +442,12 @@ namespace OpenTap.Engine.UnitTests
 
             [AvailableValues(nameof(AvailableNumbers))]
             public List<double> SelectedMulti { get; set; } = new List<double> { 1, 2 };
+
+
+            public IEnumerable<string> AvailableStrings => new[] { "hello", "world", "!" };
+            [AvailableValues(nameof(AvailableStrings))]
+            public List<string> SelectedMultiStrings { get; set; } = new List<string> { };
+
 
             [Unit("s")]
             public IEnumerable<double> AvailableNumbers { get; set; } = new double[] { 1, 2, 3, 4, 5 };
@@ -706,6 +724,18 @@ namespace OpenTap.Engine.UnitTests
                     proxy.SelectedValues = avail.AvailableValues;
                     annotations.Write(testobj);
                     Assert.IsTrue(testobj.SelectedMulti.ToHashSet().SetEquals(testobj.AvailableNumbers));
+                    proxy.SelectedValues = Array.Empty<AnnotationCollection>();
+                    annotations.Write(testobj);
+                    Assert.AreEqual(0, testobj.SelectedMulti.Count);
+                }
+
+                if (mem.Member.Name == nameof(DataInterfaceTestClass.SelectedMultiStrings))
+                {
+                    var proxy = member.Get<IMultiSelectAnnotationProxy>();
+                    var avail = member.Get<IAvailableValuesAnnotationProxy>();
+                    proxy.SelectedValues = avail.AvailableValues;
+                    annotations.Write(testobj);
+                    Assert.IsTrue(testobj.SelectedMultiStrings.ToHashSet().SetEquals(testobj.AvailableStrings));
                     proxy.SelectedValues = Array.Empty<AnnotationCollection>();
                     annotations.Write(testobj);
                     Assert.AreEqual(0, testobj.SelectedMulti.Count);

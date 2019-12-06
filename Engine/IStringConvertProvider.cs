@@ -489,55 +489,89 @@ namespace OpenTap
                 var elemType = type.GetEnumerableElementType();
                 if (elemType == null) return null;
 
-                if (elemType.IsNumeric() || elemType.IsEnum)
-                {
 
-                    Array seq = null;
-                    if (elemType.IsNumeric())
+                Array seq = null;
+                if (elemType.IsNumeric())
+                {
+                    var fmt = new NumberFormatter(culture);
+                    var data = fmt.Parse(stringdata);
+                    if (data.GetType().DescendsTo(type))
+                        return data;
+                    seq = data.CastTo(elemType).Cast<object>().ToArray();
+                }
+                else
+                {
+                    // unescape nested strings and put them into 'parsedStrings'.
+                    // after this they will be handled individually.
+                    List<string> parsedStrings = new List<string>();
+                    StringBuilder buffer = new StringBuilder();
+                    for (int i = 0; i < stringdata.Length; i++)
                     {
-                        var fmt = new NumberFormatter(culture);
-                        var data = fmt.Parse(stringdata);
-                        if (data.GetType().DescendsTo(type))
-                            return data;
-                        seq = data.CastTo(elemType).Cast<object>().ToArray();   
-                    }
-                    else if (elemType.IsEnum)
-                    {
-                        var lst = stringdata.Split(',');
-                        List<object> items = new List<object>();
-                        foreach (var item in lst)
+                        var chr = stringdata[i];
+                        if (chr == ',')
                         {
-                            object e;
-                            if (!StringConvertProvider.TryFromString(item.Trim(), TypeData.FromType(elemType), null, out e))
-                                return null;
-                            if (e == null)
-                                return null; // error parsing.
-                            items.Add(e);
+                            parsedStrings.Add(buffer.ToString());
+                            buffer.Clear();
+                            continue;
                         }
-                        seq = items.ToArray();
+                        if (chr == '"')
+                        {
+                            for (i += 1; i < stringdata.Length; i++)
+                            {
+                                chr = stringdata[i];
+                                if (chr == '"')
+                                {
+                                    if (stringdata.Length > i + 1 && stringdata[i + 1] == '"')
+                                        i += 1; // skip escaped quotes and remove extra \".
+                                    else break;
+                                }
+                                buffer.Append(chr);
+                            }
+                        }
+                        else
+                        {
+                            buffer.Append(chr);
+                        }
                     }
-                    if (type.IsArray)
+                    parsedStrings.Add(buffer.ToString());
+
+                    var values = new List<object>();
+                    foreach (var str in parsedStrings)
                     {
-                        var array = Array.CreateInstance(elemType, seq.Length);
-                        int idx = 0;
-                        foreach (var item in seq)
-                            array.SetValue(item, idx++);
-                        return array;
+                        if (StringConvertProvider.TryFromString(str.Trim(), TypeData.FromType(elemType), null, out object e))
+                        {
+                            values.Add(e);
+                        }
+                        else
+                        {
+                            // cannot handle elment -> give up.
+                            return null;
+                        }
                     }
-                    else if (type.GetConstructor(new Type[0]) != null)
-                    {
-                        dynamic lst = (dynamic)Activator.CreateInstance(type);
-                        foreach (dynamic item in seq)
-                            lst.Add(item);
-                        return lst;
-                    }
-                    else
-                    {
-                        return null;
-                    }
+                    seq = values.ToArray();
+                }
+                if (seq == null) return null;
+                if (type.IsArray)
+                {
+                    var array = Array.CreateInstance(elemType, seq.Length);
+                    int idx = 0;
+                    foreach (var item in seq)
+                        array.SetValue(item, idx++);
+                    return array;
+                }
+                else if (type.GetConstructor(new Type[0]) != null)
+                {
+                    object lst = Activator.CreateInstance(type);
+                    var add = type.GetMethodsTap().First(m => m.Name == "Add");
+                    foreach (object item in seq)
+                        add.Invoke(lst, new[] { item });
+                    return lst;
+                }
+                else
+                {
+                    return null;
                 }
 
-                return null;
             }
 
             /// <summary> Turns a value into a string, </summary>
@@ -552,9 +586,18 @@ namespace OpenTap
                     var fmt = new NumberFormatter(culture);
                     return fmt.FormatRange((IEnumerable)value);
                 }
-                else if (elemType.IsEnum)
+                if( value is IEnumerable seq)
                 {
-                    return string.Join(", ", ((IEnumerable)value).Cast<object>().Select(x => StringConvertProvider.GetString(x, culture)));
+                    string escapeString(string str)
+                    {
+                        if(str.Contains(",") || str.Contains("\""))
+                            return $"\"{str?.Replace("\"", "\"\"") ?? ""}\"";
+                        return str;
+                    }
+                    var newvalues = seq.Cast<object>().Select(x => StringConvertProvider.GetString(x, culture))
+                        .Select(escapeString);
+                    return string.Join(", ", newvalues);
+                    
                 }
                 return null;
             }
@@ -565,14 +608,27 @@ namespace OpenTap
         /// </summary>
         internal class ResourceStringConvertProvider : IStringConvertProvider
         {
+            IEnumerable<IResource> _allResources = null;
+            IEnumerable<IResource> allResources
+            {
+                get
+                {
+                    if(_allResources == null)
+                    {
+                        var ilist = TypeData.FromType(typeof(IList));
+                        var cmplists = TypeData.FromType(typeof(ComponentSettings)).DerivedTypes.Where(x => x.DescendsTo(ilist));
+                        var reslists = cmplists.Where(x => x.ElementType.DescendsTo(typeof(IResource))).ToArray();
+                        _allResources = reslists.SelectMany(x => ComponentSettings.GetCurrent(x.Type) as IEnumerable<IResource>);
+                    }
+                    return _allResources;
+                }
+            }
             /// <summary> Finds a IResource based on strings. Only works on things loaded in Component Settings. </summary>
             public object FromString(string stringdata, ITypeData type, object contextObject, CultureInfo culture)
             {
                 if (type.DescendsTo(typeof(IResource)) == false) return null;
                 if (type is TypeData cst)
-                {
-                    return ComponentSettingsList.GetContainer(cst.Type).Cast<IResource>().FirstOrDefault(x => x.Name == stringdata);
-                }
+                    return allResources.FirstOrDefault(x => x.Name == stringdata && TypeData.GetTypeData(x).DescendsTo(type));
                 return null;
             }
 
