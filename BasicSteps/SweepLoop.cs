@@ -981,8 +981,7 @@ namespace OpenTap.Plugins.BasicSteps
                 List<object> allItems = new List<object>();
                 available = allItems;
 
-                Dictionary<IMemberData, object> members = new Dictionary<IMemberData, object>();
-                getPropertiesForItem((ITestStep)source, members);
+                Dictionary<IMemberData, object> members = SweepLoopRange.GetPropertiesForItems((ITestStep)source);
                 foreach (var member in members)
                 {
                     var anot = AnnotationCollection.Create(null, member.Key);
@@ -1006,24 +1005,8 @@ namespace OpenTap.Plugins.BasicSteps
 
                 Selected = (source as SweepLoopRange).SweepProperties.ToArray();
             }
-            static bool memberCanSweep(IMemberData mem) => false == mem.HasAttribute<UnsweepableAttribute>();
-            void getPropertiesForItem(ITestStep step, Dictionary<IMemberData, object> members)
-            {
-                foreach (ITestStep cs in step.ChildTestSteps)
-                {
-                    foreach (var member in TypeData.GetTypeData(cs).GetMembers())
-                    {
-                        if (member.TypeDescriptor is TypeData t)
-                        {
-                            if (t.Type.IsNumeric() && members.ContainsKey(member) == false && memberCanSweep(member))
-                            {
-                                members.Add(member, member.GetValue(cs));
-                            }
-                        }
-                    }
-                    getPropertiesForItem(cs, members);
-                }
-            }
+            
+
 
             public void Write(object source)
             {

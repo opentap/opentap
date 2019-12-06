@@ -26,18 +26,19 @@ namespace OpenTap.Cli
         public static int PerformExecute(this ICliAction action, string[] parameters)
         {
             ArgumentsParser ap = new ArgumentsParser();
-            var props = action.GetType().GetProperties();
+            var td = TypeData.GetTypeData(action);
+            var props = td.GetMembers();
 
             ap.AllOptions.Add("help", 'h', false, "Write help information.");
             ap.AllOptions.Add("verbose", 'v', false, "Show verbose/debug level log messages.");
             ap.AllOptions.Add("color", 'c', false, "Color messages according to their level.");
 
-            var argToProp = new Dictionary<string, PropertyInfo>();
-            var unnamedArgToProp = new List<PropertyInfo>();
+            var argToProp = new Dictionary<string, IMemberData>();
+            var unnamedArgToProp = new List<IMemberData>();
 
             foreach (var prop in props)
             {
-                if (prop.GetSetMethod() == null || prop.GetGetMethod() == null)
+                if (prop.Readable == false || prop.Writable == false)
                     continue;
 
                 if (prop.HasAttribute<UnnamedCommandLineArgument>())
@@ -51,7 +52,7 @@ namespace OpenTap.Cli
 
                 var attr = prop.GetAttribute<CommandLineArgumentAttribute>();
 
-                var needsArg = prop.PropertyType != typeof(bool);
+                var needsArg = prop.TypeDescriptor != TypeData.FromType(typeof(bool));
 
                 string description = "";
                 if (prop.HasAttribute<ObsoleteAttribute>())
@@ -85,12 +86,18 @@ namespace OpenTap.Cli
                 if (argToProp.ContainsKey(opts.Key) == false) continue; 
                 var prop = argToProp[opts.Key];
 
-                if (prop.PropertyType == typeof(Boolean)) prop.SetValue(action, true);
-                else if (prop.PropertyType.IsEnum) prop.SetValue(action, ParseEnum(opts.Key, opts.Value.Value, prop.PropertyType));
-                else if (prop.PropertyType == typeof(string)) prop.SetValue(action, opts.Value.Value);
-                else if (prop.PropertyType == typeof(string[])) prop.SetValue(action, opts.Value.Values.ToArray());
-                else if (prop.PropertyType == typeof(int)) prop.SetValue(action, int.Parse(opts.Value.Value));
-                else throw new Exception(string.Format("Invalid command line option: {0}", opts.Key));
+                if (prop.TypeDescriptor is TypeData propTd)
+                {
+                    Type propType = propTd.Load();
+                    if (propType == typeof(bool)) prop.SetValue(action, true);
+                    else if (propType.IsEnum) prop.SetValue(action, ParseEnum(opts.Key, opts.Value.Value, propType));
+                    else if (propType == typeof(string)) prop.SetValue(action, opts.Value.Value);
+                    else if (propType == typeof(string[])) prop.SetValue(action, opts.Value.Values.ToArray());
+                    else if (propType == typeof(int)) prop.SetValue(action, int.Parse(opts.Value.Value));
+                    else throw new Exception(string.Format("Command line option '{0}' is of an unsupported type '{1}'.", opts.Key, propType.Name));
+                }
+                else
+                    throw new Exception(string.Format("Command line option '{0}' is of an unsupported type '{1}'.", opts.Key, prop.TypeDescriptor.Name));
             }
 
             unnamedArgToProp = unnamedArgToProp.OrderBy(p => p.GetAttribute<UnnamedCommandLineArgument>().Order).ToList();
@@ -101,7 +108,7 @@ namespace OpenTap.Cli
             {
                 var p = unnamedArgToProp[i];
 
-                if (p.PropertyType == typeof(string))
+                if (p.TypeDescriptor.IsA(typeof(string)))
                 {
                     if (idx < args.UnnamedArguments.Length)
                     {
@@ -109,7 +116,7 @@ namespace OpenTap.Cli
                         requiredArgs.Remove(p);
                     }
                 }
-                else if (p.PropertyType == typeof(string[]))
+                else if (p.TypeDescriptor.IsA(typeof(string[])))
                 {
                     if (idx < args.UnnamedArguments.Length)
                     {
@@ -119,12 +126,12 @@ namespace OpenTap.Cli
 
                     idx = args.UnnamedArguments.Length;
                 }
-                else if (p.PropertyType.IsEnum)
+                else if (p.TypeDescriptor is TypeData td2 && td2.Type.IsEnum)
                 {
                     if (idx < args.UnnamedArguments.Length)
                     {
-                        var name = p.GetCustomAttribute<UnnamedCommandLineArgument>()?.Name ?? p.Name;
-                        p.SetValue(action, ParseEnum($"<{name}>", args.UnnamedArguments[idx++], p.PropertyType));
+                        var name = p.GetAttribute<UnnamedCommandLineArgument>()?.Name ?? p.Name;
+                        p.SetValue(action, ParseEnum($"<{name}>", args.UnnamedArguments[idx++], td2.Type));
                         requiredArgs.Remove(p);
                     }
                 }
@@ -142,26 +149,10 @@ namespace OpenTap.Cli
                 return 1;
             }
 
-            CancellationTokenSource source = new CancellationTokenSource();
-            // Register handler for CTRL-C key press to enable user to cancel the run
-            try
-            {
-                Console.TreatControlCAsInput = false; // Turn off the default system behavior when CTRL+C is pressed. When Console.TreatControlCAsInput is false, CTRL+C is treated as an interrupt instead of as input.
-                Console.CancelKeyPress += (s, e) => 
-                {
-                    source.Cancel();
-                    e.Cancel = true;
-                };
-            }
-            catch (IOException)
-            {
-                
-            }
-            
-            return action.Execute(source.Token);
+            return action.Execute(TapThread.Current.AbortToken);
         }
 
-        private static void printOptions(string passName, ArgumentCollection options, List<PropertyInfo> unnamed)
+        private static void printOptions(string passName, ArgumentCollection options, List<IMemberData> unnamed)
         {
             Console.WriteLine("Usage: {2} {0} {1}",
                 string.Join(" ", options.Values.Where(x => x.IsVisible).Select(x =>
@@ -177,7 +168,7 @@ namespace OpenTap.Cli
                 {
                     var str = x.GetAttribute<UnnamedCommandLineArgument>().Name;
 
-                    if (x.PropertyType == typeof(string[]))
+                    if (x.TypeDescriptor.IsA(typeof(string[])))
                         str = "[" + str + "]";
                     else
                         str = "<" + str + ">";

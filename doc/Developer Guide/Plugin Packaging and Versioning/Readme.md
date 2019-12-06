@@ -21,8 +21,10 @@ $(GitVersion) - Gets the version number in the recommended format Major.Minor.Bu
 <Package Name="Example Plugin"
          xmlns="http://opentap.io/schemas/package"
          InfoLink="http://www.keysight.com/"
-         Version="0.1.0-alpha">
+         Version="0.1.0-alpha"
+         Group="Example">
   <Description>Example plugin containing Instrument, DUT and TestStep.</Description>
+  <Owner>OpenTAP</Owner>
     <Files>
       <File Path="Packages/Example Plugin/OpenTap.Plugins.ExamplePlugin.dll">
         <!--SetAssemblyInfo updates assembly info according to package version.-->
@@ -41,7 +43,7 @@ $(GitVersion) - Gets the version number in the recommended format Major.Minor.Bu
 ## Packaging Configuration File
 When creating a OpenTAP Package the configuration is specified using an xml file (typically called package.xml).
 
-The configuration file supports five optional attributes:
+The configuration file supports optional attributes:
 
 | **Attribute** | **Description** |
 | ---- | -------- |
@@ -50,22 +52,61 @@ The configuration file supports five optional attributes:
 | **OS**   | Used to filter packages which are compatible with the operating system the PackageManager is running on. If the attribute is not specified, the default "Windows" is used. |
 | **Architecture**   | Used to filter packages which are compatible with a certain CPU architecture. If the attribute is not specified it is assumed that the Plugin works on all architectures. |
 | **Class**   | This attribute is used to classify a package. It can be set to **package**, **bundle** or **system-wide** (default value: **package**). A package of class **bundle** references a collection of OpenTAP packages, but does not contain the referenced packages. Packages in a bundle do not need to depend on each other to be referenced. For example, Keysight Developer's System is a bundle that reference the Editor (GUI), Timing Analyzer, Results Viewer, and SDK packages. <br><br> A package of class **system-wide** is installed in a global system folder so these packages can affect other installations of OpenTAP and cannot be uninstalled with the PackageManager. System-wide packages should not be OpenTAP plugins, but rather drivers and libraries.  The system folders are located differently depending on operating system and drive specifications: Windows (normally) - `C:\ProgramData\Keysight\OpenTAP`, Linux -  `/usr/share/Keysight/OpenTAP`|
+| **Group** | Name of the group that this package belongs to. Groups can be nested in other groups, in which case this string will have several entries separated with '/' or '\'. May be empty. UIs may use this information to show a list of packages as a tree structure. See the example below. |
+| **LicenseRequired** | License key(s) required to use this package. During package create all `LicenseRequired` attributes from the `File` Elements will be concatenated into this property. Bundle packages (`Class` is 'bundle') can use this property to show license keys that are required by the bundle dependencies.  |
 
 The content of one of the strings assigned to the `OS` attribute must be contained in the output of the commands `uname -a` on linux/osx or `ver` on windows for the plugin to be considered compatible. The use of strings like `"Windows"`, `"Linux"` or `"Ubuntu"` is recommended. However, it is possible to use abbreviations, such as `"Win"` or to target a specific version of an operating system. This can be done by writing the exact name and the version number. For example, a plugin with the `OS` attribute `"Microsoft Windows [Version 10.0.14393]"` targets the specified version of Windows and is incompatible with other versions or operating systems. 
+
+> **Note:** OpenTAP does not validate any `LicenseRequired` attributes. This attribute is only used by UIs to inform the user of a license key. The license key check should be implemented by the plugin assembly.
+
+### Owner Element
+The **Owner** element inside the configuration file is the name of the package owner. There can be multiple owners of a package, in which case this string will have several entries separated with ','. An example of this can be seen in the example below.
+
+### SourceUrl Element
+The **SourceUrl** element in the configuration file is a link to the package source code. This is intended for open sourced projects.
 
 ### File Element
 The **File** element inside the configuration file supports the following attributes:
 
 | **Attribute** | **Description** |
 | ---- | -------- |
-| **Path** | The path to the file. This is relative to the root the OpenTAP installation directory. This serves as both source (where the packaging tool should get the file when creating the package) and target (where the file sould be located when installed). Unless there are special requirements, the convention is to put all payload files in a Packages/<PackageName>/ subfolder. Wildcards are supported - see later section.
-| **SourcePath** | Optional. If present the packaging tool will get the file from this path when creating the package.
+| **Path** | The path to the file. This is relative to the root the OpenTAP installation directory. This serves as both source (where the packaging tool should get the file when creating the package) and target (where the file sould be located when installed). Unless there are special requirements, the convention is to put all payload files in a Packages/<PackageName>/ subfolder. Wildcards are supported - see later section. |
+| **SourcePath** | Optional. If present the packaging tool will get the file from this path when creating the package. |
+| **LicenseRequired** | License key required by the package file. |
 
 The **File** element can optionally contain custom elements supported by OpenTAP packages. In the above example it includes the `SetAssemblyInfo` element, which is supported by a Keysight OpenTAP package. When `SetAssemblyInfo` is set to `Version`, AssemblyVersion, AssemblyFileVersion and AssemblyInformationalVersion attributes of the file are set according to the package's version.
 
 ### Package Icon
 A package can also include a package icon. The **File** element inside the configuration file supports adding a package icon by using the `Path` attribute to point to an image and using the `PackageIcon` element inside the `File` element. See the example above.
 
+
+### Wildcards
+
+It is possible to include multiple files using only a single **File** element using wildcards ([file globbing](https://en.wikipedia.org/wiki/Glob_(programming))). When using a wildcard in a **File** element's **Path** attribute, the element is replaced with new **File** elements representing all the files that match the pattern when the packaging tool is run. The following wildcards are supported:
+
+| Wildcard | Description                                         | Example |  Matches             |
+| -------- | --------------------------------------------------- | ------- | -------------------- |
+| *        | Matches any number of any characters including none. | Law*    | Law, Laws, or Lawyer | 
+| ?        | Matches any single character.                        | ?at     | Cat, cat, Bat or bat |
+| **       | Matches any number of path / directory segments. When used must be the only contents of a segment. | /**/some.* | /foo/bar/bah/some.txt, /some.txt, or /foo/some.txt. |
+
+When using wildcards in the **Path** attribute, the **SourcePath** attribute has no effect. All matching **File** elements will have all the same child elements as the original wildcard element. So this feature could be applied to the XML from the previous section as such:
+```xml
+...
+ <Files>
+    <File Path="Packages/MyPlugin/*.dll">
+      <!-- SetAssemblyInfo Applied to all '.dll' files matching the wildcard. -->
+      <SetAssemblyInfo Attributes="Version"/> 
+    </File>
+   <!-- All '.wfm' files from the directory are included. -->
+   <File Path="Packages/MyPlugin/*.wfm"/> 
+   <File Path="Packages/MyPlugin/Example Icon.ico">
+    <!-- Only one package icon - no wildcard is used. -->
+     <PackageIcon/> 
+   </File>
+ </Files>
+ ...
+ ```
 
 ### Example
 
@@ -74,7 +115,7 @@ The below configuration file results in `MyPlugin.{version}.TapPackage` file,con
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://myplugin.com"
-		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64">
+		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example">
   <Description>
     This is an example of an "package.xml" file.
     <Status>Released</Status>
@@ -87,7 +128,8 @@ The below configuration file results in `MyPlugin.{version}.TapPackage` file,con
     <Links>
       <Link Description="Description of the MyPlugin" Name="MyPlugin" Url="http://www.keysight.com/find/TAP"/>
     </Links>
-  </Description>  
+  </Description>
+  <Owner>OpenTAP</Owner>
   <Files>
     <File Path="Packages/MyPlugin/OpenTAP.Plugins.MyPlugin.dll">
       <SetAssemblyInfo Attributes="Version"/>
@@ -144,33 +186,13 @@ The dependency and version information added by the Package Manager allows it to
 
 If the package has dependencies on other packages it is possible to create a file with the .TapPackages extension. This is essentially a zip file that contains the created package and all the other packages it depends on. This allows the installation of all necessary packages at the same time, thus making package distribution easier.
 
-### Wildcards
+### Example of UIs using Owner, Group and Class
+Following the image below:
+- The first `DMM` entry represent the group specified by the four following packages.
+- The small square icons signifies the package is a bundle (class attribute).
+- The gray text `by: Keysight Technologies` signifies the owner of the package.
 
-It is possible to include multiple files using only a single **File** element using wildcards ([file globbing](https://en.wikipedia.org/wiki/Glob_(programming))). When using a wildcard in a **File** element's **Path** attribute, the element is replaced with new **File** elements representing all the files that match the pattern when the packaging tool is run. The following wildcards are supported:
-
-| Wildcard | Description                                         | Example |  Matches             |
-| -------- | --------------------------------------------------- | ------- | -------------------- |
-| *        | Matches any number of any characters including none. | Law*    | Law, Laws, or Lawyer | 
-| ?        | Matches any single character.                        | ?at     | Cat, cat, Bat or bat |
-| **       | Matches any number of path / directory segments. When used must be the only contents of a segment. | /**/some.* | /foo/bar/bah/some.txt, /some.txt, or /foo/some.txt. |
-
-When using wildcards in the **Path** attribute, the **SourcePath** attribute has no effect. All matching **File** elements will have all the same child elements as the original wildcard element. So this feature could be applied to the XML from the previous section as such:
-```xml
-...
- <Files>
-    <File Path="Packages/MyPlugin/*.dll">
-      <!-- SetAssemblyInfo Applied to all '.dll' files matching the wildcard. -->
-      <SetAssemblyInfo Attributes="Version"/> 
-    </File>
-   <!-- All '.wfm' files from the directory are included. -->
-   <File Path="Packages/MyPlugin/*.wfm"/> 
-   <File Path="Packages/MyPlugin/Example Icon.ico">
-    <!-- Only one package icon - no wildcard is used. -->
-     <PackageIcon/> 
-   </File>
- </Files>
- ...
- ```
+![](GroupOwner.png)
 
 ## Command Line Use
 You can create an OpenTAP package from the command line or from MSBUILD (directly in Visual Studio). If you create an OpenTAP project in Visual Studio using the SDK, the resulting project is set up to generate a .TapPackage using the Keysight.OpenTAP.Sdk.MSBuild.dll (only when building in "Release" configuration).

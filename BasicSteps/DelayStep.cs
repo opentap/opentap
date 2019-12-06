@@ -7,7 +7,6 @@ using System.ComponentModel;
 
 namespace OpenTap.Plugins.BasicSteps
 {
-    [Browsable(true)]
     [Display("Delay", Group:"Basic Steps", Description: "Delays for a specified amount of time.")]
     public class DelayStep : TestStep
     {

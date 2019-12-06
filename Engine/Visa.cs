@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -105,12 +106,9 @@ internal static class Visa
         {
             LoadLib = () =>
             {
-                var x = dlopen("./libvisa32.so", RTLD_NOW);
-                if (x == IntPtr.Zero) x = dlopen("./libvisa.so", RTLD_NOW);
-                if (x == IntPtr.Zero) x = dlopen("libvisa32.so", RTLD_NOW);
-                if (x == IntPtr.Zero) x = dlopen("libvisa.so", RTLD_NOW);
-
-                return x;
+                string[] paths = {"./libvisa32.so", "./libvisa.so", "libvisa32.so", "libvisa.so", "libiovisa.so", "./libiovisa.so"};
+                return paths.Select(x => dlopen(x, flags: RTLD_NOW))
+                    .FirstOrDefault(x => x != IntPtr.Zero);
             };
             LoadSym = (lib_handle, name, ord) => dlsym(lib_handle, name);
         }

@@ -183,6 +183,7 @@ namespace OpenTap
         /// Abstract types and interfaces are not included.
         /// This does not require/cause the assembly containing the type to be loaded.
         /// This will search for plugins if not done already (i.e. call and wait for <see cref="PluginManager.SearchAsync()"/>)
+        /// Only C#/.NET types are returned. To also get dynamic types (from custom <see cref="ITypeDataSearcher"/>s) use <see cref="TypeData.GetDerivedTypes(ITypeData)"/> instead.
         /// </summary>
         public static ReadOnlyCollection<TypeData> GetAllPlugins()
         {
@@ -196,10 +197,11 @@ namespace OpenTap
         /// Returns a list of types that implement a specified plugin base type.
         /// This will load the assembly containing the type, if not already loaded.
         /// This will search for plugins if not done already (i.e. call and wait for <see cref="PluginManager.SearchAsync()"/>)
+        /// Only C#/.NET types are returned. To also get dynamic types (from custom <see cref="ITypeDataSearcher"/>s) use <see cref="TypeData.GetDerivedTypes(ITypeData)"/> instead.
         /// </summary>
         /// <remarks>
         /// This is just to provide a more convenient syntax compared to <see cref="GetPlugins(Type)"/>. The funcionallity is identical.
-        /// </remarks>
+        /// </remarks>  
         /// <typeparam name="BaseType">find types that descends from this type.</typeparam>
         /// <returns>A read-only collection of types.</returns>
         public static ReadOnlyCollection<Type> GetPlugins<BaseType>()
@@ -439,6 +441,7 @@ namespace OpenTap
         /// This does not require/cause the assembly containing the type to be loaded.
         /// This will search for plugins if not done already (i.e. call and wait for <see cref="PluginManager.SearchAsync()"/>)
         /// </summary>
+        [Obsolete("This only returns C#/.NET types. Use TypeData.GetDerivedTypes instead.")]
         public static TypeData LocateTypeData(string typeName)
         {
             PluginSearcher searcher = GetSearcher();

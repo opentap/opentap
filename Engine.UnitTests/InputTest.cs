@@ -27,6 +27,9 @@ namespace OpenTap.Engine.UnitTests
             var prop = TypeData.FromType(typeof(DelayStep)).GetMember(nameof(DelayStep.DelaySecs));
             DelayStep delay = new DelayStep();
             Input<double> secs = new Input<double>() { Step = delay, Property = prop};
+            
+            
+            
             delay.DelaySecs = 2;
             Assert.AreEqual(secs.Value, delay.DelaySecs);
 
@@ -36,10 +39,12 @@ namespace OpenTap.Engine.UnitTests
             Input<double> secs3 = new Input<double>() { Step = delay, Property = null };
             Input<double> secs4 = new Input<double>() { Step = null, Property = prop };
             Input<double> secs5 = new Input<double>() { Step = null, Property = null };
+            Input<double> secs6 = new Input<double>() { Step = delay, PropertyName = prop.Name};
             Assert.IsFalse(secs3 == secs4);
             Assert.IsFalse(secs4 == secs5);
             Assert.IsFalse(secs3 == secs5);
             Assert.IsTrue(secs == secs2);
+            Assert.IsTrue(secs == secs6);
 
             { // test serialize
                 var plan = new TestPlan();
