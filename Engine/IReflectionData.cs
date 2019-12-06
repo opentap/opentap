@@ -312,6 +312,19 @@ namespace OpenTap
         {
             Types = PluginManager.GetSearcher().AllTypes.Values;
         }
+
+        /// <summary>
+        /// This throws an exception due to the ambiguousness of TypeData.FromType vs TypeData.GetTypeData. To get TypeData representing a type use TypeData.FromType.
+        /// Otherwise cast 'type' to an 'object' first.
+        /// </summary>
+        [Obsolete("This overload of GetTypeData should not be used: To get TypeData representing a type use TypeData.FromType. Otherwise cast 'type' to an 'object' first.", true)]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        static public ITypeData GetTypeData(Type _)
+        {
+            throw new NotSupportedException(@"Ambiguous call to GetTypeData: To get TypeData representing a type use TypeData.FromType."
+            + "Otherwise cast 'type' to an 'object' first.");
+        } 
+        
     }
 
     /// <summary> Helpers for work with ITypeInfo objects. </summary>
