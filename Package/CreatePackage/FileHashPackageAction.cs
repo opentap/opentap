@@ -14,7 +14,7 @@ using System.Xml.Serialization;
 namespace OpenTap.Package
 {
     /// <summary> SHA1 hashes the files of a TapPackage and includes it in the package.xml file. </summary>
-    public class FileHashPackageAction : ICustomPackageAction
+    class FileHashPackageAction : ICustomPackageAction
     {
         static TraceSource log = Log.CreateSource("Verify");
 
@@ -75,10 +75,6 @@ namespace OpenTap.Package
     class VerifyPackageHashes : ICliAction
     {
         static TraceSource log = Log.CreateSource("Verify");
-
-        /// <summary> Check the hashes of all packages. </summary>
-        [CommandLineArgument("all", Description = "Verify all installed packages.", ShortName = "a")]
-        public bool All { get; set; }
 
         /// <summary> Verify a specific package. </summary>
         [UnnamedCommandLineArgument("Package", Required = false)]
@@ -158,7 +154,7 @@ namespace OpenTap.Package
         {
             var installation = new Installation(Path.GetDirectoryName(typeof(TestPlan).Assembly.Location));
             var packages = installation.GetPackages();
-            if (All)
+            if (string.IsNullOrEmpty(Package))
             {
                 foreach(var package in packages)
                     verifyPackage(package);
