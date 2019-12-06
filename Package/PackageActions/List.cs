@@ -206,7 +206,7 @@ namespace OpenTap.Package
 
                 // assuming that all dlls in the package requires has the same or distinct license requirements. 
                 // Duplicates are made if one file requires X|Y and the other X|Z or even Y|X.
-                var licensesRequiredStrings = plugin.Files.Select(p => p.LicenseRequired).Where(l => string.IsNullOrWhiteSpace(l) == false).Select(LicenseBase.FormatFriendly).Distinct();
+                var licensesRequiredStrings = plugin.Files.Select(p => p.LicenseRequired).Where(l => string.IsNullOrWhiteSpace(l) == false).Select(l => LicenseBase.FormatFriendly(l)).Distinct();
 
                 var licenses = string.Join(" & ", licensesRequiredStrings);
 

@@ -74,7 +74,7 @@ namespace OpenTap.Cli
         /// Sets the enabled result listeners for this test plan execution as a comma separated list. An example could be --results SQLite,CSV. To disable all result listeners use --results \"\".
         /// </summary>
         [CommandLineArgument("results", Description = "Sets the enabled result listeners for this test plan execution as a comma separated list. An example could be --results SQLite,CSV. To disable all result listeners use --results \"\".")]
-        public string Results { get; set; } = "";
+        public string Results { get; set; }
 
         /// <summary>
         /// Location of test plan to be executed.
@@ -149,7 +149,7 @@ namespace OpenTap.Cli
             }
 
 
-            if (!string.IsNullOrWhiteSpace(Results))
+            if (Results != null)
             {
                 try
                 {
