@@ -158,12 +158,9 @@ namespace OpenTap.Package
             return null;
         }
 
-        readonly HashSet<ITypeData> allTypes = new HashSet<ITypeData>();
         XElement endnode;
         public override bool Serialize(XElement elem, object obj, ITypeData type)
         {
-            if (!allTypes.Add(type))
-                return false;
             if (endnode == null)
             {
                 endnode = elem;
@@ -172,7 +169,7 @@ namespace OpenTap.Package
                 if (WritePackageDependencies) // Allow a serializer futher down the stack to disable the <Package.Dependencies> tag
                 {
                     var pluginsNode = new XElement(PackageDependenciesName);
-                    var allassemblies = allTypes.Select(getAssemblyName).Where(x => x != null).ToHashSet(StringComparer.InvariantCultureIgnoreCase);
+                    var allAssemblies = Serializer.GetUsedTypes().Select(getAssemblyName).Where(x => x != null).ToHashSet(StringComparer.InvariantCultureIgnoreCase);
                     var plugins = new Installation(Path.GetDirectoryName(Assembly.GetAssembly(typeof(PluginManager)).Location)).GetPackages();
 
                     List<PackageDef> packages = new List<PackageDef>();
@@ -183,7 +180,7 @@ namespace OpenTap.Package
                         {
                             var filename = Path.GetFileName(file.FileName.Replace("\\", "/"));
 
-                            if (allassemblies.Contains(filename))
+                            if (allAssemblies.Contains(filename))
                             {
                                 packages.Add(plugin);
                                 break;
@@ -201,6 +198,8 @@ namespace OpenTap.Package
                     }
                     elem.Add(pluginsNode);
                 }
+
+                endnode = null;
                 return ok;
             }
             return false;
