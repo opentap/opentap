@@ -71,7 +71,7 @@ namespace OpenTap.Package
     }
 
     /// <summary> CLI Action to verify the installed packages by checking their hashes. </summary>
-    [Display("verify", "Verifies the files of a TapPackage.", "package")]
+    [Display("verify", "Verifies installed packages by checking their hashes.", "package")]
     class VerifyPackageHashes : ICliAction
     {
         static TraceSource log = Log.CreateSource("Verify");
