@@ -322,14 +322,23 @@ namespace OpenTap
             }
         }
 
-        /// <summary>
-        /// Creates an instance of t with no constructor arguments.
-        /// </summary>
-        /// <param name="t"></param>
-        /// <returns></returns>
-        public static object CreateInstance(this Type t)
+        /// <summary> Creates an instance of t with no constructor arguments. </summary>
+        public static object CreateInstance(this Type t, params object[] args) => Activator.CreateInstance(t, args);
+
+        /// <summary> Creates an instance of type t. If an error occurs it returns null and prints an error message. </summary>
+        public static object CreateInstanceSafe(this ITypeData t, params object[] args)
         {
-            return Activator.CreateInstance(t);
+            try
+            {
+                return t.CreateInstance(args);
+            }
+            catch(Exception e)
+            {
+                var log = Log.CreateSource("Reflection");
+                log.Error($"Cannot create instance of {t.Name}: '{e.Message}'");
+                log.Debug(e);
+            }
+            return null;
         }
 
         /// <summary>
