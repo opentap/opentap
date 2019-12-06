@@ -208,17 +208,6 @@ namespace OpenTap
             postload();
             return hasFlags;
         }
-
-        /// <summary> Get the type info of an object. </summary>
-        static public ITypeData GetTypeData(object obj)
-        {
-            if (obj == null) return FromType(typeof(object));
-            var resolver = new TypeDataProviderStack();
-            return resolver.GetTypeData(obj);
-        }
-
-        /// <summary> Gets the type info from a string. </summary>
-        static public ITypeData GetTypeData(string name) => new TypeDataProviderStack().GetTypeData(name);
     }
 
     /// <summary>
@@ -361,30 +350,5 @@ namespace OpenTap
 
         /// <summary> Gets a string representation of this CSharpType. </summary>
         public override string ToString() => $"[{Name}]";
-    }
-
-    /// <summary> Type info provider for C# types. </summary>
-    internal class CSharpTypeInfoProvider : ITypeDataProvider
-    {
-        /// <summary> The priority of this type info provider.  </summary>
-        public double Priority => 0;
-        /// <summary> Gets the C# type info for a string.  </summary>
-        public ITypeData GetTypeData(string identifier)
-        {
-            
-            var type = PluginManager.LocateType(identifier);
-            if (type != null)
-            {
-                return TypeData.FromType(type);
-            }
-            return null;
-        }
-
-        /// <summary> Gets the C# type info for an object. </summary>
-        public ITypeData GetTypeData(object obj)
-        {
-            var type = obj.GetType();
-            return TypeData.FromType(type);
-        }
     }
 }
