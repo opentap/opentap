@@ -44,6 +44,7 @@ namespace OpenTap
                         planRun.AddTestStepStateUpdate(step.Id, null, StepState.PrePlanRun);
                         try
                         {
+                            step.PlanRun = planRun;
                             planRun.ResourceManager.BeginStep(planRun, step, TestPlanExecutionStage.PrePlanRun, TapThread.Current.AbortToken);
                             try
                             {
@@ -52,6 +53,7 @@ namespace OpenTap
                             finally
                             {
                                 planRun.ResourceManager.EndStep(step, TestPlanExecutionStage.PrePlanRun);
+                                step.PlanRun = null;
                             }
                         }
                         finally
@@ -212,6 +214,7 @@ namespace OpenTap
                                 try
                                 {
                                     run.ResourceManager.BeginStep(run, step, TestPlanExecutionStage.PostPlanRun, TapThread.Current.AbortToken);
+                                    step.PlanRun = run;
                                     try
                                     {
                                         step.PostPlanRun();
@@ -219,6 +222,7 @@ namespace OpenTap
                                     finally
                                     {
                                         run.ResourceManager.EndStep(step, TestPlanExecutionStage.PostPlanRun);
+                                        step.PlanRun = null;
                                     }
                                 }
                                 finally
@@ -354,9 +358,6 @@ namespace OpenTap
                             planRun.PromptWaitHandle.Set();
                         }
                     }, name: "Request Metadata");
-                    
-                
-                planRun.ResourcePromptReset = new System.Collections.Concurrent.ConcurrentStack<Action>();
             }
             else
             {
@@ -684,18 +685,6 @@ namespace OpenTap
                 foreach (var step in allSteps)
                     step.StepRun = null;
 
-                while (execStage.ResourcePromptReset.TryPop(out var action))
-                {
-                    try
-                    {
-                        action();
-                    }
-                    catch (Exception e)
-                    {
-                        Log.Error("Caught exception while resetting metadata. '{0}'", e.Message);
-                        Log.Debug(e);
-                    }
-                }
                 executingPlanRun.LocalValue = prevExecutingPlanRun;
                 CurrentRun = prevExecutingPlanRun;
             }

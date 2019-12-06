@@ -168,34 +168,40 @@ namespace OpenTap
         private ManualResetEventSlim completedEvent = new ManualResetEventSlim(false);
         
         /// <summary>
-        /// Waits for the teststep run to be entirely done. This includes any deferred processing.
+        /// Waits for the test step run to be entirely done. This includes any deferred processing.
         /// </summary>
         public void WaitForCompletion()
         {
             if (completedEvent.IsSet) return;
-            var waits = new[] { completedEvent.WaitHandle, TapThread.Current.AbortToken.WaitHandle };
+
+            var currentThread = TapThread.Current;
+            if(!WasDeferred && StepThread == currentThread) throw new InvalidOperationException("StepRun.WaitForCompletion called from the thread itself. This will either cause a deadlock or do nothing.");
+            var waits = new[] { completedEvent.WaitHandle, currentThread.AbortToken.WaitHandle };
             WaitHandle.WaitAny(waits);
         }
 
+        /// <summary>  The thread in which the step is running. </summary>
+        public TapThread StepThread { get; private set; }
+
+        /// <summary> Set to true if the step execution has been deferred. </summary>
+        internal bool WasDeferred { get; set; }
+
         #region Internal Members used by the TestPlan
 
-        /// <summary>
-        /// Called by TestStep.DoRun before running the step.
-        /// </summary>
+        /// <summary>  Called by TestStep.DoRun before running the step. </summary>
         internal void StartStepRun()
         {
+            if (Verdict != Verdict.NotSet)
+                throw new ArgumentOutOfRangeException("verdict", "StepRun.StartStepRun has already been called once.");
+            StepThread = TapThread.Current;
             StartTime = DateTime.Now;
             StartTimeStamp = Stopwatch.GetTimestamp();
-
-            if (Verdict != Verdict.NotSet)
-                throw new ArgumentOutOfRangeException("verdict");
         }
 
-        /// <summary>
-        /// Called by TestStep.DoRun after running the step.
-        /// </summary>
+        /// <summary> Called by TestStep.DoRun after running the step. </summary>
         internal void CompleteStepRun(TestPlanRun planRun, ITestStep step, TimeSpan runDuration)
         {
+            StepThread = null;
             // update values in the run. 
             var newparameters = ResultParameters.GetParams(step);
             foreach(var parameter in newparameters)

@@ -164,8 +164,12 @@ namespace OpenTap
                 // Wait for the step to complete
                 var run = Step.StepRun;
                 var planRun = step.PlanRun;
-                if (run != null && planRun != null) run.WaitForCompletion();
-
+                if (run != null && planRun != null)
+                {
+                    if (run.StepThread != TapThread.Current)
+                        run.WaitForCompletion();
+                }
+                
                 return (T)Property.GetValue(Step);
             }
         }

@@ -1009,13 +1009,8 @@ namespace OpenTap
                         step = enumerable_context.OfType<ITestStep>().FirstOrDefault();
                     }
                     if (step == null) return Enumerable.Empty<object>();
-
-                    HashSet<ITestStepParent> parents = new HashSet<ITestStepParent>();
                     while (step.Parent != null)
-                    {
-                        parents.Add(step);
                         step = step.Parent;
-                    }
 
                     var steps = Utils.FlattenHeirarchy(step.ChildTestSteps, x => x.ChildTestSteps);
 
@@ -1025,7 +1020,6 @@ namespace OpenTap
                     {
                         foreach (var s in steps)
                         {
-                            if (parents.Contains(s)) continue;
                             var t = TypeData.GetTypeData(s);
                             foreach (var mem in t.GetMembers())
                             {
