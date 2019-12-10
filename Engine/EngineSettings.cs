@@ -48,7 +48,7 @@ namespace OpenTap
         /// <summary>
         /// Configures the engine to stop the test plan run if a step fails or causes an error.  
         /// </summary>
-        [Display("Abort Run If", Group: "General", Order: 1, Description: "Allows aborting the test plan run if a step fails or causes an error.")]
+        [Display("Stop Test Plan Run If", Group: "General", Order: 1, Description: "Allows stopping the test plan run if a step fails or causes an error.")]
         public AbortTestPlanType AbortTestPlan { get; set; }
 
         /// <summary>
