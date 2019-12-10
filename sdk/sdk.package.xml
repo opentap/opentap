@@ -5,6 +5,7 @@
     <Organisation>Keysight Technologies</Organisation>
     <Prerequisites>Visual Studio 2015 or newer</Prerequisites>
   </Description>
+  <SourceUrl>https://gitlab.com/OpenTAP/opentap</SourceUrl>
   <Owner>OpenTAP</Owner>
   <Dependencies>
     <PackageDependency Package="OpenTAP" Version="^$(GitVersion)" />
