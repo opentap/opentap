@@ -559,6 +559,13 @@ namespace OpenTap
             var allSteps = Utils.FlattenHeirarchy(steps, step => step.ChildTestSteps);
             var allEnabledSteps = Utils.FlattenHeirarchy(steps.Where(x => x.Enabled), step => step.GetEnabledChildSteps());
 
+            var enabledSinks = TestStepExtensions.GetStepSettings<IResultSink>(allEnabledSteps, true).Where(rl => rl != null).ToList();
+            if(enabledSinks.Any())
+            {
+                var sinkListener = new ResultSinkListener(enabledSinks);
+                resultListeners = resultListeners.Concat(new IResultListener[] { sinkListener });
+            }
+
             Log.Info("Starting TestPlan '{0}' on {1}, {2} of {3} TestSteps enabled.", Name, initTime, allEnabledSteps.Count, allSteps.Count);
 
             // Reset step verdict.

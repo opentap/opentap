@@ -474,4 +474,5 @@ namespace OpenTap
             DoStore(new ResultTable(name, columns));
         }
     }
+    
 }
