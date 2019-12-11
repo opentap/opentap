@@ -62,7 +62,7 @@ namespace OpenTap
             {
                 string exeName = Path.GetFileNameWithoutExtension(Assembly.GetEntryAssembly().Location);
                 // Path example: <TapDir>/SessionLogs/tap/tap <timestamp>.txt
-                pathEnding = $"{exeName}/{exeName} {timestamp}";
+                pathEnding = $"{exeName} {timestamp}";
             }
 
             Initialize($"{FileSystemHelper.GetCurrentInstallationDirectory()}/SessionLogs/{pathEnding}.txt");
