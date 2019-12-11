@@ -3,23 +3,28 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace OpenTap.Package
 {
+    /// <summary> This interface specifies how to convert from a version string to a SemanticVersion. </summary>
     public interface IVersionConverter : ITapPlugin
     {
+        /// <summary> Try to convert 'versionString' to a SemanticVersion. Will throw on exceptions. </summary>
         SemanticVersion Convert(string versionString);
+    }
+
+    /// <summary> Plugin type like IVersionConverter, that can TryConvert, which does will not throw an exception. </summary>
+    public interface IVersionTryConverter : ITapPlugin
+    {
+        /// <summary>  Try to convert 'versionString' to a SemanticVersion. Returns false on failure.  </summary>
+        bool TryConvert(string versionString, out SemanticVersion version);
     }
 
     [Display("ConvertMajorMinorBuildRevision", 
         "Supports a four value number (x.x.x.x) which will be interpreted as Major.Minor.BuildMetadata.Patch. This is compatible with Microsofts definition of version numbers (e.g. for .NET assemblies), see https://docs.microsoft.com/en-us/dotnet/api/system.version",
         Order: 2)]
-    internal class MajorMinorBuildRevisionVersionConverter : IVersionConverter
+    internal class MajorMinorBuildRevisionVersionConverter : IVersionTryConverter
     {
         public SemanticVersion Convert(string versionString)
         {
@@ -28,12 +33,28 @@ namespace OpenTap.Package
                 throw new ArgumentException("Version number must have 4 values.");
             return new SemanticVersion(int.Parse(parts[0]), int.Parse(parts[1]), int.Parse(parts[3]),null,parts[2]);
         }
+
+        public bool TryConvert(string versionString, out SemanticVersion version)
+        {
+            version = null;
+            string[] parts = versionString.Split('.');
+            if (parts.Length != 4)
+                return false;
+
+            if(int.TryParse(parts[0], out var maj) && int.TryParse(parts[1], out var min) && int.TryParse(parts[3], out var rev))
+            {
+                version = new SemanticVersion(maj, min, rev, null, parts[2]);
+                return true;
+            }
+
+            return false;
+        }
     }
 
     [Display("ConvertFourValue", 
         "Supports a four value number (x.y.z.w) which will be converted to the semantic version number x.y.z+w.",
         Order: 1)]
-    internal class FourValueVersionConverter : IVersionConverter
+    internal class FourValueVersionConverter : IVersionTryConverter
     {
         public SemanticVersion Convert(string versionString)
         {
@@ -41,6 +62,22 @@ namespace OpenTap.Package
             if (parts.Length != 4)
                 throw new ArgumentException("Version number must have 4 values.");
             return new SemanticVersion(int.Parse(parts[0]), int.Parse(parts[1]), int.Parse(parts[2]), null, parts[3]);
+        }
+
+        public bool TryConvert(string versionString, out SemanticVersion version)
+        {
+            version = null;
+            string[] parts = versionString.Split('.');
+            if (parts.Length != 4)
+                return false;
+
+            if (int.TryParse(parts[0], out var maj) && int.TryParse(parts[1], out var min) && int.TryParse(parts[2], out var rev))
+            {
+                version = new SemanticVersion(maj, min, rev, null, parts[3]);
+                return true;
+            }
+
+            return false;
         }
     }
 
