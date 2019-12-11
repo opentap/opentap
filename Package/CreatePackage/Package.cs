@@ -274,14 +274,32 @@ namespace OpenTap.Package
             if (match == null || match.Groups.Count < 4 || !match.Groups[2].Success || !match.Groups[3].Success)
                 return text;
 
-            var plugins = PluginManager.GetPlugins<IVersionConverter>();
+            var plugins = PluginManager.GetPlugins<IVersionTryConverter>().Concat(PluginManager.GetPlugins<IVersionConverter>());
             Type converter = plugins.FirstOrDefault(pt => pt.GetDisplayAttribute().Name == match.Groups[2].Value);
+            SemanticVersion convertedVersion = null;
+            var str = match.Groups[3].Value;
             if(converter != null)
             {
-                IVersionConverter cvt = (IVersionConverter)Activator.CreateInstance(converter);
-                SemanticVersion convertedVersion = cvt.Convert(match.Groups[3].Value);
+                
+                object conv = Activator.CreateInstance(converter);
+                if (conv is IVersionTryConverter cv2)
+                {
+                    if (cv2.TryConvert(match.Groups[3].Value, out convertedVersion) == false)
+                    {
+                        throw new FormatException("Unable to convert version format: " + str);
+                    }
+                }
+                else if (conv is IVersionConverter cv1)
+                {
+                    convertedVersion = cv1.Convert(str);
+                } 
+            }
+            
+            if (convertedVersion != null)
+            {
                 text = match.Groups[1].Value + convertedVersion + match.Groups[4].Value;
-                log.Warning("The version was converted from {0} to {1} using the converter '{2}'.", match.Groups[3].Value, convertedVersion, converter.GetDisplayAttribute().Name);
+                log.Warning("The version was converted from {0} to {1} using the converter '{2}'.",
+                    str, convertedVersion, converter.GetDisplayAttribute().Name);
             }
             else
                 throw new Exception(string.Format("No IVersionConverter found named \"{0}\". Valid ones are: {1}", match.Groups[2].Value, 
