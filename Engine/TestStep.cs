@@ -269,6 +269,17 @@ namespace OpenTap
 
                     loaders.Add(x =>
                     {
+                        try
+                        {
+                            var currentValue = prop.GetValue(x, null);
+                            if (currentValue != null)
+                                return; // if the constructor already set a value, don't overwrite it
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warning("Caught exception while getting default value on {0}.", prop);
+                            Log.Debug(ex);
+                        }
                         IList list = ComponentSettingsList.GetContainer(prop.PropertyType);
                         if (list != null)
                         {
