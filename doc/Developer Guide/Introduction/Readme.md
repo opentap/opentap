@@ -10,7 +10,7 @@ Together with OpenTAP it is recommended to use a Graphical User Interface. Keysi
 
 Development requires the following software:
 
-- Visual Studio 2015 or 2017
+- Visual Studio 2017 or 2019
 - OpenTAP 
 - Keysight Test Automation Developer's System (Community or Enterprice Edition)
 
