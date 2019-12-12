@@ -342,6 +342,8 @@ namespace OpenTap
                         {
                             var obj = new MetadataPromptObject { Resources = resources };
                             UserInput.Request(obj, false);
+                            if (obj.Response == MetadataPromptObject.PromptResponse.Abort)
+                                planRun.MainThread.Abort();
                         }
                         catch(Exception e)
                         {
@@ -820,5 +822,16 @@ namespace OpenTap
         public string Name { get; private set; } = "Please enter test plan metadata.";
         [Browsable(false)]
         public IEnumerable<IResource> Resources { get; set; }
+
+        public enum PromptResponse
+        {
+            OK,
+            Abort
+        }
+        
+        [Layout(LayoutMode.FloatBottom | LayoutMode.FullRow)]
+        [Submit]
+        public PromptResponse Response { get; set; }
+        
     }
 }
