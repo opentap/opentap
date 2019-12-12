@@ -9,6 +9,7 @@ using System.ComponentModel;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
 using OpenTap.Engine.UnitTests.TestTestSteps;
+using OpenTap.EngineUnitTestUtils;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -456,6 +457,30 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        [Test]
+        public void TestNameFormat2()
+        {
+            var plan = new TestPlan();
+            var repeat = new RepeatStep { Count =  10, Action = RepeatStep.RepeatStepAction.Fixed_Count};
+            repeat.Name = "Repeat : {Iteration}";
+            plan.ChildTestSteps.Add(repeat);
+            var logStep = new LogStep();
+            repeat.ChildTestSteps.Add(logStep);
+            var log = new TestTraceListener();
+            
+            Log.AddListener(log);
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.NotSet, run.Verdict);
+            Log.RemoveListener(log);
+            var thelog = log.GetLog();
+
+            for (int i = 0; i < repeat.Count; i++)
+            {
+                var str = string.Format("Repeat : {0} of {1}", i, repeat.Count);
+                Assert.IsTrue(thelog.Contains(str));    
+            }
+        }
+        
         [Test]
         public void ContinueLoop()
         {
