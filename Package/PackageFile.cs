@@ -247,6 +247,26 @@ namespace OpenTap.Package
         public string FileType { get; set; }
 
         /// <summary>
+        /// Name of the owner of the package. There can be multiple owners of a package, in which case this string will have several entries separated with ','.
+        /// </summary>
+        [DefaultValue(null)]
+        public string Owner { get; set; }
+
+        /// <summary>
+        /// Link to the package source code. This is intended for open sourced projects.
+        /// </summary>
+        [DefaultValue(null)]
+        public string SourceUrl { get; set; }
+
+        /// <summary>
+        /// License(s) required to use this package. During package create all '<see cref="PackageFile.LicenseRequired"/>' attributes from '<see cref="Files"/>' will be concatenated into this property.
+        /// Bundle packages (<see cref="Class"/> is 'bundle') can use this property to show licenses that are required by the bundle dependencies. 
+        /// </summary>
+        [XmlAttribute]
+        [DefaultValue(null)]
+        public string LicenseRequired { get; set; }
+
+        /// <summary>
         /// The package class, this can be either 'package', 'bundle' or 'solution'.
         /// </summary>
         [XmlAttribute]

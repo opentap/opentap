@@ -22,5 +22,5 @@ Keysight Technologies, Inc.
 
 Document History
 ----------------
-Published October 18, 2019 for OpenTAP version 9.4
+Published December 11, 2019 for OpenTAP version 9.5
 

@@ -67,12 +67,6 @@ namespace OpenTap.Plugins.BasicSteps
         {
             base.PrePlanRun();
 
-            string appFilePath = Path.GetFullPath(Application);
-            if (!File.Exists(appFilePath))
-            {
-                throw new Exception(String.Format("The application {0} could not be found.", appFilePath));
-            }
-
             string workingDirPath = Path.GetFullPath(WorkingDirectory);
             if (!Directory.Exists(workingDirPath))
             {

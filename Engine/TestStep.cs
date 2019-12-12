@@ -269,12 +269,22 @@ namespace OpenTap
 
                     loaders.Add(x =>
                     {
+                        try
+                        {
+                            var currentValue = prop.GetValue(x, null);
+                            if (currentValue != null)
+                                return; // if the constructor already set a value, don't overwrite it
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Warning("Caught exception while getting default value on {0}.", prop);
+                            Log.Debug(ex);
+                        }
                         IList list = ComponentSettingsList.GetContainer(prop.PropertyType);
                         if (list != null)
                         {
                             object value = list.Cast<object>()
-                               .Where(o => o != null && o.GetType().DescendsTo(propType))
-                               .FirstOrDefault();
+                                .FirstOrDefault(o => o != null && o.GetType().DescendsTo(propType));
 
                             try
                             {
@@ -426,7 +436,7 @@ namespace OpenTap
         protected TestStepRun RunChildStep(ITestStep childStep, IEnumerable<ResultParameter> attachedParameters = null)
         {
             var steprun = this.RunChildStep(childStep, PlanRun, StepRun, attachedParameters);
-            Results.Defer(() => steprun.WaitForCompletion());
+            //Results.Defer(() => steprun.WaitForCompletion());
             return steprun;
         }
 
@@ -709,9 +719,7 @@ namespace OpenTap
                 // in case the previous action was not completed yet.
                 // this is a problem because StepRun might be set to null later
                 // if its not already the case.
-                var prevRun = Step.StepRun;
-                if (prevRun != null)
-                    prevRun.WaitForCompletion();
+                Step.StepRun?.WaitForCompletion();
                 Debug.Assert(Step.StepRun == null);
             }
 
@@ -763,6 +771,7 @@ namespace OpenTap
                             stepRun.StartStepRun(); // set verdict to running, set Timestamp.
                             planRun.AddTestStepRunStart(stepRun);
                             Step.Run();
+                            
                             TapThread.ThrowIfAborted();
                         }
                         finally
@@ -801,9 +810,13 @@ namespace OpenTap
             }
             finally
             {
+                // set during complete action.
+                bool completeActionExecuted = false;
+                
                 // if it was a ThreadAbortException we need 'finally'.
                 void completeAction(Task runTask)
                 {
+                    completeActionExecuted = true;
                     try
                     {
                         runTask.Wait();
@@ -856,6 +869,7 @@ namespace OpenTap
                     resultSource.Finally(completeAction);
                 else
                     completeAction(Task.FromResult(0));
+                stepRun.WasDeferred = !completeActionExecuted; // completeAction was already executed -> not deferred.
             }
             
             return stepRun;
@@ -906,7 +920,7 @@ namespace OpenTap
                             {
                                 if (onlyEnabled)
                                 {
-                                    bool isenabled = EnabledIfAttribute.IsEnabled(prop, attr, Step);
+                                    bool isenabled = EnabledIfAttribute.IsEnabled(attr, Step);
                                     if (isenabled == false)
                                         goto nextstep;
                                 }

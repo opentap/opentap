@@ -43,23 +43,47 @@ namespace OpenTap
         [XmlIgnore]
         public IMemberData Property { get; set; }
 
-        /// <summary>   
-        /// Gets or sets the name of the property to which this Input is connected. Used for serialization.  
-        /// </summary>
-        public string PropertyName
+        void updatePropertyFromName()
         {
-            get { return Property != null ? Property.DeclaringType.Name + "|" + Property.Name : null; }
-            set
+            if (string.IsNullOrEmpty(propertyName))
+                return;
+            else
             {
-                if (string.IsNullOrEmpty(value))
-                    Property = null;
+                string[] parts = propertyName.Split('|');
+                if (parts.Length == 1)
+                {
+                    if (Step != null)
+                    {
+                        ITypeData stepType = TypeData.GetTypeData(Step);
+                        Property = stepType.GetMember(parts[0]);    
+                    }
+                    else
+                    {
+                        Property = null;
+                    }
+                }
                 else
                 {
-                    string[] parts = value.Split('|');
                     var typename = parts[0];
                     ITypeData stepType = TypeData.GetTypeData(typename);
                     Property = stepType.GetMember(parts[1]);
                 }
+            }
+
+            if (Property != null)
+                propertyName = null;
+        }
+        
+        string propertyName;
+        /// <summary> Gets or sets the name of the property to which this Input is connected. Used for serialization. </summary>
+        public string PropertyName
+        {
+            get => Property != null ? Property.DeclaringType.Name + "|" + Property.Name : propertyName;
+            set
+            {
+                propertyName = value;
+                updatePropertyFromName();
+                
             }
         }
 
@@ -67,8 +91,9 @@ namespace OpenTap
 
         ITestStep step;
         /// <summary>   Gets or sets the TestStep that has the output property to which this Input is connected. </summary>
-        public ITestStep Step {
-            get { return step; }
+        public ITestStep Step 
+        {
+            get => step;
             set
             {
                 if(step != value)
@@ -91,6 +116,7 @@ namespace OpenTap
                     }
                     
                     unbindStep = () => parents.ForEach(p => p.ChildTestSteps.CollectionChanged -= ChildTestSteps_CollectionChanged);
+                    updatePropertyFromName();
                 }
             }
         }
@@ -138,8 +164,12 @@ namespace OpenTap
                 // Wait for the step to complete
                 var run = Step.StepRun;
                 var planRun = step.PlanRun;
-                if (run != null && planRun != null) run.WaitForCompletion();
-
+                if (run != null && planRun != null)
+                {
+                    if (run.StepThread != TapThread.Current)
+                        run.WaitForCompletion();
+                }
+                
                 return (T)Property.GetValue(Step);
             }
         }

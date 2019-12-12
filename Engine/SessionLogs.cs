@@ -23,35 +23,36 @@ namespace OpenTap
     {
         private static readonly TraceSource log = Log.CreateSource("Session");
 
-        /// <summary>
-        /// the number of files kept at a time.
-        /// </summary>
-        const int maxNumberOfTraceFiles = 10;
+        /// <summary> The number of files kept at a time. </summary>
+        const int maxNumberOfTraceFiles = 20;
+
+        /// <summary> The maximally allowed size of trace files. </summary>
+        const long maxTotalSizeOfTraceFiles = 2_000_000_000L; 
 
         /// <summary>
         /// If two sessions needs the same log file name, an integer is added to the name. 
         /// This is the max number of times that we are going to test new names.
         /// </summary>
-        const int maxNumberOfConcurrentSessions = 10;
+        const int maxNumberOfConcurrentSessions = maxNumberOfTraceFiles;
 
         private static FileTraceListener traceListener;
 
         /// <summary>
         /// File path to the current log file. Path is updated upon UI launch.
         /// </summary>
-        public static string GetSessionLogFilePath()
-        {
-            return CurrentLogFile;
-        }
+        public static string GetSessionLogFilePath() => currentLogFile;
 
-        private static string CurrentLogFile;
+        static string currentLogFile;
 
         /// <summary>
         /// Initializes the logging. Uses the following file name formatting: SessionLogs\\[Application Name]\\[Application Name] [yyyy-MM-dd HH-mm-ss].txt.
         /// </summary>
         public static void Initialize()
         {
-            if (CurrentLogFile != null) return;
+            if (currentLogFile != null) return;
+            
+           
+
             var timestamp = System.Diagnostics.Process.GetCurrentProcess().StartTime.ToString("yyyy-MM-dd HH-mm-ss");
 
             // Path example: <TapDir>/SessionLogs/SessionLog <timestamp>.txt
@@ -61,7 +62,7 @@ namespace OpenTap
             {
                 string exeName = Path.GetFileNameWithoutExtension(Assembly.GetEntryAssembly().Location);
                 // Path example: <TapDir>/SessionLogs/tap/tap <timestamp>.txt
-                pathEnding = $"{exeName}/{exeName} {timestamp}";
+                pathEnding = $"{exeName} {timestamp}";
             }
 
             Initialize($"{FileSystemHelper.GetCurrentInstallationDirectory()}/SessionLogs/{pathEnding}.txt");
@@ -72,7 +73,7 @@ namespace OpenTap
         /// </summary>
         public static void Initialize(string tempLogFileName)
         {
-            if (CurrentLogFile == null)
+            if (currentLogFile == null)
             {
                 Rename(tempLogFileName);
                 SystemInfoTask = Task.Factory
@@ -87,11 +88,11 @@ namespace OpenTap
             }
             else
             {
-                if (CurrentLogFile != tempLogFileName)
+                if (currentLogFile != tempLogFileName)
                     Rename(tempLogFileName);
             }
 
-            CurrentLogFile = tempLogFileName;
+            currentLogFile = tempLogFileName;
 
             // Log debugging information of the current process.
             log.Debug($"Running '{Environment.CommandLine}' in '{Directory.GetCurrentDirectory()}'.");
@@ -112,80 +113,150 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Class for managing a hidden file of lines.
+        /// Class for managing a hidden file containing a list of recent files. This can be accessed by multiple processes, so possible race conditions needs to be handled.
         /// </summary>
-        class LineFile
+        class RecentFilesList
         {
-            string name;
-            public LineFile(string filename)
+            IEnumerable<string> names;
+            private string name = null;
+            public RecentFilesList(List<string> filenameoptions)
             {
-                if (Assembly.GetEntryAssembly() != null)
-                    this.name = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), filename);
-                else
-                    this.name = filename;
-
+                names = filenameoptions;
             }
-            void waitForFileUnlock()
+            static string[] readLinesSafe(string name)
             {
                 for (int i = 0; i < 5; i++)
                 {
                     try
                     {
-                        using (File.Open(name, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite)) { }
-                        break;
+                        return File.ReadAllLines(name);
                     }
-                    catch (Exception)
+                    catch (Exception) when (i < 4)
                     {
-                        System.Threading.Thread.Sleep(100);
+                        Thread.Sleep(100);
                     }
                 }
+
+                return null;
             }
 
-            void setHidden(string name)
+            static void setHidden(string name)
             {
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                if (OperatingSystem.Current == OperatingSystem.Windows)
                     File.SetAttributes(name, FileAttributes.Hidden | FileAttributes.Archive);
             }
 
-            void ensureFileExists()
+            string[] ensureFileExistsAndReadLines()
             {
-                if (!File.Exists(name))
+                var _names = names;
+                if (name != null)
+                    _names = new[] {name}; // a name was already decided.
+                foreach (var name in _names)
                 {
-                    File.Create(name).Close();
-
                     try
                     {
-                        setHidden(name);
+                        if (!File.Exists(name))
+                        {
+                            File.Create(name).Close();
+
+                            try
+                            {
+                                setHidden(name);
+                            }
+                            catch
+                            {
+                                // The file could not be made hidden. This is probably ok.
+                            }
+                            this.name = name;
+                            return Array.Empty<string>();
+                        }
+                        if(readLinesSafe(name) is string[] str) 
+                        {
+                            this.name = name;
+                            return str;
+                        }
                     }
                     catch
                     {
-
+                        // ignore exceptions throws. Try a different file.   
                     }
                 }
-                waitForFileUnlock();
+                return Array.Empty<string>();
             }
 
-            public List<string> GetRecent()
-            {
-                ensureFileExists();
-                return File.ReadAllLines(name).ToList();
-            }
 
-            public void SetRecent(List<string> names)
+            static Mutex recentLock = new Mutex(false, "opentap_recent_logs_mutex");
+
+            public string[] GetRecent()
             {
-                ensureFileExists();
-                using (var f = File.Open(name, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite))
+                recentLock.WaitOne();
+                try
                 {
-                    f.SetLength(0);
-                    using (var sw = new StreamWriter(f))
+                    return ensureFileExistsAndReadLines();
+                }
+                finally
+                {
+                    recentLock.ReleaseMutex();
+                }
+            }
+
+            public void AddRecent(string newname)
+            {
+                // Important to lock the file and to re-read if the file was changed since last checked.
+                // otherwise there is a risk that a log file will be forgotten and never cleaned up.
+                recentLock.WaitOne();
+                try
+                {
+                    var currentFiles = ensureFileExistsAndReadLines().Append(newname).DistinctLast();
+                    currentFiles.RemoveIf(x => File.Exists(x) == false);
+                    using (var f = File.Open(name, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite))
                     {
-                        names.ForEach(sw.WriteLine);
+                        f.SetLength(0);
+                        using (var sw = new StreamWriter(f))
+                        {
+                            currentFiles.ForEach(sw.WriteLine);
+                        }
                     }
+                }
+                finally
+                {
+                    recentLock.ReleaseMutex();
                 }
             }
         }
 
-        static LineFile recentSystemlogs = new LineFile(".recent_logs");
+        private const string RecentFilesName = ".opentap_recent_logs";
+        static List<string> getLogRecentFilesName()
+        {
+            // If the tap installation folder is write-protected by the user,
+            // we'll try to find some other valid location instead.
+            List<string> options = new List<string>();
+
+            void addOption(Func<string> f)
+            {
+                try
+                {
+                    string option = f();
+                    if(option != null)
+                        options.Add(option);
+                }
+                catch
+                {
+                    
+                }
+            }
+            if (ExecutorClient.IsRunningIsolated)
+            {   // Use the recent system logs from original directory to avoid leaking log files.
+                addOption(() => Path.Combine(ExecutorClient.ExeDir, RecentFilesName));
+            }
+            addOption(() => Path.Combine(Path.GetDirectoryName(typeof(SessionLogs).Assembly.Location), RecentFilesName));
+            addOption(() => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), RecentFilesName));
+            addOption(() => RecentFilesName);
+
+            return options;
+        }
+        
+        static RecentFilesList recentSystemlogs = new RecentFilesList(getLogRecentFilesName());
 
         /// <summary>
         /// Renames a previously initialized temporary log file.
@@ -194,10 +265,26 @@ namespace OpenTap
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
-            var recentFiles = recentSystemlogs.GetRecent().Where(File.Exists).ToList();
+            List<string> recentFiles = recentSystemlogs.GetRecent().Where(File.Exists).ToList();
+            long getTotalSize()
+            {
+                return recentFiles.Select(x => new FileInfo(x).Length).Sum();
+            }
+            
+            bool checkCondition()
+            {
+                bool tooManyFiles = (recentFiles.Count + 1) > maxNumberOfTraceFiles ;
+                if (tooManyFiles) return true;
+
+                if (recentFiles.Count <= 2) return false; // Do not remove the last couple of log files, event though they might exceed limits.
+                var totalSize = getTotalSize();
+                bool filesTooBig = totalSize > maxTotalSizeOfTraceFiles;
+                if (filesTooBig) return true;
+                return false;
+            }
 
             int ridx = 0;
-            while ((recentFiles.Count + 1) > maxNumberOfTraceFiles && ridx < recentFiles.Count)
+            while (checkCondition() && ridx < recentFiles.Count)
             {
                 try
                 {
@@ -241,16 +328,14 @@ namespace OpenTap
             }
             if (!fileNameChanged)
             {
-                log.Debug("Unable to rename log file. Continuing with log '{0}'.", CurrentLogFile);
+                log.Debug("Unable to rename log file. Continuing with log '{0}'.", currentLogFile);
             }
             else
             {
-                CurrentLogFile = path;
-                recentFiles.Add(path);
-                log.Debug(sw, "Session log loaded as '{0}'.", CurrentLogFile);
+                currentLogFile = path;
+                log.Debug(sw, "Session log loaded as '{0}'.", currentLogFile);
+                recentSystemlogs.AddRecent(Path.GetFullPath(path));
             }
-
-            recentSystemlogs.SetRecent(recentFiles.DistinctLast().Where(File.Exists).ToList());
         }
 
         static int sessionLogCount = 0;
@@ -263,7 +348,7 @@ namespace OpenTap
             {
                 lock (sessionLogRotateLock)
                 {
-                    string newname = CurrentLogFile.Replace("__" + sessionLogCount.ToString(), "");
+                    string newname = currentLogFile.Replace("__" + sessionLogCount.ToString(), "");
 
                     sessionLogCount += 1;
                     var nextFile = addLogRotateNumber(newname, sessionLogCount);

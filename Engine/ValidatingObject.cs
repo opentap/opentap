@@ -6,10 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Diagnostics;
-using System.Linq;
 using System.Reflection;
-using System.Text;
 
 namespace OpenTap
 {
@@ -252,7 +249,7 @@ namespace OpenTap
             this.Add(new ValidationRule(isValid, errorMessage, propertyName));
         }
 
-        internal readonly List<PropertyInfo> ForwardedRules = new List<PropertyInfo>(); 
+        internal readonly List<IMemberData> ForwardedRules = new List<IMemberData>(); 
 
         /// <summary>
         /// Adds a sub-objects rules to the collection of rules.
@@ -261,7 +258,7 @@ namespace OpenTap
         /// <param name="propName"></param>
         internal void Forward(IValidatingObject @object, string propName)
         {
-            ForwardedRules.Add(@object.GetType().GetProperty(propName));
+            ForwardedRules.Add(TypeData.GetTypeData(@object).GetMember(propName));
         }
 
         /// <summary>

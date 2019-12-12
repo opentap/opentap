@@ -124,28 +124,32 @@ namespace OpenTap.Plugins
         public override bool Serialize( XElement elem, object obj, ITypeData expectedType)
         {
             if (false == obj is ITestStep) return false;
-            if (currentNode.Contains(elem)) return false;
             
             var objp = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
 
-            
-            if (objp != null && objp.Object != null && objp.CurrentMember.TypeDescriptor.DescendsTo(typeof(ITestStep)))
+            if(objp != null && objp.Object != null)
             {
-                elem.Value = ((ITestStep)obj).Id.ToString();
-                return true;
+                if (objp.CurrentMember.TypeDescriptor.DescendsTo(typeof(ITestStep)))
+                {
+                    elem.Attributes("type")?.Remove();
+                    elem.Value = ((ITestStep)obj).Id.ToString();
+                    return true;
+                }
+                if (objp.CurrentMember.TypeDescriptor is TypeData tp)
+                {
+                    // serialize references in list<ITestStep>, only when they are declared by a test step and not a TestStepList.
+                    if ((tp.ElementType?.DescendsTo(typeof(ITestStep)) ?? false) && objp.CurrentMember.DeclaringType.DescendsTo(typeof(ITestStep)))
+                    {
+                        if (tp != TypeData.FromType(typeof(TestStepList)))
+                        {
+                            elem.Attributes("type")?.Remove();
+                            elem.Value = ((ITestStep)obj).Id.ToString();
+                            return true;
+                        }
+                    }
+                }
             }
-
-            currentNode.Add(elem);
-            try
-            {
-                Serializer.Serialize(elem, obj);
-            }
-            finally
-            {
-                currentNode.Remove(elem);
-            }
-
-            return true;
+            return false;
         }
     }
 

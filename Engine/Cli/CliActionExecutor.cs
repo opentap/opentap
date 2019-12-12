@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using OpenTap.Package;
 using System.Runtime.CompilerServices;
+using System.ComponentModel;
 
 namespace OpenTap.Cli
 {
@@ -20,20 +21,20 @@ namespace OpenTap.Cli
     {
         public string Name { get; set; }
         public bool IsGroup => Type == null;
-        public TypeData Type { get; set; }
+        public ITypeData Type { get; set; }
         public List<CliActionTree> SubCommands { get; set; }
 
         public static CliActionTree Root { get; internal set; }
 
         static CliActionTree()
         {
-            var commands = PluginManager.LocateTypeData(typeof(ICliAction).FullName).DerivedTypes.Where(t => !t.TypeAttributes.HasFlag(TypeAttributes.Abstract) && t.Display != null).ToList();
+            var commands = TypeData.GetDerivedTypes(TypeData.FromType(typeof(ICliAction))).Where(t => t.CanCreateInstance && t.GetDisplayAttribute() != null).ToList();
             Root = new CliActionTree { Name = "tap" };
             foreach (var item in commands)
-                ParseCommand(item, item.Display.Group, Root);
+                ParseCommand(item, item.GetDisplayAttribute().Group, Root);
         }
 
-        private static void ParseCommand(TypeData type, string[] group, CliActionTree command)
+        private static void ParseCommand(ITypeData type, string[] group, CliActionTree command)
         {
             if (command.SubCommands == null)
                 command.SubCommands = new List<CliActionTree>();
@@ -53,7 +54,7 @@ namespace OpenTap.Cli
             }
             else
             {
-                command.SubCommands.Add(new CliActionTree() { Name = type.Display.Name, Type = type, SubCommands = new List<CliActionTree>() });
+                command.SubCommands.Add(new CliActionTree() { Name = type.GetDisplayAttribute().Name, Type = type, SubCommands = new List<CliActionTree>() });
                 command.SubCommands = command.SubCommands.OrderBy(c => c.Name).ToList();
             }
         }
@@ -122,15 +123,19 @@ namespace OpenTap.Cli
                 }
             }
 
-            var execThread = TapThread.Current;
             try
             {
+                // Turn off the default system behavior when CTRL+C is pressed. 
+                // When Console.TreatControlCAsInput is false, CTRL+C is treated as an interrupt instead of as input.
+                Console.TreatControlCAsInput = false; 
+            }
+            catch { }
+            try
+            {
+                var execThread = TapThread.Current;
                 Console.CancelKeyPress += (s, e) => execThread.Abort();
             }
-            catch
-            {
-
-            }
+            catch { }
 
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
@@ -138,13 +143,40 @@ namespace OpenTap.Cli
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
             // Find the called action
-            if(PluginManager.LocateTypeData(typeof(ICliAction).FullName).DerivedTypes == null)
+            if(!TypeData.GetDerivedTypes<ICliAction>().Any())
             {
                 Console.WriteLine("No commands found. Please try reinstalling OpenTAP.");
                 return 1;
             }
 
-            TypeData selectedCommand = null;
+            try
+            {
+                // setup logging to be relative to the executing assembly.
+                // at this point SessionLogs.Initialize has already been called (PluginManager.Load).
+                // so the log is already being saved at a different location.
+                var logpath = EngineSettings.Current.SessionLogPath.Expand(date: Process.GetCurrentProcess().StartTime);
+                bool isPathRooted = Path.IsPathRooted(logpath);
+                if (isPathRooted == false)
+                {
+                    var dir = Path.GetDirectoryName(typeof(SessionLogs).Assembly.Location);
+                    if (ExecutorClient.IsRunningIsolated)
+                    {
+                        // redirect the isolated log path to the non-isolated path.
+                        dir = ExecutorClient.ExeDir;
+                    }
+
+                    logpath = Path.Combine(dir, logpath);
+                }
+
+                SessionLogs.Rename(logpath);
+            }
+            catch (Exception e)
+            {
+                log.Error("Path defined in Engine settings contains invalid characters: {0}", EngineSettings.Current.SessionLogPath);
+                log.Debug(e);
+            }
+
+            ITypeData selectedCommand = null;
             var requestedCommand = args.FirstOrDefault();
 
             // Find selected command
@@ -164,13 +196,13 @@ namespace OpenTap.Cli
 
                     foreach (var cmd in CliActionTree.Root.SubCommands)
                     {
-                        if (cmd.IsGroup || cmd.Type.IsBrowsable)
+                        if (cmd.IsGroup || cmd.Type.GetAttribute<BrowsableAttribute>()?.Browsable == true)
                         {
-                            Console.WriteLine($"  {cmd.Name.PadRight(22)}{(cmd.IsGroup ? "" : cmd.Type.Display.Description)}");
+                            Console.WriteLine($"  {cmd.Name.PadRight(22)}{(cmd.IsGroup ? "" : cmd.Type.GetDisplayAttribute().Description)}");
                             foreach (var subcmd in cmd.SubCommands)
                             {
-                                if (subcmd.IsGroup || subcmd.Type.IsBrowsable)
-                                    Console.WriteLine($"    {subcmd.Name.PadRight(22)}{(subcmd.IsGroup ? "" : subcmd.Type.Display.Description)}");
+                                if (subcmd.IsGroup || subcmd.Type.IsBrowsable())
+                                    Console.WriteLine($"    {subcmd.Name.PadRight(22)}{(subcmd.IsGroup ? "" : subcmd.Type.GetDisplayAttribute().Description)}");
                             }
                         }
                     }
@@ -178,16 +210,16 @@ namespace OpenTap.Cli
                 else
                 {
                     Console.WriteLine($"Valid commands for '{selectedcmd.Name}':");
-                    var availableCommands = selectedcmd.SubCommands.Where(cmd => cmd.IsGroup || (cmd.Type.Display != null && cmd.Type.IsBrowsable)).Distinct().ToList();
+                    var availableCommands = selectedcmd.SubCommands.Where(cmd => cmd.IsGroup || (cmd.Type.GetDisplayAttribute() != null && cmd.Type.IsBrowsable())).Distinct().ToList();
                     foreach (var cmd in availableCommands)
                     {
-                        if (cmd.IsGroup || cmd.Type.IsBrowsable)
+                        if (cmd.IsGroup || cmd.Type.IsBrowsable())
                         {
-                            Console.WriteLine($"  {cmd.Name.PadRight(22)}{(cmd.IsGroup ? "" : cmd.Type.Display.Description)}");
+                            Console.WriteLine($"  {cmd.Name.PadRight(22)}{(cmd.IsGroup ? "" : cmd.Type.GetDisplayAttribute().Description)}");
                             foreach (var subcmd in cmd.SubCommands)
                             {
-                                if (subcmd.IsGroup || subcmd.Type.IsBrowsable)
-                                    Console.WriteLine($"    {subcmd.Name.PadRight(22)}{(subcmd.IsGroup ? "" : subcmd.Type.Display.Description)}");
+                                if (subcmd.IsGroup || subcmd.Type.IsBrowsable())
+                                    Console.WriteLine($"    {subcmd.Name.PadRight(22)}{(subcmd.IsGroup ? "" : subcmd.Type.GetDisplayAttribute().Description)}");
                             }
                         }
                     }
@@ -201,51 +233,29 @@ namespace OpenTap.Cli
                     return -1;
             }
 
-            {   // setup logging to be relative to the executing assembly.
-                var logpath = EngineSettings.Current.SessionLogPath.Expand(date: Process.GetCurrentProcess().StartTime);
-                if (Path.IsPathRooted(logpath) == false)
-                {
-                    var dir = Path.GetDirectoryName(typeof(SessionLogs).Assembly.Location);
-                    if (ExecutorClient.IsRunningIsolated)
-                    {
-                        dir = ExecutorClient.ExeDir;
-                    }
-                    logpath = Path.Combine(dir, logpath);
-                }
-                SessionLogs.Rename(logpath);
-            }
+
 
             if (selectedCommand != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
                 CliUserInputInterface.Load();
-            Type selectedType = selectedCommand.Load();
-            if(selectedType == null)
-            {
-                Console.WriteLine("Error loading command {0}", selectedCommand.Name);
-                return -2;
-            }
-
+            
             ICliAction packageAction = null;
             try{
-                packageAction = (ICliAction) selectedType.CreateInstance();
+                packageAction = (ICliAction)selectedCommand.CreateInstance();
             }catch(TargetInvocationException e1) when (e1.InnerException is System.ComponentModel.LicenseException e){
-                Console.Error.WriteLine("Unable to load CLI Action '{0}'", selectedType.GetDisplayAttribute().GetFullName());
+                Console.Error.WriteLine("Unable to load CLI Action '{0}'", selectedCommand.GetDisplayAttribute().GetFullName());
                 Console.Error.WriteLine(e.Message);
                 return -4;
             }
 
             if (packageAction == null)
             {
-                Console.WriteLine("Error instanciating command {0}", selectedCommand.Name);
+                Console.WriteLine("Error instantiating command {0}", selectedCommand.Name);
                 return -3;
             }
 
-            //packageAction.ProgressUpdate += (p, message) => log.Debug("{0}% {1}", p, message);
-            //packageAction.Error += ex => log.Error(ex);
-           
-
             try
             {
-                int skip = selectedCommand.Display.Group.Length + 1; // If the selected command has a group, it takes two arguments to use the command. E.g. "package create". If not, it only takes 1 argument, E.g. "restapi".
+                int skip = selectedCommand.GetDisplayAttribute().Group.Length + 1; // If the selected command has a group, it takes two arguments to use the command. E.g. "package create". If not, it only takes 1 argument, E.g. "restapi".
                 return packageAction.Execute(args.Skip(skip).ToArray());
             }
             catch (ExitCodeException ec)

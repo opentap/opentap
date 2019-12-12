@@ -4,6 +4,8 @@
     <Status>Released</Status>
     <Organisation>Keysight Technologies</Organisation>
   </Description>
+  <SourceUrl>https://gitlab.com/OpenTAP/opentap</SourceUrl>
+  <Owner>OpenTAP</Owner>
   <Files>
     <File Path="OpenTap.dll">
         <SetAssemblyInfo Attributes="Version"/>

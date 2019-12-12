@@ -13,13 +13,12 @@ using System.Runtime.CompilerServices;
 
 namespace OpenTap
 {
+    /// <summary> Represents a .NET type. </summary>
     public partial class TypeData : ITypeData
     {
         /// <summary> Creates a string value of this.</summary>
-        public override string ToString()
-        {
-            return $"{type.FullName}";
-        }
+        public override string ToString() => $"{type.FullName}";
+
         static ConditionalWeakTable<Type, TypeData> dict = new ConditionalWeakTable<Type, TypeData>();
 
         Type type;
@@ -177,19 +176,26 @@ namespace OpenTap
         {
             if (members == null)
             {
-                List<IMemberData> m = new List<IMemberData>();
-                foreach (var prop in Load().GetPropertiesTap())
+                var props = Load().GetPropertiesTap();
+                List<IMemberData> m = new List<IMemberData>(props.Length);
+                foreach (var mem in props)
                 {
-                    if(prop.GetMethod.GetParameters().Length > 0){
+                    if(mem.GetMethod != null && mem.GetMethod.GetParameters().Length > 0)
                         continue;
-                    }
-                    m.Add(MemberData.Create(prop));
+                    
+                    if (mem.SetMethod != null && mem.SetMethod.GetParameters().Length != 1)
+                        continue;
+                    
+                    m.Add(MemberData.Create(mem));
                 }
 
                 foreach (var mem in Load().GetMethodsTap())
                 {
                     if (mem.GetAttribute<BrowsableAttribute>()?.Browsable ?? false)
-                        m.Add(MemberData.Create(mem));
+                    {
+                        var member = MemberData.Create(mem);
+                        m.Add(member);
+                    }
                 }
                 members = m.ToArray();
             }
@@ -229,42 +235,31 @@ namespace OpenTap
                 return dict.GetOrAdd(new MemberName { Name = info.Name, DeclaringType = info.DeclaringType }, x => new MemberData(x.Name, TypeData.FromType(x.DeclaringType)));
         }
 
-        /// <summary>
-        /// The System.Reflection.MemberInfo this represents.
-        /// </summary>
+        /// <summary> The System.Reflection.MemberInfo this represents. </summary>
         public readonly MemberInfo Member;
 
         private MemberData(string name, TypeData declaringType) : this(declaringType.Type.GetMember(name)[0], declaringType)
-        {
+        { }
 
-        }
         private MemberData(MemberInfo info, TypeData declaringType)
         {
             if (info == null)
-                throw new ArgumentNullException("info");
+                throw new ArgumentNullException(nameof(info));
             this.Member = info;
             this.DeclaringType = declaringType;
-
+            
         }
         IEnumerable<object> attributes = null;
-        /// <summary>
-        /// The attributes of this member.
-        /// </summary>
-        public IEnumerable<object> Attributes => attributes ?? (attributes = Member.GetCustomAttributes());
 
-        
+        /// <summary> The attributes of this member. </summary>
+        public IEnumerable<object> Attributes => attributes ?? (attributes = Member.GetCustomAttributes());
 
         static Type createDelegateType(MethodInfo method)
         {
-            var parameters = method.GetParameters().Select(x => x.ParameterType).ToArray();
-            if (method.ReturnType == typeof(void))
-            {
-                return Expression.GetActionType(parameters);
-            }
-            else
-            {
+            var parameters = method.GetParameters().Select(x => x.ParameterType);
+            if (method.ReturnType != typeof(void))
                 return Expression.GetFuncType(parameters.Append(method.ReturnType).ToArray());
-            }
+            return Expression.GetActionType(parameters.ToArray());
         }
 
         /// <summary> Gets the value of this member.</summary> 
@@ -276,7 +271,7 @@ namespace OpenTap
             {
                 case PropertyInfo Property: return Property.GetValue(owner);
                 case FieldInfo Field: return Field.GetValue(owner);
-                case MethodInfo Method: return Delegate.CreateDelegate(createDelegateType(Method), owner, Method, false);
+                case MethodInfo Method: return Delegate.CreateDelegate(createDelegateType(Method), owner, Method, true);
                 default: throw new InvalidOperationException("Unsupported member type: " + Member);
             }
         }
@@ -353,36 +348,7 @@ namespace OpenTap
             }   
         }
 
-        /// <summary> Gets a string representation of this CSharpTYpe. </summary>
-        /// <returns></returns>
-        public override string ToString()
-        {
-            return $"[{Name}]";
-        }
-    }
-
-    /// <summary> Type info provider for C# types. </summary>
-    internal class CSharpTypeInfoProvider : ITypeDataProvider
-    {
-        /// <summary> The priority of this type info provider.  </summary>
-        public double Priority => 0;
-        /// <summary> Gets the C# type info for a string.  </summary>
-        public ITypeData GetTypeData(string identifier)
-        {
-            
-            var type = PluginManager.LocateType(identifier);
-            if (type != null)
-            {
-                return TypeData.FromType(type);
-            }
-            return null;
-        }
-
-        /// <summary> Gets the C# type info for an object. </summary>
-        public ITypeData GetTypeData(object obj)
-        {
-            var type = obj.GetType();
-            return TypeData.FromType(type);
-        }
+        /// <summary> Gets a string representation of this CSharpType. </summary>
+        public override string ToString() => $"[{Name}]";
     }
 }

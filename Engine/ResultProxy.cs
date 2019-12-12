@@ -382,13 +382,14 @@ namespace OpenTap
         {
             if (result == null)
                 throw new ArgumentNullException("result");
-            if (!ResultFunc.ContainsKey(typeof(T)))
+            Type runtimeType = result.GetType();
+            if (!ResultFunc.ContainsKey(runtimeType))
             {
-                var Typename = typeof(T).GetDisplayAttribute().GetFullName();
-                var Props = typeof(T).GetPropertiesTap().Where(p => p.GetMethod != null).Where(p => p.PropertyType.DescendsTo(typeof(IConvertible))).ToList();
+                var Typename = runtimeType.GetDisplayAttribute().GetFullName();
+                var Props = runtimeType.GetPropertiesTap().Where(p => p.GetMethod != null).Where(p => p.PropertyType.DescendsTo(typeof(IConvertible))).ToList();
                 var PropNames = Props.Select(p => p.GetDisplayAttribute().GetFullName()).ToList();
 
-                ResultFunc[typeof(T)] = (v) =>
+                ResultFunc[runtimeType] = (v) =>
                 {
                     var cols = new ResultColumn[Props.Count];
 
@@ -399,7 +400,7 @@ namespace OpenTap
                 };
             }
 
-            var res = ResultFunc[typeof(T)](result);
+            var res = ResultFunc[runtimeType](result);
 
             DoStore(res);
         }
@@ -412,12 +413,13 @@ namespace OpenTap
         /// <param name="result">The result whose properties should be stored.</param>
         public void Publish<T>(string name, T result)
         {
-            if (!AnonResultFunc.ContainsKey(typeof(T)))
+            Type runtimeType = result.GetType();
+            if (!AnonResultFunc.ContainsKey(runtimeType))
             {
-                var Props = typeof(T).GetPropertiesTap().Where(p => p.GetMethod != null).Where(p => p.PropertyType.DescendsTo(typeof(IConvertible))).ToList();
+                var Props = runtimeType.GetPropertiesTap().Where(p => p.GetMethod != null).Where(p => p.PropertyType.DescendsTo(typeof(IConvertible))).ToList();
                 var PropNames = Props.Select(p => p.GetDisplayAttribute().GetFullName()).ToList();
 
-                AnonResultFunc[typeof(T)] = (n, v) =>
+                AnonResultFunc[runtimeType] = (n, v) =>
                 {
                     var cols = new ResultColumn[Props.Count];
 
@@ -428,7 +430,7 @@ namespace OpenTap
                 };
             }
 
-            var res = AnonResultFunc[typeof(T)](name, result);
+            var res = AnonResultFunc[runtimeType](name, result);
 
             DoStore(res);
         }
@@ -472,4 +474,5 @@ namespace OpenTap
             DoStore(new ResultTable(name, columns));
         }
     }
+    
 }

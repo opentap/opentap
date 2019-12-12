@@ -183,7 +183,50 @@ namespace OpenTap.Plugins.BasicSteps
             Rules.Add(() => SweepPoints > 1, "Sweep points must be bigger than 1.", "SweepPoints");
             
             Rules.Add(() => ((SweepBehavior != SweepBehavior.Exponential)) || (Math.Sign(SweepStop) == Math.Sign(SweepStart)), "Sweep start and end value must have the same sign.", "SweepEnd", "SweepStart");
+
+            ChildTestSteps.ChildStepsChanged += childStepsChanged;
         }
+        
+        void SweepLoop_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if(e.PropertyName == nameof(ChildTestSteps))
+                ChildTestSteps.ChildStepsChanged += childStepsChanged;
+        }
+
+        readonly Dictionary<IMemberData, object> membersCache = new Dictionary<IMemberData, object>();
+        void childStepsChanged(TestStepList sender, TestStepList.ChildStepsChangedAction Action, ITestStep Object, int Index)
+        {
+            // Make a copy to stop collection modified exception in TapSerializer.
+            membersCache.Clear();
+            getPropertiesForItems(this, membersCache);
+            SweepProperties.RemoveIf<IMemberData>(x => membersCache.ContainsKey(x) == false);
+
+        }
+        static bool memberCanSweep(IMemberData mem) => false == mem.HasAttribute<UnsweepableAttribute>();
+        static void getPropertiesForItems(ITestStep step, Dictionary<IMemberData, object> members)
+        {
+            foreach (ITestStep cs in step.ChildTestSteps)
+            {
+                foreach (var member in TypeData.GetTypeData(cs).GetMembers())
+                {
+                    if (member.TypeDescriptor is TypeData t)
+                    {
+                        if (t.Type.IsNumeric() && members.ContainsKey(member) == false && memberCanSweep(member))
+                        {
+                            members.Add(member, member.GetValue(cs));
+                        }
+                    }
+                }
+                getPropertiesForItems(cs, members);
+            }
+        }
+
+        internal static Dictionary<IMemberData, object> GetPropertiesForItems(ITestStep baseStep)
+        {
+            Dictionary<IMemberData, object> members = new Dictionary<IMemberData, object>();
+            getPropertiesForItems(baseStep, members);
+            return members;
+        } 
 
         /// <summary> Obj/Property mapping </summary>
         struct ObjPropSet
