@@ -40,20 +40,27 @@ OpenTAP uses the following attributes:
 | **AllowChildrenOfType**   | Used on *step* to allow any children of a specific type to be added.  |
 | **AvailableValues**   | Allows the user to select from items in a list. The list can be dynamically changed at run-time.   |
 | **ColumnDisplayName**   |Indicates a property could be displayed as a column in the test plan grid.   |
+| **CommandLineArgument** | Used on a property in a class that implements the *ICliAction* interface, to add a command line argument/switch to the action (e.g. "--verbose"). |
+| **DeserializeOrder** | Can be used to control the order in which properties are deserialized. |
 | **DirectoryPath**  | Indicates a string property is a folder path.   |
 | **Display**   | Expresses how a property is shown and sorted. Can also be used to group properties.   |
 | **EnabledIf**   | Disables some controls under certain conditions.  |
+| **ExternalParameter** | Indicates that a property on a TestStep (a step setting) should be a External Parameter by default when added to a test plan.   |
 | **FilePath**   | Indicates a string property is a file path.   |
 | **Flags**   | Indicates the values of an enumeration represents a bitmask.   |
 | **HandlesType**   | Indicates a IPropGridControlProvider can handle a certain type. Used by advanced programmers who are modifying the GUI editor internals.   |
 | **HelpLink**   | Defines the help link for a class or property.   |
 | **IgnoreSerializer**  | Used on classes to ignore serialization. Useful for cases where a plugin implementation contains non-serializable members or types.   |
+| **Layout** | Used to specify the desired layout of the element in the user interface. |
 | **MacroPath**   | Indicates a setting should use MacroPath values, such as &lt;Name&gt; and %Temp%.   |
 | **MetaData**   | A *property* marked by this attribute becomes metadata and will be provided to all result listeners. If a resource is used with this attribute (and *Allow Metadata Dialog* is enabled), a dialog prompts the user. This works for both the GUI Editor and the OpenTAP CLI.  |
 | **Output**   | Indicates a test step property is an output variable.  |
 | **ResultListenerIgnore**   | Indicates a property that should not be published to ResultListeners.   |
 | **Scpi**   | Identifies a method or enumeration value that can be handled by the SCPI class.    |
 | **SettingsGroup**  | Indicates that component settings belong to a settings group (e.g. "Bench" for bench settings).   |
+| **SuggestedValues** | Marks the property value can be selected from a list in the OpenTAP Editor. Points to another property that contains the list of suggested values. | 
+| **TimeSpanFormat** | Attribute applicable to a property of type 'TimeSpan' to display the property value in a human readable format in the user interface. |
+| **UnnamedCommandLineArgument** | When used on a property in a class that implements the *ICliAction* interface, the property becomes an unnamed parameter to the command line argument. |
 | **Unit**   | Indicates a unit displayed with the setting values. Multiple options exist.   |
 | **VisaAddress**   | Indicates a property that represents a VISA address. The editor will be populated with addresses from all available instruments.   |
 | **XmlIgnore**   | Indicates that a property should not be serialized.  |
@@ -62,7 +69,7 @@ For attribute usage examples, see the files in:
 
 -	`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\Attributes`
 
-Some of the commonly used attributes are described in the following sections.
+Some of the commonly used attributes are described in the following sections. For more details on the attributes see OpenTapApiReference.chm.
 
 ## Best Practices for Plugin Development
 

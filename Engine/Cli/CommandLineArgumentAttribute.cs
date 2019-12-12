@@ -1,4 +1,4 @@
-﻿//            Copyright Keysight Technologies 2012-2019
+//            Copyright Keysight Technologies 2012-2019
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,12 +8,10 @@ using System;
 namespace OpenTap.Cli
 {
     /// <summary>
-    /// When used on a <see cref="ICliAction"/> this indicates the name and description of the action. ShortName will not be displayed in the OpenTAP CLI help.
-    /// When used on a property inside a <see cref="ICliAction"/> all the properties are valid.
-    /// The <see cref="Visible"/> indicates whether the property or class will be shown in the help.
+    /// When used on a property inside a <see cref="ICliAction"/>, this attribute indicates a command line arugment or switch.
     /// </summary>
     /// <remarks>
-    /// When used on properties, the property type can be: bool, string, or string[]. If it's bool the argument will not take an argument, but will instead set the property to true.
+    /// The property type can be: bool, string, or string[]. If it's bool the argument will not take an argument, but will instead set the property to true.
     /// If it's a string the value of the property will be set to the first occuring value set in the CLI arguments.
     /// If it's a string[] all values set in the CLI arguments will be concatenated into an array.
     /// </remarks>
@@ -25,7 +23,7 @@ namespace OpenTap.Cli
         /// </summary>
         public string Name { get; private set; }
         /// <summary>
-        /// Indicates the short name of the argument. For properties this should be 1 character.
+        /// Indicates the short name of the argument. This should be 1 character.
         /// </summary>
         public string ShortName { get; set; }
         /// <summary>
