@@ -33,7 +33,7 @@ Bug Fixes:
 - Properties with no getters break typedata [#52](https://gitlab.com/OpenTAP/opentap/issues/52)
 - Run Program step can't run tap on windows [#75](https://gitlab.com/OpenTAP/opentap/issues/75)
 - Fixed a bug where invalid station macro caused a crash
-- `--reults "" ` now disables all result listeners
+- `--results "" ` now disables all result listeners
 
 Other: 
 -------
