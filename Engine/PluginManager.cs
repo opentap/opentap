@@ -452,7 +452,7 @@ namespace OpenTap
 
         #region Version ResultParameters
         static Memorizer<Assembly, ResultParameter> AssemblyVersions = new Memorizer<Assembly, ResultParameter>(GetVersionResultParameter) { SoftSizeDecayTime = TimeSpan.FromDays(10) };
-        static int ChangeID = 0;
+        internal static int ChangeID = 0;
 
         private static ResultParameter GetVersionResultParameter(Assembly assembly)
         {
