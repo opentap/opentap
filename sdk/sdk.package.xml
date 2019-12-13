@@ -3,7 +3,6 @@
   <Description>OpenTAP’s SDK contains code example files, an MSBuild task to help create TapPackage files and the developer guide. This package demonstrates the core capabilities of OpenTAP and makes it faster and simpler to develop custom Test Automation solutions, especially for new developers.
     <Status>Released</Status>
     <Organisation>Keysight Technologies</Organisation>
-    <Prerequisites>Visual Studio 2015 or newer</Prerequisites>
   </Description>
   <SourceUrl>https://gitlab.com/OpenTAP/opentap</SourceUrl>
   <Owner>OpenTAP</Owner>

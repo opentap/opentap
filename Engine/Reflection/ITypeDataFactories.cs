@@ -26,11 +26,25 @@ namespace OpenTap
             return GetDerivedTypes(TypeData.FromType(typeof(BaseType)));
         }
 
+        static int ChangeID = -1;
+
+        static void checkCacheValidity()
+        {
+            if (PluginManager.ChangeID != ChangeID)
+            {
+                searchers.Clear();
+                MemberData.InvalidateCache();
+                dict = new System.Runtime.CompilerServices.ConditionalWeakTable<Type, TypeData>();
+                ChangeID = PluginManager.ChangeID;
+            }
+        }
+
         /// <summary> Get all known types that derive from a given type.</summary>
         /// <param name="baseType">Base type that all returned types descends to.</param>
         /// <returns>All known types that descends to the given base type.</returns>
         static public IEnumerable<ITypeData> GetDerivedTypes(ITypeData baseType)
         {
+            checkCacheValidity();
             var searcherTypes = TypeData.FromType(typeof(ITypeDataSearcher)).DerivedTypes;
             if(derivedTypesCache.ContainsKey(baseType) && searchers.Count == searcherTypes.Count())
             {
@@ -82,6 +96,7 @@ namespace OpenTap
         /// <summary> Get the type info of an object. </summary>
         static public ITypeData GetTypeData(object obj)
         {
+            checkCacheValidity();
             if (obj == null) return FromType(typeof(object));
             var resolver = new TypeDataProviderStack();
             return resolver.GetTypeData(obj);

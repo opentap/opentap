@@ -1509,8 +1509,7 @@ namespace OpenTap
                         // now iteratively add/move elements
                         // so that lst2 becomes the same as 'values'
 
-                        int i2 = 0;
-                        for (int i1 = 0; i1 < values.Count; i1++, i2++)
+                        for (int i1 = 0,  i2 = 0; i1 < values.Count; i1++, i2++)
                         {
                             if (i1 >= lst2.Count)
                             {
@@ -1520,7 +1519,7 @@ namespace OpenTap
                             if (lst2[i2] == values[i1])
                                 continue; // same element.. we can continue.
 
-                            for (int i3 = i2; i2 < lst2.Count; i3++)
+                            for (int i3 = i2; i3 < lst2.Count; i3++)
                             {
                                 // before inserting the element check that it does not figure further ahead in the list.
                                 // if this is the case, remove it. This handles cases where things has been moved.

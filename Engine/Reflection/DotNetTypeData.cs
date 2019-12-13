@@ -32,6 +32,7 @@ namespace OpenTap
         /// <summary> Creates a new TypeData object to represent a dotnet type. </summary>
         public static TypeData FromType(Type type)
         {
+            checkCacheValidity();
             return dict.GetValue(type, x =>
             {
                 TypeData td = null;
@@ -223,7 +224,10 @@ namespace OpenTap
         }
         static ConcurrentDictionary<MemberName, MemberData> dict
             = new ConcurrentDictionary<MemberName, MemberData>();
-
+        internal static void InvalidateCache()
+        {
+            dict.Clear();
+        }
         /// <summary>
         /// Creates a new MemberData for a member of a C#/dotnet type.
         /// </summary>

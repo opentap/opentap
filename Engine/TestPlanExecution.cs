@@ -8,7 +8,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
@@ -17,7 +16,7 @@ namespace OpenTap
 {
     partial class TestPlan
     {
-        bool runPrePlanRunMethods(IEnumerable<ITestStep> steps, TestPlanRun planRun, String parentPath)
+        bool runPrePlanRunMethods(IEnumerable<ITestStep> steps, TestPlanRun planRun)
         {
             Stopwatch preTimer = Stopwatch.StartNew(); // try to avoid calling Stopwatch.StartNew too often.
             TimeSpan elaps = preTimer.Elapsed;
@@ -32,11 +31,7 @@ namespace OpenTap
                 }
                 planRun.StepsWithPrePlanRun.Add(step);
 
-                string stepPath;
-                if (string.IsNullOrEmpty(parentPath) == false)
-                    stepPath = parentPath + " \\ " + step.GetFormattedName();
-                else
-                    stepPath = step.GetFormattedName();
+                string stepPath = step.GetStepPath();
                 try
                 {
                     if (runPre)
@@ -62,7 +57,7 @@ namespace OpenTap
                         }
                     }
 
-                    if (!runPrePlanRunMethods(step.ChildTestSteps, planRun, stepPath))
+                    if (!runPrePlanRunMethods(step.ChildTestSteps, planRun))
                     {
                         return false;
                     }
@@ -140,7 +135,7 @@ namespace OpenTap
             try
             {
                 execStage.StepsWithPrePlanRun.Clear();
-                if (!runPrePlanRunMethods(steps, execStage, null))
+                if (!runPrePlanRunMethods(steps, execStage))
                 {
                     return failState.StartFail;
                 }
@@ -347,6 +342,8 @@ namespace OpenTap
                         {
                             var obj = new MetadataPromptObject { Resources = resources };
                             UserInput.Request(obj, false);
+                            if (obj.Response == MetadataPromptObject.PromptResponse.Abort)
+                                planRun.MainThread.Abort();
                         }
                         catch(Exception e)
                         {
@@ -825,5 +822,16 @@ namespace OpenTap
         public string Name { get; private set; } = "Please enter test plan metadata.";
         [Browsable(false)]
         public IEnumerable<IResource> Resources { get; set; }
+
+        public enum PromptResponse
+        {
+            OK,
+            Abort
+        }
+        
+        [Layout(LayoutMode.FloatBottom | LayoutMode.FullRow)]
+        [Submit]
+        public PromptResponse Response { get; set; }
+        
     }
 }

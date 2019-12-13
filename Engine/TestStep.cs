@@ -685,19 +685,25 @@ namespace OpenTap
 
         internal static string GetStepPath(this ITestStep Step)
         {
-            List<string> names = new List<string>();
-            ITestStep s = Step;
-            while (s != null)
+            var name = Step.GetFormattedName();
+
+            StringBuilder sb = new StringBuilder();
+            sb.Append('"');
+
+            void getParentNames(ITestStep step)
             {
-                bool containsMacro = s.Name.Contains('{') && s.Name.Contains('}');
-                if (containsMacro)
-                    names.Add(s.GetFormattedName());
-                else
-                    names.Add(s.Name);
-                s = s.Parent as ITestStep;
+                if (step.Parent is ITestStep parent2)
+                    getParentNames(parent2);
+
+                sb.Append(step.GetFormattedName());
+                sb.Append(" \\ ");
             }
-            names.Reverse();
-            return '\"'+ string.Join(" \\ ", names) + '\"';
+
+            if (Step.Parent is ITestStep parent)
+                getParentNames(parent);
+            sb.Append(name);
+            sb.Append('"');
+            return sb.ToString();
         }
 
         static void checkStepFailure(ITestStep Step, TestPlanRun planRun)
@@ -730,11 +736,11 @@ namespace OpenTap
                 throw new Exception("Step not enabled."); // Do not run step if it has been disabled
             planRun.ThrottleResultPropagation();
             Step.PlanRun = planRun;
-            var stepRun = Step.StepRun = new TestStepRun(Step, parentStepRun == null ? planRun.Id : parentStepRun.Id, attachedParameters);
-            if (parentStepRun == null)
-                stepRun.TestStepPath = stepRun.TestStepName;
-            else
-                stepRun.TestStepPath = parentStepRun.TestStepPath + " \\ " + stepRun.TestStepName;
+            var stepRun = Step.StepRun = new TestStepRun(Step, parentStepRun == null ? planRun.Id : parentStepRun.Id,
+                attachedParameters)
+            {
+                TestStepPath = Step.GetStepPath()
+            };
 
             var stepPath = stepRun.TestStepPath;
             //Raise an event prior to starting the actual run of the TestStep. 
@@ -985,29 +991,26 @@ namespace OpenTap
             public string Content;
         }
         
-        static Dictionary<Type, Dictionary<string, PropertyInfo>> formatterLutCache 
-            = new Dictionary<Type, Dictionary<string, PropertyInfo>>();
+        static Dictionary<ITypeData, Dictionary<string, IMemberData>> formatterLutCache 
+            = new Dictionary<ITypeData, Dictionary<string, IMemberData>>();
         
-        /// <summary>
-        /// Takes the name of step and replaces properties.
-        /// </summary>
-        /// <param name="step"></param>
-        /// <returns></returns>
+        /// <summary> Takes the name of step and replaces {} tokens with the value of properties. </summary>
         public static string GetFormattedName(this ITestStep step)
         {
-            if(step.Name.Contains('{') == false)
+            if(step.Name.Contains('{') == false || step.Name.Contains('}') == false)
                 return step.Name;
-            Dictionary<string, PropertyInfo> props = null;
-            if (formatterLutCache.ContainsKey(step.GetType()) == false)
+            Dictionary<string, IMemberData> props;
+            var type = TypeData.GetTypeData(step);
+            if (formatterLutCache.TryGetValue(type, out props) == false)
             {
                 // GetProperties potentially slow. GetFormattedName is in test plan exec thread, so the outcome is cached.
                 
-                props = new Dictionary<string, PropertyInfo>();
-                foreach (var item in step.GetType().GetPropertiesTap())
+                props = new Dictionary<string, IMemberData>();
+                foreach (var item in type.GetMembers())
                 {
                     var browsable = item.GetAttribute<BrowsableAttribute>();
                     if (browsable != null && browsable.Browsable == false) continue;
-                    if (!item.CanRead || item.GetGetMethod() == null)
+                    if (item.Readable == false) 
                         continue;
                     var s = item.GetDisplayAttribute();
                     if ((s.Group != null) && (s.Group.Length > 0))
@@ -1025,11 +1028,7 @@ namespace OpenTap
                         props[s.Name.ToLower()] = item;
                     }
                 }
-                formatterLutCache[step.GetType()] = props;
-            }
-            else
-            {
-                props = formatterLutCache[step.GetType()];
+                formatterLutCache[type] = props;
             }
             var name = step.Name;
             if (name == null)
@@ -1058,7 +1057,7 @@ namespace OpenTap
                 if (props.ContainsKey(prop))
                 {
                     var property = props[prop];
-                    var value = props[prop].GetValue(step);
+                    var value = property.GetValue(step);
                     var unitattr = property.GetAttribute<UnitAttribute>();
                     string valueString = null;
                     bool isCollection = value is IEnumerable && false == value is string;
@@ -1079,7 +1078,7 @@ namespace OpenTap
                             valueString = fmt.FormatRange(value as IEnumerable);
                         }else
                         {   // else use ToString.
-                            valueString = string.Join(System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NumberGroupSeparator + " ", ((IEnumerable)value).Cast<object>().Select(o => o == null ? "NULL" : o));
+                            valueString = string.Join(System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NumberGroupSeparator + " ", ((IEnumerable)value).Cast<object>().Select(o => o ?? "NULL"));
                         }
                     }
                     else
