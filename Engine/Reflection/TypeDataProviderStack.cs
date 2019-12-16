@@ -104,12 +104,37 @@ namespace OpenTap
 
         static List<object> GetProviders()
         {
-            var _providers = TypeData.FromType(typeof(ITypeDataProvider)).DerivedTypes;
-            _providers = _providers.Concat(TypeData.FromType(typeof(IStackedTypeDataProvider)).DerivedTypes);
-            if (providersCache.Count == _providers.Count()) return providersCache;
-            providersCache = _providers.Select(x => x.CreateInstanceSafe())
-                .OrderByDescending(x => (x as ITypeDataProvider)?.Priority ?? (x as IStackedTypeDataProvider).Priority)
-                .ToList();
+            var providerTypes = TypeData.FromType(typeof(IStackedTypeDataProvider)).DerivedTypes;
+            providerTypes = providerTypes.Concat(TypeData.FromType(typeof(ITypeDataProvider)).DerivedTypes).Distinct();
+            if (providersCache.Count == providerTypes.Count()) return providersCache;
+            Dictionary<object, double> priorities = new Dictionary<object, double>();
+            
+            foreach (var providerType in providerTypes)
+            {
+                if (providerType.CanCreateInstance == false) continue;
+                
+                try
+                {
+                    var provider = providerType.CreateInstance();
+                    double priority;
+
+                    if (provider is IStackedTypeDataProvider p)
+                        priority = p.Priority;
+                    else if (provider is ITypeDataProvider p2)
+                        priority = p2.Priority;
+                    else throw new InvalidOperationException("Unreachable code path executed.");
+                    priorities.Add(provider, priority);
+                }
+                catch(Exception e)
+                {
+                    var log = Log.CreateSource("TypeDataProvider");
+                    log.Error("Unable to use TypeDataProvider of type '{0}' due to errors.", providerType.Name);
+                    log.Error("The error was '{0}'", e.Message);
+                    log.Debug(e);
+                }
+            }
+
+            providersCache = priorities.Keys.OrderByDescending(x => priorities[x]).ToList();
             return providersCache;
         }
     }
