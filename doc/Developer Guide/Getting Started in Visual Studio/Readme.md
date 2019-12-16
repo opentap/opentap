@@ -1,5 +1,5 @@
 ## Getting Started with the Visual Studio Example Projects
-The Software Development Kit (SDK) package can be downloaded from opentap.io. If you are using the Keysight Developer's System (Community or Enterprice Edition) you already have the SDK package.
+The Software Development Kit (SDK) package can be downloaded from opentap.io. If you are using the Keysight Developer's System (Community or Enterprise Edition) you already have the SDK package.
 
 Before you start to create your own project, look at the projects and files in **`TAP_PATH\Packages\SDK\Examples`**. This folder provides code for example DUT, instrument and test step plugins. First-time OpenTAP developers should browse and build the projects, then use e.g. the Edtior GUI to view the example DUTs, instruments and test steps. 
 
