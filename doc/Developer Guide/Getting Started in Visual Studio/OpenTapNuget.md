@@ -21,7 +21,7 @@ When your peoject referenes the nuget package, OpenTAP will automatically be ins
 
 #### OpenTAP Package creation
 
-The nuget also adds build features to ease packaging your plugins as a *.TapPackage for distribution through OpenTAP's package management system (e.g. by publishing it on pckages.opentap.io). To take advantage of these features, your project needs a [package definition file](../Plugin%20Packaging%20and%20Versioning/Readme.md) (normally named package.xml). You can use the command line `tap sdk new packagexml` to generate a skeleton file (See the [SDK Template Generator](?) section for more details). As soon as a file named package.xml is in your project, a TapPackage will be generated when it is built in Release mode. You can costumize this behavior using these MSBUILD properties in your csproj file:
+The nuget also adds build features to ease packaging your plugins as a *.TapPackage for distribution through OpenTAP's package management system (e.g. by publishing it on pckages.opentap.io). To take advantage of these features, your project needs a [package definition file](../Plugin Packaging and Versioning/Readme.md) (normally named package.xml). You can use the command line `tap sdk new packagexml` to generate a skeleton file (See the [SDK Template Generator](?) section for more details). As soon as a file named package.xml is in your project, a TapPackage will be generated when it is built in Release mode. You can costumize this behavior using these MSBUILD properties in your csproj file:
 ```xml
     <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
     <CreateOpenTapPackage>true</CreateOpenTapPackage>
