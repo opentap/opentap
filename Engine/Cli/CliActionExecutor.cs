@@ -196,7 +196,7 @@ namespace OpenTap.Cli
 
                     foreach (var cmd in CliActionTree.Root.SubCommands)
                     {
-                        if (cmd.IsGroup || cmd.Type.GetAttribute<BrowsableAttribute>()?.Browsable == true)
+                        if (cmd.IsGroup || cmd.Type.IsBrowsable())
                         {
                             Console.WriteLine($"  {cmd.Name.PadRight(22)}{(cmd.IsGroup ? "" : cmd.Type.GetDisplayAttribute().Description)}");
                             foreach (var subcmd in cmd.SubCommands)
