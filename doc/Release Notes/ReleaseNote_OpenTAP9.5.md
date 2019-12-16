@@ -1,4 +1,4 @@
-Release Notes - PathWaveTestAutomation 9.5
+Release Notes - OpenTAP 9.5
 =============
 
 New Features:
