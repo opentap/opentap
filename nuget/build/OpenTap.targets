@@ -71,19 +71,19 @@
   <Target Name="InstallOpenTapPackages"
         Inputs="$(MSBuildProjectFullPath)"
         Outputs="@(OpenTapPackagesToInstall-> '$(OutDir)Packages/%(Identity)/package.xml')"
-        DependsOnTargets="CopyOpenTapPayloadFiles;ProcessOpenTapPackageList" 
+        DependsOnTargets="CopyOpenTapPayloadFiles;ProcessOpenTapPackageList"
         BeforeTargets="Build" AfterTargets="CopyOpenTapPayloadFiles">
-    <Exec Command=".\tap package install --dependencies --force &quot;@(OpenTapPackagesToInstall)&quot;"
-          Condition="'%(Repository)' == '' AND '%(Version)' == ''"
+    <Exec Command=".\tap package install --dependencies --force &quot;%(Identity)&quot;"
+          Condition="'%(OpenTapPackagesToInstall.Repository)' == '' AND '%(OpenTapPackagesToInstall.Version)' == ''"
           LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
-    <Exec Command=".\tap package install --dependencies --force &quot;@(OpenTapPackagesToInstall)&quot; -r &quot;%(Repository)&quot;"
-          Condition="'%(Repository)' != '' AND '%(Version)' == ''"
+    <Exec Command=".\tap package install --dependencies --force &quot;%(Identity)&quot; -r &quot;%(OpenTapPackagesToInstall.Repository)&quot;"
+          Condition="'%(OpenTapPackagesToInstall.Repository)' != '' AND '%(OpenTapPackagesToInstall.Version)' == ''"
           LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
-    <Exec Command=".\tap package install --dependencies --force &quot;@(OpenTapPackagesToInstall)&quot; --version &quot;%(Version)&quot;"
-          Condition="'%(Repository)' == '' AND '%(Version)' != ''"
+    <Exec Command=".\tap package install --dependencies --force &quot;%(Identity)&quot; --version &quot;%(OpenTapPackagesToInstall.Version)&quot;"
+          Condition="'%(OpenTapPackagesToInstall.Repository)' == '' AND '%(OpenTapPackagesToInstall.Version)' != ''"
           LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
-    <Exec Command=".\tap package install --dependencies --force &quot;@(OpenTapPackagesToInstall)&quot; -r &quot;%(Repository)&quot; --version &quot;%(Version)&quot;"
-          Condition="'%(Repository)' != '' AND '%(Version)' != ''"
+    <Exec Command=".\tap package install --dependencies --force &quot;%(Identity)&quot; -r &quot;%(OpenTapPackagesToInstall.Repository)&quot; --version &quot;%(OpenTapPackagesToInstall.Version)&quot;"
+          Condition="'%(OpenTapPackagesToInstall.Repository)' != '' AND '%(OpenTapPackagesToInstall.Version)' != ''"
           LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
   </Target>
 
