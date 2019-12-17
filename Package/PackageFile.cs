@@ -746,7 +746,7 @@ namespace OpenTap.Package
         /// <returns></returns>
         public static bool CompatibleWith(CpuArchitecture host, CpuArchitecture plugin)
         {
-            if (plugin == CpuArchitecture.AnyCPU || (host == CpuArchitecture.Unspecified)) return true; // TODO: Figure out if this should be allowed in the long term
+            if (plugin == CpuArchitecture.AnyCPU || host == CpuArchitecture.Unspecified) return true; // TODO: Figure out if this should be allowed in the long term
             if (plugin == CpuArchitecture.AnyCPU) return true;
 
             //if ((host == CpuArchitecture.x64) && (plugin == CpuArchitecture.x86)) return true;
