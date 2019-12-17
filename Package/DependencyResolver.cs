@@ -31,6 +31,8 @@ namespace OpenTap.Package
         /// </summary>
         public List<PackageDependency> UnknownDependencies = new List<PackageDependency>();
 
+
+        private TraceSource log = Log.CreateSource("DependencyResolver");
         /// <summary>
         /// Instantiates a new dependency resolver.
         /// </summary>
@@ -96,12 +98,20 @@ namespace OpenTap.Package
             return null;
         }
 
-        private static PackageDef GetPackageDefFromRepo(List<IPackageRepository> repositories, string name, VersionSpecifier version)
+        private PackageDef GetPackageDefFromRepo(List<IPackageRepository> repositories, string name, VersionSpecifier version)
         {
             if (name.ToLower().EndsWith(".tappackage"))
                 name = Path.GetFileNameWithoutExtension(name);
 
-            var packages =  PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, new PackageSpecifier(name, version, CpuArchitecture.Unspecified, OperatingSystem.Current.ToString()));
+            var specifier = new PackageSpecifier(name, version, CpuArchitecture.Unspecified, OperatingSystem.Current.ToString());
+            var packages =  PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, specifier, InstalledPackages.Values.ToArray());
+
+            if (packages.Any() == false)
+            {
+                packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, specifier);
+                if (packages.Any())
+                    log.Warning($"Unable to find a version of '{name}' package compatible with currently installed packages. Some installed packages may be upgraded.");
+            }
 
             return packages.OrderByDescending(pkg => pkg.Version).FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.HostArchitecture));
         }
