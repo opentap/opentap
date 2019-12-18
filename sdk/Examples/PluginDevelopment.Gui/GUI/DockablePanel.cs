@@ -13,12 +13,13 @@
 //limitations under the License.
 using System;
 using System.Windows;
-using OpenTap;
 using System.IO;
 using Keysight.OpenTap.Wpf;
-using System.Windows.Controls;
-using System.Windows.Media;
 using System.Windows.Threading;
+using System.Windows.Forms;
+using System.Windows.Controls;
+using Brushes = System.Windows.Media.Brushes;
+using Button = System.Windows.Controls.Button;
 
 // This file shows how to implement a custom dockable panel. The panel can be enabled/disabled under 
 // the View menu choice in the TAP GUI. The panel can be configured to be either floating or docked.
@@ -49,11 +50,11 @@ namespace OpenTap.Plugins.PluginDevelopment
             var statusTxt = new TextBlock
             {
                 FontSize = 40,
-                HorizontalAlignment = HorizontalAlignment.Center
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center
             };
 
             // Setup UI panel and add elements
-            var panel = new StackPanel() { Orientation = Orientation.Vertical };
+            var panel = new StackPanel() { Orientation = System.Windows.Controls.Orientation.Vertical };
 
             panel.Children.Add(loadPlanBtn);
             panel.Children.Add(runPlanBtn);
@@ -66,12 +67,12 @@ namespace OpenTap.Plugins.PluginDevelopment
             stopPlanBtn.Click += (s, e) => planThread?.Abort();
             loadPlanBtn.Click += (s, e) =>
             {
-                var fd = new System.Windows.Forms.OpenFileDialog();
+                var fd = new OpenFileDialog();
                 fd.CheckFileExists = true;
                 var r = fd.ShowDialog();
                 try
                 {
-                    if (r == System.Windows.Forms.DialogResult.OK)
+                    if (r == DialogResult.OK)
                         context.Plan = TestPlan.Load(fd.FileName);
                 }
                 catch (InvalidOperationException ex)
@@ -129,7 +130,7 @@ namespace OpenTap.Plugins.PluginDevelopment
     {
         static Dispatcher getGuiDispatcher()
         {
-            if (Application.Current != null) return Application.Current.Dispatcher;
+            if (System.Windows.Application.Current != null) return System.Windows.Application.Current.Dispatcher;
             return null;
 
         }

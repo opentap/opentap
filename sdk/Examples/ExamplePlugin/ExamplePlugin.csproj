@@ -1,74 +1,39 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <StartAction>Program</StartAction>
-    <StartProgram>$(TAP_PATH)\Editor.exe</StartProgram>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProductVersion>8.0.30703</ProductVersion>
-    <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{9BD72823-196E-4575-B779-DAF8FA3D17E9}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>OpenTap.Plugins.ExamplePlugin</RootNamespace>
+    <!-- We are debugging using NET Framework, but builds to Netstandard in release mode to ensure cross platform compatibility -->
+    <!-- If your plugin is Windows only and you use Windows specific API's, feel free to change "netstandard2.0" below to "net462" and everything will work as when you are debugging. In this case, remember to change "OS" in package.xml to only "windows" -->
+    <!-- If your plugin should be cross platform but does not build in release mode, please verify that all API's you used are available. You might need references or nuget packages for API's that are available in NET framework, but not in NetStandard -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
     <AssemblyName>OpenTap.Plugins.ExamplePlugin</AssemblyName>
-    <!-- 'v4.5.2' removed because we only support 4.5.2-->
-    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
+    <OutputPath>../bin/Release</OutputPath>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>$(TAP_PATH)</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <!-- We are setting TargetFramework in debug configuration, otherwise Visual Studio tries to attach a .NET Core debugger. That will not work, because the program we open is a .NET Framework executable -->
+    <TargetFramework>net462</TargetFramework>
+    <OutputPath>../bin/Debug</OutputPath>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>$(TAP_PATH)</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
+
   <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
-    <Reference Include="OpenTap">
-      <HintPath>$(TAP_PATH)\OpenTap.dll</HintPath>
-      <SpecificVersion>False</SpecificVersion>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="netstandard" />
+    <!-- Developer's System is needed to debug in 'Editor' -->
+    <AdditionalOpenTapPackage Include="Developer's System CE" />
+
+    <!--<AdditionalOpenTapPackage Include="Developer's System" />-->
   </ItemGroup>
+
   <ItemGroup>
-    <Compile Include="LowPassFilterDut.cs" />
-    <Compile Include="GeneratorInstrument.cs" />
-    <Compile Include="MeasurePeakAmplitudeTestStep.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <None Include="package.xml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-      <SubType>Designer</SubType>
+    <PackageReference Include="OpenTAP" Version="$(GitVersion)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="SomeSampleData.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-  <ItemGroup>
-    <Content Include="SomeSampleData.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <UsingTask TaskName="Keysight.OpenTap.Sdk.MSBuild.PackageTask" AssemblyFile="$(TAP_PATH)\Packages\SDK\Keysight.OpenTap.Sdk.MSBuild.dll" />
-  <Target Name="AfterBuild" Condition="'$(Configuration)' == 'Release' ">
-    <GetAssemblyIdentity AssemblyFiles="$(TargetPath)">
-      <Output TaskParameter="Assemblies" ItemName="TargetInfo" />
-    </GetAssemblyIdentity>
-    <PackageTask Dir="$(TargetDir)" ConfFile="$(ProjectDir)\package.xml" />
-  </Target>
+
 </Project>

@@ -287,6 +287,11 @@ Package-SDK:
          - .\tap.exe package create ../../opentap.x86.package.xml --install -v
          - Copy-Item "../../sdk/Examples" "Packages/SDK/Examples" -Recurse
          - Copy-Item "../../Package/PackageSchema.xsd" "Packages/SDK/PackageSchema.xsd"
+         - ./tap sdk gitversion --replace "Packages/SDK/Examples/ExamplePlugin/ExamplePlugin.csproj"
+         - ./tap sdk gitversion --replace "Packages/SDK/Examples/PluginDevelopment/PluginDevelopment.csproj"
+         - ./tap sdk gitversion --replace "Packages/SDK/Examples/PluginDevelopment.Gui/PluginDevelopment.Gui.csproj"
+         - ./tap sdk gitversion --replace "Packages/SDK/Examples/TestPlanExecution/BuildTestPlan.Api/BuildTestPlan.Api.csproj"
+         - ./tap sdk gitversion --replace "Packages/SDK/Examples/TestPlanExecution/RunTestPlan.Api/RunTestPlan.Api.csproj"
          - ./tap package create ../../sdk/sdk.package.xml
          - Move-Item "*.TapPackage" "../.."
   artifacts:
