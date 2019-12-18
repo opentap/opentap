@@ -1,69 +1,40 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{68D30DA3-7F51-449D-A5F0-B1B2E3F59EDD}</ProjectGuid>
     <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>PluginDevelopment.Gui</RootNamespace>
-    <AssemblyName>PluginDevelopment.Gui</AssemblyName>
-    <TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <Deterministic>true</Deterministic>
+    <!-- We are debugging using NET Framework, but builds to Netstandard in release mode to ensure cross platform compatibility -->
+    <!-- If your plugin is Windows only and you use Windows specific API's, feel free to change "netstandard2.0" below to "net462" and everything will work as when you are debugging. In this case, remember to change "OS" in package.xml to only "windows" -->
+    <!-- If your plugin should be cross platform but does not build in release mode, please verify that all API's you used are available. You might need references or nuget packages for API's that are available in NET framework, but not in NetStandard -->
+    <TargetFramework>net462</TargetFramework>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
+    <OutputPath>../bin/Release</OutputPath>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
+    <!-- We are setting TargetFramework in debug configuration, otherwise Visual Studio tries to attach a .NET Core debugger. That will not work, because the program we open is a .NET Framework executable -->
+    <TargetFramework>net462</TargetFramework>
+    <OutputPath>../bin/Debug</OutputPath>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
+
   <ItemGroup>
-    <Reference Include="OpenTap, Version=5.0.390.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>$(TAP_PATH)\OpenTap.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Keysight.OpenTap.Gui, Version=5.0.390.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>$(TAP_PATH)\Editor.exe</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="Keysight.OpenTap.Wpf, Version=5.0.390.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>$(TAP_PATH)\Packages\WPF Controls\Keysight.OpenTap.Wpf.dll</HintPath>
-      <Private>False</Private>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Xml" />
+    <Folder Include="Properties\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Developer's System is needed to debug in 'Editor' -->
+    <AdditionalOpenTapPackage Include="Developer's System CE" />
+
+    <!--<AdditionalOpenTapPackage Include="Developer's System" />-->
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OpenTAP" Version="$(GitVersion)" />
+    <OpenTapPackageReference Include="WPF Controls" />
     <Reference Include="PresentationCore" />
-    <Reference Include="WindowsBase" />
-    <Reference Include="System.Windows.Forms" />
     <Reference Include="PresentationFramework" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="WindowsBase" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="GUI\DockablePanel.cs" />
-    <Compile Include="GUI\ToolsMenu.cs" />
-    <Compile Include="GUI\CustomControlProvider.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

@@ -13,7 +13,7 @@ $(GitVersion) - Gets the version from Git in the recommended format Major.Minor.
          Version="0.1.0-alpha">
   <Description>Example source code for developers using OpenTAP</Description>
   <Files>
-    <File Path="OpenTap.Plugins.PluginDevelopment.dll">
+    <File Path="Packages/Plugin Development/OpenTap.Plugins.PluginDevelopment.dll">
     	<SetAssemblyInfo Attributes="Version"/>
     </File>
   </Files>

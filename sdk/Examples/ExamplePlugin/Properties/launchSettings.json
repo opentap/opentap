@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Editor": {
+      "commandName": "Executable",
+      "executablePath": "./editor.exe"
+    }
+  }
+}

@@ -1,0 +1,5 @@
+<Project>
+	<PropertyGroup>
+		<GitVersion>9.5.0-rc.3</GitVersion>
+	</PropertyGroup>
+</Project>
