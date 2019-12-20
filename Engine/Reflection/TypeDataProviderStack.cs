@@ -101,12 +101,13 @@ namespace OpenTap
         }
 
         static List<object> providersCache = new List<object>();
+        static readonly HashSet<ITypeData> badProviders = new HashSet<ITypeData>();
 
         static List<object> GetProviders()
         {
             var providerTypes = TypeData.FromType(typeof(IStackedTypeDataProvider)).DerivedTypes;
             providerTypes = providerTypes.Concat(TypeData.FromType(typeof(ITypeDataProvider)).DerivedTypes).Distinct();
-            if (providersCache.Count == providerTypes.Count()) return providersCache;
+            if (providersCache.Count + badProviders.Count == providerTypes.Count()) return providersCache;
             Dictionary<object, double> priorities = new Dictionary<object, double>();
             
             foreach (var providerType in providerTypes)
@@ -122,7 +123,17 @@ namespace OpenTap
                         priority = p.Priority;
                     else if (provider is ITypeDataProvider p2)
                         priority = p2.Priority;
-                    else throw new InvalidOperationException("Unreachable code path executed.");
+                    else
+                    {
+                        lock (badProviders)
+                        {
+                            if (badProviders.Contains(providerType))
+                                continue; // error was printed first time, so just continue.
+                            badProviders.Add(providerType);
+                        }
+
+                        throw new InvalidOperationException("Unreachable code path executed.");
+                    }
                     priorities.Add(provider, priority);
                 }
                 catch(Exception e)

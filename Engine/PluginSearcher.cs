@@ -84,6 +84,8 @@ namespace OpenTap
                 UnfoundAssemblies = new HashSet<AssemblyRef>();
             }
 
+            static bool firstTimeWarningPrinted = true;
+            
             /// <summary>
             /// Returns a list of assemblies and their dependencies/references. 
             /// The list is sorted such that a dependency is before the assembly/assemblies that depend on it.
@@ -97,10 +99,55 @@ namespace OpenTap
                     var existingFiles = nameToFileMap.SelectMany(g => g.Select(s => s));
                     nameToFileMap = existingFiles.Concat(files).Distinct().ToLookup(Path.GetFileNameWithoutExtension);
                 }
-                foreach (string file in files)
+
+                // print a warning if the same assembly is loaded more than once.
+                foreach (var entry in nameToFileMap)
                 {
-                    AddAssemblyInfo(file);
+                    var count = entry.Count();
+                    if (count == 1) continue;
+                    var versions = new HashSet<string>();
+                    foreach (var file in entry)
+                    {
+                        try
+                        {
+                            var fileVersion = FileVersionInfo.GetVersionInfo(file);
+                            versions.Add(fileVersion?.FileVersion ?? "");
+                        }
+                        catch
+                        {
+                            // Accept errors here, this code is only used to print warnings.       
+                        }
+                    }
+
+                    if (versions.Count == 1) continue;
+
+                    log.Warning("Multiple assemblies of different versions named {0} exists ", entry.Key);
+                    if (firstTimeWarningPrinted)
+                    {
+                        firstTimeWarningPrinted = false;
+                        log.Info(
+                            "Having multiple versions of the same assembly can cause issues when loading and using plugins.");
+                        log.Info("Consider finding a way of consolidating the different versions.");
+                    }
+
+                    int i = 0;
+                    foreach (var file in entry)
+                    {
+                        string ver = "unknown";
+                        try
+                        {
+                            ver = FileVersionInfo.GetVersionInfo(file)?.FileVersion ?? "0.0";
+                        }
+                        catch (Exception)
+                        {
+                            log.Debug("Unable to get version of {0}.", file);
+                        }
+
+                        log.Info("Assembly {2}: {0} version: {1}", file, ver, 1 + i++);
+                    }    
                 }
+                foreach (string file in files)
+                    AddAssemblyInfo(file);
 
                 return Assemblies;
             }
