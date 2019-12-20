@@ -129,7 +129,6 @@ namespace OpenTap
                         {
                             if (badProviders.Contains(providerType))
                                 continue; // error was printed first time, so just continue.
-                            badProviders.Add(providerType);
                         }
 
                         throw new InvalidOperationException("Unreachable code path executed.");
@@ -138,10 +137,16 @@ namespace OpenTap
                 }
                 catch(Exception e)
                 {
-                    var log = Log.CreateSource("TypeDataProvider");
-                    log.Error("Unable to use TypeDataProvider of type '{0}' due to errors.", providerType.Name);
-                    log.Error("The error was '{0}'", e.Message);
-                    log.Debug(e);
+                    bool isNewError = false;
+                    lock(badProviders)
+                        isNewError = badProviders.Add(providerType);
+                    if (isNewError)
+                    {
+                        var log = Log.CreateSource("TypeDataProvider");
+                        log.Error("Unable to use TypeDataProvider of type '{0}' due to errors.", providerType.Name);
+                        log.Debug("The error was '{0}'", e.Message);
+                        log.Debug(e);
+                    }
                 }
             }
 

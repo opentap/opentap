@@ -6,7 +6,7 @@
 namespace OpenTap
 {
     /// <summary> Type data provider for .NET types. </summary>
-    internal class DotNetTypeDataProvider : ITypeDataProvider
+    internal class CSharpTypeInfoProvider : ITypeDataProvider
     {
         /// <summary> The priority of this type info provider.  </summary>
         public double Priority => 0;

@@ -106,10 +106,13 @@ namespace OpenTap
                     var count = entry.Count();
                     if (count == 1) continue;
                     var versions = new HashSet<string>();
+                    bool allInDependencies = true;
                     foreach (var file in entry)
                     {
                         try
                         {
+                            if ((Path.GetDirectoryName(file)?.Contains("Dependencies") ?? false) == false)   
+                                allInDependencies = false;
                             var fileVersion = FileVersionInfo.GetVersionInfo(file);
                             versions.Add(fileVersion?.FileVersion ?? "");
                         }
@@ -119,6 +122,7 @@ namespace OpenTap
                         }
                     }
 
+                    if (allInDependencies) continue; // these were only inside the dependencies folder.
                     if (versions.Count == 1) continue;
 
                     log.Warning("Multiple assemblies of different versions named {0} exists ", entry.Key);
