@@ -97,10 +97,52 @@ namespace OpenTap
                     var existingFiles = nameToFileMap.SelectMany(g => g.Select(s => s));
                     nameToFileMap = existingFiles.Concat(files).Distinct().ToLookup(Path.GetFileNameWithoutExtension);
                 }
-                foreach (string file in files)
+
+                // print a warning if the same assembly is loaded more than once.
+                foreach (var entry in nameToFileMap)
                 {
-                    AddAssemblyInfo(file);
+                    var count = entry.Count();
+                    if (count == 1) continue;
+                    var versions = new HashSet<string>();
+                    bool allInDependencies = true;
+                    foreach (var file in entry)
+                    {
+                        try
+                        {
+                            if ((Path.GetDirectoryName(file)?.Contains("Dependencies") ?? false) == false)   
+                                allInDependencies = false;
+                            var fileVersion = FileVersionInfo.GetVersionInfo(file);
+                            versions.Add(fileVersion?.FileVersion ?? "");
+                        }
+                        catch
+                        {
+                            // Accept errors here, this code is only used to print warnings.       
+                        }
+                    }
+
+                    if (allInDependencies) continue; // these were only inside the dependencies folder.
+                    if (versions.Count == 1) continue;
+
+                    log.Warning("Multiple assemblies of different versions named {0} exists ", entry.Key);
+
+                    int i = 0;
+                    foreach (var file in entry)
+                    {
+                        string ver = "unknown";
+                        try
+                        {
+                            ver = FileVersionInfo.GetVersionInfo(file)?.FileVersion ?? "0.0";
+                        }
+                        catch (Exception)
+                        {
+                            log.Debug("Unable to get version of {0}.", file);
+                        }
+
+                        log.Debug("Assembly {2}: {0} version: {1}", file, ver, 1 + i++);
+                    }    
                 }
+                foreach (string file in files)
+                    AddAssemblyInfo(file);
 
                 return Assemblies;
             }
