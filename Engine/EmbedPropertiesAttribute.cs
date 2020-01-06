@@ -111,8 +111,8 @@ namespace OpenTap
                 }
                 else
                 {
-                    pre_group1 = Array.Empty<string>();
-                    pre_name = prefix_name;
+                    pre_group1 = owner_display.Group;
+                    pre_name = owner_display.Name;
                 }
             }
 
