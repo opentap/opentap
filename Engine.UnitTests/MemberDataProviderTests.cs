@@ -1468,5 +1468,37 @@ namespace OpenTap.Engine.UnitTests
             annotated.Read();
             Assert.IsTrue(enabledAnnotation.Get<IAccessAnnotation>().IsVisible);
         }
+
+        public class EmbeddedValidatingObject : ValidatingObject
+        {
+            public double Test { get; set; }
+        }
+
+        public class EmbeddedValidatingObjectTestClass : TestStep
+        {
+            [EmbedProperties]
+            public EmbeddedValidatingObject Embedded { get; set; } = new EmbeddedValidatingObject();
+            
+            public EmbeddedValidatingObject OtherNonEmbedded { get; set; }
+            
+            public double Test2 { get; set; }
+            public override void Run()
+            {
+                
+            }
+        }
+
+        [Test]
+        public void EmbeddedValidatingObjectTest()
+        {
+            EmbeddedValidatingObjectTestClass val = new EmbeddedValidatingObjectTestClass();
+            var type = TypeData.GetTypeData(val);
+            var error = val.Error;
+            Assert.IsTrue(string.IsNullOrEmpty(error));
+
+            var a = AnnotationCollection.Annotate(val).Get<IMembersAnnotation>().Members.FirstOrDefault();
+            var err = a.Get<IErrorAnnotation>();
+            Assert.IsTrue(err.Errors.Count() == 0);
+        }
     }
 }
