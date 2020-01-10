@@ -112,7 +112,9 @@ namespace OpenTap.UnitTests
             }
 
             public int ID { get; }
+#pragma warning disable 67
             public event ScpiIOSrqDelegate SRQ;
+#pragma warning restore 67
             public void OpenSRQ()
             {
                 
@@ -128,7 +130,7 @@ namespace OpenTap.UnitTests
         {
             public DummyScpiInstrument() : base(new DummyScpiIo())
             {
-                
+                IO.SRQ += sender => Log.Debug("SRQ"); // unused.
             }
             
             public DummyScpiIo IO => ((IScpiInstrument)this).IO as DummyScpiIo;
