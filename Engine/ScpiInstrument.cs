@@ -334,7 +334,7 @@ namespace OpenTap
         /// </summary>
         public override void Open()
         {
-            if (visa_failed)
+            if (scpiIO is ScpiIO && visa_failed)
             {
                 Log.Error("No VISA provider installed. Please install/reinstall Keysight IO Libraries, or similar VISA provider.");
                 throw new Exception("Could not create VISA connection.");
