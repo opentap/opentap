@@ -235,13 +235,13 @@ namespace OpenTap
 
         private string IpPattern =
             "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
-        /// <summary>
-        /// Initializes a new instance of the InstrumentBase class.
-        /// </summary>
+        /// <summary>  Initializes a new instance of the ScpiInstrument class. </summary>
         public ScpiInstrument() : this(new ScpiIO())
         {
         }
 
+        /// <summary> Initialize a new instance of ScpiInstrument, specifying a IScpiIO interface to use. </summary>
+        /// <param name="io"> An IO Implementation for doing communication. </param>
         public ScpiInstrument(IScpiIO2 io)
         {
             this.scpiIO = io;
