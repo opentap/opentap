@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Xml.Serialization;
 using System.ComponentModel;
+using System.Text;
 using OpenTap.Cli;
 using System.Threading;
 
@@ -1468,5 +1469,56 @@ namespace OpenTap.Engine.UnitTests
             annotated.Read();
             Assert.IsTrue(enabledAnnotation.Get<IAccessAnnotation>().IsVisible);
         }
+
+        public class EmbeddedValidatingObject : ValidatingObject
+        {
+            public double[] TestValues => new double[] {1, 2, 3, 4, 5};
+            [AvailableValues(nameof(TestValues))]
+            public double Test { get; set; }
+
+            public const string ErrorMessage = "Test must be positive.";
+            public EmbeddedValidatingObject()
+            {
+                Rules.Add(() => Test > 0, ErrorMessage, nameof(Test));
+            }
+        }
+
+        public class EmbeddedValidatingObjectTestClass : TestStep
+        {
+            [EmbedProperties]
+            public EmbeddedValidatingObject Embedded { get; set; } = new EmbeddedValidatingObject();
+            
+            public EmbeddedValidatingObject OtherNonEmbedded { get; set; }
+            
+            public double Test2 { get; set; }
+            public override void Run()
+            {
+                
+            }
+        }
+
+        [Test]
+        [TestCase(-0.0, EmbeddedValidatingObject.ErrorMessage)]
+        [TestCase(1.0, "")]
+        public void EmbeddedValidatingObjectTest(double value, string error)
+        {
+            // try to get the error message
+            EmbeddedValidatingObjectTestClass val = new EmbeddedValidatingObjectTestClass();
+            val.Embedded.Test = value;
+            var a = AnnotationCollection.Annotate(val).Get<IMembersAnnotation>().Members;
+            StringBuilder errors = new StringBuilder();
+            foreach (var member in a)
+            {
+                if (member.Get<IMemberAnnotation>().Member.Name != "Embedded.Test") continue;
+                
+                foreach (var att in member.OfType<IErrorAnnotation>())
+                {
+                    foreach (var line in att.Errors)
+                        errors.AppendLine(line);
+                }
+            } 
+            Assert.IsTrue(errors.ToString().Contains(error));
+        }
     }
 }
+

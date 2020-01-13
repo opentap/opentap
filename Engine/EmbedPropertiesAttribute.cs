@@ -36,6 +36,8 @@ namespace OpenTap
 
     class EmbeddedMemberData : IMemberData
     {
+        public IMemberData OwnerMember => ownerMember;
+        public IMemberData InnerMember => innerMember;
         readonly IMemberData ownerMember;
         readonly IMemberData innerMember;
         public ITypeData DeclaringType => ownerMember.DeclaringType;

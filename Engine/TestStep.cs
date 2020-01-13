@@ -197,41 +197,43 @@ namespace OpenTap
         /// </summary>
         /// <param name="stepType"></param>
         /// <returns></returns>
-        public static string[] GenerateDefaultNames(Type stepType)
+        public static string[] GenerateDefaultNames(ITypeData stepType)
         {
             if (stepType == null)
                 throw new ArgumentNullException(nameof(stepType));
             var disp = stepType.GetDisplayAttribute();
             return disp.Group.Append(disp.Name).ToArray();
         }
-        static ConditionalWeakTable<Type, string> defaultNames = new ConditionalWeakTable<Type, string>();
+        static ConditionalWeakTable<ITypeData, string> defaultNames = new ConditionalWeakTable<ITypeData, string>();
 
         /// <summary>
         /// Initializes a new instance of the TestStep base class.
         /// </summary>
         public TestStep()
         {
-            name = defaultNames.GetValue(GetType(), type => GenerateDefaultNames(type).Last());
+            var t = TypeData.GetTypeData(this);
+            name = defaultNames.GetValue(t, type => GenerateDefaultNames(type).Last());
             
             Enabled = true;
             IsReadOnly = false;
             ChildTestSteps = new TestStepList();
 
-            var things = loaderLookup.GetValue(GetType(), loadDefaultResources);
+            var things = loaderLookup.GetValue(t, loadDefaultResources);
             foreach (var loader in things)
                 loader(this);
             Results = null; // this will be set by DoRun just before calling Run()
         }
 
-        static readonly ConditionalWeakTable<Type, Action<object>[]> loaderLookup = new ConditionalWeakTable<Type, Action<object>[]>();
+        static readonly ConditionalWeakTable<ITypeData, Action<object>[]> loaderLookup = new ConditionalWeakTable<ITypeData, Action<object>[]>();
 
-        static Action<object>[] loadDefaultResources(Type t)
+        static Action<object>[] loadDefaultResources(ITypeData t)
         {
             List<Action<object>> loaders = new List<Action<object>>();
-            var props = t.GetPropertiesTap();
-            foreach (var prop in props.Where(p => p.GetSetMethod() != null))
+            var props = t.GetMembers();
+            foreach (var prop in props.Where(p => p.Writable))
             {
-                Type propType = prop.PropertyType;
+                var propType = (prop.TypeDescriptor as TypeData)?.Load();
+                if (propType == null) continue;
                 if (propType.DescendsTo(typeof(IList)) && propType.IsGenericType)
                 {
                     Type genericType = propType.GetGenericArguments().FirstOrDefault();
@@ -251,7 +253,7 @@ namespace OpenTap
                                     object value = vlist;
                                     try
                                     {
-                                        prop.SetValue(x, value, null);
+                                        prop.SetValue(x, value);
                                     }
                                     catch (Exception ex)
                                     {
@@ -264,14 +266,14 @@ namespace OpenTap
                         
                     }
                 }
-                else if(ComponentSettingsList.HasContainer(prop.PropertyType))
+                else if(ComponentSettingsList.HasContainer(propType))
                 {
 
                     loaders.Add(x =>
                     {
                         try
                         {
-                            var currentValue = prop.GetValue(x, null);
+                            var currentValue = prop.GetValue(x);
                             if (currentValue != null)
                                 return; // if the constructor already set a value, don't overwrite it
                         }
@@ -280,7 +282,7 @@ namespace OpenTap
                             Log.Warning("Caught exception while getting default value on {0}.", prop);
                             Log.Debug(ex);
                         }
-                        IList list = ComponentSettingsList.GetContainer(prop.PropertyType);
+                        IList list = ComponentSettingsList.GetContainer(propType);
                         if (list != null)
                         {
                             object value = list.Cast<object>()
@@ -288,7 +290,7 @@ namespace OpenTap
 
                             try
                             {
-                                prop.SetValue(x, value, null);
+                                prop.SetValue(x, value);
                             }
                             catch (Exception ex)
                             {
@@ -299,13 +301,13 @@ namespace OpenTap
                     });
                 }
 
-                if (prop.PropertyType.DescendsTo(typeof(IValidatingObject)))
+                if (propType.DescendsTo(typeof(IValidatingObject)))
                 {
                     // load forwarded validation rules.
                     loaders.Add(x =>
                     {
                         var step = (IValidatingObject)x;
-                        step.Rules.Forward(step, prop.Name);
+                        step.Rules.Forward(prop);
                     });
                 }
             }
