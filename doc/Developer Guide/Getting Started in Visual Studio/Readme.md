@@ -24,7 +24,7 @@ The Example Plugin project creates a basic plugin package that contains a test s
 
     a.   Open **ExamplePlugin.csproj**. In the Solution Explorer, notice the three .cs files. These will create an instrument resource, a DUT resource, and a test step:
     
-    ![](ExamplePlugin_img1.PNG)
+    ![](./ExamplePlugin_img1.png)
 
     
     b.	Select Debug > Start Debugging to build the solution and open it in OpenTAP.
@@ -33,29 +33,29 @@ The Example Plugin project creates a basic plugin package that contains a test s
 
     a.	Click the **+** icon, and add the **Measure Peak Amplitude** step:
     
-    ![](ExamplePlugin_img2.PNG)
+    ![](./ExamplePlugin_img2.png)
     
     b.	View the step settings. Notice, the step requires a Generator instrument:
     
-     ![](ExamplePlugin_img3.PNG)
+     ![](./ExamplePlugin_img3.png)
      
     c. In the **Resource bar**, at the bottom of the GUI, click **DUTs Add New** or if you already have DUTs configured click on one of those. This launches the **Bench Settings** window. Click the **+** button and in the **Add New Dut** window add the **Low Pass Filter** DUT, then close the window:
     
-    ![](ExamplePlugin_img4.PNG)
+    ![](./ExamplePlugin_img4.png)
     
     The **Bench Settings** window can also be launched from Settings > Bench > DUT.
     
     d.	In the **Bench Settings** window, notice the **Filter** DUT lets users to specify an ID and a Comment: 
     
-    ![](ExamplePlugin_img5.PNG)
+    ![](./ExamplePlugin_img5.png)
     
     e. 	In **Bench Settings**, click the **Instruments** tab, then click the + button. Add the **Generator** instrument, then close the window:
     
-    ![](ExamplePlugin_img6.PNG)
+    ![](./ExamplePlugin_img6.png)
     
     f.	Notice the **Generator** instrument allows users to specify the Visa Address:
     
-    ![](ExamplePlugin_img7.PNG)
+    ![](./ExamplePlugin_img7.png)
     
 3. 	Close OpenTAP. Do not save any files.
 4. 	If you want to remove the examples, go to your Test Automation folder and delete:
@@ -68,18 +68,18 @@ Follow the same process to build and view the **Plugin Development** project (`T
 
 -	Several **test step** categories that contain a number of steps:
 
-![](PluginDev_img1.PNG)
+![](./PluginDev_img1.png)
 
 - 	**DUT** resources:
  	
-![](PluginDev_img2.PNG)
+![](./PluginDev_img2.png)
 
 -	Instrument resources:
 	
-![](PluginDev_img3.PNG)
+![](./PluginDev_img3.png)
 
 -	Results Listeners:
 	
-![](PluginDev_img4.PNG)
+![](./PluginDev_img4.png)
 
 To remove these examples, go to the installation folder and delete the **OpenTAP.Plugins.PluginDevelopment.dll** and **OpenTAP.Plugins.PluginDevelopment.pdb** files.

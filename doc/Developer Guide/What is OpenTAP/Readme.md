@@ -15,7 +15,7 @@ Steps frequently have dependencies on DUT and instrument plugins. The developmen
 ## OpenTAP Architecture
 The illustration below shows how OpenTAP is central to the architecture, and how plugins (all the surrounding items) integrate with it.
 
-![](TAParchitecture.png#width=600)
+![](./TAParchitecture.png#width=600)
 
 ## OpenTAP
 
@@ -67,11 +67,11 @@ To use OpenTAP to its full potential, developers must understand the control flo
 
 The following test plan uses test steps, DUTs and instruments defined in the **Demonstration** plugin:
 
-![](TestPlanControlFlow_1.PNG#width=800)
+![](./TestPlanControlFlow_1.png#width=800)
 
 The test plan has three test steps, in succession. In this test plan, none of the steps have child steps. A more complex example, with child steps, is presented later in this section. The test plan relies on the resources DUT, Instr. and Log to be available and configured appropriately. The following figure illustrates what happens when this test plan is run:
 
-![](ControlFlow.png)
+![](./ControlFlow.png)
  
 In the **Open assigned resources** phase all DUTs, instruments and configured result listeners are opened in parallel. As soon as all resources are open the **PrePlanRun** methods of the test steps execute in succession. This is followed by the execution of the **Run** methods where all test steps are run one at a time. It is possible to allow a test step to run code after its run is completed. This is done by defining a **defer task** for the test step. To learn more about defer task see the *Plugin Development* folder under *Packages/SDK/Examples*, located in the OpenTAP installation folder.
 
@@ -79,11 +79,11 @@ After the test step run is completed for each test step, **PostPlanRun** is exec
 
 The test plan below illustrates how child test steps are handled:
 
-![](TestPlanControlFlow_img7.PNG#width=500)
+![](./TestPlanControlFlow_img7.png#width=500)
 
 The methods in the test steps execute in the following order:
 
-![](ControlFlowChild.png)
+![](./ControlFlowChild.png)
 
 Similar to the previous example, test plan execution starts with the **Open assigned resources** phase, followed by the execution of the **PrePlanRun** methods. The PreplanRun methods are executed in the order of the steps in the test plan. Next, the Run method of the Parent step is executed. The Parent step controls the execution order of the Run methods of its child steps. The example above shows the case, where *Parent* calls its child steps sequentially. Following this, the run method of *Step* is executed. The **PostPlanRun** methods are executed in reverse order of placement in the test plan, starting with *Step 2* followed by *Child2*, *Child1* and finally *Parent*. In the last step all assigned resources are closed.
 
@@ -96,7 +96,7 @@ Editable OpenTAP step settings can be marked as *External*. The value of such se
 
 You may want to avoid the time required to open resources at each test plan start. To do so, you may manually open the resources by using the **Connection** button:
 
-![](ManualResourceConnection_img1.PNG#width=500)
+![](./ManualResourceConnection_img1.png#width=500)
 
 Resources opened manually remain open between test plan runs. This eliminates the time required to open and close them for each test plan run. 
 
@@ -108,7 +108,7 @@ Test step hierarchies can be built and attributes set to allow certain steps to 
 
 The following figure illustrates four different approaches where both sequential and parallel execution is used. The upper part of the illustration is the flow; the lower part is the test plan execution showing the corresponding TX and RX test steps. 
 
-![](MultiDut_img1.PNG#width=800)
+![](./MultiDut_img1.png#width=800)
 
 -	Flow Option 1 is a simple sequential test plan execution where TX (transmit) and RX (receive) test steps are repeated once for each DUT. In a production environment, this is a simple way to reduce the test/calibration time, because it lets the operator switch in a DUT while the other DUT is being tested. 
 

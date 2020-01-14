@@ -70,6 +70,9 @@ To debug the unittests, set the VSTEST_HOST_DEBUG environment variable to '1'. T
 export VSTEST_HOST_DEBUG=1
 ```
 
+## Documentation
+More documentation and help developing plugins for OpenTAP can be found here: [doc.opentap.io](https://doc.opentap.io).
+
 ## Contributing
 
 If you are thinking of contributing code to OpenTAP, first of all, thank you! All fixes, patches and enhancements to OpenTAP are very warmly welcomed. In order to keep thing manageable, there are a number of guidelines that should be followed in order to ensure that your modification is included in OpenTAP as quickly as possible. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
