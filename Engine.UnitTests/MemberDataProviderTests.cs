@@ -1257,8 +1257,9 @@ namespace OpenTap.Engine.UnitTests
         public class EmbeddedTest
         {
             // this should give EmbeddedTest all the virtual properties of DataInterfaceTestClass.
+            [Display("Embedded Things")]
             [EmbedProperties(PrefixPropertyName = false)]
-            public DataInterfaceTestClass EmbeddedThings { get; private set; } = new DataInterfaceTestClass();
+            public DataInterfaceTestClass EmbeddedThings { get; set; } = new DataInterfaceTestClass();
         }
 
         [Test]
@@ -1267,6 +1268,8 @@ namespace OpenTap.Engine.UnitTests
             var obj = new EmbeddedTest();
             obj.EmbeddedThings.SimpleNumber = 3145.2;
             var type = TypeData.GetTypeData(obj);
+            var display = type.GetMembers().First().GetDisplayAttribute();
+            Assert.IsTrue(display.Group[0] == "Embedded Things"); // test that the name gets transformed.
             var emba = type.GetMember(nameof(DataInterfaceTestClass.SimpleNumber));
             Assert.AreEqual(obj.EmbeddedThings.SimpleNumber, (double)emba.GetValue(obj));
             var embb = type.GetMember(nameof(DataInterfaceTestClass.FromAvailable));

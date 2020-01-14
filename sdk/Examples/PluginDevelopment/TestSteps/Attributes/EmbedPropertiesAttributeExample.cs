@@ -31,7 +31,7 @@ namespace OpenTap.Plugins.PluginDevelopment
 
         // This causes the properties A and B to be embedded inside this class from the 
         // perspective of serialization and user interfaces.
-        [Display("Embedded")] // All settings embedded from EmbeddedClass, will get this name as group.
+        [Display("Embedded Group")] // All settings embedded from EmbeddedClass, will get this name as group.
         [EmbedProperties] //Set Prefix or PrefixOverrideProperty name to control the naming of embedded properties.
         public EmbeddedClass Embedded { get; set; } = new EmbeddedClass();
         

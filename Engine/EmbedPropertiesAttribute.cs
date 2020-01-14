@@ -102,6 +102,8 @@ namespace OpenTap
             
             string[] pre_group1;
             string pre_name;
+            double ownerOrder = -10000;
+            bool collapsed = false;
             {
                 var owner_display = ownerMember.GetAttribute<DisplayAttribute>();
 
@@ -113,8 +115,10 @@ namespace OpenTap
                 }
                 else
                 {
-                    pre_group1 = Array.Empty<string>();
-                    pre_name = prefix_name;
+                    collapsed = owner_display.Collapsed;
+                    ownerOrder = owner_display.Order;
+                    pre_group1 = owner_display.Group;
+                    pre_name = owner_display.Name;
                 }
             }
 
@@ -126,6 +130,8 @@ namespace OpenTap
                 list.Remove(d); // need to re-add a new DisplayAttribute.
                 name = d.Name;
                 post_group = d.Group;
+                if (d.Collapsed)
+                    collapsed = true;
             }
             else
             {
@@ -136,8 +142,28 @@ namespace OpenTap
             var groups = pre_group1.Concat(pre_name == null ? Array.Empty<string>() : new[] {pre_name}).Concat(post_group)
                 .ToArray();
 
+            
+            double order = -10000;
+            {
+                // calculate order:
+                // if owner order is set, add it to the display order.
+                if (d != null && d.Order != -10000.0)
+                {
+                    order = d.Order;
+                    if (ownerOrder != -10000.0)
+                    {
+                        // if an order is specified, add the two orders together.
+                        // this makes sure that property groups can be arranged.
+                        order += ownerOrder;
+                    }
+                }
+                else
+                {
+                    order = ownerOrder;
+                }
+            }
             d = new DisplayAttribute(name, Groups: groups,
-                Description: d?.Description ?? "", Order: d?.Order ?? 0.0, Collapsed: d?.Collapsed ?? false);
+                Description: d?.Description, Order: order, Collapsed: collapsed);
 
             list.Add(d);
 
