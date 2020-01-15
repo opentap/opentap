@@ -9,7 +9,7 @@ At the very root of the OpenTAP plugin class hierarchy is the **ValidatingObject
  
  Extending **ValidatingObject** are the **ComponentSettings**, **Resource**, and **TestStep** base classes. These are abstract classes and hence cannot be instantiated. They are used as base classes for other classes.
  
--	**ComponentSettings** is used for storing settings throughout the system. It contains properties to be set or lists of instruments, DUTs, and so on. ComponentSettings are visible via the various Settings menus in the GUIs.
+-	**ComponentSettings** is used for storing settings throughout the system. It contains properties to be set or lists of instruments, DUTs, and so on. ComponentSettings are available via the various Settings menus in the GUIs.
 
 -	**Resource** is a base class for the DUT, Instrument and ResultListener classes. Resources are often specified in the settings for a test step. Referencing a 'Resource' from a test step will cause it to automatically be opened upon test plan execution. 
 
@@ -73,11 +73,11 @@ Some of the commonly used attributes are described in the following sections. Fo
 
 ## Best Practices for Plugin Development
 
-The following recommendations will help you get your project off to a good start and help ensure a smooth development process.
+The following recommendations will help you get your project off to a good start and help ensure a smooth development process:
 
 -	You can develop one or many plugins in one Visual Studio project. The organization is up to the developer. The following is recommended:
     -	Encapsulate your logic. Keeping all instrument logic inside the instrument class makes it possible to swap out instruments without changing TestSteps. For example, a TestStep plugin knows to call **MeasureVoltage**, and the instrument plugin knows how to get that measurement from its specific instrument.  
-    -	You can put Instruments, DUTs, and TestSteps all in separate packages and create a "plug-and-play" type of interaction for test developers. For example, you can create test steps that make a measurement and plot a result. If done properly, the steps don't necessarily care which instrument gets the data or what type of device is being tested.
+    -	You can put Instruments, DUTs, and TestSteps all in separate packages and create a "plug-and-play" type of interaction for test developers. For example, you can create test steps that make a measurement and plot a result. If done properly, the steps work regardless of which instrument gets the data or what type of device is being tested.
 
 -	Don't introduce general settings unless absolutely necessary. Instead try to move general settings to test steps (such as a parent step holding settings for a group of child steps) or to DUT or Instrument settings.
 
