@@ -1,4 +1,4 @@
-What is OpenTAP?
+OpenTAP Overview
 ============
 OpenTAP is a software solution for fast and easy development and execution of automated test and/or calibration algorithms. These algorithms control measurement instruments and possibly vendor-specific *devices under test* (DUTs). By leveraging the features of C#/.NET and providing an extendable architecture, OpenTAP minimizes the code needed to be written by the programmer. 
 
@@ -12,12 +12,12 @@ OpenTAP consists of multiple executables, including:
 
 Steps frequently have dependencies on DUT and instrument plugins. The development of different plugins is discussed later in this document.
 
-## OpenTAP Architecture
+## Architecture
 The illustration below shows how OpenTAP is central to the architecture, and how plugins (all the surrounding items) integrate with it.
 
 ![](./TAParchitecture.png#width=600)
 
-## OpenTAP
+## OpenTAP Assembly
 
 The OpenTAP assembly is the core and is required for any OpenTAP plugin. The most important classes in the OpenTAP are: TestPlan, TestStep, Resource, DUT, Instrument, PluginManager and ComponentSettings. OpenTAP also provides an API, which is used by the CLI, and other programs like a editor GUI. 
 

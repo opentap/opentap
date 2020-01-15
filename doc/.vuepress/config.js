@@ -16,12 +16,13 @@ module.exports = {
             { text: 'Homepage', link: 'https://www.opentap.io' }
         ],
         sidebar: [
-            "/",
+        	"/",
+            "User Guide/",
             {
                 title: 'Developer Guide',
                 children: [
                     ["/Developer Guide/Introduction/", "Introduction"],
-                    ["/Developer Guide/What is OpenTAP/", "What Is OpenTAP"],
+                    ["/Developer Guide/What is OpenTAP/", "OpenTAP Overview"],
                     {
                         title: 'Getting Started',
                         sidebarDepth: 0,
@@ -48,7 +49,8 @@ module.exports = {
                     ['/Release Notes/ReleaseNote_OpenTAP9.4.md', "Release Notes - OpenTAP 9.4"],
                     ['/Release Notes/ReleaseNote_OpenTAP9.5.md', "Release Notes - OpenTAP 9.5"]
                 ]
-            }
+            },
+            "FAQ/"
         ]
     }
 }
