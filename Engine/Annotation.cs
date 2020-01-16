@@ -358,18 +358,28 @@ namespace OpenTap
         private IDataErrorInfo source;
         void doRead()
         {
-            if (source is IDataErrorInfo err)
+            var source = this.source;
+            var mem = this.mem.Member;
+            
+            if (mem is EmbeddedMemberData m2)
+            {   // Special case to add support for EmbeddedMemberData.
+                if (source == null) return;
+                source = m2.OwnerMember.GetValue(source) as IDataErrorInfo;
+                mem = m2.InnerMember;
+            }
+
+            if (source == null) return;
             {
                 try
                 {
-                    error = err[mem.Member.Name];
+                    error = source[mem.Name];
                 }
                 catch (Exception e)
                 {
                     error = e.Message;
                 }
-
-                source = null;
+                // set source to null to signal that errors has been read this time.
+                this.source = null; 
             }
         }
 
@@ -2157,7 +2167,10 @@ namespace OpenTap
 
             if (mem != null)
             {
-                annotation.Add(new ValidationErrorAnnotation(mem));
+                if (mem.Member.DeclaringType.DescendsTo(typeof(IValidatingObject)))
+                {
+                    annotation.Add(new ValidationErrorAnnotation(mem));
+                }
 
                 if (mem.Member.HasAttribute<EnabledIfAttribute>())
                 {

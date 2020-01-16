@@ -252,15 +252,11 @@ namespace OpenTap
         internal readonly List<IMemberData> ForwardedRules = new List<IMemberData>(); 
 
         /// <summary>
-        /// Adds a sub-objects rules to the collection of rules.
+        /// Dynamically adds a sub-objects rules to the collection of rules.
         /// </summary>
-        /// <param name="object"></param>
-        /// <param name="propName"></param>
-        internal void Forward(IValidatingObject @object, string propName)
-        {
-            ForwardedRules.Add(TypeData.GetTypeData(@object).GetMember(propName));
-        }
-
+        /// <param name="member"></param>
+        internal void Forward(IMemberData member) => ForwardedRules.Add(member);
+        
         /// <summary>
         /// Adds a new rule to the collection.
         /// </summary>

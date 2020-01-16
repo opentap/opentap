@@ -45,6 +45,7 @@ namespace OpenTap
         void OnTestPlanRunCompleted(TestPlanRun stepRun);
     }
 
+    [Browsable(false)]
     internal class ResultSinkListener : ResultListener
     {
         private IEnumerable<IResultSink> currentSinks;
