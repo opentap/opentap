@@ -47,6 +47,8 @@ Doc-API:
 pages:
   stage: build
   image: node:9.11.1
+  only:
+    - master
   cache:
     paths:
     - doc/node_modules/
