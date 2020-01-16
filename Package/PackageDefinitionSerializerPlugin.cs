@@ -78,7 +78,14 @@ namespace OpenTap.Package
                     setter.Invoke(new PackageIdentifier(pkg));
                 else
                     setter.Invoke(pkg);
-                
+
+                // If the Version XML attribute is missing, default to same behavior as if Version="" was specified. We depend on packages having a version.
+                if (pkg.Version is null && string.IsNullOrEmpty(pkg.RawVersion)) {
+                    pkg.RawVersion = "";
+                    if (SemanticVersion.TryParse("0.0.0", out var semver))
+                        pkg.Version = semver;
+                }
+
                 return true;
             }
             return false;

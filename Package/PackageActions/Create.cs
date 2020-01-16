@@ -103,6 +103,10 @@ namespace OpenTap.Package
 
                 var tmpFile = Path.GetTempFileName();
 
+                // If user omitted the Version XML attribute or put Version="", lets inform.
+                if(string.IsNullOrEmpty(pkg.RawVersion))
+                    log.Warning($"Package version is {pkg.Version} due to blank or missing 'Version' XML attribute in 'Package' element");
+
                 pkg.CreatePackage(tmpFile, ProjectDir);
 
                 if (OutputPaths == null || OutputPaths.Length == 0)
