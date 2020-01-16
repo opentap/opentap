@@ -25,14 +25,14 @@ tap package install "Developer's System CE" -y
 ```
 
 ### Linux
-When installing on Linux there are a few options:
+<!--When installing on Linux there are a few options:-->
 
-Download the OpenTAP distribution (`.tar`, `.dep` or `.rpm`) from our homepage [here](https://www.opentap.io/download.html). 
+Download the OpenTAP distribution (`.tar`<!--, `.dep` or `.rpm`-->) from our homepage [here](https://www.opentap.io/download.html). 
 
 Install the downloaded distribution:
 
-- `.dep` run `sudo apt install ./OpenTAP*.deb`
-- `.rpm` run `sudo dnf install ./OpenTAP*.rpm`
+<!--- `.dep` run `sudo apt install ./OpenTAP*.deb`
+- `.rpm` run `sudo dnf install ./OpenTAP*.rpm`-->
 - `.tar` do the following:
 	1. Untar the package in you home directory `tar -xf OpenTAP*.tar`
 	2. Change the permission of the INSTALL.sh file to be executable: `chmod u+x INSTALL.sh`
