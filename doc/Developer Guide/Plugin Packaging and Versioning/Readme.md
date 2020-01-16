@@ -48,7 +48,7 @@ The configuration file supports optional attributes:
 | **Attribute** | **Description** |
 | ---- | -------- |
 | **InfoLink**   | Specifies a location where additional information about the package can be found. It is visible in the Package Manager as the **More Information** link.  |
-| **Version**  | The version of the package. This field supports the $(GitVersion) macro. The version is displayed in the Package Manager. See [Versioning](#Versioning) for more details. |
+| **Version**  | The version of the package. This field supports the $(GitVersion) macro. The version is displayed in the Package Manager. See [Versioning](#versioning) for more details. |
 | **OS**   | Which operative systems the package is compatible with. This is a comma separated list. Used to filter packages which are compatible with the operating system the PackageManager is running on. If the attribute is not specified, the default "Windows" is used. Example: `OS="Windows,Linux"` |
 | **Architecture**   | Used to filter packages which are compatible with a certain CPU architecture. If the attribute is not specified it is assumed that the Plugin works on all architectures. |
 | **Class**   | This attribute is used to classify a package. It can be set to **package**, **bundle** or **system-wide** (default value: **package**). A package of class **bundle** references a collection of OpenTAP packages, but does not contain the referenced packages. Packages in a bundle do not need to depend on each other to be referenced. For example, Keysight Developer's System is a bundle that reference the Editor (GUI), Timing Analyzer, Results Viewer, and SDK packages. <br><br> A package of class **system-wide** is installed in a global system folder so these packages can affect other installations of OpenTAP and cannot be uninstalled with the PackageManager. System-wide packages should not be OpenTAP plugins, but rather drivers and libraries.  The system folders are located differently depending on operating system and drive specifications: Windows (normally) - `C:\ProgramData\Keysight\OpenTAP`, Linux -  `/usr/share/Keysight/OpenTAP`|
@@ -70,7 +70,7 @@ The **File** element inside the configuration file supports the following attrib
 
 | **Attribute** | **Description** |
 | ---- | -------- |
-| **Path** | The path to the file. This is relative to the root the OpenTAP installation directory. This serves as both source (where the packaging tool should get the file when creating the package) and target (where the file sould be located when installed). Unless there are special requirements, the convention is to put all payload files in a Packages/<PackageName>/ subfolder. Wildcards are supported - see later section. |
+| **Path** | The path to the file. This is relative to the root the OpenTAP installation directory. This serves as both source (where the packaging tool should get the file when creating the package) and target (where the file sould be located when installed). Unless there are special requirements, the convention is to put all payload files in a Packages/\<PackageName\>/ subfolder. Wildcards are supported - see later section. |
 | **SourcePath** | Optional. If present the packaging tool will get the file from this path when creating the package. |
 | **LicenseRequired** | License key required by the package file. |
 
@@ -192,7 +192,7 @@ Following the image below:
 - The small square icons signifies the package is a bundle (class attribute).
 - The gray text `by: Keysight Technologies` signifies the owner of the package.
 
-![](GroupOwner.png)
+![](./GroupOwner.png)
 
 ## Command Line Use
 You can create an OpenTAP package from the command line or from MSBUILD (directly in Visual Studio). If you create an OpenTAP project in Visual Studio using the SDK, the resulting project is set up to generate a .TapPackage using the Keysight.OpenTAP.Sdk.MSBuild.dll (only when building in "Release" configuration).
@@ -240,7 +240,7 @@ The OpenTAP executables and OpenTAP packages are versioned independently and sho
 - A is an optional pre-release label.
 - B is optional metadata (e.g. Git short commit hash and/or branch name).
 
-It is possible to set the version of the *.TapPackage using one of the following methods:
+It is possible to set the version of the *.TapPackage using one of the following methods:*
 
 - Git assisted versioning
 - Manual versioning

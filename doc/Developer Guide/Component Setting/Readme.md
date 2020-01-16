@@ -7,7 +7,7 @@ In addition to the settings defined for test steps, DUTs, and instruments, there
  - **Global** settings are shown under the **Settings** menu. At a minimum, you will find settings for the **Engine**, **Editor**, and **Results**.
  - **Grouped** settings are applicable to a particular configuration profile and are shown under the **Settings > GroupName** menu.  The Bench settings (shown under the **Settings > Bench** menu) is an example of grouped settings. 
 
-![](Benchsettings.PNG)
+![](./Benchsettings.png)
 
 ### Creating a New Global/Grouped Settings Dialog
 OpenTAP developers can create their own settings dialogs under the **Settings** or **Settings > GroupName** menus. By default, the dialog appears under the **Settings** menu. If the class is decorated with the `[SettingsGroup("GroupName")]` attribute, the dialog will appear under the **Settings > GroupName** menu. It is also possible to extend the bench settings by decorating a class with the `[SettingsGroup("Bench")]` attribute.
@@ -15,12 +15,12 @@ OpenTAP developers can create their own settings dialogs under the **Settings** 
 ### Single Instance of Multiple Different Settings
 If you want to create a dialog consisting of multiple settings, you should inherit from the ComponentSettings class. See the `TAP_PATH\Packages\SDK\Examples\PluginDevelopment\GUI\ExampleSettings.cs` file. The result looks like this:
 
-![](BenchSettings2.PNG)
+![](./BenchSettings2.png)
 
 ### List of Similar Settings
 Suppose you are trying to list several objects that are slightly different but share a common base class. This is similar to what is used in the DUT or Instrument settings dialog. To do so, you should inherit from the ComponentSettingsList class. See the CustomBenchSettings.cs file. The results (with several instances created), are shown below:
 
-![](BenchSettings3.PNG)
+![](./BenchSettings3.png)
 
 ## Reading and Writing Component Settings
 
@@ -58,7 +58,7 @@ public class SettingsRetrieval : TestStep
 		// Only use the values if something exists.
 		if (CustomBenchSettingsList.Current.Count > 0)
 		{
-			Log.Info("Custom Bench Settings List Count={0},CustomBenchSettingsList.Current.Count);
+			Log.Info("Custom Bench Settings List Count={0}", CustomBenchSettingsList.Current.Count);
 			Log.Info("First instance of Custom Bench setting as string={0}",
 				   CustomBenchSettingsList.GetDefaultOf<CustomBenchSettings>());
 			foreach (var customBenchSetting in CustomBenchSettingsList.Current)

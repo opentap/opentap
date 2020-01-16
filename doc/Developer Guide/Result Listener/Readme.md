@@ -40,7 +40,7 @@ These methods are called by OpenTAP and are guaranteed to be called in a certain
 
 To illustrate the sequence of the above-mentioned methods, consider the following figure:
 
-![](ResultListener.png)
+![](./ResultListener.png)
 
 Note that if a step publishes multiple results the OnResultPublished method is called multiple times after the OnTestStepRunStart method. If there are multiple test steps the OnTestStepRunStart and OnTestStepRunCompleted methods are called as many times as the number of test steps.
 
@@ -59,7 +59,7 @@ Lastly, ResultSeries is pointed to by the Results table, so that each row in Res
 
 The OpenTAP database schema consists of 11 tables, shown in the following diagram. You should explore the schema of the sample databases before attempting to write a new result listener targeting a new database.
 
-![](DatabaseDiagram.PNG)
+![](./DatabaseDiagram.png)
 
 
 

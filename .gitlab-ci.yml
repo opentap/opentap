@@ -18,7 +18,7 @@ Build-DevGuide:
   image: registry.gitlab.com/opentap/buildrunners/documentationgeneration:latest
   tags: [ docker, gce ]
   script: |
-           tap generate-pdf "doc/Developer Guide/Readme.md" --toc --skip-first-file --out "sdk/Examples/OpenTAP Developer Guide.pdf" --frontpage "doc/Developer Guide/Frontpage.html" --frontpage-file "doc/Developer Guide/Frontpage.png" --notices "doc/Developer Guide/Introduction/Notices.md"
+           tap generate-pdf "doc/Developer Guide/Readme.md" --toc --skip-first-file --out "sdk/Examples/OpenTAP Developer Guide.pdf" --frontpage "doc/Developer Guide/Frontpage.html" --frontpage-file "doc/Developer Guide/Frontpage.png"
   artifacts:
     expire_in: 1 week
     paths:
@@ -43,6 +43,22 @@ Doc-API:
     paths:
        - Help/OpenTapApiReference.chm
        - API
+
+pages:
+  stage: build
+  image: node:9.11.1
+  only:
+    - master
+  cache:
+    paths:
+    - doc/node_modules/
+  script:
+    - cd doc
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+    - public
 
 Build-Linux64:
   stage: build
