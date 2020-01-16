@@ -25,8 +25,7 @@ namespace OpenTap.Plugins.PluginDevelopment
         [XmlIgnore]
         public SwitchPosition Position2 { get; private set; }
 
-        [XmlIgnore]
-        public SwitchPosition CurrentPosition { get; private set; }
+        private SwitchPosition CurrentPosition { get; set; }
 
         public TwoPositionSwitchInstrument()
         {
