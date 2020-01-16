@@ -12,7 +12,7 @@ New Features:
 - Creating a new project with the OpenTAP SDK should use a NuGet version corresponding to the installed version. [#64](https://gitlab.com/OpenTAP/opentap/issues/64)
 - Allow For Classes Containing Common Properties to be Used [#65](https://gitlab.com/OpenTAP/opentap/issues/65)
 - Input to support selecting parent steps [#71](https://gitlab.com/OpenTAP/opentap/issues/71)
-- Support External Parameters of type List<string> [#76](https://gitlab.com/OpenTAP/opentap/issues/76)
+- Support External Parameters of type List\<string\> [#76](https://gitlab.com/OpenTAP/opentap/issues/76)
 - Max size for all session log files increased to a total of 2GB [#79](https://gitlab.com/OpenTAP/opentap/issues/79)
 
 Usability Improvements: 

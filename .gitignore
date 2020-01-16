@@ -8,6 +8,8 @@ TestResults/
 *.dat
 .vs/
 nuget/build/payload
+node_modules/
+/public/
 
 # Temp files from git merges:
 *.orig

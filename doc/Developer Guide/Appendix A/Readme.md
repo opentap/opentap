@@ -22,7 +22,7 @@ The parameters are ordered starting with the most frequently used parameters fir
 public string NameAndDescription { get; set; }
 ```
 
-![](appendix_img1.PNG)
+![](./appendix_img1.png)
 
 See the examples in **`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\Attributes`** for different uses of the Display attribute.
 
@@ -80,7 +80,7 @@ public class EnabledIfExample : TestStep
 
 When **Radio Standard** is set to GSM in the step settings, both **Override Bandwidth** options are then displayed:
 
-![](appendix_img2.PNG)
+![](./appendix_img2.png)
 
 For an example, see `TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\Attributes\EnabledIfAttributeExample.cs`.
 
@@ -89,7 +89,7 @@ The **Flags** attribute is a C# attribute used with enumerations. This attribute
 
 Using the Flags attribute results in a multiple select in the Editor, as shown below:
 
-![](appendix_img3.PNG)
+![](./appendix_img3.png)
 
 ## FilePath and DirectoryPath Attributes 
 The FilePath and DirectoryPath attributes can be used on a string-type property to indicate the string is a file or a folder system path. When this attribute is present, the Editor displays a browse button allowing the user to choose a file or folder. These attributes can be used as follows:
@@ -101,7 +101,7 @@ public string MyFilePath { get; set; }
 
 This results in the following user control in the Editor:
 
-![](appendix_img4.PNG)
+![](./appendix_img4.png)
 
 The DirectoryPath attribute works the same as the FilePath attribute, but in the place of a file browse dialog, a directory browse dialog opens when the browse ('...') button is clicked.
 

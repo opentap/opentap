@@ -43,6 +43,6 @@ For an example, see:
 
 The example below shows how the VisaAddress property for a SCPI instrument is automatically populated with values retrieved from VISA:
 
-![](Scpi.PNG)
+![](./Scpi.png)
 
 

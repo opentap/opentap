@@ -170,13 +170,13 @@ public class SetVerdict : TestStep
 
 If possible, a test step changes its verdict (often from **NotSet** to one of the other values) during execution. The test step verdict is set to the most severe verdict of its direct child steps and it is not affected by child steps further down the hierarchy. In the example below, you can see the default behavior, according to which the parent step reflects the most severe verdict of its children.
 
-![](VerdictReflected.PNG)
+![](./VerdictReflected.png)
 
 The verdict of Step A and Step B affect the test plan verdict. The verdict of Step A is based on the most severe verdict of its child steps. Since *Child Step 2* failed, the verdict of Step A is also *Fail* even though the other two child steps passed. Therefore, the verdict of Step A, and thus the verdict of the test plan, is also fail.
 
 This behavior is expected if the child steps are executed by calling the RunChildSteps/RunChildStep methods. In the case when a different verdict is desired than the one from the child steps, there is a possibility to override the verdict in the parent step. This is useful in cases, where, for example, a recovering strategy like DUT/instrument reboot is handled.
 
-![](Verdict.PNG)
+![](./Verdict.png)
 
 In the example above Step A is implemented so, that it sets its verdict based on different criteria and not based on the verdict of its child steps.
 
@@ -242,7 +242,7 @@ If an unexpected exception is caught by plugin code its stacktrace can be logged
 ### TraceBar
 The **TraceBar** is a utility class used to display log results and verdicts in the **Log** panel. If an upper and lower limit is available, the TraceBar visually displays the one-dimensional high-low limit sets in a log-friendly graphic:
 
-![](TraceBar.PNG)
+![](./TraceBar.png)
 
 Additionally, it handles the verdict of the results. If all the limits passed, the TraceBar.CombinedVerdict is *Pass*; otherwise it is *Fail*. If the result passed to TraceBar is NaN, the verdict will upgrade to Inconclusive. For an example see the code sample in LogMessages.cs file.
 
@@ -296,7 +296,7 @@ public class RuleValidation : TestStep
 ```
 The setting as displayed in the GUI looks like this:
 
-![](Validation.PNG)
+![](./Validation.png)
 
 ## Publishing Results 
 Publishing results from a test step is a fundamental part of test step execution. The following section discusses publishing results in detail. At a high level, publishing results usually involves a single call, as shown in the following code snippet from `TAP_PATH\Packages\SDK\Examples\ExamplePlugin\MeasurePeakAmplituteTestStep.cs`.
@@ -312,7 +312,7 @@ Test step results are represented in a ResultTable object. A ResultTable consist
 ### ResultTable Details
 This graphic shows the ResultTable definition.
 
-![](ResultTable.PNG)
+![](./ResultTable.png)
 
 ### ResultSource Object
 A ResultSource object (named Results in the test step base class) and its publish methods push result tables to the configured ResultListeners.

@@ -5,7 +5,7 @@ Plugin Development
 
 At the very root of the OpenTAP plugin class hierarchy is the **ValidatingObject** class. Items in blue are OpenTAP base classes. The green, dotted rectangles are user extensions to those base classes.
 
- ![](ObjectHierarchy.PNG)
+ ![](./ObjectHierarchy.png)
  
  Extending **ValidatingObject** are the **ComponentSettings**, **Resource**, and **TestStep** base classes. These are abstract classes and hence cannot be instantiated. They are used as base classes for other classes.
  
