@@ -12,6 +12,13 @@ module.exports = {
         lastUpdated: 'Last Updated',
         docsDir: 'doc',
         logo: '/OpenTAP.png',
+        algolia: {
+            apiKey: 'b12f5f1ed342b1663193cb9c8fa1e29e',
+            indexName: 'opentap',
+            algoliaOptions: {
+                hitsPerPage: 10,
+            }
+        },
         nav: [
             { text: 'Homepage', link: 'https://www.opentap.io' }
         ],
