@@ -231,7 +231,9 @@ namespace OpenTap.Package
                             RelativeDestinationPath = f,
                             LicenseRequired = fileEntry.LicenseRequired,
                             IgnoredDependencies = fileEntry.IgnoredDependencies,
-                            CustomData = fileEntry.CustomData
+                            // clone the list to ensure further modifications happens
+                            // a the expected place.
+                            CustomData = fileEntry.CustomData.ToList() 
                         }));
                     }
                     else
