@@ -15,7 +15,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Runtime.CompilerServices;
-
 namespace OpenTap
 {
     /// <summary>
@@ -27,7 +26,7 @@ namespace OpenTap
     /// </remarks>
     [ComVisible(true)]
     [Guid("d0b06600-7bac-47fb-9251-f834e420623f")]
-    public abstract class TestStep : ValidatingObject, ITestStep
+    public abstract class TestStep : ValidatingObject, ITestStep, ITestStepAbortCondition
     {
         #region Properties
         /// <summary>
@@ -437,9 +436,7 @@ namespace OpenTap
         /// <param name="attachedParameters">Parameters that will be stored together with the actual parameters of the step.</param>
         protected TestStepRun RunChildStep(ITestStep childStep, IEnumerable<ResultParameter> attachedParameters = null)
         {
-            var steprun = this.RunChildStep(childStep, PlanRun, StepRun, attachedParameters);
-            //Results.Defer(() => steprun.WaitForCompletion());
-            return steprun;
+            return this.RunChildStep(childStep, PlanRun, StepRun, attachedParameters);
         }
 
         /// <summary>
@@ -460,8 +457,75 @@ namespace OpenTap
         [XmlAttribute("Id")]
         [Browsable(false)]
         public Guid Id { get; set; } = Guid.NewGuid();
+
+        TestStepAbortCondition abortCondition = TestStepAbortCondition.Inherrit;
+        
+        [Unsweepable]
+        [Display("Interrupt On", Group: "Common")]
+        public TestStepAbortCondition AbortCondition
+        {
+            get => abortCondition;
+            set
+            {
+                var newvalue = value;
+                if((int) newvalue == 0)
+                {
+                    newvalue = TestStepAbortCondition.Inherrit;
+                }
+
+                if (newvalue != TestStepAbortCondition.Inherrit)
+                {
+                    newvalue = newvalue & ~TestStepAbortCondition.Inherrit;
+                }
+                
+                if (abortCondition.HasFlag(TestStepAbortCondition.BreakOnError) &&
+                    newvalue.HasFlag(TestStepAbortCondition.RetryOnError))
+                {
+                    newvalue = newvalue & ~TestStepAbortCondition.BreakOnError;
+                }
+                if (abortCondition.HasFlag(TestStepAbortCondition.BreakOnFail) &&
+                    newvalue.HasFlag(TestStepAbortCondition.RetryOnFail))
+                {
+                    newvalue = newvalue & ~TestStepAbortCondition.BreakOnFail;
+                }
+
+                abortCondition = newvalue;
+                
+            }
+        }
+        
+        [Display("Retry", Group: "Common")]
+        [Unit("times")]
+        [EnabledIf(nameof(AbortCondition), TestStepAbortCondition.RetryOnError, TestStepAbortCondition.RetryOnFail, TestStepAbortCondition.RetryOnFail | TestStepAbortCondition.RetryOnError, HideIfDisabled = true)]
+        [Unsweepable]
+        public uint Retry { get; set; } = 0;
+        
     }
 
+    [Flags]
+    public enum TestStepAbortCondition
+    {
+        /// <summary> If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
+        [Display("Inherrit", "Inherrit behavior from the parent step. If no parent step exist or specify a bahavior, the Engine setting 'Abort Run If' is used.")]
+        Inherrit = 1,
+        /// <summary> If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
+        [Display("Break on fail", "If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step.")]
+        BreakOnFail = 2,
+        /// <summary> If a step completes with verdict 'Error', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
+        [Display("Break on Error", "If a step completes with verdict 'Error', stop execution of any subsequent steps at this level, and return control to the parent step.")]
+        BreakOnError = 4,
+        /// <summary> If a step completes with verdict 'Fail', the test step should be re-run. </summary>
+        [Display("Retry on Fail", "If a step completes with verdict 'Fail', the test step should be re-run.")]
+        RetryOnFail = 8,
+        /// <summary> If a step completes with verdict 'Error', the test step should be re-run. </summary>
+        [Display("Retry on Error", "If a step completes with verdict 'Error', the test step should be re-run.")]
+        RetryOnError = 16,
+        BreakOnInconclusive = 32,
+        RetryOnInconclusive = 64
+
+    }
+    
+    
     /// <summary>
     /// An extension class for the ITestStep interface.
     /// </summary>
@@ -604,7 +668,7 @@ namespace OpenTap
                             i = stepidx - 1;
                         // if skip to next step, dont add it to the wait queue.
                     }
-                    
+                    run.CheckBreakCondition();
                     TapThread.ThrowIfAborted();
                 }
             }
@@ -613,7 +677,7 @@ namespace OpenTap
 
                 if (runs.Count > 0) // Avoid deferring if there is nothing to do.
                 {
-                    if (Step is TestStep testStep)
+                    if (Step is TestStep testStep && runs.Any(x => x.WasDeferred))
                     {
                         testStep.Results.Defer(() =>
                         {
@@ -666,7 +730,7 @@ namespace OpenTap
 
             var run = childStep.DoRun(currentPlanRun, currentStepRun, attachedParameters);
 
-            if (Step is TestStep step)
+            if (Step is TestStep step && run.WasDeferred)
             {
                 step.Results.Defer(() =>
                 {
@@ -681,6 +745,7 @@ namespace OpenTap
                 if (run.Verdict > Step.Verdict)
                     Step.Verdict = run.Verdict;
             }
+            run.CheckBreakCondition();
 
             return run;
         }
@@ -708,20 +773,9 @@ namespace OpenTap
             return sb.ToString();
         }
 
-        static void checkStepFailure(ITestStep Step, TestPlanRun planRun)
-        {
-            if ((Step.Verdict == Verdict.Fail && planRun.AbortOnStepFail) || (Step.Verdict == Verdict.Error && planRun.AbortOnStepError))
-            {
-                TestPlan.Log.Warning("OpenTAP is currently configured to abort run on verdict {0}. This can be changed in Engine Settings.", Step.Verdict);
-                planRun.MainThread.Abort(String.Format("Verdict of '{0}' was '{1}'.", Step.Name, Step.Verdict));
-            }
-            if (Step.Verdict == Verdict.Aborted)
-            {
-                planRun.MainThread.Abort(String.Format("Step '{0}' was aborted.", Step.Name));
-            }
-        }
+
         
-        internal static TestStepRun DoRun(this ITestStep Step, TestPlanRun planRun, TestStepRun parentStepRun, IEnumerable<ResultParameter> attachedParameters = null)
+        internal static TestStepRun DoRun2(this ITestStep Step, TestRun parentRun, IEnumerable<ResultParameter> attachedParameters = null)
         {
             {
                 // in case the previous action was not completed yet.
@@ -730,6 +784,7 @@ namespace OpenTap
                 Step.StepRun?.WaitForCompletion();
                 Debug.Assert(Step.StepRun == null);
             }
+            var planRun = Step.PlanRun;
 
             Step.Verdict = Verdict.NotSet;
 
@@ -737,11 +792,11 @@ namespace OpenTap
             if (!Step.Enabled)
                 throw new Exception("Step not enabled."); // Do not run step if it has been disabled
             planRun.ThrottleResultPropagation();
-            Step.PlanRun = planRun;
-            var stepRun = Step.StepRun = new TestStepRun(Step, parentStepRun == null ? planRun.Id : parentStepRun.Id,
+            
+            var stepRun = Step.StepRun = new TestStepRun(Step, parentRun,
                 attachedParameters)
             {
-                TestStepPath = Step.GetStepPath()
+                TestStepPath = Step.GetStepPath(),
             };
 
             var stepPath = stepRun.TestStepPath;
@@ -750,7 +805,7 @@ namespace OpenTap
             if (stepRun.SuggestedNextStep != null) {
                 Step.StepRun = null;
                 stepRun.Skipped = true;
-                return stepRun;
+                return stepRun;    
             }
 
             TapThread.ThrowIfAborted(); // if an OfferBreak handler called TestPlan.Abort, abort now.
@@ -764,16 +819,16 @@ namespace OpenTap
                 try
                 {
                     // Signal step is going to execute
-                    planRun.ExecutionHooks.ForEach(eh => eh.BeforeTestStepExecute(Step));
+                    Step.PlanRun.ExecutionHooks.ForEach(eh => eh.BeforeTestStepExecute(Step));
 
                     try
                     {
                         // tell result listeners the step started.
-                        planRun.ResourceManager.BeginStep(planRun, Step, TestPlanExecutionStage.Run, TapThread.Current.AbortToken);
+                        Step.PlanRun.ResourceManager.BeginStep(Step.PlanRun, Step, TestPlanExecutionStage.Run, TapThread.Current.AbortToken);
                         try
                         {
                             if (Step is TestStep _step)
-                                resultSource = _step.Results = new ResultSource(stepRun, planRun);
+                                resultSource = _step.Results = new ResultSource(stepRun, Step.PlanRun);
 
                             TestPlan.Log.Info(stepPath + " started.");
                             stepRun.StartStepRun(); // set verdict to running, set Timestamp.
@@ -854,7 +909,6 @@ namespace OpenTap
                             if (Step.StepRun == stepRun)
                             {
                                 Step.StepRun = null;
-                                Step.PlanRun = null;
                             }
                         }
                         TimeSpan time = swatch.Elapsed;
@@ -869,7 +923,6 @@ namespace OpenTap
                         }
 
                         planRun.AddTestStepRunCompleted(stepRun);
-                        checkStepFailure(Step, planRun);
                     }
                 }
 
@@ -877,11 +930,70 @@ namespace OpenTap
                     resultSource.Finally(completeAction);
                 else
                     completeAction(Task.FromResult(0));
+                
                 stepRun.WasDeferred = !completeActionExecuted; // completeAction was already executed -> not deferred.
             }
             
             return stepRun;
         }
+
+        internal static TestStepRun DoRun3(this ITestStep Step, TestRun parentRun,
+            IEnumerable<ResultParameter> attachedParameters = null)
+        {
+            uint retries = 1;
+            if (Step is ITestStepAbortCondition a)
+            {
+                retries = a.Retry;
+            }
+
+            TestStepRun run;
+            do
+            {
+                run = DoRun2(Step, parentRun, attachedParameters);
+                
+                bool shouldDoRetry = run.Verdict == Verdict.Fail && run.AbortCondition.HasFlag(TestStepAbortCondition.RetryOnFail);
+                shouldDoRetry |= run.Verdict == Verdict.Error && run.AbortCondition.HasFlag(TestStepAbortCondition.RetryOnError);
+                shouldDoRetry |= run.Verdict == Verdict.Inconclusive && run.AbortCondition.HasFlag(TestStepAbortCondition.RetryOnInconclusive);
+                if (shouldDoRetry)
+                {
+                    if(run.WasDeferred)
+                        run.WaitForCompletion();
+                    if (retries > 0)
+                    {
+                        retries -= 1;
+                        continue;
+                    }
+                    // The step ran out of retries, so this is the same as if AbortCondition was BreakOn[Verdict].
+                    run.OutOfRetries = true;
+                }
+                break;
+            }
+            while (true);
+
+            return run;
+        }
+
+        internal static TestStepRun DoRun(this ITestStep Step, TestPlanRun planRun, TestRun parentStepRun,
+            IEnumerable<ResultParameter> attachedParameters = null)
+        {
+            Step.PlanRun = planRun;
+            var run = DoRun3(Step, parentStepRun, attachedParameters);
+            if (run.WasDeferred)
+            {
+                if (Step is TestStep step)
+                {
+                    step.Results.Defer(() => planRun.UpgradeVerdict(run.Verdict));
+                }
+                else
+                {
+                    planRun.UpgradeVerdict(run.Verdict);
+                }
+            }
+
+            return run;
+
+        }
+
         internal static void CheckResources(this ITestStep Step)
         {
             var resProps2 = GetStepSettings<IResource>(new[] { Step }, true);

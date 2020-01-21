@@ -149,31 +149,39 @@ namespace OpenTap
             
             Stopwatch planRunOnlyTimer = Stopwatch.StartNew();
             var runs = new List<TestStepRun>();
-            
-            for (int i = 0; i < steps.Count; i++)
+
+            try
             {
-                var step = steps[i];
-                if (step.Enabled == false) continue;
-                var run = step.DoRun(execStage, null);
-                if (!run.Skipped)
-                    runs.Add(run);
-                // note: The following is copied inside TestStep.cs
-                if (run.SuggestedNextStep is Guid id)
+                for (int i = 0; i < steps.Count; i++)
                 {
-                    int nextindex = steps.IndexWhen(x => x.Id == id);
-                    if (nextindex >= 0)
-                        i = nextindex - 1;
-                    // if skip to next step, dont add it to the wait queue.
+                    var step = steps[i];
+                    if (step.Enabled == false) continue;
+                    var run = step.DoRun(execStage, execStage);
+                    if (!run.Skipped)
+                        runs.Add(run);
+                    run.CheckBreakCondition();
+                    // note: The following is copied inside TestStep.cs
+                    if (run.SuggestedNextStep is Guid id)
+                    {
+                        int nextindex = steps.IndexWhen(x => x.Id == id);
+                        if (nextindex >= 0)
+                            i = nextindex - 1;
+                        // if skip to next step, dont add it to the wait queue.
+                    }
                 }
-                
+
+            }
+            finally
+            {
+                // Now wait for them to actually complete. They might defer internally.
+                foreach (var run in runs)
+                {
+                    run.WaitForCompletion();
+                    execStage.UpgradeVerdict(run.Verdict);
+                }    
             }
 
-            // Now wait for them to actually complete. They might defer internally.
-            foreach (var run in runs)
-            {
-                run.WaitForCompletion();
-                execStage.UpgradeVerdict(run.Verdict);
-            }
+            
            
             Log.Debug(planRunOnlyTimer, "Test step runs finished.");
             
@@ -643,7 +651,7 @@ namespace OpenTap
                 if (e is OperationCanceledException)
                 {
                     Log.Warning(String.Format("TestPlan aborted. ({0})", e.Message));
-                    execStage.UpgradeVerdict(Verdict.Aborted);
+                    //execStage.UpgradeVerdict(Verdict.Aborted);
                 }
                 else if (e is ThreadAbortException)
                 {

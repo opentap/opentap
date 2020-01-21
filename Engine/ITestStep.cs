@@ -133,6 +133,21 @@ namespace OpenTap
     }
 
     /// <summary>
+    /// Implemented by test steps that can handle abort conditions.
+    /// If this is not implemented, ITestSteps steps defaults to inherited behavior.
+    /// </summary>
+    public interface ITestStepAbortCondition : ITestStep
+    {
+        /// <summary> Which behavior the step should use with regards to abort.
+        /// The default values should be 'Inherit'. </summary>
+        TestStepAbortCondition AbortCondition { get; }
+        /// <summary>
+        /// If a retry condition is selected, how many times should the condition be retried before a break occurs.
+        /// A break _always_ occurs when running out of retries.
+        /// </summary>
+        uint Retry { get; }
+    }
+    /// <summary>
     /// Search pattern to use while getting child steps.
     /// </summary>
     public enum TestStepSearch
