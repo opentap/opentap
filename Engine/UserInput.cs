@@ -153,7 +153,7 @@ namespace OpenTap
             {
                 if (platforDialogMutex.WaitOne(Timeout))
                     break;
-                if (DateTime.Now < TimeoutTime)
+                if (DateTime.Now >= TimeoutTime)
                     throw new TimeoutException("Request User Input timed out");
             } while (true);
 

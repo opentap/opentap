@@ -204,6 +204,13 @@ namespace OpenTap
             var disp = stepType.GetDisplayAttribute();
             return disp.Group.Append(disp.Name).ToArray();
         }
+
+        /// <summary> Returns a default name for a step type. </summary>
+        /// <param name="stepType"></param>
+        /// <returns></returns>
+        [Obsolete("Use other overload of GenerateDefaultNames instead.")]
+        public static string[] GenerateDefaultNames(Type stepType) => GenerateDefaultNames(TypeData.FromType(stepType));
+        
         static ConditionalWeakTable<ITypeData, string> defaultNames = new ConditionalWeakTable<ITypeData, string>();
 
         /// <summary>
