@@ -19,6 +19,8 @@ namespace OpenTap
         /// </summary>
         public bool HideIfDisabled { get; set; }
 
+        public bool Flags { get; set; }
+
         static readonly TraceSource log = Log.CreateSource("EnabledIf");
 
         /// <summary>

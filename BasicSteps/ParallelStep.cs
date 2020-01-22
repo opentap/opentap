@@ -13,9 +13,15 @@ namespace OpenTap.Plugins.BasicSteps
     {
         public override void Run()
         {
+            TapThread.WithNewContext(Run2);
+        }
+
+        public void Run2()
+        {
             var steps = EnabledChildSteps.ToArray();
             
             SemaphoreSlim sem = new SemaphoreSlim(0);
+            var trd = TapThread.Current;
 
             Log.Info("Starting {0} child steps in separate threads.", steps.Length);
             foreach(var _step in steps)
@@ -30,6 +36,7 @@ namespace OpenTap.Plugins.BasicSteps
                     catch
                     {
                         // no need to do anything. This thread will end now.
+                        TapThread.WithNewContext(trd.Abort, null);
                     }
                     finally
                     {

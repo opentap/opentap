@@ -108,6 +108,10 @@ namespace OpenTap
         }
         readonly object upgradeVerdictLock = new object();
         
+        
+        /// <summary>
+        /// Calculated abort condition...
+        /// </summary>
         public TestStepAbortCondition AbortCondition { get; protected set; }
 
     }
@@ -258,12 +262,17 @@ namespace OpenTap
         
         static TestStepAbortCondition calculateAbortCondition(ITestStep step, TestRun parentStepRun)
         {
-            TestStepAbortCondition abortCondition = TestStepAbortCondition.Inherrit;
+            TestStepAbortCondition abortCondition = TestStepAbortCondition.Inherit;
             if (step is ITestStepAbortCondition step2)
                 abortCondition = step2.AbortCondition;
 
-            if (abortCondition == TestStepAbortCondition.Inherrit)
-                return parentStepRun.AbortCondition;
+            if (abortCondition.HasFlag(TestStepAbortCondition.Inherit))
+            {
+                // Retry conditions are not inherited.
+                return (parentStepRun.AbortCondition & ~(TestStepAbortCondition.RetryOnError |
+                                                         TestStepAbortCondition.RetryOnFail |
+                                                         TestStepAbortCondition.RetryOnInconclusive)) | abortCondition;
+            }
 
             return abortCondition;
 

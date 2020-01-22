@@ -438,6 +438,17 @@ namespace OpenTap
         {
             return this.RunChildStep(childStep, PlanRun, StepRun, attachedParameters);
         }
+        
+        /// <summary>
+        /// Runs the specified child step if enabled. Upgrades parent verdict to the resulting verdict of the child run. Throws an exception if childStep does not belong or isn't enabled.
+        /// </summary>
+        /// <param name="childStep">The child step to run.</param>
+        /// <param name="throwOnError"></param>
+        /// <param name="attachedParameters">Parameters that will be stored together with the actual parameters of the step.</param>
+        protected TestStepRun RunChildStep(ITestStep childStep, bool throwOnError, IEnumerable<ResultParameter> attachedParameters = null)
+        {
+            return this.RunChildStep(childStep, PlanRun, StepRun, attachedParameters);
+        }
 
         /// <summary>
         /// Gets or sets the <see cref="TestPlanRun"/>.  
@@ -458,74 +469,27 @@ namespace OpenTap
         [Browsable(false)]
         public Guid Id { get; set; } = Guid.NewGuid();
 
-        TestStepAbortCondition abortCondition = TestStepAbortCondition.Inherrit;
         
+        /// <summary> The conditions defining how the step behaves relative to various verdicts. </summary>
         [Unsweepable]
         [Display("Interrupt On", Group: "Common")]
-        public TestStepAbortCondition AbortCondition
-        {
-            get => abortCondition;
-            set
-            {
-                var newvalue = value;
-                if((int) newvalue == 0)
-                {
-                    newvalue = TestStepAbortCondition.Inherrit;
-                }
+        public TestStepAbortCondition AbortCondition { get; set; } = TestStepAbortCondition.Inherit;
 
-                if (newvalue != TestStepAbortCondition.Inherrit)
-                {
-                    newvalue = newvalue & ~TestStepAbortCondition.Inherrit;
-                }
-                
-                if (abortCondition.HasFlag(TestStepAbortCondition.BreakOnError) &&
-                    newvalue.HasFlag(TestStepAbortCondition.RetryOnError))
-                {
-                    newvalue = newvalue & ~TestStepAbortCondition.BreakOnError;
-                }
-                if (abortCondition.HasFlag(TestStepAbortCondition.BreakOnFail) &&
-                    newvalue.HasFlag(TestStepAbortCondition.RetryOnFail))
-                {
-                    newvalue = newvalue & ~TestStepAbortCondition.BreakOnFail;
-                }
-
-                abortCondition = newvalue;
-                
-            }
-        }
+        /// <summary> Gets if retry should be visible. </summary>
+        public bool RetryVisible => AbortCondition.HasFlag(TestStepAbortCondition.RetryOnError) ||
+                                    AbortCondition.HasFlag(TestStepAbortCondition.RetryOnFail) ||
+                                    AbortCondition.HasFlag(TestStepAbortCondition.RetryOnInconclusive);  
         
+        /// <summary> How many times should the step be retried. </summary>
         [Display("Retry", Group: "Common")]
         [Unit("times")]
-        [EnabledIf(nameof(AbortCondition), TestStepAbortCondition.RetryOnError, TestStepAbortCondition.RetryOnFail, TestStepAbortCondition.RetryOnFail | TestStepAbortCondition.RetryOnError, HideIfDisabled = true)]
+        [EnabledIf(nameof(RetryVisible), true, HideIfDisabled = true)]
         [Unsweepable]
         public uint Retry { get; set; } = 0;
         
     }
 
-    [Flags]
-    public enum TestStepAbortCondition
-    {
-        /// <summary> If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
-        [Display("Inherrit", "Inherrit behavior from the parent step. If no parent step exist or specify a bahavior, the Engine setting 'Abort Run If' is used.")]
-        Inherrit = 1,
-        /// <summary> If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
-        [Display("Break on fail", "If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step.")]
-        BreakOnFail = 2,
-        /// <summary> If a step completes with verdict 'Error', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
-        [Display("Break on Error", "If a step completes with verdict 'Error', stop execution of any subsequent steps at this level, and return control to the parent step.")]
-        BreakOnError = 4,
-        /// <summary> If a step completes with verdict 'Fail', the test step should be re-run. </summary>
-        [Display("Retry on Fail", "If a step completes with verdict 'Fail', the test step should be re-run.")]
-        RetryOnFail = 8,
-        /// <summary> If a step completes with verdict 'Error', the test step should be re-run. </summary>
-        [Display("Retry on Error", "If a step completes with verdict 'Error', the test step should be re-run.")]
-        RetryOnError = 16,
-        BreakOnInconclusive = 32,
-        RetryOnInconclusive = 64
 
-    }
-    
-    
     /// <summary>
     /// An extension class for the ITestStep interface.
     /// </summary>
@@ -647,7 +611,7 @@ namespace OpenTap
                     var step = steps[i];
                     if (step.Enabled == false) continue;
 
-                    var run = step.DoRun(currentPlanRun, currentStepRun, attachedParameters);
+                    var run = step.DoRunHandleVerdict(currentPlanRun, currentStepRun, attachedParameters);
 
                     if (!run.Skipped)
                         runs.Add(run);
@@ -705,6 +669,7 @@ namespace OpenTap
 
             return runs;
         }
+
         /// <summary>
         /// Runs the specified child step if enabled. Upgrades parent verdict to the resulting verdict of the child run. Throws an exception if childStep does not belong or isn't enabled.
         /// </summary>
@@ -713,7 +678,24 @@ namespace OpenTap
         /// <param name="currentPlanRun">The current TestPlanRun.</param>
         /// <param name="currentStepRun">The current TestStepRun.</param>
         /// <param name="attachedParameters">Parameters that will be stored together with the actual parameters of the step.</param>
-        public static TestStepRun RunChildStep(this ITestStep Step, ITestStep childStep, TestPlanRun currentPlanRun, TestStepRun currentStepRun, IEnumerable<ResultParameter> attachedParameters = null)
+        public static TestStepRun RunChildStep(this ITestStep Step, ITestStep childStep,
+            TestPlanRun currentPlanRun, TestStepRun currentStepRun,
+            IEnumerable<ResultParameter> attachedParameters = null)
+        {
+            return Step.RunChildStep(childStep, true, currentPlanRun, currentStepRun, attachedParameters);
+        }
+        
+        
+        /// <summary>
+        /// Runs the specified child step if enabled. Upgrades parent verdict to the resulting verdict of the child run. Throws an exception if childStep does not belong or isn't enabled.
+        /// </summary>
+        /// <param name="Step"></param>
+        /// <param name="childStep">The child step to run.</param>
+        /// <param name="throwOnError"></param>
+        /// <param name="currentPlanRun">The current TestPlanRun.</param>
+        /// <param name="currentStepRun">The current TestStepRun.</param>
+        /// <param name="attachedParameters">Parameters that will be stored together with the actual parameters of the step.</param>
+        public static TestStepRun RunChildStep(this ITestStep Step, ITestStep childStep, bool throwOnError, TestPlanRun currentPlanRun, TestStepRun currentStepRun, IEnumerable<ResultParameter> attachedParameters = null)
         {
             if (childStep == null)
                 throw new ArgumentNullException("childStep");
@@ -728,7 +710,7 @@ namespace OpenTap
             if(childStep.Enabled == false)
                 throw new ArgumentException("childStep must be enabled.", "childStep");
 
-            var run = childStep.DoRun(currentPlanRun, currentStepRun, attachedParameters);
+            var run = childStep.DoRunHandleVerdict(currentPlanRun, currentStepRun, attachedParameters);
 
             if (Step is TestStep step && run.WasDeferred)
             {
@@ -745,7 +727,8 @@ namespace OpenTap
                 if (run.Verdict > Step.Verdict)
                     Step.Verdict = run.Verdict;
             }
-            run.CheckBreakCondition();
+            if(throwOnError)
+                run.CheckBreakCondition();
 
             return run;
         }
@@ -775,7 +758,7 @@ namespace OpenTap
 
 
         
-        internal static TestStepRun DoRun2(this ITestStep Step, TestRun parentRun, IEnumerable<ResultParameter> attachedParameters = null)
+        internal static TestStepRun DoRunCallRun(this ITestStep Step, TestRun parentRun, IEnumerable<ResultParameter> attachedParameters = null)
         {
             {
                 // in case the previous action was not completed yet.
@@ -937,7 +920,7 @@ namespace OpenTap
             return stepRun;
         }
 
-        internal static TestStepRun DoRun3(this ITestStep Step, TestRun parentRun,
+        internal static TestStepRun DoRunRetry(this ITestStep Step, TestRun parentRun,
             IEnumerable<ResultParameter> attachedParameters = null)
         {
             uint retries = 1;
@@ -949,7 +932,7 @@ namespace OpenTap
             TestStepRun run;
             do
             {
-                run = DoRun2(Step, parentRun, attachedParameters);
+                run = DoRunCallRun(Step, parentRun, attachedParameters);
                 
                 bool shouldDoRetry = run.Verdict == Verdict.Fail && run.AbortCondition.HasFlag(TestStepAbortCondition.RetryOnFail);
                 shouldDoRetry |= run.Verdict == Verdict.Error && run.AbortCondition.HasFlag(TestStepAbortCondition.RetryOnError);
@@ -973,11 +956,11 @@ namespace OpenTap
             return run;
         }
 
-        internal static TestStepRun DoRun(this ITestStep Step, TestPlanRun planRun, TestRun parentStepRun,
+        internal static TestStepRun DoRunHandleVerdict(this ITestStep Step, TestPlanRun planRun, TestRun parentStepRun,
             IEnumerable<ResultParameter> attachedParameters = null)
         {
             Step.PlanRun = planRun;
-            var run = DoRun3(Step, parentStepRun, attachedParameters);
+            var run = DoRunRetry(Step, parentStepRun, attachedParameters);
             if (run.WasDeferred)
             {
                 if (Step is TestStep step)
@@ -1215,4 +1198,7 @@ namespace OpenTap
             return outName.ToString();
         }
     }
+    
+    
+    
 }

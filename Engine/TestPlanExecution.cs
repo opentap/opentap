@@ -156,7 +156,7 @@ namespace OpenTap
                 {
                     var step = steps[i];
                     if (step.Enabled == false) continue;
-                    var run = step.DoRun(execStage, execStage);
+                    var run = step.DoRunHandleVerdict(execStage, execStage);
                     if (!run.Skipped)
                         runs.Add(run);
                     run.CheckBreakCondition();
