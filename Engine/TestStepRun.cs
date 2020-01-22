@@ -262,9 +262,8 @@ namespace OpenTap
         
         static TestStepAbortCondition calculateAbortCondition(ITestStep step, TestRun parentStepRun)
         {
-            TestStepAbortCondition abortCondition = TestStepAbortCondition.Inherit;
-            if (step is ITestStepAbortCondition step2)
-                abortCondition = step2.AbortCondition;
+            TestStepAbortCondition abortCondition = step.GetAbortCondition();
+            
 
             if (abortCondition.HasFlag(TestStepAbortCondition.Inherit))
             {

@@ -26,7 +26,7 @@ namespace OpenTap
     /// </remarks>
     [ComVisible(true)]
     [Guid("d0b06600-7bac-47fb-9251-f834e420623f")]
-    public abstract class TestStep : ValidatingObject, ITestStep, ITestStepAbortCondition
+    public abstract class TestStep : ValidatingObject, ITestStep
     {
         #region Properties
         /// <summary>
@@ -468,25 +468,6 @@ namespace OpenTap
         [XmlAttribute("Id")]
         [Browsable(false)]
         public Guid Id { get; set; } = Guid.NewGuid();
-
-        
-        /// <summary> The conditions defining how the step behaves relative to various verdicts. </summary>
-        [Unsweepable]
-        [Display("Interrupt On", Group: "Common")]
-        public TestStepAbortCondition AbortCondition { get; set; } = TestStepAbortCondition.Inherit;
-
-        /// <summary> Gets if retry should be visible. </summary>
-        public bool RetryVisible => AbortCondition.HasFlag(TestStepAbortCondition.RetryOnError) ||
-                                    AbortCondition.HasFlag(TestStepAbortCondition.RetryOnFail) ||
-                                    AbortCondition.HasFlag(TestStepAbortCondition.RetryOnInconclusive);  
-        
-        /// <summary> How many times should the step be retried. </summary>
-        [Display("Retry", Group: "Common")]
-        [Unit("times")]
-        [EnabledIf(nameof(RetryVisible), true, HideIfDisabled = true)]
-        [Unsweepable]
-        public uint Retry { get; set; } = 0;
-        
     }
 
 
@@ -923,12 +904,7 @@ namespace OpenTap
         internal static TestStepRun DoRunRetry(this ITestStep Step, TestRun parentRun,
             IEnumerable<ResultParameter> attachedParameters = null)
         {
-            uint retries = 1;
-            if (Step is ITestStepAbortCondition a)
-            {
-                retries = a.Retry;
-            }
-
+            uint retries = Step.GetRetries();
             TestStepRun run;
             do
             {

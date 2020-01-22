@@ -31,32 +31,32 @@ namespace OpenTap
         RetryOnInconclusive = 64
     }
 
-    public static class AbortCondition
+    internal static class AbortCondition
     {
         public static void SetAbortCondition(this ITestStep step, TestStepAbortCondition condition)
         {
-            
+            AbortConditionTypeDataProvider.TestStepTypeData.AbortCondition.SetValue(step, condition);
         }
         
         public static TestStepAbortCondition GetAbortCondition(this ITestStep step)
         {
-            throw new NotImplementedException();
+            return (TestStepAbortCondition) AbortConditionTypeDataProvider.TestStepTypeData.AbortCondition.GetValue(step);
         }
         
         public static void SetRetries(this ITestStep step, uint retries)
         {
-            throw new NotImplementedException();
+            AbortConditionTypeDataProvider.TestStepTypeData.Retries.SetValue(step, retries);
         }
 
         public static uint GetRetries(this ITestStep step)
         {
-            throw new NotImplementedException();
+            return (uint) AbortConditionTypeDataProvider.TestStepTypeData.Retries.GetValue(step);
         }
     }
 
-    internal class AbortConditionTypeDataProvider// : IStackedTypeDataProvider
+    internal class AbortConditionTypeDataProvider : IStackedTypeDataProvider
     {
-        class VirtualMember<T> : IMemberData
+        internal class VirtualMember<T> : IMemberData
         {
             public IEnumerable<object> Attributes { get; set; }
             public string Name { get; set; }
@@ -67,13 +67,13 @@ namespace OpenTap
 
             public object DefaultValue;
             
-            
-
             ConditionalWeakTable<object, object> dict = new ConditionalWeakTable<object, object>();
 
             public void SetValue(object owner, object value)
             {
-                dict.Add(owner, value);
+                dict.Remove(owner);
+                if (object.Equals(value, DefaultValue) == false)
+                    dict.Add(owner, value);
             }
 
             public object GetValue(object owner)
@@ -83,24 +83,30 @@ namespace OpenTap
                 return DefaultValue;
             }
         }
-        class TestStepTypeData : ITypeData
+        internal class TestStepTypeData : ITypeData
         {
-            static VirtualMember<TestStepAbortCondition> AbortCondition = new VirtualMember<TestStepAbortCondition>
+            internal static readonly VirtualMember<TestStepAbortCondition> AbortCondition = new VirtualMember<TestStepAbortCondition>
             {
                 Name = "AbortCondition",
                 DefaultValue = TestStepAbortCondition.Inherit,
-                Attributes = new []{new DisplayAttribute("Abort Condition")},
+                Attributes = new Attribute[]{new DisplayAttribute("Interrupt On", "Decides how the step handles the various verdict", "Common"), new UnsweepableAttribute() },
                 DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
                 Readable = true,
                 Writable =  true,
                 TypeDescriptor = TypeData.FromType(typeof(TestStepAbortCondition))
             };
             
-            static VirtualMember<uint> Retries = new VirtualMember<uint>
+            internal static readonly VirtualMember<uint> Retries = new VirtualMember<uint>
             {
                 Name = "Retries",
-                DefaultValue = 0,
-                Attributes = new []{new DisplayAttribute("Retrues")},
+                DefaultValue = (uint)0,
+                Attributes = new Attribute[]
+                {
+                    new DisplayAttribute("Retries", "How many times to retry", "Common"), 
+                    new EnabledIfAttribute(AbortCondition.Name, TestStepAbortCondition.RetryOnError, TestStepAbortCondition.RetryOnFail, TestStepAbortCondition.RetryOnInconclusive) { Flags = true, HideIfDisabled = true}, 
+                    new UnsweepableAttribute(),
+                    new UnitAttribute("times"), 
+                },
                 DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
                 Readable = true,
                 Writable =  true,

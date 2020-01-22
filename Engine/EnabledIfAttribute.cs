@@ -19,6 +19,7 @@ namespace OpenTap
         /// </summary>
         public bool HideIfDisabled { get; set; }
 
+        /// <summary> Gets or sets if the enabling value is individual flags from an enum. </summary>
         public bool Flags { get; set; }
 
         static readonly TraceSource log = Log.CreateSource("EnabledIf");
@@ -78,22 +79,10 @@ namespace OpenTap
                 }
 
                 var depValue = dependentProp.GetValue(instance);
-                dependentValue = depValue as IComparable;
+                
                 try
                 {
-                    if (depValue is IEnabled)
-                    {
-                        var isEnabled = ((IEnabled)depValue).IsEnabled;
-                        if (!at.PropertyValues.Any(testValue => testValue.CompareTo(isEnabled) == 0))
-                        {
-                            newEnabled = false;
-                        }
-                    }
-                    else if (!at.PropertyValues.Any(testValue => testValue.CompareTo(depValue) == 0) && dependentValue != null)
-                    {
-                        newEnabled = false;
-
-                    }
+                    newEnabled = calcEnabled(at, depValue);
                 }
                 catch (ArgumentException)
                 {
@@ -105,6 +94,33 @@ namespace OpenTap
                 enabled &= newEnabled;
             }
             return enabled;
+        }
+
+        /// <summary> Calculate if an enabled if is enabled by a given value. </summary>
+        static bool calcEnabled(EnabledIfAttribute at, object depValue)
+        {
+            if (at.Flags)
+            {
+                int value = (int)Convert.ChangeType(depValue, TypeCode.Int32);
+                foreach (var flag in at.PropertyValues)
+                {
+                    int flagCode = (int) Convert.ChangeType(flag, TypeCode.Int32);
+                    if ((value & flagCode) != 0)
+                        return true;
+                }
+                return false;
+            }
+
+            if (depValue is IEnabled e)
+                depValue = e.IsEnabled;
+
+            foreach (var val in at.PropertyValues)
+            {
+                if (object.Equals(val, depValue))
+                    return true;
+            }
+            
+            return false;
         }
 
 
@@ -127,26 +143,15 @@ namespace OpenTap
             }
 
             var depValue = depedentProp.GetValue(instance);
-            IComparable dependentValue = depValue as IComparable;
             try
             {
-                if (depValue is IEnabled)
-                {
-                    var isEnabled = ((IEnabled)depValue).IsEnabled;
-                    if (!at.PropertyValues.Any(testValue => testValue.CompareTo(isEnabled) == 0))
-                        return false;
-                }
-                else if (!at.PropertyValues.Any(testValue => testValue.CompareTo(depValue) == 0) && dependentValue != null)
-                {
-                    return false;
-                }
+                return calcEnabled(at, depValue);
             }
             catch(ArgumentException)
             {
                 // CompareTo throws ArgumentException when obj is not the same type as this instance.
                 return false;
             }
-            return true;
         }
 
         /// <summary>
