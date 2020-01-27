@@ -447,7 +447,7 @@ namespace OpenTap
         /// <param name="attachedParameters">Parameters that will be stored together with the actual parameters of the step.</param>
         protected TestStepRun RunChildStep(ITestStep childStep, bool throwOnError, IEnumerable<ResultParameter> attachedParameters = null)
         {
-            return this.RunChildStep(childStep, PlanRun, StepRun, attachedParameters);
+            return this.RunChildStep(childStep, throwOnError, PlanRun, StepRun, attachedParameters);
         }
 
         /// <summary>

@@ -118,10 +118,20 @@ namespace OpenTap
             {
                 this.innerType = innerType;
             }
+
+            public override bool Equals(object obj)
+            {
+                if (obj is TestStepTypeData td2) 
+                    return td2.innerType.Equals(innerType);
+                return base.Equals(obj);
+            }
+
+            public override int GetHashCode() =>  innerType.GetHashCode() * 157489213;
+
             readonly ITypeData innerType;
             public IEnumerable<object> Attributes => innerType.Attributes;
             public string Name => innerType.Name;
-            public ITypeData BaseType => innerType.BaseType;
+            public ITypeData BaseType => innerType;
             public IEnumerable<IMemberData> GetMembers()
             {
                 return innerType.GetMembers().Concat(extraMembers);
