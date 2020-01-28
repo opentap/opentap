@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Package Name="SDK" xmlns="http://opentap.io/schemas/package" InfoLink="http://www.keysight.com/find/TAP" Version="$(GitVersion)">
+<Package Name="SDK" xmlns="http://opentap.io/schemas/package" InfoLink="http://www.keysight.com/find/TAP" Version="$(GitVersion)" OS="Windows,Linux">
   <Description>OpenTAP’s SDK contains code example files, an MSBuild task to help create TapPackage files and the developer guide. This package demonstrates the core capabilities of OpenTAP and makes it faster and simpler to develop custom Test Automation solutions, especially for new developers.
     <Status>Released</Status>
     <Organisation>Keysight Technologies</Organisation>
