@@ -117,7 +117,7 @@ namespace OpenTap.Sdk.New
             {
                 StringBuilder steps = new StringBuilder("\n");
                 var ns = TryGetNamespace();
-                var csFiles = Directory.GetFiles(Directory.GetCurrentDirectory(), "*.cs", SearchOption.AllDirectories);
+                var csFiles = Directory.GetFiles(Directory.GetCurrentDirectory(), "*.cs", SearchOption.TopDirectoryOnly);
                 foreach (var file in csFiles)
                 {
                     var text = File.ReadAllText(file);
