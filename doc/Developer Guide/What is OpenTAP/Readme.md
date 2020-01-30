@@ -1,8 +1,8 @@
 OpenTAP Overview
 ============
-OpenTAP is a software solution for fast and easy development and execution of automated test and/or calibration algorithms. These algorithms control measurement instruments and possibly vendor-specific *devices under test* (DUTs). By leveraging the features of C#/.NET and providing an extendable architecture, OpenTAP minimizes the code needed to be written by the programmer. 
+OpenTAP is a software solution for fast and easy development and execution of automated test and calibration algorithms. These algorithms control measurement instruments and *devices under test* (DUTs). By leveraging the features of C#/.NET and providing an extensible architecture, OpenTAP minimizes the amount of code needed to be written by the programmer. 
 
-OpenTAP offers a range of functionality and infrastructure for configuring, controlling and executing test algorithms. OpenTAP provides an API for implementing plugins in the form of test steps, instruments, DUTs and more. 
+OpenTAP offers a range of functionality and infrastructure for configuring, controlling, and executing test algorithms. OpenTAP provides an API for implementing plugins in the form of test steps, instruments, DUTs and more. 
 
 OpenTAP consists of multiple executables, including:
 -	OpenTAP (as a dll)
@@ -10,7 +10,7 @@ OpenTAP consists of multiple executables, including:
 -   Package Manager
 
 
-Steps frequently have dependencies on DUT and instrument plugins. The development of different plugins is discussed later in this document.
+Steps frequently depend on DUT and Instrument plugins. The development of different plugins is discussed later in this document.
 
 ## Architecture
 The illustration below shows how OpenTAP is central to the architecture, and how plugins (all the surrounding items) integrate with it.
@@ -19,13 +19,13 @@ The illustration below shows how OpenTAP is central to the architecture, and how
 
 ## OpenTAP Assembly
 
-The OpenTAP assembly is the core and is required for any OpenTAP plugin. The most important classes in the OpenTAP are: TestPlan, TestStep, Resource, DUT, Instrument, PluginManager and ComponentSettings. OpenTAP also provides an API, which is used by the CLI, and other programs like a editor GUI. 
+The OpenTAP assembly is the core and is required for any OpenTAP plugin. The most important classes in OpenTAP are: TestPlan, TestStep, Resource, DUT, Instrument, PluginManager and ComponentSettings. OpenTAP also provides an API, which is used by the CLI, and other programs like the editor GUI. 
 
 ## Graphical User Interface
 
-If a graphical user interface is needed you can download the Keysight Test Automation Developer's System (Community or Enterprise Edition). It provide you with both a Software Development Kit (SDK) as well as an Editor GUI
+If a graphical user interface is needed you can download the Keysight Test Automation Developer's System (Community or Enterprise Edition). It provides you with both a Software Development Kit (SDK) as well as an Editor GUI
 
--	The graphical user interface consists of multiple dockable panels. It is possible to extend it with custom dockable panels. For an example, see `TAP_PATH\Packages\SDK\Examples\PluginDevelopment\GUI\DockablePanel.cs` 
+-	The graphical user interface consists of multiple dockable panels. It is possible to extend it with custom dockable panels. For an example, see `TAP_PATH\Packages\SDK\Examples\PluginDevelopment.Gui\GUI\DockablePanel.cs` 
 -	Users can specify one or more of the following command line arguments when starting the editor GUI:
 	
 | **Command** | **Description** | **Example** |
@@ -94,17 +94,17 @@ Editable OpenTAP step settings can be marked as *External*. The value of such se
 
 ### Manual Resource Connection 
 
-You may want to avoid the time required to open resources at each test plan start. To do so, you may manually open the resources by using the **Connection** button:
+You may want to avoid the time required to open resources at each test plan start. To do so, open the resources by using the **Connection** button:
 
 ![](./ManualResourceConnection_img1.png#width=500)
 
 Resources opened manually remain open between test plan runs. This eliminates the time required to open and close them for each test plan run. 
 
-**Note**: You must ensure that the resources can be safely used in this manner. For example, if a Dut.Open configures the DUT for testing, you may be required to take the default behavior of opening the resource on every run.
+**Note**: You must ensure that the resources can be safely used in this manner. For example, if a Dut.Open configures the DUT for testing, you may need to keep the default behavior of opening the resource on every run.
 
 ### Testing Multiple DUTs
 
-Test step hierarchies can be built and attributes set to allow certain steps to be child steps of other steps. This hierarchical approach and the possibility of communicating with one or multiple DUTs from a single test step allow for a variety of test flows. 
+Test step hierarchies can be built, and attributes set, to allow certain steps to have child steps. This hierarchical approach, and the possibility of communicating with one or multiple DUTs from a single test step, allows for a variety of test flows. 
 
 The following figure illustrates four different approaches where both sequential and parallel execution is used. The upper part of the illustration is the flow; the lower part is the test plan execution showing the corresponding TX and RX test steps. 
 
