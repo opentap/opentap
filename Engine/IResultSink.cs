@@ -168,11 +168,11 @@ namespace OpenTap
         ///public class ListeningStepExample : TestStep
         ///{
         ///    public ITestStep SourceStep { get => Sink.SourceTestStep; set => Sink.SourceTestStep = value; }
-        ///    public SingleValueResultSink&lt;double&gt; Sink { get; set; }
+        ///    public ScalarResultSink&lt;double&gt; Sink { get; set; }
         ///
         ///    public ListeningStepExample()
         ///    {
-        ///        Sink = new SingleValueResultSink&lt;double&gt;(this);
+        ///        Sink = new ScalarResultSink&lt;double&gt;(this);
         ///    }
         ///
         ///    public override void Run()
