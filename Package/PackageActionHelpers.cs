@@ -308,7 +308,7 @@ namespace OpenTap.Package
                     PackageDef existingPkg = null;
                     try
                     {
-                        if (File.Exists(filename))
+                        if (File.Exists(pkg.Location) == false && File.Exists(filename))
                             existingPkg = PackageDef.FromPackage(filename);
                     }
                     catch (Exception e)
