@@ -474,24 +474,32 @@ namespace OpenTap.Package
                 return packageList;
             }
 
-            using (var zip = new ZipArchive(File.OpenRead(path), ZipArchiveMode.Read))
+            try
             {
-                foreach (var part in zip.Entries)
+                using (var zip = new ZipArchive(File.OpenRead(path), ZipArchiveMode.Read))
                 {
-                    FileSystemHelper.EnsureDirectory(part.FullName);
-                    var instream = part.Open();
-                    using (var outstream = File.Create(part.FullName))
+                    foreach (var part in zip.Entries)
                     {
-                        var task = instream.CopyToAsync(outstream, 4096, TapThread.Current.AbortToken);
-                        ConsoleUtils.PrintProgressTillEnd(task, "Decompressing", () => instream.Position, () => instream.Length);
-                    }
-                    
-                    var package = FromPackage(part.FullName);
-                    packageList.Add(package);
+                        FileSystemHelper.EnsureDirectory(part.FullName);
+                        var instream = part.Open();
+                        using (var outstream = File.Create(part.FullName))
+                        {
+                            var task = instream.CopyToAsync(outstream, 4096, TapThread.Current.AbortToken);
+                            ConsoleUtils.PrintProgressTillEnd(task, "Decompressing", () => instream.Position, () => instream.Length);
+                        }
+                        
+                        var package = FromPackage(part.FullName);
+                        packageList.Add(package);
 
-                    if (File.Exists(part.FullName))
-                        File.Delete(part.FullName);
+                        if (File.Exists(part.FullName))
+                            File.Delete(part.FullName);
+                    }
                 }
+            }
+            catch (InvalidDataException)
+            {
+                log.Error($"Could not unpackage '{path}'.");
+                throw;
             }
 
             return packageList;
@@ -649,7 +657,6 @@ namespace OpenTap.Package
 
         internal static string GetMetadataFromPackage(string path)
         {
-            var filesInPackage = PluginInstaller.FilesInPackage(path);
             string metaFilePath = PluginInstaller.FilesInPackage(path)
                 .Where(p => p.Contains(PackageDef.PackageDefDirectory) && p.EndsWith(PackageDef.PackageDefFileName))
                 .OrderBy(p => p.Length).FirstOrDefault(); // Find the xml file in the most top level

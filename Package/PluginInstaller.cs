@@ -165,16 +165,24 @@ namespace OpenTap.Package
                 return pkg.Files.Select(f => f.FileName).ToList();
             }
 
-            using (var zip = new ZipArchive(File.OpenRead(packagePath), ZipArchiveMode.Read))
+            try
             {
-                foreach (var part in zip.Entries)
+                using (var zip = new ZipArchive(File.OpenRead(packagePath), ZipArchiveMode.Read))
                 {
-                    if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
-                        continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
+                    foreach (var part in zip.Entries)
+                    {
+                        if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
+                            continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
 
-                    string path = Uri.UnescapeDataString(part.FullName);
-                    files.Add(path);
+                        string path = Uri.UnescapeDataString(part.FullName);
+                        files.Add(path);
+                    }
                 }
+            }
+            catch (InvalidDataException)
+            {
+                log.Error($"Could not unpackage '{packagePath}'.");
+                throw;
             }
             return files;
 
@@ -259,53 +267,62 @@ namespace OpenTap.Package
         internal static List<string> UnpackPackage(string packagePath, string destinationDir)
         {
             List<string> installedParts = new List<string>();
-            using (var zip = new ZipArchive(File.OpenRead(packagePath), ZipArchiveMode.Read))
+            
+            try
             {
-                foreach (var part in zip.Entries)
+                using (var zip = new ZipArchive(File.OpenRead(packagePath), ZipArchiveMode.Read))
                 {
-                    if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
-                        continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
-                    if (string.IsNullOrWhiteSpace(part.Name))
-                        continue;
-
-                    
-                    string path = Uri.UnescapeDataString(part.FullName).Replace('\\', '/');
-                    path = Path.Combine(destinationDir, path).Replace('\\', '/');
-                    var sw = Stopwatch.StartNew();
-                    
-                    int Retries = 0, MaxRetries = 10;
-                    while(true)
+                    foreach (var part in zip.Entries)
                     {
-                        try
-                        {
-                            FileSystemHelper.EnsureDirectory(path);
-                            var deflate_stream = part.Open();
-                            using (var fileStream = File.Create(path))
-                            {
-                                var task = deflate_stream.CopyToAsync(fileStream, 4096, TapThread.Current.AbortToken);
-                                ConsoleUtils.PrintProgressTillEnd(task, "Decompressing", ()=> fileStream.Position, ()=> part.Length);
-                            }
-                            log.Debug(sw, "Decompressed {0}", path);
-                            installedParts.Add(path);
-                            break;
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            throw;
-                        }
-                        catch
-                        {                            
-                            if(Path.GetFileNameWithoutExtension(path) == "tap")
-                                break; // this is ok tap.exe (or just tap on linux) is not designed to be overwritten
+                        if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
+                            continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
+                        if (string.IsNullOrWhiteSpace(part.Name))
+                            continue;
 
-                            if(Retries==MaxRetries)
+                        
+                        string path = Uri.UnescapeDataString(part.FullName).Replace('\\', '/');
+                        path = Path.Combine(destinationDir, path).Replace('\\', '/');
+                        var sw = Stopwatch.StartNew();
+                        
+                        int Retries = 0, MaxRetries = 10;
+                        while(true)
+                        {
+                            try
+                            {
+                                FileSystemHelper.EnsureDirectory(path);
+                                var deflate_stream = part.Open();
+                                using (var fileStream = File.Create(path))
+                                {
+                                    var task = deflate_stream.CopyToAsync(fileStream, 4096, TapThread.Current.AbortToken);
+                                    ConsoleUtils.PrintProgressTillEnd(task, "Decompressing", ()=> fileStream.Position, ()=> part.Length);
+                                }
+                                log.Debug(sw, "Decompressed {0}", path);
+                                installedParts.Add(path);
+                                break;
+                            }
+                            catch (OperationCanceledException)
+                            {
                                 throw;
-                            Retries++;
-                            log.Warning("Unable to unpack file {0}. Retry {1} of {2}.", path, Retries, MaxRetries);
-                            Thread.Sleep(200);
+                            }
+                            catch
+                            {                            
+                                if(Path.GetFileNameWithoutExtension(path) == "tap")
+                                    break; // this is ok tap.exe (or just tap on linux) is not designed to be overwritten
+
+                                if(Retries==MaxRetries)
+                                    throw;
+                                Retries++;
+                                log.Warning("Unable to unpack file {0}. Retry {1} of {2}.", path, Retries, MaxRetries);
+                                Thread.Sleep(200);
+                            }
                         }
                     }
                 }
+            }
+            catch (InvalidDataException)
+            {
+                log.Error($"Could not unpackage '{packagePath}'.");
+                throw;
             }
             return installedParts;
         }
@@ -319,20 +336,28 @@ namespace OpenTap.Package
         /// <returns></returns>
         internal static bool UnpackageFile(string packagePath, string relativeFilePath, Stream destination)
         {
-            using (var zip = new ZipArchive(File.OpenRead(packagePath), ZipArchiveMode.Read))
+            try
             {
-                foreach (var part in zip.Entries)
+                using (var zip = new ZipArchive(File.OpenRead(packagePath), ZipArchiveMode.Read))
                 {
-                    if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
-                        continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
-
-                    string path = Uri.UnescapeDataString(part.FullName);
-                    if (path == relativeFilePath)
+                    foreach (var part in zip.Entries)
                     {
-                        part.Open().CopyTo(destination);
-                        return true;
+                        if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
+                            continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
+
+                        string path = Uri.UnescapeDataString(part.FullName);
+                        if (path == relativeFilePath)
+                        {
+                            part.Open().CopyTo(destination);
+                            return true;
+                        }
                     }
                 }
+            }
+            catch (InvalidDataException)
+            {
+                log.Error($"Could not unpackage '{packagePath}'.");
+                throw;
             }
             return false;
         }
