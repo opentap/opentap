@@ -910,9 +910,9 @@ namespace OpenTap
             {
                 run = DoRunCallRun(Step, parentRun, attachedParameters);
                 
-                bool shouldDoRetry = run.Verdict == Verdict.Fail && run.AbortCondition.HasFlag(TestStepAbortCondition.RetryOnFail);
-                shouldDoRetry |= run.Verdict == Verdict.Error && run.AbortCondition.HasFlag(TestStepAbortCondition.RetryOnError);
-                shouldDoRetry |= run.Verdict == Verdict.Inconclusive && run.AbortCondition.HasFlag(TestStepAbortCondition.RetryOnInconclusive);
+                bool shouldDoRetry = run.Verdict == Verdict.Fail && run.AbortCondition.HasFlag(TestStepVerdictBehavior.RetryOnFail);
+                shouldDoRetry |= run.Verdict == Verdict.Error && run.AbortCondition.HasFlag(TestStepVerdictBehavior.RetryOnError);
+                shouldDoRetry |= run.Verdict == Verdict.Inconclusive && run.AbortCondition.HasFlag(TestStepVerdictBehavior.RetryOnInconclusive);
                 if (shouldDoRetry)
                 {
                     if(run.WasDeferred)

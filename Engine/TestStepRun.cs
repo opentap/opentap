@@ -112,7 +112,7 @@ namespace OpenTap
         /// <summary>
         /// Calculated abort condition...
         /// </summary>
-        public TestStepAbortCondition AbortCondition { get; protected set; }
+        public TestStepVerdictBehavior AbortCondition { get; protected set; }
 
     }
 
@@ -260,17 +260,17 @@ namespace OpenTap
         }
         
         
-        static TestStepAbortCondition calculateAbortCondition(ITestStep step, TestRun parentStepRun)
+        static TestStepVerdictBehavior calculateAbortCondition(ITestStep step, TestRun parentStepRun)
         {
-            TestStepAbortCondition abortCondition = step.GetAbortCondition();
+            TestStepVerdictBehavior abortCondition = step.GetAbortCondition();
             
 
-            if (abortCondition.HasFlag(TestStepAbortCondition.Inherit))
+            if (abortCondition.HasFlag(TestStepVerdictBehavior.Inherit))
             {
                 // Retry conditions are not inherited.
-                return (parentStepRun.AbortCondition & ~(TestStepAbortCondition.RetryOnError |
-                                                         TestStepAbortCondition.RetryOnFail |
-                                                         TestStepAbortCondition.RetryOnInconclusive)) | abortCondition;
+                return (parentStepRun.AbortCondition & ~(TestStepVerdictBehavior.RetryOnError |
+                                                         TestStepVerdictBehavior.RetryOnFail |
+                                                         TestStepVerdictBehavior.RetryOnInconclusive)) | abortCondition;
             }
 
             return abortCondition;
@@ -290,9 +290,9 @@ namespace OpenTap
         {
             
             if (OutOfRetries 
-                || (Verdict == Verdict.Fail && AbortCondition.HasFlag(TestStepAbortCondition.BreakOnFail)) 
-                || (Verdict == Verdict.Error && AbortCondition.HasFlag(TestStepAbortCondition.BreakOnError))
-                || (Verdict == Verdict.Inconclusive && AbortCondition.HasFlag(TestStepAbortCondition.BreakOnInconclusive)))
+                || (Verdict == Verdict.Fail && AbortCondition.HasFlag(TestStepVerdictBehavior.BreakOnFail)) 
+                || (Verdict == Verdict.Error && AbortCondition.HasFlag(TestStepVerdictBehavior.BreakOnError))
+                || (Verdict == Verdict.Inconclusive && AbortCondition.HasFlag(TestStepVerdictBehavior.BreakOnInconclusive)))
             {
                 AbortDueToVerdict();
             }

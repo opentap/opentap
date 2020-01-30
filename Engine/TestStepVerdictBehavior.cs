@@ -6,41 +6,41 @@ using System.Runtime.CompilerServices;
 namespace OpenTap
 {
     [Flags]
-    public enum TestStepAbortCondition
+    public enum TestStepVerdictBehavior
     {
         /// <summary> If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
-        [Display("Inherit", "Inherit behavior from the parent step. If no parent step exist or specify a behavior, the Engine setting 'Abort Run If' is used.")]
+        [Display("Inherit", "Inherit behavior from the parent step. If no parent step exist or specify a behavior, the Engine setting 'Stop Test Plan Run If' is used.")]
         Inherit = 1,
-        /// <summary> If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
-        [Display("Break on fail", "If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step.")]
-        BreakOnFail = 2,
         /// <summary> If a step completes with verdict 'Error', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
         [Display("Break on Error", "If a step completes with verdict 'Error', stop execution of any subsequent steps at this level, and return control to the parent step.")]
-        BreakOnError = 4,
-        /// <summary> If a step completes with verdict 'Fail', the test step should be re-run. </summary>
-        [Display("Retry on Fail", "If a step completes with verdict 'Fail', the test step should be re-run.")]
-        RetryOnFail = 8,
+        BreakOnError = 2,
+        /// <summary> If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
+        [Display("Break on Fail", "If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step.")]
+        BreakOnFail = 4,
+        [Display("Break on Inconclusive", "If a step completes with verdict 'inconclusive', stop execution of any subsequent steps at this level, and return control to the parent step.")]
+        BreakOnInconclusive = 8,
         /// <summary> If a step completes with verdict 'Error', the test step should be re-run. </summary>
         [Display("Retry on Error", "If a step completes with verdict 'Error', the test step should be re-run.")]
         RetryOnError = 16,
+        /// <summary> If a step completes with verdict 'Fail', the test step should be re-run. </summary>
+        [Display("Retry on Fail", "If a step completes with verdict 'Fail', the test step should be re-run.")]
+        RetryOnFail = 32,
         /// <summary> If a step completes with verdict 'Inclusive' the step should break execution.</summary>
-        [Display("Break on Inconclusive")]
-        BreakOnInconclusive = 32,
         /// <summary> If a step completes with verdict 'Inclusive' the step should retry a number of times.</summary>
-        [Display("Retry on Inconclusive")]
+        [Display("Retry on Inconclusive", "If a step completes with verdict 'Inconclusive', the test step should be re-run.")]
         RetryOnInconclusive = 64
     }
 
     internal static class AbortCondition
     {
-        public static void SetAbortCondition(this ITestStep step, TestStepAbortCondition condition)
+        public static void SetAbortCondition(this ITestStep step, TestStepVerdictBehavior condition)
         {
             AbortConditionTypeDataProvider.TestStepTypeData.AbortCondition.SetValue(step, condition);
         }
         
-        public static TestStepAbortCondition GetAbortCondition(this ITestStep step)
+        public static TestStepVerdictBehavior GetAbortCondition(this ITestStep step)
         {
-            return (TestStepAbortCondition) AbortConditionTypeDataProvider.TestStepTypeData.AbortCondition.GetValue(step);
+            return (TestStepVerdictBehavior) AbortConditionTypeDataProvider.TestStepTypeData.AbortCondition.GetValue(step);
         }
         
         public static void SetRetries(this ITestStep step, uint retries)
@@ -85,27 +85,26 @@ namespace OpenTap
         }
         internal class TestStepTypeData : ITypeData
         {
-            internal static readonly VirtualMember<TestStepAbortCondition> AbortCondition = new VirtualMember<TestStepAbortCondition>
+            internal static readonly VirtualMember<TestStepVerdictBehavior> AbortCondition = new VirtualMember<TestStepVerdictBehavior>
             {
-                Name = "AbortCondition",
-                DefaultValue = TestStepAbortCondition.Inherit,
-                Attributes = new Attribute[]{new DisplayAttribute("Interrupt On", "Decides how the step handles the various verdict", "Common"), new UnsweepableAttribute() },
+                Name = "VerdictBehavior",
+                DefaultValue = TestStepVerdictBehavior.Inherit,
+                Attributes = new Attribute[]{new DisplayAttribute("Verdict Behavior", "Specifies how the engine handles verdicts from this test step. If disabled, inherit behavior from parent test step.", "Common"), new UnsweepableAttribute() },
                 DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
                 Readable = true,
                 Writable =  true,
-                TypeDescriptor = TypeData.FromType(typeof(TestStepAbortCondition))
+                TypeDescriptor = TypeData.FromType(typeof(TestStepVerdictBehavior))
             };
             
             internal static readonly VirtualMember<uint> Retries = new VirtualMember<uint>
             {
-                Name = "Retries",
+                Name = "RetryCount",
                 DefaultValue = (uint)0,
                 Attributes = new Attribute[]
                 {
                     new DisplayAttribute("Retries", "How many times to retry", "Common"), 
-                    new EnabledIfAttribute(AbortCondition.Name, TestStepAbortCondition.RetryOnError, TestStepAbortCondition.RetryOnFail, TestStepAbortCondition.RetryOnInconclusive) { Flags = true, HideIfDisabled = true}, 
+                    new EnabledIfAttribute(AbortCondition.Name, TestStepVerdictBehavior.RetryOnError, TestStepVerdictBehavior.RetryOnFail, TestStepVerdictBehavior.RetryOnInconclusive) { Flags = true, HideIfDisabled = true}, 
                     new UnsweepableAttribute(),
-                    new UnitAttribute("times"), 
                 },
                 DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
                 Readable = true,
