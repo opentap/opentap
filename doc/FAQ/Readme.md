@@ -1,7 +1,7 @@
 # FAQ
 
 ## What does OpenTAP mean?
-OpenTAP stands for: Open (source) Test Automation Project
+OpenTAP is an open source project for test automation.
 
 ## What is OpenTAP?
 An open source test sequencing engine.
