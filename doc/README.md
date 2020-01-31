@@ -40,7 +40,7 @@ Install the downloaded distribution:
 
 
 ## Use OpenTAP
-If you are a user of OpenTAP or just want to try it out, have a look at the [User Guide](User%20Guide/) section.
+If you are an OpenTAP user, or just want to try it out, have a look at the [User Guide](User%20Guide/Introduction/).
 
 
 ## Develop Plugins
