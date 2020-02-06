@@ -2242,12 +2242,19 @@ namespace OpenTap
 
                     if (type.IsEnum)
                     {
-                        annotation.Add(new EnumValuesAnnotation(type, annotation));
-                        annotation.Add(new EnumStringAnnotation(type, annotation));
-
-                        if (csharpType.HasFlags())
+                        if (type == typeof(TestStepVerdictBehavior))
                         {
-                            annotation.Add(new FlagEnumAnnotation(annotation, type));
+                                annotation.Add(new VerdictBehaviorAnnotation(annotation));
+                        }
+                        else
+                        {    
+                            annotation.Add(new EnumValuesAnnotation(type, annotation));
+                            annotation.Add(new EnumStringAnnotation(type, annotation));
+
+                            if (csharpType.HasFlags())
+                            {
+                                annotation.Add(new FlagEnumAnnotation(annotation, type));
+                            }
                         }
                     }
 

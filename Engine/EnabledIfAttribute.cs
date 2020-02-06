@@ -21,6 +21,9 @@ namespace OpenTap
 
         /// <summary> Gets or sets if the enabling value is individual flags from an enum. </summary>
         public bool Flags { get; set; }
+        
+        /// <summary>  Gets or sets if the value should enable or disable(inverted) the setting. </summary>
+        public bool Invert { get; set; }
 
         static readonly TraceSource log = Log.CreateSource("EnabledIf");
 
@@ -91,13 +94,21 @@ namespace OpenTap
                 }
                 if (!newEnabled && at.HideIfDisabled)
                     hidden = true;
+                
                 enabled &= newEnabled;
             }
             return enabled;
         }
 
+        static bool calcEnabled(EnabledIfAttribute at, object value)
+        {
+            if(at.Invert)
+                return !calcEnabled2(at, value);
+            return calcEnabled2(at, value);
+        }
+
         /// <summary> Calculate if an enabled if is enabled by a given value. </summary>
-        static bool calcEnabled(EnabledIfAttribute at, object depValue)
+        static bool calcEnabled2(EnabledIfAttribute at, object depValue)
         {
             if (at.Flags)
             {

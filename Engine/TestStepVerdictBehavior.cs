@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 
@@ -89,7 +90,7 @@ namespace OpenTap
             {
                 Name = "VerdictBehavior",
                 DefaultValue = TestStepVerdictBehavior.Inherit,
-                Attributes = new Attribute[]{new DisplayAttribute("Verdict Behavior", "Specifies how the engine handles verdicts from this test step. If disabled, inherit behavior from parent test step.", "Common"), new UnsweepableAttribute() },
+                Attributes = new Attribute[]{new DisplayAttribute("Verdict Behavior", "Specifies how the engine handles verdicts from this test step. If disabled, inherit behavior from parent test step.", "Common", 20001.1), new UnsweepableAttribute() },
                 DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
                 Readable = true,
                 Writable =  true,
@@ -102,8 +103,9 @@ namespace OpenTap
                 DefaultValue = (uint)0,
                 Attributes = new Attribute[]
                 {
-                    new DisplayAttribute("Retries", "How many times to retry", "Common"), 
-                    new EnabledIfAttribute(AbortCondition.Name, TestStepVerdictBehavior.RetryOnError, TestStepVerdictBehavior.RetryOnFail, TestStepVerdictBehavior.RetryOnInconclusive) { Flags = true, HideIfDisabled = true}, 
+                    new DisplayAttribute("Retries", "How many times to retry", "Common", Order: 20001.2), 
+                    new EnabledIfAttribute(AbortCondition.Name, TestStepVerdictBehavior.RetryOnError, TestStepVerdictBehavior.RetryOnFail, TestStepVerdictBehavior.RetryOnInconclusive) { Flags = true, HideIfDisabled = true},
+                    new EnabledIfAttribute(AbortCondition.Name, TestStepVerdictBehavior.Inherit) { Flags = true, HideIfDisabled = true, Invert = true},
                     new UnsweepableAttribute(),
                 },
                 DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),

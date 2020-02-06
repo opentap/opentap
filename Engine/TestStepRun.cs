@@ -270,7 +270,7 @@ namespace OpenTap
                 // Retry conditions are not inherited.
                 return (parentStepRun.AbortCondition & ~(TestStepVerdictBehavior.RetryOnError |
                                                          TestStepVerdictBehavior.RetryOnFail |
-                                                         TestStepVerdictBehavior.RetryOnInconclusive)) | abortCondition;
+                                                         TestStepVerdictBehavior.RetryOnInconclusive)) | TestStepVerdictBehavior.Inherit;
             }
 
             return abortCondition;

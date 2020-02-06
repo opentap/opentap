@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using OpenTap.Plugins.BasicSteps;
@@ -53,7 +54,7 @@ namespace OpenTap.Engine.UnitTests
         {
             TestPlan plan = new TestPlan();
             var step = new TestStepFailsTimes();
-            AbortCondition.SetAbortCondition(step, TestStepAbortCondition.RetryOnError);
+            AbortCondition.SetAbortCondition(step, TestStepVerdictBehavior.RetryOnError);
             AbortCondition.SetRetries(step, 6);
             plan.Steps.Add(step);
             var run = plan.Execute();
@@ -68,10 +69,10 @@ namespace OpenTap.Engine.UnitTests
         {
             TestPlan plan = new TestPlan();
             var step = new TestStepFailsTimes();
-            step.SetAbortCondition(TestStepAbortCondition.Inherit | TestStepAbortCondition.BreakOnError);
+            step.SetAbortCondition(TestStepVerdictBehavior.Inherit | TestStepVerdictBehavior.BreakOnError);
             step.SetRetries(6);
             var seq = new SequenceStep();
-            seq.SetAbortCondition(TestStepAbortCondition.RetryOnError);
+            seq.SetAbortCondition(TestStepVerdictBehavior.RetryOnError);
             seq.SetRetries((uint)retryTimes);
             
             
@@ -83,18 +84,18 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(retryTimes, step.timesRun - 1);
         }
 
-        [TestCase(Verdict.Error, TestStepAbortCondition.BreakOnError)]
-        [TestCase(Verdict.Fail, TestStepAbortCondition.BreakOnFail)]
-        [TestCase(Verdict.Inconclusive, TestStepAbortCondition.BreakOnInconclusive)]
-        [TestCase(Verdict.Error, TestStepAbortCondition.RetryOnError)]
-        [TestCase(Verdict.Fail, TestStepAbortCondition.RetryOnFail)]
-        [TestCase(Verdict.Inconclusive, TestStepAbortCondition.RetryOnInconclusive)]
-        [TestCase(Verdict.Error, TestStepAbortCondition.BreakOnFail | TestStepAbortCondition.RetryOnError)]
-        [TestCase(Verdict.Fail, TestStepAbortCondition.BreakOnFail | TestStepAbortCondition.RetryOnError)]
+        [TestCase(Verdict.Error, TestStepVerdictBehavior.BreakOnError)]
+        [TestCase(Verdict.Fail, TestStepVerdictBehavior.BreakOnFail)]
+        [TestCase(Verdict.Inconclusive, TestStepVerdictBehavior.BreakOnInconclusive)]
+        [TestCase(Verdict.Error, TestStepVerdictBehavior.RetryOnError)]
+        [TestCase(Verdict.Fail, TestStepVerdictBehavior.RetryOnFail)]
+        [TestCase(Verdict.Inconclusive, TestStepVerdictBehavior.RetryOnInconclusive)]
+        [TestCase(Verdict.Error, TestStepVerdictBehavior.BreakOnFail | TestStepVerdictBehavior.RetryOnError)]
+        [TestCase(Verdict.Fail, TestStepVerdictBehavior.BreakOnFail | TestStepVerdictBehavior.RetryOnError)]
         [TestCase(Verdict.Inconclusive,
-            TestStepAbortCondition.BreakOnInconclusive | TestStepAbortCondition.BreakOnError)]
+            TestStepVerdictBehavior.BreakOnInconclusive | TestStepVerdictBehavior.BreakOnError)]
 
-        public void TestStepBreakOnError(Verdict verdictOutput, TestStepAbortCondition condition)
+        public void TestStepBreakOnError(Verdict verdictOutput, TestStepVerdictBehavior condition)
         {
             var l = new PlanRunCollectorListener();
             TestPlan plan = new TestPlan();
@@ -113,7 +114,7 @@ namespace OpenTap.Engine.UnitTests
             var run = plan.Execute(new[] {l});
             Assert.AreEqual(verdictOutput, run.Verdict);
             Assert.AreEqual(1, l.StepRuns.Count);
-            Assert.AreEqual(TestStepAbortCondition.Inherit, verdict2.GetAbortCondition());
+            Assert.AreEqual(TestStepVerdictBehavior.Inherit, verdict2.GetAbortCondition());
         }
 
         [TestCase(Verdict.Pass, EngineSettings.AbortTestPlanType.Step_Error, 2)]
@@ -140,7 +141,7 @@ namespace OpenTap.Engine.UnitTests
                 {
                     VerdictOutput = verdictOutput
                 };
-                verdict.SetAbortCondition(TestStepAbortCondition.Inherit);
+                verdict.SetAbortCondition(TestStepVerdictBehavior.Inherit);
                 var verdict2 = new VerdictStep
                 {
                     VerdictOutput = Verdict.Pass
@@ -150,7 +151,7 @@ namespace OpenTap.Engine.UnitTests
                 var run = plan.Execute(new[] {l});
                 Assert.AreEqual(finalVerdict, run.Verdict);
                 Assert.AreEqual(runCount, l.StepRuns.Count);
-                Assert.AreEqual(TestStepAbortCondition.Inherit, verdict2.GetAbortCondition());
+                Assert.AreEqual(TestStepVerdictBehavior.Inherit, verdict2.GetAbortCondition());
             }
             finally
             {
@@ -175,7 +176,7 @@ namespace OpenTap.Engine.UnitTests
                 {
                     VerdictOutput = verdictOutput,
                 };
-                verdict.SetAbortCondition(TestStepAbortCondition.Inherit | TestStepAbortCondition.BreakOnError);
+                verdict.SetAbortCondition(TestStepVerdictBehavior.Inherit | TestStepVerdictBehavior.BreakOnError);
                 var verdict2 = new VerdictStep
                 {
                     VerdictOutput = Verdict.Pass
@@ -185,7 +186,7 @@ namespace OpenTap.Engine.UnitTests
                 var run = plan.Execute(new[] {l});
                 Assert.AreEqual(finalVerdict, run.Verdict);
                 Assert.AreEqual(runCount, l.StepRuns.Count);
-                Assert.AreEqual(TestStepAbortCondition.Inherit, verdict2.GetAbortCondition());
+                Assert.AreEqual(TestStepVerdictBehavior.Inherit, verdict2.GetAbortCondition());
             }
             finally
             {
@@ -217,6 +218,44 @@ namespace OpenTap.Engine.UnitTests
 
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Pass, run.Verdict);
+        }
+
+        public class TestStepWaitInfinite : TestStep
+        {
+            public Semaphore Sem = new Semaphore(0,1);
+        
+            public override void Run()
+            {
+                Sem.Release();
+                TapThread.Sleep(TimeSpan.MaxValue);
+            }
+        }
+
+        public class TestStepAbortPlan : TestStep
+        {
+            public AbortConditionsTest.TestStepWaitInfinite WaitFor { get; set; }
+            public override void Run()
+            {
+                WaitFor?.Sem.WaitOne();
+                PlanRun.MainThread.Abort();
+            }
+        }
+
+        [Test]
+        public void TestStepWaitInfiniteAndAbortTest()
+        {
+            var plan = new TestPlan();
+            var parallel = new ParallelStep();
+            var abort = new TestStepAbortPlan(){WaitFor =  new TestStepWaitInfinite()};
+            parallel.ChildTestSteps.Add(abort);
+            parallel.ChildTestSteps.Add(abort.WaitFor);
+            plan.ChildTestSteps.Add(parallel);
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Aborted, run.Verdict);
+            foreach (var step in parallel.ChildTestSteps)
+            {
+                Assert.AreEqual(Verdict.Aborted, step.Verdict);    
+            }
         }
     }
 }

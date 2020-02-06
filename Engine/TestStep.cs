@@ -821,7 +821,7 @@ namespace OpenTap
                 
                 if (e is ThreadAbortException || e is OperationCanceledException)
                 {
-                    if (Step.Verdict < Verdict.Aborted)
+                    if (TapThread.Current.AbortToken.IsCancellationRequested && Step.Verdict < Verdict.Aborted)
                         Step.Verdict = Verdict.Aborted;
                     if(e.Message == new OperationCanceledException().Message)
                         TestPlan.Log.Warning("Step '{0}' was canceled.", stepPath);
@@ -852,7 +852,7 @@ namespace OpenTap
                     {
                         if (e is ThreadAbortException || e is OperationCanceledException)
                         {
-                            if (Step.Verdict < Verdict.Aborted)
+                            if (TapThread.Current.AbortToken.IsCancellationRequested && Step.Verdict < Verdict.Aborted)
                                 Step.Verdict = Verdict.Aborted;
                             if (e.Message == new OperationCanceledException().Message)
                                 TestPlan.Log.Warning("Step '{0}' was canceled.", stepPath);
@@ -901,6 +901,8 @@ namespace OpenTap
             return stepRun;
         }
 
+        static TraceSource log = Log.CreateSource("TestPlan");
+
         internal static TestStepRun DoRunRetry(this ITestStep Step, TestRun parentRun,
             IEnumerable<ResultParameter> attachedParameters = null)
         {
@@ -919,9 +921,11 @@ namespace OpenTap
                         run.WaitForCompletion();
                     if (retries > 0)
                     {
+                        log.Info("Repeating test step due to verdict {0}", run.Verdict);
                         retries -= 1;
                         continue;
                     }
+                    log.Info("No more repeats available.");
                     // The step ran out of retries, so this is the same as if AbortCondition was BreakOn[Verdict].
                     run.OutOfRetries = true;
                 }
