@@ -14,52 +14,42 @@ namespace OpenTap
             public enum Values
             {
                 /// <summary> If a step completes with verdict 'Error', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
-                [Display("Break on Error", "If a step completes with verdict 'Error', stop execution of any subsequent steps at this level, and return control to the parent step.")]
+                [Display("On Error", "If a step completes with verdict 'Error', stop execution of any subsequent steps at this level, and return control to the parent step.")]
                 BreakOnError = 2,
                 /// <summary> If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
-                [Display("Break on Fail", "If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step.")]
+                [Display("On Fail", "If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step.")]
                 BreakOnFail = 4,
                 /// <summary> If a step completes with verdict 'Inclusive' the step should break execution.</summary>
-                [Display("Break on Inconclusive", "If a step completes with verdict 'inconclusive', stop execution of any subsequent steps at this level, and return control to the parent step.")]
+                [Display("On Inconclusive", "If a step completes with verdict 'inconclusive', stop execution of any subsequent steps at this level, and return control to the parent step.")]
                 BreakOnInconclusive = 8,
-                /// <summary> If a step completes with verdict 'Error', the test step should be re-run. </summary>
-                [Display("Retry on Error", "If a step completes with verdict 'Error', the test step should be re-run.")]
-                RetryOnError = 16,
-                /// <summary> If a step completes with verdict 'Fail', the test step should be re-run. </summary>
-                [Display("Retry on Fail", "If a step completes with verdict 'Fail', the test step should be re-run.")]
-                RetryOnFail = 32,
-                /// <summary> If a step completes with verdict 'Inclusive' the step should retry a number of times.</summary>
-                [Display("Retry on Inconclusive", "If a step completes with verdict 'Inconclusive', the test step should be re-run.")]
-                RetryOnInconclusive = 64
             }
             public override bool IsEnabled
             {
-                get => Behavior.HasFlag(TestStepVerdictBehavior.Inherit) == false;
+                get => Behavior.HasFlag(BreakCondition.Inherit) == false;
                 set
                 {
-                    Behavior = Behavior.SetFlag(TestStepVerdictBehavior.Inherit, !value);
+                    Behavior = Behavior.SetFlag(BreakCondition.Inherit, !value);
                 }
             }
 
             public override Values Value
             {
-                get => (Values)(int)Behavior.SetFlag(TestStepVerdictBehavior.Inherit, false);
-                set => Behavior = (TestStepVerdictBehavior) (int) value | ((!IsEnabled) ? TestStepVerdictBehavior.Inherit : 0);
+                get => (Values)(int)Behavior.SetFlag(BreakCondition.Inherit, false);
+                set => Behavior = (BreakCondition) (int) value | ((!IsEnabled) ? BreakCondition.Inherit : 0);
             }
 
-            public TestStepVerdictBehavior Behavior;
+            public BreakCondition Behavior;
         }
 
 
         class PseudoVerdictBehaviorString : IStringReadOnlyValueAnnotation, IValueDescriptionAnnotation
         {       
             
-            static TestStepVerdictBehavior[] behaviors = Enum.GetValues(typeof(TestStepVerdictBehavior)).OfType<TestStepVerdictBehavior>().ToArray();
+            static BreakCondition[] behaviors = Enum.GetValues(typeof(BreakCondition)).OfType<BreakCondition>().ToArray();
 
-            static TestStepVerdictBehavior[] breakBehaviors =
+            static BreakCondition[] breakBehaviors =
                 behaviors.Where(x => x.ToString().Contains("Break")).ToArray();
-            static TestStepVerdictBehavior[] retryBehaviors = behaviors.Where(x => x.ToString().Contains("Retry")).ToArray(); 
-            static string getEnumString(TestStepVerdictBehavior value)
+            static string getEnumString(BreakCondition value)
             {
                 if (value == 0) return "None";
                 var sb = new StringBuilder();
@@ -73,34 +63,13 @@ namespace OpenTap
                         sb.AppendFormat(" or {0}", x.ToString().Substring("BreakOn".Length));
                     }
                 }
-
-                var retryFlags = retryBehaviors.Where(x => value.HasFlag(x));
-                if (retryFlags.Any())
-                {
-                    if (breakFlags.Any())
-                    {
-                        sb.Append(" and retry");
-                    }
-                    else
-                    {
-                        sb.Append("Retry");
-                    }
-                    
-                    sb.AppendFormat(" on {0}",retryFlags.First().ToString().Substring("RetryOn".Length));
-                    retryFlags = retryFlags.Skip(1);
-                    foreach (var x in retryFlags)
-                    {
-                        sb.AppendFormat(" or {0}", x.ToString().Substring("RetryOn".Length));
-                    }
-                }
-
                 return sb.ToString();
             }
 
-            static TestStepVerdictBehavior convertAbortCondition(EngineSettings.AbortTestPlanType abortType)
+            static BreakCondition convertAbortCondition(EngineSettings.AbortTestPlanType abortType)
             {
-                return ((abortType.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail)) ? TestStepVerdictBehavior.BreakOnFail : 0) 
-                       | (abortType.HasFlag(EngineSettings.AbortTestPlanType.Step_Error) ? TestStepVerdictBehavior.BreakOnError : 0);
+                return ((abortType.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail)) ? BreakCondition.BreakOnFail : 0) 
+                       | (abortType.HasFlag(EngineSettings.AbortTestPlanType.Step_Error) ? BreakCondition.BreakOnError : 0);
             }
 
             public enum BehaviorSource
@@ -111,20 +80,15 @@ namespace OpenTap
             }
 
             
-            public static (TestStepVerdictBehavior, BehaviorSource) getInheritedVerdict(ITestStepParent _step)
+            public static (BreakCondition, BehaviorSource) getInheritedVerdict(ITestStepParent _step)
             {
                 ITestStepParent src = _step;
                 src = src.Parent;
                 while (src is ITestStep step)
                 {
-                    var cond = AbortCondition.GetAbortCondition(step);
-                    if (cond.HasFlag(TestStepVerdictBehavior.Inherit) == false)
-                    {
-                        cond = cond.SetFlag(TestStepVerdictBehavior.RetryOnError, false)
-                            .SetFlag(TestStepVerdictBehavior.RetryOnFail, false)
-                            .SetFlag(TestStepVerdictBehavior.RetryOnInconclusive, false);
+                    var cond = BreakConditionProperty.GetBreakCondition(step);
+                    if (cond.HasFlag(BreakCondition.Inherit) == false)
                         return (cond, BehaviorSource.Parent);
-                    }
 
                     src = step.Parent as ITestStep;
                 }
@@ -132,13 +96,13 @@ namespace OpenTap
                 return (convertAbortCondition(EngineSettings.Current.AbortTestPlan), BehaviorSource.Engine);
             }
 
-            public (TestStepVerdictBehavior, BehaviorSource) GetBehavior()
+            public (BreakCondition, BehaviorSource) GetBehavior()
             {
                 var behavior = annotation.behavior;
                 if (behavior.IsEnabled == false &&  annotation.annotation.Source is ITestStepParent step)
                     return getInheritedVerdict(step);
                     
-                var valuemem = (TestStepVerdictBehavior) valueAnnotation.Get<IObjectValueAnnotation>().Value;
+                var valuemem = (BreakCondition) valueAnnotation.Get<IObjectValueAnnotation>().Value;
                 return (valuemem, BehaviorSource.Self);
             }
 
@@ -176,7 +140,7 @@ namespace OpenTap
             fst.Add(str = new PseudoVerdictBehaviorString(){annotation = this, valueAnnotation = fst});
             if (str != null && behavior.IsEnabled == false)
             {
-                behavior.Behavior = str.GetBehavior().Item1.SetFlag(TestStepVerdictBehavior.Inherit, true);
+                behavior.Behavior = str.GetBehavior().Item1.SetFlag(BreakCondition.Inherit, true);
             }
             return sub;
         }
@@ -189,10 +153,10 @@ namespace OpenTap
         public void Read(object source)
         {
             subannotations?.Read();
-            behavior.Behavior = ((TestStepVerdictBehavior)(annotation.Get<IObjectValueAnnotation>().Value ?? (TestStepVerdictBehavior) 0));
+            behavior.Behavior = ((BreakCondition)(annotation.Get<IObjectValueAnnotation>().Value ?? (BreakCondition) 0));
             if (str != null && behavior.IsEnabled == false)
             {
-                behavior.Behavior = str.GetBehavior().Item1.SetFlag(TestStepVerdictBehavior.Inherit, true);
+                behavior.Behavior = str.GetBehavior().Item1.SetFlag(BreakCondition.Inherit, true);
             }
             
         }
@@ -202,7 +166,7 @@ namespace OpenTap
             subannotations?.Write();
             if (str != null && behavior.IsEnabled == false)
             {
-                behavior.Behavior = str.GetBehavior().Item1.SetFlag(TestStepVerdictBehavior.Inherit, true);
+                behavior.Behavior = str.GetBehavior().Item1.SetFlag(BreakCondition.Inherit, true);
             }
             
             annotation.Get<IObjectValueAnnotation>().Value = behavior.Behavior;

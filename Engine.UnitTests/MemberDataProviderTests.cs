@@ -1522,6 +1522,25 @@ namespace OpenTap.Engine.UnitTests
             } 
             Assert.IsTrue(errors.ToString().Contains(error));
         }
+
+        class BlankStep : TestStep
+        {
+            public override void Run()
+            {
+                
+            }
+        }
+
+        [Test]
+        public void AnnotateBlankStep()
+        {
+            var step = new BlankStep();
+            var a = AnnotationCollection.Annotate(step);
+            var members = a.Get<IMembersAnnotation>().Members;
+            var members2 = members.ToDictionary(x => x.Get<IMemberAnnotation>().Member.Name);
+            var v = members2["VerdictBehavior"];
+
+        }
     }
 }
 

@@ -592,7 +592,7 @@ namespace OpenTap
                     var step = steps[i];
                     if (step.Enabled == false) continue;
 
-                    var run = step.DoRunHandleVerdict(currentPlanRun, currentStepRun, attachedParameters);
+                    var run = step.DoRun(currentPlanRun, currentStepRun, attachedParameters);
 
                     if (!run.Skipped)
                         runs.Add(run);
@@ -691,7 +691,7 @@ namespace OpenTap
             if(childStep.Enabled == false)
                 throw new ArgumentException("childStep must be enabled.", "childStep");
 
-            var run = childStep.DoRunHandleVerdict(currentPlanRun, currentStepRun, attachedParameters);
+            var run = childStep.DoRun(currentPlanRun, currentStepRun, attachedParameters);
 
             if (Step is TestStep step && run.WasDeferred)
             {
@@ -704,7 +704,8 @@ namespace OpenTap
             }
             else
             {
-                run.WaitForCompletion();
+                if(run.WasDeferred)
+                    run.WaitForCompletion();
                 if (run.Verdict > Step.Verdict)
                     Step.Verdict = run.Verdict;
             }
@@ -739,7 +740,7 @@ namespace OpenTap
 
 
         
-        internal static TestStepRun DoRunCallRun(this ITestStep Step, TestRun parentRun, IEnumerable<ResultParameter> attachedParameters = null)
+        internal static TestStepRun DoRun(this ITestStep Step, TestPlanRun planRun, TestRun parentRun, IEnumerable<ResultParameter> attachedParameters = null)
         {
             {
                 // in case the previous action was not completed yet.
@@ -748,8 +749,7 @@ namespace OpenTap
                 Step.StepRun?.WaitForCompletion();
                 Debug.Assert(Step.StepRun == null);
             }
-            var planRun = Step.PlanRun;
-
+            Step.PlanRun = planRun;
             Step.Verdict = Verdict.NotSet;
 
             TapThread.ThrowIfAborted();
@@ -899,62 +899,6 @@ namespace OpenTap
             }
             
             return stepRun;
-        }
-
-        static TraceSource log = Log.CreateSource("TestPlan");
-
-        internal static TestStepRun DoRunRetry(this ITestStep Step, TestRun parentRun,
-            IEnumerable<ResultParameter> attachedParameters = null)
-        {
-            uint retries = Step.GetRetries();
-            TestStepRun run;
-            do
-            {
-                run = DoRunCallRun(Step, parentRun, attachedParameters);
-                
-                bool shouldDoRetry = run.Verdict == Verdict.Fail && run.AbortCondition.HasFlag(TestStepVerdictBehavior.RetryOnFail);
-                shouldDoRetry |= run.Verdict == Verdict.Error && run.AbortCondition.HasFlag(TestStepVerdictBehavior.RetryOnError);
-                shouldDoRetry |= run.Verdict == Verdict.Inconclusive && run.AbortCondition.HasFlag(TestStepVerdictBehavior.RetryOnInconclusive);
-                if (shouldDoRetry)
-                {
-                    if(run.WasDeferred)
-                        run.WaitForCompletion();
-                    if (retries > 0)
-                    {
-                        log.Info("Repeating test step due to verdict {0}", run.Verdict);
-                        retries -= 1;
-                        continue;
-                    }
-                    log.Info("No more repeats available.");
-                    // The step ran out of retries, so this is the same as if AbortCondition was BreakOn[Verdict].
-                    run.OutOfRetries = true;
-                }
-                break;
-            }
-            while (true);
-
-            return run;
-        }
-
-        internal static TestStepRun DoRunHandleVerdict(this ITestStep Step, TestPlanRun planRun, TestRun parentStepRun,
-            IEnumerable<ResultParameter> attachedParameters = null)
-        {
-            Step.PlanRun = planRun;
-            var run = DoRunRetry(Step, parentStepRun, attachedParameters);
-            if (run.WasDeferred)
-            {
-                if (Step is TestStep step)
-                {
-                    step.Results.Defer(() => planRun.UpgradeVerdict(run.Verdict));
-                }
-                else
-                {
-                    planRun.UpgradeVerdict(run.Verdict);
-                }
-            }
-
-            return run;
-
         }
 
         internal static void CheckResources(this ITestStep Step)

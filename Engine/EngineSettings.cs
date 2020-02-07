@@ -23,10 +23,10 @@ namespace OpenTap
         public enum AbortTestPlanType
         {
             /// <summary> If a step completes with verdict 'Fail', the test plan execution should be aborted.</summary>
-            [Display("Break On Fail", "If a step completes with verdict 'Fail', the test plan execution should be aborted.")]
+            [Display("Break On Fail", "Issue a break when step completes with verdict 'Fail'.")]
             Step_Fail = 1,
             /// <summary> If a step completes with verdict 'Error', the test plan execution should be aborted.</summary>
-            [Display("Break On Error", "If a step completes with verdict 'Error', the test plan control flow will be interrupted.")]
+            [Display("Break On Error", "Issue a break when step completes with an error.")]
             Step_Error = 2
         }
 
@@ -48,7 +48,7 @@ namespace OpenTap
         /// <summary>
         /// Configures the engine to stop the test plan run if a step fails or causes an error.  
         /// </summary>
-        [Display("Default Verdict Behavior", Group: "General", Order: 1, Description: "Specifies default test step verdict behavior.")]
+        [Display("Test Plan Break Conditions", Group: "General", Order: 1, Description: "Specifies break conditions for the test plan execution. Break Conditions can also be specified on each test step.")]
         public AbortTestPlanType AbortTestPlan { get; set; }
 
         /// <summary>

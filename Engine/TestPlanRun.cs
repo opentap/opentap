@@ -447,16 +447,16 @@ namespace OpenTap
                 {
                     if (abort2.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail))
                     {
-                        AbortCondition = TestStepVerdictBehavior.BreakOnError | TestStepVerdictBehavior.BreakOnFail;
+                        AbortCondition = BreakCondition.BreakOnError | BreakCondition.BreakOnFail;
                     }
                     else
                     {
-                        AbortCondition = TestStepVerdictBehavior.BreakOnError;
+                        AbortCondition = BreakCondition.BreakOnError;
                     }
                 }
                 else if (abort2.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail))
                 {
-                    AbortCondition = TestStepVerdictBehavior.BreakOnFail;
+                    AbortCondition = BreakCondition.BreakOnFail;
                 }
             }
         }

@@ -6,8 +6,11 @@ using System.Runtime.CompilerServices;
 
 namespace OpenTap
 {
+    /// <summary>
+    /// Test step break conditions. Can be used to define when a test step should issue a break due to it's own verdict.
+    /// </summary>
     [Flags]
-    public enum TestStepVerdictBehavior
+    public enum BreakCondition
     {
         /// <summary> If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
         [Display("Inherit", "Inherit behavior from the parent step. If no parent step exist or specify a behavior, the Engine setting 'Stop Test Plan Run If' is used.")]
@@ -20,42 +23,31 @@ namespace OpenTap
         BreakOnFail = 4,
         [Display("Break on Inconclusive", "If a step completes with verdict 'inconclusive', stop execution of any subsequent steps at this level, and return control to the parent step.")]
         BreakOnInconclusive = 8,
-        /// <summary> If a step completes with verdict 'Error', the test step should be re-run. </summary>
-        [Display("Retry on Error", "If a step completes with verdict 'Error', the test step should be re-run.")]
-        RetryOnError = 16,
-        /// <summary> If a step completes with verdict 'Fail', the test step should be re-run. </summary>
-        [Display("Retry on Fail", "If a step completes with verdict 'Fail', the test step should be re-run.")]
-        RetryOnFail = 32,
-        /// <summary> If a step completes with verdict 'Inclusive' the step should break execution.</summary>
-        /// <summary> If a step completes with verdict 'Inclusive' the step should retry a number of times.</summary>
-        [Display("Retry on Inconclusive", "If a step completes with verdict 'Inconclusive', the test step should be re-run.")]
-        RetryOnInconclusive = 64
     }
 
-    internal static class AbortCondition
+    /// <summary>
+    /// Break condition is an 'attached property' that can be attached to any implementor of ITestStep. This ensures that the API for ITestStep does not need to be modified to support the BreakConditions feature.
+    /// </summary>
+    public static class BreakConditionProperty
     {
-        public static void SetAbortCondition(this ITestStep step, TestStepVerdictBehavior condition)
+        /// <summary> Sets the break condition for a test step. </summary>
+        /// <param name="step"> Which step to set it on.</param>
+        /// <param name="condition"></param>
+        public static void SetBreakCondition(ITestStep step, BreakCondition condition)
         {
-            AbortConditionTypeDataProvider.TestStepTypeData.AbortCondition.SetValue(step, condition);
+            BreakConditionTypeDataProvider.TestStepTypeData.AbortCondition.SetValue(step, condition);
         }
         
-        public static TestStepVerdictBehavior GetAbortCondition(this ITestStep step)
+        /// <summary> Gets the break condition for a given test step. </summary>
+        /// <param name="step"></param>
+        /// <returns></returns>
+        public static BreakCondition GetBreakCondition(ITestStep step)
         {
-            return (TestStepVerdictBehavior) AbortConditionTypeDataProvider.TestStepTypeData.AbortCondition.GetValue(step);
-        }
-        
-        public static void SetRetries(this ITestStep step, uint retries)
-        {
-            AbortConditionTypeDataProvider.TestStepTypeData.Retries.SetValue(step, retries);
-        }
-
-        public static uint GetRetries(this ITestStep step)
-        {
-            return (uint) AbortConditionTypeDataProvider.TestStepTypeData.Retries.GetValue(step);
+            return (BreakCondition) BreakConditionTypeDataProvider.TestStepTypeData.AbortCondition.GetValue(step);
         }
     }
 
-    internal class AbortConditionTypeDataProvider : IStackedTypeDataProvider
+    internal class BreakConditionTypeDataProvider : IStackedTypeDataProvider
     {
         internal class VirtualMember<T> : IMemberData
         {
@@ -86,35 +78,18 @@ namespace OpenTap
         }
         internal class TestStepTypeData : ITypeData
         {
-            internal static readonly VirtualMember<TestStepVerdictBehavior> AbortCondition = new VirtualMember<TestStepVerdictBehavior>
+            internal static readonly VirtualMember<BreakCondition> AbortCondition = new VirtualMember<BreakCondition>
             {
-                Name = "VerdictBehavior",
-                DefaultValue = TestStepVerdictBehavior.Inherit,
-                Attributes = new Attribute[]{new DisplayAttribute("Verdict Behavior", "Specifies how the engine handles verdicts from this test step. If disabled, inherit behavior from parent test step.", "Common", 20001.1), new UnsweepableAttribute() },
+                Name = "BreakConditions",
+                DefaultValue = BreakCondition.Inherit,
+                Attributes = new Attribute[]{new DisplayAttribute("Break Conditions", "When enabled, specify new break conditions. When disabled conditions are inherited from the parent test step or the engine settings.", "Common", 20001.1), new UnsweepableAttribute() },
                 DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
                 Readable = true,
                 Writable =  true,
-                TypeDescriptor = TypeData.FromType(typeof(TestStepVerdictBehavior))
+                TypeDescriptor = TypeData.FromType(typeof(BreakCondition))
             };
             
-            internal static readonly VirtualMember<uint> Retries = new VirtualMember<uint>
-            {
-                Name = "RetryCount",
-                DefaultValue = (uint)0,
-                Attributes = new Attribute[]
-                {
-                    new DisplayAttribute("Retries", "How many times to retry", "Common", Order: 20001.2), 
-                    new EnabledIfAttribute(AbortCondition.Name, TestStepVerdictBehavior.RetryOnError, TestStepVerdictBehavior.RetryOnFail, TestStepVerdictBehavior.RetryOnInconclusive) { Flags = true, HideIfDisabled = true},
-                    new EnabledIfAttribute(AbortCondition.Name, TestStepVerdictBehavior.Inherit) { Flags = true, HideIfDisabled = true, Invert = true},
-                    new UnsweepableAttribute(),
-                },
-                DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
-                Readable = true,
-                Writable =  true,
-                TypeDescriptor = TypeData.FromType(typeof(uint))
-            };
-
-            static IMemberData[] extraMembers =  {AbortCondition, Retries};
+            static IMemberData[] extraMembers =  {AbortCondition};
             public TestStepTypeData(ITypeData innerType)
             {
                 this.innerType = innerType;
@@ -141,7 +116,6 @@ namespace OpenTap
             public IMemberData GetMember(string name)
             {
                 if (name == AbortCondition.Name) return AbortCondition;
-                if (name == Retries.Name) return Retries;
                 return innerType.GetMember(name);
             }
 

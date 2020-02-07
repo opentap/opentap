@@ -156,7 +156,7 @@ namespace OpenTap
                 {
                     var step = steps[i];
                     if (step.Enabled == false) continue;
-                    var run = step.DoRunHandleVerdict(execStage, execStage);
+                    var run = step.DoRun(execStage, execStage);
                     if (!run.Skipped)
                         runs.Add(run);
                     run.CheckBreakCondition();
@@ -324,7 +324,6 @@ namespace OpenTap
             {
                 foreach (var resource in resources)
                 {
-                    var name = resource.ToString().Trim();
                     var type = TypeData.GetTypeData(resource);
                     foreach (var __prop in type.GetMembers())
                     {
@@ -355,8 +354,8 @@ namespace OpenTap
                         }
                         catch(Exception e)
                         {
-                            Log.Error("Error occured while executing platform requests");
-                            Log.Debug(e);
+                             Log.Debug(e);
+                            planRun.MainThread.Abort("Error occured while executing platform requests. Metadata prompt can be disabled from the Engine settings menu.");
                         }
                         finally
                         {
