@@ -780,10 +780,25 @@ namespace OpenTap
         /// </summary>
         public AssemblyData Assembly { get; internal set; }
 
+
+        private DisplayAttribute display = null;
         /// <summary>
         /// Gets.the DisplayAttribute for this type. Null if the type does not have a DisplayAttribute
         /// </summary>
-        public DisplayAttribute Display { get; internal set; }
+        public DisplayAttribute Display
+        {
+            get
+            {
+                if (display is null && attributes is object)
+                    if (attributes.OfType<DisplayAttribute>().FirstOrDefault() is DisplayAttribute displayAttr)
+                        display = displayAttr;
+                return display;
+            }
+            internal set
+            {
+                display = value;
+            }
+        }
 
 
         private HashSet<TypeData> _BaseTypes;
