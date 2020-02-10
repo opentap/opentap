@@ -2283,7 +2283,7 @@ namespace OpenTap
                     {
                         if (type == typeof(BreakCondition))
                         {
-                                annotation.Add(new VerdictBehaviorAnnotation(annotation));
+                                annotation.Add(new BreakConditionsAnnotation(annotation));
                         }
                         else
                         {    
