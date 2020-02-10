@@ -71,16 +71,8 @@ namespace OpenTap
                 return ((abortType.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail)) ? BreakCondition.BreakOnFail : 0) 
                        | (abortType.HasFlag(EngineSettings.AbortTestPlanType.Step_Error) ? BreakCondition.BreakOnError : 0);
             }
-
-            public enum BehaviorSource
-            {
-                Self,
-                Parent,
-                Engine
-            }
-
             
-            public static (BreakCondition, BehaviorSource) getInheritedVerdict(ITestStepParent _step)
+            public static (BreakCondition, string) getInheritedVerdict(ITestStepParent _step)
             {
                 ITestStepParent src = _step;
                 src = src.Parent;
@@ -88,22 +80,22 @@ namespace OpenTap
                 {
                     var cond = BreakConditionProperty.GetBreakCondition(step);
                     if (cond.HasFlag(BreakCondition.Inherit) == false)
-                        return (cond, BehaviorSource.Parent);
+                        return (cond, $"parent step '{step.Name}'");
 
                     src = step.Parent as ITestStep;
                 }
 
-                return (convertAbortCondition(EngineSettings.Current.AbortTestPlan), BehaviorSource.Engine);
+                return (convertAbortCondition(EngineSettings.Current.AbortTestPlan), "engine settings");
             }
 
-            public (BreakCondition, BehaviorSource) GetBehavior()
+            public (BreakCondition, string) GetBehavior()
             {
                 var behavior = annotation.behavior;
                 if (behavior.IsEnabled == false &&  annotation.annotation.Source is ITestStepParent step)
                     return getInheritedVerdict(step);
                     
                 var valuemem = (BreakCondition) valueAnnotation.Get<IObjectValueAnnotation>().Value;
-                return (valuemem, BehaviorSource.Self);
+                return (valuemem, null);
             }
 
             public string Value
@@ -122,12 +114,8 @@ namespace OpenTap
             {
                 var (behavior, kind) = GetBehavior();
                 var str = getEnumString(behavior);
-                switch (kind)
-                {
-                    case BehaviorSource.Engine: return $"{str} (inherited from engine settings)";
-                    case BehaviorSource.Parent: return $"{str} (inherited from parent)";
-                    default: return str;
-                }
+                if (kind == null) return str;
+                return $"{str} (inherited from {kind}).";
             }
         }
 

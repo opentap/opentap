@@ -55,8 +55,10 @@ namespace OpenTap.Engine.UnitTests
         [TestCase(Verdict.Inconclusive,
             BreakCondition.BreakOnInconclusive | BreakCondition.BreakOnError)]
 
-        public void TestStepBreakOnError(Verdict verdictOutput, BreakCondition condition)
+        public void TestStepBreakOnError(Verdict verdictOutput, object _condition)
         {
+            // _condition arg cannot be a BreakCondition as BreakCondition is not public.
+            BreakCondition condition = (BreakCondition) _condition;
             var l = new PlanRunCollectorListener();
             TestPlan plan = new TestPlan();
             var verdict = new VerdictStep

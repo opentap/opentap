@@ -112,7 +112,7 @@ namespace OpenTap
         /// <summary>
         /// Calculated abort condition...
         /// </summary>
-        public BreakCondition AbortCondition { get; protected set; }
+        internal BreakCondition AbortCondition { get; set; }
 
     }
 
@@ -247,7 +247,7 @@ namespace OpenTap
             
         }
         
-        public TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters = null)
+        internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters = null)
         {
             TestStepId = step.Id;
             TestStepName = step.GetFormattedName();
@@ -283,7 +283,7 @@ namespace OpenTap
         
         #endregion
 
-        public void CheckBreakCondition()
+        internal void CheckBreakCondition()
         {
             
             if (OutOfRetries 
