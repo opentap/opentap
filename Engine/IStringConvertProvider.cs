@@ -591,12 +591,30 @@ namespace OpenTap
                     string escapeString(string str)
                     {
                         if(str.Contains(",") || str.Contains("\""))
-                            return $"\"{str?.Replace("\"", "\"\"") ?? ""}\"";
+                            return $"\"{str.Replace("\"", "\"\"")}\"";
                         return str;
                     }
-                    var newvalues = seq.Cast<object>().Select(x => StringConvertProvider.GetString(x, culture))
-                        .Select(escapeString);
-                    return string.Join(", ", newvalues);
+                    var sb = new StringBuilder();
+                    bool first = true;
+                    foreach (var val in seq)
+                    {
+                        
+                        if (StringConvertProvider.TryGetString(val, out string result, culture))
+                        {
+                            if (first)
+                                first = false;
+                            else
+                                sb.Append(", ");
+                            sb.Append(escapeString(result));
+                        }
+                        else
+                        {
+                            // Signal that the thing could not be converted.
+                            return null;
+                        }
+                    }
+                    
+                    return sb.ToString();
                     
                 }
                 return null;

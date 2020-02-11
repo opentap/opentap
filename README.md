@@ -6,7 +6,7 @@ OpenTAP offers a range of sequencing functionality and infrastructure that makes
 
 ## Getting OpenTAP
 
-If you are looking to use OpenTAP, you can get pre-built binaries at http://opentap.io. 
+If you are looking to use OpenTAP, you can get pre-built binaries at [http://opentap.io](https://www.opentap.io/download.html). 
 
 Using the OpenTAP CLI you are now able to download plugin packages from the OpenTAP package repository.
 
@@ -21,11 +21,10 @@ We recommend that you download the Software Development Kit, or simply the Devel
 tap package install "Developer's System CE" -y
 ```
 
-For a guide on how to develop using OpenTAP, check out our __[Developer Guide PDF](http://opentap.io/docs/OpenTAP%20Developer%20Guide.pdf)__. Note the [source](https://gitlab.com/OpenTAP/opentap/blob/master/doc/Developer%20Guide/Readme.md) can be found at GitLab as well.
+For a guide on how to develop using OpenTAP, check out our __[Developer Guide](https://doc.opentap.io/Developer%20Guide/Introduction/#introduction)__, it also exists as a [PDF](http://opentap.io/docs/OpenTAP%20Developer%20Guide.pdf) for offline reading. Note the [source](https://gitlab.com/OpenTAP/opentap/blob/master/doc/Developer%20Guide/Readme.md) can be found at GitLab as well.
 
 ## Building OpenTAP
-
-If you would like to build OpenTAP yourself you can clone the git repository at https://gitlab.com/OpenTAP/opentap and build the OpenTAP.sln solution file.
+Most users build plugins for OpenTAP but if you are interested in building OpenTAP yourself you can clone the git repository at https://gitlab.com/OpenTAP/opentap and build the OpenTAP.sln solution file.
 
 ### Microsoft Windows 10
  On Windows, Visual Studio 2017 or greater is needed to build. This can be done by opening the solution and pressing F5, or Ctrl-Shift-B.
@@ -75,7 +74,7 @@ More documentation and help developing plugins for OpenTAP can be found here: [d
 
 ## Contributing
 
-If you are thinking of contributing code to OpenTAP, first of all, thank you! All fixes, patches and enhancements to OpenTAP are very warmly welcomed. In order to keep thing manageable, there are a number of guidelines that should be followed in order to ensure that your modification is included in OpenTAP as quickly as possible. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+If you are thinking of contributing code to OpenTAP itself, first of all, thank you! All fixes, patches and enhancements to OpenTAP are very warmly welcomed. In order to keep thing manageable, there are a number of guidelines that should be followed in order to ensure that your modification is included in OpenTAP as quickly as possible. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## Reporting Issues
 

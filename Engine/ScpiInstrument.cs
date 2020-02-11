@@ -55,197 +55,10 @@ namespace OpenTap
     /// </summary>
     public abstract class ScpiInstrument : Instrument, IScpiInstrument
     {
-        private ScpiIO scpiIO;
-
-        /// <summary>
-        /// Implements a 
-        /// </summary>
-        private class ScpiIO : IScpiIO
-        {
-            private bool sendEnd = true;
-            private int lockTimeout = 5000;
-            private int ioTimeout = 2000;
-            private byte termChar = 10;
-            private bool useTermChar = false;
-
-            private int rm = Visa.VI_NULL;
-            private int instrument = Visa.VI_NULL;
-
-            private bool IsConnected { get { return instrument != Visa.VI_NULL; } }
-
-            private ScpiIOResult MakeError(int result)
-            {
-                switch (result)
-                {
-                    case Visa.VI_SUCCESS: return ScpiIOResult.Success;
-                    case Visa.VI_SUCCESS_MAX_CNT: return ScpiIOResult.Success_MaxCount;
-                    case Visa.VI_SUCCESS_TERM_CHAR: return ScpiIOResult.Success_TermChar;
-
-                    case Visa.VI_ERROR_TMO: return ScpiIOResult.Error_Timeout;
-                    case Visa.VI_ERROR_RSRC_LOCKED: return ScpiIOResult.Error_ResourceLocked;
-                    case Visa.VI_ERROR_CONN_LOST: return ScpiIOResult.Error_ConnectionLost;
-                    case Visa.VI_ERROR_RSRC_NFOUND: return ScpiIOResult.Error_ResourceNotFound;
-                }
-
-                if (result >= 0)
-                    return ScpiIOResult.Success;
-                else
-                    return ScpiIOResult.Error_General;
-            }
-
-            private void SyncSettings()
-            {
-                Visa.viSetAttribute(instrument, Visa.VI_ATTR_SEND_END_EN, (byte)(sendEnd ? 1 : 0));
-                Visa.viSetAttribute(instrument, Visa.VI_ATTR_TMO_VALUE, ioTimeout);
-                Visa.viSetAttribute(instrument, Visa.VI_ATTR_TERMCHAR, termChar);
-                Visa.viSetAttribute(instrument, Visa.VI_ATTR_TERMCHAR_EN, (byte)(useTermChar ? 1 : 0));
-            }
-
-            public ScpiIOResult Open(string visaAddress, bool exclusiveLock)
-            {
-                var res2 = Visa.viOpenDefaultRM(out rm);
-                if (res2 < 0) return MakeError(res2);
-
-                var res = Visa.viOpen(ScpiInstrument.GetResourceManager(), visaAddress, exclusiveLock ? Visa.VI_EXCLUSIVE_LOCK : Visa.VI_NO_LOCK, IOTimeoutMS, out instrument);
-
-                // Use sensible defaults
-                sendEnd = true;
-                useTermChar = false;
-
-                if (res >= 0)
-                    SyncSettings();
-                else
-                    instrument = Visa.VI_NULL;
-
-                return MakeError(res);
-            }
-
-            public ScpiIOResult Close()
-            {
-                try
-                {
-                    return MakeError(Visa.viClose(instrument));
-                }
-                finally
-                {
-                    Visa.viClose(rm);
-                }
-            }
-
-            public bool SendEnd
-            {
-                get
-                {
-                    return sendEnd;
-                }
-                set
-                {
-                    if (sendEnd != value)
-                    {
-                        sendEnd = value;
-                        if (IsConnected) Visa.viSetAttribute(instrument, Visa.VI_ATTR_SEND_END_EN, (byte)(value ? 1 : 0));
-                    }
-                }
-            }
-            public int IOTimeoutMS
-            {
-                get
-                {
-                    return ioTimeout;
-                }
-                set
-                {
-                    if (ioTimeout != value)
-                    {
-                        ioTimeout = value;
-                        if (IsConnected) Visa.viSetAttribute(instrument, Visa.VI_ATTR_TMO_VALUE, ioTimeout);
-                    }
-                }
-            }
-            public int LockTimeoutMS
-            {
-                get { return lockTimeout; }
-                set { lockTimeout = value; }
-            }
-            public byte TerminationCharacter
-            {
-                get
-                {
-                    return termChar;
-                }
-                set
-                {
-                    if (termChar != value)
-                    {
-                        termChar = value;
-                        if (IsConnected) Visa.viSetAttribute(instrument, Visa.VI_ATTR_TERMCHAR, value);
-                    }
-                }
-            }
-            public bool UseTerminationCharacter
-            {
-                get
-                {
-                    return useTermChar;
-                }
-                set
-                {
-                    if (useTermChar != value)
-                    {
-                        useTermChar = value;
-                        if (IsConnected) Visa.viSetAttribute(instrument, Visa.VI_ATTR_TERMCHAR_EN, (byte)(value ? 1 : 0));
-                    }
-                }
-            }
-
-            public string ResourceClass
-            {
-                get
-                {
-                    var sb = new StringBuilder();
-                    Visa.viGetAttribute(instrument, Visa.VI_ATTR_RSRC_CLASS, sb);
-                    return sb.ToString();
-                }
-            }
-
-            public int InstrumentHandle { get { return instrument; } }
-
-            public ScpiIOResult DeviceClear()
-            {
-                return MakeError(Visa.viClear(instrument));
-            }
-
-            public ScpiIOResult Lock(ScpiLockType lockType, string sharedKey = null)
-            {
-                var sb = new StringBuilder();
-                return MakeError(Visa.viLock(instrument, lockType == ScpiLockType.Exclusive ? Visa.VI_EXCLUSIVE_LOCK : Visa.VI_SHARED_LOCK, LockTimeoutMS, sharedKey, sb));
-            }
-
-            public ScpiIOResult Read(ArraySegment<byte> buffer, int count, ref bool eoi, ref int read)
-            {
-                var res = Visa.viRead(instrument, buffer, count, out read);
-                eoi = (res == Visa.VI_SUCCESS);
-                return MakeError(res);
-            }
-
-            public ScpiIOResult ReadSTB(ref byte stb)
-            {
-                short statusByte = 0;
-                var res = Visa.viReadSTB(instrument, ref statusByte);
-                stb = (byte)statusByte;
-                return MakeError(res);
-            }
-
-            public ScpiIOResult Unlock()
-            {
-                return MakeError(Visa.viUnlock(instrument));
-            }
-
-            public ScpiIOResult Write(ArraySegment<byte> buffer, int count, ref int written)
-            {
-                return MakeError(Visa.viWrite(instrument, buffer, count, out written));
-            }
-        }
+        private readonly IScpiIO2 scpiIO;
+        
+        /// <summary> Some instruments does not support reading the status byte. This is detected during Open. </summary>
+        bool readStbSupported = true;
 
         IScpiIO IScpiInstrument.IO { get { return scpiIO; } }
 
@@ -278,7 +91,7 @@ namespace OpenTap
         private void RaiseError(int error)
         {
             if (error < 0)
-                throw new VISAException(scpiIO.InstrumentHandle, error);
+                throw new VISAException(scpiIO.ID, error);
         }
 
         private static void RaiseError2(int error)
@@ -422,13 +235,16 @@ namespace OpenTap
 
         private string IpPattern =
             "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
-        /// <summary>
-        /// Initializes a new instance of the InstrumentBase class.
-        /// </summary>
-        public ScpiInstrument()
+        /// <summary>  Initializes a new instance of the ScpiInstrument class. </summary>
+        public ScpiInstrument() : this(new ScpiIO())
         {
-            scpiIO = new ScpiIO();
+        }
 
+        /// <summary> Initialize a new instance of ScpiInstrument, specifying a IScpiIO interface to use. </summary>
+        /// <param name="io"> An IO Implementation for doing communication. </param>
+        public ScpiInstrument(IScpiIO2 io)
+        {
+            this.scpiIO = io;
             IoTimeout = 2000;
 
             // Just trigger the use of the resource manager to test if VISA libraries is installed.
@@ -440,7 +256,10 @@ namespace OpenTap
             Rules.Add(() => IoTimeout >= 0, "I/O timeout must be positive.", nameof(IoTimeout));
             Rules.Add(visaAddrValid, "Invalid VISA address format.", nameof(VisaAddress));
             Rules.Add(() => !Regex.IsMatch(VisaAddress ?? "", IpPattern), () => "Invalid VISA address, did you mean 'TCPIP::" + VisaAddress + "::INSTR'?", nameof(VisaAddress));
+            
         }
+
+        
 
         private byte TerminationCharacter { get { return scpiIO.TerminationCharacter; } set { scpiIO.TerminationCharacter = value; } }
 
@@ -509,14 +328,13 @@ namespace OpenTap
 
             throw new IOException("Instrument locked");
         }
-
         /// <summary>
         /// Opens the connection to the Instrument. 
         /// Assumes Visa Address property is specified.
         /// </summary>
         public override void Open()
         {
-            if (visa_failed)
+            if (scpiIO is ScpiIO && visa_failed)
             {
                 Log.Error("No VISA provider installed. Please install/reinstall Keysight IO Libraries, or similar VISA provider.");
                 throw new Exception("Could not create VISA connection.");
@@ -538,15 +356,32 @@ namespace OpenTap
 
                     {
                         base.Open();
-                        SetTerminationCharacter(scpiIO.InstrumentHandle);
+                        SetTerminationCharacter(scpiIO.ID);
 
                         IdnString = ScpiQuery("*IDN?");
                         IdnString = IdnString.Trim();
                         Log.Info("Now connected to: " + IdnString);
 
-                        ScpiCommand("*CLS");// Empty error log
+                        ScpiCommand("*CLS"); // Empty error log
 
-                        OpenSRQ();
+                        try
+                        {
+                            scpiIO.OpenSRQ();
+                        }
+                        catch
+                        {
+                            Log.Error("Unable to attach SRQ handler.");
+                            throw;
+                        }
+
+                        try
+                        {
+                            DoReadSTB();
+                        }
+                        catch
+                        {
+                            readStbSupported = false;
+                        }
                     }
 
                     return; // We are done opening the device
@@ -584,7 +419,7 @@ namespace OpenTap
             {
                 try
                 {
-                    CloseSRQ();
+                    scpiIO.CloseSRQ();
                 }
                 catch (Exception ex)
                 {
@@ -826,7 +661,7 @@ namespace OpenTap
                     Log.Error("Not responding (query '{0}' timed out)", query);
                     throw new TimeoutException("Not responding");
                 }
-                var status = DoReadSTB();
+                
                 Log.Error("SCPI query failed ({0})", query);
                 Log.Error(ex);
                 return null;
@@ -1123,7 +958,7 @@ namespace OpenTap
                 if (checkErrors)
                 {
                     WaitForOperationComplete();
-                    QueryErrors();
+                    queryErrors(noAllocation: true);
                 }
             }
             catch (VISAException ex)
@@ -1168,7 +1003,7 @@ namespace OpenTap
                 if (QueryErrorAfterCommand)
                 {
                     WaitForOperationComplete();
-                    QueryErrors();
+                    queryErrors(noAllocation: true);
                 }
             }
             catch (VISAException ex)
@@ -1283,7 +1118,7 @@ namespace OpenTap
                     if (QueryErrorAfterCommand)
                     {
                         WaitForOperationComplete();
-                        QueryErrors();
+                        queryErrors(noAllocation: true);
                     }
                 }
             }
@@ -1332,18 +1167,27 @@ namespace OpenTap
         /// </summary>
         protected readonly Dictionary<int, LogEventType> ScpiErrorsLogLevelOverrides = new Dictionary<int, LogEventType>();
 
-        /// <summary>
-        /// Returns all the errors on the instrument error stack. Clears the list in the same call.
-        /// </summary>
-        /// <param name="suppressLogMessages">if true the errors will not be logged.</param>
-        /// <param name="maxErrors">The max number of errors to retrieve. Useful if instrument generates errors faster than they can be read.</param>
+        /// <summary>Returns all the errors on the instrument error stack. Clears the list in the same call.</summary>
+        /// <remarks>better performance version of QueryErrors that does not use additional memory when no errors exists.</remarks>
+        /// <param name="suppressLogMessages">Dont emit log messages.</param>
+        /// <param name="maxErrors">The maximal number of error messages to read.</param>
+        /// <param name="noAllocation">Dont do any allocation. The result will always be empty.</param>
         /// <returns></returns>
-        public List<ScpiError> QueryErrors(bool suppressLogMessages = false, int maxErrors = 1000)
+        IList<ScpiError> queryErrors(bool suppressLogMessages = false, int maxErrors = 1000, bool noAllocation = false)
         {
-            List<ScpiError> errors = new List<ScpiError>();
-            while ((LockRetry(() => DoReadSTB()) & 0x4) != 0x00 && errors.Count < maxErrors)
+            bool errorExists()
+            {
+                if (readStbSupported)
+                    return (LockRetry(() => DoReadSTB()) & 0x4) != 0x00;
+                return true;
+            }
+
+            IList<ScpiError> errors = Array.Empty<ScpiError>();
+            while ( errorExists() && errors.Count < maxErrors)
             {
                 ScpiError error = queryErrorParse();
+                if (error.Code == 0)
+                    break;
                 LogEventType logLevel = LogEventType.Error;
                 if (ScpiErrorsLogLevelOverrides.ContainsKey(error.Code))
                 {
@@ -1352,12 +1196,31 @@ namespace OpenTap
                 if (!suppressLogMessages)
                 {
                     Log.Debug("SCPI >> SYSTem:ERRor?");
-                    Log.TraceEvent(logLevel, 0, String.Format("SCPI << {0}", error));
+                    Log.TraceEvent(logLevel, 0, string.Format("SCPI << {0}", error));
                 }
 
-                errors.Add(error);
+                if (!noAllocation)
+                {
+                    if (errors.IsReadOnly)
+                        errors = new List<ScpiError>();
+                    errors.Add(error);
+                }
             }
             return errors;
+        }
+        
+        /// <summary>
+        /// Returns all the errors on the instrument error stack. Clears the list in the same call.
+        /// </summary>
+        /// <param name="suppressLogMessages">if true the errors will not be logged.</param>
+        /// <param name="maxErrors">The max number of errors to retrieve. Useful if instrument generates errors faster than they can be read.</param>
+        /// <returns></returns>
+        public List<ScpiError> QueryErrors(bool suppressLogMessages = false, int maxErrors = 1000)
+        {
+            var errors = queryErrors(suppressLogMessages, maxErrors);
+            if (errors is List<ScpiError> lst)
+                return lst;
+            return errors.ToList();
         }
 
         /// <summary>
@@ -1444,10 +1307,7 @@ namespace OpenTap
         /// <param name="sender">A reference to the <see cref="ScpiInstrument"/> that the SRQ originated from.</param>
         public delegate void ScpiSRQDelegate(ScpiInstrument sender);
 
-        private ScpiSRQDelegate srqListeners = null;
-        private int srqListenerCount = 0;
-        private object srqLock = new object();
-
+        Dictionary<ScpiSRQDelegate,ScpiIOSrqDelegate> srqDelegates = new Dictionary<ScpiSRQDelegate, ScpiIOSrqDelegate>();
         /// <summary>
         /// This event is called whenever a SRQ is generated by the instrument.
         /// Adding a handler to this event will automatically enable SRQ transactions from the instrument when the instrument is opened/closed, or while the instrument is open.
@@ -1456,71 +1316,23 @@ namespace OpenTap
         /// </summary>
         public event ScpiSRQDelegate SRQ
         {
+            // SRQ event delegates are primarily handled by the internal scpi IO
+            // but the delegates needs to be converted into another kind to work.
+            // hence the dictionary custom stuff.
             add
             {
-                lock (srqLock)
-                {
-                    try
-                    {
-                        srqListeners += value;
-                        srqListenerCount++;
-                        if ((srqListenerCount == 1) && IsConnected)
-                            EnableSRQ();
-                    }
-                    catch
-                    {
-                        srqListeners -= value;
-                        srqListenerCount--;
-                        RaiseError(Visa.viUninstallHandler(scpiIO.InstrumentHandle, Visa.VI_EVENT_SERVICE_REQ, null, 0));
-                        throw;
-                    }
-                }
+                ScpiIOSrqDelegate delegate2 = x => value(this);
+                scpiIO.SRQ += delegate2;
+                srqDelegates[value] = delegate2;
             }
             remove
             {
-                lock (srqLock)
-                {
-                    srqListeners -= value;
-                    srqListenerCount--;
-                    if ((srqListenerCount == 0) && IsConnected)
-                        DisableSRQ();
-                }
+                var del = srqDelegates[value];
+                scpiIO.SRQ -= del;
+                srqDelegates.Remove(value);
             }
         }
-
-        private void invokeSrqListeners()
-        {
-            var listeners = srqListeners;
-            if (listeners != null)
-                listeners(this);
-        }
-
-        private void EnableSRQ()
-        {
-            RaiseError(Visa.viInstallHandler(scpiIO.InstrumentHandle, Visa.VI_EVENT_SERVICE_REQ, new Visa.viEventHandler((vi, evt, context, handle) => { invokeSrqListeners(); return Visa.VI_SUCCESS; }), 0));
-            RaiseError(Visa.viEnableEvent(scpiIO.InstrumentHandle, Visa.VI_EVENT_SERVICE_REQ, Visa.VI_HNDLR, Visa.VI_NULL));
-        }
-
-        private void DisableSRQ()
-        {
-            RaiseError(Visa.viDisableEvent(scpiIO.InstrumentHandle, Visa.VI_EVENT_SERVICE_REQ, Visa.VI_ALL_MECH));
-            RaiseError(Visa.viUninstallHandler(scpiIO.InstrumentHandle, Visa.VI_EVENT_SERVICE_REQ, null, 0));
-        }
-
-        private void OpenSRQ()
-        {
-            lock (srqLock)
-                if (srqListenerCount > 0)
-                    EnableSRQ();
-        }
-
-        private void CloseSRQ()
-        {
-            lock (srqLock)
-                if (srqListenerCount > 0)
-                    DisableSRQ();
-        }
+        
         #endregion
-
     }
 }

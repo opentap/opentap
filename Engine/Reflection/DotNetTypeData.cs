@@ -111,7 +111,7 @@ namespace OpenTap
         {
             get
             {
-                if (BaseTypes.Any())
+                if (BaseTypes != null)
                     return BaseTypes.First();
                 return Load().BaseType == null ? null : TypeData.FromType(Load().BaseType);
             }

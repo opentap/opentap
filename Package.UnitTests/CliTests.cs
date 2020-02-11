@@ -46,6 +46,30 @@ namespace OpenTap.Package.UnitTests
     public class CliTests
     {
         [Test]
+        public void InstallLocalFile()
+        {
+            var package = new PackageDef();
+            package.Name = "Dummy Something";
+            package.Version = SemanticVersion.Parse("1.0.0");
+            package.Description = "Cached version";
+
+            var file = DummyPackageGenerator.GeneratePackage(package);
+            if (File.Exists(Path.Combine("PackageCache", file)))
+                File.Delete(Path.Combine("PackageCache", file));
+            File.Move(file, Path.Combine("PackageCache", file));
+
+            package.Description = "Right version";
+            var file2 = DummyPackageGenerator.GeneratePackage(package);
+
+            var result = RunPackageCli("install -f \"" + Path.GetFullPath(file2) + "\"", out int exitcode);
+            Assert.IsTrue(result.ToLower().Contains("installed"));
+
+            var installedPackage = new Installation(Directory.GetCurrentDirectory()).GetPackages().FirstOrDefault(p => p.Name == package.Name);
+            Assert.IsNotNull(installedPackage, "Package was not installed");
+            Assert.AreEqual(package.Description, installedPackage.Description);
+        }
+        
+        [Test]
         public void CheckInvalidPackageName()
         {
             // Check if name contains invalid character

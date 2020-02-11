@@ -30,13 +30,13 @@ namespace OpenTap.Plugins.PluginDevelopment
 
         // Combining Browsable(true) with a private set creates a Read-Only Step Setting.
         [Browsable(true)]
-        public string ReadyOnly { get;  private set; }
+        public string ReadOnly { get;  private set; }
         
         public BrowsableAttributeExample()
         {
             Editable = "Some editable string";
             HiddenFromGui = "Non visible string";
-            ReadyOnly = "A non editable string";
+            ReadOnly = "A non editable string";
         }
 
         public override void Run()

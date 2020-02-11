@@ -225,7 +225,8 @@ namespace OpenTap.Cli
                     }
                 }
 
-                Console.WriteLine("\nRun \"tap.exe <command> [<subcommand>] -h\" to get additional help for a specific command.\n");
+                Console.WriteLine($"\nRun \"{(OperatingSystem.Current == OperatingSystem.Windows ? "tap.exe" : "tap")} " +
+                                   "<command> [<subcommand>] -h\" to get additional help for a specific command.\n");
 
                 if (args.Length == 0 || args.Any(s => s.ToLower() == "--help" || s.ToLower() == "-h"))
                     return 0;

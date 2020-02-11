@@ -123,7 +123,7 @@ namespace OpenTap.Diagnostic
                 }
                 else
                 {
-                    FlushBarrier.WaitOne(20);
+                    FlushBarrier.WaitOne(50);
                 }
             }
         }

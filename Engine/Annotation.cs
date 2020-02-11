@@ -1127,7 +1127,7 @@ namespace OpenTap
             }
         }
 
-        class EnumStringAnnotation : IStringValueAnnotation
+        class EnumStringAnnotation : IStringValueAnnotation, IValueDescriptionAnnotation
         {
 
             string enumToString(Enum value)
@@ -1160,6 +1160,37 @@ namespace OpenTap
                 }
                 return mem.GetDisplayAttribute().Name;
             }
+            
+            string enumToDescription(Enum value)
+            {
+                if (value == null) return null;
+                var mem = enumType.GetMember(value.ToString()).FirstOrDefault();
+
+                if (mem == null)
+                {
+                    if (enumType.HasAttribute<FlagsAttribute>())
+                    {
+                        var flags = Enum.GetValues(enumType);
+                        StringBuilder sb = new StringBuilder();
+
+                        bool first = true;
+                        foreach (Enum flag in flags)
+                        {
+                            if (value.HasFlag(flag))
+                            {
+                                if (!first)
+                                    sb.Append(" | ");
+                                else
+                                    first = false;
+                                sb.Append(enumToString(flag));
+                            }
+                        }
+                        return sb.ToString();
+                    }
+                    return value.ToString();
+                }
+                return mem.GetDisplayAttribute().Description;
+            }
 
             Enum evalue
             {
@@ -1191,6 +1222,14 @@ namespace OpenTap
             {
                 this.a = annotation;
                 this.enumType = enumType;
+            }
+
+            public string Describe()
+            {
+                if (evalue is Enum e)
+                    return enumToDescription(e);
+
+                return null;
             }
         }
 
@@ -1316,13 +1355,28 @@ namespace OpenTap
         class StepNameStringValue : IStringReadOnlyValueAnnotation
         {
             AnnotationCollection annotation;
-            public StepNameStringValue(AnnotationCollection annotation)
+            bool member;
+            public StepNameStringValue(AnnotationCollection annotation, bool member)
             {
                 this.annotation = annotation;
+                this.member = member;
             }
             public string Value
             {
-                get => ((ITestStep)annotation.ParentAnnotation.Get<IObjectValueAnnotation>().Value).GetFormattedName();
+                get
+                {
+                    ITestStep value;
+                    if (member)
+                    {
+                        value = (ITestStep) annotation.ParentAnnotation.Get<IObjectValueAnnotation>().Value;
+                    }
+                    else
+                    {
+                        value = (ITestStep)annotation.Get<IObjectValueAnnotation>().Value;
+                    }
+
+                    return value.GetFormattedName();
+                }
             }
         }
 
@@ -2242,12 +2296,19 @@ namespace OpenTap
 
                     if (type.IsEnum)
                     {
-                        annotation.Add(new EnumValuesAnnotation(type, annotation));
-                        annotation.Add(new EnumStringAnnotation(type, annotation));
-
-                        if (csharpType.HasFlags())
+                        if (type == typeof(BreakCondition))
                         {
-                            annotation.Add(new FlagEnumAnnotation(annotation, type));
+                                annotation.Add(new BreakConditionsAnnotation(annotation));
+                        }
+                        else
+                        {    
+                            annotation.Add(new EnumValuesAnnotation(type, annotation));
+                            annotation.Add(new EnumStringAnnotation(type, annotation));
+
+                            if (csharpType.HasFlags())
+                            {
+                                annotation.Add(new FlagEnumAnnotation(annotation, type));
+                            }
                         }
                     }
 
@@ -2271,31 +2332,18 @@ namespace OpenTap
                         annotation.Add(new AvailableValuesAnnotation(annotation, avail.PropertyName));
                     }
                 }
-            }
-
-            if (mem?.Member is MemberData mem2 && mem2.DeclaringType.DescendsTo(typeof(ITestStep)))
-            {
-                /*
-                var plan = step.GetParent<TestPlan>();
-
-                var externalParameter = plan?.ExternalParameters.Find(step, mem2.Member);
-                if (externalParameter != null)
-                {
-                    resolver.Annotate(new ExternalParameterAnnotation() { ExternalName = externalParameter.Name });
-                }*/
-
-                if (mem2.Name == nameof(ITestStep.Name))
-                {
-                    annotation.Add(new StepNameStringValue(annotation));
-                }
+                
                 if (mem.Member.TypeDescriptor.DescendsTo(typeof(IInput)))
                 {
                     annotation.Add(new InputStepAnnotation(annotation));
                 }
             }
 
-            if (reflect.ReflectionInfo is ITypeData tp)
+                if (reflect?.ReflectionInfo is ITypeData tp)
             {
+                if (tp.DescendsTo(typeof(ITestStep)))
+                    annotation.Add(new StepNameStringValue(annotation, member: mem != null && mem.ReflectionInfo == tp));
+                
                 bool csharpPrimitive = tp is TypeData cst && (cst.Type.IsPrimitive || cst.Type == typeof(string));
                 if (tp.GetMembers().Any() && !csharpPrimitive)
                 {

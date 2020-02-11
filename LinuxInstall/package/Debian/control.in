@@ -1,0 +1,11 @@
+Package: OpenTAP
+Version: $(GitVersion)
+Priority: optional
+Depends: libc6-dev, libunwind8, unzip, git
+Architecture: amd64
+Installed-Size: @SIZE_KB@
+Maintainer: OpenTAP Developers <support@opentap.io>
+Homepage: https://www.opentap.io/
+Vcs-Git: gitlab.com/opentap/opentap
+Description: Simple, scalable, and fast test sequencing framework. 
+ OpenTAP is an Open Source project for fast and easy development and execution of automated tests. OpenTAP is built with simplicity, scalability and speed in mind, and is based on an extendable architecture that leverages .NET Core. OpenTAP offers a range of sequencing functionality and infrastructure that makes it possible for you to quickly develop plugins tailored for your automation needs – plugins that can be shared with the OpenTAP community through the OpenTAP package repository.

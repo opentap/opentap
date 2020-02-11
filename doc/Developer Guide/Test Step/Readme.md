@@ -115,14 +115,14 @@ It is possible to programmatically assign children in the parent's constructor, 
 public ExampleParentTestStep()
 {
     Name = "Parent Step";
-    ChildTestSteps.Add(new ExampleChildTestStep { Name = "Child Step 1"});
+    ChildTestSteps.Add(new ExampleChildTestStep { Name = "Child Step 1" });
     ChildTestSteps.Add(new ExampleChildTestStep { Name = "Child Step 2" });
 }
 ```
 For examples of parent/child implementations, see: **`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\ParentChild`**.
 
 ## Verdict
-OpenTAP allows steps to be structured in parent/child hierarchy. The OpenTap.Verdict enumeration defines a 'verdict' indicating the state and progress of each test step and test plan run. The following table shows the available values for OpenTap.Verdict, in increasing order of severity. 
+OpenTAP allows steps to be structured in parent/child hierarchy. The OpenTap.Verdict enumeration defines a 'verdict' indicating the state and progress of each test step and test plan run. The following table shows the available values for OpenTap.Verdict in increasing order of severity. 
 
 | **Verdict Severity** (lowest to highest) | **Description** |
 | ---- | -------- |
@@ -136,7 +136,7 @@ OpenTAP allows steps to be structured in parent/child hierarchy. The OpenTap.Ver
 Each TestStep has its own verdict property. The verdict can be set using the UpgradeVerdict function as shown below (from SetVerdicts.cs):
 
 ```csharp
-[Display("Set Verdict", Groups: new[] { "Examples", "Plugin Development", "Step Execution" }, Description: "Shows how verdict of step is set using UpgradeVerdict")]
+[Display("Set Verdict", Groups: new[] { "Examples", "Plugin Development", "Step Execution" }, Description: "Shows how the verdict of a step is set using UpgradeVerdict")]
 public class SetVerdict : TestStep
 {
     #region Settings
@@ -168,7 +168,7 @@ public class SetVerdict : TestStep
 }
 ```
 
-If possible, a test step changes its verdict (often from **NotSet** to one of the other values) during execution. The test step verdict is set to the most severe verdict of its direct child steps and it is not affected by child steps further down the hierarchy. In the example below, you can see the default behavior, according to which the parent step reflects the most severe verdict of its children.
+If possible, a test step changes its verdict (often from **NotSet** to one of the other values) during execution. The test step verdict is set to the most severe verdict of its direct child steps, and it is not affected by child steps further down the hierarchy. In the example below, you can see the default behavior, according to which the parent step reflects the most severe verdict of its children.
 
 ![](./VerdictReflected.png)
 
@@ -178,7 +178,7 @@ This behavior is expected if the child steps are executed by calling the RunChil
 
 ![](./Verdict.png)
 
-In the example above Step A is implemented so, that it sets its verdict based on different criteria and not based on the verdict of its child steps.
+In the example above, Step A is implemented such that it sets its verdict based on different criteria from the verdict of its child steps.
 
 ## Log Messages
 
@@ -191,7 +191,7 @@ When creating log messages, the following is recommended:
 
 **Note**: Logs are NOT typically used for RESULTS, which are covered in a different section.
 
-Four levels of log messages - **Error**, **Warning**, **Information**, and **Debug** - allow the messages to be grouped in order of importance and usefulness. Log messages are shown in the GUI and CLI and are stored in the sessions log file, named `SessionLogs\SessionLog [DateTime].txt` (debug messages are enabled by the *verbose* command line argument).
+Four levels of log messages — **Error**, **Warning**, **Information**, and **Debug** — allow messages to be grouped in order of importance and relevance. Log messages are shown in the GUI and CLI, and are stored in the session's log file, named `SessionLogs\SessionLog [DateTime].txt` (debug messages are enabled by the *--verbose* command line argument).
 
 By default, log messages for each:
 
@@ -231,24 +231,23 @@ This will result in a log message containing the event text and a time duration 
 The time duration tags make it possible to do more advanced post timing analysis. The Timing Analyzer tool visualizes the timing of all log messages with time stamps. 
 
 ### Exception Logging
-Errors are generally expressed as exceptions. Exceptions thrown during test step execution prevents the step from finishing. If an exception is thrown in a test step run method, it will abort the execution of the test step. The exception will be caught by the TestPlan and it will gracefully stop the plan, unless configured continue in the Engine Settings.
+Errors are generally expressed as exceptions. Exceptions thrown during test step execution prevent the step from finishing. If an exception is thrown in a test step run method, it will abort the execution of the test step. The exception will be caught by the TestPlan and it will gracefully stop the plan, unless configured to continue in the Engine Settings.
 
-A step can abort the test plan run by calling the `PlanRun.MainThread.Abort()` method. If you have multiple steps in a plan, the engine will check if abort is requested between the `Run()` methods of succeeding steps. If you have a step, which takes a long time to execute, you can call the `OpenTap.TapThread.ThrowIfAborted()` method to check if abort is requested during the execution of the step.
+A step can abort the test plan run by calling the `PlanRun.MainThread.Abort()` method. If you have multiple steps in a plan, the engine will check if abort is requested between the `Run()` methods of successive steps. If you have a step which takes a long time to execute, you can call the `OpenTap.TapThread.ThrowIfAborted()` method to check if abort is requested during the execution of the step.
 
-A message is written to the log when a step throws an exception. The log message contains information on source file and line number if debugging symbols (.pdb files) are available and **Settings > GUI > Show Source Code Links** is enabled.
+A message is written to the log when a step throws an exception. The log message contains information on source file and line number if debugging symbols (.pdb files) are available, and **Settings > GUI > Show Source Code Links** is enabled.
 
-If an unexpected exception is caught by plugin code its stacktrace can be logged by calling `Log.Debug(exception)` to provide useful debugging information. The exception message should generally be logged using `Log.Error`, to show the user that something has gone wrong.
+If an unexpected exception is caught by plugin code, its stacktrace can be logged by calling `Log.Debug(exception)` to provide useful debugging information. The exception message should generally be logged using `Log.Error`, to show the user that something has gone wrong.
 
 ### TraceBar
 The **TraceBar** is a utility class used to display log results and verdicts in the **Log** panel. If an upper and lower limit is available, the TraceBar visually displays the one-dimensional high-low limit sets in a log-friendly graphic:
 
 ![](./TraceBar.png)
 
-Additionally, it handles the verdict of the results. If all the limits passed, the TraceBar.CombinedVerdict is *Pass*; otherwise it is *Fail*. If the result passed to TraceBar is NaN, the verdict will upgrade to Inconclusive. For an example see the code sample in LogMessages.cs file.
+Additionally, it handles the verdict of the results. If all the limits passed, the TraceBar.CombinedVerdict is *Pass*; otherwise it is *Fail*. If the result passed to TraceBar is NaN, the verdict will upgrade to Inconclusive. For an example, see the code sample in LogMessages.cs.
 
 ## Validation
-Developers customize validation by adding one or more *Rules* to the constructor of their object. A rule has three parameters:
-
+Validation is customized by adding one or more *Rules* to the constructor of their object. A rule has three parameters:
 -	A delegate to a function that contains the validation logic (may be an anonymous function or a lambda expression)
 -	The message shown to the user when validation fails
 -   The list of properties to which this rule applies
@@ -307,7 +306,7 @@ Results.PublishTable("Inputs vs. Moving Average", new List<string>() {"Input Val
      InputData, ReadOnlyOutputData);
 ```
 ### Basic Theory
-Test step results are represented in a ResultTable object. A ResultTable consists of a name, one to N columns, and one to M rows. Each test step typically publishes one uniquely named table. Less frequently (but possible), a test step will publish N tables, with different names, row/column definitions and values. The ResultTable is passed to each of the configured ResultListeners for individual handling.
+Test step results are represented in a ResultTable object. A ResultTable consists of a name, one to N columns, and one to M rows. Each test step typically publishes one uniquely named table. Less frequently (but possible), a test step will publish K tables with different names, row/column definitions and values. Each ResultTable is passed to the configured ResultListeners for individual handling.
 
 ### ResultTable Details
 This graphic shows the ResultTable definition.
@@ -394,4 +393,4 @@ public class HandleInput : TestStep
 }
 ```
 ## Exceptions 
-Exceptions from user code are caught by OpenTAP. This could break the control flow, but all resources will always be closed. If the exception gets caught before PostPlanRun, the steps that had PrePlanRun called will also get PostPlanRun called. When a step fails (by setting the Verdict to *Fail* or *Abort*) or throws an exception, execution can be configured to continue (ignoring the error) or to abort execution. These settings are configured in Engine settings, by configuring the "Abort Run If" property.
+Exceptions from user code are caught by OpenTAP. This could break the control flow, but all resources will always be closed. If the exception gets caught before PostPlanRun, the steps that had PrePlanRun called will also get PostPlanRun called. When a step fails (by setting the Verdict to *Fail* or *Abort*) or throws an exception, execution can be configured to continue (ignoring the error), or to abort execution, by changing the "Abort Run If" property in Engine settings 

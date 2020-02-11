@@ -16,7 +16,7 @@ namespace OpenTap.Package.UnitTests
             
             var str = serializer.SerializeToString(tp);
             Assert.IsTrue(str.Contains("<Package.Dependencies>"));
-            Assert.IsTrue(serializer.GetUsedTypes().Contains(TypeData.FromType(typeof(DelayStep))));
+            Assert.IsTrue(serializer.GetUsedTypes().Any(x => x.DescendsTo(TypeData.FromType(typeof(DelayStep)))));
         }
     }
 }

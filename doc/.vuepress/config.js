@@ -12,12 +12,28 @@ module.exports = {
         lastUpdated: 'Last Updated',
         docsDir: 'doc',
         logo: '/OpenTAP.png',
+        algolia: {
+            apiKey: 'b12f5f1ed342b1663193cb9c8fa1e29e',
+            indexName: 'opentap',
+            algoliaOptions: {
+                hitsPerPage: 10,
+            }
+        },
         nav: [
             { text: 'Homepage', link: 'https://www.opentap.io' }
         ],
         sidebar: [
-        	"/",
-            "User Guide/",
+            "/",
+            {
+                title: "User Guide",
+                children: [
+                  ["User Guide/Introduction/", "Overview"],
+                  ["User Guide/CLI Usage/", "CLI Usage"],
+                  ["User Guide/Editors/", "Editors"],
+                  // ["User Guide/Test Steps/", "Test Steps"],
+                  ["User Guide/CLI Reference/", "CLI Reference"],
+                ]
+              },
             {
                 title: 'Developer Guide',
                 children: [
@@ -54,4 +70,3 @@ module.exports = {
         ]
     }
 }
-

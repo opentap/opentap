@@ -2066,7 +2066,26 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(Verdict.Pass, reparse);
         }
 
+        class SubObjTest
+        {
+            public double X { get; set; } 
+            public double Y { get; set; } 
+        } 
+
+    
+        [Test]
+        public void FailingStringConvertTest()
+        {
+            // this should _not_ work
+            var subobj = new SubObjTest();
+            List<SubObjTest> subObjects = new List<SubObjTest>() {subobj};
+            bool passed = StringConvertProvider.TryGetString(subObjects, out string result);
+            Assert.IsFalse(passed);
+
+        }
     }
+
+    
 
     [TestFixture]
     public class SecureStringSerializerTest
