@@ -103,7 +103,7 @@ namespace OpenTap.Engine.UnitTests
                 plan.ChildTestSteps.Add(step1);
 
                 var planRun = plan.Execute();
-                Assert.AreEqual(Verdict.Aborted, planRun.Verdict);
+                Assert.AreEqual(Verdict.Error, planRun.Verdict);
             }
             finally
             {
@@ -128,7 +128,7 @@ namespace OpenTap.Engine.UnitTests
                 plan.ChildTestSteps.Add(step1);
 
                 var planRun = plan.Execute();
-                Assert.AreEqual(Verdict.Aborted, planRun.Verdict);
+                Assert.AreEqual(Verdict.Error, planRun.Verdict);
             }
             finally
             {

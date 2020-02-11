@@ -1538,7 +1538,7 @@ namespace OpenTap.Engine.UnitTests
             var a = AnnotationCollection.Annotate(step);
             var members = a.Get<IMembersAnnotation>().Members;
             var members2 = members.ToDictionary(x => x.Get<IMemberAnnotation>().Member.Name);
-            var v = members2["VerdictBehavior"];
+            var v = members2["BreakConditions"];
 
         }
     }

@@ -309,7 +309,7 @@ namespace OpenTap
                 handles[1] = cancelSrc.Token.WaitHandle;
                 int state = WaitHandle.WaitAny(handles);
                 if (state == 1) break;
-                if (state == 0 && !freeWorkSemaphore.WaitOne(0)) continue;
+
                 freeWorkSemaphore.Release();
                 if (freeWorkers < workQueue.Count)
                 {
@@ -363,7 +363,6 @@ namespace OpenTap
                             continue;
                         break;
                     }
-                    freeWorkSemaphore.WaitOne(0); // decrement the semaphore - It's not done through WaitAny.
                     if (workQueue.Count == 0)
                         continue; // Someone already handled the work. go back to sleep.
 

@@ -819,10 +819,9 @@ namespace OpenTap
             catch (Exception e)
             {
                 
-                if (e is ThreadAbortException || e is OperationCanceledException)
+                if (e is ThreadAbortException || (e is OperationCanceledException && TapThread.Current.AbortToken.IsCancellationRequested))
                 {
-                    if (TapThread.Current.AbortToken.IsCancellationRequested && Step.Verdict < Verdict.Aborted)
-                        Step.Verdict = Verdict.Aborted;
+                    Step.Verdict = Verdict.Aborted;
                     if(e.Message == new OperationCanceledException().Message)
                         TestPlan.Log.Warning("Step '{0}' was canceled.", stepPath);
                     else
@@ -850,7 +849,7 @@ namespace OpenTap
                     }
                     catch (Exception e)
                     {
-                        if (e is ThreadAbortException || e is OperationCanceledException)
+                        if (e is ThreadAbortException || (e is OperationCanceledException && TapThread.Current.AbortToken.IsCancellationRequested) )
                         {
                             if (TapThread.Current.AbortToken.IsCancellationRequested && Step.Verdict < Verdict.Aborted)
                                 Step.Verdict = Verdict.Aborted;

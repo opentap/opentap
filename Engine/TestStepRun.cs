@@ -283,16 +283,23 @@ namespace OpenTap
         
         #endregion
 
-        internal void CheckBreakCondition()
+        internal bool IsBreakCondition()
         {
-            
             if (OutOfRetries 
                 || (Verdict == Verdict.Fail && AbortCondition.HasFlag(BreakCondition.BreakOnFail)) 
                 || (Verdict == Verdict.Error && AbortCondition.HasFlag(BreakCondition.BreakOnError))
                 || (Verdict == Verdict.Inconclusive && AbortCondition.HasFlag(BreakCondition.BreakOnInconclusive)))
             {
-                AbortDueToVerdict();
+                return true;
             }
+
+            return false;
+        }
+        
+        internal void CheckBreakCondition()
+        {
+            if(IsBreakCondition())
+                AbortDueToVerdict();
         }
         
         internal bool OutOfRetries { get; set; }

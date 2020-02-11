@@ -159,7 +159,8 @@ namespace OpenTap
                     var run = step.DoRun(execStage, execStage);
                     if (!run.Skipped)
                         runs.Add(run);
-                    run.CheckBreakCondition();
+                    if (run.IsBreakCondition())
+                        break;
                     // note: The following is copied inside TestStep.cs
                     if (run.SuggestedNextStep is Guid id)
                     {
@@ -647,15 +648,17 @@ namespace OpenTap
             }
             catch (Exception e)
             {
-                if (e is OperationCanceledException)
+                if (e is OperationCanceledException && execStage.MainThread.AbortToken.IsCancellationRequested)
                 {
+                    
                     Log.Warning(String.Format("TestPlan aborted. ({0})", e.Message));
-                    //execStage.UpgradeVerdict(Verdict.Aborted);
+                    execStage.UpgradeVerdict(Verdict.Aborted);
                 }
                 else if (e is ThreadAbortException)
                 {
                     // It seems this actually never happens.
                     Log.Warning("TestPlan aborted.");
+                    execStage.UpgradeVerdict(Verdict.Aborted);
                     //Avoid entering the finally clause.
                     Thread.Sleep(500);
                 }

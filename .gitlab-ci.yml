@@ -127,7 +127,7 @@ TestEngine:
      - Build-x86
   script:
          - $ErrorActionPreference = "Stop"
-         - dotnet vstest bin/Release/OpenTap.UnitTests.dll
+         - dotnet vstest bin/Release/OpenTap.UnitTests.dll -- RunConfiguration.TestSessionTimeout=1200000
   artifacts:
     when: always
     expire_in: 1 week
