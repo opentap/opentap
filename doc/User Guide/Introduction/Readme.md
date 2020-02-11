@@ -1,14 +1,8 @@
 # Overview
-<<<<<<< HEAD
 This section introduces essential OpenTAP terminology, concepts, and tools. It is intended to provide users with an
  understanding of OpenTAP and its ecosystem to get started. For a more technical description, see the [Developer
  Guide](../../Developer%20guide/Introduction). For a quick reference of CLI options, see the [comprehensive
  reference](../CLI%20Reference).
-=======
-This section introduces essential OpenTAP terminology, concepts, and tools. It is intended to provide users (non-developers) with an understanding of OpenTAP and its ecosystem to get started.
-
-For a quick reference of CLI options, see the [comprehensive reference](../CLI%20Reference). For a more technical description, see the developer guide.
->>>>>>> master
 
 OpenTAP consists of multiple tools, including:
 -	OpenTAP - core engine
