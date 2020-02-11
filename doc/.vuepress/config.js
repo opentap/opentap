@@ -23,14 +23,15 @@ module.exports = {
             { text: 'Homepage', link: 'https://www.opentap.io' }
         ],
         sidebar: [
-        	"/",
+            "/",
             {
                 title: "User Guide",
                 children: [
-                  ["User Guide/Introduction/", "Introduction"],
+                  ["User Guide/Introduction/", "Overview"],
                   ["User Guide/CLI Usage/", "CLI Usage"],
                   ["User Guide/Editors/", "Editors"],
-                  ["User Guide/CLI Reference/", "CLI Reference"]
+                  // ["User Guide/Test Steps/", "Test Steps"],
+                  ["User Guide/CLI Reference/", "CLI Reference"],
                 ]
               },
             {
@@ -69,4 +70,3 @@ module.exports = {
         ]
     }
 }
-

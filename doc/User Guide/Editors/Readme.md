@@ -1,6 +1,7 @@
 # Editors
 
-As you may have noticed, a test plan consists of XML. You *could* modify and extend test plans by hand, but we recommend using the tools we have developed.
+As you may have noticed, a test plan consists of XML. You *could* modify and extend test plans by hand, but we recommend
+using the tools we have developed.
 
 You currently have two options:
 1. [Developer’s System Community Edition](https://www.opentap.io/download.html) - mature, feature-rich GUI (recommended)
@@ -23,8 +24,12 @@ and run it with `tap editor`.
 
 ## TUI
 
-As mentioned in the previous section, `tap package install` installs the latest stable version. Since TUI is still in beta, there is no stable version.
-Use the following command to install the latest version:
+As mentioned in the previous section, `tap package install` installs the latest stable version. Since TUI is still in
+beta, there is no stable version. Use the following command to install the latest available version:
+
 > tap package install TUI --version any
 
 and run the program with `tap tui`.
+
+
+<!-- Result viewers -->
