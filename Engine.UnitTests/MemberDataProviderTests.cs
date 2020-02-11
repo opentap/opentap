@@ -780,12 +780,24 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        /// <summary>
+        /// Delay step that is quick to run.
+        /// </summary>
+        class FakeDelayStep : DelayStep
+        {
+            public override void Run()
+            {
+                
+            }
+        }
+        
+
         [Test]
         public void SweepLoopProviderTest()
         {
             System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
             var sweep = new SweepLoop();
-            var delay1 = new DelayStep();
+            var delay1 = new FakeDelayStep();
             sweep.ChildTestSteps.Add(delay1);
 
             var delay2 = new Delay2Step() {AvailableValuesField = new[] { "A", "B", "C" }};
@@ -822,32 +834,36 @@ namespace OpenTap.Engine.UnitTests
             var smem2 = annotation.GetMember(nameof(SweepLoop.SweepParameters));
             {
                 var collection = smem2.Get<ICollectionAnnotation>();
-                var new_element = collection.NewElement();
-                collection.AnnotatedElements = collection.AnnotatedElements.Append(new_element).ToArray();
-                var new_element_members = new_element.Get<IMembersAnnotation>();
-                var members = new_element_members.Members.ToArray();
-                Assert.AreEqual(4, members.Length);
+                {
+                    var new_element = collection.NewElement();
+                    collection.AnnotatedElements = collection.AnnotatedElements.Append(new_element).ToArray();
+                    var new_element_members = new_element.Get<IMembersAnnotation>();
+                    var members = new_element_members.Members.ToArray();
+                    Assert.AreEqual(4, members.Length);
 
-                var enabled_element = members[0];
-                Assert.IsTrue(enabled_element.Get<IMemberAnnotation>().Member.Name == "Enabled");
-                Assert.IsTrue((bool)enabled_element.Get<IObjectValueAnnotation>().Value == true);
+                    var enabled_element = members[0];
+                    Assert.IsTrue(enabled_element.Get<IMemberAnnotation>().Member.Name == "Enabled");
+                    Assert.IsTrue((bool) enabled_element.Get<IObjectValueAnnotation>().Value == true);
 
-                var delay_element = members[1];
-                var delay_value = delay_element.Get<IStringValueAnnotation>();
-                Assert.IsTrue(delay_value.Value.Contains("0.1 s")); // the default value for DelayStep is 0.1s.
-                delay_value.Value = "0.1 s";
+                    var delay_element = members[1];
+                    var delay_value = delay_element.Get<IStringValueAnnotation>();
+                    Assert.IsTrue(delay_value.Value.Contains("0.1 s")); // the default value for DelayStep is 0.1s.
+                    delay_value.Value = "0.1 s";
 
-                var selected_element = members[2];
-                var available_for_Select = selected_element.Get<IAvailableValuesAnnotationProxy>();
-                // Since they only have two available values in common, the list should only contain those two elements.
-                Assert.IsTrue(available_for_Select.AvailableValues.Cast<object>().Count() == 2);
+                    var selected_element = members[2];
+                    var available_for_Select = selected_element.Get<IAvailableValuesAnnotationProxy>();
+                    // Since they only have two available values in common, the list should only contain those two elements.
+                    Assert.IsTrue(available_for_Select.AvailableValues.Cast<object>().Count() == 2);
 
-                annotation.Write();
+                    annotation.Write();
+                }
                 var firstDelay = sweep.SweepParameters.First().Values.ElementAt(0);
+                var delay_value2 = collection.AnnotatedElements.First().Get<IMembersAnnotation>().Members.ElementAt(1)
+                    .Get<IStringValueAnnotation>();
                 Assert.AreEqual(0.1, (double)firstDelay);
-                delay_value.Value = "0.01 s";
+                delay_value2.Value = "0.01 s";
                 annotation.Write();
-                for (int i = 0; i < 4; i++)
+                for (int i = 0; i < 5; i++)
                 {
                     var new_element2 = collection.NewElement();
                     collection.AnnotatedElements = collection.AnnotatedElements.Append(new_element2).ToArray();
@@ -857,15 +873,15 @@ namespace OpenTap.Engine.UnitTests
 
                     Assert.IsTrue(enabled_element2.Get<IMemberAnnotation>().Member.Name == "Enabled");
                     Assert.IsTrue((bool)enabled_element2.Get<IObjectValueAnnotation>().Value == true);
-                    if (i == 2)
+                    if (i == 2 || i == 3)
                     {
                         enabled_element2.Get<IObjectValueAnnotation>().Value = false;
                     }
 
                     var delay_element2 = new_element2_members.First(x => x.Get<IMemberAnnotation>().Member.Name == "DelaySecs");
-                    var delay_value2 = delay_element2.Get<IStringValueAnnotation>();
+                    var delay_value3 = delay_element2.Get<IStringValueAnnotation>();
                     // SweepLoop should copy the previous value for new rows.
-                    Assert.IsTrue(delay_value2.Value.Contains("0.1 s"));
+                    Assert.IsTrue(delay_value3.Value.Contains("0.01 s"));
                 }
         
                 foreach (var elem in collection.AnnotatedElements)
@@ -878,10 +894,17 @@ namespace OpenTap.Engine.UnitTests
                 }
                 
                 annotation.Write();
+                {
+                    // remove an additional disable row.
+                    // this verifies that removing rows works.
+                    var lst = collection.AnnotatedElements.ToList();
+                    lst.RemoveAt(3);
+                    collection.AnnotatedElements = lst;
+                    annotation.Write();
+                }
                 annotation.Read();
                 {
                     var elem = collection.AnnotatedElements.First();
-                    var members2 = elem.Get<IMembersAnnotation>().Members;
                     var mem2 = elem.GetMember("DelaySecs");
                     mem2.Get<IStringValueAnnotation>().Value = "1.123 s";
                     annotation.Write();
@@ -889,7 +912,6 @@ namespace OpenTap.Engine.UnitTests
                     var nowvalue = mem2.Get<IStringValueAnnotation>().Value;
                     Assert.AreEqual("1.123 s", nowvalue);
                 }
-
             }
 
             var rlistener = new PlanRunCollectorListener() { CollectResults = true };
