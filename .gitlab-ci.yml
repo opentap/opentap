@@ -394,10 +394,10 @@ Installer-Linux:
          - Start-process .\tarsetup.exe -NoNewWindow -Wait -ArgumentList "/SILENT"
 
          - $path=(get-item -path "./").Fullname
-         - $str=[IO.File]::ReadAllText($path + "/LinuxInstructions/INSTALL.sh") -replace "`r`n", "`n"
+         - $str=[IO.File]::ReadAllText($path + "/LinuxInstall/INSTALL.sh") -replace "`r`n", "`n"
          - ([IO.File]::WriteAllText($path + "/INSTALL.sh", $str))
 
-         - $str=[IO.File]::ReadAllText($path + "/LinuxInstructions/README") -replace "`r`n", "`n"
+         - $str=[IO.File]::ReadAllText($path + "/LinuxInstall/README") -replace "`r`n", "`n"
          - ([IO.File]::WriteAllText($path + "/README", $str))
 
          - cmd /C '"C:\Program Files (x86)\GnuWin32\bin\tar.exe" -cf "OpenTAP.tar" OpenTAP.*.Linux.TapPackage INSTALL.sh README'
