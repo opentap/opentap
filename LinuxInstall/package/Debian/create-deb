@@ -1,0 +1,53 @@
+#!/bin/bash
+# Exit on error
+set -e
+GIT_ROOT="$(git rev-parse --show-toplevel)"
+
+pushd "$GIT_ROOT/LinuxInstall/package/Debian"
+
+# Build Deb package
+
+rm -rf ./OpenTAP
+mkdir -p OpenTAP/DEBIAN
+mkdir -p OpenTAP/usr/bin
+mkdir -p OpenTAP/usr/share/tap
+mkdir -p OpenTAP/usr/share/doc/tap
+mkdir -p OpenTAP/var/log/SessionLogs
+
+cp "$GIT_ROOT/LICENSE.txt" OpenTAP/usr/share/doc/tap/copyright
+
+echo "Extracting OpenTAP"
+unzip -q ../OpenTAP.TapPackage -d OpenTAP/usr/share/tap
+
+pushd OpenTAP/usr/share/tap
+chmod +x tap
+ln -s ../../../var/log/SessionLogs
+popd
+pushd OpenTAP/usr/bin
+ln -s ../share/tap/tap
+popd
+
+BYTES=$(du -sb OpenTAP | cut -f1)
+DIVISOR=1024
+
+# Size in KB, rounded up -- addition and subtraction is necessary because we're using integer division
+SIZE_KB=$(((BYTES - 1) / DIVISOR + 1))
+
+# sed control-debian -e "s/@VERSION@/$VERSION/g" -e "s/@SIZE_KB@/$SIZE_KB/g" > OpenTAP/DEBIAN/control
+sed control.in -e "s/@SIZE_KB@/$SIZE_KB/g" > OpenTAP/DEBIAN/control
+cp postinst.in OpenTAP/DEBIAN/postinst
+chmod 0555 OpenTAP/DEBIAN/postinst
+chmod +x OpenTAP/DEBIAN/postinst
+
+./OpenTAP/usr/share/tap/tap sdk gitversion --replace OpenTAP/DEBIAN/control
+# Don't package log file generated from gitversion
+rm -rf ./OpenTAP/var/log/SessionLogs/*
+
+chmod 755 OpenTAP/DEBIAN
+
+echo "Building .deb package"
+dpkg --build OpenTAP
+
+mv OpenTAP.deb ..
+
+echo "Built .deb package"
