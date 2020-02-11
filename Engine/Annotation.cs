@@ -1355,13 +1355,28 @@ namespace OpenTap
         class StepNameStringValue : IStringReadOnlyValueAnnotation
         {
             AnnotationCollection annotation;
-            public StepNameStringValue(AnnotationCollection annotation)
+            bool member;
+            public StepNameStringValue(AnnotationCollection annotation, bool member)
             {
                 this.annotation = annotation;
+                this.member = member;
             }
             public string Value
             {
-                get => ((ITestStep)annotation.ParentAnnotation.Get<IObjectValueAnnotation>().Value).GetFormattedName();
+                get
+                {
+                    ITestStep value;
+                    if (member)
+                    {
+                        value = (ITestStep) annotation.ParentAnnotation.Get<IObjectValueAnnotation>().Value;
+                    }
+                    else
+                    {
+                        value = (ITestStep)annotation.Get<IObjectValueAnnotation>().Value;
+                    }
+
+                    return value.GetFormattedName();
+                }
             }
         }
 
@@ -2317,31 +2332,18 @@ namespace OpenTap
                         annotation.Add(new AvailableValuesAnnotation(annotation, avail.PropertyName));
                     }
                 }
-            }
-
-            if (mem?.Member is MemberData mem2 && mem2.DeclaringType.DescendsTo(typeof(ITestStep)))
-            {
-                /*
-                var plan = step.GetParent<TestPlan>();
-
-                var externalParameter = plan?.ExternalParameters.Find(step, mem2.Member);
-                if (externalParameter != null)
-                {
-                    resolver.Annotate(new ExternalParameterAnnotation() { ExternalName = externalParameter.Name });
-                }*/
-
-                if (mem2.Name == nameof(ITestStep.Name))
-                {
-                    annotation.Add(new StepNameStringValue(annotation));
-                }
+                
                 if (mem.Member.TypeDescriptor.DescendsTo(typeof(IInput)))
                 {
                     annotation.Add(new InputStepAnnotation(annotation));
                 }
             }
 
-            if (reflect.ReflectionInfo is ITypeData tp)
+                if (reflect?.ReflectionInfo is ITypeData tp)
             {
+                if (tp.DescendsTo(typeof(ITestStep)))
+                    annotation.Add(new StepNameStringValue(annotation, member: mem != null && mem.ReflectionInfo == tp));
+                
                 bool csharpPrimitive = tp is TypeData cst && (cst.Type.IsPrimitive || cst.Type == typeof(string));
                 if (tp.GetMembers().Any() && !csharpPrimitive)
                 {
