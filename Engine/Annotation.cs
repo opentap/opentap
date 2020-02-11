@@ -1127,7 +1127,7 @@ namespace OpenTap
             }
         }
 
-        class EnumStringAnnotation : IStringValueAnnotation
+        class EnumStringAnnotation : IStringValueAnnotation, IValueDescriptionAnnotation
         {
 
             string enumToString(Enum value)
@@ -1160,6 +1160,37 @@ namespace OpenTap
                 }
                 return mem.GetDisplayAttribute().Name;
             }
+            
+            string enumToDescription(Enum value)
+            {
+                if (value == null) return null;
+                var mem = enumType.GetMember(value.ToString()).FirstOrDefault();
+
+                if (mem == null)
+                {
+                    if (enumType.HasAttribute<FlagsAttribute>())
+                    {
+                        var flags = Enum.GetValues(enumType);
+                        StringBuilder sb = new StringBuilder();
+
+                        bool first = true;
+                        foreach (Enum flag in flags)
+                        {
+                            if (value.HasFlag(flag))
+                            {
+                                if (!first)
+                                    sb.Append(" | ");
+                                else
+                                    first = false;
+                                sb.Append(enumToString(flag));
+                            }
+                        }
+                        return sb.ToString();
+                    }
+                    return value.ToString();
+                }
+                return mem.GetDisplayAttribute().Description;
+            }
 
             Enum evalue
             {
@@ -1191,6 +1222,14 @@ namespace OpenTap
             {
                 this.a = annotation;
                 this.enumType = enumType;
+            }
+
+            public string Describe()
+            {
+                if (evalue is Enum e)
+                    return enumToDescription(e);
+
+                return null;
             }
         }
 
@@ -2242,12 +2281,19 @@ namespace OpenTap
 
                     if (type.IsEnum)
                     {
-                        annotation.Add(new EnumValuesAnnotation(type, annotation));
-                        annotation.Add(new EnumStringAnnotation(type, annotation));
-
-                        if (csharpType.HasFlags())
+                        if (type == typeof(BreakCondition))
                         {
-                            annotation.Add(new FlagEnumAnnotation(annotation, type));
+                                annotation.Add(new BreakConditionsAnnotation(annotation));
+                        }
+                        else
+                        {    
+                            annotation.Add(new EnumValuesAnnotation(type, annotation));
+                            annotation.Add(new EnumStringAnnotation(type, annotation));
+
+                            if (csharpType.HasFlags())
+                            {
+                                annotation.Add(new FlagEnumAnnotation(annotation, type));
+                            }
                         }
                     }
 

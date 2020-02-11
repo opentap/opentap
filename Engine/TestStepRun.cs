@@ -107,6 +107,13 @@ namespace OpenTap
             }
         }
         readonly object upgradeVerdictLock = new object();
+        
+        
+        /// <summary>
+        /// Calculated abort condition...
+        /// </summary>
+        internal BreakCondition AbortCondition { get; set; }
+
     }
 
     /// <summary>
@@ -237,6 +244,34 @@ namespace OpenTap
             Verdict = Verdict.NotSet;
             if (attachedParameters != null) Parameters.AddRange(attachedParameters);
             Parent = parent;
+            
+        }
+        
+        internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters = null)
+        {
+            TestStepId = step.Id;
+            TestStepName = step.GetFormattedName();
+            TestStepTypeName = step.GetType().AssemblyQualifiedName;
+            Parameters = ResultParameters.GetParams(step);
+            Verdict = Verdict.NotSet;
+            if (attachedParameters != null) Parameters.AddRange(attachedParameters);
+            Parent = parent.Id;
+            AbortCondition = calculateAbortCondition(step, parent);
+        }
+        
+        
+        static BreakCondition calculateAbortCondition(ITestStep step, TestRun parentStepRun)
+        {
+            BreakCondition abortCondition = BreakConditionProperty.GetBreakCondition(step);
+            
+            if (abortCondition.HasFlag(BreakCondition.Inherit))
+            {
+                // Retry conditions are not inherited.
+                return parentStepRun.AbortCondition | BreakCondition.Inherit;
+            }
+
+            return abortCondition;
+
         }
 
         internal TestStepRun Clone()
@@ -245,6 +280,33 @@ namespace OpenTap
             run.Parameters = run.Parameters.Clone();
             return run;
         }
+        
         #endregion
+
+        internal bool IsBreakCondition()
+        {
+            if (OutOfRetries 
+                || (Verdict == Verdict.Fail && AbortCondition.HasFlag(BreakCondition.BreakOnFail)) 
+                || (Verdict == Verdict.Error && AbortCondition.HasFlag(BreakCondition.BreakOnError))
+                || (Verdict == Verdict.Inconclusive && AbortCondition.HasFlag(BreakCondition.BreakOnInconclusive)))
+            {
+                return true;
+            }
+
+            return false;
+        }
+        
+        internal void CheckBreakCondition()
+        {
+            if(IsBreakCondition())
+                AbortDueToVerdict();
+        }
+        
+        internal bool OutOfRetries { get; set; }
+
+        internal void AbortDueToVerdict()
+        {
+            throw new OperationCanceledException(String.Format("Verdict of '{0}' was '{1}'.", TestStepName, Verdict));
+        }
     }
 }

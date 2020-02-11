@@ -263,13 +263,11 @@ namespace OpenTap
         CancellationTokenSource cancelSrc = new CancellationTokenSource();
 
         // this semaphore counts up whenever there is work to be done.
-        SemaphoreSlim freeWorkSemaphore = new SemaphoreSlim(0);
+        Semaphore freeWorkSemaphore = new Semaphore(0, Int32.MaxValue);
 
         Thread threadManagerThread;
         /// <summary> The number of currently available workers.</summary>
         int freeWorkers = 0;
-        EngineSettings settings => EngineSettings.Current;
-        Stopwatch lastTime = Stopwatch.StartNew();
         /// <summary>
         /// Max number of worker threads.
         /// </summary>
@@ -296,7 +294,7 @@ namespace OpenTap
             threadManagerThread.Start();
             ThreadPool.GetMaxThreads(out MaxWorkerThreads, out int _);
         }
-        static int idleThreadCount = Environment.ProcessorCount * 4;
+        static int idleThreadCount = Environment.ProcessorCount * 2;
         void threadManagerWork()
         {
             var handles = new WaitHandle[2];
@@ -307,11 +305,11 @@ namespace OpenTap
                     newWorkerThread();
                 }
 
-                handles[0] = freeWorkSemaphore.AvailableWaitHandle;
+                handles[0] = freeWorkSemaphore;
                 handles[1] = cancelSrc.Token.WaitHandle;
                 int state = WaitHandle.WaitAny(handles);
                 if (state == 1) break;
-                if (state == 0 && !freeWorkSemaphore.Wait(0)) continue;
+
                 freeWorkSemaphore.Release();
                 if (freeWorkers < workQueue.Count)
                 {
@@ -353,7 +351,7 @@ namespace OpenTap
             var handles = new WaitHandle[2];
             try
             {
-                handles[0] = freeWorkSemaphore.AvailableWaitHandle;
+                handles[0] = freeWorkSemaphore;
                 handles[1] = cancelSrc.Token.WaitHandle;
 
                 while (cancelSrc.IsCancellationRequested == false)
@@ -365,7 +363,6 @@ namespace OpenTap
                             continue;
                         break;
                     }
-                    freeWorkSemaphore.Wait(0); // decrement the semaphore - It's not done through WaitAny.
                     if (workQueue.Count == 0)
                         continue; // Someone already handled the work. go back to sleep.
 
@@ -401,10 +398,11 @@ namespace OpenTap
             {
                 // Can be throws when the application exits.
             }
-            catch (Exception)
+            catch (Exception e)
             {
                 // exceptions should be handled at the 'work' level.
-                Debug.Fail("Exception unhandled in worker thread.");
+                Debug.WriteLine("Exception unhandled in worker thread.");
+                Debug.WriteLine(e.StackTrace);
             }
             finally
             {

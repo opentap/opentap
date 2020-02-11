@@ -201,8 +201,6 @@ namespace OpenTap.Plugins.BasicSteps
                     }
                     ChildTestSteps.AddRange(tp.ChildTestSteps);
 
-                    var plan = GetParent<TestPlan>();
-
                     foreach (var step in RecursivelyGetChildSteps(TestStepSearch.All))
                     {
                         step.IsReadOnly = true;

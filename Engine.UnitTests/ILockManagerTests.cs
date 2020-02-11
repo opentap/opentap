@@ -237,13 +237,13 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(step1.GetType().GetProperty("Instrument2"), arg1.Last().References.First().Property, "ResourceReference references unexpected property.");
         }
         
-        [TestCase(typeof(LazyResourceManager), typeof(OperationCanceledException), Verdict.Aborted, false)]
+        [TestCase(typeof(LazyResourceManager), typeof(OperationCanceledException), Verdict.Error, false)]
         [TestCase(typeof(LazyResourceManager), typeof(Exception), Verdict.Error, false)]
-        [TestCase(typeof(ResourceTaskManager), typeof(OperationCanceledException), Verdict.Aborted, false)]
+        [TestCase(typeof(ResourceTaskManager), typeof(OperationCanceledException), Verdict.Error, false)]
         [TestCase(typeof(ResourceTaskManager), typeof(Exception), Verdict.Error, false)]
-        [TestCase(typeof(LazyResourceManager), typeof(OperationCanceledException), Verdict.Aborted, true)]
+        [TestCase(typeof(LazyResourceManager), typeof(OperationCanceledException), Verdict.Error, true)]
         [TestCase(typeof(LazyResourceManager), typeof(Exception), Verdict.Error, true)]
-        [TestCase(typeof(ResourceTaskManager), typeof(OperationCanceledException), Verdict.Aborted, true)]
+        [TestCase(typeof(ResourceTaskManager), typeof(OperationCanceledException), Verdict.Error, true)]
         [TestCase(typeof(ResourceTaskManager), typeof(Exception), Verdict.Error, true)]
         public void BeforeOpenExceptionTest(Type managerType, Type exceptionType, Verdict expectedVerdict, bool withParallel)
         {
