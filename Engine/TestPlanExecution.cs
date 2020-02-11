@@ -752,7 +752,6 @@ namespace OpenTap
 
                 Stopwatch timer = Stopwatch.StartNew();
                 currentExecutionState = new TestPlanRun(this, listeners.ToList(), DateTime.Now, Stopwatch.GetTimestamp(), true);
-                currentExecutionState.PromptWaitHandle.Set();
                 OpenInternal(currentExecutionState, false, listeners.Cast<IResource>().ToList(), allSteps);
                 try
                 {

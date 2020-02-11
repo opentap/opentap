@@ -1290,6 +1290,7 @@ namespace OpenTap.Engine.UnitTests
 
             void waitFormInput(object obj, TimeSpan timeout, bool modal)
             {
+                Assert.IsFalse(listener.TestPlanRunStarted);
                 Thread.Sleep(20); // a short sleep to make sure that the error would appear.
                 var mpo = obj as MetadataPromptObject;
                 foreach(var dut in mpo.Resources.OfType<DummyDut>())

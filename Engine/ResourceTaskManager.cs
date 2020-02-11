@@ -364,7 +364,6 @@ namespace OpenTap
                 case TestPlanExecutionStage.Open:
                     if (item is TestPlan)
                     {
-                        var testplan = item as TestPlan;
                         var resources = ResourceManagerUtils.GetResourceNodes(StaticResources.Cast<object>().Concat(EnabledSteps));
                         beginOpenResoureces(resources, cancellationToken);
                     }
@@ -660,9 +659,11 @@ namespace OpenTap
                     {
                         var resources = ResourceManagerUtils.GetResourceNodes(StaticResources);
 
-                        if (item is TestPlan plan)
+                        if (item is TestPlan plan && stage == TestPlanExecutionStage.Execute)
                         {
-                            plan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
+                            // Prompt for metadata for all resources, not only static ones.
+                            var testPlanResources = ResourceManagerUtils.GetResourceNodes(EnabledSteps);
+                            plan.StartResourcePromptAsync(planRun, resources.Concat(testPlanResources).Select(res => res.Resource));
                         }
 
                         if (resources.All(r => r.Resource?.IsConnected ?? false))
@@ -719,8 +720,6 @@ namespace OpenTap
                                     resourceWithBeforeOpenCalled.AddRange(resources);
                                 }
                             }
-                            var plan = step.GetParent<TestPlan>();
-                            plan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
 
                             try
                             {
