@@ -116,13 +116,13 @@ It can be done by writing the file extension as such:
 Or it can be done by specifying a more advanced filter expression as shown below.
 
 ```csharp
-[FilePath(FilePathAttribute.BehaviorChoice.Open, "Comma Separated Files (*.csv)|*.csv| Tab Separated Files (*.tsv) | *.tsv| All Files | *.*)]");
+[FilePath(FilePathAttribute.BehaviorChoice.Open, "Comma Separated Files (*.csv)|*.csv| Tab Separated Files (*.tsv) | *.tsv| All Files | *.*")]
 ```
 
 The syntax works as follows:
 ```[Name_1] | [file extensions 1] | [Name_2] | [file extensions 2] ...```
 
-Each filter comes in pairs of two, a name and a list of extensions. The name of a filter can be anything, excluding the '|' character. It normally contains the name of all the included file extensions, for example "Image Files (*.png, *.jpg)". The file extensions is normally not seen by the user, but should contain all the supported file extensions as a semi-colon separated list. Lastly, it is common practice to include the 'AllFiles | *.*' part, which makes it possible for the user to override the known filters and manually select any kind of file.
+Each filter comes in pairs of two, a name and a list of extensions. The name of a filter can be anything, excluding the '|' character. It normally contains the name of all the included file extensions, for example "Image Files (\*.png, \*.jpg)". The file extensions is normally not seen by the user, but should contain all the supported file extensions as a semi-colon separated list. Lastly, it is common practice to include the 'AllFiles | \*.\*' part, which makes it possible for the user to override the known filters and manually select any kind of file.
 
 ## Layout Attribute
 LayoutAttribute is used to control how settings are arranged in graphical user interfaces. It can be used to control the height, width and positioning of settings elements. Use this with the Submit attribute to create a dialog with options like OK/Cancel on the bottom. See UserInputExample.cs for an example.
