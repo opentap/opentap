@@ -285,6 +285,7 @@ Package-Linux:
     paths:
        - OpenTAP.*.Linux.TapPackage
 
+    
 Package-SDK:
   stage: package
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
@@ -405,6 +406,27 @@ Installer-Linux:
     paths:
        - "OpenTAP.tar"
 
+
+Package-Build-Deb:
+  stage: installer
+  image: opentapio/opentap:9.5-ubuntu18.04
+  tags: [ docker, gce ]
+  dependencies:
+    - Package-Linux
+  needs:
+    - Package-Linux
+  script:
+    - pushd LinuxInstall/package
+    - mv ../../OpenTAP*.TapPackage OpenTAP.TapPackage
+    - pushd Debian
+    - bash create-deb
+    - popd
+    - mv OpenTAP.deb ../../OpenTAP.deb
+  artifacts:
+    when: on_success 
+    expire_in: 1 week
+    paths: 
+      - OpenTAP.deb
 
 #############################################
 # Stage: publish                            #
