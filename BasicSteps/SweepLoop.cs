@@ -883,6 +883,12 @@ namespace OpenTap.Plugins.BasicSteps
                 }
                 set {
                     count = value.Count();
+                    annotations.Clear();
+                    var list = value.ToList();
+                    for (int i = 0; i < list.Count; i++)
+                    {
+                        annotations[i] = list[i];
+                    }
                 }
             }
 
