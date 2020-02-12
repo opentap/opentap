@@ -138,6 +138,25 @@ namespace OpenTap
         {
             return attrslookup.GetValue(prop, getAttributes);
         }
+        
+        static object[] getAttributesNoInherit(MemberInfo mem)
+        {
+            try
+            {
+                return mem.GetCustomAttributes(false);
+            }
+            catch
+            {
+                return Array.Empty<object>();
+            }
+        }
+        static readonly ConditionalWeakTable<MemberInfo, object[]> attrslookupNoInherit = new ConditionalWeakTable<MemberInfo, object[]>();
+        public static object[] GetAllCustomAttributes(this MemberInfo prop, bool inherit)
+        {
+            if(inherit)
+                return attrslookupNoInherit.GetValue(prop, getAttributesNoInherit);
+            return GetAllCustomAttributes(prop);
+        }
 
         /// <summary>
         /// Gets the custom attributes. Both type and property attributes. Also inherited attributes.
