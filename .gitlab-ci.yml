@@ -25,10 +25,23 @@ Build-DevGuide:
     paths:
        - sdk/Examples/OpenTAP Developer Guide.pdf
 
-Doc-API:
+Doc-API-Prepare:
   stage: build
+  image: opentapio/opentap:9.5-ubuntu18.04
+  tags: [ docker, gce ]
+  script:
+        - tap sdk gitversion --replace "doc/API Documentation/Doxyfile" --fields 2
+  artifacts:
+    expire_in: 1 week
+    paths:
+       - "doc/API Documentation/Doxyfile"
+
+Doc-API:
+  stage: test
   image: registry.gitlab.com/opentap/buildrunners/doxygen:latest
   tags: [ docker, gce ]
+  dependencies:
+    - Doc-API-Prepare
   script: 
          - mkdir Help
          - mkdir API
