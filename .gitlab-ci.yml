@@ -1,5 +1,6 @@
 variables:
   PACKAGE_REPO_URL: "http://packages.opentap.io"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
 
 stages:
   - build
@@ -285,6 +286,7 @@ Package-Linux:
     paths:
        - OpenTAP.*.Linux.TapPackage
 
+    
 Package-SDK:
   stage: package
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
@@ -392,10 +394,10 @@ Installer-Linux:
          - Start-process .\tarsetup.exe -NoNewWindow -Wait -ArgumentList "/SILENT"
 
          - $path=(get-item -path "./").Fullname
-         - $str=[IO.File]::ReadAllText($path + "/LinuxInstructions/INSTALL.sh") -replace "`r`n", "`n"
+         - $str=[IO.File]::ReadAllText($path + "/LinuxInstall/INSTALL.sh") -replace "`r`n", "`n"
          - ([IO.File]::WriteAllText($path + "/INSTALL.sh", $str))
 
-         - $str=[IO.File]::ReadAllText($path + "/LinuxInstructions/README") -replace "`r`n", "`n"
+         - $str=[IO.File]::ReadAllText($path + "/LinuxInstall/README") -replace "`r`n", "`n"
          - ([IO.File]::WriteAllText($path + "/README", $str))
 
          - cmd /C '"C:\Program Files (x86)\GnuWin32\bin\tar.exe" -cf "OpenTAP.tar" OpenTAP.*.Linux.TapPackage INSTALL.sh README'
@@ -405,6 +407,27 @@ Installer-Linux:
     paths:
        - "OpenTAP.tar"
 
+
+Package-Build-Deb:
+  stage: installer
+  image: opentapio/opentap:9.5-ubuntu18.04
+  tags: [ docker, gce ]
+  dependencies:
+    - Package-Linux
+  needs:
+    - Package-Linux
+  script:
+    - pushd LinuxInstall/package
+    - mv ../../OpenTAP*.TapPackage OpenTAP.TapPackage
+    - pushd Debian
+    - bash create-deb
+    - popd
+    - mv OpenTAP.deb ../../OpenTAP.deb
+  artifacts:
+    when: on_success 
+    expire_in: 1 week
+    paths: 
+      - OpenTAP.deb
 
 #############################################
 # Stage: publish                            #

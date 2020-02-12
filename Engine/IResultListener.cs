@@ -40,7 +40,7 @@ namespace OpenTap
         void OnTestStepRunCompleted(TestStepRun stepRun);
 
         /// <summary>
-        /// When a result is received this method is called.
+        /// Called when a result is received.
         /// </summary>
         /// <param name="stepRunID"> Step run parameters.</param>
         /// <param name="result">Result structure.</param>
