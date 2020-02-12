@@ -670,7 +670,7 @@ namespace OpenTap.Plugins.BasicSteps
             public void Write(object source)
             {
                 if (selectedValues == null) return;
-                var otherMember = fac.ParentAnnotation.Get<IMembersAnnotation>().Members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member.Name == nameof(SweepLoop.SweepParameters));
+                var otherMember = annotation.ParentAnnotation.Get<IMembersAnnotation>().Members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member.Name == nameof(SweepLoop.SweepParameters));
                 var sweepPrams = otherMember.Get<IObjectValueAnnotation>().Value as List<SweepParam>;
                 var avail = allAvailable.OfType<IMemberData>().ToLookup(x => x.GetDisplayAttribute().GetFullName() + x.TypeDescriptor.Name, x => x);
                 HashSet<SweepParam> found = new HashSet<SweepParam>();
@@ -720,49 +720,28 @@ namespace OpenTap.Plugins.BasicSteps
                 otherMember.Read(source);
             }
 
-            AnnotationCollection fac;
+            AnnotationCollection annotation;
 
-            public SweepParamsAnnotation(AnnotationCollection fac)
+            public SweepParamsAnnotation(AnnotationCollection annotation)
             {
-                this.fac = fac;
+                this.annotation = annotation;
             }
         }
 
         class SweepRow
         {
             public bool Enabled { get; set; }
-            public List<SweepParam> lst;
-            public int index;
-            public SweepRow(List<SweepParam> lst, int index)
+            public object[] Values { get;}
+            public SweepRow(bool enabled, object[] Values)
             {
-                this.lst = lst;
-                this.index = index;
-                Enabled = true;
+                this.Values = Values;
+                Enabled = enabled;
             }
         }
 
-        class ValueAnnotation : IObjectValueAnnotation, IOwnedAnnotation
-        {
-            
+        class ValueContainerAnnotation : IObjectValueAnnotation
+        {            
             public object Value { get; set; }
-
-            public SweepParam Param;
-            public int Index;
-
-            public void Read(object source)
-            {
-                if (Index >= Param.Values.Length || Index < 0) Value = Param.DefaultValue;
-                else Value = Param.Values[Index];
-            }
-
-            public void Write(object source)
-            {
-                if(Index >= Param.Values.Length)
-                {
-                    Param.Resize(Index + 1);
-                }
-                Param.Values[Index] = Value;
-            }
         }
         class SweepParamsMembers : IMembersAnnotation, IOwnedAnnotation
         {
@@ -772,8 +751,11 @@ namespace OpenTap.Plugins.BasicSteps
                     if (_members != null) return _members;
                     var step2 = annotation?.ParentAnnotation.Get<SweepParamsAggregation>();
                     var r = step2.RowAnnotations;
-                    var row = annotation.Get<IObjectValueAnnotation>().Value as SweepRow;
-                    var p = row.lst;
+
+                    var val = annotation.Get<IObjectValueAnnotation>().Value as SweepRow;
+                    
+                    var parent = annotation.ParentAnnotation.Source as SweepLoop;
+                    var p = parent.SweepParameters;
 
                     var allsteps = r.SelectMany(x => x.Value).Distinct().ToArray();
                     var superAnnotation = AnnotationCollection.Annotate(allsteps);
@@ -789,13 +771,12 @@ namespace OpenTap.Plugins.BasicSteps
                         var sub = subSet.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member == p2);
                         if (sub == null)
                             continue;
-                        var fst = sub.IndexWhen(x => x is IObjectValueAnnotation);
-                        var v = new ValueAnnotation { Param = p[i], Index = row.index };
-                        v.Read(null);
+                        
+                        var v = new ValueContainerAnnotation { Value = val.Values[i]};
 
                         // a bit complicated..
                         // we have to make sure that the ValueAnnotation is put very early in the chain.
-                        sub.Insert(fst + 1, v);
+                        sub.Insert(sub.IndexWhen(x => x is IObjectValueAnnotation) + 1, v);
                         
                         lst.Add(sub);
                     }
@@ -819,18 +800,33 @@ namespace OpenTap.Plugins.BasicSteps
 
             public void Write(object source)
             {
-                if (_members != null)
-                    _members.ForEach(x => x.Write(source));
+                if (_members == null) return;
+                var src = source as SweepRow;
+                int index = 0;
+                foreach (var member in _members)
+                {
+                    member.Write(source);
+                    if (index > 0)
+                    {
+                        src.Values[index - 1] = member.Get<IObjectValueAnnotation>().Value;
+                    }
+                    else
+                    {
+                        src.Enabled = (bool)member.Get<IObjectValueAnnotation>().Value;
+                    }
+
+                    index += 1;
+                }
             }
         }
 
         class SweepParamsAggregation : ICollectionAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation, IAccessAnnotation
         {
             
-            AnnotationCollection fac;
-            public SweepParamsAggregation(AnnotationCollection fac)
+            AnnotationCollection annotation;
+            public SweepParamsAggregation(AnnotationCollection annotation)
             {
-                this.fac = fac;
+                this.annotation = annotation;
             }
 
             Dictionary<IMemberData, List<object>> rowAnnotations = new Dictionary<IMemberData, List<object>>();
@@ -841,17 +837,14 @@ namespace OpenTap.Plugins.BasicSteps
                 {
                     if (rowAnnotations.Count == 0)
                     {
-
-                        var loop = fac.ParentAnnotation.Get<IObjectValueAnnotation>().Value as SweepLoop;
-                        var steps = loop.RecursivelyGetChildSteps(TestStepSearch.All).ToArray();
+                        var steps = sweep.RecursivelyGetChildSteps(TestStepSearch.All).ToArray();
                         var properties = steps.Select(x => TypeData.GetTypeData(x).GetMembers()).ToArray();
                         rowAnnotations = new Dictionary<IMemberData, List<object>>();
-                        var swparams = fac.Get<IObjectValueAnnotation>().Value as List<SweepParam>;
+                        var swparams = annotation.Get<IObjectValueAnnotation>().Value as List<SweepParam>;
                         foreach (var param in swparams)
                         {
                             if(param.Member != null)
                                 rowAnnotations.Add(param.Member, new List<object>());
-
                         }
 
                         for (int i = 0; i < properties.Length; i++)
@@ -870,85 +863,82 @@ namespace OpenTap.Plugins.BasicSteps
                 }
             }
 
+            IEnumerable<AnnotationCollection> annotatedElements;
+
             public IEnumerable<AnnotationCollection> AnnotatedElements
             {
                 get
                 {
-                    var lst = new List<AnnotationCollection>(count);
-                    for(int i = 0; i < count; i++)
+                    if (annotatedElements == null)
                     {
-                        lst.Add(annotation(i));
+                        List<AnnotationCollection> lst = new List<AnnotationCollection>();
+                        for (int i = 0; i < sweep.EnabledRows.Length; i++)
+                            lst.Add(annotateIndex(i));
+
+                        annotatedElements = lst;
                     }
-                    return lst;
+                    
+                    return annotatedElements;
                 }
-                set {
-                    count = value.Count();
-                }
+                set => annotatedElements = value.ToArray();
             }
 
-            public string Value => string.Format("Sweep rows: {0}", count);
+            public string Value => $"Sweep rows: {sweep.EnabledRows.Length}";
 
-            public bool IsReadOnly => (fac.Get<IObjectValueAnnotation>()?.Value as List<SweepParam>) == null;
+            public bool IsReadOnly => (annotation.Get<IObjectValueAnnotation>()?.Value as List<SweepParam>) == null;
 
             public bool IsVisible => true;
 
             public AnnotationCollection NewElement()
             {
-                return annotation(count);
+                return annotateIndex(-1);
             }
 
-            Dictionary<int, AnnotationCollection> annotations = new Dictionary<int, AnnotationCollection>();
-
-            AnnotationCollection annotation(int index)
+            AnnotationCollection annotateIndex(int index = -1)
             {
-                if (annotations.TryGetValue(index, out AnnotationCollection current)) return current;
-                var sparams = (List<SweepParam>)fac.Get<IObjectValueAnnotation>().Value;
-                var step = fac.Source as SweepLoop;
-                var param = new SweepRow(sparams, index);
-                var e = step.EnabledRows;
-                if (e.Length > index)
-                    param.Enabled = e[index];
-                var a= fac.AnnotateSub(TypeData.GetTypeData(param), param);
-                annotations[index] = a;
-                return a;
+                var sparams = sweep.SweepParameters;
+                SweepRow row;
+                if (index == -1)
+                    row = new SweepRow(true, sparams.Select(x => x.Values.DefaultIfEmpty(x.DefaultValue).LastOrDefault()).ToArray());
+                else
+                    row = new SweepRow(sweep.EnabledRows[index], sparams.Select(x => x.Values[index]).ToArray());
+                return this.annotation.AnnotateSub(TypeData.GetTypeData(row),row);
             }
 
-            int count = 0;
+            SweepLoop sweep;
+            
             public void Read(object source)
             {
-                var sweep = fac.ParentAnnotation.Get<IObjectValueAnnotation>()?.Value as SweepLoop;
-                if (sweep == null)
-                    return;
-
-                var sparams = (List<SweepParam>)fac.Get<IObjectValueAnnotation>().Value;
-                count = sparams?.FirstOrDefault()?.Values.Length ?? 0;
-                if (sparams.Select(x => x.Member).ToHashSet().SetEquals(rowAnnotations.Keys.ToHashSet()) == false)
-                {
-                    // if the columns has changed..
-                    rowAnnotations.Clear();
-                    annotations.Clear();
-                }
+                sweep = annotation.ParentAnnotation.Get<IObjectValueAnnotation>()?.Value as SweepLoop;
+                annotatedElements = null;
             }
 
             public void Write(object source)
             {
-                var sparams = (List<SweepParam>)fac.Get<IObjectValueAnnotation>().Value;
-                var sweep = fac.ParentAnnotation.Get<IObjectValueAnnotation>()?.Value as SweepLoop;
-                if (sweep == null)
-                    return;
-                foreach(var param in sparams)
+                IList lst = (IList)annotatedElements;
+                if (lst == null) return;
+                
+                var sweepParams = sweep.SweepParameters;
+                var count = lst.Count;
+                foreach(var param in sweepParams)
                      param.Resize(count);
+                sweep.EnabledRows = new bool[count];
 
-                sweep.sanitizeSweepParams(log: false); // update size of EnabledRows.
-                foreach(var a in annotations)
+                int index = 0;
+                foreach(AnnotationCollection a in lst)
                 {
-                    if (a.Key < count)
+                    a.Write();
+                    var row = a.Get<IObjectValueAnnotation>().Value as SweepRow;
+                    sweep.EnabledRows[index] = row.Enabled;
+                    for (int i = 0; i < row.Values.Length; i++)
                     {
-                        a.Value.Write();
-                        var row = a.Value.Get<IObjectValueAnnotation>().Value as SweepRow;
-                        sweep.EnabledRows[row.index] = row.Enabled;
+                        sweepParams[i].Values[index] = row.Values[i];
                     }
+
+                    index += 1;
                 }
+                
+                sweep.sanitizeSweepParams(log: false); // update size of EnabledRows.
             }
         }
 
