@@ -299,14 +299,29 @@ namespace OpenTap
         internal void CheckBreakCondition()
         {
             if(IsBreakCondition())
-                AbortDueToVerdict();
+                ThrowDueToBreakConditions();
         }
         
         internal bool OutOfRetries { get; set; }
 
-        internal void AbortDueToVerdict()
+        internal void ThrowDueToBreakConditions()
         {
-            throw new OperationCanceledException(String.Format("Verdict of '{0}' was '{1}'.", TestStepName, Verdict));
+            throw new TestStepBreakException(TestStepName, Verdict);
         }
+    }
+
+    class TestStepBreakException : OperationCanceledException
+    {
+        public string TestStepName { get; set; }
+        public Verdict Verdict { get; set; }
+
+        public TestStepBreakException(string testStepName, Verdict verdict)
+        {
+            TestStepName = testStepName;
+            Verdict = verdict;
+        }
+
+        public override string Message =>
+            $"Break issued from '{TestStepName}' due to verdict {Verdict}. See Break Conditions settings.";
     }
 }

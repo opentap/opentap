@@ -795,7 +795,8 @@ namespace OpenTap
                     try
                     {
                         // tell result listeners the step started.
-                        Step.PlanRun.ResourceManager.BeginStep(Step.PlanRun, Step, TestPlanExecutionStage.Run, TapThread.Current.AbortToken);
+                        Step.PlanRun.ResourceManager.BeginStep(Step.PlanRun, Step, TestPlanExecutionStage.Run,
+                            TapThread.Current.AbortToken);
                         try
                         {
                             if (Step is TestStep _step)
@@ -805,12 +806,12 @@ namespace OpenTap
                             stepRun.StartStepRun(); // set verdict to running, set Timestamp.
                             planRun.AddTestStepRunStart(stepRun);
                             Step.Run();
-                            
+
                             TapThread.ThrowIfAborted();
                         }
                         finally
                         {
-                             planRun.AddTestStepStateUpdate(stepRun.TestStepId, stepRun, StepState.Deferred);   
+                            planRun.AddTestStepStateUpdate(stepRun.TestStepId, stepRun, StepState.Deferred);
                         }
                     }
                     finally
@@ -823,6 +824,11 @@ namespace OpenTap
                     planRun.ExecutionHooks.ForEach(eh => eh.AfterTestStepExecute(Step));
                 }
             }
+            catch (TestStepBreakException e)
+            {
+                TestPlan.Log.Info(e.Message);
+                Step.Verdict = Verdict.Error;
+            }
             catch (Exception e)
             {
                 
@@ -830,14 +836,14 @@ namespace OpenTap
                 {
                     Step.Verdict = Verdict.Aborted;
                     if(e.Message == new OperationCanceledException().Message)
-                        TestPlan.Log.Warning("Step '{0}' was canceled.", stepPath);
+                        TestPlan.Log.Warning("Step {0} was canceled.", stepPath);
                     else
-                        TestPlan.Log.Warning("Step '{0}' was canceled with message '{1}'.", stepPath, e.Message);
+                        TestPlan.Log.Warning("Step {0} was canceled with message '{1}'.", stepPath, e.Message);
                 }
                 else
                 {
                     Step.Verdict = Verdict.Error;
-                    TestPlan.Log.Error("{0} failed. The error was '{1}'.", stepPath, e.Message);
+                    TestPlan.Log.Error("Error running {0}: {1}.", stepPath, e.Message);
                 }
                 TestPlan.Log.Debug(e);
             }
@@ -854,6 +860,11 @@ namespace OpenTap
                     {
                         runTask.Wait();
                     }
+                    catch (TestStepBreakException e)
+                    {
+                        TestPlan.Log.Info(e.Message);
+                        Step.Verdict = Verdict.Error;
+                    }
                     catch (Exception e)
                     {
                         if (e is ThreadAbortException || (e is OperationCanceledException && TapThread.Current.AbortToken.IsCancellationRequested) )
@@ -861,14 +872,14 @@ namespace OpenTap
                             if (TapThread.Current.AbortToken.IsCancellationRequested && Step.Verdict < Verdict.Aborted)
                                 Step.Verdict = Verdict.Aborted;
                             if (e.Message == new OperationCanceledException().Message)
-                                TestPlan.Log.Warning("Step '{0}' was canceled.", stepPath);
+                                TestPlan.Log.Warning("Step {0} was canceled.", stepPath);
                             else
-                                TestPlan.Log.Warning("Step '{0}' was canceled with message '{1}'.", stepPath, e.Message);
+                                TestPlan.Log.Warning("Step {0} was canceled with message '{1}'.", stepPath, e.Message);
                         }
                         else
                         {
                             Step.Verdict = Verdict.Error;
-                            TestPlan.Log.Error("{0} failed. The error was '{1}'.", stepPath, e.Message);
+                            TestPlan.Log.Error("Error running {0}: {1}.", stepPath, e.Message);
                         }
                         TestPlan.Log.Debug(e);
                     }
