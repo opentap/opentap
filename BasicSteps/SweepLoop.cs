@@ -911,6 +911,7 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 sweep = annotation.ParentAnnotation.Get<IObjectValueAnnotation>()?.Value as SweepLoop;
                 annotatedElements = null;
+                rowAnnotations.Clear();
             }
 
             public void Write(object source)
