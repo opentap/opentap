@@ -69,7 +69,7 @@ namespace OpenTap.Sdk.New
                 using (var http = new HttpClient())
                 {
                     var sw = Stopwatch.StartNew();
-                    var stringTask = http.GetAsync("https://api.nuget.org/v3/registration3/opentap/index.json");
+                    var stringTask = http.GetAsync("https://api.nuget.org/v3/registration4/opentap/index.json");
                     log.Info("Getting the latest OpenTAP Nuget package version. This can be changed in the project settings...");
                     while (!stringTask.Wait(1000, TapThread.Current.AbortToken))
                     {
