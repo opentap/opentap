@@ -82,7 +82,15 @@ namespace OpenTap.Engine.UnitTests
                 var line = log1Lines[i];
                 if (!log2Lines.Contains(line))
                 {
-                    Assert.Fail("unexpected log message.");
+                    Console.WriteLine($"First run logs:");
+                    foreach (var linez in log1Lines)
+                        Console.WriteLine($"- {linez}");
+
+                    Console.WriteLine($"Second run logs:");
+                    foreach (var linez in log2Lines)
+                        Console.WriteLine($"- {linez}");
+
+                    Assert.Fail($"Second run does not contain the following first run log message: {line}");
                 }
             }
         }
