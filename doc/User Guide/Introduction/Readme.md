@@ -1,7 +1,7 @@
 # Overview
 This section introduces essential OpenTAP terminology, concepts, and tools. It is intended to provide users with an
  understanding of OpenTAP and its ecosystem to get started. For a more technical description, see the [Developer
- Guide](../../Developer%20guide/Introduction). For a quick reference of CLI options, see the [comprehensive
+ Guide](../../Developer%20Guide/Introduction). For a quick reference of CLI options, see the [comprehensive
  reference](../CLI%20Reference).
 
 OpenTAP consists of multiple tools, including:
