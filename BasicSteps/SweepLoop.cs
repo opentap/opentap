@@ -717,6 +717,7 @@ namespace OpenTap.Plugins.BasicSteps
                     found.Add(existing);
                 }
                 sweepPrams.RemoveIf(x => found.Contains(x) == false);
+                (source as SweepLoop)?.sanitizeSweepParams(false);
                 otherMember.Read(source);
             }
 
@@ -817,6 +818,7 @@ namespace OpenTap.Plugins.BasicSteps
 
                     index += 1;
                 }
+                
             }
         }
 
@@ -900,7 +902,7 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 var sparams = sweep.SweepParameters;
                 SweepRow row;
-                if (index == -1)
+                if (index == -1 || index >= sweep.EnabledRows.Length)
                     row = new SweepRow(true, sparams.Select(x => x.Values.DefaultIfEmpty(x.DefaultValue).LastOrDefault()).ToArray());
                 else
                     row = new SweepRow(sweep.EnabledRows[index], sparams.Select(x => x.Values[index]).ToArray());
