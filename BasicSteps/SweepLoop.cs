@@ -869,8 +869,10 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 get
                 {
+                    
                     if (annotatedElements == null)
                     {
+                        if (sweep == null) return Enumerable.Empty<AnnotationCollection>();
                         List<AnnotationCollection> lst = new List<AnnotationCollection>();
                         for (int i = 0; i < sweep.EnabledRows.Length; i++)
                             lst.Add(annotateIndex(i));
@@ -883,7 +885,7 @@ namespace OpenTap.Plugins.BasicSteps
                 set => annotatedElements = value.ToArray();
             }
 
-            public string Value => $"Sweep rows: {sweep.EnabledRows.Length}";
+            public string Value => $"Sweep rows: {sweep?.EnabledRows.Length ?? 0}";
 
             public bool IsReadOnly => (annotation.Get<IObjectValueAnnotation>()?.Value as List<SweepParam>) == null;
 
