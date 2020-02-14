@@ -29,7 +29,7 @@ namespace OpenTap.Engine.UnitTests
 
             Assert.AreEqual(x.IndexWhen(y => y == 3), 2);
             int sum = 0;
-            x.Evaluate(y => sum += y);
+            x.ForEach(y => sum += y);
             Assert.AreEqual(sum, 10);
         }
 

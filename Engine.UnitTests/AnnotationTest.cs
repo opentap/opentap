@@ -24,5 +24,48 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(availStrings.Contains(step.GetFormattedName()));
             Assert.IsTrue(availStrings.Contains(testPlanReference.GetFormattedName()));
         }
+
+        public class ErrorMetadataDutResource : Dut
+        {
+            [MetaData(true)]
+            public double ErrorProperty { get; set; } = -5;
+
+            public ErrorMetadataDutResource()
+            {
+                this.Rules.Add(() => ErrorProperty > 0, "Error property must be > 0", nameof(ErrorProperty));
+            }
+        }
+        
+        [Test]
+        public void MetadataErrorAnnotation()
+        {
+            var p = new MetadataPromptObject() {Resources = new Dut[] {new ErrorMetadataDutResource()}};
+                
+            var test = AnnotationCollection.Annotate(p);
+            var forwarded = test.Get<IForwardedAnnotations>();
+            var member = forwarded.Forwarded.FirstOrDefault(x =>
+                x.Get<IMemberAnnotation>().Member.Name == nameof(ErrorMetadataDutResource.ErrorProperty));
+            
+            var error = member.GetAll<IErrorAnnotation>().SelectMany(x => x.Errors).ToArray();
+            Assert.AreEqual(1, error.Length);
+
+            void checkValue(string value, int errors)
+            {
+                member.Get<IStringValueAnnotation>().Value = value;
+                test.Write();
+                test.Read();
+
+                error = member.GetAll<IErrorAnnotation>().SelectMany(x => x.Errors).ToArray();
+                Assert.AreEqual(errors, error.Length);
+            }
+
+            for (int i = 0; i < 4; i++)
+            {
+                checkValue("2.0", 0); // no errors.
+                checkValue("-2.0", 1); // validation failed.
+                checkValue("invalid", 2); // validation failed + parse error.
+            }
+        }
+        
     }
 }
