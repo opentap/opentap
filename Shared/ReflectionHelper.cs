@@ -1039,7 +1039,7 @@ namespace OpenTap
         }
 
 
-        public static void Evaluate<T>(this IEnumerable<T> source, Action<T> func)
+        public static void ForEach<T>(this IEnumerable<T> source, Action<T> func)
         {
             foreach (var item in source) { func(item); }
         }

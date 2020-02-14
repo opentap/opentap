@@ -20,7 +20,7 @@ namespace OpenTap.Engine.UnitTests
     public class TestPlanCompositeRunTests : EngineTestBase
     {
         
-        private string[] filterLog(string allLog)
+        private string[] filterLog(string allLog, bool removeSpaces = false)
         {
             allLog = Regex.Replace(allLog, "[0-9]+", "0");
             allLog = Regex.Replace(allLog, "0 [mnuμ]s", "0 s");
@@ -36,6 +36,12 @@ namespace OpenTap.Engine.UnitTests
             allLines = allLines.Where(line => !line.Contains(": Session")).ToArray();
             allLines = allLines.Where(line => !line.Contains(" loaded from ")).ToArray();
             allLines = allLines.Where(line => !line.Contains("No settings file exists for ")).ToArray();
+
+            if (removeSpaces)
+            {
+                allLines = allLines.Select(line => line.Replace(" ", "")).ToArray();
+            }
+
             return allLines;
         }
 
@@ -76,13 +82,31 @@ namespace OpenTap.Engine.UnitTests
             string[] log1Lines = filterLog(allLog1);
             string[] log2Lines = filterLog(allLog2);
 
+            string[] log2LinesNoSpaces = filterLog(allLog2, true);
+
             Assert.AreEqual(log1Lines.Count() + 2, log2Lines.Count(), allLog1 + Environment.NewLine + "##########" + Environment.NewLine + allLog2);
             for (int i = 0; i < log1Lines.Length; i++)
             {
-                var line = log1Lines[i];
-                if (!log2Lines.Contains(line))
+                var line = log1Lines[i].Replace(" ", "");
+                if (!log2LinesNoSpaces.Contains(line)) // We compare lines with removed spaces to avoid flakyness in CI.
                 {
-                    Assert.Fail("unexpected log message.");
+                    // Print actual comparison data
+                    Console.WriteLine($"Could not find '{line}' in following logs:");
+                    foreach (var linez in log2LinesNoSpaces)
+                        Console.WriteLine($"{linez}");
+
+                    Console.WriteLine($"--------------- Printing logs without spaces removed ---------------");
+
+                    // Print log data without their spaces removed
+                    Console.WriteLine($"First run logs:");
+                    foreach (var linez in log1Lines)
+                        Console.WriteLine($"- {linez}");
+
+                    Console.WriteLine($"Second run logs:");
+                    foreach (var linez in log2Lines)
+                        Console.WriteLine($"- {linez}");
+
+                    Assert.Fail($"The logs from two testplan executions does not match...");
                 }
             }
         }

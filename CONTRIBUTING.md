@@ -7,7 +7,7 @@ This guide details how to contribute to OpenTAP in a way that is efficient for e
 ## Contributor license agreement
 
 OpenTAP requires contributors to sign a contribution license agreement (CLA). 
-You can find the CLA [here](http://opentap.io/docs/OpenTAP%20Contributor%20License%20Agreement%2020190515.pdf).
+You can find the CLA [here](https://www.opentap.io/docs/OpenTAP%20Contributor%20License%20Agreement%20v2.pdf).
 The CLA can be signed by an individual or a company. For companies, please add the company name and have a legal authorized representative endorsing the document.
 
 *  By submitting code as an individual you agree to the

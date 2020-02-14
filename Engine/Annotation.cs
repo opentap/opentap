@@ -2103,7 +2103,10 @@ namespace OpenTap
 
         }
 
-        class MetaDataPromptAnnotation : IForwardedAnnotations
+        /// <summary>
+        /// For annotating MetaDataPromptObjects. This is only used when running the test plan with AllowPromptMetaData enabled.
+        /// </summary>
+        class MetaDataPromptAnnotation : IForwardedAnnotations, IOwnedAnnotation
         {
             AnnotationCollection annotation;
             public MetaDataPromptAnnotation(AnnotationCollection annotation)
@@ -2111,10 +2114,14 @@ namespace OpenTap
                 this.annotation = annotation;
             }
 
+            IEnumerable<AnnotationCollection> forwarded;
+            
             public IEnumerable<AnnotationCollection> Forwarded
             {
                 get
                 {
+                    if (forwarded != null) return forwarded;
+                        
                     List<AnnotationCollection> metadataAnnotations = new List<AnnotationCollection>();
                     MetadataPromptObject obj = (MetadataPromptObject)annotation.Get<IObjectValueAnnotation>().Value;
                     var named = annotation.Get<INamedMembersAnnotation>();
@@ -2139,9 +2146,14 @@ namespace OpenTap
                             }
                         }
                     }
+
+                    forwarded = metadataAnnotations;
                     return metadataAnnotations;
                 }
             }
+
+            public void Read(object source) => forwarded?.ForEach(elem => elem.Read());
+            public void Write(object source) => forwarded?.ForEach(elem => elem.Write());
         }
         void IAnnotator.Annotate(AnnotationCollection annotation)
         {

@@ -10,7 +10,7 @@ using System.Runtime.CompilerServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("OpenTap")]
-[assembly: AssemblyDescription("The core part of the Test Automation on PathWave (TAP).")]
+[assembly: AssemblyDescription("OpenTAP - Test Automation Project")]
 
 // Setting ComVisible to false makes the types in this assembly not visible 
 // to COM components.  If you need to access a type in this assembly from 
