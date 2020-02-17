@@ -679,6 +679,13 @@ namespace OpenTap
         }
     }
 
+    /// <summary>
+    /// Marker interface that indicates that an IAnnotation does not support multi selecting. 
+    /// When multiselecting, the UI should not show properties annotated with this. 
+    /// </summary>
+    // Used by ManyToOneAnnotation
+    public interface IHideOnMultiSelectAnnotation : IAnnotation { }
+
     class ManyToOneAnnotation : IMembersAnnotation, IOwnedAnnotation
     {
         AnnotationCollection[] members;
@@ -712,6 +719,8 @@ namespace OpenTap
                     var dict = new Dictionary<string, AnnotationCollection>(x.Length);
                     foreach (var d in x)
                     {
+                        if (d.Get<IHideOnMultiSelectAnnotation>() != null)
+                            continue;
                         var mem = d.Get<IMemberAnnotation>()?.Member;
                         var key = mem.GetDisplayAttribute().GetFullName() + mem.TypeDescriptor.Name;
                         if (dict.ContainsKey(key) == false)
