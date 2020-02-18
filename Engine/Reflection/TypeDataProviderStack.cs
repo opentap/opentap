@@ -34,6 +34,8 @@ namespace OpenTap
         /// <returns>A representation of the type of the specified object or null if no providers can handle the specified type of object.</returns>
         public ITypeData GetTypeData(object obj)
         {
+            if (obj == null)
+                return null;
             while (offset < providers.Count)
             {
                 var provider = providers[offset];
@@ -73,6 +75,7 @@ namespace OpenTap
         /// <returns>A representation of the type specified by identifier or null if no providers can handle the specified identifier.</returns>
         public ITypeData GetTypeData(string identifier)
         {
+            if (identifier == null) return null;
             while (offset < providers.Count)
             {
                 var provider = providers[offset];

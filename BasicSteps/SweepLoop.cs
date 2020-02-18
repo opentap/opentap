@@ -558,7 +558,7 @@ namespace OpenTap.Plugins.BasicSteps
 
     public class BasicStepsAnnotator : IAnnotator
     {
-        class SweepParamsAnnotation : IMultiSelect, IAvailableValuesAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation
+        class SweepParamsAnnotation : IMultiSelect, IAvailableValuesAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation, IHideOnMultiSelectAnnotation
         {
             [Display("Select All")]
             class AllItems
@@ -717,6 +717,7 @@ namespace OpenTap.Plugins.BasicSteps
                     found.Add(existing);
                 }
                 sweepPrams.RemoveIf(x => found.Contains(x) == false);
+                (source as SweepLoop)?.sanitizeSweepParams(false);
                 otherMember.Read(source);
             }
 
@@ -817,11 +818,12 @@ namespace OpenTap.Plugins.BasicSteps
 
                     index += 1;
                 }
+                
             }
         }
 
-        class SweepParamsAggregation : ICollectionAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation, IAccessAnnotation
-        {
+        class SweepParamsAggregation : ICollectionAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation, IAccessAnnotation, IHideOnMultiSelectAnnotation
+        { 
             
             AnnotationCollection annotation;
             public SweepParamsAggregation(AnnotationCollection annotation)
@@ -869,8 +871,10 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 get
                 {
+                    
                     if (annotatedElements == null)
                     {
+                        if (sweep == null) return Enumerable.Empty<AnnotationCollection>();
                         List<AnnotationCollection> lst = new List<AnnotationCollection>();
                         for (int i = 0; i < sweep.EnabledRows.Length; i++)
                             lst.Add(annotateIndex(i));
@@ -883,7 +887,7 @@ namespace OpenTap.Plugins.BasicSteps
                 set => annotatedElements = value.ToArray();
             }
 
-            public string Value => $"Sweep rows: {sweep.EnabledRows.Length}";
+            public string Value => $"Sweep rows: {sweep?.EnabledRows.Length ?? 0}";
 
             public bool IsReadOnly => (annotation.Get<IObjectValueAnnotation>()?.Value as List<SweepParam>) == null;
 
@@ -898,7 +902,7 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 var sparams = sweep.SweepParameters;
                 SweepRow row;
-                if (index == -1)
+                if (index == -1 || index >= sweep.EnabledRows.Length)
                     row = new SweepRow(true, sparams.Select(x => x.Values.DefaultIfEmpty(x.DefaultValue).LastOrDefault()).ToArray());
                 else
                     row = new SweepRow(sweep.EnabledRows[index], sparams.Select(x => x.Values[index]).ToArray());
@@ -943,7 +947,7 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
 
-        class SweepRangeMembersAnnotation : IMultiSelect, IAvailableValuesAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation, IAccessAnnotation
+        class SweepRangeMembersAnnotation : IMultiSelect, IAvailableValuesAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation, IAccessAnnotation, IHideOnMultiSelectAnnotation
         {
             object[] selectedValues = Array.Empty<object>();
 
