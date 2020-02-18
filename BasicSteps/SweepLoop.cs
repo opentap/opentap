@@ -558,7 +558,7 @@ namespace OpenTap.Plugins.BasicSteps
 
     public class BasicStepsAnnotator : IAnnotator
     {
-        class SweepParamsAnnotation : IMultiSelect, IAvailableValuesAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation
+        class SweepParamsAnnotation : IMultiSelect, IAvailableValuesAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation, IHideOnMultiSelectAnnotation
         {
             [Display("Select All")]
             class AllItems
@@ -822,8 +822,8 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
 
-        class SweepParamsAggregation : ICollectionAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation, IAccessAnnotation
-        {
+        class SweepParamsAggregation : ICollectionAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation, IAccessAnnotation, IHideOnMultiSelectAnnotation
+        { 
             
             AnnotationCollection annotation;
             public SweepParamsAggregation(AnnotationCollection annotation)
@@ -947,7 +947,7 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
 
-        class SweepRangeMembersAnnotation : IMultiSelect, IAvailableValuesAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation, IAccessAnnotation
+        class SweepRangeMembersAnnotation : IMultiSelect, IAvailableValuesAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation, IAccessAnnotation, IHideOnMultiSelectAnnotation
         {
             object[] selectedValues = Array.Empty<object>();
 
