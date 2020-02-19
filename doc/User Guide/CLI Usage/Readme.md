@@ -185,9 +185,9 @@ The `run` commands executes a test plan.
 Step settings can be marked as "External". This means they can be set from the CLI, or from a file. This makes it
 possible to reuse the same test plan for a variety of tests.
 
-To see what external steps a test plan contains, try
+To see what external parameters a test plan contains, try
 
-> `tap run My.TapPlan --list-external`
+> `tap run My.TapPlan --list-external-parameters`
 
 If `--list-external-parameters` outputs:
 ```
@@ -214,5 +214,5 @@ Let's call the file "values.csv". You can then load these values into the extern
 
 ### Metadata
 
-Analogous to external settings, resources settings can be marked as "Metadata". This could be the address of a DUT, for
+Analogous to external settings, resources settings can be marked as "Metadata". This could be the serial number of a DUT, for
 instance. Set this with `tap run My.TapPlan --metadata dut1=123 --metadata dut2=456`.
