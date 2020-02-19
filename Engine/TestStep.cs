@@ -620,7 +620,12 @@ namespace OpenTap
                             i = stepidx - 1;
                         // if skip to next step, dont add it to the wait queue.
                     }
-                    run.CheckBreakCondition();
+                    if (run.IsBreakCondition())
+                    {
+                        Step.UpgradeVerdict(Verdict.Error);
+                        run.ThrowDueToBreakConditions();
+                    }
+                    
                     TapThread.ThrowIfAborted();
                 }
             }
@@ -686,17 +691,17 @@ namespace OpenTap
         public static TestStepRun RunChildStep(this ITestStep Step, ITestStep childStep, bool throwOnError, TestPlanRun currentPlanRun, TestStepRun currentStepRun, IEnumerable<ResultParameter> attachedParameters = null)
         {
             if (childStep == null)
-                throw new ArgumentNullException("childStep");
+                throw new ArgumentNullException(nameof(childStep));
             if (currentPlanRun == null)
-                throw new ArgumentNullException("currentPlanRun");
+                throw new ArgumentNullException(nameof(currentPlanRun));
             if (currentStepRun == null)
-                throw new ArgumentNullException("currentStepRun");
+                throw new ArgumentNullException(nameof(currentStepRun));
             if (Step.StepRun == null)
                 throw new Exception("Can only run child step during own step run.");
             if(childStep.Parent != Step)
-                throw new ArgumentException("childStep must be a child step of Step", "childStep");
+                throw new ArgumentException("childStep must be a child step of Step", nameof(childStep));
             if(childStep.Enabled == false)
-                throw new ArgumentException("childStep must be enabled.", "childStep");
+                throw new ArgumentException("childStep must be enabled.", nameof(childStep));
 
             var run = childStep.DoRun(currentPlanRun, currentStepRun, attachedParameters);
 
@@ -705,19 +710,22 @@ namespace OpenTap
                 step.Results.Defer(() =>
                 {
                     run.WaitForCompletion();
-                    if (run.Verdict > Step.Verdict)
-                        Step.Verdict = run.Verdict;
+                    Step.UpgradeVerdict(run.Verdict);
                 });
             }
             else
             {
                 if(run.WasDeferred)
                     run.WaitForCompletion();
-                if (run.Verdict > Step.Verdict)
-                    Step.Verdict = run.Verdict;
+                Step.UpgradeVerdict(run.Verdict);
             }
-            if(throwOnError)
-                run.CheckBreakCondition();
+
+            if (run.IsBreakCondition())
+            {
+                Step.UpgradeVerdict(Verdict.Error);
+                if (throwOnError)
+                    run.ThrowDueToBreakConditions();
+            }
 
             return run;
         }
@@ -745,6 +753,11 @@ namespace OpenTap
             return sb.ToString();
         }
 
+        internal static void UpgradeVerdict(this ITestStep step, Verdict newVerdict)
+        {
+            if (step.Verdict < newVerdict)
+                step.Verdict = newVerdict;
+        }
 
         
         internal static TestStepRun DoRun(this ITestStep Step, TestPlanRun planRun, TestRun parentRun, IEnumerable<ResultParameter> attachedParameters = null)
