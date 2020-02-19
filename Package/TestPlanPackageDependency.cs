@@ -143,30 +143,26 @@ namespace OpenTap.Package
 
         static string getAssemblyName(ITypeData _x)
         {
-            Type x = null;
-            if (_x is TypeData xx)
-                x = xx.Type as Type;
-            // if this is a custom ITypeData implementation, check if that implementation exposes a real TypeData that it wraps in the BaseType property.
-            // This is the case for BreakConditionTypeDataProvider+TestStepTypeData
-            else if (_x.BaseType is TypeData xx2)
+            var asm = _x.AsTypeData()?.Type?.Assembly;
 
-                x = xx2.Type as Type;
-            else
-                Log.Warning("Unable to find source of type {0}. No package dependency will be recorded for this type in the xml file.",_x.Name);
-
-            if (x != null && x.Assembly != null && x.Assembly.IsDynamic == false)
+            if (asm == null)
             {
-                try
-                {
-                    // this can throw an exception, for example if the assembly is dynamic.
-                    return Path.GetFileName(x.Assembly.Location.Replace("\\", "/"));
-                }
-                catch
-                {
-
-                }
+                Log.Warning("Unable to find source of type {0}. No package dependency will be recorded for this type in the xml file.", _x.Name);
+                return null;
             }
-            return null;
+
+            // dynamic or assemblies loaded from bytes cannot be located.
+            if (asm.IsDynamic || string.IsNullOrWhiteSpace(asm.Location))
+                return null;
+
+            try
+            {
+                return Path.GetFileName(asm.Location.Replace("\\", "/"));
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         XElement endnode;
