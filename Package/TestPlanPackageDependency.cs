@@ -143,19 +143,26 @@ namespace OpenTap.Package
 
         static string getAssemblyName(ITypeData _x)
         {
-            if(_x is TypeData xx && xx.Type is Type x && x.Assembly != null && x.Assembly.IsDynamic == false)
-            {
-                try
-                {
-                    // this can throw an exception, for example if the assembly is dynamic.
-                    return Path.GetFileName(x.Assembly.Location.Replace("\\", "/"));
-                }
-                catch
-                {
+            var asm = _x.AsTypeData()?.Type?.Assembly;
 
-                }
+            if (asm == null)
+            {
+                Log.Warning("Unable to find source of type {0}. No package dependency will be recorded for this type in the xml file.", _x.Name);
+                return null;
             }
-            return null;
+
+            // dynamic or assemblies loaded from bytes cannot be located.
+            if (asm.IsDynamic || string.IsNullOrWhiteSpace(asm.Location))
+                return null;
+
+            try
+            {
+                return Path.GetFileName(asm.Location.Replace("\\", "/"));
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         XElement endnode;
@@ -170,8 +177,8 @@ namespace OpenTap.Package
                 {
                     var pluginsNode = new XElement(PackageDependenciesName);
                     var allAssemblies = Serializer.GetUsedTypes().Select(getAssemblyName).Where(x => x != null).ToHashSet(StringComparer.InvariantCultureIgnoreCase);
-                    var plugins = new Installation(Path.GetDirectoryName(Assembly.GetAssembly(typeof(PluginManager)).Location)).GetPackages();
-
+                    var plugins = new Installation(Path.GetDirectoryName(PluginManager.GetOpenTapAssembly().Location)).GetPackages();
+                    
                     List<PackageDef> packages = new List<PackageDef>();
 
                     foreach (var plugin in plugins)
