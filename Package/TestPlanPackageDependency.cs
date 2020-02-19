@@ -143,7 +143,18 @@ namespace OpenTap.Package
 
         static string getAssemblyName(ITypeData _x)
         {
-            if(_x is TypeData xx && xx.Type is Type x && x.Assembly != null && x.Assembly.IsDynamic == false)
+            Type x = null;
+            if (_x is TypeData xx)
+                x = xx.Type as Type;
+            // if this is a custom ITypeData implementation, check if that implementation exposes a real TypeData that it wraps in the BaseType property.
+            // This is the case for BreakConditionTypeDataProvider+TestStepTypeData
+            else if (_x.BaseType is TypeData xx2)
+
+                x = xx2.Type as Type;
+            else
+                Log.Warning("Unable to find source of type {0}. No package dependency will be recorded for this type in the xml file.",_x.Name);
+
+            if (x != null && x.Assembly != null && x.Assembly.IsDynamic == false)
             {
                 try
                 {
@@ -170,8 +181,8 @@ namespace OpenTap.Package
                 {
                     var pluginsNode = new XElement(PackageDependenciesName);
                     var allAssemblies = Serializer.GetUsedTypes().Select(getAssemblyName).Where(x => x != null).ToHashSet(StringComparer.InvariantCultureIgnoreCase);
-                    var plugins = new Installation(Path.GetDirectoryName(Assembly.GetAssembly(typeof(PluginManager)).Location)).GetPackages();
-
+                    var plugins = new Installation(Path.GetDirectoryName(PluginManager.GetOpenTapAssembly().Location)).GetPackages();
+                    
                     List<PackageDef> packages = new List<PackageDef>();
 
                     foreach (var plugin in plugins)
