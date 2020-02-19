@@ -383,7 +383,7 @@ namespace OpenTap
             if (Object.Equals(type, expectedType) == false && type != null)
                 elem.SetAttributeValue("type", type.Name);
             else if (expectedType != null)
-                NotifyTypeUsed(type);
+                NotifyTypeUsed(expectedType);
 
             foreach (var serializer in serializers)
             {

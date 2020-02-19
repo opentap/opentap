@@ -462,6 +462,15 @@ namespace OpenTap
             if (p == null) return null;
             return new InternalMemberData(p);
         }
+        
+        /// <summary> Get the base C# type of a given type. </summary>
+        internal static TypeData AsTypeData(this ITypeData type)
+        {
+            for(;type != null; type = type.BaseType)
+                if (type is TypeData td)
+                    return td;
+            return null;
+        }
     }
     
     internal class InternalMemberData

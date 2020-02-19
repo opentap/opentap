@@ -36,7 +36,6 @@ namespace OpenTap.Plugins.BasicSteps
             var sw = System.Diagnostics.Stopwatch.StartNew();
             SemaphoreSlim sem = new SemaphoreSlim(0);
             SemaphoreSlim semStarted = new SemaphoreSlim(0);
-            Exception ex = null;
             TapThread thread = TapThread.Start(() =>
             {
                 semStarted.Release();
@@ -44,15 +43,14 @@ namespace OpenTap.Plugins.BasicSteps
                 {
                     RunChildSteps();
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
-                    ex = e;
+                    
                 }
                 finally
                 {
                     sem.Release();
                 }
-                    
             });
 
             bool timedOut = false;
@@ -85,8 +83,6 @@ namespace OpenTap.Plugins.BasicSteps
 
             if (timedOut)
                 Verdict = TimeoutVerdict;
-            else if (ex != null) 
-                throw ex;
         }
     }
 }
