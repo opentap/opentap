@@ -126,6 +126,16 @@ namespace OpenTap.Package
                 if (repositoryDir == null)
                     throw new ArgumentException("Directory is not a git repository.", "repositoryDir");
             }
+
+            // on linux, we are not sure which libgit to load at package time.
+            // so at this moment we need to check which version we are on
+            // and move the file to a position that is checked.
+            if (OperatingSystem.Current == OperatingSystem.Linux && File.Exists("libgit2-4aecb64.so") == false)
+            {
+                if (LinuxVariant.Current != LinuxVariant.Unknown)
+                    File.Copy("x64/libgit2-4aecb64.so." + LinuxVariant.Current.Name , "libgit2-4aecb64.so");
+            }
+
             repo = new LibGit2Sharp.Repository(repositoryDir);
         }
 

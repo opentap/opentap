@@ -9,6 +9,9 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="PackageSchema.xsd" />
+    <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/1.0.252/runtimes/ubuntu.18.04-x64/native/libgit2-4aecb64.so" CopyToOutputDirectory="PreserveNewest" Link="x64/libgit2-4aecb64.so.ubuntu"/>
+    <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/1.0.252/runtimes/rhel-x64/native/libgit2-4aecb64.so" CopyToOutputDirectory="PreserveNewest" Link="x64/libgit2-4aecb64.so.rehl"/>
+    <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/1.0.252/runtimes/linux-x64/native/libgit2-4aecb64.so" CopyToOutputDirectory="PreserveNewest" Link="x64/libgit2-4aecb64.so.linux-x64"/>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="DotNet.Glob" Version="3.0.1" />

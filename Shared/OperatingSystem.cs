@@ -52,4 +52,58 @@ namespace OpenTap
             }
         }
     }
+
+    /// <summary> Detection of the specific linux variant. </summary>
+    class LinuxVariant
+    {
+        public string Name { get; }
+        public static readonly LinuxVariant Ubuntu = new LinuxVariant("ubuntu");
+        public static readonly LinuxVariant RedHat = new LinuxVariant("redhat");
+        public static readonly LinuxVariant Unknown = new LinuxVariant("linux-x64");
+
+        static LinuxVariant()
+        {
+            if (OperatingSystem.Current == OperatingSystem.Linux)
+            {
+                var os_release_file = new FileInfo("/etc/os-release");
+                if (os_release_file.Exists)
+                {
+                    Current = Unknown;
+                    using (var str = new StreamReader(os_release_file.OpenRead()))
+                    {
+                        
+                        string line;
+                        while ((line = str.ReadLine()) != null)
+                        {
+                            if(line.Contains("NAME=\"Ubuntu\""))
+                            {
+                                Current = Ubuntu;
+                                return;
+                            }
+                            
+                            if (line.Contains("NAME=\"Red Hat"))
+                            {
+                                Current = RedHat;
+                                return;
+                            }
+
+                            if (line.Contains("NAME=\"CentOS Linux\""))
+                            {
+                                // pretend CentOS is Red Hat for simplicity.
+                                Current = RedHat;
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        
+        public static LinuxVariant Current { get; }
+
+        public LinuxVariant(string name) => Name = name;
+
+    }
+    
 }

@@ -38,7 +38,9 @@
     
 
     <File Path="LibGit2Sharp.dll"  />
-    <File Path="libgit2-4aecb64.so"  />
+    <File Path="x64/libgit2-4aecb64.so.linux-x64"  />
+    <File Path="x64/libgit2-4aecb64.so.rehl"  />
+    <File Path="x64/libgit2-4aecb64.so.ubuntu"  />
     <File Path="libclrjit.so"  />
     <File Path="libcoreclr.so"  />
     <File Path="libcoreclrtraceptprovider.so"  />
