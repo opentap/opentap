@@ -186,7 +186,7 @@ TestPackage:
 
 TestUbuntu:
   stage: test
-  image: microsoft/dotnet:2.1-sdk-stretch
+  image: mcr.microsoft.com/dotnet/core/sdk:2.1-bionic
   extends: .LinuxScript
 
 TestCentos7:
