@@ -426,7 +426,7 @@ Installer-Linux:
 
 Package-Build-Deb:
   stage: installer
-  image: opentapio/opentap:9.5-ubuntu18.04
+  image: mcr.microsoft.com/dotnet/core/sdk:2.1-bionic
   tags: [ docker, gce ]
   dependencies:
     - Package-Linux
