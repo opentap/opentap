@@ -121,7 +121,7 @@ namespace OpenTap.Package
             // and move the file to a position that is checked.
             string libgit2name = "libgit2-4aecb64";
             IEnumerable<FileInfo> libgit2files = new[] {"ubuntu", "redhat", "linux-x64"}
-                .Select(x => Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.so.{x}")).Select(x => new FileInfo(x));
+                .Select(x => Path.Combine(PathUtils.OpenTapDir, "x64", $"{libgit2name}.so.{x}")).Select(x => new FileInfo(x));
             var requiredFile = Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.so");
             if (File.Exists(requiredFile) == false)
             {
