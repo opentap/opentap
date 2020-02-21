@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System;
 using System.IO;
 using System.Globalization;
+using Tap.Shared;
 
 namespace OpenTap.Package
 {
@@ -113,6 +114,22 @@ namespace OpenTap.Package
             }
         }
 
+        void linuxEnsureLibgit2Present()
+        {
+            // on linux, we are not sure which libgit to load at package time.
+            // so at this moment we need to check which version we are on
+            // and move the file to a position that is checked.
+            string libgit2name = "libgit2-4aecb64";
+            IEnumerable<FileInfo> libgit2files = new[] {"ubuntu", "redhat", "linux-x64"}
+                .Select(x => Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.so.{x}")).Select(x => new FileInfo(x));
+            var requiredFile = Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.so");
+            if (File.Exists(requiredFile) == false)
+            {
+                var file = libgit2files.FirstOrDefault(x => x.Name.EndsWith(LinuxVariant.Current.Name));
+                file?.CopyTo(requiredFile);
+            }
+        }
+
         /// <summary>
         /// Instanciates a new <see cref="GitVersionCalulator"/> to work on a specified git repository.
         /// </summary>
@@ -127,16 +144,10 @@ namespace OpenTap.Package
                     throw new ArgumentException("Directory is not a git repository.", "repositoryDir");
             }
 
-            // on linux, we are not sure which libgit to load at package time.
-            // so at this moment we need to check which version we are on
-            // and move the file to a position that is checked.
-            if (OperatingSystem.Current == OperatingSystem.Linux && File.Exists("libgit2-4aecb64.so") == false)
-            {
-                if (LinuxVariant.Current != LinuxVariant.Unknown)
-                    File.Copy("x64/libgit2-4aecb64.so." + LinuxVariant.Current.Name , "libgit2-4aecb64.so");
-            }
+            if (OperatingSystem.Current == OperatingSystem.Linux)
+                linuxEnsureLibgit2Present();
 
-            repo = new LibGit2Sharp.Repository(repositoryDir);
+            repo = new Repository(repositoryDir);
         }
 
         public void Dispose()
