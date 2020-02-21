@@ -123,10 +123,15 @@ namespace OpenTap.Package
             IEnumerable<FileInfo> libgit2files = new[] {"ubuntu", "redhat", "linux-x64"}
                 .Select(x => Path.Combine(PathUtils.OpenTapDir, "x64", $"{libgit2name}.so.{x}")).Select(x => new FileInfo(x));
             var requiredFile = Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.so");
-            if (File.Exists(requiredFile) == false)
+
+            var file = libgit2files.FirstOrDefault(x => x.Name.EndsWith(LinuxVariant.Current.Name));
+            try
             {
-                var file = libgit2files.FirstOrDefault(x => x.Name.EndsWith(LinuxVariant.Current.Name));
-                file?.CopyTo(requiredFile);
+                file?.CopyTo(requiredFile, true);
+            }
+            catch
+            {
+                
             }
         }
 
