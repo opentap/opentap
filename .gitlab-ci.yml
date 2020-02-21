@@ -180,8 +180,9 @@ TestPackage:
         - echo "./tap run -v TestTestPlans/testMultiReferencePlan.TapPlan; if [ \$? -eq 20 ]; then echo \"OK\"; else false; fi" >./run_ubuntu_test.sh
         - chmod +x ./run_ubuntu_test.sh
         - bash run_ubuntu_test.sh
+        - ldconfig -p
         - cd ..
-        - publish/tap sdk gitversion # verify that gitversion works.
+        - publish/tap sdk gitversion --verbose # verify that gitversion works.
 
 TestUbuntu:
   stage: test
