@@ -436,6 +436,8 @@ Package-Build-Deb:
     - pushd LinuxInstall/package
     - mv ../../OpenTAP*.TapPackage OpenTAP.TapPackage
     - pushd Debian
+    - apt update
+    - apt install unzip -y
     - bash create-deb
     - popd
     - mv OpenTAP.deb ../../OpenTAP.deb
