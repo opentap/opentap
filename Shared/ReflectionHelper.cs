@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 using System.IO.MemoryMappedFiles;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 
 //**** WARNING ****//
@@ -1432,6 +1433,44 @@ namespace OpenTap
                 col[i] = col[j];
                 col[j] = a;
             }
+        }
+
+        public static string EnumToReadableString(Enum value)
+        {
+            if (value == null) return null;
+            var enumType = value.GetType();
+            var mem = enumType.GetMember(value.ToString()).FirstOrDefault();
+            if (mem != null) return mem.GetDisplayAttribute().Name;
+            if (false == enumType.HasAttribute<FlagsAttribute>())
+                return value.ToString();
+            
+            // Normally happens when 'value' is a combination of multiple flags.
+            var flags = Enum.GetValues(enumType);
+            var sb = new StringBuilder();
+
+            bool first = true;
+            foreach (Enum flag in flags)
+            {
+                if (value.HasFlag(flag))
+                {
+                    if (!first)
+                        sb.Append(" | ");
+                    else
+                        first = false;
+                    sb.Append(EnumToReadableString(flag));
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        public static string EnumToDescription(Enum value)
+        {
+            if (value == null) return null;
+            var enumType = value.GetType();
+            var mem = enumType.GetMember(value.ToString()).FirstOrDefault();
+            // if member is null, fall back to the readable enum string (or description is null)
+            return mem?.GetDisplayAttribute().Description ?? EnumToReadableString(value);
         }
     }
 

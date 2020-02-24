@@ -1139,68 +1139,6 @@ namespace OpenTap
         class EnumStringAnnotation : IStringValueAnnotation, IValueDescriptionAnnotation
         {
 
-            string enumToString(Enum value)
-            {
-                if (value == null) return null;
-                var mem = enumType.GetMember(value.ToString()).FirstOrDefault();
-
-                if (mem == null)
-                {
-                    if (enumType.HasAttribute<FlagsAttribute>())
-                    {
-                        var flags = Enum.GetValues(enumType);
-                        StringBuilder sb = new StringBuilder();
-
-                        bool first = true;
-                        foreach (Enum flag in flags)
-                        {
-                            if (value.HasFlag(flag))
-                            {
-                                if (!first)
-                                    sb.Append(" | ");
-                                else
-                                    first = false;
-                                sb.Append(enumToString(flag));
-                            }
-                        }
-                        return sb.ToString();
-                    }
-                    return value.ToString();
-                }
-                return mem.GetDisplayAttribute().Name;
-            }
-            
-            string enumToDescription(Enum value)
-            {
-                if (value == null) return null;
-                var mem = enumType.GetMember(value.ToString()).FirstOrDefault();
-
-                if (mem == null)
-                {
-                    if (enumType.HasAttribute<FlagsAttribute>())
-                    {
-                        var flags = Enum.GetValues(enumType);
-                        StringBuilder sb = new StringBuilder();
-
-                        bool first = true;
-                        foreach (Enum flag in flags)
-                        {
-                            if (value.HasFlag(flag))
-                            {
-                                if (!first)
-                                    sb.Append(" | ");
-                                else
-                                    first = false;
-                                sb.Append(enumToString(flag));
-                            }
-                        }
-                        return sb.ToString();
-                    }
-                    return value.ToString();
-                }
-                return mem.GetDisplayAttribute().Description;
-            }
-
             Enum evalue
             {
                 get => a.Get<IObjectValueAnnotation>()?.Value as Enum;
@@ -1209,14 +1147,14 @@ namespace OpenTap
 
             public string Value
             {
-                get => enumToString(evalue);
+                get => Utils.EnumToReadableString(evalue);
                 set {
                     var values = Enum.GetValues(enumType).Cast<Enum>();
 
-                    var newvalue = values.FirstOrDefault(x => enumToString(x) == value);
+                    var newvalue = values.FirstOrDefault(x => Utils.EnumToReadableString(x) == value);
                     if (newvalue == null)
                     {
-                        newvalue = values.FirstOrDefault(x => enumToString(x).ToLower() == value.ToLower());
+                        newvalue = values.FirstOrDefault(x => Utils.EnumToReadableString(x).ToLower() == value.ToLower());
                     }
                     if (newvalue != null)
                         evalue = newvalue;
@@ -1236,8 +1174,7 @@ namespace OpenTap
             public string Describe()
             {
                 if (evalue is Enum e)
-                    return enumToDescription(e);
-
+                    return Utils.EnumToDescription(e);
                 return null;
             }
         }

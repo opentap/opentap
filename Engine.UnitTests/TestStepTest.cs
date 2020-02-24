@@ -482,6 +482,14 @@ namespace OpenTap.Engine.UnitTests
         }
         
         [Test]
+        public void TestNameFormat3()
+        {
+            var step = new VerdictStep() {Name = "Delay: {Resulting Verdict}", VerdictOutput =  Verdict.NotSet};
+            var fmt = step.GetFormattedName();
+            Assert.AreEqual("Delay: Not Set", fmt); 
+        }
+        
+        [Test]
         public void ContinueLoop()
         {
             var sequence = new SequenceStep();

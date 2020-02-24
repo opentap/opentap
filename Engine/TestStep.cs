@@ -1132,6 +1132,8 @@ namespace OpenTap
                             valueString = string.Join(System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NumberGroupSeparator + " ", ((IEnumerable)value).Cast<object>().Select(o => o ?? "NULL"));
                         }
                     }
+                    else if (value is Enum e)
+                        valueString = Utils.EnumToReadableString(e);
                     else
                     {
                         valueString = value.ToString();
