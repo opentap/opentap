@@ -228,9 +228,9 @@ namespace OpenTap
     /// </summary>
     public class ReadOnlyMemberAnnotation : IAccessAnnotation
     {
-        /// <summary> Allways returns true.</summary>
+        /// <summary> Always returns true.</summary>
         public bool IsReadOnly => true;
-        /// <summary> Allways returns true.</summary>
+        /// <summary> Always returns true.</summary>
         public bool IsVisible => true;
     }
 
@@ -2354,16 +2354,23 @@ namespace OpenTap
                     }
                 }
                 
-                if (mem.Member.TypeDescriptor.DescendsTo(typeof(IInput)))
+                if (mem?.Member is MemberData mem2 && mem2.DeclaringType.DescendsTo(typeof(ITestStep)))
                 {
-                    annotation.Add(new InputStepAnnotation(annotation));
-                }
-            }
 
-                if (reflect?.ReflectionInfo is ITypeData tp)
+                    if (mem2.Name == nameof(ITestStep.Name))
+                        annotation.Add(new StepNameStringValue(annotation, member: true));
+                    
+                    if (mem.Member.TypeDescriptor.DescendsTo(typeof(IInput)))
+                        annotation.Add(new InputStepAnnotation(annotation));
+                }
+                
+            }
+            
+
+            if (reflect?.ReflectionInfo is ITypeData tp)
             {
                 if (tp.DescendsTo(typeof(ITestStep)))
-                    annotation.Add(new StepNameStringValue(annotation, member: mem != null && mem.ReflectionInfo == tp));
+                    annotation.Add(new StepNameStringValue(annotation, member: false));
                 
                 bool csharpPrimitive = tp is TypeData cst && (cst.Type.IsPrimitive || cst.Type == typeof(string));
                 if (tp.GetMembers().Any() && !csharpPrimitive)
