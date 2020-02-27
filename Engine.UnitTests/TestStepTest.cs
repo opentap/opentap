@@ -207,6 +207,22 @@ namespace OpenTap.Engine.UnitTests
 
     public class DummyDut : Dut
     {
+        [MetaData]
+        [Browsable(false)]
+        public string Serial { get; set; }
+
+        public override void Open()
+        {
+            base.Open();
+            Serial = SerialNumber;
+        } 
+        public override void Close()
+        {
+            base.Close();
+            Serial = null;
+        }
+
+        public static string SerialNumber = "123456";
 
     }
 

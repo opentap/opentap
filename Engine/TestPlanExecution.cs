@@ -113,7 +113,23 @@ namespace OpenTap
                 {
                     using (TimeoutOperation.Create(() => PrintWaitingMessage(new List<IResource>() { resultListener })))
                         execStage.ResourceManager.WaitUntilResourcesOpened(TapThread.Current.AbortToken, resultListener);
+                    try
+                    {
+                        // some resources might set metadata in the Open methods.
+                        // this information needs to be propagated to result listeners as well.
+                        // this returns quickly if its a lazy resource manager.
+                        using (TimeoutOperation.Create(
+                            () => PrintWaitingMessage(new List<IResource>() {resultListener})))
+                            execStage.ResourceManager.WaitUntilAllResourcesOpened(TapThread.Current.AbortToken);
+                    }
+                    catch // this error will also be handled somewhere else.
+                    {
+                        
+                    }
+
                     execStage.WaitForSerialization();
+                    foreach(var res in execStage.PromptedResources)
+                        execStage.Parameters.AddRange(ResultParameters.GetMetadataFromObject(res));
                     resultListener.OnTestPlanRunStart(execStage);
                 }
                 catch (OperationCanceledException) when(execStage.MainThread.AbortToken.IsCancellationRequested)
@@ -348,6 +364,7 @@ namespace OpenTap
                     {
                         try
                         {
+                            planRun.PromptedResources = (IResource[]) resources;
                             var obj = new MetadataPromptObject { Resources = resources };
                             UserInput.Request(obj, false);
                             if (obj.Response == MetadataPromptObject.PromptResponse.Abort)

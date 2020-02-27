@@ -1260,8 +1260,13 @@ namespace OpenTap.Engine.UnitTests
         class PlatformCheckResultListener : ResultListener
         {
             public bool TestPlanRunStarted;
+            public string CommentWas;
+            public string SerialWas;
+            
             public override void OnTestPlanRunStart(TestPlanRun planRun)
             {
+                CommentWas = planRun.Parameters["Comment"]?.ToString();
+                SerialWas = planRun.Parameters["Serial"]?.ToString();
                 TestPlanRunStarted = true;
                 base.OnTestPlanRunStart(planRun);
             }
@@ -1284,6 +1289,7 @@ namespace OpenTap.Engine.UnitTests
         {
             // things needs to happen in the right order.
             // PlatformInteraction should happen before anything on the ResultListener is called, except Open/Close.
+            string expectedComment = "Some comment";
             var listener = new PlatformCheckResultListener();
             int requestCount = 0;
             bool failure = false;
@@ -1295,7 +1301,7 @@ namespace OpenTap.Engine.UnitTests
                 var mpo = obj as MetadataPromptObject;
                 foreach(var dut in mpo.Resources.OfType<DummyDut>())
                 {
-                    dut.Comment = "Some comment";
+                    dut.Comment = expectedComment;
                 }
                 requestCount += 1;
             }
@@ -1346,6 +1352,9 @@ namespace OpenTap.Engine.UnitTests
 
             Assert.IsFalse(failure);
             Assert.AreEqual(1, requestCount);
+            Assert.AreEqual(expectedComment, listener.CommentWas);
+            if(!lazy)
+                Assert.AreEqual(DummyDut.SerialNumber, listener.SerialWas);
         }
 
         [Test]
