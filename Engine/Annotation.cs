@@ -1524,7 +1524,7 @@ namespace OpenTap
                 }
             }
 
-            public string Value => string.Format("Count: {0}", Elements.Cast<object>().Count());
+            public string Value => string.Format("Count: {0}", Elements?.Cast<object>().Count() ?? 0);
 
             AnnotationCollection fac;
             public GenericSequenceAnnotation(AnnotationCollection fac)
