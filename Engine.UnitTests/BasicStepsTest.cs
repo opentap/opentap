@@ -78,5 +78,34 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual(1, step.Iterations);
             }
         }
+        
+        
+        // These two cases are technically equivalent.
+        [Test]
+        [TestCase(Verdict.Error, RepeatStep.RepeatStepAction.While)]
+        [TestCase(Verdict.Pass, RepeatStep.RepeatStepAction.Until)]
+        public void RepeatWhileError(Verdict targetVerdict, RepeatStep.RepeatStepAction action)
+        {
+            var step = new PassThirdTime();
+            BreakConditionProperty.SetBreakCondition(step, BreakCondition.BreakOnFail);
+            
+            var rpt = new RepeatStep()
+            {
+                Action =  action,
+                TargetVerdict = targetVerdict,
+                Retry = true
+            };
+            rpt.TargetStep = rpt; // target self. The Repeat Loop will inherit the verdict.
+            rpt.ChildTestSteps.Add(step);
+
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(rpt);
+
+            var run = plan.Execute();
+
+            Assert.AreEqual(Verdict.Pass, run.Verdict); 
+            Assert.AreEqual(3, step.Iterations);
+        }
+        
     }
 }

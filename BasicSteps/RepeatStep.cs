@@ -25,7 +25,7 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Repeat", Order: 0, Description: "Select if you want to repeat for a fixed number of times or you want to repeat while or until a certain step has a certain verdict.")]
         public RepeatStepAction Action { get; set; }
 
-        [StepSelector(StepSelectorAttribute.FilterTypes.AllExcludingSelf)]
+        [StepSelector(StepSelectorAttribute.FilterTypes.All)]
         [EnabledIf("Action", RepeatStepAction.While, RepeatStepAction.Until, HideIfDisabled = true)]
         [Display("Verdict Of", Order: 1, Description: "Select the step that you want to validate the verdict of.")]
         public ITestStep TargetStep { get; set; }
@@ -104,14 +104,14 @@ namespace OpenTap.Plugins.BasicSteps
                 
                 if (Retry == false)
                     throw;
-                return Verdict.Error;
             }
 
             return getCurrentVerdict();
         }
 
-        static bool isChildOf(ITestStep step, ITestStep parent)
+        static bool IsChildOfOrSelf(ITestStep step, ITestStep parent)
         {
+            if (step == parent) return true;
             step = step.Parent as ITestStep;
             while(step != null && step != parent)
                 step = step.Parent as ITestStep;
@@ -138,7 +138,7 @@ namespace OpenTap.Plugins.BasicSteps
                 // when TargetStep is not a child of this, we need to evaluate the verdict _before_ 
                 // running the first iteration.
 
-                if (Action != RepeatStepAction.Fixed_Count && !isChildOf(TargetStep, this))
+                if (Action != RepeatStepAction.Fixed_Count && !IsChildOfOrSelf(TargetStep, this))
                 {
                     var currentVerdict = getCurrentVerdict();
                     if (currentVerdict != TargetVerdict && Action == RepeatStepAction.While)
