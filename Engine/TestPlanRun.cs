@@ -66,13 +66,16 @@ namespace OpenTap
         public bool FailedToStart { get; set; }
 
         /// <summary> The thread that started the test plan. Use this to abort the plan thread. </summary>
-        public TapThread MainThread { get; private set; }
+        public TapThread MainThread { get;  }
         
         #region Internal Members used by the TestPlan
 
         internal IList<IResultListener> ResultListeners;
 
+        /// <summary> Wait handle that is set when the metadata action is completed. </summary>
         internal ManualResetEvent PromptWaitHandle = new ManualResetEvent(false);
+        /// <summary> Resources touched by the prompt metadata action. </summary>
+        internal IResource[] PromptedResources = Array.Empty<IResource>();
 
         internal readonly IResourceManager ResourceManager;
         internal List<ITestPlanExecutionHook> ExecutionHooks;
