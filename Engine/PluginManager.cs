@@ -537,6 +537,8 @@ namespace OpenTap
                 AllAssemblies();
                 return matching.Invoke(fileName);
             }
+
+            static bool StrEq(string a, string b) => string.Equals(a, b, StringComparison.InvariantCultureIgnoreCase);
             
             public string[] AllAssemblies()
             {
@@ -544,28 +546,40 @@ namespace OpenTap
                 {
                     if ((DateTime.Now - lastSearch) > TimeSpan.FromSeconds(8))
                     {
-                        var sw = Stopwatch.StartNew();
                         var files = new HashSet<string>(new PathUtils.PathComparer());
-                        foreach (var dir in DirectoriesToSearch.ToHashSet(new PathUtils.PathComparer()))
+                        foreach (var search_dir in DirectoriesToSearch.ToHashSet(new PathUtils.PathComparer()))
                         {
                             try
                             {
-                                foreach (var file in Directory.EnumerateFiles(dir, "*.*", SearchOption.AllDirectories))
+                                var dirToSearch = new Queue<DirectoryInfo>();
+                                dirToSearch.Enqueue(new DirectoryInfo(search_dir));
+                                while (dirToSearch.Any())
                                 {
-                                    if (!(file.EndsWith(".exe", StringComparison.InvariantCultureIgnoreCase) || file.EndsWith(".dll", StringComparison.InvariantCultureIgnoreCase)))
-                                        continue;
-                                    if (file.IndexOf("\\obj\\", StringComparison.InvariantCultureIgnoreCase) != -1)
-                                        continue;
-                                    if (file.IndexOf(".vshost.",0) != -1)
-                                        continue;
-                                    if (files.Contains(file))
-                                        continue;
-                                    files.Add(file);
+                                    var dir = dirToSearch.Dequeue();
+                                    var dirs = dir.EnumerateDirectories();
+                                    foreach (var di in dirs)
+                                    {
+                                        if (StrEq(di.Name,"obj"))
+                                            continue; // skip obj subfolder
+                                        if (StrEq(di.Name,"Examples") && StrEq(di.Parent?.Name,"SDK"))
+                                            continue; // skip examples subfolder.
+                                        dirToSearch.Enqueue(di);
+                                    }
+                                    foreach (var file in dir.EnumerateFiles("*.*",SearchOption.TopDirectoryOnly))
+                                    {
+                                        var ext = file.Extension;
+                                        if (false == (StrEq(ext, ".exe") || StrEq(ext, ".dll")))
+                                            continue;
+                                        if (file.Name.Contains(".vshost."))
+                                            continue;
+                                        
+                                        files.Add(file.FullName);
+                                    }
                                 }
                             }
                             catch(Exception e)
                             {
-                                log.Error("Unable to enumerate directory '{0}': '{1}'", dir ?? "(null)", e.Message);
+                                log.Error("Unable to enumerate directory '{0}': '{1}'", search_dir ?? "(null)", e.Message);
                                 log.Debug(e);
                             }
                         }
