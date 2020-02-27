@@ -223,6 +223,13 @@ namespace OpenTap
         string Describe();
     }
 
+    /// <summary> Annotation for marking something as enabled or disabled. </summary>
+    public interface IEnabledAnnotation : IAnnotation
+    {
+        /// <summary> Gets if an annotation is enabled. </summary>
+        bool IsEnabled { get; }
+    }
+
     /// <summary>
     /// Annotates that a member is read only.
     /// </summary>
@@ -307,7 +314,7 @@ namespace OpenTap
         }
     }
 
-    class EnabledIfAnnotation : IAccessAnnotation, IOwnedAnnotation
+    class EnabledIfAnnotation : IAccessAnnotation, IOwnedAnnotation, IEnabledAnnotation
     {
 
         public bool IsReadOnly => isReadOnly;
@@ -333,6 +340,8 @@ namespace OpenTap
         {
             this.mem = mem;
         }
+
+        public bool IsEnabled => IsReadOnly == false;
     }
 
     class ValidationErrorAnnotation : IErrorAnnotation, IOwnedAnnotation
