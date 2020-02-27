@@ -65,6 +65,9 @@ namespace OpenTap.Plugins.BasicSteps
         [EnabledIf("Action",RepeatStepAction.Fixed_Count, HideIfDisabled = true)]
         [Display("Count", Order: 1, Description: "Set the fixed number of times to repeat.")]
         public uint Count { get; set; }
+        
+        [Display("Retry", Order:3, Description: "Clear the verdict and try again if break conditions were reached for child steps.")]
+        public bool Retry { get; set; }
 
         public Enabled<uint> maxCount = new Enabled<uint> { Value = 3, IsEnabled = false };
 
@@ -120,12 +123,28 @@ namespace OpenTap.Plugins.BasicSteps
 
         Verdict iterate()
         {
+            TapThread.Current.AbortToken.ThrowIfCancellationRequested();
+            if (Retry && Verdict == Verdict.Error) // previous break conditions were reached
+                Verdict = Verdict.NotSet; 
             this.iteration += 1;
             OnPropertyChanged(nameof(IterationInfo));
             var AdditionalParams = new List<ResultParameter> { new ResultParameter("", "Iteration", this.iteration) };
-            var runs = RunChildSteps(AdditionalParams, BreakLoopRequested);
-            foreach (var r in runs)
-                r.WaitForCompletion();
+            try
+            {
+                var runs = RunChildSteps(AdditionalParams, BreakLoopRequested);
+                foreach (var r in runs)
+                    r.WaitForCompletion();
+            }
+            catch(OperationCanceledException)
+            {
+                // break conditions reached for child steps.
+                // if ClearVerdict is set, retry.
+                
+                if (Retry == false)
+                    throw;
+                return Verdict.Error;
+            }
+
             return getCurrentVerdict();
         }
 

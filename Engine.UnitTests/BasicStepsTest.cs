@@ -23,5 +23,60 @@ namespace OpenTap.UnitTests
             
             Assert.AreEqual(expectedVerdict, run.Verdict);
         }
+
+
+        class PassThirdTime : TestStep
+        {
+            public int Iterations = 0;
+            public override void PrePlanRun()
+            {
+                Iterations = 0;
+                base.PrePlanRun();
+            }
+
+            public override void Run()
+            {
+                Iterations += 1;
+                if (Iterations < 3)
+                {
+                    UpgradeVerdict(Verdict.Fail);
+                }
+                UpgradeVerdict(Verdict.Pass);
+            }
+        }
+        
+        [Test]
+        [Pairwise]
+        public void RepeatUntilPass([Values(true, false)] bool retry)
+        {
+            var step = new PassThirdTime();
+            BreakConditionProperty.SetBreakCondition(step, BreakCondition.BreakOnFail);
+            
+            var rpt = new RepeatStep()
+            {
+                Action =  RepeatStep.RepeatStepAction.Until,
+                TargetStep = step,
+                TargetVerdict = Verdict.Pass,
+                Retry = retry
+            };
+            rpt.ChildTestSteps.Add(step);
+
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(rpt);
+
+            var run = plan.Execute();
+
+            if (retry)
+            {
+                Assert.AreEqual(Verdict.Pass, run.Verdict);
+                Assert.AreEqual(3, step.Iterations);
+            }
+            else
+            {
+                // break condition reached -> Error verdict.
+                Assert.AreEqual(Verdict.Error, run.Verdict);
+                Assert.AreEqual(1, step.Iterations);
+            }
+        }
     }
 }
