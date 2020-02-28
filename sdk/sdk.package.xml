@@ -19,6 +19,7 @@
     <File Path="OpenTap.xml"/>
     <File Path="Packages/SDK/PackageSchema.xsd"/>
     <File Path="Packages/SDK/OpenTAP Developer Guide.pdf" SourcePath="../../sdk/Examples/OpenTAP Developer Guide.pdf"/>
+    <File Path="Packages/SDK/Examples/.ignorePlugins"/>
     <File Path="Packages/SDK/Examples/Examples.sln"/>
     <File Path="Packages/SDK/Examples/ExamplePlugin\ExamplePlugin.csproj"/>
     <File Path="Packages/SDK/Examples/ExamplePlugin\*.cs"/>
