@@ -44,7 +44,9 @@ namespace OpenTap
         /// Gets or sets boolean indicating whether this step is enabled in the TestPlan
         /// </summary>
         [ColumnDisplayName("", Order : -101)]
-        [Display("Enabled", Group: "Common", Order: 20000, Collapsed: true)]
+        [Display("Enabled", "Enabling/Disabling the test step decides if" +
+                            " it should be used when the test plan is executed. " +
+                            "This value should not be changed during test plan run.", Group: "Common", Order: 20000, Collapsed: true)]
         [Unsweepable]
         public bool Enabled
         {
@@ -72,7 +74,10 @@ namespace OpenTap
         /// May not be null.
         /// </summary>
         [ColumnDisplayName("Step Name", Order : -100)]
-        [Display("Step Name", Group: "Common", Order: 20001, Collapsed: true)]
+        [Display("Step Name", "The name of the test step, this value can be used to identifiy a test step. " +
+                              "Test step names are not guaranteed to be unique. " +
+                              "Name can include names of a setting of the step, this property will dynamically be " +
+                              "replaced with it's current value in some views.", Group: "Common", Order: 20001, Collapsed: true)]
         [Unsweepable]
         public string Name
         {
