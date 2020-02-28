@@ -569,71 +569,57 @@ namespace OpenTap
             {
                 lock (syncLock)
                 {
-                    if ((DateTime.Now - lastSearch) > TimeSpan.FromSeconds(8))
+                    if ((DateTime.Now - lastSearch) < TimeSpan.FromSeconds(8))
+                        return;
+
+                    var sw = Stopwatch.StartNew();
+                    var files = new HashSet<string>(new PathUtils.PathComparer());
+                    var searchFiles = new HashSet<string>(new PathUtils.PathComparer());
+                    foreach (var search_dir in DirectoriesToSearch.ToHashSet(new PathUtils.PathComparer()))
                     {
-                        var sw = Stopwatch.StartNew();
-                        var files = new HashSet<string>(new PathUtils.PathComparer());
-                        var searchFiles = new HashSet<string>(new PathUtils.PathComparer());
-                        foreach (var search_dir in DirectoriesToSearch.ToHashSet(new PathUtils.PathComparer()))
+                        var dirToSearch = new Queue<SearchDir>();
+                        dirToSearch.Enqueue(new SearchDir(search_dir, false));
+                        while (dirToSearch.Any())
                         {
+                            var dir = dirToSearch.Dequeue();
                             try
                             {
-                                var dirToSearch = new Queue<SearchDir>();
-                                dirToSearch.Enqueue(new SearchDir(search_dir,false));
-                                while (dirToSearch.Any())
+                                FileInfo[] filesInDir = dir.Info.GetFiles();
+                                bool excludeFromSearch = dir.ExcludeFromSearch && filesInDir.Any(x => StrEq(x.Name, ".OpenTapExcludeFromSearch"));
+
+                                foreach (var subDir in dir.Info.EnumerateDirectories())
                                 {
-                                    var dir = dirToSearch.Dequeue();
-                                    var dirs = dir.Info.EnumerateDirectories();
-                                    var filesInDir = dir.Info.GetFiles("*", SearchOption.TopDirectoryOnly);
-                                    bool excludeFromSearch = dir.ExcludeFromSearch;
-                                    bool excludeSubFromSearch = excludeFromSearch;
+                                    if (StrEq(subDir.Name, "obj"))
+                                        continue; // skip obj subfolder
+                                    dirToSearch.Enqueue(new SearchDir(subDir, excludeFromSearch));
+                                }
+
+                                foreach (var file in filesInDir)
+                                {
+                                    var ext = file.Extension;
+                                    if (false == (StrEq(ext, ".exe") || StrEq(ext, ".dll")))
+                                        continue;
+                                    if (file.Name.Contains(".vshost."))
+                                        continue;
+
+                                    files.Add(file.FullName);
                                     if (!excludeFromSearch)
-                                    {
-                                        foreach (var file in filesInDir)
-                                        {
-                                            if (StrEq(file.Name, ".ignorePlugins"))
-                                            {
-                                                excludeFromSearch = true;
-                                                excludeSubFromSearch = true;
-                                            }
-                                            if (StrEq(file.Name, ".ignorePluginsSubDirs"))
-                                            {
-                                                excludeSubFromSearch = true;
-                                            }
-                                        }
-                                    }
-                                    foreach (var di in dirs)
-                                    {
-                                        if (StrEq(di.Name,"obj"))
-                                            continue; // skip obj subfolder
-                                        dirToSearch.Enqueue(new SearchDir(di, excludeSubFromSearch));
-                                    }
-                                    foreach (var file in filesInDir)
-                                    {
-                                        var ext = file.Extension;
-                                        if (false == (StrEq(ext, ".exe") || StrEq(ext, ".dll")))
-                                            continue;
-                                        if (file.Name.Contains(".vshost."))
-                                            continue;
-                                        
-                                        files.Add(file.FullName);
-                                        if(!excludeFromSearch)
-                                            searchFiles.Add(file.FullName);
-                                    }
+                                        searchFiles.Add(file.FullName);
                                 }
                             }
-                            catch(Exception e)
+                            catch (Exception e)
                             {
                                 log.Error("Unable to enumerate directory '{0}': '{1}'", search_dir ?? "(null)", e.Message);
                                 log.Debug(e);
                             }
                         }
-                        allFiles = files.ToArray();
-                        allSearchFiles = searchFiles.ToArray();
-                        matching.InvalidateAll();
-                        lastSearch = DateTime.Now;
-                        log.Debug(sw, "Found {0}/{1} assembly files.", files.Count, searchFiles.Count);
                     }
+
+                    allFiles = files.ToArray();
+                    allSearchFiles = searchFiles.ToArray();
+                    matching.InvalidateAll();
+                    lastSearch = DateTime.Now;
+                    log.Debug(sw, "Found {0}/{1} assembly files.", files.Count, searchFiles.Count);
                 }
             }
         }
