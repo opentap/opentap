@@ -269,7 +269,7 @@ namespace OpenTap
             ChangeID++;
             try
             {
-                IEnumerable<string> fileNames = assemblyResolver.FileFinder.AllAssemblies();
+                IEnumerable<string> fileNames = assemblyResolver.GetAssembliesToSearch();
                 searcher = SearchAndAddToStore(fileNames);
             }
             catch (Exception e)
@@ -503,7 +503,7 @@ namespace OpenTap
     {
         static readonly TraceSource log = Log.CreateSource("Resolver");
 
-        public readonly AssemblyFinder FileFinder = new AssemblyFinder();
+        private readonly AssemblyFinder FileFinder = new AssemblyFinder();
 
         /// <summary>
         /// Should be called before each search. Flushes the files found. Also sets up the directories to search.
@@ -512,9 +512,10 @@ namespace OpenTap
         {
             FileFinder.Invalidate();
             FileFinder.DirectoriesToSearch = directoriesToSearch;
+            lastSearchedDirs = FileFinder.DirectoriesToSearch.ToHashSet();
         }
 
-        public class AssemblyFinder
+        private class AssemblyFinder
         {
             public void Invalidate()
             {
@@ -656,6 +657,17 @@ namespace OpenTap
             assemblyResolutionMemorizer.Add(new resolveKey { Name = asm.FullName, ReflectionOnly = asm.ReflectionOnly }, asm);
         }
         HashSet<string> lastSearchedDirs = new HashSet<string>();
+
+        public string[] GetAssembliesToSearch()
+        {
+            if (false == lastSearchedDirs.SetEquals(FileFinder.DirectoriesToSearch))
+            {  // If directories to search has changed.
+                lastSearchedDirs = FileFinder.DirectoriesToSearch.ToHashSet();
+                FileFinder.Invalidate();
+                assemblyResolutionMemorizer.InvalidateWhere((k, v) => v == null);
+            }
+            return FileFinder.AllAssemblies();
+        }
 
         public Assembly Resolve(string name, bool reflectionOnly)
         {
