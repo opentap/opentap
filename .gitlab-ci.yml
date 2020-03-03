@@ -290,14 +290,18 @@ Package-Linux:
          - ../../Release/tap package download --os Linux --architecture x64 -f -r $env:PACKAGE_REPO_URL -t . Demonstration
          - mv "Demonstration*.TapPackage" "Demonstration.TapPackage"
          - ../../Release/tap package install -f "/repo/Sign.TapPackage"
+         - cmd /C "..\..\Release\tap package create -v ../../../netstandard.package.xml -o Packages/NetStandard.2.0.TapPackage"
+         - cmd /C "..\..\Release\tap package install --force -v Packages/NetStandard.2.0.TapPackage" --target ./
          - cmd /C "..\..\Release\tap package create -v ../../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage"
          - $version=$(..\..\Release\tap sdk gitversion)
          - cp Packages/OpenTAP.Linux.TapPackage ../../../OpenTAP.$version.Linux.TapPackage
+         - cp Packages/NetStandard.2.0.TapPackage ../../../NetStandard.2.0.TapPackage
   artifacts:
     when: on_success
     expire_in: 1 week
     paths:
        - OpenTAP.*.Linux.TapPackage
+       - NetStandard.*.TapPackage
 
     
 Package-SDK:
@@ -413,7 +417,7 @@ Installer-Linux:
          - $str=[IO.File]::ReadAllText($path + "/LinuxInstall/README") -replace "`r`n", "`n"
          - ([IO.File]::WriteAllText($path + "/README", $str))
 
-         - cmd /C '"C:\Program Files (x86)\GnuWin32\bin\tar.exe" -cf "OpenTAP.tar" OpenTAP.*.Linux.TapPackage INSTALL.sh README'
+         - cmd /C '"C:\Program Files (x86)\GnuWin32\bin\tar.exe" -cf "OpenTAP.tar" OpenTAP.*.Linux.TapPackage NetStandard.*.TapPackage INSTALL.sh README'
   artifacts:
     when: on_success
     expire_in: 1 week
@@ -432,6 +436,7 @@ Package-Build-Deb:
   script:
     - pushd LinuxInstall/package
     - mv ../../OpenTAP*.TapPackage OpenTAP.TapPackage
+    - mv ../../NetStandard*.TapPackage NetStandard.TapPackage
     - pushd Debian
     - bash create-deb
     - popd
