@@ -1,2 +1,2 @@
 #!/bin/bash
-dotnet tap.dll $@
+dotnet $(dirname "$0")/tap.dll $@
