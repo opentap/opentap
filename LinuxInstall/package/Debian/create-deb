@@ -18,7 +18,6 @@ cp "$GIT_ROOT/LICENSE.txt" OpenTAP/usr/share/doc/tap/copyright
 
 echo "Extracting OpenTAP"
 unzip -q ../OpenTAP.TapPackage -d OpenTAP/usr/share/tap
-unzip -q ../NetStandard.TapPackage -d OpenTAP/usr/share/tap
 
 pushd OpenTAP/usr/share/tap
 chmod +x tap

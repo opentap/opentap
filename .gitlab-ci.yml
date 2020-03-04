@@ -79,12 +79,11 @@ Build-Linux64:
   image: microsoft/dotnet:2.1-sdk-stretch
   tags: [ docker, gce ]
   script: 
-         - dotnet publish -c NetCore -r linux-x64 OpenTAP.sln
-         - dotnet publish -c NetCore -r linux-x64 tap/tap.csproj
+         - dotnet publish -c NetCore OpenTAP.sln
   artifacts:
     expire_in: 1 week
     paths:
-       - bin/Release/linux-x64/publish
+       - bin/Release/publish
 
 # Builds the Everything.sln solution
 Build-x86:
@@ -174,8 +173,8 @@ TestPackage:
   needs:
      - Build-Linux64
   script:
-        - cp -r Engine.UnitTests/TestTestPlans bin/Release/linux-x64/publish
-        - cd bin/Release/linux-x64/publish
+        - cp -r Engine.UnitTests/TestTestPlans bin/Release/publish
+        - cd bin/Release/publish
         - chmod +x tap
         - echo "./tap run -v TestTestPlans/testMultiReferencePlan.TapPlan; if [ \$? -eq 20 ]; then echo \"OK\"; else false; fi" >./run_ubuntu_test.sh
         - chmod +x ./run_ubuntu_test.sh
@@ -285,23 +284,19 @@ Package-Linux:
      - Build-Linux64    
   script:
          - if (!$PROTECTED_BRANCH) { Set-Content .\opentap_linux64.package.xml  -Value (get-content .\opentap_linux64.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
-         - mv bin\Release\linux-x64 bin\linux-x64
-         - pushd bin\linux-x64\publish
-         - ../../Release/tap package download --os Linux --architecture x64 -f -r $env:PACKAGE_REPO_URL -t . Demonstration
+         - mv bin\Release\publish bin\linux-x64
+         - pushd bin\linux-x64\
+         - ../Release/tap package download --os Linux --architecture x64 -f -r $env:PACKAGE_REPO_URL -t . Demonstration
          - mv "Demonstration*.TapPackage" "Demonstration.TapPackage"
-         - ../../Release/tap package install -f "/repo/Sign.TapPackage"
-         - cmd /C "..\..\Release\tap package create -v ../../../netstandard.package.xml -o Packages/NetStandard.2.0.TapPackage"
-         - cmd /C "..\..\Release\tap package install --force -v Packages/NetStandard.2.0.TapPackage" --target ./
-         - cmd /C "..\..\Release\tap package create -v ../../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage"
-         - $version=$(..\..\Release\tap sdk gitversion)
-         - cp Packages/OpenTAP.Linux.TapPackage ../../../OpenTAP.$version.Linux.TapPackage
-         - cp Packages/NetStandard.2.0.TapPackage ../../../NetStandard.2.0.TapPackage
+         - ../Release/tap package install -f "/repo/Sign.TapPackage"
+         - cmd /C "..\Release\tap package create -v ../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage"
+         - $version=$(..\Release\tap sdk gitversion)
+         - cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.$version.Linux.TapPackage
   artifacts:
     when: on_success
     expire_in: 1 week
     paths:
        - OpenTAP.*.Linux.TapPackage
-       - NetStandard.*.TapPackage
 
     
 Package-SDK:
@@ -349,13 +344,13 @@ Package-NuGet:
     - Package-Windows64
     - Build-Linux64
   script:
-    - Move-Item bin/Release/linux-x64/publish/ bin/Linux/
+    - Move-Item bin/Release/publish/ bin/Linux/
     - dotnet build -c NetCore tap/tap.csproj
     - mkdir nuget/build/payload
     - cd bin/Release
     - Move-Item "../../OpenTAP.*.Windows.TapPackage" OpenTAP.TapPackage
-    - .\tap.exe package install --target "../../nuget/build/payload" OpenTAP.TapPackage -f -v
-    - .\tap.exe sdk gitversion --replace ../../nuget/OpenTAP.nuspec --fields 4
+    - dotnet tap.dll package install --target "../../nuget/build/payload" OpenTAP.TapPackage -f -v
+    - dotnet tap.dll sdk gitversion --replace ../../nuget/OpenTAP.nuspec --fields 4
     - Move-Item Keysight.OpenTap.Sdk.MSBuild.dll ../../nuget/build
     - cd ../../nuget/
     - Move-Item ../bin/Linux/tap build/payload/
@@ -417,7 +412,7 @@ Installer-Linux:
          - $str=[IO.File]::ReadAllText($path + "/LinuxInstall/README") -replace "`r`n", "`n"
          - ([IO.File]::WriteAllText($path + "/README", $str))
 
-         - cmd /C '"C:\Program Files (x86)\GnuWin32\bin\tar.exe" -cf "OpenTAP.tar" OpenTAP.*.Linux.TapPackage NetStandard.*.TapPackage INSTALL.sh README'
+         - cmd /C '"C:\Program Files (x86)\GnuWin32\bin\tar.exe" -cf "OpenTAP.tar" OpenTAP.*.Linux.TapPackage INSTALL.sh README'
   artifacts:
     when: on_success
     expire_in: 1 week
@@ -436,7 +431,6 @@ Package-Build-Deb:
   script:
     - pushd LinuxInstall/package
     - mv ../../OpenTAP*.TapPackage OpenTAP.TapPackage
-    - mv ../../NetStandard*.TapPackage NetStandard.TapPackage
     - pushd Debian
     - bash create-deb
     - popd
