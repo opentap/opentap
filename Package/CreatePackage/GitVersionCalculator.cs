@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System;
 using System.IO;
 using System.Globalization;
+using Tap.Shared;
 
 namespace OpenTap.Package
 {
@@ -113,6 +114,27 @@ namespace OpenTap.Package
             }
         }
 
+        void linuxEnsureLibgit2Present()
+        {
+            // on linux, we are not sure which libgit to load at package time.
+            // so at this moment we need to check which version we are on
+            // and move the file to a position that is checked.
+            string libgit2name = "libgit2-4aecb64";
+            IEnumerable<FileInfo> libgit2files = new[] {"ubuntu", "redhat", "linux-x64"}
+                .Select(x => Path.Combine(PathUtils.OpenTapDir, "x64", $"{libgit2name}.so.{x}")).Select(x => new FileInfo(x));
+            var requiredFile = Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.so");
+
+            var file = libgit2files.FirstOrDefault(x => x.Name.EndsWith(LinuxVariant.Current.Name));
+            try
+            {
+                file?.CopyTo(requiredFile, true);
+            }
+            catch
+            {
+                
+            }
+        }
+
         /// <summary>
         /// Instanciates a new <see cref="GitVersionCalulator"/> to work on a specified git repository.
         /// </summary>
@@ -126,7 +148,11 @@ namespace OpenTap.Package
                 if (repositoryDir == null)
                     throw new ArgumentException("Directory is not a git repository.", "repositoryDir");
             }
-            repo = new LibGit2Sharp.Repository(repositoryDir);
+
+            if (OperatingSystem.Current == OperatingSystem.Linux)
+                linuxEnsureLibgit2Present();
+
+            repo = new Repository(repositoryDir);
         }
 
         public void Dispose()

@@ -2,6 +2,7 @@ Package: OpenTAP
 Version: $(GitVersion)
 Priority: optional
 Depends: libc6-dev, libunwind8, unzip, git
+Conflicts: libcurl3
 Architecture: amd64
 Installed-Size: @SIZE_KB@
 Maintainer: OpenTAP Developers <support@opentap.io>

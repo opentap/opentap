@@ -179,10 +179,13 @@ TestPackage:
         - echo "./tap run -v TestTestPlans/testMultiReferencePlan.TapPlan; if [ \$? -eq 20 ]; then echo \"OK\"; else false; fi" >./run_ubuntu_test.sh
         - chmod +x ./run_ubuntu_test.sh
         - bash run_ubuntu_test.sh
+        - ldconfig -p
+        - cd ..
+        - publish/tap sdk gitversion --verbose # verify that gitversion works.
 
 TestUbuntu:
   stage: test
-  image: microsoft/dotnet:2.1-sdk-stretch
+  image: mcr.microsoft.com/dotnet/core/sdk:2.1-bionic
   extends: .LinuxScript
 
 TestCentos7:
@@ -422,7 +425,7 @@ Installer-Linux:
 
 Package-Build-Deb:
   stage: installer
-  image: opentapio/opentap:9.5-ubuntu18.04
+  image: mcr.microsoft.com/dotnet/core/sdk:2.1-bionic
   tags: [ docker, gce ]
   dependencies:
     - Package-Linux
@@ -432,6 +435,8 @@ Package-Build-Deb:
     - pushd LinuxInstall/package
     - mv ../../OpenTAP*.TapPackage OpenTAP.TapPackage
     - pushd Debian
+    - apt update
+    - apt install unzip -y
     - bash create-deb
     - popd
     - mv OpenTAP.deb ../../OpenTAP.deb
