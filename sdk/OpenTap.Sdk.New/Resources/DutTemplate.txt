@@ -20,6 +20,7 @@ namespace {0}
         public {1}()
         {
             // ToDo: Set default values for properties / settings.
+            Name = "{1}";
         }
 
         /// <summary>
