@@ -1,7 +1,7 @@
 Package: OpenTAP
 Version: $(GitVersion)
 Priority: optional
-Depends: libc6-dev, libunwind8, unzip, git
+Depends: libc6-dev, libunwind8, unzip, git, libcurl4
 Conflicts: libcurl3
 Architecture: amd64
 Installed-Size: @SIZE_KB@
