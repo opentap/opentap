@@ -74,7 +74,7 @@ The **File** element inside the configuration file supports the following attrib
 | **SourcePath** | Optional. If present the packaging tool will get the file from this path when creating the package. |
 | **LicenseRequired** | License key required by the package file. |
 
-The **File** element can optionally contain custom elements supported by OpenTAP packages. In the above example it includes the `SetAssemblyInfo` element, which is supported by a Keysight OpenTAP package. When `SetAssemblyInfo` is set to `Version`, AssemblyVersion, AssemblyFileVersion and AssemblyInformationalVersion attributes of the file are set according to the package's version.
+The **File** element can optionally contain custom elements supported by OpenTAP packages. In the above example it includes the `SetAssemblyInfo` element, which is supported by the OpenTAP package. When `SetAssemblyInfo` is set to `Version`, AssemblyVersion, AssemblyFileVersion and AssemblyInformationalVersion attributes of the file are set according to the package's version.
 
 ### Package Icon
 A package can also include a package icon. The **File** element inside the configuration file supports adding a package icon by using the `Path` attribute to point to an image and using the `PackageIcon` element inside the `File` element. See the example above.
@@ -107,6 +107,28 @@ When using wildcards in the **Path** attribute, the **SourcePath** attribute has
  </Files>
  ...
  ```
+
+### Folder Conventions
+
+In a the package definition xml, package authors are able to put payload files anywhere in the OpenTAP installation folder structure for increased flexibility. However some conventions are defined to keep the installation folder organized. In this context two subfolders of the OpenTAP installation folder are significant:
+
+#### Packages Subfolder
+
+This subfolder contains one folder for every package installed. The name of each of these package folders correspond to the package name. The package folders contains at least the package.xml file for that package. By convention other payload files of the package should also live in this package folder (or subfolders of it).
+
+#### Dependencies Subfolder
+
+This subfolder contains managed dependency assemblies (DLLs) that can be shared between several packages. Each assembly has its own subfolder with the name and version of the assembly in its name. This allows several versions of the same assembly to be present. `tap package create` will automatically detect any managed assemblies referenced by the payload specified in the package.xml, and add them to this folder following this scheme. Files in this folder will not be searched when OpenTAP discovers plugins at startup.
+
+### Excluding Folders From Search
+
+OpenTAP will search assemblies in the installation dir on startup for two purposes:
+- Discovering OpenTAP plugins 
+- Resolving dll dependencies 
+
+Package authors can exclude sub folders from being searched by adding a marker file to the sub folder. This file must be named `.OpenTapIgnore`. The content of the file is not important (can be empty, or document why this folder should be ignored). The presence of this file will cause the folder and all subfolder to be excluded from search for both of the above purposes.
+
+Any folder named exactly "Dependencies" will be excluded from plugin discovery only. See above section on folder conventions.
 
 ### Example
 
