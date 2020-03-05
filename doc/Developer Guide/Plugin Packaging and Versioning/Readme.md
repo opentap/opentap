@@ -38,10 +38,10 @@ $(GitVersion) - Gets the version number in the recommended format Major.Minor.Bu
 </Package>
 ```
 
-**Note**: A package that references an OpenTAP assembly version 9 is compatible with any OpenTAP version 9.y, but not compatible with an earlier OpenTAP version 8 or a future OpenTAP version 10. The PackageManager checks version compatibility before installing packages.  
+**Note**: A package that references an OpenTAP assembly version 9 is compatible with any OpenTAP version 9.y, but not compatible with version 8 or earlier or a future version 10. The PackageManager checks version compatibility before installing packages.  
 
 ## Packaging Configuration File
-When creating a OpenTAP Package the configuration is specified using an xml file (typically called package.xml).
+When creating a package the configuration is specified using an XML file (typically called package.xml).
 
 The configuration file supports optional attributes:
 
@@ -110,15 +110,15 @@ When using wildcards in the **Path** attribute, the **SourcePath** attribute has
 
 ### Folder Conventions
 
-In a the package definition xml, package authors are able to put payload files anywhere in the OpenTAP installation folder structure for increased flexibility. However some conventions are defined to keep the installation folder organized. In this context two subfolders of the OpenTAP installation folder are significant:
+In a the package definition XML file, package authors are able to put payload files anywhere in the installation folder structure for increased flexibility. However, some conventions are defined to encurage an organized folder structure. In this context two subfolders of the OpenTAP installation folder are significant:
 
-#### Packages Subfolder
+#### Packages Folder
 
-This subfolder contains one folder for every package installed. The name of each of these package folders correspond to the package name. The package folders contains at least the package.xml file for that package. By convention other payload files of the package should also live in this package folder (or subfolders of it).
+The 'Packages' folder contains one folder for every package installed. The name of each of these package folders correspond to the package name. The folders contains at least the package.xml file for that package. By convention other files of the package should also be located here or in subfolders.
 
-#### Dependencies Subfolder
+#### Dependencies Folder
 
-This subfolder contains managed dependency assemblies (DLLs) that can be shared between several packages. Each assembly has its own subfolder with the name and version of the assembly in its name. This allows several versions of the same assembly to be present. `tap package create` will automatically detect any managed assemblies referenced by the payload specified in the package.xml, and add them to this folder following this scheme. Files in this folder will not be searched when OpenTAP discovers plugins at startup.
+The 'Dependencies' folder contains managed dependency assemblies (.NET DLL.) that can be shared between several packages. Each assembly has its own subfolder named with the assembly name and version. This allows several versions of the same assembly to be present. `tap package create` will automatically detect any managed assemblies referenced by the assemblies specified in the package.xml, and add them to this folder following this scheme. Files in this folder will not be searched during plugins discovery.
 
 ### Excluding Folders From Search
 
