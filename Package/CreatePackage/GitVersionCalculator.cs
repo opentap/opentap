@@ -143,13 +143,16 @@ namespace OpenTap.Package
 
         private Commit getLatestConfigVersionChange(Commit c)
         {
+            if (c.Parents.Any() == false)
+                return null; // 'c' is the first commit in the repo. There was never any change.
+            
             // find all changes in the file (for some reason that sometimes returns an empty list)
             //var fileLog = repo.Commits.QueryBy(configFileName, new CommitFilter() { IncludeReachableFrom = c, SortBy = CommitSortStrategies.Topological, FirstParentOnly = false });
             //... go on to iterate through filelog...
 
             // Instead, just walk all commits comparing the version in the .gitversion file to the one in the previous commit
             Config currentCfg = ParseConfig(c);
-            while (c != null)
+            while (true)
             {
                 Commit parent = c.Parents.FirstOrDefault(); // first parent only, we are only interested in when the file changes on the beta branch
                 if (parent == null)
@@ -163,6 +166,7 @@ namespace OpenTap.Package
                 c = parent;
                 currentCfg = parentCfg;
             }
+            
             log.Warning("Did not find any .gitversion file.");
             return null;
         }
