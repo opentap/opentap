@@ -749,8 +749,10 @@ namespace OpenTap
                 if (!Guid.TryParse(s[0], out id))
                     return null;
                 var prop = s[1];
-                
-                var plan = step.GetParent<TestPlan>();
+
+                ITestStepParent plan = contextObject as ITestStepParent;
+                while (plan.Parent != null)
+                    plan = plan.Parent;
                 var step2 = Utils.FlattenHeirarchy(plan.ChildTestSteps, x => x.ChildTestSteps).FirstOrDefault(x => x.Id == id);
                 if (step2 == null) return null;
                 var inp = (IInput)type.CreateInstance(Array.Empty<object>());
