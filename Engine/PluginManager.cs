@@ -551,17 +551,17 @@ namespace OpenTap
             private struct SearchDir
             {
                 public DirectoryInfo Info;
-                public bool ExcludeFromSearch;
+                public bool IgnorePlugins;
 
                 public SearchDir(string dir, bool excludeFromSearch)
                 {
                     this.Info = new DirectoryInfo(dir);
-                    ExcludeFromSearch = excludeFromSearch;
+                    IgnorePlugins = excludeFromSearch;
                 }
                 public SearchDir(DirectoryInfo dir, bool excludeFromSearch)
                 {
                     this.Info = dir;
-                    ExcludeFromSearch = excludeFromSearch;
+                    IgnorePlugins = excludeFromSearch;
                 }
             }
 
@@ -585,13 +585,17 @@ namespace OpenTap
                             try
                             {
                                 FileInfo[] filesInDir = dir.Info.GetFiles();
-                                bool excludeFromSearch = dir.ExcludeFromSearch && filesInDir.Any(x => StrEq(x.Name, ".OpenTapExcludeFromSearch"));
+                                if (filesInDir.Any(x => StrEq(x.Name, ".OpenTapIgnore")))  // .OpenTapIgnore means we should ignore this folder and sub folders w.r.t. both Assembly resolution and Plugin searching
+                                    continue;
+
+                                bool ignorePlugins = dir.IgnorePlugins;
 
                                 foreach (var subDir in dir.Info.EnumerateDirectories())
                                 {
                                     if (StrEq(subDir.Name, "obj"))
                                         continue; // skip obj subfolder
-                                    dirToSearch.Enqueue(new SearchDir(subDir, excludeFromSearch));
+                                    var ignorePluginsInSubDir = StrEq(subDir.Name, "Dependencies");
+                                    dirToSearch.Enqueue(new SearchDir(subDir, ignorePluginsInSubDir));
                                 }
 
                                 foreach (var file in filesInDir)
@@ -603,7 +607,7 @@ namespace OpenTap
                                         continue;
 
                                     files.Add(file.FullName);
-                                    if (!excludeFromSearch)
+                                    if (!ignorePlugins)
                                         searchFiles.Add(file.FullName);
                                 }
                             }
