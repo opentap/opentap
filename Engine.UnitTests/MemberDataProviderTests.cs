@@ -852,8 +852,9 @@ namespace OpenTap.Engine.UnitTests
 
                     var selected_element = members[2];
                     var available_for_Select = selected_element.Get<IAvailableValuesAnnotationProxy>();
-                    // Since they only have two available values in common, the list should only contain those two elements.
-                    Assert.IsTrue(available_for_Select.AvailableValues.Cast<object>().Count() == 2);
+                    // ~Since they only have two available values in common, the list should only contain those two elements.~
+                    // Actually since this behavior conflicts with Enabled<> behavior, it just has the available values from the first one.
+                    Assert.IsTrue(available_for_Select.AvailableValues.Cast<object>().Count() == 3);
 
                     annotation.Write();
                 }
@@ -1181,7 +1182,6 @@ namespace OpenTap.Engine.UnitTests
                 }
                 {
                     var ifMember = elem.GetMember(nameof(IfStep.InputVerdict));
-                    var currentValue = ifMember.Get<IObjectValueAnnotation>().Value;
                     var avail = ifMember.Get<IAvailableValuesAnnotationProxy>();
                     avail.SelectedValue = avail.AvailableValues.Last();
                 }

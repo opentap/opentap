@@ -25,6 +25,37 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(availStrings.Contains(testPlanReference.GetFormattedName()));
         }
 
+        [Test]
+        public void SweepLoopEnabledTest()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepLoop();
+            var prog = new ProcessStep();
+            plan.ChildTestSteps.Add(sweep);
+            sweep.ChildTestSteps.Add(prog);
+            
+            sweep.SweepParameters.Add(new SweepParam(new [] {TypeData.FromType(prog.GetType()).GetMember(nameof(ProcessStep.RegularExpressionPattern))}));
+
+            var a = AnnotationCollection.Annotate(sweep);
+            a.Read();
+            var a2 = a.GetMember(nameof(SweepLoop.SweepParameters));
+            var col = a2.Get<ICollectionAnnotation>();
+            var new1 = col.NewElement();
+            col.AnnotatedElements = col.AnnotatedElements.Append(col.NewElement(), new1);
+            
+            var enabledmem = new1.Get<IMembersAnnotation>().Members.Last();
+            var boolmember = enabledmem.Get<IMembersAnnotation>().Members.First();
+            var val = boolmember.Get<IObjectValueAnnotation>();
+            val.Value = true;
+            
+            a.Write();
+
+            var sweepParam =  sweep.SweepParameters.FirstOrDefault();
+            var en = (Enabled<string>)sweepParam.Values[1];
+            Assert.IsTrue(en.IsEnabled); // from val.Value = true.
+
+        }
+
         public class ErrorMetadataDutResource : Dut
         {
             [MetaData(true)]
@@ -66,6 +97,5 @@ namespace OpenTap.UnitTests
                 checkValue("invalid", 2); // validation failed + parse error.
             }
         }
-        
     }
 }

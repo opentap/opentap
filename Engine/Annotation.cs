@@ -709,7 +709,6 @@ namespace OpenTap
                 bool collectAll = rdOnly;
                 if (c == null)
                 {
-                    var members = parentAnnotation.Get<IMembersAnnotation>();
                     var merged = parentAnnotation.Get<MergedValueAnnotation>();
                     annotatedElements = merged.Merged.ToArray();
                 }
@@ -718,11 +717,9 @@ namespace OpenTap
                     annotatedElements = c.AnnotatedElements.ToArray();
                 }
 
-                if (annotatedElements == null) return Array.Empty<AnnotationCollection>();
                 var sources = annotatedElements;
                 var mems = sources.Select(x => x.Get<IMembersAnnotation>()?.Members.ToArray() ?? Array.Empty<AnnotationCollection>()).ToArray();
                 if (mems.Length == 0) return Array.Empty<AnnotationCollection>();
-                var fst = mems[0];
                 Dictionary<string, AnnotationCollection>[] dicts = mems.Select(x =>
                 {
                     var dict = new Dictionary<string, AnnotationCollection>(x.Length);
@@ -844,7 +841,7 @@ namespace OpenTap
             this.others = others;
         }
     }
-    class DefaultValueAnnotation : IObjectValueAnnotation, IOwnedAnnotation, IErrorAnnotation
+    class MemberValueAnnotation : IObjectValueAnnotation, IOwnedAnnotation, IErrorAnnotation
     {
         AnnotationCollection annotation;
         object currentValue;
@@ -867,7 +864,7 @@ namespace OpenTap
             }
         }
 
-        public DefaultValueAnnotation(AnnotationCollection annotation)
+        public MemberValueAnnotation(AnnotationCollection annotation)
         {
             this.annotation = annotation;
         }
@@ -2143,7 +2140,7 @@ namespace OpenTap
             if (mem != null)
             {
                 if (annotation.Get<IObjectValueAnnotation>() == null)
-                    annotation.Add(new DefaultValueAnnotation(annotation));
+                    annotation.Add(new MemberValueAnnotation(annotation));
 
                 annotation.Add(mem.Member.GetDisplayAttribute());
 
@@ -2671,7 +2668,6 @@ namespace OpenTap
                 {
                     var merged = annotation.Get<MergedValueAnnotation>();
                     if (merged == null) return Enumerable.Empty<object>();
-                    var array = merged.Merged.Select(x => x.Get<IAvailableValuesAnnotation>()).Where(x => x != null).ToArray();
 
                     Dictionary<object, int> counts = new Dictionary<object, int>();
                     int maxCount = 0;
@@ -2715,7 +2711,7 @@ namespace OpenTap
             if (merged == null) return;
             var members = annotation.Get<IMembersAnnotation>();
 
-            if (members != null && merged != null)
+            if (members != null)
             {
                 var manyToOne = new ManyToOneAnnotation(annotation);
                 annotation.Add(manyToOne);
@@ -2988,7 +2984,7 @@ namespace OpenTap
 
             if (member is IMemberData mem)
             {
-                annotation.Add(new MemberAnnotation(mem), new DefaultValueAnnotation(annotation));
+                annotation.Add(new MemberAnnotation(mem), new MemberValueAnnotation(annotation));
             }
             annotation.AddRange(extraAnnotations);
             var resolver = new AnnotationResolver();
