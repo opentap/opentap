@@ -359,7 +359,8 @@ Package-NuGet:
     - Move-Item ../bin/Linux/tap build/payload/
     - Move-Item ../bin/Linux/tap.dll build/payload/
     - $LibGitFolderName = $(Get-ChildItem -directory ./build/payload/Dependencies/LibGit2Sharp* -Name)
-    - Move-Item ../bin/Linux/libgit2-*.so build/payload/Dependencies/$LibGitFolderName/
+    - $LibGitFolderNameLinux = $(Get-ChildItem -directory ../bin/Linux/Dependencies/LibGit2Sharp* -Name)
+    - Move-Item ../bin/Linux/Dependencies/$LibGitFolderNameLinux/libgit2-*.so.* build/payload/Dependencies/$LibGitFolderName/
     - Move-Item ../bin/Release/tap.runtimeconfig.json build/payload/
     - nuget update -self
     - nuget pack OpenTAP.nuspec -OutputDirectory ../

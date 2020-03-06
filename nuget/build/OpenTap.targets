@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(MSBuildThisFileDirectory)' != '' And HasTrailingSlash('$(MSBuildThisFileDirectory)') And '$(OS)' != 'Unix'">
-    <PackagePayloadFiles Include="$(MSBuildThisFileDirectory)payload\**\*" Exclude="$(MSBuildThisFileDirectory)payload\tap;$(MSBuildThisFileDirectory)payload\tap.dll;$(MSBuildThisFileDirectory)payload\tap.runtimeconfig.json;$(MSBuildThisFileDirectory)payload\Dependencies\*\libgit2-*.so"/>
+    <PackagePayloadFiles Include="$(MSBuildThisFileDirectory)payload\**\*" Exclude="$(MSBuildThisFileDirectory)payload\tap;$(MSBuildThisFileDirectory)payload\tap.dll;$(MSBuildThisFileDirectory)payload\tap.runtimeconfig.json;$(MSBuildThisFileDirectory)payload\Dependencies\*\libgit2-*.so.*"/>
   </ItemGroup>
 
   <Target Name="CopyOpenTapPayloadFiles"
