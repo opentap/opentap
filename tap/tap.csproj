@@ -8,12 +8,16 @@
 
   <ItemGroup Condition="'$(IsNetStandard)'=='true'">
     <None Include="$(SolutionDir)/Shared/tap.runtimeconfig.json">
+      <Link>tap.runtimeconfig.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>   
+    </None>
+    <None Include="$(SolutionDir)/LinuxInstall/tap.sh">
+      <Link>tap</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 
   <Target Name="RemoveDepsJson" AfterTargets="Publish">
     <Exec Command="rm $(PublishDir)tap.deps.json" />
-    <Exec Command="rm $(PublishDir)tap.runtimeconfig.json" />
   </Target>
 </Project>
