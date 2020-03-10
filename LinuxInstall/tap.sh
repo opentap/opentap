@@ -1,2 +1,2 @@
 #!/bin/bash
-dotnet $(dirname "$0")/tap.dll $@
+dotnet "$(dirname "$(readlink -f "$0")")/tap.dll" "$@"
