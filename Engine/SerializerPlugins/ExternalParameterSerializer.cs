@@ -46,12 +46,14 @@ namespace OpenTap.Plugins
         /// </summary>
         public readonly Dictionary<string, string> PreloadedValues = new Dictionary<string, string>();
 
+        static readonly XName External = "external";
+        
         /// <summary> Deserialization implementation. </summary>
         public override bool Deserialize( XElement elem, ITypeData t, Action<object> setter)
         {
             if (currentNode.Contains(elem)) return false;
             
-            var attr = elem.Attribute("external");
+            var attr = elem.Attribute(External);
             if (attr == null) return false;
             var stepSerializer = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
             if (stepSerializer == null || false == stepSerializer.Object is ITestStep) return false;
@@ -117,7 +119,7 @@ namespace OpenTap.Plugins
             var external = plan.ExternalParameters.Find(objSerializer.Object as ITestStep, objSerializer.CurrentMember);
             if(external != null)
             {
-                elem.SetAttributeValue("external", external.Name);
+                elem.SetAttributeValue(External, external.Name);
             }else
             {
                 return false;

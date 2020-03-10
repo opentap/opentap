@@ -10,6 +10,7 @@ using System.IO;
 using System.Xml.Serialization;
 using System.Text.RegularExpressions;
 using System.Runtime.CompilerServices;
+using System.Xml.Linq;
 
 namespace OpenTap.Plugins.BasicSteps
 {
@@ -128,6 +129,17 @@ namespace OpenTap.Plugins.BasicSteps
         [ThreadStatic]
         static List<GuidMapping> CurrentMappings;
 
+        static Memorizer<string, XDocument> dict = new Memorizer<string, XDocument>( p =>
+        {
+            using(var fstr = File.OpenRead(p))
+                return XDocument.Load(fstr, LoadOptions.SetLineInfo);
+        });
+        
+        XDocument readXmlFile(string path)
+        {
+            return dict.Invoke(path);
+        }
+        
         void UpdateStep()
         {
             if(CurrentMappings == null)
@@ -185,7 +197,7 @@ namespace OpenTap.Plugins.BasicSteps
 
                     CurrentMappings = allMapping;
 
-                    TestPlan tp = (TestPlan)newSerializer.DeserializeFromFile(Data);
+                    TestPlan tp = (TestPlan)newSerializer.Deserialize(readXmlFile(Data), TypeData.FromType(typeof(TestPlan)), true, Data) ;
 
                     ForwardedParameters = tp.ExternalParameters.Entries.ToArray();
 

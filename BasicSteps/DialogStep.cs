@@ -159,8 +159,9 @@ namespace OpenTap.Plugins.BasicSteps
             public DialogStep Step;
         }
 
-        const string legacyNotSetName = "Not_Set";
-        const string legacyDefaultAnswerPropertyName = "DefaultAnswer";
+        static readonly string legacyNotSetName = "Not_Set";
+        static readonly XName legacyDefaultAnswerPropertyName = "DefaultAnswer";
+        static readonly XName TestStepName = nameof(TestStep);
 
         Box currentBox;
         public bool Deserialize(XElement node, ITypeData t, Action<object> setter)
@@ -174,7 +175,7 @@ namespace OpenTap.Plugins.BasicSteps
                 }    
             }
 
-            if(node.Name == nameof(TestStep) && t.DescendsTo(typeof(DialogStep)))
+            if(node.Name == TestStepName && t.DescendsTo(typeof(DialogStep)))
             {
                 if (currentBox != null) return false;
 

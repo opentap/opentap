@@ -204,6 +204,8 @@ namespace OpenTap.Plugins
             setResult(values);
             return true;
         }
+
+        static readonly XName Element = "Element"; 
         
         internal HashSet<object> ComponentSettingsSerializing = new HashSet<object>();
         /// <summary> Serialization implementation. </summary>
@@ -222,7 +224,7 @@ namespace OpenTap.Plugins
             bool isComponentSettings = sourceObj is ComponentSettings;
             foreach (object obj in sourceEnumerable)
             {
-                var step = new XElement("Element");
+                var step = new XElement(Element);
                 if (obj != null)
                 {
                     type = obj.GetType();
