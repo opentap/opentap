@@ -59,15 +59,20 @@ Doc-API:
        - API
 
 pages:
-  stage: build
+  stage: package
   image: node:9.11.1
+  dependencies:
+    - Doc-API
   only:
     - master
   cache:
     paths:
     - doc/node_modules/
   script:
+    - mkdir -p doc/.vuepress/public
+    - cp -r API 'doc/.vuepress/public/api'
     - cd doc
+    - rm 'User Guide/Readme.md' 'Developer Guide/Readme.md'
     - npm install
     - npm run build
   artifacts:
