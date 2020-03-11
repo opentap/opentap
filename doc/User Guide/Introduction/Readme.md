@@ -19,47 +19,16 @@ A *test plan* is a sequence of test steps and their associated data. They are st
 editor, or by using the `tap run` [CLI action](../CLI%20Usage). A test step can be a child step, a parent step, or both.
 Therefore, a test plan is a recursive structure of test steps. This hierarchy is illustrated in the figure below.
 
-![](./TestPlanIllustration2.png)
+![](./Testplan.svg)
 
 The step sequence is ordered from top to bottom, and child steps are indented to indicate that they belong to a parent step.
 
 The execution order of child steps is decided by the parent step. For example, two typical parent steps are *Parallel*
-and *Sequential*, shown below. *Nonsense Step* is not real, and is given as an example to illustrate that the topology
-of test execution can be controlled entirely by a parent step.
+and *Sequential*, shown below. *MyStep* is given as an example to illustrate that the topology of step execution can be
+controlled entirely by a parent step. Notice that the behavior of MyStep can be achieved by putting a *Paralel* step in
+a *Sequence* step.
 
-
-``` ascii
--------------------------- TIME --------------------------->
-
-SEQUENTIAL STEP
- ---------   ---------   ---------   ---------   ---------
-| Child 1 | | Child 2 | | Child 3 | | Child 4 | | Child 5 |
- ---------   ---------   ---------   ---------   ---------
-
-
-PARALLEL STEP
- ---------
-| Child 1 |
- ---------
- ---------
-| Child 2 |
- ---------
- ---------
-| Child 3 |
- ---------
-
- NONSENSE STEP
- -------         -------         -------         -------
-| Child |       | Child |       | Child |       | Child |
- -------         -------         -------         -------
-         -------         -------         -------
-        | Child |       | Child |       | Child |
-         -------         -------         -------
- -------         -------         -------         -------
-| Child |       | Child |       | Child |       | Child |
- -------         -------         -------         -------
-```
-
+![](./Flow.svg)
 
 ## Test Steps
 
@@ -181,7 +150,9 @@ with the packages in your current installation, if possible. Usage of the packag
 next section](../cli%20guide/package%manager).
 
 The below figure shows the relation between plugins and OpenTAP. OpenTAP is at the center, and plugins, providing a
-variety of functionality, can be added and removed painlessly. ![](./TAParchitecture.png#width=600)
+variety of functionality, can be added and removed painlessly. 
+
+![](./OpenTAP_plugins.svg)
 
 Check out our public package repository [here](http://packages.opentap.io/index.html#/?name=OpenTAP) to browse available
 plugins.
