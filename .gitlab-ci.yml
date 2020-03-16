@@ -69,12 +69,12 @@ pages:
     paths:
     - doc/node_modules/
   script:
-    - mkdir -p doc/.vuepress/public
-    - cp -r API 'doc/.vuepress/public/api'
-    - cd doc
+    - pushd doc
     - rm 'User Guide/Readme.md' 'Developer Guide/Readme.md'
     - npm install
     - npm run build
+    - popd
+    - cp -r API public/api
   artifacts:
     paths:
     - public
