@@ -117,7 +117,7 @@ listener plugins](../../Developer%20Guide/Result%20Listener/#custom-result-liste
 integrating with a different database technology, or uploading test results to a website.
 
 Result listeners are tied to an OpenTAP installation, and not a test plan. Result listener settings are stored
-in `%TAP_PATH%/Settings/Results.xml`. Like test plans, we do not recommend editing these by hand. However, they can be
+in `<install dir>/Settings/Results.xml`. Like test plans, we do not recommend editing these by hand. However, they can be
 generated and edited using our test plan editors.
 <!-- Creation and further usage of result listeners will be covered in more detail in the [editor section](../Editors). -->
 
@@ -126,7 +126,7 @@ generated and edited using our test plan editors.
 OpenTAP keeps extensive session logs for debugging purposes. Session logs are kept from the 10 latest OpenTAP instances
 launched, and are created independently of result listeners. Their content is similar to the logs collected by *Text
 Log*, but also contain diagnostic messages from OpenTAP and any plugin you may have installed. They can be found in
-`%TAP_PATH%/SessionLogs`, and are named after the time and date at which they were created. They contain the same
+`<install dir>/SessionLogs`, and are named after the time and date at which they were created. They contain the same
 information you would see in your terminal when running tap with the `--verbose` flag. If you encounter errors, the logs
 may contain useful information for discovering what went wrong. If you think you discovered a bug in OpenTAP, please
 file an issue on [gitlab](https://gitlab.com/OpenTAP/opentap). If applicable, please include instructions on how to

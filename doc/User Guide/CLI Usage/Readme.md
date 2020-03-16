@@ -120,9 +120,9 @@ Before moving on to esoteric usage, a few pitfalls must be clarified:
 1. You can install multiple packages at the same time. `tap package install OpenTAP "Editor CE"`.
 
 2. Package names sometimes contain spaces. If they do, they must be quoted when referenced in any CLI action, as shown
-above. Without the quotes, the package manager will interpret Editor CE as two different package names.
+above. Without the quotes, the package manager will interpret `Editor CE` as two different package names.
 
-3. When running the install action, the package manager looks in the `%TAP_PATH%\PackageCache` directory first, and then
+3. When running the install action, the package manager looks in the `<install dir>/PackageCache` directory first, and then
    in the specified repository.
 4. You can install a local *.TapPackage* file, acquired with the `download` subcommand for example, with `tap package
    install <filename>`.
@@ -165,7 +165,7 @@ Like the above two commands, `uninstall` supports targeting a different director
 
 ### download
 
-Download a package without installing it. The downloaded package is placed in your `%TAP_PATH%`. As with the `install`
+Download a package without installing it. The downloaded package is placed in the OpenTAP installation directory. As with the `install`
 action, dependencies can be automatically added with `--dependencies`, and the os, version, and architecture can all be
 specified.
 
