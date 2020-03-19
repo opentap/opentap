@@ -38,7 +38,5 @@
 | `tap package uninstall <package 1…n>`                          | Uninstall one or more packages. Specify location with `-t <dir>`                                                                                                                                                                                                                                                                       | `tap package uninstall Demonstration Python`                     |
 | `tap package verify <package>`                                 | Verify the integrity of installed packages by comparing hashes.                                                                                                                                                                                                                                                                        | `tap package verify OpenTAP`                                     |
 
-SDK commands are intended for developers, and are covered in the [Developer Guide](../../Developer%20Guide).
-
 Other packages can add their own commands. Documentation of these commands is beyond the scope of this guide. Please
 refer to the package's own documentation for more information about them.
