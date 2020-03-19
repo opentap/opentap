@@ -26,7 +26,17 @@ tap package install "Developer's System CE" -y
 
 ### Linux
 <!--When installing on Linux there are a few options:-->
+#### 1. Install dependencies
+On Linux, OpenTAP has a few dependencies that must be manually installed, namely
+libc6, libunwind, unzip, and git. On Debian derivatives, these can be installed
+by running the following command:
 
+`apt-get install libc6-dev, libunwind8, unzip, git`
+
+Note that the packages may have different names on other distributions. OpenTAP
+should still work if you install the equivalent packages for your distribution.
+
+#### 2. Install OpenTAP
 Download the OpenTAP distribution (`.tar`<!--, `.dep` or `.rpm`-->) from our homepage [here](https://www.opentap.io/download.html). 
 
 Install the downloaded distribution:
@@ -45,3 +55,5 @@ If you are an OpenTAP user, or just want to try it out, have a look at the [User
 
 ## Develop Plugins
 If you are a developer and want to create plugins for OpenTAP, have a look at the [Developer Guide](Developer%20Guide/Introduction/).
+
+
