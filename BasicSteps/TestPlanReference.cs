@@ -129,16 +129,20 @@ namespace OpenTap.Plugins.BasicSteps
         [ThreadStatic]
         static List<GuidMapping> CurrentMappings;
 
-        static Memorizer<string, XDocument> dict = new Memorizer<string, XDocument>( p =>
+        static Memorizer<string, XDocument> dict = new Memorizer<string, XDocument>(p =>
         {
-            using(var fstr = File.OpenRead(p))
+            using (var fstr = File.OpenRead(p))
                 return XDocument.Load(fstr, LoadOptions.SetLineInfo);
-        });
-        
-        XDocument readXmlFile(string path)
-        {
-            return dict.Invoke(path);
-        }
+        }) 
+            {
+                // Validator is to reload the file if it has been changed.
+                // Assuming it is much faster to check file write time than to read and parse it. Testing has verified this.
+                Validator = str => File.GetLastWriteTime(str),
+                MaxNumberOfElements = 100
+            };
+
+        static XDocument readXmlFile(string path) => dict.Invoke(path);
+            
         
         void UpdateStep()
         {
