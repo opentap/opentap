@@ -1013,7 +1013,7 @@ namespace OpenTap
                             }
                             if (propertyValue is string == false && propertyValue is IEnumerable lst)
                             {
-                                foreach (var item in lst.OfType<T>())
+                                foreach (var item in lst.OfType<T>().ToArray())
                                 {
                                     var item2 = transform(item, prop);
                                     if (!items.Contains(item2))
