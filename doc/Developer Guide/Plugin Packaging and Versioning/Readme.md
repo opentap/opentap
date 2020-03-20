@@ -49,15 +49,17 @@ The configuration file supports optional attributes:
 | ---- | -------- |
 | **InfoLink**   | Specifies a location where additional information about the package can be found. It is visible in the Package Manager as the **More Information** link.  |
 | **Version**  | The version of the package. This field supports the $(GitVersion) macro. The version is displayed in the Package Manager. See [Versioning](#versioning) for more details. |
-| **OS**   | Which operative systems the package is compatible with. This is a comma separated list. Used to filter packages which are compatible with the operating system the PackageManager is running on. If the attribute is not specified, the default "Windows" is used. Example: `OS="Windows,Linux"` |
-| **Architecture**   | Used to filter packages which are compatible with a certain CPU architecture. If the attribute is not specified it is assumed that the Plugin works on all architectures. |
+| **OS**   | Which operative systems the package is compatible with. This is a comma separated list. It is used to filter packages which are compatible with the operating system the PackageManager is running on. If the attribute is not specified, the default "Windows" is used. Example: `OS="Windows,Linux"`. Note, only the following OS values are currently supported by the package manager for automatic detection: Windows, Linux and OSX. So using one of these is recommended. |
+| **Architecture**   | Used to filter packages which are compatible with a certain CPU architecture. If the attribute is not specified it is assumed that the Plugin works on all architectures. The available values are AnyCPU, x86, x64 (use for AMD64 or x86-64), arm and arm64.  |
 | **Class**   | This attribute is used to classify a package. It can be set to **package**, **bundle** or **system-wide** (default value: **package**). A package of class **bundle** references a collection of OpenTAP packages, but does not contain the referenced packages. Packages in a bundle do not need to depend on each other to be referenced. For example, Keysight Developer's System is a bundle that reference the Editor (GUI), Timing Analyzer, Results Viewer, and SDK packages. <br><br> A package of class **system-wide** is installed in a global system folder so these packages can affect other installations of OpenTAP and cannot be uninstalled with the PackageManager. System-wide packages should not be OpenTAP plugins, but rather drivers and libraries.  The system folders are located differently depending on operating system and drive specifications: Windows (normally) - `C:\ProgramData\Keysight\OpenTAP`, Linux -  `/usr/share/Keysight/OpenTAP`|
 | **Group** | Name of the group that this package belongs to. Groups can be nested in other groups, in which case this string will have several entries separated with '/' or '\'. May be empty. UIs may use this information to show a list of packages as a tree structure. See the example below. |
 | **LicenseRequired** | License key(s) required to use this package. During package create all `LicenseRequired` attributes from the `File` Elements will be concatenated into this property. Bundle packages (`Class` is 'bundle') can use this property to show license keys that are required by the bundle dependencies.  |
 
-One of the comma separated values of the `OS` attribute must be contained in the output of the commands `uname -a` on linux/osx or `ver` on windows for the plugin to be considered compatible. The use of strings like `"Windows"`, `"Linux"` or `"Ubuntu"` is recommended. However, it is possible to use abbreviations, such as `"Win"` or to target a specific version of an operating system. This can be done by writing the exact name and the version number. For example, a plugin with the `OS` attribute `"Microsoft Windows [Version 10.0.14393]"` targets the specified version of Windows and is incompatible with other versions or operating systems. 
-
 > **Note:** OpenTAP does not validate any `LicenseRequired` attributes. This attribute is only used by UIs to inform the user of a license key. The license key check should be implemented by the plugin assembly.
+
+### Description Element
+The **Description** element can be used to write a short description about the plugin. Custom elements like 'Organization' or 'Status' can be added the provide additional highlighted information. 
+
 
 ### Owner Element
 The **Owner** element inside the configuration file is the name of the package owner. There can be multiple owners of a package, in which case this string will have several entries separated with ','. An example of this can be seen in the example below.
@@ -72,7 +74,7 @@ The **File** element inside the configuration file supports the following attrib
 | ---- | -------- |
 | **Path** | The path to the file. This is relative to the root the OpenTAP installation directory. This serves as both source (where the packaging tool should get the file when creating the package) and target (where the file sould be located when installed). Unless there are special requirements, the convention is to put all payload files in a Packages/\<PackageName\>/ subfolder. Wildcards are supported - see later section. |
 | **SourcePath** | Optional. If present the packaging tool will get the file from this path when creating the package. |
-| **LicenseRequired** | License key required by the package file. |
+| **LicenseRequired** | License key required by the package file. This is for information only and is not enforced by OpenTAP. The license key check should be implemented by the plugin assembly.. |
 
 The **File** element can optionally contain custom elements supported by OpenTAP packages. In the above example it includes the `SetAssemblyInfo` element, which is supported by the OpenTAP package. When `SetAssemblyInfo` is set to `Version`, AssemblyVersion, AssemblyFileVersion and AssemblyInformationalVersion attributes of the file are set according to the package's version.
 
