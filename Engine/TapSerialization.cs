@@ -267,6 +267,8 @@ namespace OpenTap
             return Deserialize(element, setter, t != null ? TypeData.FromType(t) : null);
         }
 
+        static readonly XName typeName = "type";
+        
         /// <summary>
         /// Deserializes an object from XML.
         /// </summary>
@@ -276,7 +278,7 @@ namespace OpenTap
         /// <returns></returns>
         public bool Deserialize(XElement element, Action<object> setter, ITypeData t)
         {
-            var typeattribute = element.Attribute("type");
+            var typeattribute = element.Attribute(typeName);
             if (typeattribute != null)
             {   // if a specific type is given by the element use that.
                 // If it cannot be found fall back on previous value.

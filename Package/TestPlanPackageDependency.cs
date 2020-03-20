@@ -17,10 +17,10 @@ namespace OpenTap.Package
     [Display("Test Plan Package Dependencies", Description: "Serializer plugin that inserts package dependencies for a test plan in the test plan itself.")]
     internal class TestPlanPackageDependency : TapSerializerPlugin
     {
-        const string PackageDependenciesName = "Package.Dependencies";
-        const string PackageDependencyName = "Package";
-        const string NameName = "Name";
-        const string VersionName = "Version";
+        static readonly XName PackageDependenciesName = "Package.Dependencies";
+        static readonly XName PackageDependencyName = "Package";
+        static readonly XName NameName = "Name";
+        static readonly XName VersionName = "Version";
 
         public override double Order => 100; 
 

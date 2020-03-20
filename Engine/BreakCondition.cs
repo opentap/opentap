@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace OpenTap
 {
@@ -126,13 +127,16 @@ namespace OpenTap
 
             public bool CanCreateInstance => innerType.CanCreateInstance;
         }
+
+        // memorize for reference equality.
+        static ConditionalWeakTable<ITypeData, TestStepTypeData> dict = new ConditionalWeakTable<ITypeData, TestStepTypeData>();
+        static TestStepTypeData getStepTypeData(ITypeData subtype) =>  dict.GetValue(subtype, x => new TestStepTypeData(x));
+        
         public ITypeData GetTypeData(string identifier, TypeDataProviderStack stack)
         {
             var subtype = stack.GetTypeData(identifier);
             if (subtype.DescendsTo(typeof(ITestStep)))
-            {
-                return new TestStepTypeData(subtype);
-            }
+                return getStepTypeData(subtype);
 
             return subtype;
         }
@@ -142,7 +146,7 @@ namespace OpenTap
             if (obj is ITestStep step)
             {
                 var subtype = stack.GetTypeData(obj);
-                return new TestStepTypeData(subtype);
+                return getStepTypeData(subtype);
             }
 
             return null;

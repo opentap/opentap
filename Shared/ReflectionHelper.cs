@@ -598,7 +598,8 @@ namespace OpenTap
         readonly Dictionary<MemorizerKey, ResultT> memorizerTable = new Dictionary<MemorizerKey, ResultT>();
         readonly Dictionary<MemorizerKey, LockObject> locks = new Dictionary<MemorizerKey, LockObject>();
 
-        /// <summary> Can be used to create a validation key for each key in the memorizer. </summary>
+        /// <summary> Can be used to create a validation key for each key in the memorizer.
+        /// Validation keys are used for checking if the memory is up to date or if it should be refreshed. </summary>
         public Func<MemorizerKey, object> Validator { get; set; } = null;
         readonly Dictionary<MemorizerKey, object> validatorData = new Dictionary<MemorizerKey, object>();
         
