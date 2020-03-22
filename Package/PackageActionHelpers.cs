@@ -80,7 +80,7 @@ namespace OpenTap.Package
                 if (filteredVersions.Any() && compatibleWith.Any())
                 {
                     var opentapPackage = compatibleWith.First();
-                    throw new ExitCodeException(1, $"Package '{packageReference.Name}' does not exists in a version compatible with '{opentapPackage.Name}' version '{opentapPackage.Version}'.");
+                    throw new ExitCodeException(1, $"Package '{packageReference.Name}' does not exist in a version compatible with '{opentapPackage.Name}' version '{opentapPackage.Version}'.");
                 }
 
                 // Any compatible with opentap but not platform
@@ -95,7 +95,7 @@ namespace OpenTap.Package
                                     packageReference.Architecture != CpuArchitecture.Unspecified ? $"with '{packageReference.Architecture}' architecture" : null
                             }.Where(x => x != null).ToArray())));
                     else
-                        throw new ExitCodeException(1, $"Package '{packageReference.Name}' does not exists in a version compatible with this OS and architecture.");
+                        throw new ExitCodeException(1, $"Package '{packageReference.Name}' does not exist in a version compatible with this OS and architecture.");
                 }
 
                 // Any version
@@ -103,9 +103,9 @@ namespace OpenTap.Package
                 {
                     var opentapPackage = compatibleWith.FirstOrDefault();
                     if (opentapPackage != null)
-                        throw new ExitCodeException(1, $"Package '{packageReference.Name}' does not exists in a version compatible with this OS, architecture and '{opentapPackage.Name}' version '{opentapPackage.Version}'.");
+                        throw new ExitCodeException(1, $"Package '{packageReference.Name}' does not exist in a version compatible with this OS, architecture and '{opentapPackage.Name}' version '{opentapPackage.Version}'.");
                     else
-                        throw new ExitCodeException(1, $"Package '{packageReference.Name}' does not exists in a version compatible with this OS and architecture.");
+                        throw new ExitCodeException(1, $"Package '{packageReference.Name}' does not exist in a version compatible with this OS and architecture.");
                 }
 
                 throw new ExitCodeException(1, $"Package '{packageReference.Name}' could not be found in any repository.");

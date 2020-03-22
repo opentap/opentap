@@ -191,7 +191,7 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Returns -1 if obj is greater than this version, 0 if they are the same, and 1 if this is grater than obj
+        /// Returns -1 if obj is greater than this version, 0 if they are the same, and 1 if this is greater than obj
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
