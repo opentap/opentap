@@ -19,13 +19,13 @@ A *test plan* is a sequence of test steps and their associated data. They are st
 editor, or by using the `tap run` [CLI action](../CLI%20Usage). A test step can be a child step, a parent step, or both.
 Therefore, a test plan is a recursive structure of test steps. This hierarchy is illustrated in the figure below.
 
-![](./Testplan.svg)
+![](./TestPlan.svg)
 
 The step sequence is ordered from top to bottom, and child steps are indented to indicate that they belong to a parent step.
 
 The execution order of child steps is decided by the parent step. For example, two typical parent steps are *Parallel*
 and *Sequential*, shown below. *MyStep* is given as an example to illustrate that the topology of step execution can be
-controlled entirely by a parent step. Notice that the behavior of MyStep can be achieved by putting a *Paralel* step in
+controlled entirely by a parent step. Notice that the behavior of MyStep can be achieved by putting a *Parallel* step in
 a *Sequence* step.
 
 ![](./Flow.svg)
@@ -35,31 +35,38 @@ a *Sequence* step.
 A test step is an element which encapsulates some piece of functionality. It should perform a single *step* of the test
 being run. The definition given is intentionally vague, as a step can perform a myriad of actions. It could make a
 measurement using an instrument, or control a piece of hardware such as adjusting fan speed or voltage. It could also
-pause test exection, open a dialog window, make a web
-request, run a different program, or control the execution of other
-steps.
+pause test execution, open a dialog window, make a web request, run a different program, or control the execution of
+other steps.
 
-The *associated data* of test steps mentioned previously can be seen in the figure, namely *step settings* and
-*resources*. *Enabled* is a common setting available on any step indicating whether or not it should be run. This is
-useful for temporarily disabling certain steps without making destructive changes to a plan. In addition, all steps can
-be named. Test steps all have a verdict. However, this verdict is not a part of the actual test plan. Rather, it is
-*set* during execution of the the test plan. These elements are shown *inside* the test plan because they directly
-affect execution behavior.
+The aforementioned *associated data* of test steps refers to *step settings* and
+*resources*. Step settings affect the behavior of a step. All steps have three *common* settings: 
+1. *Enabled* enables or disables the step. This is useful for temporarily disabling certain steps without making
+destructive changes to a plan.
+2. *Step Name* sets the name of the step. This name will be reflected in the test plan as well.
+3. *Break Conditions* allows a step to override the break behavior specified in the engine settings.
+
+In addition to these common settings, a step may provide its own settings. These vary widely in functionality. For a
+*dialog step*, which opens a dialog box, the message in the dialog box is controlled by a step setting. The buttons in
+the dialog box (Yes / No / Cancel), and what happens when clicking those buttons, is also controlled by step settings.
 
 On the other hand, *Session Log* and *Result Listeners* are situated outside of the test plan because they interpret the
 output of the test, and do not influence it directly. Ensuring this decoupling between generation and interpretation of
 results guarantees that, say, a new database can be added to store results without making any changes to the test steps,
 or their execution.
+
 <!-- Result listeners are discussed in more detail in the [editor section](../Editors). -->
 
 <!-- For further discussion of test steps, see the [test step discussion section](../Test%20Steps). -->
 
 ## Verdicts
 
-*NotSet* is the default verdict for all test steps. A step can *set* a verdict during execution to indicate success. If
-everything went as expected, a test step will set the *Pass* verdict. A test plan ouputs a verdict according to the
-verdicts of its steps. The verdict of a test plan is the most *severe* verdict of its child steps. A
-verdict has one of 6 severities, detailed in the table below.
+Every test step has a verdict. However, this verdict is not a part of the actual test plan. Rather, it is *set* during
+the execution of the the test plan.
+
+*NotSet* is the default verdict for all test steps. A step can *set* a verdict during execution to indicate success. A
+test plan ouputs a verdict according to the verdicts of its steps. The verdict of a test plan is the most *severe*
+verdict of its child steps. A verdict has one of 6 severities, detailed in the following table:
+
 | Severity | Verdict      | Description                                                        |
 |----------|--------------|--------------------------------------------------------------------|
 | 1        | NotSet       | No verdict was set                                                 |
@@ -73,6 +80,27 @@ This means that, for a test plan to output a *Pass* verdict, at least one step m
 the rest must either set their verdict to *Pass* or *NotSet* verdict. This is also the most typical behavior for parent steps
 containing child steps; a *Sequential* step passes if all of its children pass. However, this is not a rule. Parent
 steps decide their own verdict conditions.
+
+*Break Conditions* operate based on step verdicts. The default *engine setting* is to abort the test plan if an *Error*
+verdict is encountered, and continue otherwise. The following break conditions can be enabled and disabled individually:
+
+1. *Break On Error*
+2. *Break On Fail*
+3. *Break On Inconclusive*
+
+Specifying break conditions overrides the engine settings in the given step, and all child steps of that step. Child
+steps can further override the value set by their ancestor if necessary. When a break condition is encountered, execution
+of all child steps is stopped, and the test plan resumes from the point where the break was encountered.
+
+The following figure illustrates how break conditions can change test execution, as well as how verdicts are propagated
+from child steps to parent steps:
+
+![](./break_conditions.svg)
+
+Steps are run in the sequence they appear from top to bottom, and verdicts from child steps are propagated upwards to
+their immediate parent. In this figure, the break condition on each step is specified on the right along with the source.
+**Bold text** means the break condition is explicitly set for that specific step, which is then inherited by child
+steps. Due to the *Break On Error* break condition, the last two steps are never executed in this example.
 
 ## Resources
 
