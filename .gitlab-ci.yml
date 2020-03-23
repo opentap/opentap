@@ -520,7 +520,7 @@ Publish-Nuget-Manuel:
         - mv OpenTAP.*.Linux.TapPackage docker/Linux/OpenTAP.Linux.TapPackage
         - cd docker/Linux
         - echo "{\"auths\":{\"https://index.docker.io/v1/\":{\"username\":\"$DOCKER_USER\", \"password\":\"$DOCKER_PASS\"}}}" > /kaniko/.docker/config.json
-        - /kaniko/executor --context=$CI_PROJECT_DIR/docker/Linux --dockerfile=Dockerfile --destination=opentapio/opentap:$version-ubuntu18.04
+        - /kaniko/executor --context=$CI_PROJECT_DIR/docker/Linux --target=$target --dockerfile=Dockerfile --destination=opentapio/opentap:$version-ubuntu18.04
 
 DockerLinux-Release:
   extends: .DockerLinuxBuild
@@ -528,6 +528,15 @@ DockerLinux-Release:
     - tags
   before_script:
         - version=$(cat .gitversion | sed -nr 's/version *= *([0-9]+\.[0-9]+)\.[0-9]+/\1/p')
+        - target=development
+
+DockerLinux-Release-Slim:
+  extends: .DockerLinuxBuild
+  only:
+    - tags
+  before_script:
+        - version="$(cat .gitversion | sed -nr 's/version *= *([0-9]+\.[0-9]+)\.[0-9]+/\1/p')-slim"
+        - target=production
 
 DockerLinux-RC:
   extends: .DockerLinuxBuild
@@ -535,6 +544,15 @@ DockerLinux-RC:
     - /^release.*$/
   before_script:
         - version=rc
+        - target=development
+
+DockerLinux-RC-Slim:
+  extends: .DockerLinuxBuild
+  only:
+    - /^release.*$/
+  before_script:
+        - version=rc-slim
+        - target=production
 
 DockerLinux-Beta:
   extends: .DockerLinuxBuild
@@ -542,6 +560,15 @@ DockerLinux-Beta:
     - master
   before_script:
         - version=beta
+        - target=development
+
+DockerLinux-Beta-Slim:
+  extends: .DockerLinuxBuild
+  only:
+    - master
+  before_script:
+        - version=beta-slim
+        - target=production
 
 .DockerWindowsBuild:
   stage: publish
