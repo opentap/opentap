@@ -5,8 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.InteropServices;
-using System.Text;
+using OpenTap;
 
 namespace Tap.Shared
 {
@@ -119,5 +118,12 @@ namespace Tap.Shared
                 return false;
             }
         }
+
+
+        static string openTapLocation = null;
+        /// <summary> Get the location of OpenTAP (OpenTAP.dll) </summary>
+        public static string OpenTapDir =>
+            openTapLocation ?? (openTapLocation = Path.GetDirectoryName(typeof(TestPlan).Assembly.Location));
+
     }
 }

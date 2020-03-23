@@ -360,9 +360,11 @@ namespace OpenTap.Plugins.BasicSteps
 
         HashSet<XElement> proccessingNodes = new HashSet<XElement>();
 
+        static readonly XName Type = "type";
+        
         public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
         {
-            var typeAttribute = node.Attribute("type");
+            var typeAttribute = node.Attribute(Type);
             if(typeAttribute != null && (typeAttribute.Value == "OpenTap.Plugins.BasicSteps.LinearSweepLoop" || typeAttribute.Value == "OpenTap.Plugins.BasicSteps.SweepLoopRange") )
             {
                 if (!proccessingNodes.Add(node))

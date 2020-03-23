@@ -4,16 +4,25 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>tap</AssemblyName>
     <RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
+    <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
   </PropertyGroup>
+  
+  <ItemGroup>
+    <None Include="$(SolutionDir)/Shared/tap.runtimeconfig.json">
+      <Link>tap.runtimeconfig.json</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 
   <ItemGroup Condition="'$(IsNetStandard)'=='true'">
-    <None Include="$(SolutionDir)/Shared/tap.runtimeconfig.json">
+    
+    <None Include="$(SolutionDir)/LinuxInstall/tap.sh">
+      <Link>tap</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 
   <Target Name="RemoveDepsJson" AfterTargets="Publish">
     <Exec Command="rm $(PublishDir)tap.deps.json" />
-    <Exec Command="rm $(PublishDir)tap.runtimeconfig.json" />
   </Target>
 </Project>

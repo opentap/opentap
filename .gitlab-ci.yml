@@ -59,17 +59,22 @@ Doc-API:
        - API
 
 pages:
-  stage: build
+  stage: package
   image: node:9.11.1
+  dependencies:
+    - Doc-API
   only:
     - master
   cache:
     paths:
     - doc/node_modules/
   script:
-    - cd doc
+    - pushd doc
+    - rm 'User Guide/Readme.md' 'Developer Guide/Readme.md'
     - npm install
     - npm run build
+    - popd
+    - cp -r API public/api
   artifacts:
     paths:
     - public
@@ -79,12 +84,11 @@ Build-Linux64:
   image: microsoft/dotnet:2.1-sdk-stretch
   tags: [ docker, gce ]
   script: 
-         - dotnet publish -c NetCore -r linux-x64 OpenTAP.sln
-         - dotnet publish -c NetCore -r linux-x64 tap/tap.csproj
+         - dotnet publish -c NetCore OpenTAP.sln
   artifacts:
     expire_in: 1 week
     paths:
-       - bin/Release/linux-x64/publish
+       - bin/Release/publish
 
 # Builds the Everything.sln solution
 Build-x86:
@@ -174,16 +178,19 @@ TestPackage:
   needs:
      - Build-Linux64
   script:
-        - cp -r Engine.UnitTests/TestTestPlans bin/Release/linux-x64/publish
-        - cd bin/Release/linux-x64/publish
+        - cp -r Engine.UnitTests/TestTestPlans bin/Release/publish
+        - cd bin/Release/publish
         - chmod +x tap
         - echo "./tap run -v TestTestPlans/testMultiReferencePlan.TapPlan; if [ \$? -eq 20 ]; then echo \"OK\"; else false; fi" >./run_ubuntu_test.sh
         - chmod +x ./run_ubuntu_test.sh
         - bash run_ubuntu_test.sh
+        - ldconfig -p
+        - cd ..
+        - publish/tap sdk gitversion --verbose # verify that gitversion works.
 
 TestUbuntu:
   stage: test
-  image: microsoft/dotnet:2.1-sdk-stretch
+  image: mcr.microsoft.com/dotnet/core/sdk:2.1-bionic
   extends: .LinuxScript
 
 TestCentos7:
@@ -285,14 +292,14 @@ Package-Linux:
      - Build-Linux64    
   script:
          - if (!$PROTECTED_BRANCH) { Set-Content .\opentap_linux64.package.xml  -Value (get-content .\opentap_linux64.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
-         - mv bin\Release\linux-x64 bin\linux-x64
-         - pushd bin\linux-x64\publish
-         - ../../Release/tap package download --os Linux --architecture x64 -f -r $env:PACKAGE_REPO_URL -t . Demonstration
+         - mv bin\Release\publish bin\linux-x64
+         - pushd bin\linux-x64\
+         - ../Release/tap package download --os Linux --architecture x64 -f -r $env:PACKAGE_REPO_URL -t . Demonstration
          - mv "Demonstration*.TapPackage" "Demonstration.TapPackage"
-         - ../../Release/tap package install -f "/repo/Sign.TapPackage"
-         - cmd /C "..\..\Release\tap package create -v ../../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage"
-         - $version=$(..\..\Release\tap sdk gitversion)
-         - cp Packages/OpenTAP.Linux.TapPackage ../../../OpenTAP.$version.Linux.TapPackage
+         - ../Release/tap package install -f "/repo/Sign.TapPackage"
+         - cmd /C "..\Release\tap package create -v ../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage"
+         - $version=$(..\Release\tap sdk gitversion)
+         - cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.$version.Linux.TapPackage
   artifacts:
     when: on_success
     expire_in: 1 week
@@ -345,19 +352,20 @@ Package-NuGet:
     - Package-Windows64
     - Build-Linux64
   script:
-    - Move-Item bin/Release/linux-x64/publish/ bin/Linux/
+    - Move-Item bin/Release/publish/ bin/Linux/
     - dotnet build -c NetCore tap/tap.csproj
     - mkdir nuget/build/payload
     - cd bin/Release
     - Move-Item "../../OpenTAP.*.Windows.TapPackage" OpenTAP.TapPackage
-    - .\tap.exe package install --target "../../nuget/build/payload" OpenTAP.TapPackage -f -v
-    - .\tap.exe sdk gitversion --replace ../../nuget/OpenTAP.nuspec --fields 4
+    - ./tap package install --target "../../nuget/build/payload" OpenTAP.TapPackage -f -v
+    - ./tap sdk gitversion --replace ../../nuget/OpenTAP.nuspec --fields 4
     - Move-Item Keysight.OpenTap.Sdk.MSBuild.dll ../../nuget/build
     - cd ../../nuget/
     - Move-Item ../bin/Linux/tap build/payload/
     - Move-Item ../bin/Linux/tap.dll build/payload/
     - $LibGitFolderName = $(Get-ChildItem -directory ./build/payload/Dependencies/LibGit2Sharp* -Name)
-    - Move-Item ../bin/Linux/libgit2-*.so build/payload/Dependencies/$LibGitFolderName/
+    - $LibGitFolderNameLinux = $(Get-ChildItem -directory ../bin/Linux/Dependencies/LibGit2Sharp* -Name)
+    - Move-Item ../bin/Linux/Dependencies/$LibGitFolderNameLinux/libgit2-*.so.* build/payload/Dependencies/$LibGitFolderName/
     - Move-Item ../bin/Release/tap.runtimeconfig.json build/payload/
     - nuget update -self
     - nuget pack OpenTAP.nuspec -OutputDirectory ../
@@ -423,7 +431,7 @@ Installer-Linux:
 
 Package-Build-Deb:
   stage: installer
-  image: opentapio/opentap:9.5-ubuntu18.04
+  image: mcr.microsoft.com/dotnet/core/sdk:2.1-bionic
   tags: [ docker, gce ]
   dependencies:
     - Package-Linux
@@ -433,6 +441,8 @@ Package-Build-Deb:
     - pushd LinuxInstall/package
     - mv ../../OpenTAP*.TapPackage OpenTAP.TapPackage
     - pushd Debian
+    - apt update
+    - apt install unzip -y
     - bash create-deb
     - popd
     - mv OpenTAP.deb ../../OpenTAP.deb
@@ -510,7 +520,7 @@ Publish-Nuget-Manuel:
         - mv OpenTAP.*.Linux.TapPackage docker/Linux/OpenTAP.Linux.TapPackage
         - cd docker/Linux
         - echo "{\"auths\":{\"https://index.docker.io/v1/\":{\"username\":\"$DOCKER_USER\", \"password\":\"$DOCKER_PASS\"}}}" > /kaniko/.docker/config.json
-        - /kaniko/executor --context=$CI_PROJECT_DIR/docker/Linux --dockerfile=Dockerfile --destination=opentapio/opentap:$version-ubuntu18.04
+        - /kaniko/executor --context=$CI_PROJECT_DIR/docker/Linux --target=$target --dockerfile=Dockerfile --destination=opentapio/opentap:$version-ubuntu18.04
 
 DockerLinux-Release:
   extends: .DockerLinuxBuild
@@ -518,6 +528,15 @@ DockerLinux-Release:
     - tags
   before_script:
         - version=$(cat .gitversion | sed -nr 's/version *= *([0-9]+\.[0-9]+)\.[0-9]+/\1/p')
+        - target=development
+
+DockerLinux-Release-Slim:
+  extends: .DockerLinuxBuild
+  only:
+    - tags
+  before_script:
+        - version="$(cat .gitversion | sed -nr 's/version *= *([0-9]+\.[0-9]+)\.[0-9]+/\1/p')-slim"
+        - target=production
 
 DockerLinux-RC:
   extends: .DockerLinuxBuild
@@ -525,6 +544,15 @@ DockerLinux-RC:
     - /^release.*$/
   before_script:
         - version=rc
+        - target=development
+
+DockerLinux-RC-Slim:
+  extends: .DockerLinuxBuild
+  only:
+    - /^release.*$/
+  before_script:
+        - version=rc-slim
+        - target=production
 
 DockerLinux-Beta:
   extends: .DockerLinuxBuild
@@ -532,6 +560,15 @@ DockerLinux-Beta:
     - master
   before_script:
         - version=beta
+        - target=development
+
+DockerLinux-Beta-Slim:
+  extends: .DockerLinuxBuild
+  only:
+    - master
+  before_script:
+        - version=beta-slim
+        - target=production
 
 .DockerWindowsBuild:
   stage: publish

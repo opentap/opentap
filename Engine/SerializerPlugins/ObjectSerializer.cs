@@ -124,19 +124,21 @@ namespace OpenTap.Plugins
                 {
                     var props = properties.ToLookup(x => x.GetAttributes<XmlElementAttribute>().FirstOrDefault()?.ElementName ?? x.Name);
                     var elements = element.Elements().ToArray();
-                    HashSet<XElement> visited = new HashSet<XElement>();
+                    bool[] visited = new bool[elements.Length];
+                    
                     double order = 0;
 
-                    while (visited.Count != elements.Length)
+                    while (true)
                     {
                         double nextOrder = 1000;
                         // since the object might be dynamically adding properties as other props are added.
                         // we need to iterate a bit. Example: Test Plan Reference.
 
-                        int found = visited.Count;
-                        foreach (var element2 in elements)
+                        int found = visited.Count(x => x);
+                        for (int i = 0; i < elements.Length; i++)
                         {
-                            if (visited.Contains(element2)) continue;
+                            var element2 = elements[i];
+                            if (visited[i]) continue;
                             IMemberData property = null;
                             var name = XmlConvert.DecodeName(element2.Name.LocalName);
                             var propertyMatches = props[name];
@@ -186,7 +188,8 @@ namespace OpenTap.Plugins
                             {
                                 nextOrder = order;
                             }
-                            visited.Add(element2);
+
+                            visited[i] = true;
                             var prev = CurrentMember;
                             CurrentMember = property;
                             try
@@ -221,16 +224,16 @@ namespace OpenTap.Plugins
                             {
                                 CurrentMember = prev;
                             }
-
                         }
-                        if (found == visited.Count && order == nextOrder)
+                        if (found == visited.Count(x => x) && order == nextOrder)
                         {
-                            if (logWarnings && visited.Count < elements.Length)
+                            if (logWarnings && visited.Count(x => x) < elements.Length)
                             {
                                 // print a warning message if the element could not be deserialized.
-                                foreach (var elem in elements)
+                                for(int j = 0; j < elements.Length; j++)
                                 {
-                                    if (visited.Contains(elem)) continue;
+                                    if (visited[j]) continue;
+                                    var elem = elements[j];
                                     var message = string.Format("Unable to read element '{0}'. The property does not exist.", elem.Name.LocalName);
                                     Serializer.PushError(elem, message);
                                 }
@@ -238,7 +241,6 @@ namespace OpenTap.Plugins
                             break;
                         }
                         order = nextOrder;
-
                     }
                 }
                 setter(newobj);
@@ -591,11 +593,15 @@ namespace OpenTap.Plugins
                     elem.Value = Convert.ToString(obj, CultureInfo.InvariantCulture);
                     return true;
                 }
-                
+
+                IMemberData xmlTextProp = null;
                 var _type = TypeData.GetTypeData(obj);
-                var properties = _type.GetMembers().Where(x => x.HasAttribute<XmlIgnoreAttribute>() == false).ToArray();
+                var properties = _type.GetMembers();
                 foreach (IMemberData prop in properties)
                 {
+                    if (prop.HasAttribute<XmlIgnoreAttribute>()) continue;
+                    if (prop.HasAttribute<XmlTextAttribute>())
+                        xmlTextProp = prop;
                     var attr = prop.GetAttribute<XmlAttributeAttribute>();
                     if (attr != null)
                     {
@@ -611,19 +617,17 @@ namespace OpenTap.Plugins
                     }
                 }
 
-                var xmlTextProp = properties.FirstOrDefault(p => p.HasAttribute<XmlTextAttribute>());
                 if (xmlTextProp != null)
                 { // XmlTextAttribute support
                     var textvalue = xmlTextProp.GetValue(obj);
                     if (textvalue != null)
-                    {
                         Serializer.Serialize(elem, textvalue, xmlTextProp.TypeDescriptor);
-                    }
                 }
                 else
                 {
                     foreach (IMemberData subProp in properties)
                     {
+                        if (subProp.HasAttribute<XmlIgnoreAttribute>()) continue;
                         if (subProp.Readable && subProp.Writable && null == subProp.GetAttribute<XmlAttributeAttribute>())
                         {
                             var oldProp = CurrentMember;

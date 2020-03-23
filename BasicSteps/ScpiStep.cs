@@ -201,6 +201,8 @@ namespace OpenTap.Plugins.BasicSteps
             AddToLog = true;
             Rules.Add(() => !string.IsNullOrEmpty(Query), "Command cannot be empty.", "Query");
             Rules.Add(() => Instrument != null, "An instrument must be selected.", "Instrument");
+            Rules.Add(() => !(Query.EndsWith("?") && Action == SCPIAction.Command), "A command cannot end with '?'", "Query");
+            Rules.Add(() => !(Query.EndsWith("?") == false && Action == SCPIAction.Query), "A query must end with '?'", "Query");
             Query = "*IDN?";
         }
         

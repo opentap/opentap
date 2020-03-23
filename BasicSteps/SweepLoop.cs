@@ -757,10 +757,17 @@ namespace OpenTap.Plugins.BasicSteps
                     
                     var parent = annotation.ParentAnnotation.Source as SweepLoop;
                     var p = parent.SweepParameters;
-
-                    var allsteps = r.SelectMany(x => x.Value).Distinct().ToArray();
-                    var superAnnotation = AnnotationCollection.Annotate(allsteps);
-                    var allMembers = superAnnotation.Get<IMembersAnnotation>().Members.ToArray();
+                    
+                    Dictionary<object, AnnotationCollection> annotated = new Dictionary<object, AnnotationCollection>();
+                    foreach (var elems in r.Values)
+                    {
+                        var elem = elems[0];
+                        if (annotated.ContainsKey(elem)) continue;
+                        annotated[elem] = AnnotationCollection.Annotate(elem);
+                    }
+                    var allsteps = r.Select(x => annotated[x.Value[0]].AnnotateMember(x.Key)).ToArray();
+                    var allMembers = allsteps;
+                    
                     List<AnnotationCollection> lst = new List<AnnotationCollection>(p.Count);
                     var members = r.Keys.ToHashSet();
                     var subSet = allMembers.Where(x => members.Contains(x.Get<IMemberAnnotation>()?.Member)).ToArray();
@@ -772,11 +779,13 @@ namespace OpenTap.Plugins.BasicSteps
                         var sub = subSet.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member == p2);
                         if (sub == null)
                             continue;
-                        
+                        // Sweep loop does not support EnabledIf.
+                        var enabledif = sub.FirstOrDefault(x => x.GetType().Name.Contains("EnabledIfAnnotation"));
+                        if(enabledif != null)
+                            sub.Remove(enabledif);
                         var v = new ValueContainerAnnotation { Value = val.Values[i]};
-
-                        // a bit complicated..
-                        // we have to make sure that the ValueAnnotation is put very early in the chain.
+                        // This is a bit complicated..
+                        // we have to make sure that the ValueAnnotation is put very early in the chain. 
                         sub.Insert(sub.IndexWhen(x => x is IObjectValueAnnotation) + 1, v);
                         
                         lst.Add(sub);
@@ -937,13 +946,34 @@ namespace OpenTap.Plugins.BasicSteps
                     sweep.EnabledRows[index] = row.Enabled;
                     for (int i = 0; i < row.Values.Length; i++)
                     {
-                        sweepParams[i].Values[index] = row.Values[i];
+                        sweepParams[i].Values[index] = cloneIfPossible(row.Values[i], sweep);
                     }
 
                     index += 1;
                 }
                 
                 sweep.sanitizeSweepParams(log: false); // update size of EnabledRows.
+            }
+            TapSerializer tapSerializer;
+            object cloneIfPossible(object value, object context)
+            {
+                if (StringConvertProvider.TryGetString(value, out string result))
+                {
+                    if (StringConvertProvider.TryFromString(result, TypeData.GetTypeData(value), context, out object result2))
+                    {
+                        return result2;
+                    }
+                }
+                if(tapSerializer == null) tapSerializer = new TapSerializer();
+                try
+                {
+                    return tapSerializer.DeserializeFromString(tapSerializer.SerializeToString(value),
+                               TypeData.GetTypeData(value)) ?? value;
+                }
+                catch
+                {
+                    return value;
+                }
             }
         }
 

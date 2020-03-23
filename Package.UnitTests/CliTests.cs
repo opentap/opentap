@@ -95,6 +95,16 @@ namespace OpenTap.Package.UnitTests
             Debug.Write(output);
         }
 
+        [Test]
+        public void ShowTest()
+        {
+            int exitCode;
+            string output = RunPackageCli("show OpenTAP", out exitCode);
+            Assert.AreEqual(0, exitCode, $"Unexpected exit code.{Environment.NewLine}{output}");
+            StringAssert.Contains("OpenTAP", output);
+            Debug.Write(output);
+        }
+
         [Ignore("This does not work on build runners")]
         [Test]
         public void TAPUninstallSelfTest()

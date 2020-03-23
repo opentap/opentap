@@ -223,6 +223,13 @@ namespace OpenTap
         string Describe();
     }
 
+    /// <summary> Annotation for marking something as enabled or disabled. </summary>
+    public interface IEnabledAnnotation : IAnnotation
+    {
+        /// <summary> Gets if an annotation is enabled. </summary>
+        bool IsEnabled { get; }
+    }
+
     /// <summary>
     /// Annotates that a member is read only.
     /// </summary>
@@ -307,7 +314,7 @@ namespace OpenTap
         }
     }
 
-    class EnabledIfAnnotation : IAccessAnnotation, IOwnedAnnotation
+    class EnabledIfAnnotation : IAccessAnnotation, IOwnedAnnotation, IEnabledAnnotation
     {
 
         public bool IsReadOnly => isReadOnly;
@@ -333,6 +340,8 @@ namespace OpenTap
         {
             this.mem = mem;
         }
+
+        public bool IsEnabled => IsReadOnly == false;
     }
 
     class ValidationErrorAnnotation : IErrorAnnotation, IOwnedAnnotation
@@ -700,7 +709,6 @@ namespace OpenTap
                 bool collectAll = rdOnly;
                 if (c == null)
                 {
-                    var members = parentAnnotation.Get<IMembersAnnotation>();
                     var merged = parentAnnotation.Get<MergedValueAnnotation>();
                     annotatedElements = merged.Merged.ToArray();
                 }
@@ -709,11 +717,9 @@ namespace OpenTap
                     annotatedElements = c.AnnotatedElements.ToArray();
                 }
 
-                if (annotatedElements == null) return Array.Empty<AnnotationCollection>();
                 var sources = annotatedElements;
                 var mems = sources.Select(x => x.Get<IMembersAnnotation>()?.Members.ToArray() ?? Array.Empty<AnnotationCollection>()).ToArray();
                 if (mems.Length == 0) return Array.Empty<AnnotationCollection>();
-                var fst = mems[0];
                 Dictionary<string, AnnotationCollection>[] dicts = mems.Select(x =>
                 {
                     var dict = new Dictionary<string, AnnotationCollection>(x.Length);
@@ -835,7 +841,7 @@ namespace OpenTap
             this.others = others;
         }
     }
-    class DefaultValueAnnotation : IObjectValueAnnotation, IOwnedAnnotation, IErrorAnnotation
+    class MemberValueAnnotation : IObjectValueAnnotation, IOwnedAnnotation, IErrorAnnotation
     {
         AnnotationCollection annotation;
         object currentValue;
@@ -858,7 +864,7 @@ namespace OpenTap
             }
         }
 
-        public DefaultValueAnnotation(AnnotationCollection annotation)
+        public MemberValueAnnotation(AnnotationCollection annotation)
         {
             this.annotation = annotation;
         }
@@ -1139,68 +1145,6 @@ namespace OpenTap
         class EnumStringAnnotation : IStringValueAnnotation, IValueDescriptionAnnotation
         {
 
-            string enumToString(Enum value)
-            {
-                if (value == null) return null;
-                var mem = enumType.GetMember(value.ToString()).FirstOrDefault();
-
-                if (mem == null)
-                {
-                    if (enumType.HasAttribute<FlagsAttribute>())
-                    {
-                        var flags = Enum.GetValues(enumType);
-                        StringBuilder sb = new StringBuilder();
-
-                        bool first = true;
-                        foreach (Enum flag in flags)
-                        {
-                            if (value.HasFlag(flag))
-                            {
-                                if (!first)
-                                    sb.Append(" | ");
-                                else
-                                    first = false;
-                                sb.Append(enumToString(flag));
-                            }
-                        }
-                        return sb.ToString();
-                    }
-                    return value.ToString();
-                }
-                return mem.GetDisplayAttribute().Name;
-            }
-            
-            string enumToDescription(Enum value)
-            {
-                if (value == null) return null;
-                var mem = enumType.GetMember(value.ToString()).FirstOrDefault();
-
-                if (mem == null)
-                {
-                    if (enumType.HasAttribute<FlagsAttribute>())
-                    {
-                        var flags = Enum.GetValues(enumType);
-                        StringBuilder sb = new StringBuilder();
-
-                        bool first = true;
-                        foreach (Enum flag in flags)
-                        {
-                            if (value.HasFlag(flag))
-                            {
-                                if (!first)
-                                    sb.Append(" | ");
-                                else
-                                    first = false;
-                                sb.Append(enumToString(flag));
-                            }
-                        }
-                        return sb.ToString();
-                    }
-                    return value.ToString();
-                }
-                return mem.GetDisplayAttribute().Description;
-            }
-
             Enum evalue
             {
                 get => a.Get<IObjectValueAnnotation>()?.Value as Enum;
@@ -1209,14 +1153,14 @@ namespace OpenTap
 
             public string Value
             {
-                get => enumToString(evalue);
+                get => Utils.EnumToReadableString(evalue);
                 set {
                     var values = Enum.GetValues(enumType).Cast<Enum>();
 
-                    var newvalue = values.FirstOrDefault(x => enumToString(x) == value);
+                    var newvalue = values.FirstOrDefault(x => Utils.EnumToReadableString(x) == value);
                     if (newvalue == null)
                     {
-                        newvalue = values.FirstOrDefault(x => enumToString(x).ToLower() == value.ToLower());
+                        newvalue = values.FirstOrDefault(x => Utils.EnumToReadableString(x).ToLower() == value.ToLower());
                     }
                     if (newvalue != null)
                         evalue = newvalue;
@@ -1236,8 +1180,7 @@ namespace OpenTap
             public string Describe()
             {
                 if (evalue is Enum e)
-                    return enumToDescription(e);
-
+                    return Utils.EnumToDescription(e);
                 return null;
             }
         }
@@ -1524,7 +1467,7 @@ namespace OpenTap
                 }
             }
 
-            public string Value => string.Format("Count: {0}", Elements.Cast<object>().Count());
+            public string Value => string.Format("Count: {0}", Elements?.Cast<object>().Count() ?? 0);
 
             AnnotationCollection fac;
             public GenericSequenceAnnotation(AnnotationCollection fac)
@@ -2197,7 +2140,7 @@ namespace OpenTap
             if (mem != null)
             {
                 if (annotation.Get<IObjectValueAnnotation>() == null)
-                    annotation.Add(new DefaultValueAnnotation(annotation));
+                    annotation.Add(new MemberValueAnnotation(annotation));
 
                 annotation.Add(mem.Member.GetDisplayAttribute());
 
@@ -2725,7 +2668,6 @@ namespace OpenTap
                 {
                     var merged = annotation.Get<MergedValueAnnotation>();
                     if (merged == null) return Enumerable.Empty<object>();
-                    var array = merged.Merged.Select(x => x.Get<IAvailableValuesAnnotation>()).Where(x => x != null).ToArray();
 
                     Dictionary<object, int> counts = new Dictionary<object, int>();
                     int maxCount = 0;
@@ -2769,7 +2711,7 @@ namespace OpenTap
             if (merged == null) return;
             var members = annotation.Get<IMembersAnnotation>();
 
-            if (members != null && merged != null)
+            if (members != null)
             {
                 var manyToOne = new ManyToOneAnnotation(annotation);
                 annotation.Add(manyToOne);
@@ -3042,7 +2984,7 @@ namespace OpenTap
 
             if (member is IMemberData mem)
             {
-                annotation.Add(new MemberAnnotation(mem), new DefaultValueAnnotation(annotation));
+                annotation.Add(new MemberAnnotation(mem), new MemberValueAnnotation(annotation));
             }
             annotation.AddRange(extraAnnotations);
             var resolver = new AnnotationResolver();

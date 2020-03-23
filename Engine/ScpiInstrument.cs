@@ -9,10 +9,7 @@ using System.Threading;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
-using System.ComponentModel;
-using System.Net;
 using System.Xml.Serialization;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace OpenTap
@@ -62,14 +59,6 @@ namespace OpenTap
 
         IScpiIO IScpiInstrument.IO { get { return scpiIO; } }
 
-        #region Settings
-        /// <summary>
-        /// The VISA address of the instrument that this class represents a connection to.
-        /// </summary>
-        [Display("VISA Address", Group: "Common", Order: 1, Description: "The VISA address of the instrument e.g. 'TCPIP::1.2.3.4::INSTR' or 'GPIB::14::INSTR'")]
-        [VisaAddress]
-        public string VisaAddress { get; set; }
-
         static TraceSource staticLog = OpenTap.Log.CreateSource("SCPI");
 
         static int visa_resource = Visa.VI_NULL;
@@ -88,11 +77,6 @@ namespace OpenTap
             }
         }
 
-        private void RaiseError(int error)
-        {
-            if (error < 0)
-                throw new VISAException(scpiIO.ID, error);
-        }
 
         private static void RaiseError2(int error)
         {
@@ -150,10 +134,19 @@ namespace OpenTap
             return validator.Invoke(VisaAddress);
         }
 
+        
+        #region Settings
+        /// <summary>
+        /// The VISA address of the instrument that this class represents a connection to.
+        /// </summary>
+        [Display("Address", Groups: new []{"VISA"}, Order: 1, Description: "The VISA address of the instrument e.g. 'TCPIP::1.2.3.4::INSTR' or 'GPIB::14::INSTR'")]
+        [VisaAddress]
+        public string VisaAddress { get; set; }
+        
         /// <summary>
         /// The timeout used by the underlying VISA driver when communicating with the instrument [ms].
         /// </summary>
-        [Display("VISA I/O Timeout", Group: "Common", Order: 1, Description: "The timeout used in the VISA driver when communicating with the instrument. (Default is 2 s and resolutions is 1 ms)")]
+        [Display("I/O Timeout", Groups: new []{"VISA"}, Order: 1, Description: "The timeout used in the VISA driver when communicating with the instrument. (Default is 2 s and resolutions is 1 ms)")]
         [Unit("s", PreScaling: 1000, UseEngineeringPrefix: true)]
         public int IoTimeout
         {
@@ -167,20 +160,21 @@ namespace OpenTap
         /// <summary>
         /// If enabled ScpiInstrument acquires an exclusive lock when opening the instrument.
         /// </summary>
-        [Display("Lock Queries", Group: "Locking", Order: 2.6, Collapsed: true, Description: "If enabled the instrument will acquire an exclusive lock when performing SCPI queries. This might degrade performance")]
+        [Display("Lock Queries", Groups: new []{"VISA", "Locking"}, Order: 2.6, Collapsed: true, Description: "If enabled the instrument will acquire an exclusive lock when performing SCPI queries. This might degrade performance")]
         [EnabledIf("Lock", false)]
         public bool FinegrainedLock { get; set; }
 
         /// <summary>
         /// If enabled ScpiInstrument acquires an exclusive lock when opening the instrument.
         /// </summary>
-        [Display("Lock Instrument", Group: "Locking", Order: 3, Collapsed: true, Description: "If enabled the instrument will be opened with exclusive access. This will disallow other clients from accessing the instrument.")]
+        [Display("Lock Instrument", Groups: new []{"VISA", "Locking"}, Order: 3, Collapsed: true, Description: "If enabled the instrument will be opened with exclusive access. This will disallow other clients from accessing the instrument.")]
         public bool Lock { get; set; }
 
+        
         /// <summary>
         /// Specifies how many times the SCPI instrument should retry an operation, if it was canceled by another host locking the device.
         /// </summary>
-        [Display("Lock Retries", Group: "Locking", Order: 3, Collapsed: true, Description: "Specifies how many times the SCPI instrument should retry an operation, if it was canceled by another host locking the device.")]
+        [Display("Lock Retries", Groups: new []{"VISA", "Locking"}, Order: 3, Collapsed: true, Description: "Specifies how many times the SCPI instrument should retry an operation, if it was canceled by another host locking the device.")]
         public uint LockRetries
         {
             get { return lockRetries; }
@@ -191,7 +185,7 @@ namespace OpenTap
         /// Specifies how long the SCPI instrument should wait before it retries an operation, if it was canceled by another host locking the device.
         /// </summary>
         [Unit("s", true)]
-        [Display("Lock Holdoff", Group: "Locking", Order: 2.8, Collapsed: true, Description: "Specifies how long the SCPI instrument should wait before it retries an operation, if it was canceled by another host locking the device.")]
+        [Display("Lock Hold Off", Groups: new []{"VISA", "Locking"}, Order: 2.8, Collapsed: true, Description: "Specifies how long the SCPI instrument should wait before it retries an operation, if it was canceled by another host locking the device.")]
         public double LockHoldoff
         {
             get { return lockHoldoff; }
@@ -201,17 +195,17 @@ namespace OpenTap
         /// <summary>
         /// When enabled, causes the instrument driver to ask the instrument SYST:ERR? after every command. Useful when debugging.
         /// </summary>
-        [Display("Error Checking", Group: "Debug", Order: 4, Collapsed: true, Description: "When enabled, the instrument driver will ask the instrument SYST:ERR? after every command.")]
+        [Display("Error Checking", Groups: new []{"VISA", "Debug"}, Order: 4, Collapsed: true, Description: "When enabled, the instrument driver will ask the instrument SYST:ERR? after every command.")]
         public bool QueryErrorAfterCommand { get; set; }
 
         /// <summary>
         /// When true, <see cref="Open"/> will send VIClear() right after establishing a connection.
         /// </summary>
-        [Display("Send VIClear On Connect", Group: "Debug", Order: 4.1, Collapsed: true, Description: "Send VIClear() when opening the connection to the instrument.")]
+        [Display("Send VIClear On Connect", Groups: new []{"VISA", "Debug"}, Order: 4.1, Collapsed: true, Description: "Send VIClear() when opening the connection to the instrument.")]
         public bool SendClearOnConnect { get; set; }
 
         /// <summary> Gets or sets whether Verbose SCPI logging is enabled. </summary>
-        [Display("Verbose SCPI Logging", Group: "Debug", Order:4.2, Collapsed:true, Description: "Enables verbose logging of SCPI communication.")]
+        [Display("Verbose SCPI Logging", Groups: new []{"VISA", "Debug"}, Order:4.2, Collapsed:true, Description: "Enables verbose logging of SCPI communication.")]
         public bool VerboseLoggingEnabled { get; set; } = true;
 
         #endregion
@@ -496,7 +490,7 @@ namespace OpenTap
 
         private string ReadString()
         {
-            // copy readBuffer to avoid reading/writing the thread static variable more than necessesary.
+            // copy readBuffer to avoid reading/writing the thread static variable more than necessary.
             // this is known to be a relatively slow operation.
             byte[] buffer = readBuffer ?? new byte[BufferSize];
 
@@ -709,7 +703,7 @@ namespace OpenTap
             int dataSizeLen;
             byte[] dataBytes;
 
-            //Variables to proces bytes coming back from the instrument
+            //Variables to process bytes coming back from the instrument
             int dataTypeLen;
             Array data;
 

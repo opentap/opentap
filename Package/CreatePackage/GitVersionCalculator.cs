@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System;
 using System.IO;
 using System.Globalization;
+using Tap.Shared;
 
 namespace OpenTap.Package
 {
@@ -113,6 +114,28 @@ namespace OpenTap.Package
             }
         }
 
+        void linuxEnsureLibgit2Present()
+        {
+            // on linux, we are not sure which libgit to load at package time.
+            // so at this moment we need to check which version we are on
+            // and move the file to a position that is checked.
+            string libgit2name = "libgit2-4aecb64";
+            string libgitfoldername = "Dependencies/LibGit2Sharp.0.25.0.0/";
+            IEnumerable<FileInfo> libgit2files = new[] {"ubuntu", "redhat", "linux-x64"}
+                .Select(x => Path.Combine(PathUtils.OpenTapDir, libgitfoldername, $"{libgit2name}.so.{x}")).Select(x => new FileInfo(x));
+            var requiredFile = Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.so");
+
+            var file = libgit2files.FirstOrDefault(x => x.Name.EndsWith(LinuxVariant.Current.Name));
+            try
+            {
+                file?.CopyTo(requiredFile, true);
+            }
+            catch
+            {
+                
+            }
+        }
+
         /// <summary>
         /// Instanciates a new <see cref="GitVersionCalulator"/> to work on a specified git repository.
         /// </summary>
@@ -126,7 +149,11 @@ namespace OpenTap.Package
                 if (repositoryDir == null)
                     throw new ArgumentException("Directory is not a git repository.", "repositoryDir");
             }
-            repo = new LibGit2Sharp.Repository(repositoryDir);
+
+            if (OperatingSystem.Current == OperatingSystem.Linux)
+                linuxEnsureLibgit2Present();
+
+            repo = new Repository(repositoryDir);
         }
 
         public void Dispose()
@@ -143,13 +170,16 @@ namespace OpenTap.Package
 
         private Commit getLatestConfigVersionChange(Commit c)
         {
+            if (c.Parents.Any() == false)
+                return null; // 'c' is the first commit in the repo. There was never any change.
+            
             // find all changes in the file (for some reason that sometimes returns an empty list)
             //var fileLog = repo.Commits.QueryBy(configFileName, new CommitFilter() { IncludeReachableFrom = c, SortBy = CommitSortStrategies.Topological, FirstParentOnly = false });
             //... go on to iterate through filelog...
 
             // Instead, just walk all commits comparing the version in the .gitversion file to the one in the previous commit
             Config currentCfg = ParseConfig(c);
-            while (c != null)
+            while (true)
             {
                 Commit parent = c.Parents.FirstOrDefault(); // first parent only, we are only interested in when the file changes on the beta branch
                 if (parent == null)
@@ -163,6 +193,7 @@ namespace OpenTap.Package
                 c = parent;
                 currentCfg = parentCfg;
             }
+            
             log.Warning("Did not find any .gitversion file.");
             return null;
         }

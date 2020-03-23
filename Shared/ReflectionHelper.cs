@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 using System.IO.MemoryMappedFiles;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 
 //**** WARNING ****//
@@ -597,7 +598,8 @@ namespace OpenTap
         readonly Dictionary<MemorizerKey, ResultT> memorizerTable = new Dictionary<MemorizerKey, ResultT>();
         readonly Dictionary<MemorizerKey, LockObject> locks = new Dictionary<MemorizerKey, LockObject>();
 
-        /// <summary> Can be used to create a validation key for each key in the memorizer. </summary>
+        /// <summary> Can be used to create a validation key for each key in the memorizer.
+        /// Validation keys are used for checking if the memory is up to date or if it should be refreshed. </summary>
         public Func<MemorizerKey, object> Validator { get; set; } = null;
         readonly Dictionary<MemorizerKey, object> validatorData = new Dictionary<MemorizerKey, object>();
         
@@ -1432,6 +1434,44 @@ namespace OpenTap
                 col[i] = col[j];
                 col[j] = a;
             }
+        }
+
+        public static string EnumToReadableString(Enum value)
+        {
+            if (value == null) return null;
+            var enumType = value.GetType();
+            var mem = enumType.GetMember(value.ToString()).FirstOrDefault();
+            if (mem != null) return mem.GetDisplayAttribute().Name;
+            if (false == enumType.HasAttribute<FlagsAttribute>())
+                return value.ToString();
+            
+            // Normally happens when 'value' is a combination of multiple flags.
+            var flags = Enum.GetValues(enumType);
+            var sb = new StringBuilder();
+
+            bool first = true;
+            foreach (Enum flag in flags)
+            {
+                if (value.HasFlag(flag))
+                {
+                    if (!first)
+                        sb.Append(" | ");
+                    else
+                        first = false;
+                    sb.Append(EnumToReadableString(flag));
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        public static string EnumToDescription(Enum value)
+        {
+            if (value == null) return null;
+            var enumType = value.GetType();
+            var mem = enumType.GetMember(value.ToString()).FirstOrDefault();
+            // if member is null, fall back to the readable enum string (or description is null)
+            return mem?.GetDisplayAttribute().Description ?? EnumToReadableString(value);
         }
     }
 

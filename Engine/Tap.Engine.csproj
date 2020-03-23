@@ -41,6 +41,12 @@
     <None Include="../Installer/Assets/Dotnet.Glob.License.txt">
        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="../Installer/Assets/newtonsoft_mit_license.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="..\LICENSE.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <Import Project="..\Shared\Tap.Shared.projitems" Label="Shared" />

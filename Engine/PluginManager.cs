@@ -269,7 +269,7 @@ namespace OpenTap
             ChangeID++;
             try
             {
-                IEnumerable<string> fileNames = assemblyResolver.FileFinder.AllAssemblies();
+                IEnumerable<string> fileNames = assemblyResolver.GetAssembliesToSearch();
                 searcher = SearchAndAddToStore(fileNames);
             }
             catch (Exception e)
@@ -503,7 +503,7 @@ namespace OpenTap
     {
         static readonly TraceSource log = Log.CreateSource("Resolver");
 
-        public readonly AssemblyFinder FileFinder = new AssemblyFinder();
+        private readonly AssemblyFinder FileFinder = new AssemblyFinder();
 
         /// <summary>
         /// Should be called before each search. Flushes the files found. Also sets up the directories to search.
@@ -512,9 +512,10 @@ namespace OpenTap
         {
             FileFinder.Invalidate();
             FileFinder.DirectoriesToSearch = directoriesToSearch;
+            lastSearchedDirs = FileFinder.DirectoriesToSearch.ToHashSet();
         }
 
-        public class AssemblyFinder
+        private class AssemblyFinder
         {
             public void Invalidate()
             {
@@ -530,51 +531,100 @@ namespace OpenTap
 
             DateTime lastSearch = DateTime.MinValue;
             string[] allFiles = null;
+            string[] allSearchFiles = null;
             Memorizer<string, string[]> matching;
             object syncLock = new object();
             public string[] FindAssemblies(string fileName)
             {
-                AllAssemblies();
+                SyncFiles();
                 return matching.Invoke(fileName);
             }
-            
+
+            static bool StrEq(string a, string b) => string.Equals(a, b, StringComparison.InvariantCultureIgnoreCase);
+
             public string[] AllAssemblies()
+            {
+                SyncFiles();
+                return allSearchFiles;
+            }
+
+            private struct SearchDir
+            {
+                public DirectoryInfo Info;
+                public bool IgnorePlugins;
+
+                public SearchDir(string dir, bool excludeFromSearch)
+                {
+                    this.Info = new DirectoryInfo(dir);
+                    IgnorePlugins = excludeFromSearch;
+                }
+                public SearchDir(DirectoryInfo dir, bool excludeFromSearch)
+                {
+                    this.Info = dir;
+                    IgnorePlugins = excludeFromSearch;
+                }
+            }
+
+            private void SyncFiles()
             {
                 lock (syncLock)
                 {
-                    if ((DateTime.Now - lastSearch) > TimeSpan.FromSeconds(8))
+                    if ((DateTime.Now - lastSearch) < TimeSpan.FromSeconds(8))
+                        return;
+
+                    var sw = Stopwatch.StartNew();
+                    var files = new HashSet<string>(new PathUtils.PathComparer());
+                    var searchFiles = new HashSet<string>(new PathUtils.PathComparer());
+                    foreach (var search_dir in DirectoriesToSearch.ToHashSet(new PathUtils.PathComparer()))
                     {
-                        var sw = Stopwatch.StartNew();
-                        var files = new HashSet<string>(new PathUtils.PathComparer());
-                        foreach (var dir in DirectoriesToSearch.ToHashSet(new PathUtils.PathComparer()))
+                        var dirToSearch = new Queue<SearchDir>();
+                        dirToSearch.Enqueue(new SearchDir(search_dir, false));
+                        while (dirToSearch.Any())
                         {
+                            var dir = dirToSearch.Dequeue();
                             try
                             {
-                                foreach (var file in Directory.EnumerateFiles(dir, "*.*", SearchOption.AllDirectories))
+                                FileInfo[] filesInDir = dir.Info.GetFiles();
+                                if (filesInDir.Any(x => StrEq(x.Name, ".OpenTapIgnore")))  // .OpenTapIgnore means we should ignore this folder and sub folders w.r.t. both Assembly resolution and Plugin searching
+                                    continue;
+
+                                bool ignorePlugins = dir.IgnorePlugins;
+
+                                foreach (var subDir in dir.Info.EnumerateDirectories())
                                 {
-                                    if (!(file.EndsWith(".exe", StringComparison.InvariantCultureIgnoreCase) || file.EndsWith(".dll", StringComparison.InvariantCultureIgnoreCase)))
+                                    if (StrEq(subDir.Name, "obj"))
+                                        continue; // skip obj subfolder
+                                    var ignorePluginsInSubDir = StrEq(subDir.Name, "Dependencies");
+                                    dirToSearch.Enqueue(new SearchDir(subDir, ignorePluginsInSubDir));
+                                }
+
+                                foreach (var file in filesInDir)
+                                {
+                                    var ext = file.Extension;
+                                    if (false == (StrEq(ext, ".exe") || StrEq(ext, ".dll")))
                                         continue;
-                                    if (file.IndexOf("\\obj\\", StringComparison.InvariantCultureIgnoreCase) != -1)
+                                    if (file.Name.Contains(".vshost."))
                                         continue;
-                                    if (file.IndexOf(".vshost.",0) != -1)
-                                        continue;
-                                    if (files.Contains(file))
-                                        continue;
-                                    files.Add(file);
+
+                                    files.Add(file.FullName);
+                                    if (!ignorePlugins)
+                                        searchFiles.Add(file.FullName);
                                 }
                             }
-                            catch(Exception e)
+                            catch (Exception e)
                             {
-                                log.Error("Unable to enumerate directory '{0}': '{1}'", dir ?? "(null)", e.Message);
+                                log.Error("Unable to enumerate directory '{0}': '{1}'", search_dir ?? "(null)", e.Message);
                                 log.Debug(e);
                             }
                         }
-                        allFiles = files.ToArray();
-                        matching.InvalidateAll();
-                        lastSearch = DateTime.Now;
                     }
+
+                    allFiles = files.ToArray();
+                    allSearchFiles = searchFiles.ToArray();
+                    matching.InvalidateAll();
+                    lastSearch = DateTime.Now;
+                    log.Debug(sw, "Found {0}/{1} assembly files.", files.Count, searchFiles.Count);
                 }
-                return allFiles;
             }
         }
 
@@ -597,6 +647,17 @@ namespace OpenTap
             assemblyResolutionMemorizer.Add(new resolveKey { Name = asm.FullName, ReflectionOnly = asm.ReflectionOnly }, asm);
         }
         HashSet<string> lastSearchedDirs = new HashSet<string>();
+
+        public string[] GetAssembliesToSearch()
+        {
+            if (false == lastSearchedDirs.SetEquals(FileFinder.DirectoriesToSearch))
+            {  // If directories to search has changed.
+                lastSearchedDirs = FileFinder.DirectoriesToSearch.ToHashSet();
+                FileFinder.Invalidate();
+                assemblyResolutionMemorizer.InvalidateWhere((k, v) => v == null);
+            }
+            return FileFinder.AllAssemblies();
+        }
 
         public Assembly Resolve(string name, bool reflectionOnly)
         {

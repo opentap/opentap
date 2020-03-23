@@ -73,7 +73,8 @@ namespace OpenTap.Package
 
             using (Mutex state = GetMutex(Target))
             {
-                if (Unlocked == false && !state.WaitOne(0))
+                bool useLocking = Unlocked == false;
+                if (useLocking && !state.WaitOne(0))
                 {
                     log.Info("Waiting for other package manager operation to complete.");
                     try
@@ -88,15 +89,23 @@ namespace OpenTap.Package
                                 throw new ExitCodeException(6, "Timeout after 2 minutes while waiting for other package manager operation to complete.");
                         }
                     }
-                    catch(AbandonedMutexException)
+                    catch (AbandonedMutexException)
                     {
                         // Another package manager exited without releasing the mutex. We can should be able to take it now.
-                        if(!state.WaitOne(0))
+                        if (!state.WaitOne(0))
                             throw new ExitCodeException(7, "Unable to run while another package manager operation is running.");
                     }
                 }
 
-                return LockedExecute(cancellationToken);
+                try
+                {
+                    return LockedExecute(cancellationToken);
+                }
+                finally
+                {
+                    if(useLocking)
+                        state.ReleaseMutex();
+                }
             }
         }
 
