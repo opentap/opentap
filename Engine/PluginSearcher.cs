@@ -842,7 +842,7 @@ namespace OpenTap
         /// <summary>
         /// Gets a list of types that has this type as a base type (including interfaces)
         /// </summary>
-        public IEnumerable<TypeData> DerivedTypes => _DerivedTypes;
+        public IEnumerable<TypeData> DerivedTypes => (IEnumerable<TypeData>) _DerivedTypes ?? Array.Empty<TypeData>();
 
         /// <summary>
         /// False if the type has a System.ComponentModel.BrowsableAttribute with Browsable = false.
