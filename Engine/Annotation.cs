@@ -769,6 +769,18 @@ namespace OpenTap
                     newa.Add(manyAccess);
 
                     newa.Read(parentAnnotation.Get<IObjectValueAnnotation>().Value);
+
+                    if (newa.Get<IStringValueAnnotation>() is IStringValueAnnotation strValueAnnotation)
+                    {
+                        // see comment on ManyToOneStringValueAnnotation
+                        var merged = newa.Get<MergedValueAnnotation>();
+                        if (merged != null)
+                        {
+                            int idx = newa.IndexWhen(x => x == strValueAnnotation);
+                            // insert after last string value annotation.
+                            newa.Insert(idx + 1, new ManyToOneStringValueAnnotation(merged));
+                        }
+                    }
                     CommonAnnotations.Add(newa);
 
                 next_thing:;
@@ -776,6 +788,51 @@ namespace OpenTap
                 return (members = CommonAnnotations.ToArray());
 
             }
+        }
+
+        /// <summary>
+        /// Some string value annotations does not work very well with multi-select
+        /// to mitigate that, a ManyToOneStringValueAnnotation is used.
+        /// one example is MacroString.
+        /// </summary>
+        class ManyToOneStringValueAnnotation : IStringValueAnnotation
+        {
+            MergedValueAnnotation merged;
+
+            public string Value
+            {
+                get
+                {
+                    string value = null;
+                    bool first = true;
+                    foreach (var m in merged.Merged)
+                    {
+                        var val = m.Get<IStringValueAnnotation>()?.Value;
+                        if (first)
+                        {
+                            value = val;
+                            first = false;
+                        }
+                        else
+                        {
+                            if (!object.Equals(val, value))
+                                return null;
+                        }
+                    }
+
+                    return value;
+                }
+                set
+                {
+                    foreach (var m in merged.Merged)
+                    {
+                        var sv = m.Get<IStringValueAnnotation>();
+                        if (sv != null) sv.Value = value;
+                    }
+                }
+            }
+
+            public ManyToOneStringValueAnnotation(MergedValueAnnotation mva) => merged = mva;
         }
 
         IEnumerable<AnnotationCollection> IMembersAnnotation.Members => Members;

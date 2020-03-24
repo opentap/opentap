@@ -97,5 +97,37 @@ namespace OpenTap.UnitTests
                 checkValue("invalid", 2); // validation failed + parse error.
             }
         }
+
+        public class ClassWithMacroString
+        {
+            public MacroString String { get; set; } = new MacroString();
+        }
+
+        [Test]
+        public void TestClassWithMacroStringMultiSelect()
+        {
+            var elements = new[] {new ClassWithMacroString(), new ClassWithMacroString()};
+            var elems = AnnotationCollection.Annotate(elements);
+            var sv = elems.GetMember(nameof(ClassWithMacroString.String)).Get<IStringValueAnnotation>();
+            sv.Value = "test";
+            elems.Write();
+            Assert.IsNotNull(sv.Value);
+            // Check that multi-edit works.
+            foreach (var elem in elements)
+            {
+                Assert.AreEqual("test", elem.String.ToString());
+            }
+
+            // verify that the same MacroPath instance is not being used.
+            var elem2 = AnnotationCollection.Annotate(elements[0]);
+            var sv2 = elem2.GetMember(nameof(ClassWithMacroString.String)).Get<IStringValueAnnotation>();
+            sv2.Value = "test2";
+            elem2.Write();
+             
+            Assert.AreEqual("test", elements[1].String.ToString());
+            Assert.AreEqual("test2", elements[0].String.ToString());
+            elems.Read();
+            Assert.IsNull(sv.Value);
+        }
     }
 }
