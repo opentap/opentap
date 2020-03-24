@@ -143,6 +143,14 @@ namespace OpenTap.Engine.UnitTests
                 return null;
             }
         }
+        
+        interface NonDerivedInterface { }
+
+        [Test]
+        public void NonDerivedInterfaceDerivedTypes()
+        {
+            Assert.IsEmpty(TypeData.FromType(typeof(NonDerivedInterface)).DerivedTypes);
+        } 
 
         [Test]
         public void ITypeDataSearcherTest()
