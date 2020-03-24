@@ -1,4 +1,4 @@
-﻿//Copyright 2012-2019 Keysight Technologies
+//Copyright 2012-2019 Keysight Technologies
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
 using System.Xml.Linq;
 
 namespace OpenTap.Plugins.PluginDevelopment
@@ -135,9 +136,25 @@ namespace OpenTap.Plugins.PluginDevelopment
 
         public override void Run()
         {
-            var p1 = new System.Net.NetworkInformation.Ping();
-            var reply = p1.Send(IPAddress);
-            Log.Info("Got reply from host after {0}ms", reply.RoundtripTime);
+                var p1 = new System.Net.NetworkInformation.Ping();
+
+                // Wait 5 s for a connection
+                var reply = p1.Send(IPAddress);
+
+                if (reply.Status == (IPStatus.Success))
+                {
+                    Log.Info("Address: {0}", IPAddress);
+                    Log.Info("Got reply after: {0}", reply.RoundtripTime);
+
+                    UpgradeVerdict(Verdict.Pass);
+                }
+                else
+                {
+                    Log.Info("No reply from " + IPAddress + " after {0}ms", reply.RoundtripTime);
+                    Log.Info("Reply Status: " + reply.Status);
+
+                    UpgradeVerdict(Verdict.Fail);
+                }
         }
 
         [Browsable(true)]
