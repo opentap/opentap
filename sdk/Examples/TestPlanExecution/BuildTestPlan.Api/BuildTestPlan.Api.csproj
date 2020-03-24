@@ -21,7 +21,7 @@
   <ItemGroup>
     <PackageReference Include="OpenTAP" Version="$(GitVersion)" />
     <Reference Include="OpenTap.Plugins.BasicSteps">
-      <HintPath>$(NugetPackageRoot)\opentap\9.4.2\build\payload\Packages\OpenTAP\OpenTap.Plugins.BasicSteps.dll</HintPath>
+      <HintPath>$(NugetPackageRoot)\opentap\$(GitVersion)\build\payload\Packages\OpenTAP\OpenTap.Plugins.BasicSteps.dll</HintPath>
     </Reference>
   </ItemGroup>
 
