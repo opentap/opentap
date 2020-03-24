@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:18.04 as development
 
 # Update ubuntu
 RUN apt update
@@ -36,3 +36,21 @@ ENV TAP_PATH="/opt/tap"
 # Test TAP
 RUN tap -h
 RUN tap package list -v
+
+################## DOTNET CORE RUNTIME #########################################
+FROM mcr.microsoft.com/dotnet/core/runtime:2.1.12-bionic as production
+
+COPY --from=development /opt/tap /opt/tap
+
+RUN chmod -R +w /opt/tap
+RUN chmod +x /opt/tap/tap
+
+RUN apt update
+# TAP dotnet core 2.1 dependency
+RUN apt install libc6-dev libunwind8 curl git -y
+
+# Install dependency of TAP dependency "Git2Sharp" library
+RUN apt install -y libcurl3
+
+ENV PATH="/opt/tap:${PATH}"
+ENV TAP_PATH="/opt/tap"
