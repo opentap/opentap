@@ -136,8 +136,6 @@ namespace OpenTap.Plugins.PluginDevelopment
 
         public override void Run()
         {
-            try
-            {
                 var p1 = new System.Net.NetworkInformation.Ping();
 
                 // Wait 5 s for a connection
@@ -157,14 +155,6 @@ namespace OpenTap.Plugins.PluginDevelopment
 
                     UpgradeVerdict(Verdict.Fail);
                 }
-            }
-            catch (Exception e)
-            {
-                Log.Error(e);
-
-                UpgradeVerdict(Verdict.Error);
-            }
-            
         }
 
         [Browsable(true)]
