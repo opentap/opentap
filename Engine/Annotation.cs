@@ -695,6 +695,21 @@ namespace OpenTap
     // Used by ManyToOneAnnotation
     public interface IHideOnMultiSelectAnnotation : IAnnotation { }
 
+    class ManyToOneMethodAnnotation : IMethodAnnotation
+    {
+        AnnotationCollection annotation;
+        public void Invoke()
+        {
+            foreach (var merged in annotation.Get<MergedValueAnnotation>().Merged)
+            {
+                var m = merged.Get<IMethodAnnotation>();
+                m?.Invoke();
+            }
+        }
+
+        public ManyToOneMethodAnnotation(AnnotationCollection a) => annotation = a;
+    }
+    
     class ManyToOneAnnotation : IMembersAnnotation, IOwnedAnnotation
     {
         AnnotationCollection[] members;
@@ -765,6 +780,12 @@ namespace OpenTap
                     var manyAccess = new ManyAccessAnnotation(mergething.Select(x => x.Get<IAccessAnnotation>()).ToArray());
                     // Enabled if is not supported when multi-selecting.
                     newa.RemoveType<EnabledIfAnnotation>();
+                    var method = newa.Get<IMethodAnnotation>();
+                    if (method != null)
+                    {
+                        newa.Add(new ManyToOneMethodAnnotation(newa));
+                        newa.Remove(method);
+                    }
 
                     newa.Add(manyAccess);
 
