@@ -34,6 +34,9 @@ namespace OpenTap.Package
 
         [CommandLineArgument("out", Description = "Path to the output file.", ShortName = "o")]
         public string[] OutputPaths { get; set; }
+         
+        [CommandLineArgument("force", Description = "Ignore missing plugins to handle custom XML elements.")]
+        public bool Force { get; set; }
 
         public PackageCreateAction()
         {
@@ -107,7 +110,7 @@ namespace OpenTap.Package
                 if(string.IsNullOrEmpty(pkg.RawVersion))
                     log.Warning($"Package version is {pkg.Version} due to blank or missing 'Version' XML attribute in 'Package' element");
 
-                pkg.CreatePackage(tmpFile, ProjectDir);
+                pkg.CreatePackage(tmpFile, ProjectDir, Force);
 
                 if (OutputPaths == null || OutputPaths.Length == 0)
                     OutputPaths = new string[1] { "" };

@@ -1,0 +1,36 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <!-- We are debugging using NET Framework, but builds to Netstandard in release mode to ensure cross platform compatibility -->
+    <!-- If your plugin is Windows only and you use Windows specific API's, feel free to change "netstandard2.0" below to "net462" and everything will work as when you are debugging. In this case, remember to change "OS" in package.xml to only "windows" -->
+    <!-- If your plugin should be cross platform but does not build in release mode, please verify that all API's you used are available. You might need references or nuget packages for API's that are available in NET framework, but not in NetStandard -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OpenTapPackageDefinitionPath>..\..\opentap.x64.package.xml</OpenTapPackageDefinitionPath>
+    <CreateOpenTapPackage>true</CreateOpenTapPackage>
+  </PropertyGroup>
+
+  <ItemGroup>
+      <Content Include="..\..\opentap.x64.package.xml" Link="opentap.x64.package.xml" />
+  </ItemGroup>
+
+  <Target Name="DummyHelp" Condition="Exists('..\..\Help\OpenTapApiReference.chm') == false">
+    <MakeDir Directories="..\..\Help\"/>
+    <Touch AlwaysCreate="true" Files="..\..\Help\OpenTapApiReference.chm"/>
+  </Target>
+
+  <Target Name="CreateOpenTapPackage"
+        Condition="'$(CreateOpenTapPackage)' != 'false' And
+                     '$(OutDir)' != '' And
+                     Exists('$(OutDir)') And
+                     '$(OpenTapPackageDefinitionPath)' != '' And
+                     Exists('$(OpenTapPackageDefinitionPath)')"
+        DependsOnTargets="DummyHelp"
+        AfterTargets="Build">
+    <Exec Command=".\tap package create &quot;$(ProjectDir)\$(OpenTapPackageDefinitionPath)&quot; --install --force"
+          WorkingDirectory="$(OutDir)" LogStandardErrorAsError="true" />
+  </Target>
+
+</Project>

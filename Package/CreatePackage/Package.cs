@@ -552,7 +552,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Creates a *.TapPlugin package file from the definition in this PackageDef.
         /// </summary>
-        static public void CreatePackage(this PackageDef pkg, string path, string projectDir)
+        static public void CreatePackage(this PackageDef pkg, string path, string projectDir, bool force)
         {
             foreach (PackageFile file in pkg.Files)
             {
@@ -577,14 +577,20 @@ namespace OpenTap.Package
                         }
                         else
                         {
-                            resolved = false;
-                            log.Error($"Missing plugin to handle XML Element '{missingPackageData.XmlElement.Name.LocalName}' on file {file.FileName}. (Line {missingPackageData.GetLine()})");
+                            string errorMsg = $"Missing plugin to handle XML Element '{missingPackageData.XmlElement.Name.LocalName}' on file {file.FileName}. (Line {missingPackageData.GetLine()})";
+                            if (force)
+                                log.Warning(errorMsg);
+                            else
+                            {
+                                log.Error(errorMsg);
+                                resolved = false;
+                            }
                         }
                         file.CustomData.Remove(missingPackageData);
                     }
                 }
                 if (!resolved)
-                    throw new ArgumentException("Missing plugins to handle XML elements specified in input package.xml...");
+                    throw new ArgumentException("Missing plugins to handle XML elements specified in input package.xml. Use --force to ignore.");
             }
 
             string tempDir = Path.GetTempPath() + Path.GetRandomFileName();
