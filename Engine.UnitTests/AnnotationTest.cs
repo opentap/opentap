@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Linq;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
@@ -97,5 +98,24 @@ namespace OpenTap.UnitTests
                 checkValue("invalid", 2); // validation failed + parse error.
             }
         }
+
+        public class ClassWithMethodAnnotation
+        {
+            public int TimesCalled { private set; get; }
+            [Browsable(true)]
+            public void CallableMethod() => TimesCalled += 1;
+        }
+
+        [Test]
+        public void TestMultiSelectCallMethodAnnotation()
+        {
+            var elements = new[] {new ClassWithMethodAnnotation(), new ClassWithMethodAnnotation()};
+            var annotation = AnnotationCollection.Annotate(elements);
+            var method = annotation.GetMember(nameof(ClassWithMethodAnnotation.CallableMethod)).Get<IMethodAnnotation>();
+            method.Invoke();
+            foreach(var elem in elements)
+                Assert.AreEqual(1, elem.TimesCalled);
+        }
+        
     }
 }
