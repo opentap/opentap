@@ -39,7 +39,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         MacroString filepath = new MacroString();
         string currentlyLoaded = null;
-        [Display("Referenced Plan", Order: 0, Description: "A file path pointing to a test plan which will be imported as readonly test steps.")]
+        [Display("Referenced Plan", Order: 0, Description: "A file path pointing to a test plan which will be loaded as read-only test steps.")]
         [Browsable(true)]
         [FilePath(FilePathAttribute.BehaviorChoice.Open, "TapPlan")]
         [DeserializeOrder(1.0)]
@@ -316,7 +316,7 @@ namespace OpenTap.Plugins.BasicSteps
         {
             get
             {
-                var tpr = (this.DeclaringType as ExpandedTypeData).Object as TestPlanReference;
+                var tpr = (this.DeclaringType as ExpandedTypeData).Object;
                 var ep = tpr.ForwardedParameters.FirstOrDefault(x => x.Name == epName);
                 return ep;
             }
@@ -330,8 +330,6 @@ namespace OpenTap.Plugins.BasicSteps
             TypeDescriptor = Member.TypeDescriptor;
             ep.Value = value;
         }
-
-        static BrowsableAttribute nonBrowsable = new BrowsableAttribute(false);
 
         public ExpandedMemberData(ExternalParameter ep, string name)
         {

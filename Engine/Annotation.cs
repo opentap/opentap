@@ -97,6 +97,14 @@ namespace OpenTap
         new string Value { get; set; }
     }
 
+    /// <summary>
+    /// If the object value is based on copying values, some performance optimizations can be done, so these string value annotations can be marked with this interface.
+    /// </summary>
+    interface ICopyStringValueAnnotation : IStringValueAnnotation
+    {
+        
+    }
+
     /// <summary> Defines a read-only string value annotation implementation. </summary>
     public interface IStringReadOnlyValueAnnotation : IAnnotation
     {
@@ -404,7 +412,7 @@ namespace OpenTap
     }
 
 
-    class NumberAnnotation : IStringValueAnnotation, IErrorAnnotation
+    class NumberAnnotation : IStringValueAnnotation, IErrorAnnotation, ICopyStringValueAnnotation
     {
         public Type NullableType { get; set; }
         string currentError;
@@ -468,7 +476,7 @@ namespace OpenTap
         public IEnumerable<string> Errors => currentError == null ? Array.Empty<string>() : new[] { currentError };
     }
 
-    class TimeSpanAnnotation : IStringValueAnnotation
+    class TimeSpanAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation
     {
         public string Value
         {
@@ -496,7 +504,7 @@ namespace OpenTap
         }
     }
 
-    class NumberSequenceAnnotation : IStringValueAnnotation
+    class NumberSequenceAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation
     {
         public string Value
         {
@@ -620,7 +628,7 @@ namespace OpenTap
         }
     }
 
-    class BooleanValueAnnotation : IStringValueAnnotation
+    class BooleanValueAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation
     {
         AnnotationCollection annotation;
         public BooleanValueAnnotation(AnnotationCollection annotation)
@@ -790,6 +798,18 @@ namespace OpenTap
                     newa.Add(manyAccess);
 
                     newa.Read(parentAnnotation.Get<IObjectValueAnnotation>().Value);
+
+                    if (newa.Get<IStringValueAnnotation>() is IStringValueAnnotation strValueAnnotation && (strValueAnnotation is ICopyStringValueAnnotation == false))
+                    {
+                        // see comment on ManyToOneStringValueAnnotation
+                        var merged = newa.Get<MergedValueAnnotation>();
+                        if (merged != null)
+                        {
+                            int idx = newa.IndexWhen(x => x == strValueAnnotation);
+                            // insert after last string value annotation.
+                            newa.Insert(idx + 1, new ManyToOneStringValueAnnotation(merged));
+                        }
+                    }
                     CommonAnnotations.Add(newa);
 
                 next_thing:;
@@ -797,6 +817,51 @@ namespace OpenTap
                 return (members = CommonAnnotations.ToArray());
 
             }
+        }
+
+        /// <summary>
+        /// Some string value annotations does not work very well with multi-select
+        /// to mitigate that, a ManyToOneStringValueAnnotation is used.
+        /// one example is MacroString.
+        /// </summary>
+        class ManyToOneStringValueAnnotation : IStringValueAnnotation
+        {
+            MergedValueAnnotation merged;
+
+            public string Value
+            {
+                get
+                {
+                    string value = null;
+                    bool first = true;
+                    foreach (var m in merged.Merged)
+                    {
+                        var val = m.Get<IStringValueAnnotation>()?.Value;
+                        if (first)
+                        {
+                            value = val;
+                            first = false;
+                        }
+                        else
+                        {
+                            if (!object.Equals(val, value))
+                                return null;
+                        }
+                    }
+
+                    return value;
+                }
+                set
+                {
+                    foreach (var m in merged.Merged)
+                    {
+                        var sv = m.Get<IStringValueAnnotation>();
+                        if (sv != null) sv.Value = value;
+                    }
+                }
+            }
+
+            public ManyToOneStringValueAnnotation(MergedValueAnnotation mva) => merged = mva;
         }
 
         IEnumerable<AnnotationCollection> IMembersAnnotation.Members => Members;
@@ -1163,7 +1228,7 @@ namespace OpenTap
             }
         }
 
-        class EnumStringAnnotation : IStringValueAnnotation, IValueDescriptionAnnotation
+        class EnumStringAnnotation : IStringValueAnnotation, IValueDescriptionAnnotation, ICopyStringValueAnnotation
         {
 
             Enum evalue
@@ -1271,7 +1336,7 @@ namespace OpenTap
             }
         }
 
-        class StringValueAnnotation : IStringValueAnnotation
+        class StringValueAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation
         {
             public string Value
             {
@@ -1643,7 +1708,7 @@ namespace OpenTap
             }
         }
 
-        class ResourceAnnotation : IAvailableValuesAnnotation, IStringValueAnnotation
+        class ResourceAnnotation : IAvailableValuesAnnotation, IStringValueAnnotation, ICopyStringValueAnnotation
         {
             public IEnumerable AvailableValues => ComponentSettingsList.GetContainer(basetype).Cast<object>().Where(x => x.GetType().DescendsTo(basetype));
 
@@ -1677,7 +1742,7 @@ namespace OpenTap
             }
         }
 
-        class MemberToStringAnnotation : IStringValueAnnotation
+        class MemberToStringAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation
         {
             public string Value
             {
@@ -1975,7 +2040,7 @@ namespace OpenTap
             public string Value => $"{Selected?.Cast<object>().Count()} Steps Selected";
         }
 
-        class TestStepSelectAnnotation : IAvailableValuesAnnotation, IStringValueAnnotation
+        class TestStepSelectAnnotation : IAvailableValuesAnnotation, IStringValueAnnotation, ICopyStringValueAnnotation
         {
             public IEnumerable AvailableValues
             {
