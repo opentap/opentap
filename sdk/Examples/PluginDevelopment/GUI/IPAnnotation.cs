@@ -144,13 +144,13 @@ namespace OpenTap.Plugins.PluginDevelopment
                 if (reply.Status == (IPStatus.Success))
                 {
                     Log.Info("Address: {0}", IPAddress);
-                    Log.Info("Got reply after: {0}", reply.RoundtripTime);
+                    Log.Info("Got reply after: {0} ms", reply.RoundtripTime);
 
                     UpgradeVerdict(Verdict.Pass);
                 }
                 else
                 {
-                    Log.Info("No reply from " + IPAddress + " after {0}ms", reply.RoundtripTime);
+                    Log.Info("No reply from " + IPAddress);
                     Log.Info("Reply Status: " + reply.Status);
 
                     UpgradeVerdict(Verdict.Fail);
