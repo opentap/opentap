@@ -138,6 +138,7 @@ namespace OpenTap.Package
                     wc.Proxy = WebRequest.GetSystemWebProxy();
                     wc.Headers.Add(HttpRequestHeader.Accept, accept ?? "application/xml");
                     wc.Headers.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
+                    wc.Encoding = Encoding.UTF8;
 
                     if (data != null)
                     {
