@@ -8,7 +8,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
-using System.Text;
 
 namespace OpenTap
 {
@@ -216,6 +215,12 @@ namespace OpenTap
         AnnotationCollection GetMember(IMemberData name);
     }
 
+    /// <summary> Marks that a property should be excluded from annotation. </summary>
+    public class AnnotationExcludeAttribute : Attribute
+    {
+        
+    } 
+
     /// <summary> Can be used to forward a set of members from one annotation to another.</summary>
     public interface IForwardedAnnotations : IAnnotation
     {
@@ -257,18 +262,19 @@ namespace OpenTap
 
             var val2 = fac.Get<IObjectValueAnnotation>().Value;
             var val = fac.Get<IReflectionAnnotation>();
-            var _members = val.ReflectionInfo.GetMembers();
+            IEnumerable<IMemberData> _members;
             if (val2 != null)
                 _members = TypeData.GetTypeData(val2).GetMembers();
-            if (members.Count == _members.Count()) return members.Values;
+            else _members = val.ReflectionInfo.GetMembers();
+            var cnt = _members.Count();
+            if (members.Count == cnt) return members.Values;
             if (members.Count == 0)
-            {
-                members = new Dictionary<IMemberData, AnnotationCollection>(_members.Count());
-            }
+                members = new Dictionary<IMemberData, AnnotationCollection>(cnt);
 
             var members2 = val.ReflectionInfo.GetMembers();
             foreach (var item in members2)
             {
+                if (item.HasAttribute<AnnotationExcludeAttribute>()) continue;
                 GetMember(item);
             }
 
@@ -2196,8 +2202,10 @@ namespace OpenTap
         void IAnnotator.Annotate(AnnotationCollection annotation)
         {
             var reflect = annotation.Get<IReflectionAnnotation>();
-            if (reflect != null)
+            var mem = annotation.Get<IMemberAnnotation>();
+            if (mem == null && reflect != null)
                 annotation.Add(reflect.ReflectionInfo.GetDisplayAttribute());
+            bool rd_only = annotation.Get<ReadOnlyMemberAnnotation>() != null;
             if (reflect != null)
             {
 
@@ -2221,8 +2229,6 @@ namespace OpenTap
                 }
             }
 
-            var mem = annotation.Get<IMemberAnnotation>();
-
             if (mem != null)
             {
                 if (annotation.Get<IObjectValueAnnotation>() == null)
@@ -2240,7 +2246,8 @@ namespace OpenTap
                     annotation.Add(new PluginTypeSelectAnnotation(annotation));
 
                 var browsable = mem.Member.GetAttribute<BrowsableAttribute>();
-                annotation.Add(new DefaultAccessAnnotation(mem.Member.Writable == false, browsable?.Browsable ?? true));
+                if(mem.Member.Writable == false || browsable != null)
+                    annotation.Add(new DefaultAccessAnnotation(mem.Member.Writable == false, browsable?.Browsable ?? true));
 
                 if (mem.Member.TypeDescriptor.DescendsTo(typeof(Action<object>)) || mem.Member.TypeDescriptor.DescendsTo(typeof(Action)))
                     annotation.Add(new MethodAnnotation(mem.Member));
@@ -2289,7 +2296,8 @@ namespace OpenTap
             if (reflect?.ReflectionInfo is TypeData csharpType)
             {
                 var type = csharpType.Load();
-                bool isNullable = type.IsPrimitive == false && type.IsGenericType && type.IsValueType && type.DescendsTo(typeof(Nullable<>));
+                
+                bool isNullable = type.IsPrimitive == false && type.IsGenericType && csharpType.IsValueType && type.DescendsTo(typeof(Nullable<>));
                 if (isNullable)
                 {
                     Type type2 = type.GetGenericArguments().FirstOrDefault();
@@ -2329,12 +2337,12 @@ namespace OpenTap
                         else
                         {
                             annotation.Add(new GenericSequenceAnnotation(annotation));
-                            if (innerType.DescendsTo(typeof(IResource)))
+                            if (!rd_only && innerType.DescendsTo(typeof(IResource)))
                             {
                                 annotation.Add(new ResourceAnnotation(annotation, innerType.Type));
                                 annotation.Add(new MultiResourceSelector(annotation, innerType.Type));
                             }
-                            else if (innerType.DescendsTo(typeof(ITestStep)))
+                            else if (!rd_only && innerType.DescendsTo(typeof(ITestStep)))
                             {
                                 annotation.Add(new TestStepSelectAnnotation(annotation));
                                 annotation.Add(new TestStepMultiSelectAnnotation(annotation));
@@ -2362,9 +2370,9 @@ namespace OpenTap
                         }
                     }
 
-                    if (type.IsValueType == false && type.DescendsTo(typeof(IResource)))
+                    if (csharpType.IsValueType == false && type.DescendsTo(typeof(IResource)))
                         annotation.Add(new ResourceAnnotation(annotation, type));
-                    else if (type.IsValueType == false && type.DescendsTo(typeof(ITestStep)))
+                    else if (csharpType.IsValueType == false && type.DescendsTo(typeof(ITestStep)))
                         annotation.Add(new TestStepSelectAnnotation(annotation));
                 }
             }
@@ -2402,7 +2410,7 @@ namespace OpenTap
                     annotation.Add(new StepNameStringValue(annotation, member: false));
                 
                 bool csharpPrimitive = tp is TypeData cst && (cst.Type.IsPrimitive || cst.Type == typeof(string));
-                if (tp.GetMembers().Any() && !csharpPrimitive)
+                if (tp.GetMembers().Any(x => x.HasAttribute<AnnotationExcludeAttribute>() == false) && !csharpPrimitive)
                 {
                     annotation.Add(new MembersAnnotation(annotation));
                     if (tp.DescendsTo(typeof(IEnabled)))
@@ -2734,10 +2742,9 @@ namespace OpenTap
                 if (annotation.Get<ISuggestedValuesAnnotation>() != null)
                     annotation.Add(new SuggestedValuesAnnotationProxy(annotation));
             }
-            if (annotation.Get<IAccessAnnotation>() != null)
-            {
-                annotation.Add(new AccessProxy(annotation));
-            }
+            
+            annotation.Add(new AccessProxy(annotation));
+            
         }
     }
 

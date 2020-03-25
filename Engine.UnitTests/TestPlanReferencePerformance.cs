@@ -56,23 +56,15 @@ namespace OpenTap.UnitTests
                     var loadPlan = TestPlan.Load(outerPlanName);
                     var loadtime = sw.Elapsed;
                     sw.Restart();
-                    for (int i = 0; i < 10000; i++)
-                    {
-                        var annotate = AnnotationCollection.Annotate(loadPlan.Steps, new ReadOnlyMemberAnnotation());
-                        var namemember = annotate.GetMember("Name");
-                        annotate.Write();
-
-                    }
-
+                    loadPlan.Save(outerPlanName);
                     var savetime = sw.Elapsed;
                     Debug.WriteLine("{2}, {0}, {1}", loadtime.TotalMilliseconds,
                         savetime.TotalMilliseconds, outerSteps);
                 }
             }
-
         }
         
-        [Test]
+        [Test, Ignore("For performance testing only")]
         public void AnnotatePerformance()
         {
             

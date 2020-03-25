@@ -22,6 +22,7 @@ namespace OpenTap
         /// <summary>
         /// All the validation rules. Add new rules to this in order to get runtime value validation.
         /// </summary>
+        [AnnotationExclude]
         public ValidationRuleCollection Rules
         {
             get
