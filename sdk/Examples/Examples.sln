@@ -1,19 +1,31 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.852
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PluginDevelopment", "PluginDevelopment\PluginDevelopment.csproj", "{8800F7AE-667D-4A38-816C-3D0135703490}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PluginDevelopment", "PluginDevelopment\PluginDevelopment.csproj", "{8800F7AE-667D-4A38-816C-3D0135703490}"
+	ProjectSection(ProjectDependencies) = postProject
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9} = {9BD72823-196E-4575-B779-DAF8FA3D17E9}
+	EndProjectSection
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "TestPlanExecution", "TestPlanExecution", "{DC60D856-F23E-49B6-AA93-00D3867981C4}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExamplePlugin", "ExamplePlugin\ExamplePlugin.csproj", "{9BD72823-196E-4575-B779-DAF8FA3D17E9}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExamplePlugin", "ExamplePlugin\ExamplePlugin.csproj", "{9BD72823-196E-4575-B779-DAF8FA3D17E9}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BuildTestPlan.Api", "TestPlanExecution\BuildTestPlan.Api\BuildTestPlan.Api.csproj", "{4D4FCE41-556F-4D8A-8DA9-146FB6A15BAC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BuildTestPlan.Api", "TestPlanExecution\BuildTestPlan.Api\BuildTestPlan.Api.csproj", "{4D4FCE41-556F-4D8A-8DA9-146FB6A15BAC}"
+	ProjectSection(ProjectDependencies) = postProject
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9} = {9BD72823-196E-4575-B779-DAF8FA3D17E9}
+	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RunTestPlan.Api", "TestPlanExecution\RunTestPlan.Api\RunTestPlan.Api.csproj", "{BCFDAD20-E2DC-4CBA-8817-FA5384427F3F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "RunTestPlan.Api", "TestPlanExecution\RunTestPlan.Api\RunTestPlan.Api.csproj", "{BCFDAD20-E2DC-4CBA-8817-FA5384427F3F}"
+	ProjectSection(ProjectDependencies) = postProject
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9} = {9BD72823-196E-4575-B779-DAF8FA3D17E9}
+	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PluginDevelopment.Gui", "PluginDevelopment.Gui\PluginDevelopment.Gui.csproj", "{68D30DA3-7F51-449D-A5F0-B1B2E3F59EDD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "PluginDevelopment.Gui", "PluginDevelopment.Gui\PluginDevelopment.Gui.csproj", "{68D30DA3-7F51-449D-A5F0-B1B2E3F59EDD}"
+	ProjectSection(ProjectDependencies) = postProject
+		{9BD72823-196E-4575-B779-DAF8FA3D17E9} = {9BD72823-196E-4575-B779-DAF8FA3D17E9}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
