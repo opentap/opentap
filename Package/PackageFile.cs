@@ -162,6 +162,15 @@ namespace OpenTap.Package
             Version = version;
             RawVersion = rawVersion;
         }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is PackageDependency dep)
+                return Equals(dep.Name, Name) && Equals(dep.Version, Version);
+            return false;
+        }
+
+        public override int GetHashCode() =>  (Name ?? "").GetHashCode() * 7489019 + (RawVersion ?? "").GetHashCode() * 41077013;
     }
 
     public class ActionStep
