@@ -21,9 +21,6 @@ RUN cp -r /tmp/dotnet/sdk/2.1.503 /usr/share/dotnet/sdk
 # TAP dotnet core 2.1 dependency
 RUN apt install libc6-dev libunwind8 curl git -y
 
-# Install dependency of TAP dependency "Git2Sharp" library
-RUN apt install -y libcurl3
-
 # Install TAP
 RUN apt install unzip -y
 COPY OpenTAP.Linux.TapPackage OpenTAP.Linux.TapPackage
@@ -48,9 +45,6 @@ RUN chmod +x /opt/tap/tap
 RUN apt update
 # TAP dotnet core 2.1 dependency
 RUN apt install libc6-dev libunwind8 curl git -y
-
-# Install dependency of TAP dependency "Git2Sharp" library
-RUN apt install -y libcurl3
 
 ENV PATH="/opt/tap:${PATH}"
 ENV TAP_PATH="/opt/tap"
