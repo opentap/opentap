@@ -54,9 +54,16 @@ namespace OpenTap
         BreakCondition BreakCondition { get; set; }
     }
 
+    /// <summary> Internal interface to speed up setting and getting Descriptions on core classes like TestStep. </summary>
+    internal interface IDescriptionProvider
+    {
+        string Description { get; set; }
+    }
+
+
     internal class BreakConditionTypeDataProvider : IStackedTypeDataProvider
     {
-        internal class VirtualMember<T> : IMemberData
+        internal class VirtualMember : IMemberData
         {
             public IEnumerable<object> Attributes { get; set; }
             public string Name { get; set; }
@@ -69,30 +76,69 @@ namespace OpenTap
             
             ConditionalWeakTable<object, object> dict = new ConditionalWeakTable<object, object>();
 
-            public void SetValue(object owner, object value)
+            public virtual void SetValue(object owner, object value)
+            {
+                
+                dict.Remove(owner);
+                if (object.Equals(value, DefaultValue) == false)
+                    dict.Add(owner, value);
+            }
+
+            public virtual  object GetValue(object owner)
+            {
+                if (dict.TryGetValue(owner, out object value))
+                    return value;
+                return DefaultValue;
+            }
+        }
+
+        class BreakConditionVirtualMember : VirtualMember
+        {
+            public override void SetValue(object owner, object value)
             {
                 if (owner is IBreakConditionProvider bc)
                 {
                     bc.BreakCondition = (BreakCondition)value;
                     return;
                 }
-                dict.Remove(owner);
-                if (object.Equals(value, DefaultValue) == false)
-                    dict.Add(owner, value);
+                base.SetValue(owner, value);
             }
-
-            public object GetValue(object owner)
+            public override object GetValue(object owner)
             {
                 if (owner is IBreakConditionProvider bc)
                     return bc.BreakCondition;
-                if (dict.TryGetValue(owner, out object value))
-                    return value;
-                return DefaultValue;
+                return base.GetValue(owner);
             }
         }
+
+
+        class DescriptionVirtualMember : VirtualMember
+        {
+            public override void SetValue(object owner, object value)
+            {
+                if (owner is IDescriptionProvider bc)
+                {
+                    bc.Description = (string)value;
+                    return;
+                }
+                base.SetValue(owner, value);
+            }
+            public override object GetValue(object owner)
+            {
+                string result;
+                if (owner is IDescriptionProvider bc)
+                    result = bc.Description;
+                else 
+                    result = (string)base.GetValue(owner);
+                if (result == null)
+                    result = TypeData.GetTypeData(owner).GetDisplayAttribute().Description;
+                return result;
+            }
+        }
+        
         internal class TestStepTypeData : ITypeData
         {
-            internal static readonly VirtualMember<BreakCondition> AbortCondition = new VirtualMember<BreakCondition>
+            internal static readonly VirtualMember AbortCondition = new BreakConditionVirtualMember
             {
                 Name = "BreakConditions",
                 DefaultValue = BreakCondition.Inherit,
@@ -102,8 +148,23 @@ namespace OpenTap
                 Writable =  true,
                 TypeDescriptor = TypeData.FromType(typeof(BreakCondition))
             };
+
+            internal static readonly VirtualMember DescriptionMember = new DescriptionVirtualMember
+            {
+                Name = "Description",
+                DefaultValue = null,
+                Attributes = new Attribute[]
+                {
+                    new DisplayAttribute("Description", "A short description of this test step.", "Common", 20001.2),
+                    new LayoutAttribute(LayoutMode.Normal, 3, 5) 
+                },
+                DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
+                Readable = true,
+                Writable = true,
+                TypeDescriptor = TypeData.FromType(typeof(string))
+            };
             
-            static IMemberData[] extraMembers =  {AbortCondition};
+            static IMemberData[] extraMembers =  {AbortCondition, DescriptionMember};
             public TestStepTypeData(ITypeData innerType)
             {
                 this.innerType = innerType;
