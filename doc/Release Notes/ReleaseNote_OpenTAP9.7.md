@@ -33,12 +33,12 @@ Bug Fixes:
 - Break conditions - different behavior for same setting If Verdict vs Time Guard [#153](https://gitlab.com/OpenTAP/opentap/issues/153)
 - Exception: Index was outside the bounds of the array. [#156](https://gitlab.com/OpenTAP/opentap/issues/156)
 - Git version warning on first commit [#158](https://gitlab.com/OpenTAP/opentap/issues/158)
-- `tap sdk gitversion` to work on Linux [#159](https://gitlab.com/OpenTAP/opentap/issues/159)
+- `tap sdk gitversion` to work on Linux. **Minor compatible change** libcurl3 is no longer supported for git integration, instead use libcurl4. This change was made to avoid using an obsolete libcurl that could not be installed alongside libcurl4.
+ [#159](https://gitlab.com/OpenTAP/opentap/issues/159)
 - TestStep name annotation no longer uses `GetFormattedName` [#160](https://gitlab.com/OpenTAP/opentap/issues/160)
 
 Documentation: 
 -------
-
 - Developer Guide: package.xml documentation lacking [#67](https://gitlab.com/OpenTAP/opentap/issues/67)
 - API Reference page: docs.opentap.io/api [#146](https://gitlab.com/OpenTAP/opentap/issues/146)
 - Document "Break Conditions" behavior in user documentation [#163](https://gitlab.com/OpenTAP/opentap/-/issues/163)
