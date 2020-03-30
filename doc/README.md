@@ -28,13 +28,17 @@ tap package install "Developer's System CE" -y
 <!--When installing on Linux there are a few options:-->
 #### 1. Install dependencies
 On Linux, OpenTAP has a few dependencies that must be manually installed, namely
-libc6, libunwind, unzip, and git. On Debian derivatives, these can be installed
+libc6, libunwind, unzip, git, and curl. On Debian derivatives, these can be installed
 by running the following command:
 
-`apt-get install libc6-dev, libunwind8, unzip, git`
+`apt-get install libc6-dev libunwind8 unzip git curl`
 
 Note that the packages may have different names on other distributions. OpenTAP
 should still work if you install the equivalent packages for your distribution.
+
+In addition to these packages, OpenTAP depends on dotnet core runtime version 2.1. Version 3.0 and greater are not
+supported. The installation procedure depends on your distribution. Please see [the official documentation from
+Microsoft ](https://docs.microsoft.com/en-us/dotnet/core/install/runtime) for further instructions.
 
 #### 2. Install OpenTAP
 Download the OpenTAP distribution (`.tar`<!--, `.dep` or `.rpm`-->) from our homepage [here](https://www.opentap.io/download.html). 
