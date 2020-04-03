@@ -142,7 +142,12 @@ namespace OpenTap
             {
                 Name = "BreakConditions",
                 DefaultValue = BreakCondition.Inherit,
-                Attributes = new Attribute[]{new DisplayAttribute("Break Conditions", "When enabled, specify new break conditions. When disabled conditions are inherited from the parent test step or the engine settings.", "Common", 20001.1), new UnsweepableAttribute() },
+                Attributes = new Attribute[]
+                {
+                    new DisplayAttribute("Break Conditions", "When enabled, specify new break conditions. When disabled conditions are inherited from the parent test step or the engine settings.", 
+                        "Common", 20001.1), 
+                    new UnsweepableAttribute()
+                },
                 DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
                 Readable = true,
                 Writable =  true,
@@ -156,7 +161,8 @@ namespace OpenTap
                 Attributes = new Attribute[]
                 {
                     new DisplayAttribute("Description", "A short description of this test step.", "Common", 20001.2),
-                    new LayoutAttribute(LayoutMode.Normal, 3, 5) 
+                    new LayoutAttribute(LayoutMode.Normal, 3, 5),
+                    new UnsweepableAttribute()
                 },
                 DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
                 Readable = true,

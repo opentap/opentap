@@ -361,7 +361,7 @@ namespace OpenTap.Engine.UnitTests
             });
 
 
-            Assert.AreEqual(4, cnt);
+            Assert.AreEqual(5, cnt);
         }
 
         [Test]
