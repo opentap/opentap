@@ -1666,41 +1666,47 @@ namespace OpenTap.Engine.UnitTests
 
         class CrashInstrument : Instrument
         {
-            public double OpenDelay { get; set; }
-            public double CloseDelay { get; set; }
-
+            static Semaphore sharedStateA = new Semaphore(1,1);
             public bool OpenThrow { get; set; }
+            public bool OpenWait { get; set; }
             public bool CloseThrow { get; set; }
             public bool ConformanceFail { get; set; }
-            bool openDone = false;
+            bool isopening = false;
+
             public override void Open()
             {
                 base.Open();
-                TapThread.Sleep(TimeSpan.FromSeconds(OpenDelay));
-                if(OpenThrow)
-                    throw new Exception("Intended failure");
-                openDone = true;
+                isopening = true;
+
+                if(OpenWait)
+                    TapThread.Sleep(20);
+                
+                isopening = false;
+                
+                    if(OpenThrow)
+                        throw new Exception("Intended failure");
             }
             
             public override void Close()
             {
-                if (!(OpenThrow || openDone))
-                {
-                    ConformanceFail = true;
-                    Assert.Fail("Close called before open done.");   
-                }
-                TapThread.Sleep(TimeSpan.FromSeconds(CloseDelay));
-                if(CloseThrow)
-                    throw new Exception("Intended failure");
+                    if (isopening)
+                    {
+                        ConformanceFail = true;
+                        Assert.Fail("Close called before open done.");
+                    }
+
+                    if (CloseThrow)
+                         throw new Exception("Intended failure");
+                     
             }
         }
 
         [Test]
+        [Repeat(10)]
         public void OpenCloseOrder()
         {
-            //EngineSettings.Current.ResourceManagerType = new LazyResourceManager();
-            var instrA = new CrashInstrument() {OpenThrow = true, OpenDelay = 0.1, CloseDelay = 0.1, CloseThrow = true};
-            var instrB = new CrashInstrument() {OpenDelay = 1.0, CloseDelay = 0.4};
+            var instrA = new CrashInstrument() {OpenThrow = true,CloseThrow = true, Name= "A"};
+            var instrB = new CrashInstrument() {OpenWait = true, Name= "B"};
             var stepA = new InstrumentTestStep() {Instrument = instrA};
             var stepB = new InstrumentTestStep() {Instrument = instrB};
             
