@@ -1663,6 +1663,57 @@ namespace OpenTap.Engine.UnitTests
                     targets.ToList().ForEach(ResourceOpened);
             }
         }
+
+        class CrashInstrument : Instrument
+        {
+            public double OpenDelay { get; set; }
+            public double CloseDelay { get; set; }
+
+            public bool OpenThrow { get; set; }
+            public bool CloseThrow { get; set; }
+            public bool ConformanceFail { get; set; }
+            bool openDone = false;
+            public override void Open()
+            {
+                base.Open();
+                TapThread.Sleep(TimeSpan.FromSeconds(OpenDelay));
+                if(OpenThrow)
+                    throw new Exception("Intended failure");
+                openDone = true;
+            }
+            
+            public override void Close()
+            {
+                if (!(OpenThrow || openDone))
+                {
+                    ConformanceFail = true;
+                    Assert.Fail("Close called before open done.");   
+                }
+                TapThread.Sleep(TimeSpan.FromSeconds(CloseDelay));
+                if(CloseThrow)
+                    throw new Exception("Intended failure");
+            }
+        }
+
+        [Test]
+        public void OpenCloseOrder()
+        {
+            //EngineSettings.Current.ResourceManagerType = new LazyResourceManager();
+            var instrA = new CrashInstrument() {OpenThrow = true, OpenDelay = 0.1, CloseDelay = 0.1, CloseThrow = true};
+            var instrB = new CrashInstrument() {OpenDelay = 1.0, CloseDelay = 0.4};
+            var stepA = new InstrumentTestStep() {Instrument = instrA};
+            var stepB = new InstrumentTestStep() {Instrument = instrB};
+            
+            var parallel = new ParallelStep();
+            var plan = new TestPlan();
+            parallel.ChildTestSteps.Add(stepA);
+            parallel.ChildTestSteps.Add(stepB);
+            plan.Steps.Add(parallel);
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Error, run.Verdict);
+            Assert.IsFalse(instrA.ConformanceFail);
+            Assert.IsFalse(instrB.ConformanceFail);
+        }
     }
 
     public class TestITestStep : ValidatingObject, ITestStep
