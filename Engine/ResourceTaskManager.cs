@@ -269,6 +269,10 @@ namespace OpenTap
                 {
                     ResourceNode res = (ResourceNode)o;
 
+                    // Wait for the resource to open to open before closing it.
+                    // in rare cases, another instrument failing open will cause close to be called.
+                    openTasks[res.Resource].Wait();
+                    
                     // wait for resources that depend on this resource (res) to close before closing this
                     Task.WaitAll(dependencies[res.Resource].Select(x => closeTasks[x]).ToArray());
                     var reslog = GetLogSource(res.Resource);
