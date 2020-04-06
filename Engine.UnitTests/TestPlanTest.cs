@@ -1670,9 +1670,10 @@ namespace OpenTap.Engine.UnitTests
             public bool OpenThrow { get; set; }
             public bool OpenWait { get; set; }
             public bool CloseThrow { get; set; }
-            public bool ConformanceFail { get; set; }
+            public bool ClosedDuringOpen { get; set; }
             bool isopening = false;
 
+            public bool CloseCalled { get; set; }
             public override void Open()
             {
                 base.Open();
@@ -1689,15 +1690,15 @@ namespace OpenTap.Engine.UnitTests
             
             public override void Close()
             {
-                    if (isopening)
-                    {
-                        ConformanceFail = true;
-                        Assert.Fail("Close called before open done.");
-                    }
+                CloseCalled = true;
+                if (isopening)
+                {
+                    ClosedDuringOpen = true;
+                    Assert.Fail("Close called before open done.");
+                }
 
-                    if (CloseThrow)
-                         throw new Exception("Intended failure");
-                     
+                if (CloseThrow)
+                    throw new Exception("Intended failure");
             }
         }
 
@@ -1717,8 +1718,28 @@ namespace OpenTap.Engine.UnitTests
             plan.Steps.Add(parallel);
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Error, run.Verdict);
-            Assert.IsFalse(instrA.ConformanceFail);
-            Assert.IsFalse(instrB.ConformanceFail);
+            Assert.IsFalse(instrA.ClosedDuringOpen);
+            Assert.IsFalse(instrB.ClosedDuringOpen); 
+            
+            // close has to be called even though Open failed.
+            Assert.IsTrue(instrA.CloseCalled);
+            Assert.IsTrue(instrB.CloseCalled); 
+        }
+
+        [Test]
+        [Repeat(10)]
+        public void OpenCloseOrderLazyRM()
+        {
+            var lastrm = EngineSettings.Current.ResourceManagerType;
+            EngineSettings.Current.ResourceManagerType = new LazyResourceManager();
+            try
+            {
+                OpenCloseOrder();
+            }
+            finally
+            {
+                EngineSettings.Current.ResourceManagerType = lastrm;
+            }
         }
     }
 
