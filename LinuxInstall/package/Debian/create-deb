@@ -34,12 +34,18 @@ DIVISOR=1024
 SIZE_KB=$(((BYTES - 1) / DIVISOR + 1))
 
 # sed control-debian -e "s/@VERSION@/$VERSION/g" -e "s/@SIZE_KB@/$SIZE_KB/g" > OpenTAP/DEBIAN/control
-sed control.in -e "s/@SIZE_KB@/$SIZE_KB/g" > OpenTAP/DEBIAN/control
 cp postinst.in OpenTAP/DEBIAN/postinst
 chmod 0555 OpenTAP/DEBIAN/postinst
 chmod +x OpenTAP/DEBIAN/postinst
 
-./OpenTAP/usr/share/tap/tap sdk gitversion --replace OpenTAP/DEBIAN/control
+VERSION="$(./OpenTAP/usr/share/tap/tap sdk gitversion)"
+# The last character in the version specifier cannot be a '-'
+while [ "${VERSION: -1}" = "-" ]; do
+    VERSION="${VERSION::-1}"
+done
+
+sed control.in -e "s/\$(GitVersion)/$VERSION/g" -e "s/@SIZE_KB@/$SIZE_KB/g" > OpenTAP/DEBIAN/control
+
 # Don't package log file generated from gitversion
 rm -rf ./OpenTAP/var/log/SessionLogs/*
 
