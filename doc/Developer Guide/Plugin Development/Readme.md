@@ -50,7 +50,6 @@ OpenTAP uses the following attributes:
 | **Flags**   | Indicates the values of an enumeration represents a bitmask.   |
 | **HandlesType**   | Indicates a IPropGridControlProvider can handle a certain type. Used by advanced programmers who are modifying the GUI editor internals.   |
 | **HelpLink**   | Defines the help link for a class or property.   |
-| **IgnoreSerializer**  | Used on classes to ignore serialization. Useful for cases where a plugin implementation contains non-serializable members or types.   |
 | **Layout** | Used to specify the desired layout of the element in the user interface. |
 | **MacroPath**   | Indicates a setting should use MacroPath values, such as &lt;Name&gt; and %Temp%.   |
 | **MetaData**   | A *property* marked by this attribute becomes metadata and will be provided to all result listeners. If a resource is used with this attribute (and *Allow Metadata Dialog* is enabled), a dialog prompts the user. This works for both the GUI Editor and the OpenTAP CLI.  |
