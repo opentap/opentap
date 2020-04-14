@@ -486,15 +486,22 @@ namespace OpenTap
 
                 Stopwatch swatch = Stopwatch.StartNew();
 
-                lock (LockObj)
-                    if (state == ResourceState.Opening)
-                        state = ResourceState.Open;
-                
-                // start a new thread to do synchronous work
-                await Task.Factory.StartNew(node.Resource.Open);
 
-                var reslog = ResourceTaskManager.GetLogSource(node.Resource);
-                reslog.Info(swatch, "Resource \"{0}\" opened.", node.Resource);
+                try
+                {
+                    // start a new thread to do synchronous work
+                    await Task.Factory.StartNew(node.Resource.Open);
+
+                    var reslog = ResourceTaskManager.GetLogSource(node.Resource);
+                    reslog.Info(swatch, "Resource \"{0}\" opened.", node.Resource);
+
+                }
+                finally
+                {
+                    lock (LockObj)
+                        if (state == ResourceState.Opening)
+                            state = ResourceState.Open;
+                }
 
                 foreach (var dep in node.WeakDependencies)
                 {
@@ -543,7 +550,6 @@ namespace OpenTap
                             case ResourceState.Closing:
                                 throw new Exception("Should never happen");
                             case ResourceState.Opening:
-                                return OpenTask.ContinueWith(t => RequestClose(requester).Wait());
                             case ResourceState.Open:
                                 {
                                     state = ResourceState.Closing;
