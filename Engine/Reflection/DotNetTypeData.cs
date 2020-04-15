@@ -66,7 +66,20 @@ namespace OpenTap
                 }
                 typecode = Type.GetTypeCode(type);
                 hasFlags = this.HasAttribute<FlagsAttribute>();
+                isValueType = type.IsValueType;
                 postLoaded = true;
+                
+            }
+        }
+
+        bool isValueType;
+        /// <summary> Cached IsValueType for speeding up annotation. </summary>
+        internal bool IsValueType
+        {
+            get
+            {
+                postload();
+                return isValueType;
             }
         }
 

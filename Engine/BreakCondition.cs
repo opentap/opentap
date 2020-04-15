@@ -48,6 +48,12 @@ namespace OpenTap
         }
     }
 
+    /// <summary> Internal interface to speed up setting and getting BreakConditions on core classes like TestStep. </summary>
+    internal interface IBreakConditionProvider
+    {
+        BreakCondition BreakCondition { get; set; }
+    }
+
     internal class BreakConditionTypeDataProvider : IStackedTypeDataProvider
     {
         internal class VirtualMember<T> : IMemberData
@@ -65,6 +71,11 @@ namespace OpenTap
 
             public void SetValue(object owner, object value)
             {
+                if (owner is IBreakConditionProvider bc)
+                {
+                    bc.BreakCondition = (BreakCondition)value;
+                    return;
+                }
                 dict.Remove(owner);
                 if (object.Equals(value, DefaultValue) == false)
                     dict.Add(owner, value);
@@ -72,6 +83,8 @@ namespace OpenTap
 
             public object GetValue(object owner)
             {
+                if (owner is IBreakConditionProvider bc)
+                    return bc.BreakCondition;
                 if (dict.TryGetValue(owner, out object value))
                     return value;
                 return DefaultValue;
