@@ -1876,6 +1876,44 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(InputButtons.OkCancel, (InputButtons)sl.SweepParameters[1].Values.GetValue(0));
             Assert.AreEqual(true, sl.EnabledRows[0]);
         }
+
+        public class DefaultValueTestStep : TestStep
+        {
+            [DefaultValue("test")]
+            public string Value { get; set; } = "";
+            public override void Run()
+            {    
+                throw new NotImplementedException();
+            }
+        }
+
+        // Technically speaking, DefaultValueAttribute is not supported in the sense that properties with default value
+        // does not get serialized, except for some special cases.
+        // This feature would conflict with External Parameters as it requires there to be an element and also provide strange behaviors if the
+        // default value later gets changed for a given test plan.
+        [TestCase(null)]
+        [TestCase("test")]
+        [TestCase("")]
+        public void ExternalStringValue(string value)
+        {
+            var logStep = new DefaultValueTestStep();
+            var plan = new TestPlan();
+            plan.Steps.Add(logStep);
+            plan.ExternalParameters.Add(logStep, TypeData.GetTypeData(logStep).GetMember(nameof(DefaultValueTestStep.Value)));
+            logStep.Value = value;
+            Assert.IsNotNull(plan.ExternalParameters.Find(logStep, TypeData.GetTypeData(logStep).GetMember(nameof(DefaultValueTestStep.Value))));
+
+            using (var mem = new MemoryStream())
+            {
+                plan.Save(mem);
+                mem.Seek(0, SeekOrigin.Begin);
+                plan = TestPlan.Load(mem, "plan");
+            }
+
+            logStep = (DefaultValueTestStep)plan.Steps[0];
+            Assert.IsNotNull(plan.ExternalParameters.Find(logStep, TypeData.GetTypeData(logStep).GetMember(nameof(DefaultValueTestStep.Value))));
+            Assert.AreEqual(value, logStep.Value);
+        }
     }
 
     [TestFixture]

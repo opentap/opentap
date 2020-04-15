@@ -78,7 +78,11 @@ namespace OpenTap
 
             public virtual void SetValue(object owner, object value)
             {
-                
+                if (owner is IBreakConditionProvider bc)
+                {
+                    bc.BreakCondition = (BreakCondition)value;
+                    return;
+                }
                 dict.Remove(owner);
                 if (object.Equals(value, DefaultValue) == false)
                     dict.Add(owner, value);
@@ -86,6 +90,8 @@ namespace OpenTap
 
             public virtual  object GetValue(object owner)
             {
+                if (owner is IBreakConditionProvider bc)
+                    return bc.BreakCondition;
                 if (dict.TryGetValue(owner, out object value))
                     return value;
                 return DefaultValue;

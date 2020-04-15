@@ -215,8 +215,10 @@ namespace OpenTap
         AnnotationCollection GetMember(IMemberData name);
     }
 
-    /// <summary> Marks that a property should be excluded from annotation. </summary>
-    public class AnnotationExcludeAttribute : Attribute
+    /// <summary> Marks that a property should be ignored when annotating members.
+    /// This can be applied as an optimization to properties in order to improve annotation performance. </summary>
+    [AttributeUsage(AttributeTargets.Property )]
+    public class AnnotationIgnoreAttribute : Attribute
     {
         
     } 
@@ -274,7 +276,7 @@ namespace OpenTap
             var members2 = val.ReflectionInfo.GetMembers();
             foreach (var item in members2)
             {
-                if (item.HasAttribute<AnnotationExcludeAttribute>()) continue;
+                if (item.HasAttribute<AnnotationIgnoreAttribute>()) continue;
                 GetMember(item);
             }
 
@@ -2410,7 +2412,7 @@ namespace OpenTap
                     annotation.Add(new StepNameStringValue(annotation, member: false));
                 
                 bool csharpPrimitive = tp is TypeData cst && (cst.Type.IsPrimitive || cst.Type == typeof(string));
-                if (tp.GetMembers().Any(x => x.HasAttribute<AnnotationExcludeAttribute>() == false) && !csharpPrimitive)
+                if (tp.GetMembers().Any(x => x.HasAttribute<AnnotationIgnoreAttribute>() == false) && !csharpPrimitive)
                 {
                     annotation.Add(new MembersAnnotation(annotation));
                     if (tp.DescendsTo(typeof(IEnabled)))

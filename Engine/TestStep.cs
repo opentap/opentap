@@ -65,7 +65,7 @@ namespace OpenTap
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
-        [AnnotationExclude]
+        [AnnotationIgnore]
         public bool IsReadOnly { get; set; }
 
         private string name;
@@ -106,7 +106,7 @@ namespace OpenTap
         /// executed instead of the Run method of this TestStep.
         /// </summary>
         [Browsable(false)]
-        [AnnotationExclude]
+        [AnnotationIgnore]
         public TestStepList ChildTestSteps
         {
             get => _ChildTestSteps; 
@@ -122,20 +122,20 @@ namespace OpenTap
         /// The parent of this TestStep. Can be another TestStep or the <see cref="TestPlan"/>.  
         /// </summary>
         [XmlIgnore]
-        [AnnotationExclude]
+        [AnnotationIgnore]
         public virtual ITestStepParent Parent { get; set; }
 
         /// <summary>
         /// Result proxy that stores TestStep run results until they are propagated to the <see cref="ResultListener"/>.   
         /// </summary>
         [XmlIgnore]
-        [AnnotationExclude]
+        [AnnotationIgnore]
         public ResultSource Results { get; internal set; }
 
         /// <summary>
         /// The enumeration of all enabled Child Steps.
         /// </summary>
-        [AnnotationExclude]
+        [AnnotationIgnore]
         public IEnumerable<ITestStep> EnabledChildSteps => this.GetEnabledChildSteps();
         
         /// <summary>
@@ -472,7 +472,7 @@ namespace OpenTap
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
-        [AnnotationExclude]
+        [AnnotationIgnore]
         public TestPlanRun PlanRun { get; set; }
 
         /// <summary>
@@ -480,13 +480,13 @@ namespace OpenTap
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
-        [AnnotationExclude]
+        [AnnotationIgnore]
         public TestStepRun StepRun { get; set; }
 
         /// <summary> Gets or sets the ID used to uniquely identify a test step within a test plan. </summary>
         [XmlAttribute("Id")]
         [Browsable(false)]
-        [AnnotationExclude]
+        [AnnotationIgnore]
         public Guid Id { get; set; } = Guid.NewGuid();
 
         // Implementing this interface will make setting and getting break conditions faster.

@@ -52,7 +52,7 @@ namespace OpenTap
 
                 TapSerializer serializer = null;
                 string serialized = null;
-                if (!strConvertSuccess)
+                if (!strConvertSuccess && value != null)
                 {
                     serializer = new TapSerializer();
                     try

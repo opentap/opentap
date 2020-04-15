@@ -67,12 +67,12 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
         
-        [AnnotationExclude]
+        [AnnotationIgnore]
         public string Path => Filepath.Expand();
 
         bool isExpandingPlanDir = false;
         [MetaData(macroName: "TestPlanDir")]
-        [AnnotationExclude]
+        [AnnotationIgnore]
         public string PlanDir
         {
             get
@@ -100,7 +100,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         [XmlIgnore]
         [Browsable(false)]
-        [AnnotationExclude]
+        [AnnotationIgnore]
         public new TestStepList ChildTestSteps
         {
             get { return base.ChildTestSteps; }
@@ -245,7 +245,7 @@ namespace OpenTap.Plugins.BasicSteps
         public List<GuidMapping> mapping;
 
         [Browsable(false)]
-        [AnnotationExclude]
+        [AnnotationIgnore]
         public List<GuidMapping> StepMapping
         {
             get {

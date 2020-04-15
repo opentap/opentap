@@ -18,6 +18,7 @@ Usability Improvements:
 - Result Listener generated from `tap sdk new resultlistener` does not have a name [#123](https://gitlab.com/OpenTAP/opentap/issues/123)
 - Add a Rule to the SCPI step to validate a command with a "?" is paired with the Query action [#134](https://gitlab.com/OpenTAP/opentap/issues/134)
 - Improved SCPI Instrument Settings [#165](https://gitlab.com/OpenTAP/opentap/issues/165)
+- Ping Step from Examples: Pinging an unreachable address gives a success message [#177](https://gitlab.com/OpenTAP/opentap/-/issues/177)
 
 Bug Fixes:
 -------
@@ -33,14 +34,22 @@ Bug Fixes:
 - Break conditions - different behavior for same setting If Verdict vs Time Guard [#153](https://gitlab.com/OpenTAP/opentap/issues/153)
 - Exception: Index was outside the bounds of the array. [#156](https://gitlab.com/OpenTAP/opentap/issues/156)
 - Git version warning on first commit [#158](https://gitlab.com/OpenTAP/opentap/issues/158)
-- `tap sdk gitversion` to work on Linux [#159](https://gitlab.com/OpenTAP/opentap/issues/159)
+- `tap sdk gitversion` to work on Linux. **Minor compatible change** libcurl3 is no longer supported for git integration, instead use libcurl4. This change was made to avoid using an obsolete libcurl that could not be installed alongside libcurl4.
+ [#159](https://gitlab.com/OpenTAP/opentap/issues/159)
+- Multi-select method annotation does not work [#188](https://gitlab.com/OpenTAP/opentap/-/issues/188)
+- Multi-Select FilePath Property: Browse only modifies first selected [#189](https://gitlab.com/OpenTAP/opentap/-/issues/189)
+- TypeData.DerivedTypes returns null and not an empty array on no derived types [#190](https://gitlab.com/OpenTAP/opentap/-/issues/190) 
+- Wrong character encoding in HttpRepository [#192](https://gitlab.com/OpenTAP/opentap/-/issues/192)
+- Linux docker images does not support gitversion [#195](https://gitlab.com/OpenTAP/opentap/-/issues/195)
 - TestStep name annotation no longer uses `GetFormattedName` [#160](https://gitlab.com/OpenTAP/opentap/issues/160)
+- Cannot upgrade once downgraded to OpenTAP 9.6 [#198](https://gitlab.com/OpenTAP/opentap/-/issues/198)
+- OpenTAP Linux: After manually upgrading OpenTAP, tap command gives an error [#199](https://gitlab.com/OpenTAP/opentap/-/issues/199)
 
 Documentation: 
 -------
-
 - Developer Guide: package.xml documentation lacking [#67](https://gitlab.com/OpenTAP/opentap/issues/67)
 - API Reference page: docs.opentap.io/api [#146](https://gitlab.com/OpenTAP/opentap/issues/146)
 - Document "Break Conditions" behavior in user documentation [#163](https://gitlab.com/OpenTAP/opentap/-/issues/163)
 - CLI reference commands missing (documentation) [#166](https://gitlab.com/OpenTAP/opentap/issues/166)
 - Pages for chapters are weird on doc.opentap.io [#171](https://gitlab.com/OpenTAP/opentap/issues/171)
+- Add dotnet core runtime to the dependencies section on docs [#201](https://gitlab.com/OpenTAP/opentap/-/issues/201)

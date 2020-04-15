@@ -96,7 +96,8 @@ namespace OpenTap.Plugins
                     {
                         try
                         {
-                            var value = readContentInternal(csprop.PropertyType, false, () => attr_value.Value, element);
+                            var ok = readContentInternal(csprop.PropertyType, false, () => attr_value.Value, element, out object value);
+                            
                             p.SetValue(newobj, value);
                             
                         }
@@ -114,8 +115,9 @@ namespace OpenTap.Plugins
                 if (properties.FirstOrDefault(x => x.HasAttribute<XmlTextAttribute>()) is IMemberData mem2)
                 {
                     object value;
-                    if (mem2.TypeDescriptor is TypeData td)
-                        value = readContentInternal(td.Load(), false, () => element.Value, element);
+                    if (mem2.TypeDescriptor is TypeData td &&
+                        readContentInternal(td.Load(), false, () => element.Value, element, out object _value))
+                    { value = _value; } 
                     else
                         value = StringConvertProvider.FromString(element.Value, mem2.TypeDescriptor, null);
                     mem2.SetValue(newobj, value);
@@ -269,76 +271,87 @@ namespace OpenTap.Plugins
             return true;
         }
 
-        object readContentInternal(Type propType, bool ignoreComponentSettings, Func<string> getvalueString, XElement elem)
+        bool readContentInternal(Type propType, bool ignoreComponentSettings, Func<string> getvalueString, XElement elem, out object outvalue)
         {
             
             object value = null;
+            bool ok;
 
             if (propType.IsEnum || propType.IsPrimitive || propType == typeof(string) || propType.IsValueType || propType == typeof(Type))
-            {
-                string valueString = getvalueString().Trim();
-                if (valueString != null)
-                {
-                    if (propType.IsEnum)
-                    {
-                        if (!string.IsNullOrEmpty(valueString))
-                        {
-                            // legacy support: A flagged enum did not have ','s, but just spaces between.
-                            if (!valueString.Contains(','))
-                            {
-                                var splitted = valueString.Split(' ');
-                                value = Enum.Parse(propType, string.Join(",", splitted));
-                            }
-                            else
-                                value = Enum.Parse(propType, valueString);
-                        }
-                    }
+            {  
+                ok = true;
+                string valueString = getvalueString()?.Trim();
 
-                    else if (propType == typeof(String) || propType == typeof(char))
+                if (propType.IsEnum)
+                {
+                    if (!string.IsNullOrEmpty(valueString))
                     {
-                        if (elem.HasElements)
+                        // legacy support: A flagged enum did not have ','s, but just spaces between.
+                        if (!valueString.Contains(','))
                         {
-                            // string contains Base64 if it has invalid XML chars.
-                            var encode = elem.Element("Base64");
-                            if (encode != null && encode.Value != null)
-                            {
-                                try
-                                {
-                                    value = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(encode.Value));
-                                }
-                                catch
-                                {
-                                    value = encode.Value;
-                                }
-                            }
+                            var splitted = valueString.Split(' ');
+                            value = Enum.Parse(propType, string.Join(",", splitted));
                         }
-                        if (value == null)
-                            value = valueString;
-                        if(propType == typeof(char))
-                            value = ((string)value)[0];
-                    }
-                    else if (propType == typeof(TimeSpan) || propType == typeof(TimeSpan?))
-                    {
-                        value = TimeSpan.Parse(valueString, CultureInfo.InvariantCulture);
-                    }
-                    else if (propType == typeof(Guid) || propType == typeof(Guid?))
-                    {
-                        value = Guid.Parse(valueString);
-                    }
-                    else if (propType == typeof(Type))
-                    {
-                        value = PluginManager.LocateType(valueString.Split(',').First());
-                    }else if (tryConvertNumber(propType, valueString, out value))
-                    {
-                        // Conversions done in tryConvertNumber
-                    }
-                    else if (propType.HasInterface<IConvertible>())
-                    {
-                        value = Convert.ChangeType(valueString, propType, CultureInfo.InvariantCulture);
+                        else
+                            value = Enum.Parse(propType, valueString);
                     }
                 }
+
+                else if (propType == typeof(String) || propType == typeof(char))
+                {
+                    if (elem.HasElements)
+                    {
+                        // string contains Base64 if it has invalid XML chars.
+                        var encode = elem.Element("Base64");
+                        if (encode != null)
+                        {
+                            try
+                            {
+                                value = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(encode.Value));
+                            }
+                            catch
+                            {
+                                value = encode.Value;
+                            }
+                        }
+                    }
+                    if (value == null)
+                        value = valueString;
+                    if (propType == typeof(char))
+                        value = ((string) value)[0];
+                }
+                else if (propType == typeof(TimeSpan) || propType == typeof(TimeSpan?))
+                {
+                    value = TimeSpan.Parse(valueString, CultureInfo.InvariantCulture);
+                }
+                else if (propType == typeof(Guid) || propType == typeof(Guid?))
+                {
+                    value = Guid.Parse(valueString);
+                }
+                else if (propType == typeof(Type))
+                {
+                    value = PluginManager.LocateType(valueString.Split(',').First());
+                }
+                else if (tryConvertNumber(propType, valueString, out value))
+                {
+                    // Conversions done in tryConvertNumber
+                }
+                else if (propType.HasInterface<IConvertible>())
+                {
+                    value = Convert.ChangeType(valueString, propType, CultureInfo.InvariantCulture);
+                }
+                else
+                {
+                    ok = false;
+                }
             }
-            return value;
+            else
+            {
+                ok = false;
+            }
+
+            outvalue = value;
+            return ok;
         }
         
         static bool tryConvertNumber(Type type, string valueString, out object value)
@@ -446,8 +459,7 @@ namespace OpenTap.Plugins
             {
                 if (t is TypeData ctd)
                 {
-                    object obj = readContentInternal(ctd.Type, false, () => element.Value, element);
-                    if (obj != null)
+                    if (readContentInternal(ctd.Type, false, () => element.IsEmpty ? null : element.Value, element, out object obj))
                     {
                         setter(obj);
                         return true;
@@ -635,33 +647,35 @@ namespace OpenTap.Plugins
                             try
                             {
                                 object val = subProp.GetValue(obj);
-                                if (val != null || ComponentSettingsList.HasContainer(((TypeData)subProp.TypeDescriptor).Type)) // Don't write elements for null values (assuming that is the default). Except for
-                                {                                                                                               // Resources (things that has a ComponentSettings list), here we know that the default it not null.
-                                    var enu = val as IEnumerable;
-                                    if (enu != null && enu.GetEnumerator().MoveNext() == false) // the value is an empty IEnumerable
+                                ComponentSettingsList.HasContainer(((TypeData) subProp.TypeDescriptor).Type);
+
+                                var enu = val as IEnumerable;
+                                if (enu != null && enu.GetEnumerator().MoveNext() == false) // the value is an empty IEnumerable
+                                {
+                                    var defaultAttr = subProp.GetAttribute<DefaultValueAttribute>();
+                                    if (defaultAttr != null && defaultAttr.Value == null)
+                                        continue;
+                                }
+
+                                var attr = subProp.GetAttribute<XmlElementAttribute>();
+                                if (subProp.TypeDescriptor is TypeData cst && cst.Type.HasInterface<IList>() &&
+                                    cst.Type.IsGenericType && attr != null)
+                                {
+                                    // Special case to mimic old .NET XmlSerializer behavior
+                                    foreach (var item in enu)
                                     {
-                                        var defaultAttr = subProp.GetAttribute<DefaultValueAttribute>();
-                                        if (defaultAttr != null && defaultAttr.Value == null)
-                                            continue;
-                                    }
-                                    var attr = subProp.GetAttribute<XmlElementAttribute>();
-                                    if (subProp.TypeDescriptor is TypeData cst && cst.Type.HasInterface<IList>() && cst.Type.IsGenericType && attr != null)
-                                    {
-                                        // Special case to mimic old .NET XmlSerializer behavior
-                                        foreach (var item in enu)
-                                        {
-                                            string name = attr.ElementName ?? subProp.Name;
-                                            XElement elem2 = new XElement(XmlConvert.EncodeLocalName(name));
-                                            Serializer.Serialize(elem2, item, TypeData.FromType(cst.Type.GetGenericArguments().First()));
-                                            elem.Add(elem2);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        XElement elem2 = new XElement(XmlConvert.EncodeLocalName(subProp.Name));
-                                        Serializer.Serialize(elem2, val, subProp.TypeDescriptor);
+                                        string name = attr.ElementName ?? subProp.Name;
+                                        XElement elem2 = new XElement(XmlConvert.EncodeLocalName(name));
+                                        Serializer.Serialize(elem2, item,
+                                            TypeData.FromType(cst.Type.GetGenericArguments().First()));
                                         elem.Add(elem2);
                                     }
+                                }
+                                else
+                                {
+                                    XElement elem2 = new XElement(XmlConvert.EncodeLocalName(subProp.Name));
+                                    Serializer.Serialize(elem2, val, subProp.TypeDescriptor);
+                                    elem.Add(elem2);
                                 }
                             }
                             catch (Exception e)
