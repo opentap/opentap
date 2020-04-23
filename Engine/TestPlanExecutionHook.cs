@@ -14,10 +14,7 @@ namespace OpenTap
     /// <summary>
     /// Event args passed to pre execution hooks by <see cref="IPreTestPlanExecutionHook"/>.
     /// </summary>
-#if ARBITER_FEATURES
-    public
-#endif
-    class PreExecutionHookArgs
+    public class PreExecutionHookArgs
     {
         /// <summary>
         /// Can be used by a hook to indicate that the component settings should be reloaded from disk.
@@ -33,10 +30,8 @@ namespace OpenTap
     /// Anyone implementing this interface will get a hook into the execution of testplan, but before the execution logic actually starts.
     /// This allows changing settings, and the testplan to be executed.
     /// </summary>
-#if ARBITER_FEATURES
-    public
-#endif
-    interface IPreTestPlanExecutionHook : ITapPlugin
+
+    public interface IPreTestPlanExecutionHook : ITapPlugin
     {
         /// <summary>
         /// The hook that will be called before a testplan is executed.
@@ -49,10 +44,7 @@ namespace OpenTap
     /// <summary>
     /// This interface provides a way for plugins to listen to any testplans being executed.
     /// </summary>
-#if ARBITER_FEATURES
-    public
-#endif
-    interface ITestPlanExecutionHook : ITapPlugin
+    public interface ITestPlanExecutionHook : ITapPlugin
     {
         /// <summary>
         /// This will be called when a testplan actually starts executing.
