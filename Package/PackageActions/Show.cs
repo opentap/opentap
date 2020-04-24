@@ -263,8 +263,9 @@ namespace OpenTap.Package
             AddWritePair("Owner", package.Owner);
             var licenseString = (package.LicenseRequired ?? "").Replace("&", " and ").Replace("|", " or ");
             AddWritePair("License Required", licenseString);
-            AddWritePair("SourceUrl", package.SourceUrl);            
-            AddWritePair("Location", package.Location);
+            AddWritePair("SourceUrl", package.SourceUrl);
+            if (package.PackageSource is IRepositoryPackageDefSource repoPkg)
+                AddWritePair("Repository", repoPkg.RepositoryUrl);
             AddWritePair("Package Type", package.FileType);
             AddWritePair("Package Class", package.Class);
 

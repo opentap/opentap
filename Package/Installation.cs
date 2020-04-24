@@ -47,7 +47,14 @@ namespace OpenTap.Package
                 var package = installedPackageMemorizer.Invoke(file);
                 if (package != null && !plugins.Any(s => s.Name == package.Name))
                 {
+#pragma warning disable 618
                     package.Location = file;
+#pragma warning restore 618
+                    package.PackageSource = new InstalledPackageDefSource
+                    {
+                        Installation = this,
+                        PackageDefFilePath = file
+                    };
                     plugins.Add(package);
                 }
             }
