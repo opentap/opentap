@@ -231,9 +231,16 @@ namespace OpenTap.Package
         /// <summary>
         /// If this package originates from a package repository. This is the URL of that repository. Otherwise null
         /// </summary>
-        [XmlElement("PackageRepositoryUrl")] // TODO: This is only for testing, the repo server needs to be updated to also include the 'Location' element in the xml.
+        [XmlElement("PackageRepositoryUrl")]
         [DefaultValue(null)]
+        [Obsolete("Please use PackageSource instead.")]
         public string Location { get; set; }
+
+        /// <summary>
+        /// Information of the source of the package definition. 
+        /// </summary>
+        [DefaultValue(null)]
+        public IPackageDefSource PackageSource { get; set; }
         
         /// <summary>
         /// A link to get more information.
@@ -467,8 +474,16 @@ namespace OpenTap.Package
                 metaFileStream.Seek(0, SeekOrigin.Begin);
                 pkgDef = PackageDef.FromXml(metaFileStream);
             }
+            
             //pkgDef.updateVersion();
+#pragma warning disable 618
             pkgDef.Location = Path.GetFullPath(path);
+#pragma warning restore 618
+            pkgDef.PackageSource = new FilePackageDefSource
+            {
+                PackageFilePath = Path.GetFullPath(path)
+            };
+            
             return pkgDef;
         }
 

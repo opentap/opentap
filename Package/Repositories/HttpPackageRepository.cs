@@ -96,8 +96,28 @@ namespace OpenTap.Package
                     message.Content = content;
                     message.Method = HttpMethod.Post;
                     message.Headers.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
+                    
+                    HttpResponseMessage response;
+                    if (package.PackageSource is HttpRepositoryPackageDefSource httpSource && string.IsNullOrEmpty(httpSource.DirectUrl) == false)
+                    {
+                        log.Info($"Downloading package directly from: '{httpSource.DirectUrl}'.");
+                        try
+                        {
+                            response = await hc.GetAsync(httpSource.DirectUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                            if (response.IsSuccessStatusCode == false)
+                                throw new Exception($"Request to '{httpSource.DirectUrl}' failed with status code: {response.StatusCode}.");
+                        }
+                        catch (Exception e)
+                        {
+                            log.Warning($"Could not download package directly from: '{httpSource.DirectUrl}'. Downloading package normally.");
+                            log.Debug(e);
+                            response = await hc.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                        }
+                    }
+                    else
+                        response = await hc.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
 
-                    using (var response = await hc.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
+
                     using (var responseStream = await response.Content.ReadAsStreamAsync())
                     using (var fileStream = new FileStream(destination, FileMode.Create))
                     {
@@ -108,6 +128,8 @@ namespace OpenTap.Package
                         var task = responseStream.CopyToAsync(fileStream, 4096, cancellationToken);
                         ConsoleUtils.PrintProgressTillEnd(task, "Downloading", () => fileStream.Position, () => totalSize);
                     }
+                    
+                    response.Dispose();
                 }
 
                 finished = true;
@@ -281,7 +303,17 @@ namespace OpenTap.Package
                 if (string.IsNullOrEmpty(xmlText) || xmlText == "null") return new PackageDef[0];
                 using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(xmlText)))
                 {
-                    return PackageDef.ManyFromXml(stream).ToArray();
+                    var packages = PackageDef.ManyFromXml(stream).ToArray();
+                    packages.ForEach(p =>
+                    {
+                        if (p.PackageSource == null)
+                            p.PackageSource = new HttpRepositoryPackageDefSource
+                            {
+                                RepositoryUrl = Url
+                            };
+                    });
+                    
+                    return packages;
                 }
             }
             catch (XmlException ex)
@@ -346,7 +378,7 @@ namespace OpenTap.Package
                 DoDownloadPackage(package as PackageDef, destination, cancellationToken).Wait();
             else
             {
-                var packageDef = new PackageDef() { Name = package.Name, Version = package.Version, Architecture = package.Architecture, OS = package.OS, Location = Url };
+                var packageDef = new PackageDef() { Name = package.Name, Version = package.Version, Architecture = package.Architecture, OS = package.OS };
                 DoDownloadPackage(packageDef, destination, cancellationToken).Wait();
             }
         }

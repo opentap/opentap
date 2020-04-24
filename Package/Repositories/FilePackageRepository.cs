@@ -70,7 +70,7 @@ namespace OpenTap.Package
             PackageDef packageDef = null;
 
             // If the requested package is a file we do not want to start searching the entire repo.
-            if (package is PackageDef def && File.Exists(def.Location))
+            if (package is PackageDef def && File.Exists((def.PackageSource as FileRepositoryPackageDefSource)?.PackageFilePath))
             {
                 log.Debug("Downloading file without searching repository.");
                 packageDef = def;
@@ -84,17 +84,20 @@ namespace OpenTap.Package
             bool finished = false;
             try
             {
-                if (packageDef == null)
+                var packageFilePath = (packageDef?.PackageSource as FileRepositoryPackageDefSource)?.PackageFilePath;
+                
+                if (packageDef == null || packageFilePath == null)
                     throw new Exception($"Could not download '{package.Name}', because it does not exists");
-                if (PathUtils.AreEqual(packageDef.Location, destination))
+                
+                if (PathUtils.AreEqual(packageFilePath, destination))
                 {
                     finished = true;
                     return; // No reason to copy..
                 }
-                if (Path.GetExtension(packageDef.Location).ToLower() == ".tappackages") // If package is a .TapPackages file, unpack it.
+                if (Path.GetExtension(packageFilePath).ToLower() == ".tappackages") // If package is a .TapPackages file, unpack it.
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var packagesFiles = PluginInstaller.UnpackPackage(packageDef.Location, Path.GetTempPath());
+                    var packagesFiles = PluginInstaller.UnpackPackage(packageFilePath, Path.GetTempPath());
                     string path = null;
                     foreach (var packageFile in packagesFiles)
                     {
@@ -122,7 +125,7 @@ namespace OpenTap.Package
                 else
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    File.Copy(packageDef.Location, destination, true);
+                    File.Copy(packageFilePath, destination, true);
                     finished = true;
                 }
             }
@@ -339,7 +342,17 @@ namespace OpenTap.Package
                     return;
                 }
 
-                packages.ForEach(p => p.Location = packagesFile.FullName);
+                packages.ForEach(p =>
+                {
+#pragma warning disable 618
+                    p.Location = packagesFile.FullName;
+#pragma warning restore 618
+                    p.PackageSource = new FileRepositoryPackageDefSource
+                    {
+                        RepositoryUrl = Url,
+                        PackageFilePath = packagesFile.FullName
+                    };
+                });
                 lock (allPackages)
                 {
                     allPackages.AddRange(packages);
@@ -362,7 +375,12 @@ namespace OpenTap.Package
                 {
                     return;
                 }
-                package.Location = pluginFile.FullName;
+
+                package.PackageSource = new FileRepositoryPackageDefSource
+                {
+                    RepositoryUrl = Url,
+                    PackageFilePath = pluginFile.FullName
+                };
 
                 lock (allPackages)
                 {
@@ -394,7 +412,11 @@ namespace OpenTap.Package
                                 allPackages = PackageDef.ManyFromXml(str).ToList();
     
                             // Check if any files has been replaced
-                            if (allPackages.Any(p => !allFiles.Any(f => p?.Location == f)))
+                            if (allPackages.Any(p => !allFiles.Any(f =>
+                            {
+                                var packageFilePath = (p.PackageSource as FileRepositoryPackageDefSource)?.PackageFilePath;
+                                return string.IsNullOrWhiteSpace(packageFilePath) == false && PathUtils.AreEqual(f, Path.GetFullPath(packageFilePath));
+                            })))
                                 allPackages = null;
     
                             // Check if the cache is the newest file
