@@ -70,7 +70,7 @@ namespace OpenTap.Package
             PackageDef packageDef = null;
 
             // If the requested package is a file we do not want to start searching the entire repo.
-            if (package is PackageDef def && File.Exists((def.PackageSource as FileRepositoryPackageDefSource)?.PackageFilePath))
+            if (package is PackageDef def && File.Exists((def.PackageSource as FilePackageDefSource)?.PackageFilePath))
             {
                 log.Debug("Downloading file without searching repository.");
                 packageDef = def;
@@ -84,7 +84,7 @@ namespace OpenTap.Package
             bool finished = false;
             try
             {
-                var packageFilePath = (packageDef?.PackageSource as FileRepositoryPackageDefSource)?.PackageFilePath;
+                var packageFilePath = (packageDef?.PackageSource as FilePackageDefSource)?.PackageFilePath;
                 
                 if (packageDef == null || packageFilePath == null)
                     throw new Exception($"Could not download '{package.Name}', because it does not exists");
