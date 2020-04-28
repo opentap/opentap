@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Reflection;
 using System.Xml.Serialization;
 using System.Collections;
@@ -186,7 +187,7 @@ namespace OpenTap.Plugins.BasicSteps
                         try
                         {
                             var tp = TypeData.GetTypeData(val);
-                            if (paramProp.TypeDescriptor == sweepParameter.Member.TypeDescriptor && (tp.DescendsTo(paramProp.TypeDescriptor) || val == null))
+                            if (Equals(paramProp.TypeDescriptor, sweepParameter.Member.TypeDescriptor) && (tp.DescendsTo(paramProp.TypeDescriptor) || val == null))
                                 paramProp.SetValue(childTestStep, val);
                         }
                         catch (TargetInvocationException e)

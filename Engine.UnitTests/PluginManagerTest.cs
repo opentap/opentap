@@ -282,7 +282,7 @@ namespace OpenTap.Engine.UnitTests
                 int _i = i;
                 tasks.Add(Task.Factory.StartNew(() =>
                 {
-                    for (int j = 0; j < 100000; j++)
+                    for (int j = 0; j < 1000; j++)
                     {
                         var value1 = numberThingTest.Invoke((_i + j) % 71); // ensure collision of keys.
                         var value2 = numberRevertThingTest.Invoke(value1);

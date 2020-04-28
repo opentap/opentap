@@ -99,6 +99,7 @@ namespace OpenTap.Engine.UnitTests
         ///A test for Run
         ///</summary>
         [Test]
+        [Pairwise]
         public void RunTest([Values(false, true)] bool open)
         {
             TestTraceListener trace = new TestTraceListener();
@@ -1203,7 +1204,7 @@ namespace OpenTap.Engine.UnitTests
         {
             // run an excessively long test plan.
 
-            int Count = 5000;
+            int Count = 500;
             double maxDuration = 50;
             TestPlan plan = new TestPlan();
             TimeGuardStep guard = new TimeGuardStep() { Timeout = maxDuration, StopOnTimeout = true };

@@ -156,6 +156,7 @@ namespace OpenTap.Engine.UnitTests
         public void ITypeDataSearcherTest()
         {
             TypeDataSearcherTestImpl.Enable = true;
+            PluginManager.Search();
             ITypeData baseType = TypeData.FromType(typeof(IResultListener));
             var types = TypeData.GetDerivedTypes(baseType);
             TypeDataSearcherTestImpl.Enable = false;
@@ -183,8 +184,10 @@ namespace OpenTap.Engine.UnitTests
         public void ITypeDataSearcherTest2()
         {
             TypeDataSearcherTestImpl.Enable = true;
+            PluginManager.Search();
             try
             {
+                
                 var actionTypes = TypeData.GetDerivedTypes<ICliAction>();
                 Assert.IsTrue(actionTypes.Any(t => t.Name.EndsWith("UnitTestCliActionType")));
                 SomeTestAction.WasRun = false;

@@ -637,25 +637,24 @@ namespace OpenTap.Engine.UnitTests
                 StringBuilder sb = new StringBuilder("test:");
                 var ser = new TapSerializer();
                 for (int i = 0; i < 512; i++)
-                {
-                    sb[4] = (char)i;
-                    var st = new StringObject() { TheString = sb.ToString() };
-                    var stt = ser.SerializeToString(st);
-                    var rev = (StringObject)ser.DeserializeFromString(stt);
-                    Assert.IsTrue(string.Compare(st.TheString, rev.TheString) == 0);
-                }
+                    sb.Append((char) i);
+
+                var st = new StringObject() {TheString = sb.ToString()};
+                var stt = ser.SerializeToString(st);
+                var rev = (StringObject) ser.DeserializeFromString(stt);
+                Assert.IsTrue(string.Compare(st.TheString, rev.TheString) == 0);
+                
             }
             {
                 StringBuilder sb = new StringBuilder("test::::");
                 var ser = new TapSerializer();
                 for (int i = 0; i < 512; i++)
-                {
-                    sb[4] = (char)i;
-                    var st = new StringObject() { TheString = sb.ToString() };
-                    var stt = ser.SerializeToString(st);
-                    var rev = (StringObject)ser.DeserializeFromString(stt);
-                    Assert.IsTrue(string.Compare(st.TheString, rev.TheString) == 0);
-                }
+                   sb.Append((char) i);
+                var st = new StringObject() { TheString = sb.ToString() };
+                var stt = ser.SerializeToString(st);
+                 var rev = (StringObject)ser.DeserializeFromString(stt);
+                Assert.IsTrue(string.Compare(st.TheString, rev.TheString) == 0);
+                
             }
 
         }

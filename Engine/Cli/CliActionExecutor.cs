@@ -19,19 +19,25 @@ namespace OpenTap.Cli
 {
     internal class CliActionTree
     {
-        public string Name { get; set; }
+        public string Name { get; }
         public bool IsGroup => Type == null;
         public ITypeData Type { get; set; }
         public List<CliActionTree> SubCommands { get; set; }
 
-        public static CliActionTree Root { get; internal set; }
+        public CliActionTree Root { get; }
 
-        static CliActionTree()
+        public CliActionTree()
         {
             var commands = TypeData.GetDerivedTypes(TypeData.FromType(typeof(ICliAction))).Where(t => t.CanCreateInstance && t.GetDisplayAttribute() != null).ToList();
-            Root = new CliActionTree { Name = "tap" };
+            Name = "tap";
+            Root = this;
             foreach (var item in commands)
                 ParseCommand(item, item.GetDisplayAttribute().Group, Root);
+        }
+
+        CliActionTree(CliActionTree parent, string name)
+        {
+            Name = name;
         }
 
         private static void ParseCommand(ITypeData type, string[] group, CliActionTree command)
@@ -46,7 +52,7 @@ namespace OpenTap.Cli
 
                 if (existingCommand == null)
                 {
-                    existingCommand = new CliActionTree() { Name = group[0] };
+                    existingCommand = new CliActionTree(command, group[0]);
                     command.SubCommands.Add(existingCommand);
                 }
 
@@ -54,7 +60,7 @@ namespace OpenTap.Cli
             }
             else
             {
-                command.SubCommands.Add(new CliActionTree() { Name = type.GetDisplayAttribute().Name, Type = type, SubCommands = new List<CliActionTree>() });
+                command.SubCommands.Add(new CliActionTree(command, type.GetDisplayAttribute().Name) { Type = type, SubCommands = new List<CliActionTree>() });
                 command.SubCommands = command.SubCommands.OrderBy(c => c.Name).ToList();
             }
         }
@@ -180,7 +186,8 @@ namespace OpenTap.Cli
             var requestedCommand = args.FirstOrDefault();
 
             // Find selected command
-            var selectedcmd = CliActionTree.Root.GetSubCommand(args);
+            var actionTree = new CliActionTree();
+            var selectedcmd = actionTree.GetSubCommand(args);
             if (selectedcmd?.Type != null && selectedcmd?.SubCommands.Any() != true)
                 selectedCommand = selectedcmd.Type;
 
@@ -194,7 +201,7 @@ namespace OpenTap.Cli
                 {
                     Console.WriteLine("Valid commands are:");
 
-                    foreach (var cmd in CliActionTree.Root.SubCommands)
+                    foreach (var cmd in actionTree.SubCommands)
                     {
                         if (cmd.IsGroup || cmd.Type.IsBrowsable())
                         {
