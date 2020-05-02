@@ -384,6 +384,19 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void OpenTapOwnPluginAttributesTest()
+        {
+            // The following works because the GenericScpiInstrument gets discovered by PluginManager
+            // and gets its Display attribute from it.
+            var instr = TypeData.GetDerivedTypes<Instrument>().FirstOrDefault(x => x.Name.Contains("GenericScpiInstrument"));
+            Assert.IsTrue(instr.GetDisplayAttribute().Name == "Generic SCPI Instrument");
+            
+            // The following did not work because RfConnection connection was not an ITapPlugin type.
+            var rf = TypeData.GetDerivedTypes<Connection>().FirstOrDefault(x => x.Name == "OpenTap.RfConnection");
+            Assert.IsTrue(rf.GetDisplayAttribute().Name == "RF Connection");
+        }
+
+        [Test]
         public void ResolveAssemblyVersions()
         {
             
