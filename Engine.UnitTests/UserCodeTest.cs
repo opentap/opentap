@@ -13,7 +13,7 @@ using OpenTap;
 namespace OpenTap.Engine.UnitTests
 {
     [TestFixture]
-    public class UserCodeTest : EngineTestBase
+    public class UserCodeTest 
     {
         [Test]
         public void ResultListeners()

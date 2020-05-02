@@ -17,7 +17,7 @@ using OpenTap;
 namespace OpenTap.Engine.UnitTests
 {
     [TestFixture]
-    public class TestPlanCompositeRunTests : EngineTestBase
+    public class TestPlanCompositeRunTests 
     {
         
         private string[] filterLog(string allLog, bool removeSpaces = false)

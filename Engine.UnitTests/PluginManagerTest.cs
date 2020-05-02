@@ -27,7 +27,7 @@ namespace OpenTap.Engine.UnitTests
     ///to contain all PluginManagerTest Unit Tests
     ///</summary>
     [TestFixture]
-    public class PluginManagerTest : EngineTestBase
+    public class PluginManagerTest 
     {
         /// <summary>
         ///A test for SearchAsync
