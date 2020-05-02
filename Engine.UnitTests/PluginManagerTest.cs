@@ -384,7 +384,7 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
-        public void OpenTapOwnPluginAttributesTest()
+        public void RfConnectionDisplayAttributeTest()
         {
             // The following works because the GenericScpiInstrument gets discovered by PluginManager
             // and gets its Display attribute from it.
