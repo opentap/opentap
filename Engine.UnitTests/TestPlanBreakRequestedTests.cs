@@ -10,8 +10,8 @@ using System.Threading;
 
 namespace OpenTap.Engine.UnitTests
 {
-    [TestFixture()]
-    public class TestPlanBreakRequestedTests : EngineTestBase
+    [TestFixture]
+    public class TestPlanBreakRequestedTests 
     {
 
         [AllowAnyChild]

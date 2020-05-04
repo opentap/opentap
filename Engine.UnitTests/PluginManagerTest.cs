@@ -27,7 +27,7 @@ namespace OpenTap.Engine.UnitTests
     ///to contain all PluginManagerTest Unit Tests
     ///</summary>
     [TestFixture]
-    public class PluginManagerTest : EngineTestBase
+    public class PluginManagerTest 
     {
         /// <summary>
         ///A test for SearchAsync
@@ -381,6 +381,19 @@ namespace OpenTap.Engine.UnitTests
         {
             Assert.AreEqual(typeof(OpenTap.TestStep), PluginManager.LocateType("OpenTap.TestStep"));
             Assert.AreEqual(typeof(TestStep), PluginManager.LocateType(typeof(TestStep).FullName));
+        }
+
+        [Test]
+        public void RfConnectionDisplayAttributeTest()
+        {
+            // The following works because the GenericScpiInstrument gets discovered by PluginManager
+            // and gets its Display attribute from it.
+            var instr = TypeData.GetDerivedTypes<Instrument>().FirstOrDefault(x => x.Name.Contains("GenericScpiInstrument"));
+            Assert.IsTrue(instr.GetDisplayAttribute().Name == "Generic SCPI Instrument");
+            
+            // The following did not work because RfConnection connection was not an ITapPlugin type.
+            var rf = TypeData.GetDerivedTypes<Connection>().FirstOrDefault(x => x.Name == "OpenTap.RfConnection");
+            Assert.IsTrue(rf.GetDisplayAttribute().Name == "RF Connection");
         }
 
         [Test]

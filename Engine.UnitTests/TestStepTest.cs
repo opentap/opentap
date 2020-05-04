@@ -351,7 +351,7 @@ namespace OpenTap.Engine.UnitTests
     }
 
     [TestFixture]
-    public class TestStepTestFixture : EngineTestBase
+    public class TestStepTestFixture 
     {
         [Test]
         public void SetStepNameToNullThrows()
@@ -361,7 +361,7 @@ namespace OpenTap.Engine.UnitTests
     }
 
     [TestFixture]
-    public class AllowChildTest : EngineTestBase
+    public class AllowChildTest
     {
         
         private class BaseAutomationStep : TestStep

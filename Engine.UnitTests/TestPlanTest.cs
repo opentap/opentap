@@ -25,7 +25,7 @@ namespace OpenTap.Engine.UnitTests
     ///to contain all TestPlanTest Unit Tests
     ///</summary>
     [TestFixture]
-    public class TestPlanTest : EngineTestBase
+    public class TestPlanTest 
     {
 
 
