@@ -70,10 +70,9 @@ namespace OpenTap
         /// <param name="message"></param>
         public void PushError(XElement element, string message)
         {
-            var lineinfo = element as IXmlLineInfo;
-            if (lineinfo.HasLineInfo())
+            if (element is IXmlLineInfo lineInfo && lineInfo.HasLineInfo())
             {
-                errors.Add(string.Format("XML Line {0}: {1}", lineinfo.LineNumber, message));
+                errors.Add($"XML Line {lineInfo.LineNumber}: {message}");
             }
             else
             {
@@ -93,7 +92,7 @@ namespace OpenTap
         public object Deserialize(XDocument document, ITypeData type = null, bool autoFlush = true, string path = null)
         {
             if (document == null)
-                throw new ArgumentNullException("document");
+                throw new ArgumentNullException(nameof(document));
             var node1 = document.Elements().First();
             object serialized = null;
             this.ReadPath = path;
@@ -101,14 +100,34 @@ namespace OpenTap
             currentSerializer.Value = this;
             try
             {
-                Deserialize(node1, x => serialized = x, type);
+                try
+                {
+                    Deserialize(node1, x => serialized = x, type);
+                }
+                finally
+                {
+                    currentSerializer.Value = prevSer;
+                }
+
+                if (autoFlush)
+                    Flush();
             }
             finally
             {
-                currentSerializer.Value = prevSer;
+                if (IgnoreErrors == false)
+                {
+                    foreach (var error in Errors)
+                        log.Error("{0}", error);
+
+                    var rs = GetSerializer<ResourceSerializer>();
+                    if (rs.TestPlanChanged)
+                    {
+                        log.Warning("Test Plan changed due to resources missing from Bench settings.");
+                        log.Warning("Please review these changes before saving or running the Test Plan.");
+                    }
+                }
             }
-            if (autoFlush)
-                Flush();
+
             return serialized;
         }
 
@@ -117,8 +136,8 @@ namespace OpenTap
         /// </summary>
         public void Flush()
         {
-            while (deferedLoads.Count > 0)
-                deferedLoads.Dequeue()();
+            while (deferredLoads.Count > 0)
+                deferredLoads.Dequeue()();
         }
 
         /// <summary>
@@ -132,16 +151,9 @@ namespace OpenTap
         public object Deserialize(Stream stream, bool flush = true, ITypeData type = null, string path = null)
         {
             if (stream == null)
-                throw new ArgumentNullException("stream");
+                throw new ArgumentNullException(nameof(stream));
 
-            object obj = Deserialize(XDocument.Load(stream, LoadOptions.SetLineInfo), type: type, autoFlush: flush, path: path);
-            var rs = GetSerializer<ResourceSerializer>();
-            if (rs.TestPlanChanged)
-            {
-                log.Warning("Test Plan changed due to resources missing from Bench settings.");
-                log.Warning("Please review these changes before saving or running the Test Plan.");
-            }
-            return obj;
+            return Deserialize(XDocument.Load(stream, LoadOptions.SetLineInfo), type: type, autoFlush: flush, path: path);
         }
 
         /// <summary>
@@ -155,9 +167,9 @@ namespace OpenTap
         public object DeserializeFromString(string text, ITypeData type = null, bool flush = true, string path = null)
         {
             if (text == null)
-                throw new ArgumentNullException("text");
-            using (var reader = new StringReader(text))
-                return Deserialize(XDocument.Load(reader, LoadOptions.SetLineInfo), type: type, autoFlush: flush, path: path);
+                throw new ArgumentNullException(nameof(text));
+            using (var reader = new MemoryStream(Encoding.UTF8.GetBytes(text)))
+                return Deserialize(reader, flush, type, path);
         }
 
         /// <summary>
@@ -170,8 +182,9 @@ namespace OpenTap
         public object DeserializeFromFile(string file, ITypeData type = null, bool flush = true)
         {
             if (file == null)
-                throw new ArgumentNullException("file");
-            return Deserialize(XDocument.Load(file, LoadOptions.SetLineInfo), type: type, autoFlush: flush, path: file);
+                throw new ArgumentNullException(nameof(file));
+            using (var fileStream = File.Open(file, FileMode.Open, FileAccess.Read, FileShare.Read))
+                return Deserialize(fileStream, flush, type, file);
         }
 
         List<ITapSerializerPlugin> serializers = new List<ITapSerializerPlugin>();
@@ -232,26 +245,23 @@ namespace OpenTap
             currentSerializer.Value = previousValue;
         }
 
-        Queue<Action> deferedLoads = new Queue<Action>();
+        readonly Queue<Action> deferredLoads = new Queue<Action>();
 
         /// <summary>
         /// Pushes a deferred load action onto a queue of deferred loads.  
         /// </summary>
-        /// <param name="deferedLoad"></param>
-        public void DeferLoad(Action deferedLoad)
+        /// <param name="deferred"></param>
+        public void DeferLoad(Action deferred)
         {
-            if (deferedLoad == null)
-                throw new ArgumentNullException("deferedLoad");
-            deferedLoads.Enqueue(deferedLoad);
+            if (deferred == null)
+                throw new ArgumentNullException(nameof(deferred));
+            deferredLoads.Enqueue(deferred);
         }
 
-        List<string> errors = new List<string>();
+        readonly List<string> errors = new List<string>();
 
         /// <summary> Get the errors associated with deserialization. </summary>
-        public IEnumerable<string> Errors
-        {
-            get { return errors.AsEnumerable(); }
-        }
+        public IEnumerable<string> Errors => errors.Select(x => x);
 
         static TraceSource log = Log.CreateSource("Serializer");
 
@@ -492,8 +502,7 @@ namespace OpenTap
         /// <summary> Returns the serializer for a given object. null if the object is or has not been deserialized.</summary>
         public static TapSerializer GetObjectDeserializer(object @object)
         {
-            TapSerializer serializer = null;
-            serializerSteps.TryGetValue(@object, out serializer);
+            serializerSteps.TryGetValue(@object, out var serializer);
             return serializer ?? GetCurrentSerializer();
         }
 

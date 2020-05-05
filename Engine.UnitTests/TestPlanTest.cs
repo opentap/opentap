@@ -14,9 +14,8 @@ using OpenTap.EngineUnitTestUtils;
 using OpenTap.Plugins.BasicSteps;
 using System.ComponentModel;
 using System.Threading;
-using OpenTap;
 using OpenTap.Engine.UnitTests.TestTestSteps;
-using System.Diagnostics.CodeAnalysis;
+using System.Text;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -892,24 +891,24 @@ namespace OpenTap.Engine.UnitTests
             try
             {
                 DutSettings.Current.Clear();
-                DutSettings.Current.Add(new MyDut());
+                DutSettings.Current.Add(new TestDut());
 
                 EngineSettings.Current.PromptForMetaData = true;
 
                 {
                     var plan = new TestPlan();
-                    plan.Steps.Add(new DutStep() { MyDut = DutSettings.Current.OfType<MyDut>().FirstOrDefault() });
+                    plan.Steps.Add(new DutStep() { Dut = DutSettings.Current.OfType<TestDut>().FirstOrDefault() });
 
                     var run = plan.Execute();
                     Assert.IsFalse(run.FailedToStart);
                     Assert.AreEqual(Verdict.Pass, run.Verdict);
                 }
 
-                DutSettings.Current.OfType<MyDut>().ToList().ForEach(f => f.Comment = "test");
+                DutSettings.Current.OfType<TestDut>().ToList().ForEach(f => f.Comment = "test");
 
                 {
                     var plan = new TestPlan();
-                    plan.Steps.Add(new DutStep() { MyDut = DutSettings.Current.OfType<MyDut>().FirstOrDefault() });
+                    plan.Steps.Add(new DutStep() { Dut = DutSettings.Current.OfType<TestDut>().FirstOrDefault() });
 
                     plan.Open();
 
@@ -1067,21 +1066,21 @@ namespace OpenTap.Engine.UnitTests
             }
         }
         
-        public class MyDut : Dut
+        public class TestDut : Dut
         {
         }
 
         public class DutStep : TestStep
         {
-            public Dut MyDut { get; set; }
+            public Dut Dut { get; set; }
             public int Sleep { get; set; }
             public override void Run()
             {
                 if(Sleep != 0)
                     TapThread.Sleep(Sleep);
-                if (string.Compare("Some comment", MyDut.Comment, true) != 0)
+                if (string.Compare("Some comment", Dut.Comment, true) != 0)
                     throw new InvalidOperationException();
-                if (MyDut.IsConnected == false)
+                if (Dut.IsConnected == false)
                     throw new InvalidOperationException("Dut is closed!");
                 UpgradeVerdict(Verdict.Pass);
             }
@@ -1327,7 +1326,7 @@ namespace OpenTap.Engine.UnitTests
                 DutSettings.Current.Add(dut1);
                 TestPlan plan = new TestPlan();
                 DutStep step = new DutStep();
-                step.MyDut = dut1;
+                step.Dut = dut1;
                 plan.ChildTestSteps.Add(step);
                 if (runOpen)
                     plan.Open();
@@ -1377,7 +1376,7 @@ namespace OpenTap.Engine.UnitTests
                 {
                     DutStep step = new DutStep()
                     {
-                        MyDut = dut1,
+                        Dut = dut1,
                         Sleep = i * 5
                     };
                     plan.ChildTestSteps.Add(step);
@@ -1557,6 +1556,42 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreNotEqual(startId, seq2.Id);
             Assert.AreEqual(plan.ChildTestSteps[0].Id, startId);
 
+        }
+
+        [Test]
+        public void TestPlanDeserializeError()
+        {
+            var listener = new TestTraceListener();
+            var dut = new DummyDut() {Name = "DUT_TEST"};
+            try
+            {
+                var plan = new TestPlan();
+                var step = new DutStep();
+                DutSettings.Current.Add(dut);
+                step.Dut = dut;
+                plan.Steps.Add(step);
+                using (var buffer = new MemoryStream())
+                {
+                    plan.Save(buffer);
+                    buffer.Seek(0, SeekOrigin.Begin);
+                    var str = Encoding.UTF8.GetString(buffer.ToArray());
+                    DutSettings.Current.Remove(dut);
+                    Log.AddListener(listener);
+                    var serializer = new TapSerializer();
+                    serializer.Deserialize(buffer);
+                }
+
+                Log.Flush();
+                // there should be an error message
+                // since the DUT was not available for de-serialization.
+                Assert.IsTrue(listener.ErrorMessage.Count > 0);
+                
+            }
+            finally
+            {
+                Log.RemoveListener(listener);
+                DutSettings.Current.Remove(dut);
+            }
         }
     }
 
