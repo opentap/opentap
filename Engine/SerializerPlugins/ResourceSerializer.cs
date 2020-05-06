@@ -24,7 +24,7 @@ namespace OpenTap.Plugins
         /// <summary> Deserialization implementation. </summary>
         public override bool Deserialize( XElement elem, ITypeData _t, Action<object> setter)
         {
-            var t = (_t as TypeData)?.Type;
+            var t = _t.AsTypeData()?.Type;
             if (t != null && t.DescendsTo(typeof(IResource)) && ComponentSettingsList.HasContainer(t))
             {
                 var srcattr = elem.Attribute("Source");
