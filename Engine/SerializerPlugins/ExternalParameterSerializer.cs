@@ -83,7 +83,10 @@ namespace OpenTap.Plugins
                 {
                     Serializer.DeferLoad(() =>
                     {
-                        extParam.Value = extParam.Value;
+                        if (PreloadedValues.ContainsKey(extParam.Name)) // If there is a  preloaded value, use that.
+                            extParam.Value = PreloadedValues[extParam.Name];
+                        else
+                            extParam.Value = extParam.Value;
                     });
                 }
                 if (PreloadedValues.ContainsKey(extParam.Name)) // If there is a  preloaded value, use that.
@@ -127,7 +130,7 @@ namespace OpenTap.Plugins
             try
             {
                 currentNode.Add(elem);
-                return Serializer.Serialize(elem as XElement, obj, expectedType);
+                return Serializer.Serialize(elem, obj, expectedType);
             }
             finally
             {
