@@ -68,7 +68,36 @@ For attribute usage examples, see the files in:
 
 -	`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\Attributes`
 
-Some of the commonly used attributes are described in the following sections. For more details on the attributes see OpenTapApiReference.chm.
+Some of the commonly used attributes are described in the following sections. For more details on the attributes see OpenTapApiReference.chm.   
+   
+## Embedding OpenTAP in other Applications   
+It is possible to embedd OpenTAP in custom applications and tools such as operator UIs. In this case, it is important to properly load and reference OpenTAP DLLs and install locations in order to keep the custom applications isolated if support for side-by-side installs of OpenTAP is desired.   
+Mainly, this invovles how the OpenTAP DLL is discovered. This can be done in a few different ways:   
+   
+-	When running within a tap.exe process:     
+	-	`OpenTap.PluginManager.GetOpenTapAssembly().Location;`     
+	-	`System.Reflection.Assembly.GetEntryAssembly().Location;` 
+	  
+-	Outside the tap.exe process:   
+	-	The registery key for OpenTAP is `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{B63BFBDD-14E3-49AE-BFF3-ABE2BBA91ADB}_is1`   
+	-	Set as part of a Package Action on Plugin install:
+```xml
+		...
+ 		<PackageActionExtensions>
+    		<ActionStep ActionName="install" ExeFile="cmd" Arguments="/c setx MY_UTIL_INSTALL_DIR %cd%"/>
+		</PackageActionExtensions>
+ 		...
+ ```
+ 	- Registry Key:
+```xml
+		...
+ 		<PackageActionExtensions>
+    		<ActionStep ActionName="install" ExeFile="cmd" Arguments="/c REG ADD &quot;HKCU\Software\Keysight\MyUtility&quot; /v InstallDir /d %cd%"/>
+		</PackageActionExtensions>
+ 		...
+ ```	
+  
+Note that the environment variable TAP_PATH does exist, however, this is for legacy reasons only and should **NOT** be used.
 
 ## Best Practices for Plugin Development
 
