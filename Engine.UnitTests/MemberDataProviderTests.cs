@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Xml.Serialization;
 using System.ComponentModel;
+using System.IO;
 using System.Text;
 using OpenTap.Cli;
 using System.Threading;
@@ -1570,6 +1571,55 @@ namespace OpenTap.Engine.UnitTests
             var members2 = members.ToDictionary(x => x.Get<IMemberAnnotation>().Member.Name);
             var v = members2["BreakConditions"];
 
+        }
+        
+        public class EmbedInstrumentStep : TestStep
+        {
+            public InstrumentUsingEmbed Instrument { get; set; }
+            public override void Run() { }
+        }
+
+        public class EmbedSomeSettingsOnInstrument
+        {
+            public double Frequencey { get; set; }
+        }
+
+        public class InstrumentUsingEmbed : Instrument
+        {
+            [EmbedProperties]
+            public EmbedSomeSettingsOnInstrument Settings { get; set; }
+        }
+
+        /// <summary>
+        /// Previously there was an issue where instruments could not be properly
+        /// deserialized if they had embedded properties. This test verifies that it works.
+        /// </summary>
+        [Test]
+        public void EmbedWithInstrumentTest()
+        {
+            var instr = new InstrumentUsingEmbed();
+            var instr2 = new InstrumentUsingEmbed();
+            try
+            {
+                InstrumentSettings.Current.Add(instr);
+                InstrumentSettings.Current.Add(instr2);
+                var step = new EmbedInstrumentStep { Instrument = instr2 };
+                var plan = new TestPlan();
+                plan.ChildTestSteps.Add(step);
+                using (var str = new MemoryStream())
+                {
+                    plan.Save(str);
+                    str.Seek(0, SeekOrigin.Begin);
+                    plan = TestPlan.Load(str, "Embed.TapPlan");
+                }
+                step = (EmbedInstrumentStep)plan.ChildTestSteps[0];
+                Assert.IsTrue(step.Instrument == instr2);
+            }
+            finally
+            {
+                InstrumentSettings.Current.Remove(instr);
+                InstrumentSettings.Current.Remove(instr2);
+            }
         }
     }
 }
