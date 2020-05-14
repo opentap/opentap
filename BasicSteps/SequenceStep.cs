@@ -7,7 +7,7 @@ using OpenTap;
 
 namespace OpenTap.Plugins.BasicSteps
 {
-    [Display("Sequence", Group: "Flow Control", Description: "Runs its child steps sequentially. Verdict reflect the verdict of the child steps.")]
+    [Display("Sequence", Group: "Flow Control", Description: "Runs its child steps sequentially.")]
     [AllowAnyChild]
     public class SequenceStep : TestStep
     {
