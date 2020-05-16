@@ -27,19 +27,11 @@
            <AdditionalOpenTapPackage Include="Developer's System CE"/>
          Here we do some optimizations that leverages an existing OpenTAP installation in %TAP_PATH%
     -->
-    <CachedOpenTapPackages Include="$(TAP_PATH)\PackageCache\Developer*"/>
-    <AdditionalOpenTapPackage Include="Developer's System" 
-                              Repository="$(TAP_PATH)\PackageCache" 
-                              Version="Any"
-                              Condition="@(CachedOpenTapPackages) != '' AND Exists('$(TAP_PATH)\Packages\Editor')"/>
-    <AdditionalOpenTapPackage Include="Developer's System" 
-                              Condition="@(CachedOpenTapPackages) == '' AND Exists('$(TAP_PATH)\Packages\Editor')"/>
-    <AdditionalOpenTapPackage Include="Developer's System CE"
-                              Repository="$(TAP_PATH)\PackageCache"
-                              Version="Any"
-                              Condition="@(CachedOpenTapPackages) != '' AND Exists('$(TAP_PATH)\Packages\Editor') == false"/>
-    <AdditionalOpenTapPackage Include="Developer's System CE" 
-                              Condition="@(CachedOpenTapPackages) == '' AND Exists('$(TAP_PATH)\Packages\Editor') == false" />
+    <CachedOpenTapPackages Include="$(TAP_PATH)\PackageCache\Developer*" />
+    <AdditionalOpenTapPackage Include="Developer's System" Repository="$(TAP_PATH)\PackageCache" Version="Any" Condition="@(CachedOpenTapPackages) != '' AND Exists('$(TAP_PATH)\Packages\Editor')" />
+    <AdditionalOpenTapPackage Include="Developer's System" Condition="@(CachedOpenTapPackages) == '' AND Exists('$(TAP_PATH)\Packages\Editor')" />
+    <AdditionalOpenTapPackage Include="Developer's System CE" Repository="$(TAP_PATH)\PackageCache" Version="Any" Condition="@(CachedOpenTapPackages) != '' AND Exists('$(TAP_PATH)\Packages\Editor') == false" />
+    <AdditionalOpenTapPackage Include="Developer's System CE" Condition="@(CachedOpenTapPackages) == '' AND Exists('$(TAP_PATH)\Packages\Editor') == false" />
   </ItemGroup>
 
   <ItemGroup>
