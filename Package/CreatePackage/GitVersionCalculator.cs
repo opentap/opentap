@@ -171,7 +171,7 @@ namespace OpenTap.Package
         private Commit getLatestConfigVersionChange(Commit c)
         {
             if (c.Parents.Any() == false)
-                return null; // 'c' is the first commit in the repo. There was never any change.
+                return c; // 'c' is the first commit in the repo. There was never any change.
             
             // find all changes in the file (for some reason that sometimes returns an empty list)
             //var fileLog = repo.Commits.QueryBy(configFileName, new CommitFilter() { IncludeReachableFrom = c, SortBy = CommitSortStrategies.Topological, FirstParentOnly = false });
