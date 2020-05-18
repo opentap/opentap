@@ -1663,6 +1663,84 @@ namespace OpenTap.Engine.UnitTests
                     targets.ToList().ForEach(ResourceOpened);
             }
         }
+
+        class CrashInstrument : Instrument
+        {
+            static Semaphore sharedStateA = new Semaphore(1,1);
+            public bool OpenThrow { get; set; }
+            public bool OpenWait { get; set; }
+            public bool CloseThrow { get; set; }
+            public bool ClosedDuringOpen { get; set; }
+            bool isopening = false;
+
+            public bool CloseCalled { get; set; }
+            public override void Open()
+            {
+                base.Open();
+                isopening = true;
+
+                if(OpenWait)
+                    TapThread.Sleep(20);
+                
+                isopening = false;
+                
+                    if(OpenThrow)
+                        throw new Exception("Intended failure");
+            }
+            
+            public override void Close()
+            {
+                CloseCalled = true;
+                if (isopening)
+                {
+                    ClosedDuringOpen = true;
+                    Assert.Fail("Close called before open done.");
+                }
+
+                if (CloseThrow)
+                    throw new Exception("Intended failure");
+            }
+        }
+
+        [Test]
+        [Repeat(10)]
+        public void OpenCloseOrder()
+        {
+            var instrA = new CrashInstrument() {OpenThrow = true,CloseThrow = true, Name= "A"};
+            var instrB = new CrashInstrument() {OpenWait = true, Name= "B"};
+            var stepA = new InstrumentTestStep() {Instrument = instrA};
+            var stepB = new InstrumentTestStep() {Instrument = instrB};
+            
+            var parallel = new ParallelStep();
+            var plan = new TestPlan();
+            parallel.ChildTestSteps.Add(stepA);
+            parallel.ChildTestSteps.Add(stepB);
+            plan.Steps.Add(parallel);
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Error, run.Verdict);
+            Assert.IsFalse(instrA.ClosedDuringOpen);
+            Assert.IsFalse(instrB.ClosedDuringOpen); 
+            
+            // close has to be called even though Open failed.
+            Assert.IsTrue(instrA.CloseCalled);
+            Assert.IsTrue(instrB.CloseCalled); 
+        }
+
+        [Test]
+        [Repeat(10)]
+        public void OpenCloseOrderLazyRM()
+        {
+            var lastrm = EngineSettings.Current.ResourceManagerType;
+            EngineSettings.Current.ResourceManagerType = new LazyResourceManager();
+            try
+            {
+                OpenCloseOrder();
+            }
+            finally
+            {
+                EngineSettings.Current.ResourceManagerType = lastrm;
+            }
+        }
     }
 
     public class TestITestStep : ValidatingObject, ITestStep
