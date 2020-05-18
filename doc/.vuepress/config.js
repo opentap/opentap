@@ -43,14 +43,7 @@ module.exports = {
                 children: [
                     ["/Developer Guide/Introduction/", "Introduction"],
                     ["/Developer Guide/What is OpenTAP/", "OpenTAP Overview"],
-                    {
-                        title: 'Getting Started',
-                        sidebarDepth: 0,
-                        children: [
-                            "/Developer Guide/Getting Started in Visual Studio/",
-                            "/Developer Guide/Getting Started in Visual Studio/OpenTapNuget.md"
-                        ]
-                    },
+                    ["/Developer Guide/Getting Started in Visual Studio/", "Getting Started"],
                     ["/Developer Guide/Plugin Development/", "Plugin Development"],
                     ["/Developer Guide/Test Step/", "Test Step"],
                     ["/Developer Guide/DUT/", "DUT"],

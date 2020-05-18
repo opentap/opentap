@@ -53,11 +53,7 @@ Install the downloaded distribution:
 	3. Run the INSTALL.sh script: `./INSTALL.sh`.
 
 
-## Use OpenTAP
-If you are an OpenTAP user, or just want to try it out, have a look at the [User Guide](User%20Guide/Introduction/).
+### Where to go next
+Are you already an OpenTAP user, or want to try it out? Have a look at the [User Guide](User%20Guide/Introduction/).
 
-
-## Develop Plugins
-If you are a developer and want to create plugins for OpenTAP, have a look at the [Developer Guide](Developer%20Guide/Introduction/).
-
-
+Are you a developer and want to create plugins for OpenTAP? Have a look at the [Developer Guide](Developer%20Guide/Introduction/).
