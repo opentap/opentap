@@ -173,7 +173,7 @@ Some examples are:
 Installing, uninstalling, upgrading, downgrading, and dependencies are all managed by the OpenTAP package manager. A
 package declares its own dependencies and OS / CPU compatibility, and the package manager resolves those dependencies
 with the packages in your current installation, if possible. Usage of the package manager is described in detail in [the
-next section](../cli%20guide/package%manager).
+next section](../CLI%20Usage/#using-the-package-manager).
 
 The below figure shows the relation between plugins and OpenTAP. OpenTAP is at the center, and plugins, providing a
 variety of functionality, can be added and removed painlessly. 
