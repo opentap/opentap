@@ -108,10 +108,10 @@ namespace OpenTap.Engine.UnitTests
             DutSettings.Current.AddRange(new []{dut1, dut2});
             try
             {
-                step.MyDut = dut1;
+                step.Dut = dut1;
                 plan.ChildTestSteps.Add(step);
                 plan.ExternalParameters.Add(step,
-                    TypeData.GetTypeData(step).GetMember(nameof(TestPlanTest.DutStep.MyDut)), "dut");
+                    TypeData.GetTypeData(step).GetMember(nameof(TestPlanTest.DutStep.Dut)), "dut");
 
                 using (var memstr = new MemoryStream())
                 {
@@ -126,7 +126,7 @@ namespace OpenTap.Engine.UnitTests
                 }
 
                 step = (TestPlanTest.DutStep) plan.ChildTestSteps[0];
-                Assert.AreEqual(step.MyDut, dut2);
+                Assert.AreEqual(step.Dut, dut2);
             }
             finally
             {
