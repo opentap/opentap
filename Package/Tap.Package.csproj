@@ -5,7 +5,6 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsDebug)'!='true'">
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <DocumentationFile>$(OutputPath)\OpenTap.Package.xml</DocumentationFile>
   </PropertyGroup>
 

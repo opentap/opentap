@@ -4,10 +4,12 @@
     <RootNamespace>OpenTap.Plugins.BasicSteps</RootNamespace>
   </PropertyGroup>
 
+  <!-- Comment this out for now, until we can get to adding all the missing XML comments
   <PropertyGroup Condition="'$(IsDebug)'!='true'">
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <DocumentationFile>$(OutputPath)\OpenTap.Plugins.BasicSteps.xml</DocumentationFile>
   </PropertyGroup>
+  -->
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="2.10.0" />
     <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
