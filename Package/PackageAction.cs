@@ -23,7 +23,7 @@ namespace OpenTap.Package
     public abstract class PackageAction : ICliAction
     {
         protected static TraceSource log =  OpenTap.Log.CreateSource("PackageAction");
-
+        
         /// <summary>
         /// A delegate used by <see cref="ProgressUpdate"/>
         /// </summary>

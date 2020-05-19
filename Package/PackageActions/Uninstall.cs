@@ -58,7 +58,7 @@ namespace OpenTap.Package
                 if (!CheckPackageAndDependencies(installedPackages, installer.PackagePaths))
                     return -3;
 
-            return installer.RunCommand("uninstall", Force) ? 0 : -1;
+            return installer.RunCommand("uninstall", Force, true) ? 0 : -1;
         }
 
         private bool CheckPackageAndDependencies(List<PackageDef> installed, List<string> packagePaths)
