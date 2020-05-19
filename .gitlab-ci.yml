@@ -358,6 +358,8 @@ Package-NuGet:
     - cd bin/Release
     - Move-Item "../../OpenTAP.*.Windows.TapPackage" OpenTAP.TapPackage
     - ./tap package install --target "../../nuget/build/payload" OpenTAP.TapPackage -f -v
+    - Move-Item OpenTap.xml ../../nuget/build/payload
+    - Move-Item OpenTap.Package.xml ../../nuget/build/payload
     - ./tap sdk gitversion --replace ../../nuget/OpenTAP.nuspec --fields 4
     - Move-Item Keysight.OpenTap.Sdk.MSBuild.dll ../../nuget/build
     - cd ../../nuget/
