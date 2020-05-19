@@ -102,6 +102,7 @@ namespace OpenTap
 
         /// <summary>
         /// Sets up some default values for the various settings.
+        /// User code should use EngineSettings.Current to access the singleton instead of constructing a new object.
         /// </summary>
         public EngineSettings()
         {

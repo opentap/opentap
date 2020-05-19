@@ -34,16 +34,22 @@ namespace OpenTap.Package
     {
     }
 
+    /// <summary>
+    /// Argument for <see cref="ICustomPackageAction.Execute"/>
+    /// </summary>
     public class CustomPackageActionArgs
     {
+        #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
         public CustomPackageActionArgs(string temporaryDirectory, bool forceAction)
         {
             TemporaryDirectory = temporaryDirectory;
             ForceAction = forceAction;
         }
+
         public string TemporaryDirectory { get; }
 
         public bool ForceAction { get; } = false;
+        #pragma warning restore 1591 // TODO: Add XML Comments in this file, then remove this
     }
 
 
@@ -137,20 +143,38 @@ namespace OpenTap.Package
         }
     }
 
+    /// <summary>
+    /// Placeholder object that represents an unrecognized XML element under the File element in a package definition xml file (package.xml)
+    /// </summary>
     public class MissingPackageData : ICustomPackageData
     {
+        /// <summary>
+        /// Default Constructor
+        /// </summary>
         public MissingPackageData()
         {
 
         }
 
+        /// <summary>
+        /// Constructs a MissingPackageData given the unrecognized XML element
+        /// </summary>
+        /// <param name="xmlElement"></param>
         public MissingPackageData(XElement xmlElement)
         {
             XmlElement = xmlElement ?? throw new ArgumentNullException(nameof(xmlElement));
         }
 
+        /// <summary>
+        /// The unrecognized XML element represented by this object.
+        /// </summary>
+        /// <value></value>
         public XElement XmlElement { get; set; }
 
+        /// <summary>
+        /// Returns the line in which the unrecognized XML element appears in the package definition xml file (package.xml)
+        /// </summary>
+        /// <returns></returns>
         public string GetLine()
         {
             if (XmlElement is IXmlLineInfo lineInfo && lineInfo.HasLineInfo())
@@ -159,6 +183,9 @@ namespace OpenTap.Package
                 return "";
         }
 
+        /// <summary>
+        /// Queries the PluginManager to try to find a ICustomPackageData plugin that fits this XML element.
+        /// </summary>
         public bool TryResolve(out ICustomPackageData customPackageData)
         {
             customPackageData = this;
@@ -178,6 +205,9 @@ namespace OpenTap.Package
         }
     }
     
+    /// <summary>
+    /// Extension methods to help manage ICustomPackageData on PackageFile objects.
+    /// </summary>
     public static class PackageFileExtensions
     {
         /// <summary>

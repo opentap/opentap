@@ -18,6 +18,9 @@ using OpenTap.Cli;
 
 namespace OpenTap.Package
 {
+    /// <summary>
+    /// Base class for ICliActions that use a mutex to lock the Target directory for the duration of the command. 
+    /// </summary>
     public abstract class LockingPackageAction : PackageAction
     {
         internal const string CommandLineArgumentRepositoryDescription = "Search this repository for packages instead of using\nsettings from 'Package Manager.xml'.";
@@ -58,7 +61,11 @@ namespace OpenTap.Package
 
             return new Mutex(false, "Keysight.Tap.Package InstallLock " + BitConverter.ToString(hash).Replace("-", ""));
         }
-
+        
+        /// <summary>
+        /// Executes this the action. Derived types should override LockedExecute instead of this.
+        /// </summary>
+        /// <returns>Return 0 to indicate success. Otherwise return a custom errorcode that will be set as the exitcode from the CLI.</returns>
         public override int Execute(CancellationToken cancellationToken)
         {
             if (String.IsNullOrEmpty(Target))
@@ -109,8 +116,16 @@ namespace OpenTap.Package
             }
         }
 
+        /// <summary>
+        /// The code to be executed by the action while the Target directory is locked.
+        /// </summary>
+        /// <returns>Return 0 to indicate success. Otherwise return a custom errorcode that will be set as the exitcode from the CLI.</returns>
         protected abstract int LockedExecute(CancellationToken cancellationToken);
 
+        
+        /// <summary>
+        /// Only here for compatibility. Use IsolatedPackageAction instead of calling this.
+        /// </summary>
         [Obsolete("Inherit from IsolatedPackageAction instead.")]
         public static bool RunIsolated(string application = null, string target = null)
         {

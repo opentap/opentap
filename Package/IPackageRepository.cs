@@ -14,6 +14,9 @@ using System.Xml.Serialization;
 
 namespace OpenTap.Package
 {
+    /// <summary>
+    /// A client interface for a package repository. Implementations include <see cref="FilePackageRepository"/> and <see cref="HttpPackageRepository"/>.
+    /// </summary>
     public interface IPackageRepository
     {
         /// <summary>
@@ -65,8 +68,14 @@ namespace OpenTap.Package
         PackageDef[] CheckForUpdates(IPackageIdentifier[] packages, CancellationToken cancellationToken);
     }
 
+    /// <summary>
+    /// Represents a version of a package. Objects of this type is returned by<see cref="IPackageRepository.GetPackageVersions"/> 
+    /// </summary>
     public class PackageVersion : PackageIdentifier, IEquatable<PackageVersion>
     {
+        /// <summary>
+        /// Initializes a new instance of a PackageVersion
+        /// </summary>
         public PackageVersion(string name, SemanticVersion version, string os, CpuArchitecture architechture, DateTime date, List<string> licenses) : base(name,version,architechture,os)
         {
             this.Date = date;
@@ -78,9 +87,19 @@ namespace OpenTap.Package
 
         }
 
+        /// <summary>
+        /// The date that the package was build.
+        /// </summary>
         public DateTime Date { get; set; }
+
+        /// <summary>
+        /// License(s) required to use this package.
+        /// </summary>
         public List<string> Licenses { get; set; }
 
+        /// <summary>
+        /// Compares this PackageVersion with another.
+        /// </summary>
         public bool Equals(PackageVersion other)
         {
             return (this as PackageIdentifier).Equals(other);

@@ -81,6 +81,10 @@ namespace OpenTap.Package
         }
         
         //override GetHashCode and Equals so PackageReference can be properly compared/distincted.
+        /// <summary>
+        /// Returns the hash code for this PackageIdentifier
+        /// </summary>
+        /// <returns></returns>
         public override int GetHashCode()
         {
             int hash = 0;
@@ -93,6 +97,9 @@ namespace OpenTap.Package
             return hash ^ Architecture.GetHashCode();
         }
 
+        /// <summary>
+        /// Compare this PackageIdentifier to another object.
+        /// </summary>
         public override bool Equals(object obj)
         {
             var other = obj as IPackageIdentifier;

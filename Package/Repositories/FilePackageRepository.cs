@@ -15,8 +15,12 @@ using Tap.Shared;
 
 namespace OpenTap.Package
 {
+    /// <summary>
+    /// Implements a IPackageRepository that queries a local directory for OpenTAP packages.
+    /// </summary>
     public class FilePackageRepository : IPackageRepository
     {
+        #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
         private static TraceSource log = Log.CreateSource("FilePackageRepository");
         internal const string TapPluginCache = ".PackageCache";
         private static object cacheLock = new object();

@@ -22,6 +22,7 @@ namespace OpenTap.Package
     /// </summary>
     public abstract class PackageAction : ICliAction
     {
+        /// <summary> Log source for PackageAction plugins. </summary>
         protected static TraceSource log =  OpenTap.Log.CreateSource("PackageAction");
 
         /// <summary>
