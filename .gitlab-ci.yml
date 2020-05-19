@@ -351,6 +351,10 @@ Package-NuGet:
     - Build-x64
     - Package-Windows64
     - Build-Linux64
+  needs:
+    - Build-x64
+    - Package-Windows64
+    - Build-Linux64
   script:
     - Move-Item bin/Release/publish/ bin/Linux/
     - dotnet build -c NetCore tap/tap.csproj
