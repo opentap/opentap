@@ -324,7 +324,7 @@ namespace OpenTap
                 if(String.IsNullOrEmpty(tapEnginePath))
                 {
                     // if Tap.Engine was loaded from memory/bytes instead of from a file, it does not have a location.
-                    // This is the case if the process was laundhed through tap.exe. 
+                    // This is the case if the process was launched through tap.exe. 
                     // In that case just use the location of tap.exe, it is the same
                     tapEnginePath = Assembly.GetEntryAssembly().Location;
                 }
@@ -594,7 +594,7 @@ namespace OpenTap
                                 {
                                     if (StrEq(subDir.Name, "obj"))
                                         continue; // skip obj subfolder
-                                    var ignorePluginsInSubDir = StrEq(subDir.Name, "Dependencies");
+                                    var ignorePluginsInSubDir = dir.IgnorePlugins || StrEq(subDir.Name, "Dependencies");
                                     dirToSearch.Enqueue(new SearchDir(subDir, ignorePluginsInSubDir));
                                 }
 

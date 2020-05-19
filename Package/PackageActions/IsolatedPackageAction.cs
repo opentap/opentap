@@ -25,7 +25,7 @@ namespace OpenTap.Package
             if (String.IsNullOrEmpty(Target))
                 Target = GetLocalInstallationDir();
             else
-                Target = Path.GetFullPath(Target.Trim());
+                Target = Path.GetFullPath(Target.Trim()); 
             if (!Directory.Exists(Target))
             {
                 log.Error("Destination directory \"{0}\" does not exist.", Target);
