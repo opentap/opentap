@@ -518,6 +518,19 @@ namespace OpenTap
 
         /// <summary> The path where the current file is being loaded from. This might be null in cases where it's being loaded from a stream.</summary>
         public string ReadPath { get; private set; }
+
+        /// <summary>  Manually push a serializer on the active serializers stack. </summary>
+        /// <param name="objectSerializer"></param>
+        internal void PushActiveSerializer(ITapSerializerPlugin objectSerializer)
+        {
+            activeSerializers.Push(objectSerializer);
+        }
+
+        /// <summary> Manually pop a serializer from the active serializers. </summary>
+        internal void PopActiveSerializer()
+        {
+            activeSerializers.Pop();
+        }
     }
 }
 

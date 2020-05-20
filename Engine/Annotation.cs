@@ -2338,6 +2338,8 @@ namespace OpenTap
                         }
                         else
                         {
+                            // the type must implement IList, otherwise it cannot be used by generic sequence annotation.
+                            // this excludes IEnumerable, but not array types or List<T> types. 
                             annotation.Add(new GenericSequenceAnnotation(annotation));
                             if (!rd_only && innerType.DescendsTo(typeof(IResource)))
                             {
@@ -2374,7 +2376,7 @@ namespace OpenTap
 
                     if (csharpType.IsValueType == false && type.DescendsTo(typeof(IResource)))
                         annotation.Add(new ResourceAnnotation(annotation, type));
-                    else if (csharpType.IsValueType == false && type.DescendsTo(typeof(ITestStep)))
+                    else if (csharpType.IsValueType == false && type.DescendsTo(typeof(ITestStep)) && mem?.Member.DeclaringType?.DescendsTo(typeof(ITestStep)) == true)
                         annotation.Add(new TestStepSelectAnnotation(annotation));
                 }
             }
@@ -3172,17 +3174,9 @@ namespace OpenTap
         /// <summary> Recurse to find member annotation 'X.Y.Z'</summary>
         public static AnnotationCollection GetMember(this AnnotationCollection col, string name)
         {
-            if (string.IsNullOrWhiteSpace(name)) return col;
-            int index = name.IndexOf('.');
-            string rest = null;
-            if (index == -1)
-                index = name.Length;
-            else
-                rest = name.Substring(index + 1);
-            var name2 = name.Substring(0, index);
-            
+            var name2 = name;
             var sub = col.Get<IMembersAnnotation>().Members.FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name == name2);
-            return sub?.GetMember(rest);
+            return sub;
         }
     }
 }

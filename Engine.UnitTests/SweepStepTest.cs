@@ -43,9 +43,20 @@ namespace OpenTap.Engine.UnitTests
         {
             public IsOpenedDut Resource { get; set; }
 
+            [ResourceOpen(ResourceOpenBehavior.Ignore)]
+            public IsOpenedDut Resource2 { get; set; }
+            
+            [ResourceOpen(ResourceOpenBehavior.Ignore)]
+            public IsOpenedDut[] Resource3 { get; set; } 
+
             public override void Run()
             {
                 Assert.IsTrue(Resource.IsConnected);
+                if(Resource2 != Resource)
+                    Assert.IsFalse(Resource2.IsConnected);
+                foreach(var res in Resource3)
+                    if(res != Resource)
+                        Assert.IsFalse(res.IsConnected);
                 Resource.Use();
             }
         }
@@ -63,8 +74,9 @@ namespace OpenTap.Engine.UnitTests
                 var step = new OpenTap.Plugins.BasicSteps.SweepLoop();
 
                 var theDuts = Enumerable.Range(0, 10).Select(number => new IsOpenedDut()).ToArray();
+                var otherdut = new IsOpenedDut();
 
-                step.ChildTestSteps.Add(new IsOpenUsedTestStep() { Resource = new IsOpenedDut() });
+                step.ChildTestSteps.Add(new IsOpenUsedTestStep() { Resource = new IsOpenedDut(), Resource2 = otherdut, Resource3 = new []{new IsOpenedDut() }});
                 step.SweepParameters.Add(new OpenTap.Plugins.BasicSteps.SweepParam(new IMemberData[] { TypeData.FromType(typeof(IsOpenUsedTestStep)).GetMember("Resource") }, theDuts));
                 var plan = new TestPlan();
                 plan.PrintTestPlanRunSummary = true;
