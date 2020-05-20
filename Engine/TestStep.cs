@@ -26,7 +26,7 @@ namespace OpenTap
     /// </remarks>
     [ComVisible(true)]
     [Guid("d0b06600-7bac-47fb-9251-f834e420623f")]
-    public abstract class TestStep : ValidatingObject, ITestStep
+    public abstract class TestStep : ValidatingObject, ITestStep, IBreakConditionProvider, IDescriptionProvider, IDynamicMembersProvider
     {
         #region Properties
         /// <summary>
@@ -65,6 +65,7 @@ namespace OpenTap
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
+        [AnnotationIgnore]
         public bool IsReadOnly { get; set; }
 
         private string name;
@@ -105,6 +106,7 @@ namespace OpenTap
         /// executed instead of the Run method of this TestStep.
         /// </summary>
         [Browsable(false)]
+        [AnnotationIgnore]
         public TestStepList ChildTestSteps
         {
             get => _ChildTestSteps; 
@@ -120,17 +122,20 @@ namespace OpenTap
         /// The parent of this TestStep. Can be another TestStep or the <see cref="TestPlan"/>.  
         /// </summary>
         [XmlIgnore]
+        [AnnotationIgnore]
         public virtual ITestStepParent Parent { get; set; }
 
         /// <summary>
         /// Result proxy that stores TestStep run results until they are propagated to the <see cref="ResultListener"/>.   
         /// </summary>
         [XmlIgnore]
+        [AnnotationIgnore]
         public ResultSource Results { get; internal set; }
 
         /// <summary>
         /// The enumeration of all enabled Child Steps.
         /// </summary>
+        [AnnotationIgnore]
         public IEnumerable<ITestStep> EnabledChildSteps => this.GetEnabledChildSteps();
         
         /// <summary>
@@ -467,6 +472,7 @@ namespace OpenTap
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
+        [AnnotationIgnore]
         public TestPlanRun PlanRun { get; set; }
 
         /// <summary>
@@ -474,12 +480,21 @@ namespace OpenTap
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
+        [AnnotationIgnore]
         public TestStepRun StepRun { get; set; }
 
         /// <summary> Gets or sets the ID used to uniquely identify a test step within a test plan. </summary>
         [XmlAttribute("Id")]
         [Browsable(false)]
+        [AnnotationIgnore]
         public Guid Id { get; set; } = Guid.NewGuid();
+
+        // Implementing this interface will make setting and getting break conditions faster.
+        BreakCondition IBreakConditionProvider.BreakCondition { get; set; } = BreakCondition.Inherit;
+        // Implementing this interface will make setting and getting descriptions faster.
+        string IDescriptionProvider.Description { get; set; }
+        // Implementing this interface will make setting and getting dynamic members faster.
+        IMemberData[] IDynamicMembersProvider.DynamicMembers { get; set; }
     }
 
 

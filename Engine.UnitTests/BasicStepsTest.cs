@@ -106,6 +106,5 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(Verdict.Pass, run.Verdict); 
             Assert.AreEqual(3, step.Iterations);
         }
-        
     }
 }

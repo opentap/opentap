@@ -376,20 +376,16 @@ namespace OpenTap
                     {
                         Enum result2;
                         if (tryParseEnumString(flagString, type, out result2))
-                        {
-
-                            flags += (int)Convert.ChangeType(result2, typeof(int));
-                        }
+                            flags |= (int)Convert.ChangeType(result2, typeof(int));
                     }
                     result = (Enum)Enum.ToObject(type, flags);
                     return true;
-
-
                 }
+                
+                var names = Enum.GetNames(type);
                 //try
-                var enumValues = Enum.GetValues(type);
                 {   // Look for an exact match.
-                    var names = Enum.GetNames(type);
+                    
                     for(int i = 0; i < names.Length; i++)
                     {
                         if(names[i] == str)
@@ -398,12 +394,24 @@ namespace OpenTap
                             return true;
                         }
                     }
+
+                    // try to match display name.
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        var display = type.GetMember(names[i]).Select(x => x.GetDisplayAttribute()).FirstOrDefault();
+                        if (StringComparer.InvariantCultureIgnoreCase.Equals(display.Name, str))
+                        {
+                            result = (Enum)Enum.GetValues(type).GetValue(i);
+                            return true;
+                        }
+                    }
                 }
+
 
                 {// try a more robust parse method. (tolower, trim, '_'=' ')
 
                     str = str.Trim().ToLower();
-                    var fixedNames = Enum.GetNames(type).Select(name => name.Trim().ToLower()).ToArray();
+                    var fixedNames = names.Select(name => name.Trim().ToLower()).ToArray();
                     for (int i = 0; i < fixedNames.Length; i++)
                     {
                         if (fixedNames[i] == str || fixedNames[i].Replace('_', ' ') == str)

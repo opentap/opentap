@@ -132,6 +132,7 @@ namespace OpenTap.Plugins
                     int i = 0;
                     foreach (var item in finalValues)
                         lst[i++] = item;
+                    setResult(values);
                 });
             }
             else if (t.DescendsTo(typeof(System.Collections.ObjectModel.ReadOnlyCollection<>)))

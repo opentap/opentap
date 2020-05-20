@@ -14,7 +14,7 @@ namespace OpenTap
     /// Object representing a connection between two <see cref="Port"/>s. Can be extended to add properties.
     /// </summary>
     [Display("Generic Connection")]
-    public abstract class Connection : ValidatingObject
+    public abstract class Connection : ValidatingObject, ITapPlugin
     {
         // Orders has special values because they are placed first even if there are unordered items.
 

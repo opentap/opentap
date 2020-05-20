@@ -8,12 +8,17 @@ using OpenTap.Cli;
 
 namespace OpenTap.Package
 {
+    /// <summary>
+    /// Hidden CLI sub command `tap package cache` that allows clearing the package cache.
+    /// </summary>
     [Display("cache", "Operations related to the package cache.", "package" )]
     [Browsable(false)]
     public class CacheAction : LockingPackageAction
     {
+        /// <summary> When set, this action clears the package cache. </summary>
         [CommandLineArgument("clear", Description = "Clear the package cache.")]
         public bool ClearCache { get; set; }
+        /// <summary> When set, this action clears the package cache. </summary>
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
             if (ClearCache)

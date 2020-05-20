@@ -12,6 +12,9 @@ using OpenTap.Package.Ipc;
 
 namespace OpenTap.Package
 {
+    /// <summary>
+    /// Represents an OpenTAP installation in a specific directory.
+    /// </summary>
     public class Installation
     {
         static TraceSource log = Log.CreateSource("Installation");
@@ -47,7 +50,14 @@ namespace OpenTap.Package
                 var package = installedPackageMemorizer.Invoke(file);
                 if (package != null && !plugins.Any(s => s.Name == package.Name))
                 {
+#pragma warning disable 618
                     package.Location = file;
+#pragma warning restore 618
+                    package.PackageSource = new InstalledPackageDefSource
+                    {
+                        Installation = this,
+                        PackageDefFilePath = file
+                    };
                     plugins.Add(package);
                 }
             }
@@ -154,6 +164,9 @@ namespace OpenTap.Package
         }
 
         private Action PackageChanged;
+        /// <summary>
+        /// Event invoked when a package is installed/uninstalled from this installation.
+        /// </summary>
         public event Action PackageChangedEvent
         {
             add

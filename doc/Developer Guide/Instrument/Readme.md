@@ -1,4 +1,4 @@
-Instrument Plugin Development
+Instrument
 =============================
 Developing an instrument plugin is done by extending either the:
 

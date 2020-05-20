@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 
+#pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
 namespace OpenTap.Package
 {
 
@@ -42,8 +43,8 @@ namespace OpenTap.Package
             {
                 PackageDef package = installedPackages.FirstOrDefault(p => p.Name == pack);
 
-                if (package != null)
-                    installer.PackagePaths.Add(package.Location);
+                if (package != null && package.PackageSource is InstalledPackageDefSource source)
+                    installer.PackagePaths.Add(source.PackageDefFilePath);
                 else if (!IgnoreMissing)
                 {
                     log.Error("Could not find installed plugin named '{0}'", pack);
@@ -58,7 +59,7 @@ namespace OpenTap.Package
                 if (!CheckPackageAndDependencies(installedPackages, installer.PackagePaths))
                     return -3;
 
-            return installer.RunCommand("uninstall", Force) ? 0 : -1;
+            return installer.RunCommand("uninstall", Force, true) ? 0 : -1;
         }
 
         private bool CheckPackageAndDependencies(List<PackageDef> installed, List<string> packagePaths)

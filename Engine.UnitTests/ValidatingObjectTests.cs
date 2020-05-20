@@ -7,7 +7,7 @@ using NUnit.Framework;
 namespace OpenTap.Engine.UnitTests
 {
     [TestFixture]
-    public class ValidatingObjectTests : EngineTestBase
+    public class ValidatingObjectTests 
     {
         private class ValidatingObjectTest : ValidatingObject
         {

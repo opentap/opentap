@@ -112,7 +112,7 @@ namespace OpenTap.Package
                     string legacyTapBasePackageName = "TAP Base";
                     if (name == legacyTapBasePackageName)
                     {
-                        Log.Warning($"Test plan depends on an older, incompatible version of TAP. Migrating test plan from TAP {version} to the installed version. Please verify the test plan settings.");
+                        Log.Warning($"The saved data depends on an older, incompatible version of OpenTAP. Migrating from OpenTAP {version} to the installed version. Please verify the test plan settings.");
                         continue;
                     }
                     else
@@ -128,7 +128,7 @@ namespace OpenTap.Package
                 }
                 else if (!(version.IsCompatible(plugins[name].Version)))
                 {
-                    errors.Add($"Package '{name}' version {version} is required to load the test plan and the installed version ({plugins[name].Version}) is not compatible.");
+                    errors.Add($"Package '{name}' version {version} is required to load the saved data and the installed version ({plugins[name].Version}) is not compatible.");
                 }
             }
 

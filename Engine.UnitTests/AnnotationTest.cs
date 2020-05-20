@@ -1,4 +1,6 @@
+using System;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
@@ -25,6 +27,42 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(availStrings.Contains(step.GetFormattedName()));
             Assert.IsTrue(availStrings.Contains(testPlanReference.GetFormattedName()));
         }
+
+        
+        
+        [Test]
+        public void TestPlanReferenceAnnotationTest()
+        {
+            
+            var planname = Guid.NewGuid().ToString() + ".TestPlan";
+            {
+                var innerplan = new TestPlan();
+                var step = new DelayStep();
+                innerplan.Steps.Add(step);
+                innerplan.ExternalParameters.Add(step,
+                    TypeData.GetTypeData(step).GetMember(nameof(DelayStep.DelaySecs)));
+                innerplan.Save(planname);
+            }
+            try
+            {
+                var outerplan = new TestPlan();
+                var tpr = new TestPlanReference();
+                outerplan.Steps.Add(tpr);
+                tpr.Filepath.Text = planname;
+                tpr.LoadTestPlan();
+
+                var annotation = AnnotationCollection.Annotate(tpr);
+                var members = annotation.Get<IMembersAnnotation>().Members;
+                var delaymem = annotation.GetMember("Time Delay");
+                Assert.IsNotNull(delaymem);
+            }
+            finally
+            {
+                File.Delete(planname);
+            }
+
+        }
+        
 
         [Test]
         public void SweepLoopEnabledTest()

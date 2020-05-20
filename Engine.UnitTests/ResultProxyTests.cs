@@ -14,7 +14,7 @@ using OpenTap;
 namespace OpenTap.Engine.UnitTests
 {
     [TestFixture]
-    public class ResultProxyTests : EngineTestBase
+    public class ResultProxyTests 
     {
         
         public class DelegateTestStep : TestStep

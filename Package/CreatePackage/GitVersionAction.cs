@@ -12,32 +12,58 @@ using OpenTap.Cli;
 
 namespace OpenTap.Package
 {
+    /// <summary>
+    /// CLI sub command `tap sdk gitversion` that can calculate a version number based on the git history and a .gitversion file.
+    /// </summary>
     [Display("gitversion", Group: "sdk", Description: "Calculates a semantic version number for a specific git commit.")]
     public class GitVersionAction : OpenTap.Cli.ICliAction
     {
+        /// <summary>
+        /// Represents the --log command line argument which prints git log for the last n commits including version numbers for each commit.
+        /// </summary>
         [CommandLineArgument("log",     Description = "Print git log for the last n commits including version numbers for each commit.")]
         public string PrintLog { get; set; }
 
+        /// <summary>
+        /// Represents an unnamed command line argument which specifies for which git ref a version should be calculated.
+        /// </summary>
         [UnnamedCommandLineArgument("ref", Required = false)]
         public string Sha { get; set; }
 
+        /// <summary>
+        /// Represents the --replace command line argument which causes this command to replace all occurrences of $(GitVersion) in the specified file. Cannot be used together with --log.
+        /// </summary>
         [CommandLineArgument("replace", Description = "Replace all occurrences of $(GitVersion) in the specified file.\nCannot be used together with --log.")]
         public string ReplaceFile { get; set; }
 
+        /// <summary>
+        /// Represents the --fields command line argument which specifies the number of version fields to print/replace.
+        /// </summary>
         [CommandLineArgument("fields",  Description = "Number of version fields to print/replace. Fields are: major, minor, patch,\n" +
                                                       "prerelease and build metadata. E.g. --fields=2 results in only major and minor\n" +
                                                       "fields in the version number. Default is 5 (all fields).")]
         public int FieldCount { get; set; }
 
+        
+        /// <summary>
+        /// Represents the --dir command line argument which specifies the directory in which the git repository to use is located.
+        /// </summary>
         [CommandLineArgument("dir",     Description = "Directory containing git repository to calculate the version number from.")]
         public string RepoPath { get; set; }
 
+        /// <summary>
+        /// Constructs new action with default values for arguments.
+        /// </summary>
         public GitVersionAction()
         {
             RepoPath = Directory.GetCurrentDirectory();
             FieldCount = 5;
         }
 
+        /// <summary>
+        /// Executes this action.
+        /// </summary>
+        /// <returns>Returns 0 to indicate success.</returns>
         public int Execute(CancellationToken cancellationToken)
         {
             if (!String.IsNullOrEmpty(PrintLog))
@@ -346,6 +372,10 @@ namespace OpenTap.Package
         }
     }
 
+    /// <summary>
+    /// Defines the UseVersion XML element that can be used as a child element to the File element in package.xml 
+    /// to indicate that a package should take its version from the AssemblyInfo in that file.
+    /// </summary>
     [Display("UseVersion")]
     public class UseVersionData : ICustomPackageData
     {

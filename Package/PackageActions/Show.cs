@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 
+#pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
 namespace OpenTap.Package
 {
     
@@ -263,8 +264,9 @@ namespace OpenTap.Package
             AddWritePair("Owner", package.Owner);
             var licenseString = (package.LicenseRequired ?? "").Replace("&", " and ").Replace("|", " or ");
             AddWritePair("License Required", licenseString);
-            AddWritePair("SourceUrl", package.SourceUrl);            
-            AddWritePair("Location", package.Location);
+            AddWritePair("SourceUrl", package.SourceUrl);
+            if (package.PackageSource is IRepositoryPackageDefSource repoPkg)
+                AddWritePair("Repository", repoPkg.RepositoryUrl);
             AddWritePair("Package Type", package.FileType);
             AddWritePair("Package Class", package.Class);
 

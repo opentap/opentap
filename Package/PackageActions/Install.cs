@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Threading;
 using OpenTap.Cli;
 
+#pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
 namespace OpenTap.Package
 {
     [Display("install", Group: "package", Description: "Install one or more packages.")]
@@ -139,7 +140,7 @@ namespace OpenTap.Package
             var installed = installation.GetPackages();
 
             var packages = packagePaths.Select(PackageDef.FromPackage).Select(x => x.Name).ToHashSet();
-            var existingPackages = installed.Where(kvp => packages.Contains(kvp.Name)).Select(x => x.Location).ToList(); // TODO: Fix this with #2951
+            var existingPackages = installed.Where(kvp => packages.Contains(kvp.Name)).Select(x => (x.PackageSource as InstalledPackageDefSource)?.PackageDefFilePath).ToList();
 
             if (existingPackages.Count == 0) return;
 

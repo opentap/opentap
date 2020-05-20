@@ -30,6 +30,7 @@ namespace OpenTap.Plugins.ExamplePlugin
 
         public GeneratorInstrument()
         {
+            
             // Name defines the name that new instances of this class will use.  
             // This is how the instrument will appear in the Resource Bar and in the Step Settings of Test Steps.
             // More than one instance is made unique by automatically appending an integer suffix.

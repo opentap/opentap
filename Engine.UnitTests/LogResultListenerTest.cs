@@ -9,7 +9,7 @@ using OpenTap;
 namespace OpenTap.Engine.UnitTests
 {
     [TestFixture]
-    public class LogResultListenerTest : EngineTestBase
+    public class LogResultListenerTest 
     {
         
         public class TestStepEmit : TestStep

@@ -3,7 +3,12 @@
     <AssemblyName>OpenTap.Package</AssemblyName>
     <RootNamespace>OpenTap.Package</RootNamespace>
   </PropertyGroup>
-  
+
+  <PropertyGroup Condition="'$(IsDebug)'!='true'">
+    <DocumentationFile>$(OutputPath)\OpenTap.Package.xml</DocumentationFile>
+  </PropertyGroup>
+
+
   <ItemGroup>
     <None Remove="PackageSchema.xsd" />
   </ItemGroup>

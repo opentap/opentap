@@ -189,10 +189,8 @@ namespace OpenTap.Package
         }
         
         /// <summary>
-        /// Only public method. Tries to install a plugin from 'path', throws an exception on error.
+        /// Tries to install a plugin from 'path', throws an exception on error.
         /// </summary>
-        /// <param name="path">Absolute or relative path to tap plugin</param>
-        /// <returns>List of installed parts.</returns>
         internal static PackageDef InstallPluginPackage(string target, string path)
         {
             checkExtension(path);
@@ -232,7 +230,6 @@ namespace OpenTap.Package
 
             CustomPackageActionHelper.RunCustomActions(package, PackageActionStage.Install, new CustomPackageActionArgs(null, false));
 
-            
             return package;
         }
 
@@ -365,7 +362,6 @@ namespace OpenTap.Package
         /// <summary>
         /// Uninstalls a package.
         /// </summary>
-        /// <param name="package"></param>
         internal static void Uninstall(PackageDef package, string target)
         {
             var pi = new PluginInstaller();

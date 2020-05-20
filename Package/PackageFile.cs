@@ -19,26 +19,52 @@ using System.Threading.Tasks;
 
 namespace OpenTap.Package
 {
+    /// <summary>
+    /// Represents a plugin (type that derives from ITapPlugin) in a payload file of an OpenTAP package.
+    /// </summary>
     [XmlType("Plugin")]
     public class PluginFile
     {
+        /// <summary>
+        /// The namespace qualified name of the type.
+        /// </summary>
         [XmlAttribute]
         public string Type { get; set; }
+        
+        /// <summary>
+        /// The display name of the plugin base type that Type derives from. E.g. TestStep.
+        /// </summary>
         [XmlAttribute]
         public string BaseType { get; set; }
+        /// <summary> The display name of the plugin type as specified by its <see cref="DisplayAttribute"/>.</summary>
         public string Name { get; set; }
+        /// <summary> Obsolete. Always null. Use Groups instead. </summary>
+        [XmlIgnore]
+        [Obsolete]
         public string Group { get; set; }
+        /// <summary> The display order of the plugin type as specified by its <see cref="DisplayAttribute"/>.</summary>
         public double Order { get; set; }
+        /// <summary> The browsable state of the plugin type as specified by a System.ComponentModel.BrowsableAttribute.</summary>
         public bool Browsable { get; set; }
+        /// <summary> The description of the plugin type as specified by its <see cref="DisplayAttribute"/>.</summary>
         public string Description { get; set; }
+        /// <summary> The collapsed state of the display group to which the plugin belongs as specified by its <see cref="DisplayAttribute"/>.</summary>
         public bool Collapsed { get; set; }
+        /// <summary> The array of display groups of the plugin type as specified by its <see cref="DisplayAttribute"/>.</summary>
         public string[] Groups { get; set; }
 
+        /// <summary>
+        /// Creates a new PluginFile.
+        /// </summary>
         public PluginFile()
         {
             Browsable = true;
         }
 
+        /// <summary>
+        /// Obsolete. Use !Browsable instead.
+        /// </summary>
+        [Obsolete]
         public bool ShouldSerializeBrowsable()
         {
             return !Browsable;
@@ -163,6 +189,9 @@ namespace OpenTap.Package
             RawVersion = rawVersion;
         }
 
+        /// <summary>
+        /// Compares this PackageDependency to another object.
+        /// </summary>
         public override bool Equals(object obj)
         {
             if (obj is PackageDependency dep)
@@ -170,28 +199,55 @@ namespace OpenTap.Package
             return false;
         }
 
+        /// <summary>
+        /// Returns the hash code for this PackageDependency.
+        /// </summary>
         public override int GetHashCode() =>  (Name ?? "").GetHashCode() * 7489019 + (RawVersion ?? "").GetHashCode() * 41077013;
     }
 
+    /// <summary>
+    /// Represents an action/step that can be executed during or after installation of a package.
+    /// </summary>
     public class ActionStep
     {
+        /// <summary>
+        /// Path to an exe file to execute as part of this step.
+        /// </summary>
+        /// <value></value>
         [XmlAttribute("ExeFile")]
         public string ExeFile { get; set; }
 
+        /// <summary>
+        /// Arguments to the exe file.
+        /// </summary>
         [XmlAttribute("Arguments")]
         public string Arguments { get; set; }
 
+        /// <summary>
+        /// Name of the action in which this step should be executed. E.g. "install".
+        /// </summary>
+        /// <value></value>
         [XmlAttribute("ActionName")]
         public string ActionName { get; set; }
 
+        /// <summary>
+        /// Indicates whether to use the operating system shell to start the process.
+        /// </summary>
         [XmlAttribute("UseShellExecute")]
         [DefaultValue(false)]
         public bool UseShellExecute { get; set; }
 
+        /// <summary>
+        /// Indicates whether to start the process in a new window.
+        /// </summary>
+        /// <value></value>
         [XmlAttribute("CreateNoWindow")]
         [DefaultValue(false)]
         public bool CreateNoWindow { get; set; }
 
+        /// <summary>
+        /// Creates a new ActionStep with default values.
+        /// </summary>
         public ActionStep()
         {
             UseShellExecute = false;
@@ -199,15 +255,22 @@ namespace OpenTap.Package
         }
     }
 
+    /// <summary>
+    /// CPU architectures that a package can support.
+    /// </summary>
     public enum CpuArchitecture
     {
+        /// <summary> Unspecified processor architecture.</summary>
         Unspecified,
-
+        /// <summary> Any processor architecture. </summary>
         AnyCPU,
-
+        /// <summary> An Intel-based 32-bit processor architecture. </summary>
         x86,
+        /// <summary> An Intel-based 64-bit processor architecture. </summary>
         x64,
+        /// <summary> A 32-bit ARM processor architecture. </summary>
         arm,
+        /// <summary> A 64-bit ARM processor architecture. </summary>
         arm64
     }
 
@@ -231,9 +294,16 @@ namespace OpenTap.Package
         /// <summary>
         /// If this package originates from a package repository. This is the URL of that repository. Otherwise null
         /// </summary>
-        [XmlElement("PackageRepositoryUrl")] // TODO: This is only for testing, the repo server needs to be updated to also include the 'Location' element in the xml.
+        [XmlElement("PackageRepositoryUrl")]
         [DefaultValue(null)]
+        [Obsolete("Please use PackageSource instead.")]
         public string Location { get; set; }
+
+        /// <summary>
+        /// Information of the source of the package definition. 
+        /// </summary>
+        [DefaultValue(null)]
+        public IPackageDefSource PackageSource { get; set; }
         
         /// <summary>
         /// A link to get more information.
@@ -334,6 +404,10 @@ namespace OpenTap.Package
                 Class = "package";
         }
 
+        /// <summary>
+        /// Returns a string representation of this PackageDef containing name and version.
+        /// </summary>
+        /// <returns></returns>
         public override string ToString()
         {
             return String.Format("{0}|{1}", Name, Version);
@@ -419,6 +493,9 @@ namespace OpenTap.Package
             xdoc.Save(stream);
         }
 
+        /// <summary>
+        /// Reads a stream of XML into a list of PackageDef objects.
+        /// </summary>
         public static IEnumerable<PackageDef> ManyFromXml(Stream stream)
         {
             var root = XElement.Load(stream);
@@ -467,12 +544,22 @@ namespace OpenTap.Package
                 metaFileStream.Seek(0, SeekOrigin.Begin);
                 pkgDef = PackageDef.FromXml(metaFileStream);
             }
+            
             //pkgDef.updateVersion();
+#pragma warning disable 618
             pkgDef.Location = Path.GetFullPath(path);
+#pragma warning restore 618
+            pkgDef.PackageSource = new FilePackageDefSource
+            {
+                PackageFilePath = Path.GetFullPath(path)
+            };
+            
             return pkgDef;
         }
 
-
+        /// <summary>
+        /// Constructs a PackageDef objects to represent each package inside a *.TapPackages file.
+        /// </summary>
         public static List<PackageDef> FromPackages(string path)
         {
             var packageList = new List<PackageDef>();
@@ -522,12 +609,18 @@ namespace OpenTap.Package
             ValidateXmlDefinitionFile(path, false);
         }
 
+        /// <summary>
+        /// Constructs a PackageDef objects to represent the package definition in the given xml file.
+        /// </summary>
         public static PackageDef FromXml(string path)
         {
             using (var stream = File.OpenRead(path))
                 return PackageDef.FromXml(stream);
         }
 
+        /// <summary>
+        /// Returns the XML schema for a package definition XML file.
+        /// </summary>
         public static XmlSchemaSet GetXmlSchema()
         {
             // Get the schema from the embedded resource:
@@ -600,6 +693,9 @@ namespace OpenTap.Package
         /// Absolute path to the directory representing the OpenTAP installation dir for system-wide packages
         /// </summary>
         public static string SystemWideInstallationDirectory { get => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Keysight", "Test Automation"); }
+        /// <summary>
+        /// File name for package definition files inside packages.
+        /// </summary>
         public const string PackageDefFileName = "package.xml";
 
         internal static string GetDefaultPackageMetadataPath(PackageDef pkg, string target)

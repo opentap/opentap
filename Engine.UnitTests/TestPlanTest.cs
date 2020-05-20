@@ -14,9 +14,8 @@ using OpenTap.EngineUnitTestUtils;
 using OpenTap.Plugins.BasicSteps;
 using System.ComponentModel;
 using System.Threading;
-using OpenTap;
 using OpenTap.Engine.UnitTests.TestTestSteps;
-using System.Diagnostics.CodeAnalysis;
+using System.Text;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -25,7 +24,7 @@ namespace OpenTap.Engine.UnitTests
     ///to contain all TestPlanTest Unit Tests
     ///</summary>
     [TestFixture]
-    public class TestPlanTest : EngineTestBase
+    public class TestPlanTest 
     {
 
 
@@ -892,24 +891,24 @@ namespace OpenTap.Engine.UnitTests
             try
             {
                 DutSettings.Current.Clear();
-                DutSettings.Current.Add(new MyDut());
+                DutSettings.Current.Add(new TestDut());
 
                 EngineSettings.Current.PromptForMetaData = true;
 
                 {
                     var plan = new TestPlan();
-                    plan.Steps.Add(new DutStep() { MyDut = DutSettings.Current.OfType<MyDut>().FirstOrDefault() });
+                    plan.Steps.Add(new DutStep() { Dut = DutSettings.Current.OfType<TestDut>().FirstOrDefault() });
 
                     var run = plan.Execute();
                     Assert.IsFalse(run.FailedToStart);
                     Assert.AreEqual(Verdict.Pass, run.Verdict);
                 }
 
-                DutSettings.Current.OfType<MyDut>().ToList().ForEach(f => f.Comment = "test");
+                DutSettings.Current.OfType<TestDut>().ToList().ForEach(f => f.Comment = "test");
 
                 {
                     var plan = new TestPlan();
-                    plan.Steps.Add(new DutStep() { MyDut = DutSettings.Current.OfType<MyDut>().FirstOrDefault() });
+                    plan.Steps.Add(new DutStep() { Dut = DutSettings.Current.OfType<TestDut>().FirstOrDefault() });
 
                     plan.Open();
 
@@ -1067,21 +1066,21 @@ namespace OpenTap.Engine.UnitTests
             }
         }
         
-        public class MyDut : Dut
+        public class TestDut : Dut
         {
         }
 
         public class DutStep : TestStep
         {
-            public Dut MyDut { get; set; }
+            public Dut Dut { get; set; }
             public int Sleep { get; set; }
             public override void Run()
             {
                 if(Sleep != 0)
                     TapThread.Sleep(Sleep);
-                if (string.Compare("Some comment", MyDut.Comment, true) != 0)
+                if (string.Compare("Some comment", Dut.Comment, true) != 0)
                     throw new InvalidOperationException();
-                if (MyDut.IsConnected == false)
+                if (Dut.IsConnected == false)
                     throw new InvalidOperationException("Dut is closed!");
                 UpgradeVerdict(Verdict.Pass);
             }
@@ -1327,7 +1326,7 @@ namespace OpenTap.Engine.UnitTests
                 DutSettings.Current.Add(dut1);
                 TestPlan plan = new TestPlan();
                 DutStep step = new DutStep();
-                step.MyDut = dut1;
+                step.Dut = dut1;
                 plan.ChildTestSteps.Add(step);
                 if (runOpen)
                     plan.Open();
@@ -1377,7 +1376,7 @@ namespace OpenTap.Engine.UnitTests
                 {
                     DutStep step = new DutStep()
                     {
-                        MyDut = dut1,
+                        Dut = dut1,
                         Sleep = i * 5
                     };
                     plan.ChildTestSteps.Add(step);
@@ -1558,6 +1557,42 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(plan.ChildTestSteps[0].Id, startId);
 
         }
+
+        [Test]
+        public void TestPlanDeserializeError()
+        {
+            var listener = new TestTraceListener();
+            var dut = new DummyDut() {Name = "DUT_TEST"};
+            try
+            {
+                var plan = new TestPlan();
+                var step = new DutStep();
+                DutSettings.Current.Add(dut);
+                step.Dut = dut;
+                plan.Steps.Add(step);
+                using (var buffer = new MemoryStream())
+                {
+                    plan.Save(buffer);
+                    buffer.Seek(0, SeekOrigin.Begin);
+                    var str = Encoding.UTF8.GetString(buffer.ToArray());
+                    DutSettings.Current.Remove(dut);
+                    Log.AddListener(listener);
+                    var serializer = new TapSerializer();
+                    serializer.Deserialize(buffer);
+                }
+
+                Log.Flush();
+                // there should be an error message
+                // since the DUT was not available for de-serialization.
+                Assert.IsTrue(listener.ErrorMessage.Count > 0);
+                
+            }
+            finally
+            {
+                Log.RemoveListener(listener);
+                DutSettings.Current.Remove(dut);
+            }
+        }
     }
 
     [TestFixture]
@@ -1661,6 +1696,84 @@ namespace OpenTap.Engine.UnitTests
             {
                 if (ResourceOpened != null)
                     targets.ToList().ForEach(ResourceOpened);
+            }
+        }
+
+        class CrashInstrument : Instrument
+        {
+            static Semaphore sharedStateA = new Semaphore(1,1);
+            public bool OpenThrow { get; set; }
+            public bool OpenWait { get; set; }
+            public bool CloseThrow { get; set; }
+            public bool ClosedDuringOpen { get; set; }
+            bool isopening = false;
+
+            public bool CloseCalled { get; set; }
+            public override void Open()
+            {
+                base.Open();
+                isopening = true;
+
+                if(OpenWait)
+                    TapThread.Sleep(20);
+                
+                isopening = false;
+                
+                    if(OpenThrow)
+                        throw new Exception("Intended failure");
+            }
+            
+            public override void Close()
+            {
+                CloseCalled = true;
+                if (isopening)
+                {
+                    ClosedDuringOpen = true;
+                    Assert.Fail("Close called before open done.");
+                }
+
+                if (CloseThrow)
+                    throw new Exception("Intended failure");
+            }
+        }
+
+        [Test]
+        [Repeat(10)]
+        public void OpenCloseOrder()
+        {
+            var instrA = new CrashInstrument() {OpenThrow = true,CloseThrow = true, Name= "A"};
+            var instrB = new CrashInstrument() {OpenWait = true, Name= "B"};
+            var stepA = new InstrumentTestStep() {Instrument = instrA};
+            var stepB = new InstrumentTestStep() {Instrument = instrB};
+            
+            var parallel = new ParallelStep();
+            var plan = new TestPlan();
+            parallel.ChildTestSteps.Add(stepA);
+            parallel.ChildTestSteps.Add(stepB);
+            plan.Steps.Add(parallel);
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Error, run.Verdict);
+            Assert.IsFalse(instrA.ClosedDuringOpen);
+            Assert.IsFalse(instrB.ClosedDuringOpen); 
+            
+            // close has to be called even though Open failed.
+            Assert.IsTrue(instrA.CloseCalled);
+            Assert.IsTrue(instrB.CloseCalled); 
+        }
+
+        [Test]
+        [Repeat(10)]
+        public void OpenCloseOrderLazyRM()
+        {
+            var lastrm = EngineSettings.Current.ResourceManagerType;
+            EngineSettings.Current.ResourceManagerType = new LazyResourceManager();
+            try
+            {
+                OpenCloseOrder();
+            }
+            finally
+            {
+                EngineSettings.Current.ResourceManagerType = lastrm;
             }
         }
     }

@@ -6,9 +6,9 @@ using NUnit.Framework;
 using System.IO;
 using System.Text;
 using OpenTap.Plugins.BasicSteps;
-using OpenTap;
 using System;
 using System.Linq;
+using OpenTap.Plugins;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -71,6 +71,8 @@ namespace OpenTap.Engine.UnitTests
                 plan.ExternalParameters.Get("Severity").Value = LogSeverity.Error;
                 Assert.AreEqual(LogSeverity.Error, logStep.Severity);
                 Assert.AreEqual(LogSeverity.Error, logStep2.Severity);
+                
+                plan.ExternalParameters.Get("Path1").Value = plan.ExternalParameters.Get("Path1").Value;
 
                 string planstr = null;
                 using (var memstream = new MemoryStream())
@@ -78,9 +80,9 @@ namespace OpenTap.Engine.UnitTests
                     plan.Save(memstream);
                     planstr = Encoding.UTF8.GetString(memstream.ToArray());
                 }
-                Assert.IsTrue(planstr.Contains(@"external=""Time Delay"""));
-                Assert.IsTrue(planstr.Contains(@"external=""Severity"""));
-                Assert.IsTrue(planstr.Contains(@"external=""Path1"""));
+                Assert.IsTrue(planstr.Contains(@"Parameter=""Time Delay"""));
+                Assert.IsTrue(planstr.Contains(@"Parameter=""Severity"""));
+                Assert.IsTrue(planstr.Contains(@"Parameter=""Path1"""));
 
                 using (var memstream = new MemoryStream(Encoding.UTF8.GetBytes(planstr)))
                     plan = TestPlan.Load(memstream, planstr);
@@ -94,6 +96,45 @@ namespace OpenTap.Engine.UnitTests
                 Assert.IsTrue(fileStep2.PathToThing.Context == fileStep2);
                 Assert.AreEqual(fileStep2.PathToThing.Text, fileStep.PathToThing.Text);
             }
+        }
+
+        [Test]
+        public void SerializeDeserializeWithDutExternalParameter()
+        {
+            var plan = new TestPlan();
+            var step = new TestPlanTest.DutStep();
+            var dut1 = new DummyDut {Name = "DUT1"};
+            var dut2 = new DummyDut {Name = "DUT2"};
+            
+            DutSettings.Current.AddRange(new []{dut1, dut2});
+            try
+            {
+                step.Dut = dut1;
+                plan.ChildTestSteps.Add(step);
+                plan.ExternalParameters.Add(step,
+                    TypeData.GetTypeData(step).GetMember(nameof(TestPlanTest.DutStep.Dut)), "dut");
+
+                using (var memstr = new MemoryStream())
+                {
+                    plan.Save(memstr);
+                    
+                    var serializer = new TapSerializer();
+                    var ext = serializer.GetSerializer<ExternalParameterSerializer>();
+                    ext.PreloadedValues["dut"] = "DUT2";
+
+                    memstr.Seek(0, SeekOrigin.Begin);
+                    plan = (TestPlan)serializer.Deserialize(memstr);
+                }
+
+                step = (TestPlanTest.DutStep) plan.ChildTestSteps[0];
+                Assert.AreEqual(step.Dut, dut2);
+            }
+            finally
+            {
+                DutSettings.Current.Remove(dut1);
+                DutSettings.Current.Remove(dut2);
+            }
+
         }
 
         private void GenerateTestPlanWithNDelaySteps(int stepsCount, string filePath, double defaultValue, string externalParameterName)
@@ -331,6 +372,29 @@ namespace OpenTap.Engine.UnitTests
                     File.Delete(filePath3);
                 }
             }
+        }
+
+        [Test]
+        public void SaveAndLoadExternalScopeParameters()
+        {
+            var plan = new TestPlan();
+            var sequence = new SequenceStep();
+            var delay = new DelayStep();
+            plan.Steps.Add(sequence);
+            sequence.ChildTestSteps.Add(delay);
+            var newmember = TypeData.GetTypeData(delay).GetMember(nameof(DelayStep.DelaySecs))
+                .Parameterize(sequence, delay, nameof(DelayStep.DelaySecs));
+            var fwd = newmember.Parameterize(plan, sequence, nameof(DelayStep.DelaySecs));
+            
+            Assert.AreEqual(1, plan.ExternalParameters.Entries.Count);
+            TestPlan newplan;
+            using (var mem = new MemoryStream())
+            {
+                plan.Save(mem);
+                mem.Seek(0, SeekOrigin.Begin);
+                newplan = TestPlan.Load(mem, "Test.TapPlan");
+            }
+            Assert.AreEqual(1, newplan.ExternalParameters.Entries.Count);
         }
     }
 }

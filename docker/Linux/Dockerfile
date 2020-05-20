@@ -19,7 +19,10 @@ RUN cp -r /tmp/dotnet/sdk/2.1.503 /usr/share/dotnet/sdk
 
 
 # TAP dotnet core 2.1 dependency
-RUN apt install libc6-dev libunwind8 curl git -y
+RUN apt install libc6-dev libunwind8 curl git locales -y
+
+# .NET SDK MSBuild requires US.UTF-8 locale to execute tasks (see https://github.com/Microsoft/msbuild/issues/4194)
+RUN locale-gen en_US.UTF-8 
 
 # Install TAP
 RUN apt install unzip -y

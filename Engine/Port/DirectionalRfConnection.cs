@@ -10,7 +10,7 @@ namespace OpenTap
     /// <summary>
     /// A directional <see cref="Connection"/> that has an RF cable loss parameter.
     /// </summary>
-    [Display("Directional RF Connection")]
+    [Display("Directional RF Connection", "Directional RF connection modeled as a set of cable loss points with frequency and loss values and a direction.")]
     public class DirectionalRfConnection : RfConnection
     {
         /// <summary>

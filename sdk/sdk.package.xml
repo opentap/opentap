@@ -17,6 +17,7 @@
       <SetAssemblyInfo Attributes="Version"/>
     </File>
     <File Path="OpenTap.xml"/>
+    <File Path="OpenTap.Package.xml"/>
     <File Path="Packages/SDK/PackageSchema.xsd"/>
     <File Path="Packages/SDK/OpenTAP Developer Guide.pdf" SourcePath="../../sdk/Examples/OpenTAP Developer Guide.pdf"/>
     <File Path="Packages/SDK/Examples/.OpenTapIgnore"/>

@@ -101,7 +101,7 @@ namespace OpenTap.Package.UnitTests
             {
                 // Download to same folder.
                 manager.DownloadPackage(package, path, new System.Threading.CancellationToken());
-                Assert.IsTrue(File.Exists(package.Location));
+                Assert.IsTrue(File.Exists((package.PackageSource as FileRepositoryPackageDefSource)?.PackageFilePath));
                 log.Info("DownloadPackage - args(Same folder) - SUCCESS");
                 (manager as FilePackageRepository).Reset();
             }
