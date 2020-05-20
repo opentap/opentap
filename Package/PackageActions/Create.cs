@@ -21,12 +21,12 @@ namespace OpenTap.Package
     public class PackageCreateAction : PackageAction
     {
         /// <summary>
-        /// The default file extension for OpenTAP packages 
+        /// The default file extension for OpenTAP packages.
         /// </summary>
         public static string DefaultEnding = "TapPackage";
         /// <summary>
         /// The default file name for the created OpenTAP package. 
-        /// Not used anymore, a default file name is now generated from the package name and version 
+        /// Not used anymore, a default file name is now generated from the package name and version.
         /// </summary>
         public static string DefaultFileName = "Package";
 
@@ -38,7 +38,7 @@ namespace OpenTap.Package
 
         
         /// <summary>
-        /// Represents the --project-directory command line argument which specifies the directory containing the GIT repo used to get values for version/branch macros..
+        /// Represents the --project-directory command line argument which specifies the directory containing the GIT repo used to get values for version/branch macros.
         /// </summary>
         [CommandLineArgument("project-directory", Description = "The directory containing the GIT repo.\nUsed to get values for version/branch macros.")]
         public string ProjectDir { get; set; }

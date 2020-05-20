@@ -32,7 +32,7 @@ namespace OpenTap.Package
         public string Type { get; set; }
         
         /// <summary>
-        /// The display name of the plugin base type that Type derives from. E.g. TestStep
+        /// The display name of the plugin base type that Type derives from. E.g. TestStep.
         /// </summary>
         [XmlAttribute]
         public string BaseType { get; set; }
@@ -54,7 +54,7 @@ namespace OpenTap.Package
         public string[] Groups { get; set; }
 
         /// <summary>
-        /// Creates a new PluginFile
+        /// Creates a new PluginFile.
         /// </summary>
         public PluginFile()
         {
@@ -224,21 +224,21 @@ namespace OpenTap.Package
         public string Arguments { get; set; }
 
         /// <summary>
-        /// Name of the action in which this step should be executed. E.g. "install"
+        /// Name of the action in which this step should be executed. E.g. "install".
         /// </summary>
         /// <value></value>
         [XmlAttribute("ActionName")]
         public string ActionName { get; set; }
 
         /// <summary>
-        /// Indicates whether to use the operating system shell to start the process
+        /// Indicates whether to use the operating system shell to start the process.
         /// </summary>
         [XmlAttribute("UseShellExecute")]
         [DefaultValue(false)]
         public bool UseShellExecute { get; set; }
 
         /// <summary>
-        /// Indicates whether to start the process in a new window
+        /// Indicates whether to start the process in a new window.
         /// </summary>
         /// <value></value>
         [XmlAttribute("CreateNoWindow")]
@@ -256,7 +256,7 @@ namespace OpenTap.Package
     }
 
     /// <summary>
-    /// CPU architectures that a package can support
+    /// CPU architectures that a package can support.
     /// </summary>
     public enum CpuArchitecture
     {

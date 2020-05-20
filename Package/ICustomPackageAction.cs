@@ -35,7 +35,7 @@ namespace OpenTap.Package
     }
 
     /// <summary>
-    /// Argument for <see cref="ICustomPackageAction.Execute"/>
+    /// Argument for <see cref="ICustomPackageAction.Execute"/>.
     /// </summary>
     public class CustomPackageActionArgs
     {
@@ -144,12 +144,12 @@ namespace OpenTap.Package
     }
 
     /// <summary>
-    /// Placeholder object that represents an unrecognized XML element under the File element in a package definition xml file (package.xml)
+    /// Placeholder object that represents an unrecognized XML element under the File element in a package definition xml file (package.xml).
     /// </summary>
     public class MissingPackageData : ICustomPackageData
     {
         /// <summary>
-        /// Default Constructor
+        /// Default Constructor.
         /// </summary>
         public MissingPackageData()
         {
@@ -157,7 +157,7 @@ namespace OpenTap.Package
         }
 
         /// <summary>
-        /// Constructs a MissingPackageData given the unrecognized XML element
+        /// Constructs a MissingPackageData given the unrecognized XML element.
         /// </summary>
         /// <param name="xmlElement"></param>
         public MissingPackageData(XElement xmlElement)
@@ -172,7 +172,7 @@ namespace OpenTap.Package
         public XElement XmlElement { get; set; }
 
         /// <summary>
-        /// Returns the line in which the unrecognized XML element appears in the package definition xml file (package.xml)
+        /// Returns the line in which the unrecognized XML element appears in the package definition xml file (package.xml).
         /// </summary>
         /// <returns></returns>
         public string GetLine()

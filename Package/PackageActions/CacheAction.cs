@@ -15,10 +15,10 @@ namespace OpenTap.Package
     [Browsable(false)]
     public class CacheAction : LockingPackageAction
     {
-        /// <summary> When set, this action clears the package cache </summary>
+        /// <summary> When set, this action clears the package cache. </summary>
         [CommandLineArgument("clear", Description = "Clear the package cache.")]
         public bool ClearCache { get; set; }
-        /// <summary> When set, this action clears the package cache </summary>
+        /// <summary> When set, this action clears the package cache. </summary>
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
             if (ClearCache)

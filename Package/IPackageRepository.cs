@@ -69,12 +69,12 @@ namespace OpenTap.Package
     }
 
     /// <summary>
-    /// Represents a version of a package. Objects of this type is returned by<see cref="IPackageRepository.GetPackageVersions"/> 
+    /// Represents a version of a package. Objects of this type is returned by<see cref="IPackageRepository.GetPackageVersions"/>.
     /// </summary>
     public class PackageVersion : PackageIdentifier, IEquatable<PackageVersion>
     {
         /// <summary>
-        /// Initializes a new instance of a PackageVersion
+        /// Initializes a new instance of a PackageVersion.
         /// </summary>
         public PackageVersion(string name, SemanticVersion version, string os, CpuArchitecture architechture, DateTime date, List<string> licenses) : base(name,version,architechture,os)
         {

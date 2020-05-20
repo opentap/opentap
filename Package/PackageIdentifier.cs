@@ -82,7 +82,7 @@ namespace OpenTap.Package
         
         //override GetHashCode and Equals so PackageReference can be properly compared/distincted.
         /// <summary>
-        /// Returns the hash code for this PackageIdentifier
+        /// Returns the hash code for this PackageIdentifier.
         /// </summary>
         /// <returns></returns>
         public override int GetHashCode()
