@@ -44,15 +44,15 @@ module.exports = {
                     ["/Developer Guide/Introduction/", "Introduction"],
                     ["/Developer Guide/What is OpenTAP/", "OpenTAP Overview"],
                     ["/Developer Guide/Getting Started in Visual Studio/", "Getting Started"],
-                    ["/Developer Guide/Plugin Development/", "Plugin Development"],
+                    ["/Developer Guide/Development Essentials/", "Development Essentials"],
                     ["/Developer Guide/Test Step/", "Test Step"],
                     ["/Developer Guide/DUT/", "DUT"],
-                    ["/Developer Guide/Instrument Plugin Development/", "Instrument Plugin Development"],
+                    ["/Developer Guide/Instrument/", "Instrument"],
                     ["/Developer Guide/Result Listener/", "Result Listener"],
                     ["/Developer Guide/Component Setting/", "Component Setting"],
                     ["/Developer Guide/Plugin Packaging and Versioning/", "Plugin Packaging and Versioning"],
-                    ["/Developer Guide/Appendix A/", "Appendix A: Attribute Details"],
-                    ["/Developer Guide/Appendix B/", "Appendix B: Macro Strings"]
+                    ["/Developer Guide/Attributes/", "Attributes"],
+                    ["/Developer Guide/Appendix A/", "Appendix A: Macro Strings"]
                 ]
             },
             [baseurl + "/api", "API Reference"],
