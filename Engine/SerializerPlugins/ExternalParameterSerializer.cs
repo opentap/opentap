@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
-using System.Reflection;
 
 namespace OpenTap.Plugins
 {
@@ -47,23 +46,100 @@ namespace OpenTap.Plugins
         public readonly Dictionary<string, string> PreloadedValues = new Dictionary<string, string>();
 
         static readonly XName External = "external";
-        
-        /// <summary> Deserialization implementation. </summary>
-        public override bool Deserialize( XElement elem, ITypeData t, Action<object> setter)
+        static readonly XName Scope = "Scope";
+        static readonly XName Parameter = "Parameter";
+
+        bool loadScopeParameter(Guid scope, ITestStep step, IMemberData member, string parameter)
         {
-            if (currentNode.Contains(elem)) return false;
-            
-            var attr = elem.Attribute(External);
-            if (attr == null) return false;
+            ITestStepParent parent;
+            if (scope == Guid.Empty)
+            {
+                parent = step.GetParent<TestPlan>();
+            }
+            else
+            {
+                ITestStep subparent = step.Parent as ITestStep;
+                while (subparent != null)
+                {
+                    if (subparent.Id == scope)
+                        break;
+                    subparent = subparent.Parent as ITestStep;
+                }
+                parent = subparent;
+            }
+
+            if (parent == null) return false;
+            member.Parameterize(parent, step, parameter);
+            return true;
+        }
+
+        void loadPreloadedvalues(TestPlan plan)
+        {
+            foreach (var value in PreloadedValues)
+            {
+                var ext = plan.ExternalParameters.Get(value.Key);
+                if (ext == null) continue;
+                try
+                {
+                    ext.Value = value.Value;
+                }
+                catch
+                {
+
+                }
+            }    
+        }
+        
+        XElement rootNode;
+        /// <summary> Deserialization implementation. </summary>
+        public override bool Deserialize(XElement elem, ITypeData t, Action<object> setter)
+        {
+            if (rootNode == null && t.DescendsTo(typeof(TestPlan)))
+            {
+                rootNode = elem;
+                TestPlan _plan = null;
+               
+                bool ok = Serializer.Deserialize(elem,  x=>
+                {
+                    _plan = (TestPlan)x;
+                    setter(_plan); 
+                }, t);
+                
+                // preloaded values should be handled as the absolute last thing
+                // 2x Defer is used to ensure that there's a very little chance that it will be overwritten
+                // but idealy there should be a way for ordering defers.
+                Serializer.DeferLoad(() =>
+                {
+                    loadPreloadedvalues(_plan);
+                    Serializer.DeferLoad(() => loadPreloadedvalues(_plan));
+                });
+
+                return ok;
+            }
+            if (elem.HasAttributes == false || currentNode.Contains(elem)) return false;
+
+            var parameter = elem.Attribute(External)?.Value ?? elem.Attribute(Parameter)?.Value;
+            if (string.IsNullOrWhiteSpace(parameter)) return false;
             var stepSerializer = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
-            if (stepSerializer == null || false == stepSerializer.Object is ITestStep) return false;
-            var planSerializer = Serializer.SerializerStack.OfType<TestPlanSerializer>().FirstOrDefault();
-            if (planSerializer == null || planSerializer.Plan == null)
+            var step = stepSerializer?.Object as ITestStep;
+            if (step == null) return false;
+            var member = stepSerializer.CurrentMember;
+
+            Guid.TryParse(elem.Attribute(Scope)?.Value, out Guid scope);
+            if (!loadScopeParameter(scope, step, member, parameter))
+                Serializer.DeferLoad(() => loadScopeParameter(scope, step, member, parameter));
+            if (scope != Guid.Empty) return false;
+            var plan = Serializer.SerializerStack.OfType<TestPlanSerializer>().FirstOrDefault()?.Plan;
+            if (plan == null)
             {
                 currentNode.Add(elem);
                 try
                 {
-                    UnusedExternalParamData.Add(new ExternalParamData { Object = (ITestStep)stepSerializer.Object, Property = stepSerializer.CurrentMember, Name = attr.Value });
+                    UnusedExternalParamData.Add(new ExternalParamData
+                    {
+                        Object = (ITestStep) stepSerializer.Object, Property = stepSerializer.CurrentMember,
+                        Name = parameter
+                    });
                     return Serializer.Deserialize(elem, setter, t);
                 }
                 finally
@@ -71,26 +147,30 @@ namespace OpenTap.Plugins
                     currentNode.Remove(elem);
                 }
             }
-            
+
             currentNode.Add(elem);
             try
             {
-                var prop = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault().CurrentMember;
-                var extParam = planSerializer.Plan.ExternalParameters.Add((ITestStep)stepSerializer.Object, prop, attr.Value);
                 
                 bool ok = Serializer.Deserialize(elem, setter, t);
+                var extParam = plan.ExternalParameters.Get(parameter);
+
                 if (ok)
                 {
                     Serializer.DeferLoad(() =>
                     {
+                        extParam = plan.ExternalParameters.Get(parameter);
+
                         if (PreloadedValues.ContainsKey(extParam.Name)) // If there is a  preloaded value, use that.
                             extParam.Value = PreloadedValues[extParam.Name];
                         else
                             extParam.Value = extParam.Value;
                     });
+                    if (extParam != null && PreloadedValues.ContainsKey(extParam.Name)) // If there is a  preloaded value, use that.
+                        extParam.Value = PreloadedValues[extParam.Name];
                 }
-                if (PreloadedValues.ContainsKey(extParam.Name)) // If there is a  preloaded value, use that.
-                    extParam.Value = PreloadedValues[extParam.Name];
+                
+
                 return ok;
             }
             finally
@@ -108,25 +188,30 @@ namespace OpenTap.Plugins
             ObjectSerializer objSerializer = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
             if (objSerializer == null || objSerializer.CurrentMember == null || false == objSerializer.Object is ITestStep)
                 return false;
-            ITestStep step = (ITestStep)objSerializer.Object;
-            TestPlan plan = null;
-            {
-                TestPlanSerializer planSerializer = Serializer.SerializerStack.OfType<TestPlanSerializer>().FirstOrDefault();
-                if (planSerializer != null && planSerializer.Plan != null)
-                    plan = planSerializer.Plan;
-            }
-            plan = plan ?? step.GetParent<TestPlan>();
-            if (plan == null)
-                return false;
+
             
-            var external = plan.ExternalParameters.Find(objSerializer.Object as ITestStep, objSerializer.CurrentMember);
-            if(external != null)
+            ITestStep step = (ITestStep)objSerializer.Object;
+            
+            var member = objSerializer.CurrentMember;
+            // here I need to check if any of its parent steps are forwarding 
+            // its member data.
+
+            ITestStepParent parameterParemt = step.Parent;
+            IMemberData parameterMember = null;
+            while (parameterParemt != null && parameterMember == null)
             {
-                elem.SetAttributeValue(External, external.Name);
-            }else
-            {
-                return false;
+                var members = TypeData.GetTypeData(parameterParemt).GetMembers().OfType<IParameterMemberData>();
+                parameterMember = members.FirstOrDefault(x => x.ParameterizedMembers.Any(y => y.Source == step && y.Member == member));
+                if (parameterMember == null)
+                    parameterParemt = parameterParemt.Parent;
             }
+
+            if (parameterMember == null) return false;
+
+            elem.SetAttributeValue(Parameter, parameterMember.Name);
+            if (parameterParemt is ITestStep parentStep)
+                elem.SetAttributeValue(Scope, parentStep.Id.ToString());
+            // skip
             try
             {
                 currentNode.Add(elem);
@@ -138,5 +223,4 @@ namespace OpenTap.Plugins
             }
         }
     }
-
 }
