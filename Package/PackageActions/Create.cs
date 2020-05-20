@@ -14,32 +14,64 @@ using System.Threading;
 
 namespace OpenTap.Package
 {
+    /// <summary>
+    /// CLI sub command `tap sdk create` that can create a *.TapPackage from a definition in a package.xml file.
+    /// </summary>
     [Display("create", Group: "package", Description: "Creates a package based on an XML description file.")]
     public class PackageCreateAction : PackageAction
     {
+        /// <summary>
+        /// The default file extension for OpenTAP packages.
+        /// </summary>
         public static string DefaultEnding = "TapPackage";
+        /// <summary>
+        /// The default file name for the created OpenTAP package. 
+        /// Not used anymore, a default file name is now generated from the package name and version.
+        /// </summary>
         public static string DefaultFileName = "Package";
 
+        /// <summary>
+        /// Represents an unnamed command line argument which specifies the package.xml file that defines the package that should be generated.
+        /// </summary>
         [UnnamedCommandLineArgument("PackageXmlFile", Required = true)]
         public string PackageXmlFile { get; set; }
 
+        
+        /// <summary>
+        /// Represents the --project-directory command line argument which specifies the directory containing the GIT repo used to get values for version/branch macros.
+        /// </summary>
         [CommandLineArgument("project-directory", Description = "The directory containing the GIT repo.\nUsed to get values for version/branch macros.")]
         public string ProjectDir { get; set; }
 
+        /// <summary>
+        /// Represents the --install command line argument. When true, this action will also install the created package.
+        /// </summary>
         [CommandLineArgument("install", Description = "Installs the created package. Will not overwrite files \nalready in the target installation (e.g. debug binaries).")]
         public bool Install { get; set; } = false;
 
+        /// <summary>
+        /// Obsolete, use Install property instead.
+        /// </summary>
         [CommandLineArgument("fake-install", Visible = false, Description = "Installs the created package. Will not overwrite files \nalready in the target installation (e.g. debug binaries).")]
         public bool FakeInstall { get; set; } = false;
 
+        /// <summary>
+        /// Represents the --out command line argument which specifies the path to the output file.
+        /// </summary>
         [CommandLineArgument("out", Description = "Path to the output file.", ShortName = "o")]
         public string[] OutputPaths { get; set; }
 
+        /// <summary>
+        /// Constructs new action with default values for arguments.
+        /// </summary>
         public PackageCreateAction()
         {
             ProjectDir = Directory.GetCurrentDirectory();
         }
 
+        /// <summary>
+        /// Executes this action.
+        /// </summary>
         public override int Execute(CancellationToken cancellationToken)
         {
             if (PackageXmlFile == null)
@@ -161,6 +193,9 @@ namespace OpenTap.Package
             return 0;
         }
 
+        /// <summary>
+        /// Obsolete. Do not use.
+        /// </summary>
         [Obsolete("Will be removed in OpenTAP 10.")]
         public static string GetRealFilePath(string path, string version, string extension)
         {

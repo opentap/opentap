@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 
+#pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
 namespace OpenTap.Package
 {
 

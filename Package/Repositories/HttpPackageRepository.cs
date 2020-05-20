@@ -23,8 +23,12 @@ using Tap.Shared;
 
 namespace OpenTap.Package
 {
+    /// <summary>
+    /// Implements a IPackageRepository that queries a server for OpenTAP packages via http/https.
+    /// </summary>
     public class HttpPackageRepository : IPackageRepository
     {
+        #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
         private static TraceSource log = Log.CreateSource("HttpPackageRepository");
         private const string ApiVersion = "3.0";
         private VersionSpecifier MinRepoVersion = new VersionSpecifier(3, 0, 0, "", "", VersionMatchBehavior.AnyPrerelease | VersionMatchBehavior.Compatible);
