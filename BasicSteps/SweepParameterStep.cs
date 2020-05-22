@@ -1,15 +1,12 @@
-using System.Collections.Generic;
-using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
-using System.Xml.Serialization;
 
 namespace OpenTap.Plugins.BasicSteps
 {
     [AllowAnyChild]
     [Display("Sweep Parameter", "Table based loop that sweeps the value of its parameters based on a set of values.", "Flow Control")]
-    public class SweepParameterStep : LoopTestStep, ISelectedParameters
+    public class SweepParameterStep : SweepParameterStepBase
     {
         SweepRowCollection sweepValues = new SweepRowCollection();
         [DeserializeOrder(1)] // this should be deserialized as the last thing.
@@ -24,67 +21,6 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
 
-
-        public IEnumerable<IMemberData> SweepProperties =>
-            TypeData.GetTypeData(this).GetMembers().OfType<IParameterMemberData>().Where(x =>
-                x.HasAttribute<UnsweepableAttribute>() == false && x.Writable && x.Readable);
-
-        public IEnumerable<string> SweepNames =>
-            SweepProperties.Select(x => x.Name);
-        
-        readonly NotifyChangedList<string> selectedProperties = new NotifyChangedList<string>();
-        
-        [Browsable(false)]
-        public Dictionary<string, bool> Selected { get; set; } = new Dictionary<string, bool>();
-        void updateSelected()
-        {
-            foreach (var prop in SweepProperties)
-            {
-                if (Selected.ContainsKey(prop.Name) == false)
-                    Selected[prop.Name] = true;
-            }
-            foreach (var item in Selected.ToArray())
-            {
-                if (item.Value)
-                {
-                    if (selectedProperties.Contains(item.Key) == false)
-                        selectedProperties.Add(item.Key);
-                }
-                else
-                {
-                    if (selectedProperties.Contains(item.Key))
-                        selectedProperties.Remove(item.Key);
-                }
-            }
-        }
-
-        void onListChanged(IList<string> list)
-        {
-            foreach (var item in Selected.Keys.ToArray())
-            {
-                Selected[item] = list.Contains(item);
-            }
-        }
-        [AvailableValues(nameof(SweepNames))]
-        
-        [XmlIgnore]
-        [Browsable(true)]
-        [Display("Parameters", "These are the parameters that should be swept", "Sweep")]
-        public IList<string> SelectedParameters {
-            get
-            {
-                updateSelected();
-                selectedProperties.ChangedCallback = onListChanged;
-                return selectedProperties;
-            }
-            set
-            {
-                updateSelected();
-                onListChanged(value);
-            } 
-        }
-
-        
         public SweepParameterStep()
         {
             SweepValues.Loop = this;

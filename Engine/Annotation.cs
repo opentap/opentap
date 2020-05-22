@@ -705,8 +705,8 @@ namespace OpenTap
     }
 
     /// <summary>
-    /// Marker interface that indicates that an IAnnotation does not support multi selecting. 
-    /// When multiselecting, the UI should not show properties annotated with this. 
+    /// Marker interface that indicates that an IAnnotation does not support multi-selecting. 
+    /// When multi-selecting, the UI should not show properties annotated with this. 
     /// </summary>
     // Used by ManyToOneAnnotation
     public interface IHideOnMultiSelectAnnotation : IAnnotation { }

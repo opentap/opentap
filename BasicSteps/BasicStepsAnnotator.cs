@@ -509,53 +509,47 @@ namespace OpenTap.Plugins.BasicSteps
 
         public void Annotate(AnnotationCollection annotation)
         {
-            var mem = annotation.Get<IMemberAnnotation>();
-            if(mem != null && mem.Member.TypeDescriptor is TypeData cst)
+            if (annotation.Get<IMemberAnnotation>()?.Member is IMemberData mem)
             {
-                if (mem.Member.DeclaringType.DescendsTo(typeof(SweepLoop)))
+                if (mem.GetAttribute<HideOnMultiSelectAttribute>() is HideOnMultiSelectAttribute attr)
+                    annotation.Add(attr);
+                
+                if (mem.TypeDescriptor is TypeData cst)
                 {
-                    if (cst.DescendsTo(typeof(IEnumerable)))
+                    if (mem.DeclaringType.DescendsTo(typeof(SweepLoop)))
                     {
-                        var elem = cst.Type.GetEnumerableElementType();
-                        if (elem == typeof(IMemberData))
+                        if (cst.DescendsTo(typeof(IEnumerable)))
                         {
-                            annotation.Add(new SweepParamsAnnotation(annotation));
-                        }
-                        if (elem == typeof(SweepParam))
-                        {
-                            annotation.Add(new SweepParamsAggregation(annotation));
+                            var elem = cst.Type.GetEnumerableElementType();
+                            if (elem == typeof(IMemberData))
+                                annotation.Add(new SweepParamsAnnotation(annotation));
+                            if (elem == typeof(SweepParam))
+                                annotation.Add(new SweepParamsAggregation(annotation));
                         }
                     }
-                }else if (mem.Member.DeclaringType.DescendsTo(typeof(SweepLoopRange)))
-                {
-                    if (cst.DescendsTo(typeof(IEnumerable)))
+                    else if (mem.DeclaringType.DescendsTo(typeof(SweepLoopRange)))
                     {
-                        var elem = cst.Type.GetEnumerableElementType();
-                        if (elem == typeof(IMemberData))
+                        if (cst.DescendsTo(typeof(IEnumerable)))
                         {
-                            annotation.Add(new SweepRangeMembersAnnotation(annotation));
+                            var elem = cst.Type.GetEnumerableElementType();
+                            if (elem == typeof(IMemberData))
+                            {
+                                annotation.Add(new SweepRangeMembersAnnotation(annotation));
+                            }
                         }
                     }
                 }
-            }
-            var reflect = annotation.Get<IReflectionAnnotation>();
-            if (reflect?.ReflectionInfo is TypeData type)
-            {
-                if(type.Type == typeof(SweepRow))
+                
+                if (mem is IParameterMemberData && mem.DeclaringType.DescendsTo(typeof(ISelectedParameters)))
                 {
-                    annotation.Add(new SweepParamsMembers(annotation));
+                    // If the member is a forwarded member on a loopTestStep, it should not be editable because the value
+                    // is controlled in the sweep, however it should still be shown.
+                    annotation.Add(new DisabledLoopMemberAnnotation(annotation, mem));
                 }
             }
 
-            {
-                var member = annotation.Get<IMemberAnnotation>()?.Member as IParameterMemberData;
-                if (member == null) return;
-
-                // If the member is a forwarded member on a loopTestStep, it should not be editable because the value
-                // is controlled in the sweep, however it should still be shown in the GUI.
-                if (member.DeclaringType.DescendsTo(typeof(ISelectedParameters)))
-                    annotation.Add(new DisabledLoopMemberAnnotation(annotation, member));
-            }
+            if (annotation.Get<IReflectionAnnotation>()?.ReflectionInfo is TypeData type && type.Type == typeof(SweepRow))
+                annotation.Add(new SweepParamsMembers(annotation));
         }
         class DisabledLoopMemberAnnotation : IEnabledAnnotation
         {
@@ -577,5 +571,11 @@ namespace OpenTap.Plugins.BasicSteps
                 }
             }
         }
+    }
+
+    /// <summary> This attribute indicates that a property should not be accessible for multi-selecting.</summary>
+    public class HideOnMultiSelectAttribute : Attribute, IHideOnMultiSelectAnnotation
+    {
+        
     }
 }

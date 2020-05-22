@@ -9,13 +9,9 @@ using System.Xml.Serialization;
 
 namespace OpenTap.Plugins.BasicSteps
 {
-    interface ISelectedParameters
-    {
-        IList<string> SelectedParameters { get; }
-    }
     [Display("Sweep Parameter Range", "Ranged based sweep step that iterates value of its parameters based on a selected range.", "Flow Control")]
     [AllowAnyChild]
-    public class SweepParameterRangeStep : LoopTestStep, ISelectedParameters
+    public class SweepParameterRangeStep : SweepParameterStepBase
     {
         [Display("Start", Group:"Sweep", Order: -2, Description: "The parameter value where the sweep will start.")]
         public decimal SweepStart { get; set; }
@@ -57,65 +53,6 @@ namespace OpenTap.Plugins.BasicSteps
             validateSweepMutex.ReleaseMutex();
         }
 
-        public IEnumerable<IMemberData> SweepProperties =>
-            TypeData.GetTypeData(this).GetMembers().OfType<IParameterMemberData>().Where(x =>
-                x.HasAttribute<UnsweepableAttribute>() == false && x.Writable && x.Readable);
-
-        public IEnumerable<string> SweepNames =>
-            SweepProperties.Select(x => x.Name);
-        
-        readonly NotifyChangedList<string> selectedProperties = new NotifyChangedList<string>();
-        
-        [Browsable(false)]
-        public Dictionary<string, bool> Selected { get; set; } = new Dictionary<string, bool>();
-        void updateSelected()
-        {
-            foreach (var prop in SweepProperties)
-            {
-                if (Selected.ContainsKey(prop.Name) == false)
-                    Selected[prop.Name] = true;
-            }
-            foreach (var item in Selected.ToArray())
-            {
-                if (item.Value)
-                {
-                    if (selectedProperties.Contains(item.Key) == false)
-                        selectedProperties.Add(item.Key);
-                }
-                else
-                {
-                    if (selectedProperties.Contains(item.Key))
-                        selectedProperties.Remove(item.Key);
-                }
-            }
-        }
-
-        void onListChanged(IList<string> list)
-        {
-            foreach (var item in Selected.Keys.ToArray())
-            {
-                Selected[item] = list.Contains(item);
-            }
-        }
-        [AvailableValues(nameof(SweepNames))]
-        
-        [XmlIgnore]
-        [Browsable(true)]
-        [Display("Parameters", "These are the parameters that should be swept", "Sweep")]
-        public IList<string> SelectedParameters {
-            get
-            {
-                updateSelected();
-                selectedProperties.ChangedCallback = onListChanged;
-                return selectedProperties;
-            }
-            set
-            {
-                updateSelected();
-                onListChanged(value);
-            } 
-        }
-        
         // Check if the test plan is running before validating sweeps.
         // the validateSweep might have been started before the plan started.
         // hence we use the validateSweepMutex to ensure that validation is done before 
