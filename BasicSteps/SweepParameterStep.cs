@@ -68,7 +68,7 @@ namespace OpenTap.Plugins.BasicSteps
                     }
                     catch (TargetInvocationException ex)
                     {
-                        Log.Error("Unable to set '{0}' to value '{2}': {1}", set.GetDisplayAttribute().Name, ex.InnerException.Message, Value);
+                        Log.Error("Unable to set '{0}' to value '{2}': {1}", set.GetDisplayAttribute().Name, ex?.InnerException?.Message, val);
                         Log.Debug(ex.InnerException);
                     }
                 }
@@ -77,7 +77,7 @@ namespace OpenTap.Plugins.BasicSteps
                 // Notify that values might have changes
                 OnPropertyChanged("");
                 
-                 Log.Info("Running child steps with {0} = {1} ", names, Value);
+                 Log.Info("Running child steps with {0}", Value.GetIterationString());
 
                 var runs = RunChildSteps(AdditionalParams, BreakLoopRequested).ToList();
                 if (BreakLoopRequested.IsCancellationRequested) break;
