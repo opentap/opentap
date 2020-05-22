@@ -1322,12 +1322,12 @@ namespace OpenTap
                 }
                 set
                 {
-                    int sum = 0;
+                    long sum = 0;
                     var items = value.Cast<Enum>();
 
                     foreach (var item in items)
                     {
-                        sum += Convert.ToInt32(item);
+                        sum |= Convert.ToInt64(item);
                     }
                     val.Value = Enum.ToObject(enumType, sum);
                 }
