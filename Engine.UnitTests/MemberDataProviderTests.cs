@@ -534,6 +534,76 @@ namespace OpenTap.Engine.UnitTests
             {
                 return X + Y;
             }
+            
+            [Flags]
+            public enum LongEnum: long{
+                Test0 = 1L << 0,
+                Test1 = 1L << 1,
+                Test2 = 1L << 2,
+                Test3 = 1L << 3,
+                Test4 = 1L << 4,
+                Test5 = 1L << 5,
+                Test6 = 1L << 6,
+                Test7 = 1L << 7,
+                Test8 = 1L << 8,
+                Test9 = 1L << 9,
+                Test10 = 1L << 10,
+                Test11 = 1L << 11,
+                Test12 = 1L << 12,
+                Test13 = 1L << 13,
+                Test14 = 1L << 14,
+                Test15 = 1L << 15,
+                Test16 = 1L << 16,
+                Test17 = 1L << 17,
+                Test18 = 1L << 18,
+                Test19 = 1L << 19,
+                Test20 = 1L << 20,
+                Test21 = 1L << 21,
+                Test22 = 1L << 22,
+                Test23 = 1L << 23,
+                Test24 = 1L << 24,
+                Test25 = 1L << 25,
+                Test26 = 1L << 26,
+                Test27 = 1L << 27,
+                Test28 = 1L << 28,
+                Test29 = 1L << 29,
+                Test30 = 1L << 30,
+                Test31 = 1L << 31,
+                Test32 = 1L << 32,
+                Test33 = 1L << 33,
+                Test34 = 1L << 34,
+                Test35 = 1L << 35,
+                Test36 = 1L << 36,
+                Test37 = 1L << 37,
+                Test38 = 1L << 38,
+                Test39 = 1L << 39,
+                Test40 = 1L << 40,
+                Test41 = 1L << 41,
+                Test42 = 1L << 42,
+                Test43 = 1L << 43,
+                Test44 = 1L << 44,
+                Test45 = 1L << 45,
+                Test46 = 1L << 46,
+                Test47 = 1L << 47,
+                Test48 = 1L << 48,
+                Test49 = 1L << 49,
+                Test50 = 1L << 50,
+                Test51 = 1L << 51,
+                Test52 = 1L << 52,
+                Test53 = 1L << 53,
+                Test54 = 1L << 54,
+                Test55 = 1L << 55,
+                Test56 = 1L << 56,
+                Test57 = 1L << 57,
+                Test58 = 1L << 58,
+                Test59 = 1L << 59,
+                Test60 = 1L << 60,
+                Test61 = 1L << 61,
+                Test62 = 1L << 62,
+                Test63 = 1L << 63,
+            }
+            
+            public LongEnum LongEnumValue { get; set; }
 
         }
 
@@ -566,6 +636,14 @@ namespace OpenTap.Engine.UnitTests
                 if (mem.Member.Name == nameof(DataInterfaceTestClass.SelectableValues))
                 {
 
+                }
+                if (mem.Member.Name == nameof(DataInterfaceTestClass.LongEnumValue))
+                {
+                    var proxy = member.Get<IMultiSelectAnnotationProxy>();
+                    var selected = proxy.SelectedValues.ToArray();
+                    Assert.AreEqual(0, selected.Length);
+                    proxy.SelectedValues = member.Get<IAvailableValuesAnnotationProxy>().AvailableValues;
+                    Assert.AreEqual(64, proxy.SelectedValues.Count()); 
                 }
 
                 if (mem.Member.Name == nameof(DataInterfaceTestClass.ButtonExample))
