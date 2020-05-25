@@ -20,6 +20,10 @@ namespace OpenTap.Package
     [HelpLink("EditorHelp.chm::/Package Manager Help/Readme.html")]
     public class PackageManagerSettings : ComponentSettings<PackageManagerSettings>
     {
+        /// <summary>
+        /// Creates a new PackageManagerSettings. 
+        /// User code should use PackageManagerSettings.Current to access the singleton instead of constructing a new object.
+        /// </summary>
         public PackageManagerSettings()
         {
             Repositories = new List<RepositorySettingEntry>();
@@ -28,17 +32,28 @@ namespace OpenTap.Package
             Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = "http://packages.opentap.io" });
         }
 
+        /// <summary>
+        /// When true a package management UI should also list packages that are not compatible with the current installation.
+        /// </summary>
         [Display("Show Incompatible Packages", Group: "General", Description: "Show all packages, including incompatible and deprecated packages.")]
         public bool ShowIncompatiblePackages { get; set; }
 
+        /// <summary>
+        /// Specifies how a UI should order a list of different version of the same package name. Can be either by version or build date.
+        /// </summary>
         [System.Xml.Serialization.XmlIgnore]
         [Browsable(false)]
         [Display("Sort Package Details By", Group: "General", Description: "Sorts the selected package's other versions, shown in the details window.")]
         public PackageSort Sort { get; set; }
 
+        /// <summary>
+        /// Specifies how a UI should order a list of different version of the same package name. Can be either by version or build date.
+        /// </summary>
         public enum PackageSort
         {
+            /// <summary> Sort packages by version number. </summary>
             Version,
+            /// <summary> Sort packages by build date. </summary>
             Date
         }
         
@@ -104,6 +119,10 @@ namespace OpenTap.Package
         // a cached manager
         IPackageRepository _Manager = null;
 
+        /// <summary>
+        /// Get a cached instance of IPackageRepository that can query the repository that this RepositorySettingEntry represents. 
+        /// </summary>
+        /// <value></value>
         public IPackageRepository Manager
         {
             get
@@ -118,8 +137,12 @@ namespace OpenTap.Package
             }
         }
 
+        /// <summary>
+        /// Obsolete. Always false.
+        /// </summary>
         [Browsable(false)]
         [XmlIgnore]
+        [Obsolete]
         public bool IsBusy { get; set; }
     }
 }

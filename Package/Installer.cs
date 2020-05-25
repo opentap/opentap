@@ -110,17 +110,18 @@ namespace OpenTap.Package
 
         internal void UninstallThread()
         {
-            RunCommand("uninstall", false);
+            RunCommand("uninstall", false, true);
         }
         
-        internal bool RunCommand(string command, bool force)
+        internal bool RunCommand(string command, bool force, bool modifiesPackageFiles)
         {
             var verb = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(command.ToLower()) + "ed";
 
             try
             {
-                waitForPackageFilesFree(TapDir, PackagePaths);
-
+                if (modifiesPackageFiles)
+                    waitForPackageFilesFree(TapDir, PackagePaths);
+                
                 if (cancellationToken.IsCancellationRequested)
                 {
                     log.Debug("Received abort while waiting for package files to be unlocked.");
@@ -205,7 +206,6 @@ namespace OpenTap.Package
                     var loaded_asm = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(x => x.IsDynamic == false && x.Location == file.FullName);
                     if (loaded_asm != null)
                         throw new InvalidOperationException($"The file '{file.FullName}' is being used by this process.");
-
                 }
 
                 var allProcesses = Process.GetProcesses().Where(p => 

@@ -8,7 +8,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using OpenTap.Cli;
-using OpenTap;
+
 namespace OpenTap.Engine.UnitTests
 {
     [TestFixture]
@@ -47,10 +47,11 @@ namespace OpenTap.Engine.UnitTests
             TestPlan plan = new TestPlan();
             plan.Steps.Add(setVerdict);
             plan.ExternalParameters.Add(setVerdict, TypeData.GetTypeData(setVerdict).GetMember("VerdictOutput"),"verdict");
+            plan.ExternalParameters.Get("verdict").Value = "Not Set";
             plan.Save("verdictPlan.TapPlan");
             var fileName = CreateCsvTestFile(new string[] { "verdict" }, new object[] { "pass" });
             {
-                string[] passingThings = new[] { "verdict=\"pass\"", "verdict=\"Not_Set\"", "verdict=\"not set\"", fileName };
+                string[] passingThings = new[] { "verdict=\"pass\"", "verdict=\"Not Set\"", "verdict=\"not set\"", fileName };
                 passingThings.AsParallel().ForAll(v =>
                 {
 

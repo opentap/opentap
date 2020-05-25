@@ -36,6 +36,9 @@ namespace OpenTap.Package
         string OS { get; }
     }
 
+    /// <summary>
+    /// Extensions to IPackageIdentifier.
+    /// </summary>
     public static class IPackageIdentifierExtensions
     {
         /// <summary>

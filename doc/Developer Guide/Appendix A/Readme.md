@@ -1,169 +1,59 @@
-Appendix A: Attribute Details
-=============================
+Appendix A: Macro Strings
+=========================
 
-## Display
-The **Display** attribute is the most commonly used OpenTAP attribute. This attribute:
+Sometimes certain elements need customizable text that can dynamically change depending on circumstances. These are known as macros and are identifiable by the use of the `<` and `>` symbols in text. Macros can be expanded by the plugin developer to use other macros with different values depending on the context. The class used for macro string properties is called `OpenTAP.MacroString`.
 
--	Can be applied to class names (impacting the appearance in dialogs, such as the Add New Step dialog), or to properties (impacting appearance in the Step Settings Panel).
--	Has the following signature in its constructor:
+One example is the `<Date>` macro that is available to use in many Result Listeners, like the log or the CSV result listeners. Another example is the `<Verdict>` macro. These are both examples of macros that can be inserted into the file name of a log or CSV file like so: `Results/<Date>-<Verdict>.txt`. If you insert `<Date>` in the file name the macro will be replaced by the start date and time of the test plan execution.
 
-```csharp
-(string Name, string Description = "", string Group = null, double Order = 0D, bool Collapsed = false, string[] Groups = null)
-```
+When used with the MetaData attribute, a property of the ComponentSettings can be used to define a new macro. For example, all DUTs have an ID property that has been marked with the attribute `[MetaData("DUT ID")]`. This means that you can put `<DUT ID>` into the file path of a Text Log Listener to include the DUT ID in the log file's name.
 
--	Requires the **Name** parameter. All the other parameters are optional.
--	Supports a **Group** or **Groups** of parameters to enable you to organize the presentation of the items in the Test Automation Editor.
+In addition to macros using `<>`, environment variables such as `%USERPROFILE%` will also be expanded.
 
-The parameters are ordered starting with the most frequently used parameters first. The following examples show example code and the resulting Editor appearance:
+There are a few different contexts in which macro strings can be used.
 
-```csharp
-// Defining the name and description.
-[Display("MyName", "MyDescription")]
-public string NameAndDescription { get; set; }
-```
+## Test Steps
 
-![](./appendix_img1.png)
+MacroStrings can be used in test steps. In this context the following macros are available:
 
-See the examples in **`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\Attributes`** for different uses of the Display attribute.
+- `<Date>`: The start date of the test plan execution
+- `<TestPlanDir>`: The directory of the currently executing test plan
+- MetaData attribute: Defines macro properties on parent test steps
 
-Display has the following parameters:
+Verdict is not available as a macro in the case of test steps, because at the time of execution the step does not yet have a verdict. However, it can be manually added by the developer if needed. In this case it is up to the plugin developer to provide documentation.
 
-| **Attribute**   | **Required** |**Description** |
-| --      | --     |--------  |
-| **Name**        | Required |The name displayed in the Editor. If the Display attribute is not used, the **property name** is used in the Editor. |
-|**Description**  | Optional |Text displayed in tools tips, dialogs and editors in the Editor.|
-|**Group/Groups** | Optional |Specifies an item’s group. Use **Group** if the item is in a one-level hierarchy or **Groups** if the item is in a hierarchy with two or more levels. The hierarchy is specified by the left-to-right order of the string array. Use either Group or Groups; do not use both. Groups is preferred. Groups are ordered according to the average order value of their child items. For test steps, the top-level group is always ordered alphabetically. Syntax: `Groups: new[] { "Group" , "Subgroup" }`|
-|**Order**        | Optional |Specifies the display order for an item. Note that **Order** is supported for settings and properties, such as test step settings, DUT settings, and instrument settings. It does not support types: test steps, DUTs, instruments. These items are ordered alphabetically, with groups appearing before ungrouped items. Order is of type double, and can be negative. Order’s behavior matches the Microsoft behavior of the *Display.Order* attribute. If order is not specified, a default value of -10,000 is assumed. Items (ungrouped or within a group) are ranked so that items with lower order values precede those with higher values; alphabetically if order values are equal or not specified. To avoid confusion, we recommend that you set the order value for ungrouped items to negative values so that they appear at the top and Grouped items to a small range of values to avoid conflicts with other items (potentially specified in base classes). For example, if *Item A* has order = 100, and *Item B* has order = 50, *Item B* is ranked first.|
+Below is an example of MacroString used with the `[FilePath]` attribute in a test step. This attribute provides the information that the text represents: a file path. In the GUI Editor this results in the `"..."` browse button being shown next to the text box.
 
-## Embedded Attribute
-The EmbeddedAttribute can be used to embed the members of one object into the owner object. This hides the embedded object from reflection, but shows the embedded objects members instead. This can be used to let objects share common settings and code without using inheritance.
+```cs
+public class MyTestStep: TestStep {
 
-## EnabledIf Attribute
-The **EnabledIf** attribute disables or enables settings properties based on other settings (or other properties) of the same object. The decorated settings reference another property of an object by name, and its value is compared to the value specified in an argument. Properties that are not settings can also be specified, which allows the implementation of more complex behaviors.
+  [FilePath] // A MacroString that is also a file path.
+  public MacroString Filename { get; set; }
 
-For test steps, if instrument, DUTs or other resource properties are disabled, the resources will not be opened when the test plan starts, However, if another step needs them they will still be opened.
-
-The **HideIfDisabled** optional parameter of EnabledIf makes it possible to hide settings when they are disabled. This is useful to hide irrelevant information from the user.
-
-Multiple EnabledIf statements can be used at the same time. In this case all of them must be enabled (following the logical *AND* behavior) to make the setting enabled. If another behavior is wanted, an extra property (hidden to the user) can be created and referenced to implement another logic. In interaction with HideIfDisabled, the enabling property of that specific EnabledIf attribute must return false for the property to be hidden.
-
-In the following code, BandwidthOverride is enabled when **Radio Standard** = GSM.
-
-```csharp
-public class EnabledIfExample : TestStep
-{
-    #region Settings
-
-    // Radio Standard to set DUT to transmit.
-    [Display("Radio Standard", Group: "DUT Setup", Order: 1)]
-    public RadioStandard Standard { get; set; }
-
-    // This setting is only used when Standard == LTE || Standard == HCDHA.
-    [Display("Measurement Bandwidth", Group: "DUT Setup", Order: 2.1)]
-    [EnabledIf("Standard", RadioStandard.Lte, RadioStandard.Wcdma)]
-    public double Bandwidth { get; set; }
-
-    // Only enabled when the Standard is set to GSM.
-    [Display("Override Bandwidth", Group: "Advanced DUT Setup", Order: 3.1)]
-    [EnabledIf("Standard", RadioStandard.Gsm, HideIfDisabled = true)]
-    public bool BandwidthOverride { get; set; }
-
-    // Only enabled when both Standard = GSM, and BandwidthOverride property is enabled.
-    [Display("Override Bandwidth", Group: "Advanced DUT Setup", Order: 3.1)]
-    [EnabledIf("Standard", RadioStandard.Gsm, HideIfDisabled = true)]
-    [EnabledIf("BandwidthOverride", true, HideIfDisabled = true)]
-    public double ActualBandwidth { get; set; }
-
-    #endregion Settings
+  public MyTestStep(){
+    // 'this' useful for TestStep instances.
+    // otherwise a MacroString can be created without constructor arguments.
+    Filename = new MacroString(this) { Text = "MyDefaultPath" };
+  }
+  public override void Run(){
+     Log.Info("The full path was '{0}'.", Path.GetFullPath(Filename.Expand(PlanRun)));
+  }
 }
 ```
 
-When **Radio Standard** is set to GSM in the step settings, both **Override Bandwidth** options are then displayed:
+## Result Listeners
 
-![](./appendix_img2.png)
+Result listeners have access to TestStepRun and TestPlanRun objects which contain variables that can be used as macros. An example is the previously mentioned DUT ID property, which is available if a DUT is used in the test plan. The following macros are available in the case of result listeners:
 
-For an example, see `TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\Attributes\EnabledIfAttributeExample.cs`.
+- `<Date>`: The start date and time of the executing test plan.
+- `<Verdict>`: The verdict of the executing test plan. Only available in OnTestPlanRunCompleted.
+- `<DUT ID>`: The ID (or ID's) of the DUT (or DUTs) used in the test plan.
+- `<OperatorName>`: Normally the name of the user on the test station.
+- `<StationName>`: The name of the test station.
+- `<TestPlanName>`: The name of the executing test plan.
+- `<ResultType>` (CSV only): The type of result being registered. This macro can be used if it is required to create multiple files, one for each type of results per test plan run.
 
-## Flags Attribute
-The **Flags** attribute is a C# attribute used with enumerations. This attribute indicates that an enumeration can be treated as a *bit field* (meaning, elements can be combined by bitwise OR operation). The enumeration constants must be defined in powers of two (for example 1, 2, 4, …).
+## Other Uses
 
-Using the Flags attribute results in a multiple select in the Editor, as shown below:
+Macro strings can also be used in custom contexts defined by a plugin developer. In this case it is up to the plugin developer to provide documentation of the available macros.
 
-![](./appendix_img3.png)
-
-## FilePath and DirectoryPath Attributes 
-The FilePath and DirectoryPath attributes can be used on a string-type property to indicate the string is a file or a folder system path. When this attribute is present, the Editor displays a browse button allowing the user to choose a file or folder. These attributes can be used as follows:
-
-```csharp
-[FilePath]
-public string MyFilePath { get; set; }
-```
-
-This results in the following user control in the Editor:
-
-![](./appendix_img4.png)
-
-The DirectoryPath attribute works the same as the FilePath attribute, but in the place of a file browse dialog, a directory browse dialog opens when the browse ('...') button is clicked.
-
-The FilePath attribute supports specifying file type as well.
-
-It can be done by writing the file extension as such:
-
-```csharp
-[FilePath(FilePathAttribute.BehaviorChoice.Open, "csv");
-```
-
-Or it can be done by specifying a more advanced filter expression as shown below.
-
-```csharp
-[FilePath(FilePathAttribute.BehaviorChoice.Open, "Comma Separated Files (*.csv)|*.csv| Tab Separated Files (*.tsv) | *.tsv| All Files | *.*")]
-```
-
-The syntax works as follows:
-```[Name_1] | [file extensions 1] | [Name_2] | [file extensions 2] ...```
-
-Each filter comes in pairs of two, a name and a list of extensions. The name of a filter can be anything, excluding the '|' character. It normally contains the name of all the included file extensions, for example "Image Files (\*.png, \*.jpg)". The file extensions is normally not seen by the user, but should contain all the supported file extensions as a semi-colon separated list. Lastly, it is common practice to include the 'AllFiles | \*.\*' part, which makes it possible for the user to override the known filters and manually select any kind of file.
-
-## Layout Attribute
-LayoutAttribute is used to control how settings are arranged in graphical user interfaces. It can be used to control the height, width and positioning of settings elements. Use this with the Submit attribute to create a dialog with options like OK/Cancel on the bottom. See UserInputExample.cs for an example.
-
-## MetaData Attribute
-Metadata is a set of data that describes and gives information about other data. The Metadata attribute marks a property as metadata. 
-
-OpenTAP can prompt the user for metadata. Two requirements must be met:
-
--	The MetaData attribute is used and the promptUser parameter is set to *true*
--	The *Allow Metadata Dialog* property in **Settings > Engine**, is set to *true*
-
-If both requirements are met, a dialog (in the Editor) or prompt(in OpenTAP CLI) will appear on each test plan run to ask the user for the appropriate values. This works for both the Editor and the OpenTAP CLI. An example of where metadata might be useful is when testing multiple DUTs in a row and the serial number must be typed in manually.
-
-Values captured as metadata are provided to all the result listeners, and can be used in the macro system. See SimpleDut.cs for an example of the use of the MetaData attribute.
-
-## Submit Attribute
-This attribute is used only for objects used together with UserInput.Request. It is used to mark the property that finalizes the input. For example this could be used with an enum to add an OK/Cancel button, that closes the dialog when clicked. See the example in UserInputExample.cs for an example of how to use it.
-
-## Unit Attribute
-The Unit attribute specifies the units for a setting. The Editor displays the units after the value (with a space separator). Compound units (watt-hours) should be hyphenated. Optionally, displayed units can insert engineering prefixes.
-
-See the `TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\Attributes\UnitAttributeExample.cs` file for an extensive example.
-
-## XmlIgnore Attribute
-The XmlIgnore attribute indicates that a setting should not be serialized. If XmlIgnore is set for a property, the property will not show up in the Editor. If you want to NOT serialize the setting AND show it in the Editor, then use the Browsable(true) attribute, as shown below:
-
-```csharp
-// Editable property not serialized to XML 
-[Browsable(true)]
-[XmlIgnore]
-public double NotSerializedVisible { get; set; } 
-```
-
-Properties that represent instrument settings (like the one below) should not be serialized as they will result in run-time errors:
-
-```csharp
-[XmlIgnore]
-public double Power
-{ 
-    set; { ScpiCommand(":SOURce:POWer:LEVel:IMMediate:AMPLitude {0}", value) }
-    get; { return ScpiQuery<double>(":SOURce:POWer:LEVel:IMMediate:AMPLitude?"); }
-}
-```
+One example is the session log. It can be configured in the **Engine** pane in the **Settings** panel. The session log only supports the `<Date>` macro, which is defined as the start date and time of the OpenTAP instance and not the test plan run. This is because the session is active for multiple test plan runs and needs to be loaded when OpenTAP starts, therefore, most macros are not applicable.

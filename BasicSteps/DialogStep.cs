@@ -62,7 +62,8 @@ namespace OpenTap.Plugins.BasicSteps
         public WaitForInputResult2 Input2 { get; set; } = WaitForInputResult2.Ok;
     }
 
-    [Display("Dialog", Group: "Basic Steps", Description: "Used to interact with the user.")]
+    [Display("Dialog", Group: "Basic Steps", Description: "Shows a message to the user and waits for a response. " +
+                                                          "A verdict can be set based on the response.")]
     public class DialogStep : TestStep
     {
         [Display("Message", Description: "The message shown to the user.", Order: 0.1)]

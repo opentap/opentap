@@ -4,35 +4,11 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using NUnit.Framework;
 using System;
-using System.Diagnostics;
 using System.Reflection;
 
 namespace OpenTap.Engine.UnitTests
 {
-    /// <summary>
-    /// Making your unit test class inherit from this ensures that a message is written in the Session log containing the name of the test
-    /// </summary>
-    [TestFixture]
-    public abstract class EngineTestBase
-    {
-        //public abstract TestContext TestContext { get; set; }
-
-        protected static TraceSource testLog =  OpenTap.Log.CreateSource("UnitTest");
-
-        [SetUp]
-        public void Init()
-        {
-            testLog.Info("############# Starting Test {0}", "");
-        }
-
-        [TearDown]
-        public void Cleanup()
-        {
-            testLog.Info("############# Completed Test {0} with verdict {1}", "", "");
-        }
-    }
-
-    
+  
     [SetUpFixture]
     public class TapTestInit
     {

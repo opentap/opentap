@@ -88,7 +88,7 @@ namespace OpenTap.Engine.UnitTests
     }
 
     [TestFixture]
-    public class TestPlanTestFixture3 : EngineTestBase
+    public class TestPlanTestFixture3 
     {
 
 
@@ -127,7 +127,7 @@ namespace OpenTap.Engine.UnitTests
     }
 
     [TestFixture]
-    public class TestPlanEmptyStringProp : EngineTestBase
+    public class TestPlanEmptyStringProp 
     {
 
         public class EmptyStringStep : TestStep
@@ -168,7 +168,7 @@ namespace OpenTap.Engine.UnitTests
     }
 
     [TestFixture]
-    public class TestPlanTimespan : EngineTestBase
+    public class TestPlanTimespan 
     {
         public class TimespanStep : TestStep
         {
@@ -203,7 +203,7 @@ namespace OpenTap.Engine.UnitTests
     }
 
     [TestFixture]
-    public class ListSerialization : EngineTestBase
+    public class ListSerialization 
     {
         public class StringTemp
         {

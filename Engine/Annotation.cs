@@ -1311,25 +1311,20 @@ namespace OpenTap
                     List<Enum> items = new List<Enum>();
                     if (this.val.Value is Enum value)
                     {
-                        foreach (var enumValue in Enum.GetValues(enumType))
+                        foreach (Enum enumValue in Enum.GetValues(enumType))
                         {
-                            var ev = (Enum)enumValue;
-                            if (value.HasFlag(ev))
-                                items.Add(ev);
+                            if (value.HasFlag(enumValue))
+                                items.Add(enumValue);
                         }
                     }
                     return items;
                 }
                 set
                 {
-                    int sum = 0;
-                    var items = value.Cast<Enum>();
-
-                    foreach (var item in items)
-                    {
-                        sum += Convert.ToInt32(item);
-                    }
-                    val.Value = Enum.ToObject(enumType, sum);
+                    long bits = 0; 
+                    foreach (Enum item in value)
+                        bits |= Convert.ToInt64(item);
+                    val.Value = Enum.ToObject(enumType, bits);
                 }
             }
 
@@ -2338,6 +2333,8 @@ namespace OpenTap
                         }
                         else
                         {
+                            // the type must implement IList, otherwise it cannot be used by generic sequence annotation.
+                            // this excludes IEnumerable, but not array types or List<T> types. 
                             annotation.Add(new GenericSequenceAnnotation(annotation));
                             if (!rd_only && innerType.DescendsTo(typeof(IResource)))
                             {
@@ -2374,7 +2371,7 @@ namespace OpenTap
 
                     if (csharpType.IsValueType == false && type.DescendsTo(typeof(IResource)))
                         annotation.Add(new ResourceAnnotation(annotation, type));
-                    else if (csharpType.IsValueType == false && type.DescendsTo(typeof(ITestStep)))
+                    else if (csharpType.IsValueType == false && type.DescendsTo(typeof(ITestStep)) && mem?.Member.DeclaringType?.DescendsTo(typeof(ITestStep)) == true)
                         annotation.Add(new TestStepSelectAnnotation(annotation));
                 }
             }
@@ -3172,17 +3169,9 @@ namespace OpenTap
         /// <summary> Recurse to find member annotation 'X.Y.Z'</summary>
         public static AnnotationCollection GetMember(this AnnotationCollection col, string name)
         {
-            if (string.IsNullOrWhiteSpace(name)) return col;
-            int index = name.IndexOf('.');
-            string rest = null;
-            if (index == -1)
-                index = name.Length;
-            else
-                rest = name.Substring(index + 1);
-            var name2 = name.Substring(0, index);
-            
+            var name2 = name;
             var sub = col.Get<IMembersAnnotation>().Members.FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name == name2);
-            return sub?.GetMember(rest);
+            return sub;
         }
     }
 }

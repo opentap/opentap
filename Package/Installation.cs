@@ -12,6 +12,9 @@ using OpenTap.Package.Ipc;
 
 namespace OpenTap.Package
 {
+    /// <summary>
+    /// Represents an OpenTAP installation in a specific directory.
+    /// </summary>
     public class Installation
     {
         static TraceSource log = Log.CreateSource("Installation");
@@ -161,6 +164,9 @@ namespace OpenTap.Package
         }
 
         private Action PackageChanged;
+        /// <summary>
+        /// Event invoked when a package is installed/uninstalled from this installation.
+        /// </summary>
         public event Action PackageChangedEvent
         {
             add
