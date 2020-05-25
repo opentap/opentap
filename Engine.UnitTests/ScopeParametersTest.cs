@@ -119,11 +119,49 @@ namespace OpenTap.UnitTests
         public class ScopeTestStep : TestStep{
             public int A { get; set; }
             public List<int> Collection = new List<int>();
+            public Enabled<double> EnabledTest { get; set; } = new Enabled<double>();
             public override void Run()
             {
                 Collection.Add(A);
                 UpgradeVerdict(Verdict.Pass);
                 OnPropertyChanged("");
+            }
+        }
+
+        [Test]
+        public void SweepLoopDisabledMembersOnMultiSelect()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepParameterRangeStep();
+            var sweep2 = new SweepParameterRangeStep();
+            var numberstep = new ScopeTestStep();
+            var numberstep2 = new ScopeTestStep();
+            plan.ChildTestSteps.Add(sweep);
+            plan.ChildTestSteps.Add(sweep2);
+            sweep.ChildTestSteps.Add(numberstep);
+            sweep2.ChildTestSteps.Add(numberstep2);
+            var member = TypeData.GetTypeData(numberstep).GetMember("A");
+            member.Parameterize(sweep, numberstep, "A");
+            member.Parameterize(sweep2, numberstep2, "A");
+            sweep.SelectedParameters = Enumerable.Empty<string>().ToList();
+            Assert.AreEqual(0, sweep.SelectedParameters.Count());
+            {
+                var a = AnnotationCollection.Annotate(sweep);
+                var m = a.GetMember(nameof(SweepParameterRangeStep.SelectedParameters));
+                var sweptMember = a.GetMember("A");
+                Assert.IsTrue(sweptMember.Get<IEnabledAnnotation>().IsEnabled);
+                var ms = m.Get<IMultiSelectAnnotationProxy>();
+                var avail = m.Get<IAvailableValuesAnnotationProxy>();
+                ms.SelectedValues = avail.AvailableValues;
+                a.Write();
+                sweptMember = a.GetMember("A");
+                Assert.IsFalse(sweptMember.Get<IEnabledAnnotation>().IsEnabled);
+            }
+            {
+                var a = AnnotationCollection.Annotate(new object[] {sweep, sweep2});
+                var amem = a.GetMember("A");
+                var ienabled = amem.Get<IEnabledAnnotation>();
+                Assert.IsFalse(ienabled.IsEnabled);
             }
         }
 
@@ -192,11 +230,29 @@ namespace OpenTap.UnitTests
             sweep.SweepValues.Add(new SweepRow());
 
             TypeData.GetTypeData(step).GetMember(nameof(ScopeTestStep.A)).Parameterize(sweep, step, nameof(ScopeTestStep.A));
+            TypeData.GetTypeData(step).GetMember(nameof(ScopeTestStep.EnabledTest)).Parameterize(sweep, step, nameof(ScopeTestStep.EnabledTest));
 
+            
+            
             var td1 = TypeData.GetTypeData(sweep.SweepValues[0]);
-            var members = td1.GetMembers().ToArray();
-            members.Last().SetValue(sweep.SweepValues[0], 10);
-            members.Last().SetValue(sweep.SweepValues[1], 20);
+            var memberA = td1.GetMember(nameof(ScopeTestStep.A));
+            memberA.SetValue(sweep.SweepValues[0], 10);
+            memberA.SetValue(sweep.SweepValues[1], 20);
+
+            {
+                // verify Enabled<T> works with SweepParameterStep.
+                var annotation = AnnotationCollection.Annotate(sweep);
+                var elements = annotation.GetMember(nameof(SweepParameterStep.SweepValues))
+                    .Get<ICollectionAnnotation>().AnnotatedElements
+                    .Select(elem => elem.GetMember(nameof(ScopeTestStep.EnabledTest)))
+                    .ToArray();
+                annotation.Write();
+                Assert.IsFalse((bool) elements[0].GetMember("IsEnabled").Get<IObjectValueAnnotation>().Value);
+                elements[0].GetMember("IsEnabled").Get<IObjectValueAnnotation>().Value = true;
+                annotation.Write();
+                Assert.IsFalse((bool) elements[1].GetMember("IsEnabled").Get<IObjectValueAnnotation>().Value);
+                Assert.IsTrue((bool) elements[0].GetMember("IsEnabled").Get<IObjectValueAnnotation>().Value);
+            }
 
             var str = new TapSerializer().SerializeToString(plan);
             var plan2 = (TestPlan)new TapSerializer().DeserializeFromString(str);

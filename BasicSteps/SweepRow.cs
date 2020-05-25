@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 
 namespace OpenTap.Plugins.BasicSteps
 {
@@ -16,5 +17,9 @@ namespace OpenTap.Plugins.BasicSteps
         
         /// <summary> Dictionary for storing dynamic property values. </summary>
         public Dictionary<string, object> Values = new Dictionary<string, object>();
+
+        internal string GetIterationString() => string
+            .Join(", ", 
+                Values.OrderBy(x => x.Key).Select(x => $"{x.Key} = {x.Value}"));
     }
 }
