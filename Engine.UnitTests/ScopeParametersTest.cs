@@ -129,6 +129,43 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
+        public void SweepLoopDisabledMembersOnMultiSelect()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepParameterRangeStep();
+            var sweep2 = new SweepParameterRangeStep();
+            var numberstep = new ScopeTestStep();
+            var numberstep2 = new ScopeTestStep();
+            plan.ChildTestSteps.Add(sweep);
+            plan.ChildTestSteps.Add(sweep2);
+            sweep.ChildTestSteps.Add(numberstep);
+            sweep2.ChildTestSteps.Add(numberstep2);
+            var member = TypeData.GetTypeData(numberstep).GetMember("A");
+            member.Parameterize(sweep, numberstep, "A");
+            member.Parameterize(sweep2, numberstep2, "A");
+            sweep.SelectedParameters = Enumerable.Empty<string>().ToList();
+            Assert.AreEqual(0, sweep.SelectedParameters.Count());
+            {
+                var a = AnnotationCollection.Annotate(sweep);
+                var m = a.GetMember(nameof(SweepParameterRangeStep.SelectedParameters));
+                var sweptMember = a.GetMember("A");
+                Assert.IsTrue(sweptMember.Get<IEnabledAnnotation>().IsEnabled);
+                var ms = m.Get<IMultiSelectAnnotationProxy>();
+                var avail = m.Get<IAvailableValuesAnnotationProxy>();
+                ms.SelectedValues = avail.AvailableValues;
+                a.Write();
+                sweptMember = a.GetMember("A");
+                Assert.IsFalse(sweptMember.Get<IEnabledAnnotation>().IsEnabled);
+            }
+            {
+                var a = AnnotationCollection.Annotate(new object[] {sweep, sweep2});
+                var amem = a.GetMember("A");
+                var ienabled = amem.Get<IEnabledAnnotation>();
+                Assert.IsFalse(ienabled.IsEnabled);
+            }
+        }
+
+        [Test]
         public void SweepLoopRange2Test()
         {
             var plan = new TestPlan();
