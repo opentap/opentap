@@ -1311,25 +1311,20 @@ namespace OpenTap
                     List<Enum> items = new List<Enum>();
                     if (this.val.Value is Enum value)
                     {
-                        foreach (var enumValue in Enum.GetValues(enumType))
+                        foreach (Enum enumValue in Enum.GetValues(enumType))
                         {
-                            var ev = (Enum)enumValue;
-                            if (value.HasFlag(ev))
-                                items.Add(ev);
+                            if (value.HasFlag(enumValue))
+                                items.Add(enumValue);
                         }
                     }
                     return items;
                 }
                 set
                 {
-                    int sum = 0;
-                    var items = value.Cast<Enum>();
-
-                    foreach (var item in items)
-                    {
-                        sum += Convert.ToInt32(item);
-                    }
-                    val.Value = Enum.ToObject(enumType, sum);
+                    long bits = 0; 
+                    foreach (Enum item in value)
+                        bits |= Convert.ToInt64(item);
+                    val.Value = Enum.ToObject(enumType, bits);
                 }
             }
 
