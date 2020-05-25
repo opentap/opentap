@@ -74,7 +74,7 @@ verdict of its child steps. A verdict has one of 6 severities, detailed in the f
 | 3        | Inconclusive | Insufficient information to make a decision either way             |
 | 4        | Fail         | Step or plan failed                                                |
 | 5        | Aborted      | User aborted test plan                                             |
-| 6        | Error        | An error occurred. Check [session logs](#session%20logs) for more information |
+| 6        | Error        | An error occurred. Check [session logs](#session-logs) for more information |
 
 This means that, for a test plan to output a *Pass* verdict, at least one step must set their verdict to *Pass*, and
 the rest must either set their verdict to *Pass* or *NotSet* verdict. This is also the most typical behavior for parent steps
