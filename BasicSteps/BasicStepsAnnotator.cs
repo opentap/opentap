@@ -574,7 +574,7 @@ namespace OpenTap.Plugins.BasicSteps
     }
 
     /// <summary> This attribute indicates that a property should not be accessible for multi-selecting.</summary>
-    public class HideOnMultiSelectAttribute : Attribute, IHideOnMultiSelectAnnotation
+    internal class HideOnMultiSelectAttribute : Attribute, IHideOnMultiSelectAnnotation
     {
         
     }

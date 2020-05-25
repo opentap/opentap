@@ -11,6 +11,7 @@ namespace OpenTap.Plugins.BasicSteps
         SweepRowCollection sweepValues = new SweepRowCollection();
         [DeserializeOrder(1)] // this should be deserialized as the last thing.
         [Display("Sweep Values", "A table of values to be swept for the selected parameters.", "Sweep")]
+        [HideOnMultiSelect] // todo: In the future support multi-selecting this.
         public SweepRowCollection SweepValues 
         { 
             get => sweepValues;
@@ -32,9 +33,14 @@ namespace OpenTap.Plugins.BasicSteps
         
         [Output]
         [Display("Iteration", "Shows the iteration of the sweep that is currently running or about to run.", "Sweep", Order: 3)]
-        public string IterationInfo => string.Format("{0} of {1}", iteration + 1, SweepValues.Count(x => x.Enabled));
+        public string IterationInfo => $"{iteration} of {SweepValues.Count(x => x.Enabled)}";
 
-        
+        public override void PrePlanRun()
+        {
+            base.PrePlanRun();
+            iteration = 0;
+        }
+
         public override void Run()
         {
             base.Run();
@@ -42,12 +48,7 @@ namespace OpenTap.Plugins.BasicSteps
             var sets = SweepProperties.ToArray();
             var originalValues = sets.Select(set => set.GetValue(this)).ToArray();
 
-            var disps = SweepProperties.Select(x => x.GetDisplayAttribute()).ToList();
-            string names = string.Join(", ", disps.Select(x => x.Name));
-            
-            if (disps.Count > 1)
-                names = string.Format("{{{0}}}", names);
-            var rowType = SweepValues.Select(x => TypeData.GetTypeData(x)).FirstOrDefault();
+            var rowType = SweepValues.Select(TypeData.GetTypeData).FirstOrDefault();
             foreach (var Value in SweepValues)
             {
                 if (Value.Enabled == false) continue;

@@ -793,7 +793,7 @@ namespace OpenTap
                     if (mem == null) continue;
                     var newa = parentAnnotation.AnnotateMember(mem, sources[0].ExtraAnnotations.Append(new MergedValueAnnotation(mergething)).ToArray());
 
-                    var manyAccess = new ManyAccessAnnotation(mergething.Select(x => x.Get<IAccessAnnotation>()).ToArray());
+                    var manyAccess = new ManyAccessAnnotation(mergething.SelectValues(x => x.Get<IAccessAnnotation>()).ToArray());
                     // Enabled if is not supported when multi-selecting.
                     newa.RemoveType<EnabledIfAnnotation>();
                     var method = newa.Get<IMethodAnnotation>();
@@ -802,8 +802,16 @@ namespace OpenTap
                         newa.Add(new ManyToOneMethodAnnotation(newa));
                         newa.Remove(method);
                     }
-
+                    
                     newa.Add(manyAccess);
+
+                    var enabledAnnotations = mergething.SelectValues(x => x.Get<IEnabledAnnotation>()).ToArray();
+                    if (enabledAnnotations.Length > 0)
+                    {
+                        var manyEnabled = new ManyEnabledAnnotation(enabledAnnotations);
+                        newa.RemoveType<IEnabledAnnotation>();
+                        newa.Add(manyEnabled);
+                    }
 
                     newa.Read(parentAnnotation.Get<IObjectValueAnnotation>().Value);
 
@@ -822,9 +830,20 @@ namespace OpenTap
 
                 next_thing:;
                 }
-                return (members = CommonAnnotations.ToArray());
-
+                return members = CommonAnnotations.ToArray();
             }
+        }
+
+        class ManyEnabledAnnotation : IEnabledAnnotation
+        {
+            readonly IEnabledAnnotation[] subAnnotations;
+
+            public ManyEnabledAnnotation(IEnabledAnnotation[] subAnnotationsAnnotations)
+            {
+                subAnnotations = subAnnotationsAnnotations;
+            }
+
+            public bool IsEnabled => subAnnotations.All(x => x.IsEnabled);
         }
 
         /// <summary>
