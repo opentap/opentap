@@ -705,8 +705,8 @@ namespace OpenTap
     }
 
     /// <summary>
-    /// Marker interface that indicates that an IAnnotation does not support multi selecting. 
-    /// When multiselecting, the UI should not show properties annotated with this. 
+    /// Marker interface that indicates that an IAnnotation does not support multi-selecting. 
+    /// When multi-selecting, the UI should not show properties annotated with this. 
     /// </summary>
     // Used by ManyToOneAnnotation
     public interface IHideOnMultiSelectAnnotation : IAnnotation { }
@@ -793,7 +793,7 @@ namespace OpenTap
                     if (mem == null) continue;
                     var newa = parentAnnotation.AnnotateMember(mem, sources[0].ExtraAnnotations.Append(new MergedValueAnnotation(mergething)).ToArray());
 
-                    var manyAccess = new ManyAccessAnnotation(mergething.Select(x => x.Get<IAccessAnnotation>()).ToArray());
+                    var manyAccess = new ManyAccessAnnotation(mergething.SelectValues(x => x.Get<IAccessAnnotation>()).ToArray());
                     // Enabled if is not supported when multi-selecting.
                     newa.RemoveType<EnabledIfAnnotation>();
                     var method = newa.Get<IMethodAnnotation>();
@@ -802,8 +802,16 @@ namespace OpenTap
                         newa.Add(new ManyToOneMethodAnnotation(newa));
                         newa.Remove(method);
                     }
-
+                    
                     newa.Add(manyAccess);
+
+                    var enabledAnnotations = mergething.SelectValues(x => x.Get<IEnabledAnnotation>()).ToArray();
+                    if (enabledAnnotations.Length > 0)
+                    {
+                        var manyEnabled = new ManyEnabledAnnotation(enabledAnnotations);
+                        newa.RemoveType<IEnabledAnnotation>();
+                        newa.Add(manyEnabled);
+                    }
 
                     newa.Read(parentAnnotation.Get<IObjectValueAnnotation>().Value);
 
@@ -822,9 +830,20 @@ namespace OpenTap
 
                 next_thing:;
                 }
-                return (members = CommonAnnotations.ToArray());
-
+                return members = CommonAnnotations.ToArray();
             }
+        }
+
+        class ManyEnabledAnnotation : IEnabledAnnotation
+        {
+            readonly IEnabledAnnotation[] subAnnotations;
+
+            public ManyEnabledAnnotation(IEnabledAnnotation[] subAnnotationsAnnotations)
+            {
+                subAnnotations = subAnnotationsAnnotations;
+            }
+
+            public bool IsEnabled => subAnnotations.All(x => x.IsEnabled);
         }
 
         /// <summary>
@@ -1311,25 +1330,20 @@ namespace OpenTap
                     List<Enum> items = new List<Enum>();
                     if (this.val.Value is Enum value)
                     {
-                        foreach (var enumValue in Enum.GetValues(enumType))
+                        foreach (Enum enumValue in Enum.GetValues(enumType))
                         {
-                            var ev = (Enum)enumValue;
-                            if (value.HasFlag(ev))
-                                items.Add(ev);
+                            if (value.HasFlag(enumValue))
+                                items.Add(enumValue);
                         }
                     }
                     return items;
                 }
                 set
                 {
-                    int sum = 0;
-                    var items = value.Cast<Enum>();
-
-                    foreach (var item in items)
-                    {
-                        sum += Convert.ToInt32(item);
-                    }
-                    val.Value = Enum.ToObject(enumType, sum);
+                    long bits = 0; 
+                    foreach (Enum item in value)
+                        bits |= Convert.ToInt64(item);
+                    val.Value = Enum.ToObject(enumType, bits);
                 }
             }
 

@@ -1143,6 +1143,23 @@ namespace OpenTap
                     yield return x;
         }
 
+        /// <summary> As 'Select' but skipping null values.
+        /// Short hand for/more efficient version of 'Select(f).Where(x => x != null)' </summary>
+        /// <param name="source"></param>
+        /// <param name="f"></param>
+        /// <typeparam name="T1"></typeparam>
+        /// <typeparam name="T2"></typeparam>
+        /// <returns></returns>
+        public static IEnumerable<T2> SelectValues<T1, T2>(this IEnumerable<T1> source, Func<T1, T2> f)
+        {
+            foreach (var x in source)
+            {
+                var value = f(x);
+                if (value != null)
+                    yield return value;
+            }
+        }
+
 
         //We need to remember the timers or they risk getting garbage collected before elapsing.
         readonly static HashSet<System.Threading.Timer> delayTimers = new HashSet<System.Threading.Timer>();
