@@ -15,6 +15,9 @@ namespace OpenTap.Plugins.BasicSteps
                 .GetMembers().OfType<IParameterMemberData>()
                 .Where(x => x.HasAttribute<UnsweepableAttribute>() == false && x.Writable && x.Readable);
 
+        public IEnumerable<IMemberData> SelectedMembers =>
+            SweepProperties.Where(x => Selected.ContainsKey(x.Name) && Selected[x.Name]);
+        
         public IEnumerable<string> SweepNames =>
             SweepProperties.Select(x => x.Name);
         
