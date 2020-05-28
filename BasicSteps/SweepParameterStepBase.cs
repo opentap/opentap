@@ -7,7 +7,7 @@ namespace OpenTap.Plugins.BasicSteps
 {
     interface ISelectedParameters
     {
-        IList<string> SelectedParameters { get; }
+        IList<string> SelectedParameterNames { get; }
     }
     public abstract class SweepParameterStepBase : LoopTestStep, ISelectedParameters
     {
@@ -17,8 +17,8 @@ namespace OpenTap.Plugins.BasicSteps
 
         internal IEnumerable<IMemberData> SelectedMembers =>
             SweepProperties.Where(x => Selected.ContainsKey(x.Name) && Selected[x.Name]);
-        
-        internal IEnumerable<string> SweepNames =>
+
+        public IEnumerable<string> AvailableParameterNames =>
             SweepProperties.Select(x => x.Name);
         
         readonly NotifyChangedList<string> selectedProperties = new NotifyChangedList<string>();
@@ -56,13 +56,13 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
         
-        [AvailableValues(nameof(SweepNames))]
+        [AvailableValues(nameof(AvailableParameterNames))]
         [XmlIgnore]
         [Browsable(true)]
         [HideOnMultiSelectAttribute] //TODO: Add support for multi-selecting this property.
         [Unsweepable]
         [Display("Parameters", "These are the parameters that should be swept", "Sweep")]
-        public IList<string> SelectedParameters {
+        public IList<string> SelectedParameterNames {
             get
             {
                 updateSelected();
@@ -78,7 +78,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         public SweepParameterStepBase()
         {
-            Rules.Add(() => SelectedParameters.Count > 0, "No parameters selected to sweep", nameof(SelectedParameters));
+            Rules.Add(() => SelectedParameterNames.Count > 0, "No parameters selected to sweep", nameof(SelectedParameterNames));
         }
     }
 }
