@@ -25,12 +25,24 @@ namespace OpenTap.UnitTests
         }
     }
 
-    [Display("testaction", Groups: new[] { "test", "action" })]
+    [Display("testaction", Groups: new[] { "test", "action" }, Description:"Runs TestAction")]
     public class TestAction : ICliAction
     {
+        [UnnamedCommandLineArgument("notrequired", Required = false)]
+        public string NotRequiredArgument { get; set; }
         public int Execute(CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
+        }
+    }
+    
+    [Display("action", Groups: new[] { "test" }, Description:"Runs TestAction2")]
+    public class TestAction2 : ICliAction
+    {
+        public int Execute(CancellationToken cancellationToken)
+        {
+            Console.WriteLine("Executed action 2");
+            return 0;
         }
     }
 }

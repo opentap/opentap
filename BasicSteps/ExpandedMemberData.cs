@@ -303,7 +303,7 @@ namespace OpenTap.Plugins.BasicSteps
         IEnumerable<IMemberData> GetSweepMembers()
         {
             var loopmembers = TypeData.GetTypeData(SweepParameterLoop).GetMembers()
-                .Where(x => SweepParameterLoop.SelectedParameters.Contains(x.Name))
+                .Where(x => SweepParameterLoop.SelectedParameterNames.Contains(x.Name))
                 .OfType<IParameterMemberData>();
             return loopmembers.Select(x => new SweepRowMemberData(this, x));
         } 

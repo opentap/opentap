@@ -45,7 +45,7 @@ namespace OpenTap.Plugins.BasicSteps
         {
             base.Run();
             iteration = 0;
-            var sets = SweepProperties.ToArray();
+            var sets = SelectedMembers.ToArray();
             var originalValues = sets.Select(set => set.GetValue(this)).ToArray();
 
             var rowType = SweepValues.Select(TypeData.GetTypeData).FirstOrDefault();

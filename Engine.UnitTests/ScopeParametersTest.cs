@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using NUnit.Framework;
+using OpenTap.Engine.UnitTests.TestTestSteps;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
@@ -143,11 +145,11 @@ namespace OpenTap.UnitTests
             var member = TypeData.GetTypeData(numberstep).GetMember("A");
             member.Parameterize(sweep, numberstep, "A");
             member.Parameterize(sweep2, numberstep2, "A");
-            sweep.SelectedParameters = Enumerable.Empty<string>().ToList();
-            Assert.AreEqual(0, sweep.SelectedParameters.Count());
+            sweep.SelectedParameterNames = Enumerable.Empty<string>().ToList();
+            Assert.AreEqual(0, sweep.SelectedParameterNames.Count());
             {
                 var a = AnnotationCollection.Annotate(sweep);
-                var m = a.GetMember(nameof(SweepParameterRangeStep.SelectedParameters));
+                var m = a.GetMember(nameof(SweepParameterRangeStep.SelectedParameterNames));
                 var sweptMember = a.GetMember("A");
                 Assert.IsTrue(sweptMember.Get<IEnabledAnnotation>().IsEnabled);
                 var ms = m.Get<IMultiSelectAnnotationProxy>();
@@ -175,11 +177,11 @@ namespace OpenTap.UnitTests
             sweep.ChildTestSteps.Add(numberstep);
             var member = TypeData.GetTypeData(numberstep).GetMember("A");
             member.Parameterize(sweep, numberstep, "A");
-            sweep.SelectedParameters = Enumerable.Empty<string>().ToList();
-            Assert.AreEqual(0, sweep.SelectedParameters.Count());
+            sweep.SelectedParameterNames = Enumerable.Empty<string>().ToList();
+            Assert.AreEqual(0, sweep.SelectedParameterNames.Count());
             {
                 var a = AnnotationCollection.Annotate(sweep);
-                var m = a.GetMember(nameof(SweepParameterRangeStep.SelectedParameters));
+                var m = a.GetMember(nameof(SweepParameterRangeStep.SelectedParameterNames));
                 var sweptMember = a.GetMember("A");
                 Assert.IsTrue(sweptMember.Get<IEnabledAnnotation>().IsEnabled);
                 var ms = m.Get<IMultiSelectAnnotationProxy>();
@@ -190,7 +192,7 @@ namespace OpenTap.UnitTests
                 Assert.IsFalse(sweptMember.Get<IEnabledAnnotation>().IsEnabled);
             }
             
-            Assert.AreEqual(1, sweep.SelectedParameters.Count());
+            Assert.AreEqual(1, sweep.SelectedParameterNames.Count());
             
             
             sweep.SweepStart = 1;
@@ -274,5 +276,62 @@ namespace OpenTap.UnitTests
 
             Assert.IsTrue(((ScopeTestStep)sweep2.ChildTestSteps[0]).Collection.SequenceEqual(new[] {10, 20}));
         }
+
+        [Test]
+        public void ScopedInputAnnotationTest()
+        {
+            var seqStep = new SequenceStep();
+            var verdictStep = new VerdictStep();
+            seqStep.ChildTestSteps.Add(verdictStep);
+            var ifStep = new IfStep();
+            
+            seqStep.ChildTestSteps.Add(ifStep);
+            var member = TypeData.GetTypeData(ifStep).GetMember(nameof(IfStep.InputVerdict));
+            var parameterizedMember = member.Parameterize(seqStep, ifStep, member.Name);
+
+            var annotation = AnnotationCollection.Annotate(seqStep);
+            var memberAnnotation = annotation.GetMember(parameterizedMember.Name);
+            var avail = memberAnnotation.Get<IAvailableValuesAnnotation>();
+            Assert.IsNotNull(avail);
+            
+            // available values: None, verdict from itself, verdict from SetVerdict. 
+            
+            Assert.AreEqual(3, avail.AvailableValues.Cast<object>().Count());
+            var strings = avail.AvailableValues.Cast<object>().Select(x => x.ToString()).ToArray();
+            Assert.IsTrue(strings.Contains($"Verdict from {ifStep.GetFormattedName()}"));
+            Assert.IsTrue(strings.Contains("None"));
+            Assert.IsTrue(strings.Contains($"Verdict from {verdictStep.GetFormattedName()}"));
+        }
+        [Test]
+        public void ScopedInputAnnotationWithSweepTest()
+        {
+            var sweepStep = new SweepParameterStep();
+            var verdictStep = new VerdictStep();
+            sweepStep.ChildTestSteps.Add(verdictStep);
+            var ifStep = new IfStep();
+            
+            sweepStep.ChildTestSteps.Add(ifStep);
+            var member = TypeData.GetTypeData(ifStep).GetMember(nameof(IfStep.InputVerdict));
+            var parameterizedMember = member.Parameterize(sweepStep, ifStep, member.Name);
+
+            var annotation = AnnotationCollection.Annotate(sweepStep);
+            var memberAnnotation = annotation.GetMember(nameof(sweepStep.SweepValues));
+            var col = memberAnnotation.Get<ICollectionAnnotation>();
+            col.AnnotatedElements = new[] {col.NewElement()};
+            annotation.Write();
+            annotation.Read();
+            var member2Annotation = col.AnnotatedElements.FirstOrDefault().GetMember(parameterizedMember.Name);
+            var avail = member2Annotation.Get<IAvailableValuesAnnotation>();
+            Assert.IsNotNull(avail);
+            
+            // available values: None, verdict from itself, verdict from SetVerdict. 
+            
+            Assert.AreEqual(3, avail.AvailableValues.Cast<object>().Count());
+            var strings = avail.AvailableValues.Cast<object>().Select(x => x.ToString()).ToArray();
+            Assert.IsTrue(strings.Contains($"Verdict from {ifStep.GetFormattedName()}"));
+            Assert.IsTrue(strings.Contains("None"));
+            Assert.IsTrue(strings.Contains($"Verdict from {verdictStep.GetFormattedName()}"));
+        }
+
     }
 }

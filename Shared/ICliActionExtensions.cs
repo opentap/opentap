@@ -166,10 +166,11 @@ namespace OpenTap.Cli
                 })),
                 string.Join(" ", unnamed.Select(x =>
                 {
-                    var str = x.GetAttribute<UnnamedCommandLineArgument>().Name;
+                    var attr = x.GetAttribute<UnnamedCommandLineArgument>();
+                    var str = attr.Name;
 
-                    if (x.TypeDescriptor.IsA(typeof(string[])))
-                        str = "[" + str + "]";
+                    if (x.TypeDescriptor.IsA(typeof(string[])) || attr.Required == false)
+                        str = "[<" + str + ">]";
                     else
                         str = "<" + str + ">";
 

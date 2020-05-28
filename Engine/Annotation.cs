@@ -1129,6 +1129,36 @@ namespace OpenTap
                 }
 
             }
+
+            ITestStepParent getContextStep()
+            {
+                ITestStepParent step;
+                if (parameterized)
+                {
+                    step = (annotation.Get<IMemberAnnotation>()?.Member as IParameterMemberData)
+                        ?.ParameterizedMembers.Select(x => x.Source).OfType<ITestStep>()
+                        .FirstOrDefault();
+                }
+                else
+                {
+                    AnnotationCollection parent = annotation;
+                    while (parent.ParentAnnotation != null)
+                        parent = parent.ParentAnnotation;
+
+                    object context = parent.Get<IObjectValueAnnotation>().Value;
+                    step = context as ITestStep;
+                
+                    if (context is IEnumerable enumerable_context)
+                    {
+                        step = enumerable_context.OfType<ITestStep>().FirstOrDefault();
+                    }
+                }
+
+                while (step.Parent != null)
+                    step = step.Parent;
+                return step;
+            }
+            
             public IEnumerable AvailableValues
             {
                 get
@@ -1140,20 +1170,12 @@ namespace OpenTap
                     while (parent.ParentAnnotation != null)
                         parent = parent.ParentAnnotation;
 
-                    object context = parent.Get<IObjectValueAnnotation>().Value;
-                    ITestStepParent step = context as ITestStep;
-                    if (context is IEnumerable enumerable_context)
-                    {
-                        step = enumerable_context.OfType<ITestStep>().FirstOrDefault();
-                    }
-                    if (step == null) return Enumerable.Empty<object>();
-                    while (step.Parent != null)
-                        step = step.Parent;
+                    ITestStepParent step = getContextStep();
 
                     var steps = Utils.FlattenHeirarchy(step.ChildTestSteps, x => x.ChildTestSteps);
 
                     List<InputThing> accepted = new List<InputThing>();
-                    accepted.Add(new InputThing() { });
+                    accepted.Add(new InputThing() );
                     if (inp is IInputTypeRestriction res)
                     {
                         foreach (var s in steps)
@@ -1176,7 +1198,8 @@ namespace OpenTap
                 }
             }
 
-            IInput getInput() => annotation.GetAll<IObjectValueAnnotation>().FirstOrDefault(x => x != this && x.Value is IInput)?.Value as IInput;
+            IInput getInput() => annotation.GetAll<IObjectValueAnnotation>()
+                .FirstOrDefault(x => x != this && x.Value is IInput)?.Value as IInput;
 
             public void Read(object source)
             {
@@ -1216,10 +1239,12 @@ namespace OpenTap
             }
 
             AnnotationCollection annotation;
-            public InputStepAnnotation(AnnotationCollection annotation)
-            {
-                this.annotation = annotation;
-            }
+            readonly bool parameterized;
+
+            public InputStepAnnotation(AnnotationCollection annotation) => this.annotation = annotation;
+
+            public InputStepAnnotation(AnnotationCollection annotation, bool parameterized) : this(annotation) =>
+                this.parameterized = parameterized;
         }
 
         class EnumValuesAnnotation : IAvailableValuesAnnotation
@@ -2395,11 +2420,11 @@ namespace OpenTap
                 }
             }
 
-            if (mem != null)
+            if (mem?.Member is IMemberData mem2)
             {
-                if (mem.Member.GetAttribute<AvailableValuesAttribute>() is AvailableValuesAttribute avail)
+                if (mem2.GetAttribute<AvailableValuesAttribute>() is AvailableValuesAttribute avail)
                 {
-                    if (mem.Member.TypeDescriptor.DescendsTo(typeof(IEnumerable<>)) && mem.Member.TypeDescriptor.IsA(typeof(string)) == false)
+                    if (mem2.TypeDescriptor.DescendsTo(typeof(IEnumerable<>)) && mem2.TypeDescriptor.IsA(typeof(string)) == false)
                     {
                         annotation.Add(new MultipleAvailableValuesAnnotation(annotation, avail.PropertyName));
                     }
@@ -2409,14 +2434,19 @@ namespace OpenTap
                     }
                 }
                 
-                if (mem?.Member is MemberData mem2 && mem2.DeclaringType.DescendsTo(typeof(ITestStep)))
+                if (mem2.DeclaringType.DescendsTo(typeof(ITestStep)))
                 {
 
                     if (mem2.Name == nameof(ITestStep.Name))
                         annotation.Add(new StepNameStringValue(annotation, member: true));
                     
-                    if (mem.Member.TypeDescriptor.DescendsTo(typeof(IInput)))
+                    if (mem2.TypeDescriptor.DescendsTo(typeof(IInput)))
                         annotation.Add(new InputStepAnnotation(annotation));
+                }else if (mem2 is IParameterMemberData param)
+                {
+                    if (mem2.TypeDescriptor.DescendsTo(typeof(IInput)) 
+                        && param.ParameterizedMembers.All(x => x.Member.DeclaringType.DescendsTo(typeof(ITestStep))))
+                        annotation.Add(new InputStepAnnotation(annotation, true));
                 }
                 
             }

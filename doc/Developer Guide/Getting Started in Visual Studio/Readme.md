@@ -62,7 +62,9 @@ You can also specify a package that you just want installed (in e.g. bin/Debug/)
 
 The Software Development Kit (SDK) package demonstrates the core capabilities of OpenTAP and makes it faster and simpler to develop your solutions. It contains code example files and an MSBuild task to ease the creation of `.TapPackage` files. It also contains the Developer Guide which contains documentation relevant for developers.
 
-The package can be downloaded from [packages.opentap.io](http://http://packages.opentap.io/index.html#/?name=SDK). Once you downloaded the package you can use the CLI to run the following command and install the package:
+The package can be downloaded from
+[packages.opentap.io](http://packages.opentap.io/index.html#/?name=SDK). 
+Once you downloaded the package you can use the CLI to run the following command and install the package:
 ```
 tap package install sdk.version.TapPackage
 ```
