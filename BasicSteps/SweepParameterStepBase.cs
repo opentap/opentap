@@ -25,9 +25,9 @@ namespace OpenTap.Plugins.BasicSteps
         
         [Browsable(false)]
         public Dictionary<string, bool> Selected { get; set; } = new Dictionary<string, bool>();
-        void updateSelected()
+        void updateSelected(bool destructive = false)
         {
-            var sweepProperties = SweepProperties.Select(x=>x.Name).ToArray();
+            var sweepProperties = SweepProperties.Select(x=>x.Name).ToHashSet();
             foreach (var prop in sweepProperties)
             {
                 if (Selected.ContainsKey(prop) == false)
@@ -43,7 +43,15 @@ namespace OpenTap.Plugins.BasicSteps
                 else
                 {
                     if (selectedProperties.Contains(item.Key))
+                    {
                         selectedProperties.Remove(item.Key);
+                        
+                    }
+                }
+
+                if (destructive && sweepProperties.Contains(item.Key) == false)
+                {
+                    Selected.Remove(item.Key);
                 }
             }
         }
@@ -65,7 +73,7 @@ namespace OpenTap.Plugins.BasicSteps
         public IList<string> SelectedParameterNames {
             get
             {
-                updateSelected();
+                updateSelected(true);
                 selectedProperties.ChangedCallback = onListChanged;
                 return selectedProperties;
             }
