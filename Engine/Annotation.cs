@@ -2409,7 +2409,7 @@ namespace OpenTap
                     }
                 }
                 
-                if (mem?.Member is MemberData mem2 && mem2.DeclaringType.DescendsTo(typeof(ITestStep)))
+                if (mem?.Member is IMemberData mem2 && mem2.DeclaringType.DescendsTo(typeof(ITestStep)))
                 {
 
                     if (mem2.Name == nameof(ITestStep.Name))
