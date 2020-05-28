@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests.TestTestSteps;
@@ -301,6 +302,36 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(strings.Contains("None"));
             Assert.IsTrue(strings.Contains($"Verdict from {verdictStep.GetFormattedName()}"));
         }
-        
+        [Test]
+        public void ScopedInputAnnotationWithSweepTest()
+        {
+            var sweepStep = new SweepParameterStep();
+            var verdictStep = new VerdictStep();
+            sweepStep.ChildTestSteps.Add(verdictStep);
+            var ifStep = new IfStep();
+            
+            sweepStep.ChildTestSteps.Add(ifStep);
+            var member = TypeData.GetTypeData(ifStep).GetMember(nameof(IfStep.InputVerdict));
+            var parameterizedMember = member.Parameterize(sweepStep, ifStep, member.Name);
+
+            var annotation = AnnotationCollection.Annotate(sweepStep);
+            var memberAnnotation = annotation.GetMember(nameof(sweepStep.SweepValues));
+            var col = memberAnnotation.Get<ICollectionAnnotation>();
+            col.AnnotatedElements = new[] {col.NewElement()};
+            annotation.Write();
+            annotation.Read();
+            var member2Annotation = col.AnnotatedElements.FirstOrDefault().GetMember(parameterizedMember.Name);
+            var avail = member2Annotation.Get<IAvailableValuesAnnotation>();
+            Assert.IsNotNull(avail);
+            
+            // available values: None, verdict from itself, verdict from SetVerdict. 
+            
+            Assert.AreEqual(3, avail.AvailableValues.Cast<object>().Count());
+            var strings = avail.AvailableValues.Cast<object>().Select(x => x.ToString()).ToArray();
+            Assert.IsTrue(strings.Contains($"Verdict from {ifStep.GetFormattedName()}"));
+            Assert.IsTrue(strings.Contains("None"));
+            Assert.IsTrue(strings.Contains($"Verdict from {verdictStep.GetFormattedName()}"));
+        }
+
     }
 }
