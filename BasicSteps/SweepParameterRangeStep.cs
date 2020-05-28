@@ -138,9 +138,8 @@ namespace OpenTap.Plugins.BasicSteps
         {
             base.Run();
 
-            var selected = SelectedParameters.ToHashSet();
-            var sets = SweepProperties.Where(x => selected.Contains(x.Name)).ToArray();
-            var originalValues = sets.Select(set => set.GetValue(this)).ToArray();
+            var selected = SelectedMembers.ToArray();
+            var originalValues = selected.Select(set => set.GetValue(this)).ToArray();
 
 
             IEnumerable<decimal> range = LinearRange(SweepStart, SweepStop, (int)SweepPoints);
@@ -148,7 +147,7 @@ namespace OpenTap.Plugins.BasicSteps
             if (SweepBehavior == SweepBehavior.Exponential)
                 range = ExponentialRange(SweepStart, SweepStop, (int)SweepPoints);
 
-            var disps = sets.Select(x => x.GetDisplayAttribute()).ToList();
+            var disps = selected.Select(x => x.GetDisplayAttribute()).ToList();
             string names = string.Join(", ", disps.Select(x => x.Name));
             
             if (disps.Count > 1)
@@ -157,7 +156,7 @@ namespace OpenTap.Plugins.BasicSteps
             foreach (var Value in range)
             {
                 var val = StringConvertProvider.GetString(Value, CultureInfo.InvariantCulture);
-                foreach (var set in sets)
+                foreach (var set in selected)
                 {
                     try
                     {
@@ -185,9 +184,8 @@ namespace OpenTap.Plugins.BasicSteps
                 runs.ForEach(r => r.WaitForCompletion());
                 
             }
-            for (int i = 0; i < sets.Length; i++)
-                sets[i].SetValue(this, originalValues[i]);
+            for (int i = 0; i < selected.Length; i++)
+                selected[i].SetValue(this, originalValues[i]);
         }
-
     }
 }

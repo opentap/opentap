@@ -144,11 +144,11 @@ namespace OpenTap.UnitTests
             var member = TypeData.GetTypeData(numberstep).GetMember("A");
             member.Parameterize(sweep, numberstep, "A");
             member.Parameterize(sweep2, numberstep2, "A");
-            sweep.SelectedParameters = Enumerable.Empty<string>().ToList();
-            Assert.AreEqual(0, sweep.SelectedParameters.Count());
+            sweep.SelectedParameterNames = Enumerable.Empty<string>().ToList();
+            Assert.AreEqual(0, sweep.SelectedParameterNames.Count());
             {
                 var a = AnnotationCollection.Annotate(sweep);
-                var m = a.GetMember(nameof(SweepParameterRangeStep.SelectedParameters));
+                var m = a.GetMember(nameof(SweepParameterRangeStep.SelectedParameterNames));
                 var sweptMember = a.GetMember("A");
                 Assert.IsTrue(sweptMember.Get<IEnabledAnnotation>().IsEnabled);
                 var ms = m.Get<IMultiSelectAnnotationProxy>();
@@ -176,11 +176,11 @@ namespace OpenTap.UnitTests
             sweep.ChildTestSteps.Add(numberstep);
             var member = TypeData.GetTypeData(numberstep).GetMember("A");
             member.Parameterize(sweep, numberstep, "A");
-            sweep.SelectedParameters = Enumerable.Empty<string>().ToList();
-            Assert.AreEqual(0, sweep.SelectedParameters.Count());
+            sweep.SelectedParameterNames = Enumerable.Empty<string>().ToList();
+            Assert.AreEqual(0, sweep.SelectedParameterNames.Count());
             {
                 var a = AnnotationCollection.Annotate(sweep);
-                var m = a.GetMember(nameof(SweepParameterRangeStep.SelectedParameters));
+                var m = a.GetMember(nameof(SweepParameterRangeStep.SelectedParameterNames));
                 var sweptMember = a.GetMember("A");
                 Assert.IsTrue(sweptMember.Get<IEnabledAnnotation>().IsEnabled);
                 var ms = m.Get<IMultiSelectAnnotationProxy>();
@@ -191,7 +191,7 @@ namespace OpenTap.UnitTests
                 Assert.IsFalse(sweptMember.Get<IEnabledAnnotation>().IsEnabled);
             }
             
-            Assert.AreEqual(1, sweep.SelectedParameters.Count());
+            Assert.AreEqual(1, sweep.SelectedParameterNames.Count());
             
             
             sweep.SweepStart = 1;
