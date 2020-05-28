@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using OpenTap.Engine.UnitTests.TestTestSteps;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
@@ -274,5 +275,32 @@ namespace OpenTap.UnitTests
 
             Assert.IsTrue(((ScopeTestStep)sweep2.ChildTestSteps[0]).Collection.SequenceEqual(new[] {10, 20}));
         }
+
+        [Test]
+        public void ScopedInputAnnotationTest()
+        {
+            var seqStep = new SequenceStep();
+            var verdictStep = new VerdictStep();
+            seqStep.ChildTestSteps.Add(verdictStep);
+            var ifStep = new IfStep();
+            
+            seqStep.ChildTestSteps.Add(ifStep);
+            var member = TypeData.GetTypeData(ifStep).GetMember(nameof(IfStep.InputVerdict));
+            var parameterizedMember = member.Parameterize(seqStep, ifStep, member.Name);
+
+            var annotation = AnnotationCollection.Annotate(seqStep);
+            var memberAnnotation = annotation.GetMember(parameterizedMember.Name);
+            var avail = memberAnnotation.Get<IAvailableValuesAnnotation>();
+            Assert.IsNotNull(avail);
+            
+            // available values: None, verdict from itself, verdict from SetVerdict. 
+            
+            Assert.AreEqual(3, avail.AvailableValues.Cast<object>().Count());
+            var strings = avail.AvailableValues.Cast<object>().Select(x => x.ToString()).ToArray();
+            Assert.IsTrue(strings.Contains($"Verdict from {ifStep.GetFormattedName()}"));
+            Assert.IsTrue(strings.Contains("None"));
+            Assert.IsTrue(strings.Contains($"Verdict from {verdictStep.GetFormattedName()}"));
+        }
+        
     }
 }
