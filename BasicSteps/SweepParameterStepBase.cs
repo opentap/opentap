@@ -11,14 +11,14 @@ namespace OpenTap.Plugins.BasicSteps
     }
     public abstract class SweepParameterStepBase : LoopTestStep, ISelectedParameters
     {
-        public IEnumerable<IMemberData> SweepProperties => TypeData.GetTypeData(this)
+        internal IEnumerable<IMemberData> SweepProperties => TypeData.GetTypeData(this)
                 .GetMembers().OfType<IParameterMemberData>()
                 .Where(x => x.HasAttribute<UnsweepableAttribute>() == false && x.Writable && x.Readable);
 
-        public IEnumerable<IMemberData> SelectedMembers =>
+        internal IEnumerable<IMemberData> SelectedMembers =>
             SweepProperties.Where(x => Selected.ContainsKey(x.Name) && Selected[x.Name]);
         
-        public IEnumerable<string> SweepNames =>
+        internal IEnumerable<string> SweepNames =>
             SweepProperties.Select(x => x.Name);
         
         readonly NotifyChangedList<string> selectedProperties = new NotifyChangedList<string>();
