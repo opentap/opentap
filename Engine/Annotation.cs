@@ -1097,7 +1097,7 @@ namespace OpenTap
         }
 
 
-        class InputStepAnnotation : IAvailableValuesSelectedAnnotation, IOwnedAnnotation
+        class InputStepAnnotation : IAvailableValuesSelectedAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation
         {
             struct InputThing
             {
@@ -1199,7 +1199,7 @@ namespace OpenTap
             }
 
             IInput getInput() => annotation.GetAll<IObjectValueAnnotation>()
-                .FirstOrDefault(x => x != this && x.Value is IInput)?.Value as IInput;
+                .FirstNonDefault(x => x.Value as IInput);
 
             public void Read(object source)
             {
@@ -1245,6 +1245,18 @@ namespace OpenTap
 
             public InputStepAnnotation(AnnotationCollection annotation, bool parameterized) : this(annotation) =>
                 this.parameterized = parameterized;
+            
+            public string Value
+            {
+                get 
+                { 
+                    var currentValue = annotation.GetAll<IObjectValueAnnotation>()
+                        .FirstNonDefault(x => x.Value as IInput);
+                    if(currentValue != null && currentValue.Property != null && currentValue.Step != null)
+                        return $"{currentValue.Property?.GetDisplayAttribute().Name} from {currentValue.Step?.GetFormattedName()}";
+                    return "None";
+                }
+            }
         }
 
         class EnumValuesAnnotation : IAvailableValuesAnnotation
@@ -1735,6 +1747,10 @@ namespace OpenTap
                     var elem2 = TypeData.FromType(elemType);
                     if (elem2.CanCreateInstance == false)
                     {
+                        if (elem2.Type == typeof(string))
+                            return fac.AnnotateSub(elem2, "");
+                        if (elem2.IsNumeric)
+                            return fac.AnnotateSub(elem2, Convert.ChangeType(0, elem2.Type));
                         return fac.AnnotateSub(elem2, null);
                     }
                     else

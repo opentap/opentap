@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -176,7 +177,7 @@ namespace OpenTap.UnitTests
             public void CallableMethod() => TimesCalled += 1;
         }
 
-        [Test]
+        [Test]    
         public void TestMultiSelectCallMethodAnnotation()
         {
             var elements = new[] {new ClassWithMethodAnnotation(), new ClassWithMethodAnnotation()};
@@ -185,6 +186,24 @@ namespace OpenTap.UnitTests
             method.Invoke();
             foreach(var elem in elements)
                 Assert.AreEqual(1, elem.TimesCalled);
+        }
+
+
+        class ClassWithListOfString
+        {
+            public List<string> List { get; set; } = new List<string>{"A", "B"};
+        }
+        
+        [Test]
+        public void ListOfStringAnnotation()
+        {
+            var obj = new ClassWithListOfString();
+            var a = AnnotationCollection.Annotate(obj);
+            var member = a.GetMember(nameof(ClassWithListOfString.List));
+            var col = member.Get<ICollectionAnnotation>();
+            var newelem = col.NewElement();
+            Assert.IsTrue(newelem.Get<IReflectionAnnotation>().ReflectionInfo.DescendsTo(typeof(string)));
+            Assert.IsNotNull(newelem.Get<IObjectValueAnnotation>().Value);
         }
         
     }
