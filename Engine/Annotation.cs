@@ -1747,6 +1747,10 @@ namespace OpenTap
                     var elem2 = TypeData.FromType(elemType);
                     if (elem2.CanCreateInstance == false)
                     {
+                        if (elem2.Type == typeof(string))
+                            return fac.AnnotateSub(elem2, "");
+                        if (elem2.IsNumeric)
+                            return fac.AnnotateSub(elem2, Convert.ChangeType(0, elem2.Type));
                         return fac.AnnotateSub(elem2, null);
                     }
                     else
