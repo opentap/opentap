@@ -1160,6 +1160,21 @@ namespace OpenTap
             }
         }
 
+        /// <summary> As 'Select and FirstOrDefault' but skipping null values.
+        /// Short hand for/more efficient version of 'Select(f).Where(x => x != null).FirstOrDefault()'
+        /// </summary>
+        public static T2 FirstNonDefault<T1, T2>(this IEnumerable<T1> source, Func<T1, T2> f) 
+        {
+            foreach (var x in source)
+            {
+                var value = f(x);
+                if (Equals(value, default(T2)) == false)
+                    return value;
+            }
+
+            return default(T2);
+        } 
+
 
         //We need to remember the timers or they risk getting garbage collected before elapsing.
         readonly static HashSet<System.Threading.Timer> delayTimers = new HashSet<System.Threading.Timer>();

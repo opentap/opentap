@@ -1097,7 +1097,7 @@ namespace OpenTap
         }
 
 
-        class InputStepAnnotation : IAvailableValuesSelectedAnnotation, IOwnedAnnotation
+        class InputStepAnnotation : IAvailableValuesSelectedAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation
         {
             struct InputThing
             {
@@ -1176,7 +1176,7 @@ namespace OpenTap
                 }
             }
 
-            IInput getInput() => annotation.GetAll<IObjectValueAnnotation>().FirstOrDefault(x => x != this && x.Value is IInput)?.Value as IInput;
+            IInput getInput() => annotation.GetAll<IObjectValueAnnotation>().FirstNonDefault(x => x.Value as IInput);
 
             public void Read(object source)
             {
@@ -1219,6 +1219,18 @@ namespace OpenTap
             public InputStepAnnotation(AnnotationCollection annotation)
             {
                 this.annotation = annotation;
+            }
+
+            public string Value
+            {
+                get 
+                { 
+                    var currentValue = annotation.GetAll<IObjectValueAnnotation>()
+                        .FirstNonDefault(x => x.Value as IInput);
+                    if(currentValue != null && currentValue.Property != null && currentValue.Step != null)
+                        return $"{currentValue.Property?.GetDisplayAttribute().Name} from {currentValue.Step?.GetFormattedName()}";
+                    return "None";
+                }
             }
         }
 
