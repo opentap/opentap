@@ -12,6 +12,7 @@ namespace OpenTap.Plugins.BasicSteps
         [DeserializeOrder(1)] // this should be deserialized as the last thing.
         [Display("Sweep Values", "A table of values to be swept for the selected parameters.", "Sweep")]
         [HideOnMultiSelect] // todo: In the future support multi-selecting this.
+        [Unsweepable]
         public SweepRowCollection SweepValues 
         { 
             get => sweepValues;
