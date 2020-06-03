@@ -1057,6 +1057,26 @@ namespace OpenTap
                 {
                     var mem = annotation.ParentAnnotation.Get<IMembersAnnotation>()?.Members;
                     var mem2 = mem.FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name == availableValuesMember);
+                    if (mem2?.Get<IObjectValueAnnotation>() is MergedValueAnnotation merged)
+                    {
+                        // special handling for 'MergedValueAnnotation'
+                        // let's try to intersect the lists.
+                        
+                        var lists = merged.Merged.Select(x => x.Get<IObjectValueAnnotation>().Value).OfType<IEnumerable>()
+                            .ToArray();
+                        
+                        if (lists.FirstOrDefault() is IEnumerable lst)
+                        {
+                            var set = lst.Cast<object>().ToHashSet();
+                            foreach (var subset in lists.Skip(1))
+                            {
+                                set.IntersectWith(subset.Cast<object>());
+                            }
+
+                            return set;
+                        }
+                    }
+                        
 
                     return mem2?.Get<IObjectValueAnnotation>().Value as IEnumerable ?? Enumerable.Empty<object>();
                 }
