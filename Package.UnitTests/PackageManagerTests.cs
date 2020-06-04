@@ -117,15 +117,17 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public static void TestHttpRepositoryManagerRedirect()
         {
-            var urls = new[] {
-                ($"opentap.io", "https://www.opentap.io/"), // Redirect to www and https
-                ($"packages.opentap.io", "http://packages.opentap.io/"), // No redirect
-                ($"http://opentap.io", "https://www.opentap.io/")}; // Redirect to https
+            (string initial, string redirected, string redirected_alt)[] urls = new[] {
+                ($"opentap.io", "https://www.opentap.io/", "https://opentap.io/"), // Redirect to www and https
+                ($"https://www.opentap.io", "https://www.opentap.io/", null), // no redirect
+                ($"packages.opentap.io", "http://packages.opentap.io/", null), // No redirect
+                ($"http://opentap.io", "https://www.opentap.io/", "https://opentap.io/")}; // Redirect to https
 
             foreach (var url in urls)
             {
-                var manager = new HttpPackageRepository(url.Item1);
-                Assert.AreEqual(new Uri(manager.Url).AbsoluteUri, url.Item2);
+                var manager = new HttpPackageRepository(url.initial);
+                var redir = new Uri(manager.Url).AbsoluteUri;
+                Assert.IsTrue(Equals(redir, url.redirected) || (Equals(redir, url.redirected_alt) && url.redirected_alt != null));
             }
         }
     }
