@@ -22,6 +22,7 @@ Bug Fixes:
 - Connections view does not use DisplayAttribute [#227](https://gitlab.com/OpenTAP/opentap/issues/227)
 - Resources that uses EmbedPropertiesAttribute do not deserialize correctly [#228](https://gitlab.com/OpenTAP/opentap/issues/228)
 - Incorrect prerelease versions if `.gitversion` file contains default version number (0.1.0) does not exist [#229](https://gitlab.com/OpenTAP/opentap/-/issues/229)
+- AvailableValues do not show when used as merged external parameter with Test Plan Reference Step [#251](https://gitlab.com/OpenTAP/opentap/-/issues/251)
 
 Documentation:
 ----
