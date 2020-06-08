@@ -18,9 +18,19 @@ namespace OpenTap.Plugins
 {
 
     /// <summary>
+    /// Implemented by serializer plugins that creates and populates members of an object.
+    /// </summary>
+    public interface IConstructingSerializer
+    {
+        /// <summary> The object currently being serialized/deserialized. </summary>
+        object Object { get; }
+        /// <summary> Optionally set to indicate which member of Object is being serialized/deserialized. </summary>
+        IMemberData CurrentMember { get; }
+    }
+    /// <summary>
     /// Default object serializer.
     /// </summary>
-    internal class ObjectSerializer : TapSerializerPlugin, ITapSerializerPlugin
+    internal class ObjectSerializer : TapSerializerPlugin, ITapSerializerPlugin, IConstructingSerializer
     {
         /// <summary>
         /// Gets the member currently being serialized.

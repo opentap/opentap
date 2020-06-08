@@ -183,8 +183,8 @@ namespace OpenTap.Plugins
             if (currentNode.Contains(elem)) return false;
             
 
-            ObjectSerializer objSerializer = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
-            if (objSerializer == null || objSerializer.CurrentMember == null || false == objSerializer.Object is ITestStep)
+            var objSerializer = Serializer.SerializerStack.OfType<IConstructingSerializer>().FirstOrDefault();
+            if (objSerializer?.CurrentMember == null || false == objSerializer.Object is ITestStep)
                 return false;
 
             
