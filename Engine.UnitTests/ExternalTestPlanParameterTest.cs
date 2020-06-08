@@ -42,6 +42,8 @@ namespace OpenTap.Engine.UnitTests
             var logStep2 = new LogStep();
             var fileStep = new MacroFilePathTestStep();
             var fileStep2 = new MacroFilePathTestStep();
+            var ifstep = new IfStep();
+            
             fileStep.PathToThing.Text = "<TESTPLANDIR>\\asdasd";
             TestPlan plan = new TestPlan();
             plan.ChildTestSteps.Add(delayStep1);
@@ -50,6 +52,9 @@ namespace OpenTap.Engine.UnitTests
             plan.ChildTestSteps.Add(logStep2);
             plan.ChildTestSteps.Add(fileStep);
             plan.ChildTestSteps.Add(fileStep2);
+            plan.ChildTestSteps.Add(ifstep);
+            ifstep.InputVerdict.Step = delayStep2;
+            ifstep.InputVerdict.Property = TypeData.GetTypeData(delayStep1).GetMember("Verdict");
             var delayInfo = TypeData.GetTypeData(delayStep1);
             var logInfo = TypeData.GetTypeData(logStep);
             var fileStepInfo = TypeData.GetTypeData(fileStep);
@@ -59,6 +64,7 @@ namespace OpenTap.Engine.UnitTests
             plan.ExternalParameters.Add(logStep2, logInfo.GetMember("Severity"), Name: "Severity");
             plan.ExternalParameters.Add(fileStep, fileStepInfo.GetMember("PathToThing"), Name: "Path1");
             plan.ExternalParameters.Add(fileStep2, fileStepInfo.GetMember("PathToThing"), Name: "Path1");
+            plan.ExternalParameters.Add(ifstep, TypeData.GetTypeData(ifstep).GetMember(nameof(IfStep.InputVerdict)), Name: "InputVerdict");
             for (int j = 0; j < 5; j++)
             {
                 for (double x = 0.01; x < 10; x += 3.14)
@@ -93,8 +99,10 @@ namespace OpenTap.Engine.UnitTests
                 logStep2 = (LogStep)plan.ChildTestSteps[3];
                 fileStep = (MacroFilePathTestStep)plan.ChildTestSteps[4];
                 fileStep2 = (MacroFilePathTestStep)plan.ChildTestSteps[5];
+                ifstep = (IfStep)plan.ChildTestSteps[6];
                 Assert.IsTrue(fileStep2.PathToThing.Context == fileStep2);
                 Assert.AreEqual(fileStep2.PathToThing.Text, fileStep.PathToThing.Text);
+                Assert.AreEqual(delayStep2, ifstep.InputVerdict.Step);
             }
         }
 

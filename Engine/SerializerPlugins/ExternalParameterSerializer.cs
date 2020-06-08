@@ -153,24 +153,22 @@ namespace OpenTap.Plugins
             {
                 
                 bool ok = Serializer.Deserialize(elem, setter, t);
-                var extParam = plan.ExternalParameters.Get(parameter);
+                var ext = plan.ExternalParameters.Get(parameter);
 
-                if (ok)
+                Serializer.DeferLoad(() =>
                 {
-                    Serializer.DeferLoad(() =>
-                    {
-                        extParam = plan.ExternalParameters.Get(parameter);
+                    var ext2 = plan.ExternalParameters.Get(parameter);
+                    if (ext2 == null) return;
 
-                        if (PreloadedValues.ContainsKey(extParam.Name)) // If there is a  preloaded value, use that.
-                            extParam.Value = PreloadedValues[extParam.Name];
-                        else
-                            extParam.Value = extParam.Value;
-                    });
-                    if (extParam != null && PreloadedValues.ContainsKey(extParam.Name)) // If there is a  preloaded value, use that.
-                        extParam.Value = PreloadedValues[extParam.Name];
-                }
-                
-
+                    if (PreloadedValues.ContainsKey(ext2.Name)) 
+                        // If there is a  preloaded value, use that.
+                        ext2.Value = PreloadedValues[ext2.Name];
+                    else
+                        ext2.Value = ext2.Value;
+                });
+                if (ext != null && PreloadedValues.ContainsKey(ext.Name)) 
+                    // If there is a  preloaded value, use that.
+                    ext.Value = PreloadedValues[ext.Name];
                 return ok;
             }
             finally

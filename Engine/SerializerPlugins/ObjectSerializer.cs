@@ -211,7 +211,17 @@ namespace OpenTap.Plugins
                                 }
                                 else
                                 {
-                                    Action<object> setValue = x => property.SetValue(newobj, x);
+                                    Action<object> setValue = x =>
+                                    {
+                                        var current = property.GetValue(newobj);
+                                        property.SetValue(newobj, x);
+                                        if (false == Equals(current, x))
+                                        { // for some value-like type, it may be needed
+                                            // to set the parent object when a property is changed
+                                            // example: complex test plan parameters.
+                                            setter(newobj);
+                                        }
+                                    };
                                     Serializer.Deserialize(element2, setValue, property.TypeDescriptor);
                                 }
                             }
