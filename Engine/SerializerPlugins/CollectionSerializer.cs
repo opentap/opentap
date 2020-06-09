@@ -60,7 +60,7 @@ namespace OpenTap.Plugins
                             }
                             catch (Exception e)
                             {
-                                Log.Warning("Exception caught while handling OnSerialized");
+                                Log.Warning("Exception caught while handling OnDeserialized");
                                 Log.Debug(e);
                             }
                         });
