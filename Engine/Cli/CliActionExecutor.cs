@@ -255,7 +255,7 @@ namespace OpenTap.Cli
                 }
                 else
                 {
-                    Console.Write($"Listing commands");
+                    Console.Write("Valid subcommands of ");
                     print_command(selectedCmdNode, 0, CliActionTree.Root.GetMaxCommandTreeLength(LevelPadding) + LevelPadding);
                 }
 
