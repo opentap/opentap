@@ -116,9 +116,11 @@ namespace OpenTap
             string str = null;
             strConvertSuccess = StringConvertProvider.TryGetString(value, out str);
 
+            ICloneable cloneable = value as ICloneable;
+
             TapSerializer serializer = null;
             string serialized = null;
-            if (!strConvertSuccess && value != null)
+            if (cloneable == null && !strConvertSuccess && value != null)
             {
                 serializer = new TapSerializer();
                 try
@@ -141,19 +143,26 @@ namespace OpenTap
                 try
                 {
                     object setVal = value;
-                    if (strConvertSuccess)
+                    if (i >= 0 || TypeData.GetTypeData(setVal).DescendsTo(TypeDescriptor) == false) // let's just set the value on the first property.
                     {
-                        if (StringConvertProvider.TryFromString(str, TypeDescriptor, context, out setVal) == false)
-                            setVal = value;
-                    }
-                    else if (serialized != null)
-                    {
-                        try
+                        if (strConvertSuccess)
                         {
-                            setVal = serializer.DeserializeFromString(serialized);
+                            if (StringConvertProvider.TryFromString(str, TypeDescriptor, context, out setVal) == false)
+                                setVal = value;
                         }
-                        catch
+                        else if (cloneable != null)
                         {
+                            setVal = cloneable.Clone();
+                        }
+                        else if (serialized != null)
+                        {
+                            try
+                            {
+                                setVal = serializer.DeserializeFromString(serialized);
+                            }
+                            catch
+                            {
+                            }
                         }
                     }
 

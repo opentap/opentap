@@ -1505,6 +1505,23 @@ namespace OpenTap
             // if member is null, fall back to the readable enum string (or description is null)
             return mem?.GetDisplayAttribute().Description ?? EnumToReadableString(value);
         }
+
+        public static string SerializeToString(this TestPlan plan)
+        {
+            using (var mem = new MemoryStream())
+            {
+                plan.Save(mem);
+                return Encoding.UTF8.GetString(mem.ToArray());
+            }
+        }
+
+        public static object DeserializeFromString(string str)
+        {
+            return new TapSerializer().DeserializeFromString(str);
+        }
+
+        public static T DeserializeFromString<T>(string str) => (T) DeserializeFromString(str);
+
     }
 
     static internal class Sequence

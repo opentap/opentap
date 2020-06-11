@@ -35,7 +35,7 @@ namespace OpenTap
     /// When used in a TestStep, Input value should always be set in the constructor.
     /// </summary>
     /// <typeparam name="T"> Generic type parameter. </typeparam>
-    public class Input<T> : IInput, IInputTypeRestriction
+    public class Input<T> : IInput, IInputTypeRestriction, ICloneable
     {
         /// <summary> 
         /// Describes the output property on the <see cref="Step"/> to which this Input is connected.  
@@ -195,6 +195,12 @@ namespace OpenTap
         {
             return (Step?.GetHashCode() ?? 0) ^ (Property?.GetHashCode() ?? 0);
         }
+
+        object ICloneable.Clone() => new Input<T>
+        {
+            Step = Step,
+            Property = Property
+        };
 
         /// <summary> Returns true if this input supports the concrete type. </summary>
         /// <param name="concreteType"></param>

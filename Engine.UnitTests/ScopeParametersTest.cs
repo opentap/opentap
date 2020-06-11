@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests.TestTestSteps;
@@ -302,6 +301,7 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(strings.Contains("None"));
             Assert.IsTrue(strings.Contains($"Verdict from {verdictStep.GetFormattedName()}"));
         }
+        
         [Test]
         public void ScopedInputAnnotationWithSweepTest()
         {
@@ -331,6 +331,35 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(strings.Contains($"Verdict from {ifStep.GetFormattedName()}"));
             Assert.IsTrue(strings.Contains("None"));
             Assert.IsTrue(strings.Contains($"Verdict from {verdictStep.GetFormattedName()}"));
+        }
+        
+        [Test]
+        public void ScopedInputAnnotationWithSweepTestSerialized()
+        {
+            var plan = new TestPlan();
+            var sweepStep = new SweepParameterStep();
+            plan.Steps.Add(sweepStep);
+            var verdictStep = new VerdictStep();
+            sweepStep.ChildTestSteps.Add(verdictStep);
+            var ifStep = new IfStep();
+            
+            sweepStep.ChildTestSteps.Add(ifStep);
+            var member = TypeData.GetTypeData(ifStep).GetMember(nameof(IfStep.InputVerdict));
+            var parameterizedMember = member.Parameterize(sweepStep, ifStep, member.Name);
+
+            var annotation = AnnotationCollection.Annotate(sweepStep);
+            var memberAnnotation = annotation.GetMember(nameof(sweepStep.SweepValues));
+            var col = memberAnnotation.Get<ICollectionAnnotation>();
+            col.AnnotatedElements = new[] {col.NewElement()};
+            annotation.Write();
+            annotation.Read();
+            var sweepValuesMember = TypeData.GetTypeData(sweepStep).GetMember(nameof(sweepStep.SweepValues));
+            sweepValuesMember.Parameterize(plan, sweepStep, "SweepValues");
+            var planstr = plan.SerializeToString();
+            var plan2 = Utils.DeserializeFromString<TestPlan>(planstr);
+            var ext = plan2.ExternalParameters.Get("SweepValues");
+            Assert.IsNotNull(ext);
+
         }
 
     }
