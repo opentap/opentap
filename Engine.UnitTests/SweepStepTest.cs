@@ -11,6 +11,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -373,6 +374,48 @@ namespace OpenTap.Engine.UnitTests
                     throw new Exception("Error occured");
                 
             }
+        }
+
+        public class StepTypeA : TestStep
+        {
+            [Display("Property", Group: "A")]
+            public double Property { get; set; }
+
+            public override void Run()
+            {
+                if (Property != 5.0) throw new Exception();
+                UpgradeVerdict(Verdict.Pass);
+            }
+        }
+        
+        public class StepTypeB : TestStep
+        {
+            [Display("Property", Group: "B")]
+            public double Property { get; set; }
+            public override void Run()
+            {
+                if (Property != 15.0) throw new Exception();
+                UpgradeVerdict(Verdict.Pass);
+            }
+        }
+
+        [Test]
+        public void SweepSameNameDifferentGroup()
+        {
+            var loop = new SweepLoop();
+            
+            var a = new StepTypeA();
+            var b = new StepTypeB();
+            loop.ChildTestSteps.Add(a);
+            loop.ChildTestSteps.Add(b);
+            
+            loop.SweepParameters.Add(new SweepParam(new []{TypeData.GetTypeData(a).GetMember(nameof(StepTypeA.Property))}, (double)5, (double)5));
+            loop.SweepParameters.Add(new SweepParam(new []{TypeData.GetTypeData(b).GetMember(nameof(StepTypeB.Property))}, (double)15, (double)15));
+            var plan = new TestPlan();
+            plan.Steps.Add(loop);
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, run.Verdict);
+
         }
 
     }
