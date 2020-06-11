@@ -1,4 +1,4 @@
-Release Notes - TestAutomation 9.8
+Release Notes - OpenTAP 9.8
 =============
 
 New Features:
@@ -37,4 +37,4 @@ Documentation:
 - Typo in developer guide "Result Listners" [#230](https://gitlab.com/OpenTAP/opentap/-/issues/230)
 - Document ResourceOpenAttribute [#231](https://gitlab.com/OpenTAP/opentap/-/issues/231)
 - NuGet and TapPackage files do not contain API documentation [#240](https://gitlab.com/OpenTAP/opentap/-/issues/240)
-- https://gitlab.com/OpenTAP/opentap/-/issues/230 [#243](https://gitlab.com/OpenTAP/opentap/issues/243)
+- Documentation links don't work [#243](https://gitlab.com/OpenTAP/opentap/issues/243)
