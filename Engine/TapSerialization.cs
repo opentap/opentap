@@ -137,7 +137,16 @@ namespace OpenTap
         public void Flush()
         {
             while (deferredLoads.Count > 0)
-                deferredLoads.Dequeue()();
+            {
+                try
+                {
+                    deferredLoads.Dequeue()();
+                }
+                catch (Exception e)
+                {
+                    PushError(null, $"Caught error while finishing serialization: {e.Message}");
+                }
+            }
         }
 
         /// <summary>
