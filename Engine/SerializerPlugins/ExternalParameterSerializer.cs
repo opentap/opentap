@@ -31,7 +31,7 @@ namespace OpenTap.Plugins
             public string Name;
         }
         /// <summary> The order of this serializer. </summary>
-        public override double Order { get { return 2; } }
+        public override double Order => 50;
         
         List<XElement> currentNode = new List<XElement>();
 
