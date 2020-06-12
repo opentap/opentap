@@ -167,7 +167,8 @@ namespace OpenTap.Package
 
             try
             {
-                using (var zip = new ZipArchive(File.OpenRead(packagePath), ZipArchiveMode.Read))
+                using (var fileStream = File.OpenRead(packagePath))
+                using (var zip = new ZipArchive(fileStream, ZipArchiveMode.Read))
                 {
                     foreach (var part in zip.Entries)
                     {
@@ -267,7 +268,8 @@ namespace OpenTap.Package
             
             try
             {
-                using (var zip = new ZipArchive(File.OpenRead(packagePath), ZipArchiveMode.Read))
+                using (var packageStream = File.OpenRead(packagePath))
+                using (var zip = new ZipArchive(packageStream, ZipArchiveMode.Read))
                 {
                     foreach (var part in zip.Entries)
                     {
@@ -335,7 +337,8 @@ namespace OpenTap.Package
         {
             try
             {
-                using (var zip = new ZipArchive(File.OpenRead(packagePath), ZipArchiveMode.Read))
+                using (var fileStream = File.OpenRead(packagePath))
+                using (var zip = new ZipArchive(fileStream, ZipArchiveMode.Read))
                 {
                     foreach (var part in zip.Entries)
                     {
