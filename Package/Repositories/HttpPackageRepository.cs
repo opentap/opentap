@@ -162,7 +162,7 @@ namespace OpenTap.Package
                         {
                             response.Dispose();
                             retries--;
-                            if (retries <= 0)
+                            if (retries <= 0 || cancellationToken.IsCancellationRequested)
                                 throw;
                             log.Debug("Failed to download package.");
                             log.Debug(e);
