@@ -203,7 +203,7 @@ namespace OpenTap.Package
                             commitPosition[p1] = startPos;
                         }
                     }
-                    if (lineCount++ > maxLines)
+                    if (++lineCount >= maxLines)
                         break;
                 }
                 {
@@ -284,6 +284,13 @@ namespace OpenTap.Package
 
                         Console.Write(" - ");
                         Console.Write(c.MessageShort.Trim());
+
+                        if (++lineCount >= maxLines)
+                        {
+                            Console.WriteLine();
+                            break;
+                        }
+
                         if (c.Parents.Any())
                         {
                             Commit p1 = c.Parents.First();
@@ -364,8 +371,6 @@ namespace OpenTap.Package
                                 }
                             }
                         }
-                        if (lineCount++ > maxLines)
-                            break;
                     }
                 }
             }
