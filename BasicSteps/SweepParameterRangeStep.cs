@@ -93,7 +93,7 @@ namespace OpenTap.Plugins.BasicSteps
         
         public SweepParameterRangeStep()
         {
-            Name = "Sweep Range {Parameters}";
+            Name = "Sweep Range {ParametersDisplay}";
 
             SweepStart = 1;
             SweepStop = 100;

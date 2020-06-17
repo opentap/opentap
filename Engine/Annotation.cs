@@ -1601,6 +1601,31 @@ namespace OpenTap
             }
         }
 
+        class MemberDataSequenceStringAnnotation : IStringReadOnlyValueAnnotation
+        {
+            AnnotationCollection annotations;
+
+            public MemberDataSequenceStringAnnotation(AnnotationCollection annotations) =>
+                this.annotations = annotations;
+
+            public string Value
+            {
+                get
+                {
+                    var seq = annotations.Get<IObjectValueAnnotation>().Value as IEnumerable;
+                    if (seq == null) return "Count: 0";
+                    var mems = seq?.OfType<IMemberData>();
+                    var things2 = mems.ToLookup(x => x.GetDisplayAttribute().Name);
+                    return string.Join(", ", things2.SelectMany(x =>
+                    {
+                        if (x.IsLongerThan(1))
+                            return x.Select(y => y.GetDisplayAttribute().GetFullName());
+                        return x.Select(y => y.GetDisplayAttribute().Name);
+                    }));
+                }
+            }
+        }
+
         class GenericSequenceAnnotation : ICollectionAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation
         {
             public IEnumerable Elements => fac.Get<IObjectValueAnnotation>().Value as IEnumerable;
@@ -2428,6 +2453,8 @@ namespace OpenTap
                             }
                             else if (innerType.DescendsTo(typeof(ViaPoint)))
                                 annotation.Add(new ViaPointAnnotation(annotation));
+                            else if (innerType.DescendsTo(typeof(IMemberData)))
+                                annotation.Add(new MemberDataSequenceStringAnnotation(annotation));
                         }
                     }
 

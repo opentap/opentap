@@ -7,60 +7,89 @@ namespace OpenTap.Plugins.BasicSteps
 {
     interface ISelectedParameters
     {
-        IList<string> SelectedParameterNames { get; }
+        IList<ParameterMemberData> SelectedParameterNames { get; }
     }
+
+    public class MemberDataName
+    {
+        public string Group;
+        public string Name;
+
+        public MemberDataName(string name)
+        {
+            var split = name.Split('\\').Select(x => x.Trim())
+                .Where(x => string.IsNullOrWhiteSpace(x) == false).ToArray();
+            Name = split.LastOrDefault();
+            Group = string.Join(" \\ ", split.Take(split.Length - 1));
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj is MemberDataName other)
+                return other.Name == Name && other.Group == Group;
+            return false;
+        }
+
+        public override int GetHashCode() =>
+            (Group?.GetHashCode() ?? 312321) * 73106 + (Name?.GetHashCode() ?? 60362190) * -32032;
+
+        public override string ToString() => Name;
+    }
+    
     public abstract class SweepParameterStepBase : LoopTestStep, ISelectedParameters
     {
-        internal IEnumerable<IMemberData> SweepProperties => TypeData.GetTypeData(this)
-                .GetMembers().OfType<IParameterMemberData>()
-                .Where(x => x.HasAttribute<UnsweepableAttribute>() == false && x.Writable && x.Readable);
+        internal IEnumerable<ParameterMemberData> SweepProperties => TypeData.GetTypeData(this)
+            .GetMembers().OfType<ParameterMemberData>()
+            .Where(x => x.HasAttribute<UnsweepableAttribute>() == false && x.Writable && x.Readable);
 
-        internal IEnumerable<IMemberData> SelectedMembers =>
+        internal IEnumerable<ParameterMemberData> SelectedMembers =>
             SweepProperties.Where(x => Selected.ContainsKey(x.Name) && Selected[x.Name]);
 
-        public IEnumerable<string> AvailableParameterNames =>
-            SweepProperties.Select(x => x.Name);
+        public IEnumerable<ParameterMemberData> AvailableParameterNames => SweepProperties;
         
-        readonly NotifyChangedList<string> selectedProperties = new NotifyChangedList<string>();
+        readonly NotifyChangedList<ParameterMemberData> selectedProperties = new NotifyChangedList<ParameterMemberData>();
         
         [Browsable(false)]
         public Dictionary<string, bool> Selected { get; set; } = new Dictionary<string, bool>();
         void updateSelected(bool destructive = false)
         {
-            var sweepProperties = SweepProperties.Select(x=>x.Name).ToHashSet();
+            var sweepProperties = SweepProperties.ToHashSet();
+            var sweepProps2 = sweepProperties.ToDictionary(x => x.Name);
             foreach (var prop in sweepProperties)
             {
-                if (Selected.ContainsKey(prop) == false)
-                    Selected[prop] = true;
+                if (Selected.ContainsKey(prop.Name) == false)
+                    Selected[prop.Name] = true;
             }
             foreach (var item in Selected.ToArray())
             {
-                if (item.Value && sweepProperties.Contains(item.Key))
+                ParameterMemberData prop;
+                sweepProps2.TryGetValue(item.Key, out prop);
+                if (item.Value && prop != null)
                 {
-                    if (selectedProperties.Contains(item.Key) == false)
-                        selectedProperties.Add(item.Key);
+                    
+                    if (selectedProperties.Contains(prop) == false)
+                        selectedProperties.Add(prop);
                 }
-                else
+                else if(prop != null)
                 {
-                    if (selectedProperties.Contains(item.Key))
+                    if (selectedProperties.Contains(prop))
                     {
-                        selectedProperties.Remove(item.Key);
-                        
+                        selectedProperties.Remove(prop);
                     }
                 }
 
-                if (destructive && sweepProperties.Contains(item.Key) == false)
+                if (destructive && prop == null)
                 {
                     Selected.Remove(item.Key);
                 }
             }
         }
 
-        void onListChanged(IList<string> list)
+        void onListChanged(IList<ParameterMemberData> list)
         {
             foreach (var item in Selected.Keys.ToArray())
             {
-                Selected[item] = list.Contains(item);
+                Selected[item] = list.Any(x => x.Name == item);
             }
         }
         
@@ -70,7 +99,7 @@ namespace OpenTap.Plugins.BasicSteps
         [HideOnMultiSelectAttribute] //TODO: Add support for multi-selecting this property.
         [Unsweepable]
         [Display("Parameters", "These are the parameters that should be swept", "Sweep")]
-        public IList<string> SelectedParameterNames {
+        public IList<ParameterMemberData> SelectedParameterNames {
             get
             {
                 updateSelected(true);
@@ -82,6 +111,15 @@ namespace OpenTap.Plugins.BasicSteps
                 updateSelected();
                 onListChanged(value);
             } 
+        }
+
+        public string ParametersDisplay
+        {
+            get
+            {
+                var names = SelectedParameterNames.Select(x => x.GetDisplayAttribute().Name);
+                return string.Join(", ", names);
+            }
         }
 
         public SweepParameterStepBase()

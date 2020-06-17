@@ -565,7 +565,7 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 get
                 { 
-                    if (annotation.Source is ISelectedParameters sw && sw.SelectedParameterNames.Contains(member.Name))
+                    if (annotation.Source is ISelectedParameters sw && sw.SelectedParameterNames.Contains(member))
                         return false;
                     return true;
                 }
