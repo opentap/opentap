@@ -478,6 +478,8 @@ namespace OpenTap.Package
                         candidates.Add(branch);
                         break;
                     }
+                    if (!commitOnBranch.Parents.Any())
+                        break;
                     commitOnBranch = commitOnBranch.Parents.First();
                 }
             }
