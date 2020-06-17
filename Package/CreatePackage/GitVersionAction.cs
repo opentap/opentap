@@ -158,8 +158,8 @@ namespace OpenTap.Package
                     cancellationToken.ThrowIfCancellationRequested();
                     if(!c.Parents.Any())
                     {
-                        // this is the vary first commit in the repo. Stop here.
-                        maxLines = lineCount;
+                        // this is the very first commit in the repo. Stop here.
+                        maxLines = ++lineCount;
                         break;
                     }
                     Commit p1 = c.Parents.First();
