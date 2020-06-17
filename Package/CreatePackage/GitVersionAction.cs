@@ -132,6 +132,7 @@ namespace OpenTap.Package
                 if (repositoryDir == null)
                     throw new ArgumentException("Directory is not a git repository.", "repositoryDir");
             }
+            using (GitVersionCalulator versionCalculater = new GitVersionCalulator(RepoPath))
             using (LibGit2Sharp.Repository repo = new LibGit2Sharp.Repository(repositoryDir))
             {
                 Commit tip = repo.Head.Tip;
@@ -212,7 +213,6 @@ namespace OpenTap.Package
                     maxPosition++;
                 }
 
-                using (GitVersionCalulator versionCalculater = new GitVersionCalulator(RepoPath))
                 {
                     // Run through again to print
                     lineCount = 0;
