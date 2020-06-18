@@ -1613,15 +1613,10 @@ namespace OpenTap
                 get
                 {
                     var seq = annotations.Get<IObjectValueAnnotation>().Value as IEnumerable;
-                    if (seq == null) return "Count: 0";
                     var mems = seq?.OfType<IMemberData>();
+                    if (!mems.Any()) return "None";
                     var things2 = mems.ToLookup(x => x.GetDisplayAttribute().Name);
-                    return string.Join(", ", things2.SelectMany(x =>
-                    {
-                        if (x.IsLongerThan(1))
-                            return x.Select(y => y.GetDisplayAttribute().GetFullName());
-                        return x.Select(y => y.GetDisplayAttribute().Name);
-                    }));
+                    return string.Join(", ", mems.Select(x => x.GetDisplayAttribute().Name));
                 }
             }
         }
