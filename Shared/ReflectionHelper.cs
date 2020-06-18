@@ -1096,7 +1096,7 @@ namespace OpenTap
         /// <returns></returns>
         public static bool IsLongerThan<T>(this IEnumerable<T> source, long count)
         {
-            foreach (var item in source)
+            foreach (var _ in source)
                 if (--count < 0)
                     return true;
             return false;
