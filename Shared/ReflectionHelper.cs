@@ -317,8 +317,6 @@ namespace OpenTap
         /// <summary>
         /// Returns true if a type is numeric.
         /// </summary>
-        /// <param name="t"></param>
-        /// <returns></returns>
         public static bool IsNumeric(this Type t)
         {
             if (t.IsEnum)
@@ -340,6 +338,14 @@ namespace OpenTap
                 default:
                     return false;
             }
+        }
+
+        /// <summary>
+        /// Returns true if a type is numeric.
+        /// </summary>
+        public static bool IsNumeric(this ITypeData t)
+        {
+            return t.AsTypeData()?.Type.IsNumeric() == true;
         }
 
         /// <summary> Creates an instance of t with no constructor arguments. </summary>

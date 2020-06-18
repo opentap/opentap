@@ -44,9 +44,9 @@ namespace OpenTap.Plugins.BasicSteps
             .Where(x => x.HasAttribute<UnsweepableAttribute>() == false && x.Writable && x.Readable);
 
         internal IEnumerable<ParameterMemberData> SelectedMembers =>
-            SweepProperties.Where(x => Selected.ContainsKey(x.Name) && Selected[x.Name]);
+            AvailableParameters.Where(x => Selected.ContainsKey(x.Name) && Selected[x.Name]);
 
-        public IEnumerable<ParameterMemberData> AvailableParameters => SweepProperties;
+        public virtual IEnumerable<ParameterMemberData> AvailableParameters => SweepProperties;
         
         readonly NotifyChangedList<ParameterMemberData> selectedProperties = new NotifyChangedList<ParameterMemberData>();
         
@@ -54,7 +54,7 @@ namespace OpenTap.Plugins.BasicSteps
         public Dictionary<string, bool> Selected { get; set; } = new Dictionary<string, bool>();
         void updateSelected(bool destructive = false)
         {
-            var sweepProperties = SweepProperties.ToHashSet();
+            var sweepProperties = AvailableParameters.ToHashSet();
             var sweepProps2 = sweepProperties.ToDictionary(x => x.Name);
             foreach (var prop in sweepProperties)
             {
