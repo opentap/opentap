@@ -27,7 +27,7 @@ namespace OpenTap.Plugins.BasicSteps
         {
             SweepValues.Loop = this;
             SweepValues.Add(new SweepRow());
-            Name = "Sweep {ParametersDisplay}";
+            Name = "Sweep {Parameters}";
         }
 
         int iteration;

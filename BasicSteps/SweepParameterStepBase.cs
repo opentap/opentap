@@ -5,9 +5,10 @@ using System.Xml.Serialization;
 
 namespace OpenTap.Plugins.BasicSteps
 {
+
     interface ISelectedParameters
     {
-        IList<ParameterMemberData> SelectedParameterNames { get; }
+        IList<ParameterMemberData> SelectedParameters { get; }
     }
 
     public class MemberDataName
@@ -45,7 +46,7 @@ namespace OpenTap.Plugins.BasicSteps
         internal IEnumerable<ParameterMemberData> SelectedMembers =>
             SweepProperties.Where(x => Selected.ContainsKey(x.Name) && Selected[x.Name]);
 
-        public IEnumerable<ParameterMemberData> AvailableParameterNames => SweepProperties;
+        public IEnumerable<ParameterMemberData> AvailableParameters => SweepProperties;
         
         readonly NotifyChangedList<ParameterMemberData> selectedProperties = new NotifyChangedList<ParameterMemberData>();
         
@@ -70,12 +71,9 @@ namespace OpenTap.Plugins.BasicSteps
                     if (selectedProperties.Contains(prop) == false)
                         selectedProperties.Add(prop);
                 }
-                else if(prop != null)
+                else
                 {
-                    if (selectedProperties.Contains(prop))
-                    {
-                        selectedProperties.Remove(prop);
-                    }
+                    selectedProperties.RemoveIf(x => x.Name == item.Key);
                 }
 
                 if (destructive && prop == null)
@@ -93,13 +91,13 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
         
-        [AvailableValues(nameof(AvailableParameterNames))]
+        [AvailableValues(nameof(AvailableParameters))]
         [XmlIgnore]
         [Browsable(true)]
         [HideOnMultiSelectAttribute] //TODO: Add support for multi-selecting this property.
         [Unsweepable]
         [Display("Parameters", "These are the parameters that should be swept", "Sweep")]
-        public IList<ParameterMemberData> SelectedParameterNames {
+        public IList<ParameterMemberData> SelectedParameters {
             get
             {
                 updateSelected(true);
@@ -113,18 +111,18 @@ namespace OpenTap.Plugins.BasicSteps
             } 
         }
 
-        public string ParametersDisplay
+        public string Parameters
         {
             get
             {
-                var names = SelectedParameterNames.Select(x => x.GetDisplayAttribute().Name);
+                var names = SelectedParameters.Select(x => x.GetDisplayAttribute().Name);
                 return string.Join(", ", names);
             }
         }
 
         public SweepParameterStepBase()
         {
-            Rules.Add(() => SelectedParameterNames.Count > 0, "No parameters selected to sweep", nameof(SelectedParameterNames));
+            Rules.Add(() => SelectedParameters.Count > 0, "No parameters selected to sweep", nameof(SelectedParameters));
         }
     }
 }
