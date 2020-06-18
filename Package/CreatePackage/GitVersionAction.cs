@@ -151,11 +151,26 @@ namespace OpenTap.Package
                 int maxLines = int.Parse(PrintLog);
                 int lineCount = 0;
                 Dictionary<Commit, int> commitPosition = new Dictionary<Commit, int>();
+                List<Commit> longBranchOut = new List<Commit>();
                 commitPosition.Add(History.First(), 0);
                 int maxPosition = 0;
                 foreach (Commit c in History)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+
+                    foreach (Commit lb in longBranchOut.ToList())
+                    {
+                        if(lb.Parents.Contains(c))
+                        {
+                            if (commitPosition.ContainsKey(lb))
+                                commitPosition.Remove(lb);
+                            longBranchOut.Remove(lb);
+                        }
+                    }
+
+                    if (maxPosition < commitPosition[c])
+                        maxPosition = commitPosition[c];
+
                     if(!c.Parents.Any())
                     {
                         // this is the very first commit in the repo. Stop here.
@@ -174,8 +189,7 @@ namespace OpenTap.Package
                                 newPosition++;
                             commitPosition[p2] = newPosition;
 
-                            if (!commitPosition.ContainsKey(p1))
-                                commitPosition[p1] = commitPosition[c];
+                            commitPosition[p1] = commitPosition[c];
                         }
                         else if (!commitPosition.ContainsKey(p1))
                         {
@@ -192,8 +206,6 @@ namespace OpenTap.Package
                             int startPos = Math.Min(commitPosition[p1], commitPosition[c]);
                             int endPos = Math.Max(commitPosition[p1], commitPosition[c]);
 
-                            if (maxPosition < endPos)
-                                maxPosition = endPos;
                             // c is now merged back, no need to keep track of it (or any other commit on this branch)
                             // this way we can reuse the position for another branch 
                             foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == endPos).ToList())
@@ -201,15 +213,21 @@ namespace OpenTap.Package
                                 commitPosition.Remove(kvp.Key);
                             }
                             commitPosition[p1] = startPos;
+                            foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == startPos).ToList())
+                            {
+                                if(kvp.Key != p1)
+                                    commitPosition.Remove(kvp.Key);
+                            }
+                        }
+                        else
+                        {
+                            longBranchOut.Add(c);
                         }
                     }
                     if (++lineCount >= maxLines)
                         break;
                 }
                 {
-                    int endMax = commitPosition.Values.Max();
-                    if (maxPosition < endMax)
-                        maxPosition = endMax;
                     maxPosition++;
                 }
 
@@ -217,7 +235,7 @@ namespace OpenTap.Package
                     // Run through again to print
                     lineCount = 0;
                     commitPosition = new Dictionary<Commit, int>();
-                    var longBranchOut = new List<Commit>();
+                    longBranchOut = new List<Commit>();
                     commitPosition.Add(History.First(), 0);
                     HashSet<Commit> taggedCommits = repo.Tags.Select(t => t.Target.Peel<Commit>()).ToHashSet();
                     foreach (Commit c in History)
