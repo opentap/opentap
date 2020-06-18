@@ -53,10 +53,8 @@ namespace OpenTap.Plugins.BasicSteps
             validateSweepMutex.ReleaseMutex();
         }
 
-        public override IEnumerable<ParameterMemberData> AvailableParameters
-        {
-            get { return SweepProperties.Where(x => x.TypeDescriptor.DescendsTo(typeof(Enum)) == false); }
-        }
+        public override IEnumerable<ParameterMemberData> AvailableParameters => base.AvailableParameters.Where(x => x.TypeDescriptor.IsNumeric());
+        
 
         // Check if the test plan is running before validating sweeps.
         // the validateSweep might have been started before the plan started.
