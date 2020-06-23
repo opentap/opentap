@@ -44,7 +44,6 @@ namespace OpenTap.Package
                                                       "fields in the version number. Default is 5 (all fields).")]
         public int FieldCount { get; set; }
 
-        
         /// <summary>
         /// Represents the --dir command line argument which specifies the directory in which the git repository to use is located.
         /// </summary>
@@ -79,6 +78,12 @@ namespace OpenTap.Package
                 }
             }
             RepoPath = repositoryDir;
+
+            if (FieldCount < 1 || FieldCount > 5)
+            {
+                log.Error("The argument for --fields ({0}) must be an integer between 1 and 5.", FieldCount);
+                return 1;
+            }
 
             if (!String.IsNullOrEmpty(PrintLog))
             {
