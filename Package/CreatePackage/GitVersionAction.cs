@@ -21,7 +21,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Represents the --log command line argument which prints git log for the last n commits including version numbers for each commit.
         /// </summary>
-        [CommandLineArgument("log",     Description = "Print git log for the last n commits including version numbers for each commit.")]
+        [CommandLineArgument("log",     Description = "Print git log for the last <arg> commits including version numbers for each commit.")]
         public string PrintLog { get; set; }
 
         /// <summary>
@@ -82,6 +82,12 @@ namespace OpenTap.Package
 
             if (!String.IsNullOrEmpty(PrintLog))
             {
+                int nLines = 0;
+                if (!int.TryParse(PrintLog, out nLines) || nLines <= 0)
+                {
+                    log.Error("The argument for --log ({0}) must be an integer greater than 0.", PrintLog);
+                    return 1;
+                }
                 DoPrintLog(cancellationToken);
                 return 0;
             }
