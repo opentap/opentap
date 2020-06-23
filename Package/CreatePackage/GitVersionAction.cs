@@ -66,12 +66,26 @@ namespace OpenTap.Package
         /// <returns>Returns 0 to indicate success.</returns>
         public int Execute(CancellationToken cancellationToken)
         {
+            TraceSource log = Log.CreateSource("GitVersion");
+
+            string repositoryDir = RepoPath;
+            while (!Directory.Exists(Path.Combine(repositoryDir, ".git")))
+            {
+                repositoryDir = Path.GetDirectoryName(repositoryDir);
+                if (repositoryDir == null)
+                {
+                    log.Error("Directory {0} is not a git repository.", RepoPath);
+                    return 1;
+                }
+            }
+            RepoPath = repositoryDir;
+
             if (!String.IsNullOrEmpty(PrintLog))
             {
                 DoPrintLog(cancellationToken);
                 return 0;
             }
-            TraceSource log = Log.CreateSource("GitVersion");
+
             string versionString = null;
             using (GitVersionCalulator calc = new GitVersionCalulator(RepoPath))
             {
@@ -125,15 +139,9 @@ namespace OpenTap.Package
             ConsoleColor defaultColor = Console.ForegroundColor;
             ConsoleColor graphColor = ConsoleColor.DarkYellow;
             ConsoleColor versionColor = ConsoleColor.DarkRed;
-            string repositoryDir = RepoPath;
-            while (!Directory.Exists(Path.Combine(repositoryDir, ".git")))
-            {
-                repositoryDir = Path.GetDirectoryName(repositoryDir);
-                if (repositoryDir == null)
-                    throw new ArgumentException("Directory is not a git repository.", "repositoryDir");
-            }
+
             using (GitVersionCalulator versionCalculater = new GitVersionCalulator(RepoPath))
-            using (LibGit2Sharp.Repository repo = new LibGit2Sharp.Repository(repositoryDir))
+            using (LibGit2Sharp.Repository repo = new LibGit2Sharp.Repository(RepoPath))
             {
                 Commit tip = repo.Head.Tip;
                 if (!string.IsNullOrEmpty(Sha))
