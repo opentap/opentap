@@ -215,9 +215,9 @@ namespace OpenTap.Package
         /// </summary>
         public SemanticVersion GetVersion(string sha)
         {
-            Commit commit = repo.Commits.FirstOrDefault(c => c.Sha.StartsWith(sha));
+            Commit commit = repo.Lookup<Commit>(sha);
             if (commit == null)
-                throw new ArgumentException($"Commit with hash {sha} does not exist in repository.");
+                throw new ArgumentException($"The commit with reference {sha} does not exist in the repository.");
             return GetVersion(commit);
         }
 
@@ -226,9 +226,8 @@ namespace OpenTap.Package
         /// </summary>
         public SemanticVersion GetVersion(Commit targetCommit)
         {
-            targetCommit = repo.Commits.FirstOrDefault(c => c.Sha == targetCommit.Sha);
-            if (targetCommit == null)
-                throw new ArgumentException("Commit does not exist in repository.");
+            if (repo.Lookup<Commit>(targetCommit.Sha) == null)
+                throw new ArgumentException($"The commit with hash {targetCommit} does not exist the in repository.");
             if(!targetCommit.Tree.Any(t => t.Name == configFileName))
             {
                 log.Warning("Did not find any .gitversion file.");
