@@ -18,6 +18,8 @@ namespace OpenTap.Package
     [Display("gitversion", Group: "sdk", Description: "Calculates a semantic version number for a specific git commit.")]
     public class GitVersionAction : OpenTap.Cli.ICliAction
     {
+        private static readonly TraceSource log = Log.CreateSource("GitVersion");
+
         /// <summary>
         /// Represents the --log command line argument which prints git log for the last n commits including version numbers for each commit.
         /// </summary>
@@ -65,8 +67,6 @@ namespace OpenTap.Package
         /// <returns>Returns 0 to indicate success.</returns>
         public int Execute(CancellationToken cancellationToken)
         {
-            TraceSource log = Log.CreateSource("GitVersion");
-
             string repositoryDir = RepoPath;
             while (!Directory.Exists(Path.Combine(repositoryDir, ".git")))
             {
@@ -93,8 +93,7 @@ namespace OpenTap.Package
                     log.Error("The argument for --log ({0}) must be an integer greater than 0.", PrintLog);
                     return 1;
                 }
-                DoPrintLog(cancellationToken);
-                return 0;
+                return DoPrintLog(cancellationToken);
             }
 
             string versionString = null;
@@ -145,7 +144,7 @@ namespace OpenTap.Package
             return replaceLineCount;
         }
 
-        private void DoPrintLog(CancellationToken cancellationToken)
+        private int DoPrintLog(CancellationToken cancellationToken)
         {
             ConsoleColor defaultColor = Console.ForegroundColor;
             ConsoleColor graphColor = ConsoleColor.DarkYellow;
@@ -157,10 +156,11 @@ namespace OpenTap.Package
                 Commit tip = repo.Head.Tip;
                 if (!string.IsNullOrEmpty(Sha))
                 {
-                    repo.RevParse(Sha, out _, out GitObject obj);
-                    if(obj is Commit c)
+                    tip = repo.Lookup<Commit>(Sha);
+                    if(tip == null)
                     {
-                        tip = c;
+                        log.Error($"The commit with reference {Sha} does not exist in the repository.");
+                        return 1;
                     }
                 }
                 IEnumerable<Commit> History = repo.Commits.QueryBy(new CommitFilter() { IncludeReachableFrom = tip, SortBy = CommitSortStrategies.Topological });
@@ -411,6 +411,7 @@ namespace OpenTap.Package
                     }
                 }
             }
+            return 0;
         }
     }
 
