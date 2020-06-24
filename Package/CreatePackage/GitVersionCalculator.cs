@@ -325,7 +325,7 @@ namespace OpenTap.Package
                     break;
                 }
                 b1Commit = b1Commit.Parents.FirstOrDefault();
-                var releaseCommits = (IQueryableCommitLog)repo.Commits.QueryBy(new CommitFilter() { IncludeReachableFrom = b1Commit });
+                var releaseCommits = (IQueryableCommitLog)repo.Commits.QueryBy(new CommitFilter() { SortBy = CommitSortStrategies.Topological, IncludeReachableFrom = b1Commit });
                 firstCommon = releaseCommits.FirstOrDefault(c => targetHistory.Contains(c));
             }
             return firstCommon;
