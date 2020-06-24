@@ -41,8 +41,8 @@ namespace OpenTap
         [MetaData(macroName: "Verdict")]
         public Verdict Verdict
         {
-            get => (Verdict)Enum.Parse(typeof(Verdict), Parameters[nameof(Verdict)].ToString());
-            protected internal set => Parameters[nameof(Verdict)] = value.ToString();
+            get => (Verdict)Parameters[nameof(Verdict)];
+            protected internal set => Parameters[nameof(Verdict)] = value;
         }
 
 
@@ -285,10 +285,11 @@ namespace OpenTap
 
         internal bool IsBreakCondition()
         {
+            var verdict = Verdict;
             if (OutOfRetries 
-                || (Verdict == Verdict.Fail && AbortCondition.HasFlag(BreakCondition.BreakOnFail)) 
-                || (Verdict == Verdict.Error && AbortCondition.HasFlag(BreakCondition.BreakOnError))
-                || (Verdict == Verdict.Inconclusive && AbortCondition.HasFlag(BreakCondition.BreakOnInconclusive)))
+                || (verdict == Verdict.Fail && AbortCondition.HasFlag(BreakCondition.BreakOnFail)) 
+                || (verdict == Verdict.Error && AbortCondition.HasFlag(BreakCondition.BreakOnError))
+                || (verdict == Verdict.Inconclusive && AbortCondition.HasFlag(BreakCondition.BreakOnInconclusive)))
             {
                 return true;
             }

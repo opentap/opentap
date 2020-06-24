@@ -30,8 +30,9 @@ namespace OpenTap
                     runPre = s.PrePostPlanRunUsed;
                 }
                 planRun.StepsWithPrePlanRun.Add(step);
-
-                string stepPath = step.GetStepPath();
+                string stepPath = null;
+                if(runPre)
+                    stepPath = step.GetStepPath();
                 try
                 {
                     if (runPre)
@@ -227,9 +228,10 @@ namespace OpenTap
                         try
                         {
                             ITestStep step = run.StepsWithPrePlanRun[i];
-                            stepPath = step.GetStepPath();
+                            
                             if ((step as TestStep)?.PrePostPlanRunUsed ?? true)
                             {
+                                stepPath = step.GetStepPath();
                                 run.AddTestStepStateUpdate(step.Id, null, StepState.PostPlanRun);
                                 try
                                 {
@@ -550,7 +552,6 @@ namespace OpenTap
             else
             {
                 // Remove steps that are already included via their parent steps.
-                HashSet<ITestStep> foundSteps = new HashSet<ITestStep>();
                 foreach (var step in stepsOverride)
                 {
                     if (step == null)
@@ -581,8 +582,9 @@ namespace OpenTap
             var allSteps = Utils.FlattenHeirarchy(steps, step => step.ChildTestSteps);
             var allEnabledSteps = Utils.FlattenHeirarchy(steps.Where(x => x.Enabled), step => step.GetEnabledChildSteps());
 
-            var enabledSinks = TestStepExtensions.GetStepSettings<IResultSink>(allEnabledSteps, true).Where(rl => rl != null).ToList();
-            if(enabledSinks.Any())
+            var enabledSinks = new HashSet<IResultSink>();
+            TestStepExtensions.GetObjectSettings<IResultSink, ITestStep, IResultSink>(allEnabledSteps, true, null, enabledSinks);
+            if(enabledSinks.Count > 0)
             {
                 var sinkListener = new ResultSinkListener(enabledSinks);
                 resultListeners = resultListeners.Concat(new IResultListener[] { sinkListener });

@@ -4,8 +4,8 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using System.Security;
@@ -316,23 +316,23 @@ namespace OpenTap
             {
                 Type type = (_type as TypeData)?.Type;
                 if (type == null) return null;
-                if (type.DescendsTo(typeof(Enabled<>)) == false)
+                if (type.DescendsTo(typeof(IEnabledValue)) == false)
                     return null;
                 stringdata = stringdata.Trim();
                 var disabled = "(disabled)";
-                dynamic enabled = Activator.CreateInstance(type);
+                IEnabledValue enabled = (IEnabledValue)Activator.CreateInstance(type);
                 var elemType = GetEnabledElementType(type);
                 if (stringdata.StartsWith(disabled))
                 {
                     if (StringConvertProvider.TryFromString(stringdata.Substring(disabled.Length).Trim(), TypeData.FromType(elemType), null, out object obj, culture))
-                        enabled.Value = (dynamic)obj;
+                        enabled.Value = obj;
                     else return null;
                     enabled.IsEnabled = false;
                 }
                 else
                 {
                     if (StringConvertProvider.TryFromString(stringdata, TypeData.FromType(elemType), null, out object obj, culture))
-                        enabled.Value = (dynamic)obj;
+                        enabled.Value = obj;
                     else return null;
                     enabled.IsEnabled = true;
                 }
@@ -343,13 +343,11 @@ namespace OpenTap
             /// <summary> Turns Enabled into a string. </summary>
             public string GetString(object value, CultureInfo culture)
             {
-                if (value is IEnabled && value.GetType().DescendsTo(typeof(Enabled<>)))
+                if (value is IEnabledValue ev)
                 {
-
-                    dynamic val = value;
-                    var inner = StringConvertProvider.GetString(val.Value, culture);
+                    var inner = StringConvertProvider.GetString(ev.Value, culture);
                     if (inner == null) return null;
-                    if (val.IsEnabled)
+                    if (ev.IsEnabled)
                         return inner;
                     return "(disabled)" + inner;
                 }
@@ -453,15 +451,28 @@ namespace OpenTap
                 }
             }
 
-            /// <summary> Turns an enum into a string. Usually just ToString unless flags. </summary>
+            static ConcurrentDictionary<Enum, string> enumToStringCache = new ConcurrentDictionary<Enum, string>();
+
             public string GetString(object value, CultureInfo culture)
             {
-                if (false == value is Enum) return null;
-                
-                if (getFlagsValues(value.GetType()) is Array values)
+                if (value is Enum e)
+                {
+                    if (enumToStringCache.TryGetValue(e, out var conv))
+                        return conv;
+                    conv = getString(e);
+                    enumToStringCache[e] = conv;
+                    return conv;
+                }
+
+                return null;
+            }
+            
+            /// <summary> Turns an enum into a string. Usually just ToString unless flags. </summary>
+            static string getString(Enum val)
+            {
+                if (getFlagsValues(val.GetType()) is Array values)
                 {
                     StringBuilder sb = new StringBuilder();
-                    Enum val = (Enum)value;
                     bool first = true;
                     foreach (Enum flag in values)
                     {
@@ -476,11 +487,7 @@ namespace OpenTap
                     }
                     return sb.ToString();
                 }
-                else
-                {
-                    return value.ToString();
-                }
-
+                return val.ToString();
             }
         }
 

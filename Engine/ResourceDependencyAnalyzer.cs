@@ -19,10 +19,8 @@ namespace OpenTap
         /// </summary>
         public IResource Resource { get; set; }
 
-        /// <summary>
-        /// The peoperty that references this resource.
-        /// </summary>
-        public PropertyInfo Depender { get; set; }
+        /// <summary> The property that references this resource. </summary>
+        public IMemberData Depender { get; }
 
         /// <summary>
         /// The resources that this node depends on. These are marked with <see cref="ResourceOpenAttribute"/>.
@@ -45,7 +43,7 @@ namespace OpenTap
             this.StrongDependencies = new List<IResource>();
         }
 
-        internal ResourceNode(IResource resource, PropertyInfo prop, IEnumerable<IResource> weakDeps, IEnumerable<IResource> strongDeps)
+        internal ResourceNode(IResource resource, IMemberData prop, IEnumerable<IResource> weakDeps, IEnumerable<IResource> strongDeps)
         {
             this.Resource = resource;
             this.Depender = prop;
@@ -63,9 +61,9 @@ namespace OpenTap
         {
             public readonly ResourceOpenBehavior Behavior;
             public readonly IResource Resource;
-            public readonly PropertyInfo Depender; // this is important in case the resource is null
+            public readonly IMemberData Depender; // this is important in case the resource is null
 
-            public ResourceDep(ResourceOpenBehavior behavior, IResource resource, PropertyInfo dep)
+            public ResourceDep(ResourceOpenBehavior behavior, IResource resource, IMemberData dep)
             {
                 this.Behavior = behavior;
                 this.Resource = resource;
@@ -80,7 +78,7 @@ namespace OpenTap
             }
         }
 
-        private ResourceDep FilterProps(IResource o, PropertyInfo pi)
+        private ResourceDep FilterProps(IResource o, IMemberData pi)
         {
             var behavior = ResourceOpenBehavior.Before;
             var attr = pi.GetAttribute<ResourceOpenAttribute>();
@@ -89,23 +87,23 @@ namespace OpenTap
             return new ResourceDep(behavior, o, pi);
         }
 
-        private IEnumerable<ResourceDep> GetManyResources<T>(IList<T> steps)
+        ICollection<ResourceDep> getManyResources<T>(IList<T> steps)
         {
             if (steps.Count == 0)
-                return Enumerable.Empty<ResourceDep>();
-            else
-            {
-                return TestStepExtensions.GetObjectSettings<IResource, T, ResourceDep>(steps, true, FilterProps)
-                    .Where(dep => dep.Behavior != ResourceOpenBehavior.Ignore);
-            }
+                return Array.Empty<ResourceDep>();
+
+            var result = new HashSet<ResourceDep>();
+            TestStepExtensions.GetObjectSettings<IResource, T, ResourceDep>(steps, true, FilterProps, result);
+            result.RemoveWhere(dep => dep.Behavior == ResourceOpenBehavior.Ignore);
+            return result;
+            
         }
 
         private IEnumerable<ResourceDep> GetResources<T>(T Step)
         {
             if (Step == null)
                 return Array.Empty<ResourceDep>();
-            else
-                return GetManyResources(new[] { Step });
+            return getManyResources(new[] { Step });
         }
 
         private ResourceNode Analyze(ResourceDep resource)
@@ -254,7 +252,7 @@ namespace OpenTap
         {
             errorDetected = false;
 
-            List<ResourceDep> stepResources = GetManyResources(references).Where(x => x.Behavior != ResourceOpenBehavior.Ignore).ToList();
+            ICollection<ResourceDep> stepResources = getManyResources(references);
             List<ResourceNode> tree = GetResourceTree(references.OfType<IResource>().Select(r => new ResourceDep(r)).Concat(stepResources).ToList());
 
             //if (tree.Any(x => x.Resource == null))
@@ -283,7 +281,7 @@ namespace OpenTap
             //Add users of resources
             foreach (var r in references)
             {
-                TestStepExtensions.GetObjectSettings<IResource, object, ResourceNode>(new object[] { r }, true, (res, prop) =>
+                TestStepExtensions.GetObjectSettings<IResource, object, ResourceNode>( r, true, (res, prop) =>
                    {
                        var nodes = tree.Where(n => n.Resource == res);
                        if(nodes.Count() > 1)
@@ -299,7 +297,7 @@ namespace OpenTap
                        if (nodeRepresentingResource != null)
                            nodeRepresentingResource.References.Add(new ResourceReference(r, prop));
                        return nodeRepresentingResource;
-                   });
+                   }, new HashSet<ResourceNode>());
             }
             return tree;
         }

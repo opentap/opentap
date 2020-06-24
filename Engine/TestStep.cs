@@ -37,6 +37,7 @@ namespace OpenTap
         [ColumnDisplayName(Order : -99, IsReadOnly : true)]
         [XmlIgnore]
         [Output]
+        [SettingsIgnore]
         public Verdict Verdict { get; set; }
 
         bool enabled = true;
@@ -66,6 +67,7 @@ namespace OpenTap
         [Browsable(false)]
         [XmlIgnore]
         [AnnotationIgnore]
+        [SettingsIgnore]
         public bool IsReadOnly { get; set; }
 
         private string name;
@@ -93,12 +95,13 @@ namespace OpenTap
             }
         }
 
+        string typeName;
         /// <summary>
         /// This TestStep type as a <see cref="string"/>.   
         /// </summary>
         [ColumnDisplayName("Step Type", Order : 1)]
         [Browsable(false)]
-        public string TypeName => GetType().GetDisplayAttribute().GetFullName();
+        public string TypeName => typeName ?? (typeName = GetType().GetDisplayAttribute().GetFullName());
 
         private TestStepList _ChildTestSteps;
         /// <summary>
@@ -107,6 +110,7 @@ namespace OpenTap
         /// </summary>
         [Browsable(false)]
         [AnnotationIgnore]
+        [SettingsIgnore]
         public TestStepList ChildTestSteps
         {
             get => _ChildTestSteps; 
@@ -123,6 +127,7 @@ namespace OpenTap
         /// </summary>
         [XmlIgnore]
         [AnnotationIgnore]
+        [SettingsIgnore]
         public virtual ITestStepParent Parent { get; set; }
 
         /// <summary>
@@ -130,12 +135,14 @@ namespace OpenTap
         /// </summary>
         [XmlIgnore]
         [AnnotationIgnore]
+        [SettingsIgnore]
         public ResultSource Results { get; internal set; }
 
         /// <summary>
         /// The enumeration of all enabled Child Steps.
         /// </summary>
         [AnnotationIgnore]
+        [SettingsIgnore]
         public IEnumerable<ITestStep> EnabledChildSteps => this.GetEnabledChildSteps();
         
         /// <summary>
@@ -487,6 +494,7 @@ namespace OpenTap
         [XmlAttribute("Id")]
         [Browsable(false)]
         [AnnotationIgnore]
+        [SettingsIgnore]
         public Guid Id { get; set; } = Guid.NewGuid();
 
         // Implementing this interface will make setting and getting break conditions faster.
@@ -953,7 +961,8 @@ namespace OpenTap
 
         internal static void CheckResources(this ITestStep Step)
         {
-            var resProps2 = GetStepSettings<IResource>(new[] { Step }, true);
+            var resProps2 = new HashSet<IResource>();
+            GetObjectSettings<IResource,ITestStep, IResource>(Step, true, null, resProps2);
             foreach(var res in resProps2)
             {
                 if(res == null)
@@ -965,6 +974,103 @@ namespace OpenTap
                     step.CheckResources();
             }
         }
+        
+        /// <summary>
+        /// Returns the properties of a specific type from a number of objects. This will traverse IEnumerable and optionally IEnabled properties.
+        /// </summary>
+        /// <param name="item">The object to get properties from.</param>
+        /// <param name="onlyEnabled">If true, Enabled and EnabledIf properties are only traversed into if they are enabled.</param>
+        /// <param name="transform">This transform function is called on each object, and being passed the corresponding PropertyInfo instance from the parent object.</param>
+        /// <param name="itemSet">The set of items to populate</param>
+        /// <param name="targetType">The TypeData of the target type (Optional).</param>
+        /// <returns></returns>
+        internal static void GetObjectSettings<T,T2,T3>(T2 item, bool onlyEnabled, Func<T, IMemberData, T3> transform, HashSet<T3> itemSet, TypeData targetType = null)
+        {
+            if(targetType == null) targetType = TypeData.FromType(typeof(T));
+            var enabledAttributes = new List<EnabledIfAttribute>();
+            var propertyInfos = TypeData.GetTypeData(item).GetMembers();
+
+            foreach (var prop in propertyInfos)
+            {
+                if (prop.Readable == false) continue;
+                if (prop.HasAttribute<SettingsIgnoreAttribute>()) continue;
+                var td2 = prop.TypeDescriptor.AsTypeData();
+                if (td2.IsValueType && targetType.IsValueType == false) continue;
+                if (td2.IsString && targetType.IsString == false) continue;
+                
+                if (onlyEnabled)
+                {
+                    enabledAttributes.Clear();
+                    prop.GetAttributes<EnabledIfAttribute>(enabledAttributes);
+                    bool nextProperty = false;
+                    foreach (var attr in enabledAttributes)
+                    {
+                        bool isEnabled = EnabledIfAttribute.IsEnabled(attr, item);
+                        if (isEnabled == false)
+                        {
+                            nextProperty = true;
+                            break;
+                        }
+                    }
+
+                    if (nextProperty) continue;
+                }
+
+                object value;
+                try
+                {
+                    value = prop.GetValue(item);
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (value is IEnabled e)
+                {
+                    if (e.IsEnabled == false && onlyEnabled)
+                        continue;
+                    GetObjectSettings(value, onlyEnabled, transform, itemSet, targetType);
+                    continue;
+                }
+
+                if (value is T t2)
+                {
+                    itemSet.Add(transform(t2, prop));
+                }
+                else if (value is string)
+                    continue;
+                else if (value == null && prop.TypeDescriptor.DescendsTo(targetType))
+                {
+                    itemSet.Add(transform((T)value, prop));
+                }
+                else if (value is IEnumerable seq)
+                {
+                    if (seq is IList lst)
+                    {
+                        for (int i = 0; i < lst.Count; i++)
+                        {
+                            var value2 = lst[i];
+                            if (value2 is T x)
+                                itemSet.Add(transform(x, prop));
+                        }
+                    }
+                    else
+                    {
+                        if (value is IEnumerable<T> seq2)
+                        {
+                            foreach (var x in seq2.ToArray())
+                                itemSet.Add(transform(x, prop));
+                        }
+                        else
+                        {
+                            foreach (var x in seq.OfType<T>().ToArray())
+                                itemSet.Add(transform(x, prop));
+                        }
+                    }
+                }
+            }
+        }
 
         /// <summary>
         /// Returns the properties of a specific type from a number of objects. This will traverse IEnumerable and optionally IEnabled properties.
@@ -972,88 +1078,17 @@ namespace OpenTap
         /// <param name="objects">The objects to return properties from.</param>
         /// <param name="onlyEnabled">If true, Enabled and EnabledIf properties are only traversed into if they are enabled.</param>
         /// <param name="transform">This transform function is called on each object, and being passed the corresponding PropertyInfo instance from the parent object.</param>
+        /// <param name="itemSet"> The set of elements being populated.  </param>
         /// <returns></returns>
-        internal static List<T3> GetObjectSettings<T,T2,T3>(IEnumerable<T2> objects, bool onlyEnabled, Func<T, PropertyInfo, T3> transform)
+        internal static void GetObjectSettings<T,T2,T3>(IEnumerable<T2> objects, bool onlyEnabled, Func<T, IMemberData, T3> transform, HashSet<T3> itemSet)
         {
-            var stepTypes = objects.Where(x => x != null).ToLookup(x => x.GetType());
-            HashSet<T3> items = new HashSet<T3>();
-
-            foreach (var typeGroup in stepTypes)
-            {
-                var propertyInfos = typeGroup.Key.GetMemberData();
-                
-                foreach (var _prop in propertyInfos)
-                {
-                    var prop = _prop.Property;
-                    // 3 cases:
-                    if ((prop.PropertyType.HasInterface<IEnumerable>() && prop.PropertyType != typeof(string)) // 1: A list of things, one might be T.
-                        || prop.PropertyType.HasInterface<IEnabled>() // 2: The thing might an IEnabled<T or supertype of T>.
-                        || typeof(T).IsAssignableFrom(prop.PropertyType)) // 3: or the standard case prop.PropertyType is a 'T' or descendant.
-                    {
-                        var attrs = _prop.GetCustomAttributes<EnabledIfAttribute>();
-                        foreach (var Step in typeGroup)
-                        {
-                            foreach (EnabledIfAttribute attr in attrs)
-                            {
-                                if (onlyEnabled)
-                                {
-                                    bool isenabled = EnabledIfAttribute.IsEnabled(attr, Step);
-                                    if (isenabled == false)
-                                        goto nextstep;
-                                }
-                            }
-
-                            object propertyValue = null;
-                            try
-                            {
-                                propertyValue = prop.GetValue(Step, null);
-                            }
-                            catch
-                            {
-                                continue;
-                            }
-                            if (propertyValue is IEnabled)
-                            {
-                                IEnabled enabled = (IEnabled)propertyValue;
-                                if (enabled.IsEnabled)
-                                {
-                                    var value = GetObjectSettings<T,object,T3>(new[] { propertyValue }, onlyEnabled, transform);
-                                    foreach (var item in value)
-                                    {
-                                        if (!items.Contains(item))
-                                            items.Add(item);
-                                    }
-                                    goto nextstep;
-                                }
-                            }
-                            if (propertyValue is string == false && propertyValue is IEnumerable lst)
-                            {
-                                foreach (var item in lst.OfType<T>().ToArray())
-                                {
-                                    var item2 = transform(item, prop);
-                                    if (!items.Contains(item2))
-                                        items.Add(item2);
-                                }
-                                goto nextstep;
-                            }
-                            if ((propertyValue is T) || ((propertyValue == null) && typeof(T).IsAssignableFrom(prop.PropertyType)))
-                            {
-                                var item2 = transform((T)propertyValue, prop);
-                                if (!items.Contains(item2))
-                                    items.Add(item2);
-                            }
-                            nextstep:;
-                        }
-                    }
-                }
-            }
-            return items.ToList();
+            if (transform == null)
+                transform = (x, prop) => (T3)(object)x;
+            var targetType = TypeData.FromType(typeof(T));
+            foreach (var item in objects)
+                GetObjectSettings(item, onlyEnabled, transform, itemSet, targetType);
         }
 
-        internal static List<T> GetStepSettings<T>(IEnumerable<ITestStep> steps, bool onlyEnabled)
-        {
-            return GetObjectSettings<T, ITestStep, T>(steps, onlyEnabled, (o, pi) => o);
-        }
         
         struct Replace
         {
@@ -1174,7 +1209,7 @@ namespace OpenTap
             return outName.ToString();
         }
     }
-    
-    
-    
+
+    internal class SettingsIgnoreAttribute : Attribute
+    { }
 }

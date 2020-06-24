@@ -352,31 +352,30 @@ namespace OpenTap
             output.Add( new ResultParameter(group, parentName, val, metadata));
         }
 
-        static ConcurrentDictionary<Type, List<InternalMemberData>> propertieslookup = new ConcurrentDictionary<Type, List<InternalMemberData>>();
+        static ConcurrentDictionary<ITypeData, List<IMemberData>> propertiesLookup = new ConcurrentDictionary<ITypeData, List<IMemberData>>();
 
         private static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", params Type[] attributeFilter)
         {
             if (obj == null)
                 return;
-            if (!propertieslookup.ContainsKey(obj.GetType()))
+            var type = TypeData.GetTypeData(obj);
+            if (!propertiesLookup.ContainsKey(type))
             {
-                List<InternalMemberData> lst = new List<InternalMemberData>();
-                foreach (var _prop in obj.GetType().GetMemberData())
+                List<IMemberData> lst = new List<IMemberData>();
+                foreach (var prop in type.GetMembers())
                 {
-                    var prop = _prop.Property;
-                    if (!prop.CanRead)
+                    if (!prop.Readable)
                         continue;
 
-                    var metadataAttr = _prop.GetAttribute<MetaDataAttribute>();
+                    var metadataAttr = prop.GetAttribute<MetaDataAttribute>();
                     if (metadataAttr == null)
                     {
                         // if metadataAttr is specified, all we require is that we can read and write it. 
                         // Otherwise normal rules applies:
                         
-                        if ((prop.CanWrite == false || prop.GetSetMethod() == null))
-                            continue; // 
-                                      // Don't add Properties with XmlIgnore attribute
-                        if (_prop.HasAttribute<System.Xml.Serialization.XmlIgnoreAttribute>())
+                        if (prop.Writable == false)
+                            continue; // Don't add Properties with XmlIgnore attribute
+                        if (prop.HasAttribute<System.Xml.Serialization.XmlIgnoreAttribute>())
                             continue;
 
                         if (!prop.IsBrowsable())
@@ -385,29 +384,30 @@ namespace OpenTap
 
                     if (attributeFilter.Length > 0)
                     {
-                        // Skip properties that does not have any of the attributes specified in "attributeFilter"
-                        object[] attributes = prop.GetCustomAttributes(false);
+                        // Skip properties _prop does not have any of the attributes specified in "attributeFilter"
+                        var attributes = prop.Attributes;
                         if (attributes.Count(att => attributeFilter.Contains(att.GetType())) == 0)
                             continue;
                     }
                     
-                    lst.Add(_prop);
+                    lst.Add(prop);
                 }
-                propertieslookup[obj.GetType()] = lst;
+                propertiesLookup[type] = lst;
             }
-            foreach (var prop in propertieslookup[obj.GetType()])
+            foreach (var prop in propertiesLookup[type])
             {
+                var display = prop.GetDisplayAttribute();
                 var metadata = prop.GetAttribute<MetaDataAttribute>();
                 if (metadata != null && string.IsNullOrWhiteSpace(metadata.MacroName))
-                    metadata = new MetaDataAttribute(metadata.PromptUser, prop.Display.Name);
-                object value = prop.Property.GetValue(obj, null);
+                    metadata = new MetaDataAttribute(metadata.PromptUser, display.Name);
+                object value = prop.GetValue(obj);
                 if (value == null)
                     continue;
 
-                var name = prop.Display.Name.Trim();
+                var name = display.Name.Trim();
                 string group = "";
 
-                if (prop.Display.Group.Length == 1) group = prop.Display.Group[0].Trim();
+                if (display.Group.Length == 1) group = display.Group[0].Trim();
 
                 GetParams(group, namePrefix + name, value, metadata, output);
             }
@@ -421,7 +421,7 @@ namespace OpenTap
         {
             if (step == null)
                 throw new ArgumentNullException(nameof(step));
-            var parameters = new List<ResultParameter>();
+            var parameters = new List<ResultParameter>(5);
             GetPropertiesFromObject(step, parameters);
             if (parameters.Count == 0)
                 return new ResultParameters();
@@ -441,7 +441,7 @@ namespace OpenTap
         /// </summary>
         public ResultParameters(IEnumerable<ResultParameter> items) : this()
         {
-            AddRange(items);
+            addRangeUnsafe(items);
         }
 
         /// <summary>
@@ -473,6 +473,36 @@ namespace OpenTap
             AddRange(new[] { parameter });
         }
 
+        void addRangeUnsafe(IEnumerable<ResultParameter> parameters)
+        {
+            var tmp = data.ToList();
+            Dictionary<string, int> newIndexes = null;
+
+            foreach (var par in parameters)
+            {
+                var idx = tmp.FindIndex(rp =>
+                    (rp.Name == par.Name) &&
+                    (rp.Group == par.Group) &&
+                    (rp.ParentLevel == par.ParentLevel));
+
+
+                if (idx >= 0)
+                    tmp[idx] = par;
+                else
+                {
+                    int nidx = tmp.Count;
+                    tmp.Add(par);
+                    if (newIndexes == null)
+                        newIndexes = new Dictionary<string, int>(indexByName);
+                    newIndexes[par.Name] = nidx;
+                }
+            }
+
+            data = tmp;
+            if(newIndexes != null)
+                indexByName = newIndexes;
+        }
+
         Dictionary<string, int> indexByName = new Dictionary<string, int>();
 
         /// <summary>
@@ -485,32 +515,7 @@ namespace OpenTap
                 throw new ArgumentNullException(nameof(parameters));
             lock (addlock)
             {
-                var tmp = data.ToList();
-                Dictionary<string, int> newIndexes = null;
-
-                foreach (var par in parameters)
-                {
-                    var idx = tmp.FindIndex(rp =>
-                        (rp.Name == par.Name) &&
-                        (rp.Group == par.Group) &&
-                        (rp.ParentLevel == par.ParentLevel));
-
-
-                    if (idx >= 0)
-                        tmp[idx] = par;
-                    else
-                    {
-                        int nidx = tmp.Count;
-                        tmp.Add(par);
-                        if (newIndexes == null)
-                            newIndexes = new Dictionary<string, int>(indexByName);
-                        newIndexes[par.Name] = nidx;
-                    }
-                }
-
-                data = tmp;
-                if(newIndexes != null)
-                    indexByName = newIndexes;
+               addRangeUnsafe(parameters);
             }
         }
 

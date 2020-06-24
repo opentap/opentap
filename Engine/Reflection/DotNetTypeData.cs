@@ -110,6 +110,14 @@ namespace OpenTap
             }
         }
 
+        internal bool IsString
+        {
+            get
+            {
+                postload();
+                return typecode == TypeCode.String;
+            }
+        }
         TypeCode typecode = TypeCode.Object;
 
         IEnumerable<object> attributes = null;
@@ -194,12 +202,19 @@ namespace OpenTap
                 List<IMemberData> m = new List<IMemberData>(props.Length);
                 foreach (var mem in props)
                 {
-                    if(mem.GetMethod != null && mem.GetMethod.GetParameters().Length > 0)
+                    try
+                    {
+                        if (mem.GetMethod != null && mem.GetMethod.GetParameters().Length > 0)
+                            continue;
+
+                        if (mem.SetMethod != null && mem.SetMethod.GetParameters().Length != 1)
+                            continue;
+                    }
+                    catch
+                    {
                         continue;
-                    
-                    if (mem.SetMethod != null && mem.SetMethod.GetParameters().Length != 1)
-                        continue;
-                    
+                    }
+
                     m.Add(MemberData.Create(mem));
                 }
 
@@ -335,6 +350,8 @@ namespace OpenTap
             }
         }
 
+        bool? readable; 
+        
         /// <summary> Gets if the member is readable.  </summary>
         public bool Readable
         {
@@ -342,7 +359,7 @@ namespace OpenTap
             {
                 switch (Member)
                 {
-                    case PropertyInfo Property: return Property.CanRead && Property.GetGetMethod() != null;
+                    case PropertyInfo Property: return (readable ?? (readable = Property.CanRead && Property.GetGetMethod() != null)).Value;
                     case FieldInfo _: return true;
                     default: return false;
                 }

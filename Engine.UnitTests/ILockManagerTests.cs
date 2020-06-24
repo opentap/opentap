@@ -93,6 +93,7 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(1, UnitTestingLockManager.BeforeOpenArgs.First().First().References.Count(), "ResourceReference has unexpected number of references.");
             Assert.AreEqual(step1, UnitTestingLockManager.BeforeOpenArgs.First().First().References.First().Instance, "ResourceReference references unexpected object.");
             Assert.AreEqual(step1.GetType().GetProperty("Instrument"), UnitTestingLockManager.BeforeOpenArgs.First().First().References.First().Property, "ResourceReference references unexpected property.");
+            Assert.AreEqual(TypeData.GetTypeData(step1).GetMember("Instrument"), UnitTestingLockManager.BeforeOpenArgs.First().First().References.First().Member, "ResourceReference references unexpected property.");
 
             Assert.AreEqual(instr2, UnitTestingLockManager.BeforeOpenArgs.First().Last().Resource, "Resource has unexpected value.");
         }
@@ -143,7 +144,8 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(step1, arg1.First().References.First().Instance, "ResourceReference references unexpected object.");
             Assert.AreEqual(step1, arg1.First().References.Last().Instance, "ResourceReference references unexpected object.");
             Assert.AreEqual(step1.GetType().GetProperty("Instrument1"), arg1.First().References.First().Property, "ResourceReference references unexpected property.");
-            Assert.AreEqual(step1.GetType().GetProperty("Instrument2"), arg1.First().References.Last().Property, "ResourceReference references unexpected property.");
+            Assert.AreEqual(TypeData.GetTypeData(step1).GetMember("Instrument1"), arg1.First().References.First().Member, "ResourceReference references unexpected property.");
+            Assert.AreEqual(TypeData.GetTypeData(step1).GetMember("Instrument2"), arg1.First().References.Last().Member, "ResourceReference references unexpected property.");
 
             IEnumerable<IResourceReferences> arg2 = UnitTestingLockManager.BeforeOpenArgs.Last();
             Assert.AreEqual(2, arg2.Count(), "Resources list contain an unexpected number of items.");

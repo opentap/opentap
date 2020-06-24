@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -96,11 +97,33 @@ namespace OpenTap
         /// <summary> Get the type info of an object. </summary>
         static public ITypeData GetTypeData(object obj)
         {
+            var cache = TypeDataCache.Current;
+            if (cache != null && cache.TryGetValue(obj, out var cachedValue))
+                return cachedValue;
             checkCacheValidity();
             if (obj == null) return FromType(typeof(object));
             var resolver = new TypeDataProviderStack();
-            return resolver.GetTypeData(obj);
+            var result = resolver.GetTypeData(obj);
+            if (cache == null)
+                return result;
+            cache[obj] = result;
+            return result;
         }
+
+        class TypeDataCache : IDisposable
+        {
+            static TypeDataCache current;
+            public static ConcurrentDictionary<object, ITypeData> Current => current?.cache;
+            public static IDisposable Load() => current = new TypeDataCache { previousValue = current };
+            
+            TypeDataCache previousValue;
+            readonly ConcurrentDictionary<object, ITypeData> cache = new ConcurrentDictionary<object, ITypeData>();
+            public void Dispose() => current = previousValue; 
+        }
+
+        /// <summary>  Creates a type data cache. Note this should be used with 'using{}' so that it gets removed afterwards. </summary>
+        /// <returns> A disposable object removing the cache. </returns>
+        public static IDisposable WithTypeDataCache() =>  TypeDataCache.Load();
 
         /// <summary> Gets the type info from a string. </summary>
         static public ITypeData GetTypeData(string name) => new TypeDataProviderStack().GetTypeData(name);
