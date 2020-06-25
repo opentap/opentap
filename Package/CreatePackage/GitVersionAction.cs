@@ -361,8 +361,11 @@ namespace OpenTap.Package
                                     DrawPositionSpacer(0, startPos);
                                     // draws something like: ├─┤
                                     Console.Write("\u251C\u2500");
-                                    DrawMergePositionSpacer(startPos + 1, Math.Max(commitPosition[p2], commitPosition[c]));
-                                    Console.WriteLine("\u2524");
+                                    int endPos = Math.Max(commitPosition[p2], commitPosition[c]);
+                                    DrawMergePositionSpacer(startPos + 1, endPos);
+                                    Console.Write("\u2524 ");
+                                    DrawPositionSpacer(endPos + 1, maxPosition);
+                                    Console.WriteLine();
                                 }
                                 //else
                                 //{
