@@ -170,22 +170,11 @@ namespace OpenTap.Package
                 int maxLines = int.Parse(PrintLog);
                 int lineCount = 0;
                 Dictionary<Commit, int> commitPosition = new Dictionary<Commit, int>();
-                List<Commit> longBranchOut = new List<Commit>();
                 commitPosition.Add(History.First(), 0);
                 int maxPosition = 0;
                 foreach (Commit c in History)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-
-                    foreach (Commit lb in longBranchOut.ToList())
-                    {
-                        if(lb.Parents.Contains(c))
-                        {
-                            if (commitPosition.ContainsKey(lb))
-                                commitPosition.Remove(lb);
-                            longBranchOut.Remove(lb);
-                        }
-                    }
 
                     if (maxPosition < commitPosition[c])
                         maxPosition = commitPosition[c];
@@ -200,6 +189,21 @@ namespace OpenTap.Package
                     if (c.Parents.Count() > 1)
                     {
                         Commit p2 = c.Parents.Last();
+
+                        if (commitPosition.ContainsKey(p1))
+                            if (commitPosition[p1] != commitPosition[c])
+                            {
+                                int startPos = Math.Min(commitPosition[p1], commitPosition[c]);
+                                int endPos = Math.Max(commitPosition[p1], commitPosition[c]);
+
+                                commitPosition[c] = startPos;
+
+                                foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == endPos).ToList())
+                                {
+                                    commitPosition.Remove(kvp.Key);
+                                }
+                            }
+
                         if (!commitPosition.ContainsKey(p2))
                         {
                             // move out to an position out for the new branch
@@ -238,10 +242,6 @@ namespace OpenTap.Package
                                     commitPosition.Remove(kvp.Key);
                             }
                         }
-                        else
-                        {
-                            longBranchOut.Add(c);
-                        }
                     }
                     if (++lineCount >= maxLines)
                         break;
@@ -254,7 +254,6 @@ namespace OpenTap.Package
                     // Run through again to print
                     lineCount = 0;
                     commitPosition = new Dictionary<Commit, int>();
-                    longBranchOut = new List<Commit>();
                     commitPosition.Add(History.First(), 0);
                     HashSet<Commit> taggedCommits = repo.Tags.Select(t => t.Target.Peel<Commit>()).ToHashSet();
                     foreach (Commit c in History)
@@ -281,30 +280,6 @@ namespace OpenTap.Package
                             }
                         }
 
-                        foreach (Commit lb in longBranchOut.ToList())
-                        {
-                            if(lb.Parents.Contains(c))
-                            {
-                                if (commitPosition.ContainsKey(lb))
-                                {
-                                    if (commitPosition[lb] != commitPosition[c])
-                                    {
-                                        int startPos = Math.Min(commitPosition[lb], commitPosition[c]);
-                                        // something we already printed has the current commit as its parent, draw the line to that commit now
-                                        DrawPositionSpacer(0, startPos);
-                                        // Draw ├─┘
-                                        Console.Write("\u251C\u2500");
-                                        int endPos = Math.Max(commitPosition[lb], commitPosition[c]);
-                                        DrawMergePositionSpacer(startPos + 1, endPos);
-                                        Console.Write("\u2518 ");
-                                        DrawPositionSpacer(endPos + 1, maxPosition);
-                                        Console.WriteLine();
-                                    }
-                                    commitPosition.Remove(lb);
-                                }
-                                longBranchOut.Remove(lb);
-                            }
-                        }
                         Console.ForegroundColor = graphColor;
                         DrawPositionSpacer(0, commitPosition[c]);
                         Console.ForegroundColor = defaultColor;
@@ -337,6 +312,30 @@ namespace OpenTap.Package
                             if (c.Parents.Count() > 1)
                             {
                                 Commit p2 = c.Parents.Last();
+
+                                int startPos;
+                                int endPos;
+
+                                if (commitPosition.ContainsKey(p1))
+                                    if (commitPosition[p1] != commitPosition[c])
+                                    {
+                                        startPos = Math.Min(commitPosition[p1], commitPosition[c]);
+                                        // something we already printed has the current commit as its parent, draw the line to that commit now
+                                        DrawPositionSpacer(0, startPos);
+                                        // Draw ├─┘
+                                        Console.Write("\u251C\u2500");
+                                        endPos = Math.Max(commitPosition[p1], commitPosition[c]);
+                                        DrawMergePositionSpacer(startPos + 1, endPos);
+                                        Console.Write("\u2518 ");
+                                        DrawPositionSpacer(endPos + 1, maxPosition);
+                                        Console.WriteLine();
+                                        commitPosition[c] = startPos;
+                                        foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == endPos).ToList())
+                                        {
+                                            commitPosition.Remove(kvp.Key);
+                                        }
+                                    }
+
                                 if (!commitPosition.ContainsKey(p2))
                                 {
                                     DrawPositionSpacer(0, commitPosition[c]);
@@ -346,8 +345,7 @@ namespace OpenTap.Package
                                         newPosition++;
                                     commitPosition[p2] = newPosition;
 
-                                    //if (!commitPosition.ContainsKey(p1))
-                                        commitPosition[p1] = commitPosition[c];
+                                    commitPosition[p1] = commitPosition[c];
                                     // Draw ├─┐
                                     Console.Write("\u251C\u2500");
                                     DrawMergePositionSpacer(commitPosition[c] + 1, commitPosition[p2]);
@@ -357,11 +355,11 @@ namespace OpenTap.Package
                                 {
                                     commitPosition[p1] = commitPosition[c];
                                     // this branch is merged several times
-                                    int startPos = Math.Min(commitPosition[p2], commitPosition[c]);
+                                    startPos = Math.Min(commitPosition[p2], commitPosition[c]);
                                     DrawPositionSpacer(0, startPos);
                                     // draws something like: ├─┤
                                     Console.Write("\u251C\u2500");
-                                    int endPos = Math.Max(commitPosition[p2], commitPosition[c]);
+                                    endPos = Math.Max(commitPosition[p2], commitPosition[c]);
                                     DrawMergePositionSpacer(startPos + 1, endPos);
                                     Console.Write("\u2524 ");
                                     DrawPositionSpacer(endPos + 1, maxPosition);
@@ -404,10 +402,6 @@ namespace OpenTap.Package
                                             commitPosition.Remove(kvp.Key);
                                     }
 
-                                }
-                                else
-                                {
-                                    longBranchOut.Add(c);
                                 }
                             }
                         }
