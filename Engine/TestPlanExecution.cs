@@ -587,7 +587,7 @@ namespace OpenTap
             if(enabledSinks.Count > 0)
             {
                 var sinkListener = new ResultSinkListener(enabledSinks);
-                resultListeners = resultListeners.Concat(new IResultListener[] { sinkListener });
+                resultListeners = resultListeners.Append(sinkListener);
             }
 
             Log.Info("Starting TestPlan '{0}' on {1}, {2} of {3} TestSteps enabled.", Name, initTime, allEnabledSteps.Count, allSteps.Count);
@@ -652,7 +652,7 @@ namespace OpenTap
                 execStage.FailedToStart = true; // Set it here in case OpenInternal throws an exception. Could happen if a step is missing an instrument
 
                 OpenInternal(execStage, continuedExecutionState, currentListeners.Cast<IResource>().ToList(), allEnabledSteps);
-
+                    
                 execStage.ResourceManager.BeginStep(execStage, this, TestPlanExecutionStage.Execute, TapThread.Current.AbortToken);
 
                 if (continuedExecutionState)

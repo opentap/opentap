@@ -362,6 +362,7 @@ namespace OpenTap
                 case TestPlanExecutionStage.Execute:
                     if (item is TestPlan)
                     {
+                        var sw = Stopwatch.StartNew();
                         var testplan = item as TestPlan;
                         var resources = ResourceManagerUtils.GetResourceNodes(StaticResources.Cast<object>().Concat(EnabledSteps));
 
@@ -370,18 +371,22 @@ namespace OpenTap
                         // Proceed to open resources in case they have been changed or closed since last opening/executing the testplan.
                         if (resources.Any(r => openTasks.ContainsKey(r.Resource) == false)) // TODO: this only checks if some have been closed.
                             beginOpenResoureces(resources, cancellationToken);
+                        log.Debug(sw, "Finished Execution stage Execute");
                     }
                     break;
                 case TestPlanExecutionStage.Open:
                     if (item is TestPlan)
                     {
+                        var sw = Stopwatch.StartNew();
                         var resources = ResourceManagerUtils.GetResourceNodes(StaticResources.Cast<object>().Concat(EnabledSteps));
                         beginOpenResoureces(resources, cancellationToken);
+                        log.Debug(sw, "Finished Execution stage Open");
                     }
                     break;
                 case TestPlanExecutionStage.Run:
                 case TestPlanExecutionStage.PrePlanRun:
                     {
+                        var sw = Stopwatch.StartNew();
                         bool openCompletedWithSuccess = openTasks.Values.All(x => x.Status == TaskStatus.RanToCompletion);
                         if (!openCompletedWithSuccess)
                         {   // open did not complete or threw an exception.
@@ -389,6 +394,7 @@ namespace OpenTap
                             using (TimeoutOperation.Create(() => TestPlan.PrintWaitingMessage(Resources)))
                                 WaitUntilAllResourcesOpened(cancellationToken);
                         }
+                        log.Debug(sw, "Finished Execution stage Run/PrePlanRun");
                         break;
                     }
                 case TestPlanExecutionStage.PostPlanRun: break;
