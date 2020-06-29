@@ -148,7 +148,8 @@ namespace OpenTap
             
             if (resultListenerError)
                 return failState.StartFail;
-            
+
+            var sw = Stopwatch.StartNew();
             try
             {
                 execStage.StepsWithPrePlanRun.Clear();
@@ -163,6 +164,10 @@ namespace OpenTap
                 Log.Debug(e);
                 return failState.StartFail;
             }
+            finally{
+            {
+                Log.Debug(sw, "PrePlanRun Methods completed");
+            }}
             
             Stopwatch planRunOnlyTimer = Stopwatch.StartNew();
             var runs = new List<TestStepRun>();

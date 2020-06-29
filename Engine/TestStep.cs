@@ -787,9 +787,11 @@ namespace OpenTap
                 step.Verdict = newVerdict;
         }
 
+        static TraceSource log = Log.CreateSource("TestPlan"); 
         
         internal static TestStepRun DoRun(this ITestStep Step, TestPlanRun planRun, TestRun parentRun, IEnumerable<ResultParameter> attachedParameters = null)
         {
+            log.Debug("Test Step DoRun");
             {
                 // in case the previous action was not completed yet.
                 // this is a problem because StepRun might be set to null later

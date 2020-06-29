@@ -235,28 +235,28 @@ namespace OpenTap
         /// <returns></returns>
         internal int ScheduleInResultProcessingThread<T>(Action<T> r, bool blocking = false)
         {
-            if (!blocking) { 
+            if (!blocking)
                 return ScheduleInResultProcessingThread(r);
-            }
             if (resultWorkers.Count == 0) return 0;
-            
-            SemaphoreSlim sem = new SemaphoreSlim(0, resultWorkers.Count);
-            int count = ScheduleInResultProcessingThread<T>(l =>
+       
+            using (var sem = new SemaphoreSlim(0, resultWorkers.Count))
             {
-                try
+                int count = ScheduleInResultProcessingThread<T>(l =>
                 {
-                    r(l);
-                }
-                finally
-                {
-                    sem.Release();
-                }
-            });
+                    try
+                    {
+                        r(l);
+                    }
+                    finally
+                    {
+                        sem.Release();
+                    }
+                });
 
-            for (int i = 0; i < count; i++)
-                sem.Wait();
-            sem.Dispose();
-            return count;
+                for (int i = 0; i < count; i++)
+                    sem.Wait();
+                return count;
+            }
         }
 
         internal void AddTestStepRunStart(TestStepRun stepRun)
@@ -414,17 +414,23 @@ namespace OpenTap
                 }
                 using (var memstr = new MemoryStream(128))
                 {
+                    var sw = Stopwatch.StartNew();
                     try
                     {
                         plan.Save(memstr);
                         var testPlanBytes = memstr.ToArray();
                         TestPlanXml = Encoding.UTF8.GetString(testPlanBytes);
-                        Parameters.Add(new ResultParameter("Test Plan", nameof(Hash), GetHash(testPlanBytes), new MetaDataAttribute(), 0));
+                        Parameters.Add(new ResultParameter("Test Plan", nameof(Hash), GetHash(testPlanBytes),
+                            new MetaDataAttribute(), 0));
                     }
                     catch (Exception e)
                     {
                         log.Warning("Unable to XML serialize test plan.");
                         log.Debug(e);
+                    }
+                    finally
+                    {
+                        log.Debug(sw, "Saved Test Plan XML");
                     }
                 }
             });
