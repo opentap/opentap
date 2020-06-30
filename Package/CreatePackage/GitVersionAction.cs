@@ -208,7 +208,8 @@ namespace OpenTap.Package
                         {
                             // move out to an position out for the new branch
                             int newPosition = commitPosition[c] + 1;
-                            while (newPosition <= commitPosition.Values.Max())
+                            while (commitPosition.ContainsValue(newPosition) &&
+                                    (newPosition <= commitPosition.Values.Max()))
                                 newPosition++;
                             commitPosition[p2] = newPosition;
 
@@ -341,7 +342,8 @@ namespace OpenTap.Package
                                     DrawPositionSpacer(0, commitPosition[c]);
                                     // move out to an position out for the new branch
                                     int newPosition = commitPosition[c] + 1;
-                                    while (newPosition <= commitPosition.Values.Max())
+                                    while (commitPosition.ContainsValue(newPosition) &&
+                                            (newPosition <= commitPosition.Values.Max()))
                                         newPosition++;
                                     commitPosition[p2] = newPosition;
 
@@ -349,7 +351,9 @@ namespace OpenTap.Package
                                     // Draw ├─┐
                                     Console.Write("\u251C\u2500");
                                     DrawMergePositionSpacer(commitPosition[c] + 1, commitPosition[p2]);
-                                    Console.WriteLine("\u2510");
+                                    Console.Write("\u2510 ");
+                                    DrawPositionSpacer(commitPosition[p2] + 1, maxPosition);
+                                    Console.WriteLine();
                                 }
                                 else if (!commitPosition.ContainsKey(p1))
                                 {
