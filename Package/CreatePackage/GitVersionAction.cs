@@ -15,7 +15,7 @@ namespace OpenTap.Package
     /// <summary>
     /// CLI sub command `tap sdk gitversion` that can calculate a version number based on the git history and a .gitversion file.
     /// </summary>
-    [Display("gitversion", Group: "sdk", Description: "Calculates a semantic version number for a specific git commit.")]
+    [Display("gitversion", Group: "sdk", Description: "Calculate the semantic version number for a specific git commit.")]
     public class GitVersionAction : OpenTap.Cli.ICliAction
     {
         private static readonly TraceSource log = Log.CreateSource("GitVersion");
@@ -23,7 +23,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Represents the --log command line argument which prints git log for the last n commits including version numbers for each commit.
         /// </summary>
-        [CommandLineArgument("log",     Description = "Print git log for the last <arg> commits including version numbers for each commit.")]
+        [CommandLineArgument("log",     Description = "Print the git log for the last <arg> commits including their semantic version number.")]
         public string PrintLog { get; set; }
 
         /// <summary>
@@ -35,21 +35,21 @@ namespace OpenTap.Package
         /// <summary>
         /// Represents the --replace command line argument which causes this command to replace all occurrences of $(GitVersion) in the specified file. Cannot be used together with --log.
         /// </summary>
-        [CommandLineArgument("replace", Description = "Replace all occurrences of $(GitVersion) in the specified file.\nCannot be used together with --log.")]
+        [CommandLineArgument("replace", Description = "Replace all occurrences of $(GitVersion) in the specified file\nwith the calculated semantic version number. It cannot be used with --log.")]
         public string ReplaceFile { get; set; }
 
         /// <summary>
         /// Represents the --fields command line argument which specifies the number of version fields to print/replace.
         /// </summary>
-        [CommandLineArgument("fields",  Description = "Number of version fields to print/replace. Fields are: major, minor, patch,\n" +
-                                                      "prerelease and build metadata. E.g. --fields=2 results in only major and minor\n" +
-                                                      "fields in the version number. Default is 5 (all fields).")]
+        [CommandLineArgument("fields",  Description = "Number of version fields to print/replace. The fields are: major, minor, patch,\n" +
+                                                      "pre-release, and build metadata. E.g., --fields=2 results in a version number\n" +
+                                                      "containing only the major and minor field. The default is 5 (all fields).")]
         public int FieldCount { get; set; }
 
         /// <summary>
         /// Represents the --dir command line argument which specifies the directory in which the git repository to use is located.
         /// </summary>
-        [CommandLineArgument("dir",     Description = "Directory containing git repository to calculate the version number from.")]
+        [CommandLineArgument("dir",     Description = "Directory containing the git repository to calculate the version number from.")]
         public string RepoPath { get; set; }
 
         /// <summary>
