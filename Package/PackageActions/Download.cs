@@ -13,7 +13,7 @@ using OpenTap.Cli;
 #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
 namespace OpenTap.Package
 {
-    [Display("download", Group: "package", Description: "Downloads one or more packages.")]
+    [Display("download", Group: "package", Description: "Download one or more packages.")]
     public class PackageDownloadAction : LockingPackageAction
     {
         [CommandLineArgument("force", Description = "Download packages even if it results in some being broken.", ShortName = "f")]
@@ -34,10 +34,10 @@ namespace OpenTap.Package
         [CommandLineArgument("architecture", Description = CommandLineArgumentArchitectureDescription)]
         public CpuArchitecture Architecture { get; set; }
 
-        [UnnamedCommandLineArgument("packages", Required = true)]
+        [UnnamedCommandLineArgument("package(s)", Required = true)]
         public string[] Packages { get; set; }
 
-        [CommandLineArgument("dry-run", Description = "Initiates the command and checks for errors, but does not download any packages.")]
+        [CommandLineArgument("dry-run", Description = "Initiate the command and check for errors, but don't download any packages.")]
         public bool DryRun { get; set; } = false;
 
         /// <summary>
