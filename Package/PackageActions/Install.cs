@@ -4,8 +4,10 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using OpenTap.Cli;
 
@@ -41,6 +43,9 @@ namespace OpenTap.Package
         
         [CommandLineArgument("check-only", Description = "Checks if the selected package(s) can be installed, but does not install or download them.")]
         public bool CheckOnly { get; set; }
+        
+        [CommandLineArgument("interactive", Description = "More user responsive.")]
+        public bool Interactive { get; set; }
         
         /// <summary>
         /// This is used when specifying multiple packages with different version numbers. In that case <see cref="Packages"/> can be left null.
@@ -95,10 +100,10 @@ namespace OpenTap.Package
 
                 var installationPackages = targetInstallation.GetPackages();
 
-                int overWriteCheckExitCode = CheckForOverwrittenPackages(installationPackages, packagesToInstall, Force);
-                if (overWriteCheckExitCode != 0)
-                    return overWriteCheckExitCode;
-                
+                var overWriteCheckExitCode = CheckForOverwrittenPackages(installationPackages, packagesToInstall, Force, Interactive);
+                if (overWriteCheckExitCode == InstallationQuestion.Cancel)
+                    return 2;
+
                 // Check dependencies
                 var issue = DependencyChecker.CheckDependencies(installationPackages, packagesToInstall, Force ? LogEventType.Warning : LogEventType.Error);
                 if (issue == DependencyChecker.Issue.BrokenPackages)
@@ -189,34 +194,73 @@ namespace OpenTap.Package
 
             return toInstall;
         }
+
+
+        public enum InstallationQuestion
+        {
+            //KeepExitingFiles = 3,
+            [Display("Cancel", Order: 2)]
+            Cancel = 2,
+            [Display("Overwrite Files", Order: 1)]
+            OverwriteFile = 1,
+            
+            [Browsable(false)]
+            Success = 0,
+        }
+        class AskAboutInstallingAnyway
+        {
+            public string Name { get; } = "Overwrite Files?";
+            
+            [Browsable(true)]
+            public string Message { get; private set; }
+
+            public AskAboutInstallingAnyway(string message) => Message = message;
+
+            [Layout(LayoutMode.FloatBottom)]
+            [Submit] public InstallationQuestion Response { get; set; } = InstallationQuestion.Cancel;
+        }
         
-        internal static int CheckForOverwrittenPackages(IEnumerable<PackageDef> installedPackages, IEnumerable<PackageDef> packagesToInstall, bool force)
+        internal static InstallationQuestion CheckForOverwrittenPackages(IEnumerable<PackageDef> installedPackages, IEnumerable<PackageDef> packagesToInstall, bool force, bool interactive = false)
         {
             var conflicts = VerifyPackageHashes.CalculatePackageInstallConflicts(installedPackages, packagesToInstall);
+
+            void buildMessage(Action<string> addLine)
+            {
+                foreach (var conflictGroup in conflicts.ToLookup(x => x.OffendingPackage))
+                {
+                    addLine($"  These files will be overwritten if package '{conflictGroup.Key.Name}' is installed:");
+                    foreach (var conflict in conflictGroup)
+                    {
+                        addLine($"    {conflict.File.FileName} (from package '{conflict.Package.Name}').");
+                    }
+                }
+            }
+            
             if (conflicts.Any())
             {
+                buildMessage(line => log.Info(line));
                 if(force)
                     log.Warning("--force specified. Overwriting files.");
                 else
                 {
+                    if (interactive)
+                    {
+                        StringBuilder message = new StringBuilder();
+                        buildMessage(line => message.AppendLine(line));
+                        var question = new AskAboutInstallingAnyway(message.ToString());
+                        UserInput.Request(question);
+                        return question.Response;
+                    }   
                     log.Error(
                         "Installing these packages will overwrite existing files. Use --force to overwrite existing files, possible breaking installed packages.");
                 }
-
-                foreach (var conflictGroup in conflicts.ToLookup(x => x.OffendingPackage))
-                {
-                    log.Info($"  These files will be overwritten if package '{conflictGroup.Key.Name}' is installed:");
-                    foreach (var conflict in conflictGroup)
-                    {
-                        log.Info($"    {conflict.File.FileName} (from package '{conflict.Package.Name}').");
-                    }
-                }
-
+                
                 if (!force)
-                    return 3;
+                    return InstallationQuestion.Cancel;
+                return InstallationQuestion.OverwriteFile;
             }
 
-            return 0;
+            return InstallationQuestion.Success;
         }
     }
 }
