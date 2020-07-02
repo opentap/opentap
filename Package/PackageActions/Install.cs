@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using OpenTap.Cli;
 
@@ -39,7 +38,10 @@ namespace OpenTap.Package
         /// </summary>
         [UnnamedCommandLineArgument("Packages", Required = true)]
         public string[] Packages { get; set; }
-
+        
+        [CommandLineArgument("check-only", Description = "Checks if the selected package(s) can be installed, but does not install or download them.")]
+        public bool CheckOnly { get; set; }
+        
         /// <summary>
         /// This is used when specifying multiple packages with different version numbers. In that case <see cref="Packages"/> can be left null.
         /// </summary>
@@ -64,23 +66,16 @@ namespace OpenTap.Package
 
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
-            if (Target != null)
-            {
-                log.Info("Installing to {0}", Path.GetFullPath(Target));
-            }
-            else
-            {
+            if (Target == null)
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
-            }
             var targetInstallation = new Installation(Target);
 
             List<IPackageRepository> repositories = new List<IPackageRepository>();
-
             if (Repository == null)
                 repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager).ToList());
             else
                 repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
-
+            
             bool installError = false;
             var installer = new Installer(Target, cancellationToken) { DoSleep = false, ForceInstall = Force };
             installer.ProgressUpdate += RaiseProgressUpdate;
@@ -89,12 +84,39 @@ namespace OpenTap.Package
 
             try
             {
+                log.Debug("Fetching package information...");
                 // Get package information
                 List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force, InstallDependencies, !Force);
                 if (packagesToInstall?.Any() != true)
                 {
                     log.Info("Could not find one or more packages.");
                     return 2;
+                }
+
+                var installationPackages = targetInstallation.GetPackages();
+
+                int overWriteCheckExitCode = CheckForOverwrittenPackages(installationPackages, packagesToInstall, Force);
+                if (overWriteCheckExitCode != 0)
+                    return overWriteCheckExitCode;
+                
+                // Check dependencies
+                var issue = DependencyChecker.CheckDependencies(installationPackages, packagesToInstall, Force ? LogEventType.Warning : LogEventType.Error);
+                if (issue == DependencyChecker.Issue.BrokenPackages)
+                {
+                    if (!Force)
+                    {
+                        log.Info("To fix the package conflict uninstall or update the conflicted packages.");
+                        log.Info("To install packages despite the conflicts, use the --force option.");
+                        return 4;
+                    }
+                    if(!CheckOnly)
+                        log.Warning("Continuing despite breaking installed packages (--force)...");
+                }
+
+                if (CheckOnly)
+                {
+                    log.Info("Check completed with no problems detected.");
+                    return 0;
                 }
 
                 // Download the packages
@@ -109,19 +131,9 @@ namespace OpenTap.Package
                 RaiseError(e);
                 return 6;
             }
-            // Check dependencies
-            var issue = DependencyChecker.CheckDependencies(targetInstallation, installer.PackagePaths, Force ? LogEventType.Warning : LogEventType.Error);
-            if (issue == DependencyChecker.Issue.BrokenPackages)
-            {
-                if (!Force)
-                {
-                    log.Info("To fix the package conflict uninstall or update the conflicted packages.");
-                    log.Info("To install packages despite the conflicts, use the --force option.");
-                    return 4;
-                }
-                log.Warning("Forcing install...");
-            }
-
+            
+            log.Info("Installing to {0}", Path.GetFullPath(Target));
+            
             // Uninstall old packages before
             UninstallExisting(targetInstallation, installer.PackagePaths, cancellationToken);
 
@@ -176,6 +188,35 @@ namespace OpenTap.Package
             }
 
             return toInstall;
+        }
+        
+        internal static int CheckForOverwrittenPackages(IEnumerable<PackageDef> installedPackages, IEnumerable<PackageDef> packagesToInstall, bool force)
+        {
+            var conflicts = VerifyPackageHashes.CalculatePackageInstallConflicts(installedPackages, packagesToInstall);
+            if (conflicts.Any())
+            {
+                if(force)
+                    log.Warning("--force specified. Overwriting files.");
+                else
+                {
+                    log.Error(
+                        "Installing these packages will overwrite existing files. Use --force to overwrite existing files, possible breaking installed packages.");
+                }
+
+                foreach (var conflictGroup in conflicts.ToLookup(x => x.OffendingPackage))
+                {
+                    log.Info($"  These files will be overwritten if package '{conflictGroup.Key.Name}' is installed:");
+                    foreach (var conflict in conflictGroup)
+                    {
+                        log.Info($"    {conflict.File.FileName} (from package '{conflict.Package.Name}').");
+                    }
+                }
+
+                if (!force)
+                    return 3;
+            }
+
+            return 0;
         }
     }
 }

@@ -77,7 +77,7 @@ namespace OpenTap.Package
             return Issue.BrokenPackages;
         }
 
-        static Issue checkPackages(Installation installation, string[] packages, LogEventType severity)
+        static Issue checkPackages(IEnumerable<PackageDef> installedPackages, string[] packages, LogEventType severity)
         {
             var packages_new = new List<PackageDef>();
             foreach (string pkg in packages)
@@ -87,14 +87,11 @@ namespace OpenTap.Package
                     log.Warning("Package does not exists.");
                     return Issue.MissingPackage;
                 }
-                else
-                    packages_new.Add(PackageDef.FromPackage(pkg));
+                packages_new.Add(PackageDef.FromPackage(pkg));
             }
-
-            var packages_installed = installation.GetPackages();
             
             var new_names = packages_new.Select(pkg => pkg.Name).ToArray();
-            var after_installation = packages_new.Concat(packages_installed.Where(pkg => new_names.Contains(pkg.Name) == false)).ToList();
+            var after_installation = packages_new.Concat(installedPackages.Where(pkg => new_names.Contains(pkg.Name) == false)).ToList();
             return CheckPackages(after_installation, packages_new, severity);
         }
 
@@ -107,7 +104,14 @@ namespace OpenTap.Package
 
         public static Issue CheckDependencies(Installation installation, IEnumerable<string> newPackages, LogEventType severity = LogEventType.Error)
         {
-            return checkPackages(installation, newPackages.Select(Path.GetFullPath).ToArray(), severity);
+            return checkPackages(installation.GetPackages(), newPackages.Select(Path.GetFullPath).ToArray(), severity);
+        }
+        
+        public static Issue CheckDependencies(IEnumerable<PackageDef> installedPackages, IEnumerable<PackageDef> newPackages, LogEventType severity = LogEventType.Error)
+        {
+            var newNames = newPackages.Select(pkg => pkg.Name).ToArray();
+            var afterInstallation = newPackages.Concat(installedPackages.Where(pkg => newNames.Contains(pkg.Name) == false)).ToList();
+            return CheckPackages(afterInstallation, newPackages, severity);
         }
     }
 }

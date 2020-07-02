@@ -368,16 +368,23 @@ namespace OpenTap.Package
         [XmlAttribute]
         public string Group { get; set; }
 
+        string rawVersion;
+        
         /// <summary>
         /// Returns version as a <see cref="SemanticVersion"/>.
         /// </summary>
         /// <returns></returns>
         internal string RawVersion
         {
-            get;
-            set;
+            get => rawVersion;
+            set
+            {
+                rawVersion = value;
+                if (this.Version == null && SemanticVersion.TryParse(value, out var version))
+                    Version = version;
+            }
         }
-        
+
         /// <summary>
         /// A list of files contained in this package.
         /// </summary>
