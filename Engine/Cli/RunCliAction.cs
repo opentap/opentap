@@ -24,57 +24,57 @@ namespace OpenTap.Cli
         PluginError = 80
     }
     /// <summary>
-    /// Test plan run CLI action. Enables running test plans through 'tap.exe run'
+    /// Test plan run CLI action. Execute a test plan with 'tap.exe run test.TapPlan'
     /// </summary>
-    [Display("run", Description: "Runs a Test Plan.")]
+    [Display("run", Description: "Run a Test Plan.")]
     public class RunCliAction : ICliAction
     {
         /// <summary>
-        /// Specify a bench settings profile from which to load\nsettings. The parameter given here should correspond to the name of a subdirectory of %TAP_PATH%/Settings/Bench. If not specified the settings from OpenTAP GUI are used.
+        /// Specify a bench settings profile from which to load the bench settings. The parameter given here should correspond to the name of a subdirectory of %TAP_PATH%/Settings/Bench. If not specified, %TAP_PATH%/Settings/Bench/Default is used.
         /// </summary>
-        [CommandLineArgument("settings", Description = "Specify a bench settings profile from which to load\nsettings. The parameter given here should correspond\nto the name of a subdirectory of %TAP_PATH%/Settings/Bench.\nIf not specified, %TAP_PATH%/Settings/Bench/CurrentProfile is used.")]
+        [CommandLineArgument("settings", Description = "Specify a bench settings profile from which to load\nthe bench settings. The parameter given here should correspond\nto the name of a subdirectory of <OpenTAP installation dir>/Settings/Bench.\nIf not specified, <OpenTAP installation dir>/Settings/Bench/Default is used.")]
         public string Settings { get; set; } = "";
 
         /// <summary>
-        /// Add directories to search for plugin dlls.
+        /// Additional directories to be searched for plugins. This option may be used multiple times, e.g., --search dir1 --search dir2.
         /// </summary>
-        [CommandLineArgument("search", Description = "Add directories to search for plugin dlls.", Visible = false)]
+        [CommandLineArgument("search", Description = "Additional directories to be searched for plugins.\nThis option may be used multiple times, e.g., --search dir1 --search dir2.", Visible = false)]
         public string[] Search { get; set; } = new string[0];
 
         /// <summary>
-        /// Metadata can be added multiple times. For example the serial number for your DUT (usage: --metadata dut-id=5).
+        /// Set a resource metadata parameter. Use the syntax parameter=value, e.g., --metadata dut-id=5. This option may be used multiple times.
         /// </summary>
-        [CommandLineArgument("metadata", Description = "Metadata can be added multiple times. For example the\nserial number for your DUT (usage: --metadata dut-id=5).")]
+        [CommandLineArgument("metadata", Description = "Set a resource metadata parameter.\nUse the syntax parameter=value, e.g., --metadata dut-id=5.\nThis option may be used multiple times.")]
         public string[] Metadata { get; set; } = new string[0];
 
         /// <summary>
-        /// Never wait for user input.
+        /// Never prompt for user input.
         /// </summary>
-        [CommandLineArgument("non-interactive", Description = "Never wait for user input.")]
+        [CommandLineArgument("non-interactive", Description = "Never prompt for user input.")]
         public bool NonInteractive { get; set; } = false;
 
         /// <summary>
-        /// Sets an external test plan parameter. Can be used multiple times. Use the syntax parameter=value, e.g. \"-e delay=1.0\".
+        /// Set an external test plan parameter. Use the syntax parameter=value, e.g., -e delay=1.0. This option may be used multiple times, or a .csv file containing a \"parameter, value\" pair on each line can be specified as -e file.csv.
         /// </summary>
-        [CommandLineArgument("external", ShortName = "e", Description = "Sets an external test plan parameter. \nUse the syntax parameter=value, e.g. \"-e delay=1.0\". The argument can be used multiple times \nor a .csv file containing sets of parameters can be specified \"-e file.csv\".")]
+        [CommandLineArgument("external", ShortName = "e", Description = "Set an external test plan parameter.\nUse the syntax parameter=value, e.g., -e delay=1.0.\nThis option may be used multiple times, or a .csv file containing a\n\"parameter, value\" pair on each line can be specified as -e file.csv.")]
         public string[] External { get; set; } = new string[0];
 
         /// <summary>
-        /// Try setting an external test plan parameter, ignoring errors if it does not exist in the test plan. Can be used multiple times. Use the syntax parameter=value, e.g. \"-t delay=1.0\".
+        /// Try setting an external test plan parameter, ignoring errors if it does not exist in the test plan. Use the syntax parameter=value, e.g., -t delay=1.0. This option may be used multiple times
         /// </summary>
-        [CommandLineArgument("try-external", ShortName = "t", Description = "Try setting an external test plan parameter,\nignoring errors if it does not exist in the test plan.\nCan be used multiple times. Use the syntax parameter=value,\ne.g. \"-t delay=1.0\".")]
+        [CommandLineArgument("try-external", ShortName = "t", Description = "Try setting an external test plan parameter,\nignoring errors if it does not exist in the test plan.\nUse the syntax parameter=value, e.g., -t delay=1.0.\nThis option may be used multiple times.")]
         public string[] TryExternal { get; set; } = new string[0];
 
         /// <summary>
-        /// Lists the available external test plan parameters.
+        /// List the available external test plan parameters.
         /// </summary>
-        [CommandLineArgument("list-external-parameters", Description = "Lists the available external test plan parameters.")]
+        [CommandLineArgument("list-external-parameters", Description = "List the available external test plan parameters.")]
         public bool ListExternal { get; set; } = false;
 
         /// <summary>
-        /// Sets the enabled result listeners for this test plan execution as a comma separated list. An example could be --results SQLite,CSV. To disable all result listeners use --results \"\".
+        /// Enable a subset of the currently configured result listeners given as a comma-separated list, e.g., --results SQLite,CSV. To disable all result listeners use --results \"\".
         /// </summary>
-        [CommandLineArgument("results", Description = "Sets the enabled result listeners for this test plan execution as a comma separated list. An example could be --results SQLite,CSV. To disable all result listeners use --results \"\".")]
+        [CommandLineArgument("results", Description = "Enable a subset of the currently configured result listeners\ngiven as a comma-separated list, e.g., --results SQLite,CSV.\nTo disable all result listeners use --results \"\".")]
         public string Results { get; set; }
 
         /// <summary>
