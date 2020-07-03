@@ -36,8 +36,28 @@ namespace OpenTap
             return dict.GetValue(type, x =>
             {
                 TypeData td = null;
-                PluginManager.GetSearcher()?.AllTypes.TryGetValue(type.FullName, out td);
-                if (td == null) td = new TypeData(x);
+                var searcher = PluginManager.GetSearcher();
+                searcher?.AllTypes.TryGetValue(type.FullName, out td);
+                if (td == null && searcher != null)
+                {
+                    // This can occur for some types inside mscorlib such as System.Net.IPAddress.
+                    try
+                    {
+                        if (type.Assembly != null && type.Assembly.IsDynamic == false && type.Assembly.Location != null)
+                        {
+                            searcher.AddAssembly(type.Assembly.Location, type.Assembly);
+                            if (searcher.AllTypes.TryGetValue(type.FullName, out td))
+                                return td;
+                        }
+                    }
+                    catch
+                    {
+                        
+                    }
+
+                    td = new TypeData(x);
+                }
+
                 return td;
             });
         }

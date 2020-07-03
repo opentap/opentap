@@ -50,6 +50,7 @@ module.exports = {
                     ["/Developer Guide/Instrument/", "Instrument"],
                     ["/Developer Guide/Result Listener/", "Result Listener"],
                     ["/Developer Guide/Component Setting/", "Component Setting"],
+                    ["/Developer Guide/Annotations/", "Annotations"],
                     ["/Developer Guide/Plugin Packaging and Versioning/", "Plugin Packaging and Versioning"],
                     ["/Developer Guide/Attributes/", "Attributes"],
                     ["/Developer Guide/Appendix A/", "Appendix A: Macro Strings"]

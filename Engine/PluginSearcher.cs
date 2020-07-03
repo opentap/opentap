@@ -155,7 +155,7 @@ namespace OpenTap
             HashSet<AssemblyRef> UnfoundAssemblies; // for assemblies that are not in the files.
 
             /// <summary> Manually analyze and add an assembly file. </summary>
-            private AssemblyData AddAssemblyInfo(string file)
+            internal AssemblyData AddAssemblyInfo(string file, Assembly loadedAssembly = null)
             {
                 var normalizedFile = PathUtils.NormalizePath(file);
                 if (nameToAsmMap2.TryGetValue(normalizedFile, out AssemblyRef asmRef2))
@@ -164,9 +164,8 @@ namespace OpenTap
                 }
                 try
                 {
-                    AssemblyData thisAssembly = new AssemblyData();
-                    thisAssembly.Location = file;
-
+                    var thisAssembly = new AssemblyData(file, loadedAssembly);
+                    
                     List<AssemblyRef> refNames = new List<AssemblyRef>();
                     using (FileStream str = new FileStream(file, FileMode.Open, FileAccess.Read))
                     {
@@ -292,6 +291,13 @@ namespace OpenTap
             files = files.Where(f => Path.GetExtension(f) == ".dll" || Path.GetExtension(f) == ".exe").ToList();
 
             return Search(files);
+        }
+
+        /// <summary> Adds an assembly outside the 'search' context. </summary>
+        internal void AddAssembly(string path, Assembly loadedAssembly)
+        {
+            var asm = graph.AddAssemblyInfo(path, loadedAssembly);
+            PluginsInAssemblyRecursive(asm);
         }
 
         /// <summary>
@@ -947,7 +953,7 @@ namespace OpenTap
         /// <summary>
         /// The file from which this assembly can be loaded. The information contained in this AssemblyData object comes from this file.
         /// </summary>
-        public string Location { get; internal set; }
+        public string Location { get; }
 
         /// <summary>
         /// A list of Assemblies that this Assembly references.
@@ -982,11 +988,14 @@ namespace OpenTap
         /// </summary>
         public SemanticVersion SemanticVersion { get; internal set; }
 
-        internal AssemblyData()
+        internal AssemblyData(string location, Assembly preloadedAssembly = null)
         {
-
+            Location = location;
+            this.preloadedAssembly = preloadedAssembly;
         }
 
+        /// <summary>  Optionally set for preloaded assemblies.  </summary>
+        readonly Assembly preloadedAssembly;
         private Assembly _Assembly;
 
         private bool _FailedLoad;
@@ -1004,13 +1013,14 @@ namespace OpenTap
                 try
                 {
                     var watch = Stopwatch.StartNew();
-
-                    foreach (var asm in AppDomain.CurrentDomain.GetAssemblies().Where(asm => !asm.IsDynamic && !string.IsNullOrWhiteSpace(asm.Location)))
-                        if (PathUtils.AreEqual(asm.Location, this.Location))
-                        {
-                            _Assembly = asm;
-                            break;
-                        }
+                    if (preloadedAssembly != null)
+                        _Assembly = preloadedAssembly;
+                    else
+                    {
+                        var _asm = AppDomain.CurrentDomain.GetAssemblies()
+                            .FirstOrDefault(asm => !asm.IsDynamic && !string.IsNullOrWhiteSpace(asm.Location) && PathUtils.AreEqual(asm.Location, this.Location));
+                        _Assembly = _asm;
+                    }
 
                     if (_Assembly == null)
                         //_Assembly = System.Runtime.Loader.AssemblyLoadContext.LoadFromAssemblyPath(Path.GetFullPath(this.Location));
