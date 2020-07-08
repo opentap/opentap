@@ -59,18 +59,24 @@ namespace OpenTap.Plugins.BasicSteps
                 foreach (var set in sets)
                 {
                     var mem = rowType.GetMember(set.Name);
-                    var val = StringConvertProvider.GetString(mem.GetValue(Value), CultureInfo.InvariantCulture);
+                    var value = mem.GetValue(Value);
+                    
+                    string valueString;
+                    if (value == null)
+                        valueString = "";
+                    else if(false == StringConvertProvider.TryGetString(value, out valueString, CultureInfo.InvariantCulture))
+                        valueString = value.ToString();
+                    
                     var disp = mem.GetDisplayAttribute();
-                    AdditionalParams.Add(new ResultParameter(disp.Group.FirstOrDefault() ?? "", disp.Name, val));
-
+                    AdditionalParams.Add(new ResultParameter(disp.Group.FirstOrDefault() ?? "", disp.Name, valueString));
+                    
                     try
                     {
-                        var value = StringConvertProvider.FromString(val, set.TypeDescriptor, this, CultureInfo.InvariantCulture);
                         set.SetValue(this, value);
                     }
                     catch (TargetInvocationException ex)
                     {
-                        Log.Error("Unable to set '{0}' to value '{2}': {1}", set.GetDisplayAttribute().Name, ex?.InnerException?.Message, val);
+                        Log.Error("Unable to set '{0}' to value '{2}': {1}", set.GetDisplayAttribute().Name, ex?.InnerException?.Message, valueString);
                         Log.Debug(ex.InnerException);
                     }
                 }
