@@ -29,37 +29,48 @@ namespace OpenTap
         /// </summary>
         public Type Type => Load();
 
+        // Since AddAssembly is called inside createValueCallback,
+        // the value creation must be locked, throwing an exception
+        // inside createValueCallback can cause critical errors.
+        static object loadTypeDictLock = new object();
+        
         /// <summary> Creates a new TypeData object to represent a dotnet type. </summary>
         public static TypeData FromType(Type type)
         {
             checkCacheValidity();
-            return dict.GetValue(type, x =>
-            {
-                TypeData td = null;
-                var searcher = PluginManager.GetSearcher();
-                searcher?.AllTypes.TryGetValue(type.FullName, out td);
-                if (td == null && searcher != null)
+            
+                return dict.GetValue(type, x =>
                 {
-                    // This can occur for some types inside mscorlib such as System.Net.IPAddress.
-                    try
+                    TypeData td = null;
+                    var searcher = PluginManager.GetSearcher();
+                    lock (loadTypeDictLock)
                     {
-                        if (type.Assembly != null && type.Assembly.IsDynamic == false && type.Assembly.Location != null)
+                        searcher?.AllTypes.TryGetValue(type.FullName, out td);
+                        if (td == null && searcher != null)
                         {
-                            searcher.AddAssembly(type.Assembly.Location, type.Assembly);
-                            if (searcher.AllTypes.TryGetValue(type.FullName, out td))
-                                return td;
+                            // This can occur for some types inside mscorlib such as System.Net.IPAddress.
+                            try
+                            {
+                                if (type.Assembly != null && type.Assembly.IsDynamic == false &&
+                                    type.Assembly.Location != null)
+                                {
+                                    searcher.AddAssembly(type.Assembly.Location, type.Assembly);
+                                    if (searcher.AllTypes.TryGetValue(type.FullName, out td))
+                                        return td;
+                                }
+                            }
+                            catch
+                            {
+
+                            }
+
+                            td = new TypeData(x);
                         }
                     }
-                    catch
-                    {
-                        
-                    }
 
-                    td = new TypeData(x);
-                }
-
-                return td;
-            });
+                    return td;
+                });
+            
         }
 
         TypeData(Type type)
