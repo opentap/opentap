@@ -1,3 +1,4 @@
+using System;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -8,10 +9,13 @@ namespace OpenTap.Plugins.BasicSteps
     [Display("Sweep Parameter", "Table based loop that sweeps the value of its parameters based on a set of values.", "Flow Control")]
     public class SweepParameterStep : SweepParameterStepBase
     {
+        public bool SweepValuesEnabled => SelectedParameters.Count > 0;
+
         SweepRowCollection sweepValues = new SweepRowCollection();
         [DeserializeOrder(1)] // this should be deserialized as the last thing.
         [Display("Sweep Values", "A table of values to be swept for the selected parameters.", "Sweep")]
         [HideOnMultiSelect] // todo: In the future support multi-selecting this.
+        [EnabledIf(nameof(SweepValuesEnabled), true)]
         [Unsweepable]
         public SweepRowCollection SweepValues 
         { 
@@ -26,8 +30,19 @@ namespace OpenTap.Plugins.BasicSteps
         public SweepParameterStep()
         {
             SweepValues.Loop = this;
-            SweepValues.Add(new SweepRow());
             Name = "Sweep {Parameters}";
+            Rules.Add(() => string.IsNullOrWhiteSpace(validateSweepValues()), validateSweepValues, nameof(SweepValues));
+        }
+
+        private string validateSweepValues()
+        {
+            if (SweepValues.Count <= 0 || SweepValues.All(x => x.Enabled == false)) return "No values selected to sweep";
+
+            if (SelectedParameters.Count <= 0)
+            {
+                SweepValues = new SweepRowCollection();
+            }
+            return "";
         }
 
         int iteration;
@@ -40,6 +55,12 @@ namespace OpenTap.Plugins.BasicSteps
         {
             base.PrePlanRun();
             iteration = 0;
+
+            if (SelectedParameters.Count <= 0)
+                throw new InvalidOperationException("No parameters selected to sweep");
+            var errorStr = validateSweepValues();
+            if (!string.IsNullOrWhiteSpace(errorStr))
+                throw new InvalidOperationException(errorStr);
         }
 
         public override void Run()
