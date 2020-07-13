@@ -167,7 +167,12 @@ namespace OpenTap.Cli
             try
             {
                 var execThread = TapThread.Current;
-                Console.CancelKeyPress += (s, e) => execThread.Abort();
+                Console.CancelKeyPress += (s, e) =>
+                {
+                    e.Cancel = true;
+                    execThread.Abort();
+                };
+
             }
             catch { }
 
