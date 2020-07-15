@@ -137,6 +137,7 @@ namespace OpenTap
         /// <summary> null or the macro name representation of the ResultParameter. This will make it possible to insert the parameter value into a string. <see cref="MacroString"/></summary>
         public readonly string MacroName;
 
+        /// <summary> Creates a result parameter with default group.</summary>
         public ResultParameter(string name, IConvertible value)
         {
             Name = name;
