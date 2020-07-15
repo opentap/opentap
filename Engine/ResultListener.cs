@@ -248,7 +248,7 @@ namespace OpenTap
 
         static void getMetadataFromObject(object res, string nestedName, ICollection<ResultParameter> output)
         {
-            GetPropertiesFromObject(res, output, nestedName, typeof(MetaDataAttribute));
+            GetPropertiesFromObject(res, output, nestedName);
         }
 
         /// <summary>
@@ -417,7 +417,7 @@ namespace OpenTap
             return result;
         }
         
-        private static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", params Type[] attributeFilter)
+        private static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "")
         {
             if (obj == null)
                 return;
@@ -453,11 +453,7 @@ namespace OpenTap
                     continue;
                 }
                 
-                IConvertible val;
-                if (value is IConvertible)
-                    val = value as IConvertible;
-                else if((val = StringConvertProvider.GetString(value)) == null)
-                    val = value.ToString();
+                IConvertible val = value as IConvertible ?? StringConvertProvider.GetString(value) ?? value.ToString();
                 parameters.Overwrite(name, val, group, metadata);
             }
         }

@@ -512,6 +512,7 @@ namespace OpenTap
                     plugin.AddPluginType(plugin); // this inherits directly from ITapPlugin (otherwise it should have been picked up earlier)
                 }
             }
+            plugin.FinalizeCreation();
             if (plugin.PluginTypes != null)
             {
                 foreach (CustomAttributeHandle attrHandle in typeDef.GetCustomAttributes())
@@ -801,12 +802,16 @@ namespace OpenTap
         }
 
 
-        private HashSet<TypeData> _BaseTypes;
-        /// <summary>
-        /// Gets a list of base types (including interfaces)
-        /// </summary>
+        ICollection<TypeData> _BaseTypes;
+        
+        /// <summary> Gets a list of base types (including interfaces) </summary>
         internal ICollection<TypeData> BaseTypes => _BaseTypes;
 
+        internal void FinalizeCreation()
+        {
+            _BaseTypes = _BaseTypes?.ToArray();
+            _PluginTypes = _PluginTypes?.ToArray();
+        }
         internal void AddBaseType(TypeData typename)
         {
             if (_BaseTypes == null)
@@ -814,7 +819,7 @@ namespace OpenTap
             _BaseTypes.Add(typename);
         }
 
-        private HashSet<TypeData> _PluginTypes;
+        private ICollection<TypeData> _PluginTypes;
         /// <summary>
         /// Gets a list of plugin types (i.e. types that directly implement ITapPlugin) that this type inherits from/implements
         /// </summary>
@@ -838,7 +843,7 @@ namespace OpenTap
                 _PluginTypes.Add(t);
         }
 
-        private HashSet<TypeData> _DerivedTypes;
+        private ICollection<TypeData> _DerivedTypes;
         /// <summary>
         /// Gets a list of types that has this type as a base type (including interfaces)
         /// </summary>

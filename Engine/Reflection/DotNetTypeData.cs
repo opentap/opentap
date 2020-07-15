@@ -17,7 +17,7 @@ namespace OpenTap
     public partial class TypeData : ITypeData
     {
         /// <summary> Creates a string value of this.</summary>
-        public override string ToString() => $"{type.FullName}";
+        public override string ToString() => Name;
 
         static ConditionalWeakTable<Type, TypeData> dict = new ConditionalWeakTable<Type, TypeData>();
 
@@ -198,7 +198,8 @@ namespace OpenTap
             }
             return null;
         }
-        IEnumerable<IMemberData> members = null;
+        
+        IMemberData[] members;
 
         /// <summary>
         /// Gets all the members of this type. 

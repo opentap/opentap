@@ -101,6 +101,7 @@ namespace OpenTap
         internal void ThrottleResultPropagation()
         {
 
+            if (resultWorkers.Count == 0) return;
             lock (workThrottleLock)
             {
                 foreach (var worker in resultWorkers)
