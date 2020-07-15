@@ -143,17 +143,71 @@ namespace OpenTap
     /// </summary>
     internal static class ResourceManagerUtils
     {
-        /// <summary>
-        /// Gets ResourceNodes for all resources. This includes the ones from <see cref="IResourceManager.EnabledSteps"/> and  <see cref="IResourceManager.StaticResources"/>.
-        /// </summary>
-        public static List<ResourceNode> GetResourceNodes(IEnumerable<object> source)
+        struct EnumerableKey
         {
-            var resources = new ResourceDependencyAnalyzer().GetAllResources(source.ToList(), out bool analysisError);
+            readonly int key;
+            readonly object[] items;
+            public EnumerableKey(object[] items)
+            {
+                this.items = items;
+                key = 3275321;
+                foreach (var item in items)
+                    key = ((item?.GetHashCode() ?? 0) + key) * 3275321;
+            }
+
+            public override int GetHashCode() => key;
+            public override bool Equals(object obj)
+            {
+                if (obj is EnumerableKey other)
+                    return other.key == key && other.items.SequenceEqual(items);
+                return false;
+            }
+        }
+        
+        static List<ResourceNode> GetResourceNodesNoCache(object[] source)
+        {
+            var resources = new ResourceDependencyAnalyzer().GetAllResources(source, out bool analysisError);
             if (analysisError)
             {
                 throw new OperationCanceledException("Error while analyzing dependencies between resources.");
             }
             return resources;
+        }
+        
+        static Dictionary<EnumerableKey, List<ResourceNode>> cache = new Dictionary<EnumerableKey, List<ResourceNode>>();
+        static Guid cacheId; 
+        /// <summary>
+        /// Gets ResourceNodes for all resources. This includes the ones from <see cref="IResourceManager.EnabledSteps"/> and  <see cref="IResourceManager.StaticResources"/>.
+        /// </summary>
+        public static List<ResourceNode> GetResourceNodes(IEnumerable<object> _source)
+        {
+            var source = _source.ToArray();
+            if (TypeData.IsCacheInUse)
+            {
+                var key = new EnumerableKey(source);
+                lock (cache)
+                {
+                    if (cacheId != TypeData.CacheId)
+                    {
+                        cache.Clear();
+                        cacheId = TypeData.CacheId;
+                    }
+
+                    if ( cache.TryGetValue(key, out List<ResourceNode> result))
+                        return result;
+                    result = GetResourceNodesNoCache(source);
+                    cache[key] = result;
+                    return result;
+                }
+            }
+
+            if (cache.Count > 0)
+            {
+                lock (cache)
+                    cache.Clear();
+            }
+            
+            return GetResourceNodesNoCache(source);
         }
     }
 
@@ -371,7 +425,6 @@ namespace OpenTap
                         // Proceed to open resources in case they have been changed or closed since last opening/executing the testplan.
                         if (resources.Any(r => openTasks.ContainsKey(r.Resource) == false)) // TODO: this only checks if some have been closed.
                             beginOpenResoureces(resources, cancellationToken);
-                        log.Debug(sw, "Finished Execution stage Execute");
                     }
                     break;
                 case TestPlanExecutionStage.Open:
@@ -380,7 +433,6 @@ namespace OpenTap
                         var sw = Stopwatch.StartNew();
                         var resources = ResourceManagerUtils.GetResourceNodes(StaticResources.Cast<object>().Concat(EnabledSteps));
                         beginOpenResoureces(resources, cancellationToken);
-                        log.Debug(sw, "Finished Execution stage Open");
                     }
                     break;
                 case TestPlanExecutionStage.Run:
@@ -394,7 +446,6 @@ namespace OpenTap
                             using (TimeoutOperation.Create(() => TestPlan.PrintWaitingMessage(Resources)))
                                 WaitUntilAllResourcesOpened(cancellationToken);
                         }
-                        log.Debug(sw, "Finished Execution stage Run/PrePlanRun");
                         break;
                     }
                 case TestPlanExecutionStage.PostPlanRun: break;

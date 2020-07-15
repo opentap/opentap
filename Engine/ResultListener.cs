@@ -116,7 +116,7 @@ namespace OpenTap
         /// Value of the parameter. If null, the value is the string "NULL".  
         /// </summary>
         [DataMember]
-        public readonly IConvertible Value;
+        public IConvertible Value;
         /// <summary>
         /// Indicates the parameter came from a test step in a parent level above the initial object.  
         /// </summary>
@@ -344,7 +344,7 @@ namespace OpenTap
             var parentName = name;
 
             IConvertible val;
-            if (value is IConvertible && !(value is Enum))
+            if (value is IConvertible)
                 val = value as IConvertible;
             else if((val = StringConvertProvider.GetString(value)) == null)
                 val = value.ToString();
@@ -352,67 +352,123 @@ namespace OpenTap
             output.Add( new ResultParameter(group, parentName, val, metadata));
         }
 
-        static ConcurrentDictionary<ITypeData, List<IMemberData>> propertiesLookup = new ConcurrentDictionary<ITypeData, List<IMemberData>>();
+        static ConcurrentDictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
+            metadata)[]> propertiesLookup =
+            new ConcurrentDictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
+                metadata)[]>();
 
-        private static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", params Type[] attributeFilter)
+        static (IMemberData member, string group, string name, MetaDataAttribute metadata)[] GetParametersMap(
+            ITypeData type)
         {
-            if (obj == null)
-                return;
-            var type = TypeData.GetTypeData(obj);
-            if (!propertiesLookup.ContainsKey(type))
+            if (propertiesLookup.TryGetValue(type, out var result))
+                return result;
+            var lst = new List<(IMemberData member, string group, string name, MetaDataAttribute metadata)>();
+            foreach (var prop in type.GetMembers())
             {
-                List<IMemberData> lst = new List<IMemberData>();
-                foreach (var prop in type.GetMembers())
+                if (!prop.Readable)
+                    continue;
+
+                var metadataAttr = prop.GetAttribute<MetaDataAttribute>();
+                if (metadataAttr == null)
                 {
-                    if (!prop.Readable)
+                    // if metadataAttr is specified, all we require is that we can read and write it. 
+                    // Otherwise normal rules applies:
+
+                    if (prop.Writable == false)
+                        continue; // Don't add Properties with XmlIgnore attribute
+                    
+                    if (prop.HasAttribute<System.Xml.Serialization.XmlIgnoreAttribute>())
                         continue;
 
-                    var metadataAttr = prop.GetAttribute<MetaDataAttribute>();
-                    if (metadataAttr == null)
-                    {
-                        // if metadataAttr is specified, all we require is that we can read and write it. 
-                        // Otherwise normal rules applies:
-                        
-                        if (prop.Writable == false)
-                            continue; // Don't add Properties with XmlIgnore attribute
-                        if (prop.HasAttribute<System.Xml.Serialization.XmlIgnoreAttribute>())
-                            continue;
-
-                        if (!prop.IsBrowsable())
-                            continue;
-                    }
-
-                    if (attributeFilter.Length > 0)
-                    {
-                        // Skip properties _prop does not have any of the attributes specified in "attributeFilter"
-                        var attributes = prop.Attributes;
-                        if (attributes.Count(att => attributeFilter.Contains(att.GetType())) == 0)
-                            continue;
-                    }
-                    
-                    lst.Add(prop);
+                    if (!prop.IsBrowsable())
+                        continue;
                 }
-                propertiesLookup[type] = lst;
-            }
-            foreach (var prop in propertiesLookup[type])
-            {
+
                 var display = prop.GetDisplayAttribute();
                 var metadata = prop.GetAttribute<MetaDataAttribute>();
                 if (metadata != null && string.IsNullOrWhiteSpace(metadata.MacroName))
                     metadata = new MetaDataAttribute(metadata.PromptUser, display.Name);
-                object value = prop.GetValue(obj);
-                if (value == null)
-                    continue;
 
                 var name = display.Name.Trim();
                 string group = "";
 
                 if (display.Group.Length == 1) group = display.Group[0].Trim();
 
+                lst.Add((prop, group, name, metadata));
+            }
+
+            result = lst.ToArray();
+            propertiesLookup[type] = result;
+            return result;
+        }
+        
+        private static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", params Type[] attributeFilter)
+        {
+            if (obj == null)
+                return;
+            var type = TypeData.GetTypeData(obj);
+            foreach (var (prop, group, name, metadata) in GetParametersMap(type))
+            {
+                object value = prop.GetValue(obj);
+                if (value == null)
+                    continue;
                 GetParams(group, namePrefix + name, value, metadata, output);
             }
         }
-        
+
+        internal static void UpdateParams(ResultParameters parameters, object obj, string namePrefix = "")
+        {
+            bool commit_started = false;
+            if (parameters.commit == null)
+            {
+                commit_started = true;
+                parameters.commit = new List<ResultParameter>();
+            }
+                
+            if (obj == null)
+                return;
+            var type = TypeData.GetTypeData(obj);
+            foreach (var (prop, group, _name, metadata) in GetParametersMap(type))
+            {
+                var name = namePrefix + _name;
+                object value = prop.GetValue(obj);
+                if (value == null)
+                    continue;
+                
+                if (value is IResource)
+                {
+                    string resval = value.ToString();
+                    parameters.Overwrite(name, resval, group, metadata);
+                    UpdateParams(parameters, value, name);
+                    continue;
+                }
+                
+                IConvertible val;
+                if (value is IConvertible)
+                    val = value as IConvertible;
+                else if((val = StringConvertProvider.GetString(value)) == null)
+                    val = value.ToString();
+                parameters.Overwrite(name, val, group, metadata);
+            }
+
+            if (commit_started)
+            {
+                parameters.Commit();
+            }
+        }
+
+        internal void Overwrite(string name, IConvertible value, string group, MetaDataAttribute metadata)
+        {
+            if (Find(name) is ResultParameter param)
+            {
+                param.Value = value;
+            }
+            else
+            {
+                Add(new ResultParameter(group, name, value, metadata));
+            }
+        }
+
         /// <summary>
         /// Returns a <see cref="ResultParameters"/> list with one entry for every setting of the inputted 
         /// TestStep.
@@ -464,13 +520,29 @@ namespace OpenTap
         /// </summary>
         public int Count => data.Count;
 
+        List<ResultParameter> commit;
         /// <summary>
         /// Adds a new element to the parameters. (synchronized).
         /// </summary>
         /// <param name="parameter"></param>
         public void Add(ResultParameter parameter)
         {
-            AddRange(new[] { parameter });
+            if (commit != null)
+            {
+                commit.Add(parameter);
+            }
+            else
+            {
+                AddRange(new[] {parameter});
+            }
+        }
+
+        void Commit()
+        {
+            var list = commit;
+            commit = null;
+            if(list.Count > 0)
+                AddRange(list);
         }
 
         void addRangeUnsafe(IEnumerable<ResultParameter> parameters)
@@ -513,9 +585,16 @@ namespace OpenTap
         {
             if (parameters == null)
                 throw new ArgumentNullException(nameof(parameters));
-            lock (addlock)
+            if (commit != null)
             {
-               addRangeUnsafe(parameters);
+                commit.AddRange(parameters);
+            }
+            else
+            {
+                lock (addlock)
+                {
+                    addRangeUnsafe(parameters);
+                }
             }
         }
 

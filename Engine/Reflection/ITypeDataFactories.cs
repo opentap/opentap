@@ -97,7 +97,7 @@ namespace OpenTap
         /// <summary> Get the type info of an object. </summary>
         static public ITypeData GetTypeData(object obj)
         {
-            var cache = TypeDataCache.Current;
+            var cache = TypeDataCache.Current?.cache;
             if (cache != null && cache.TryGetValue(obj, out var cachedValue))
                 return cachedValue;
             checkCacheValidity();
@@ -113,17 +113,28 @@ namespace OpenTap
         class TypeDataCache : IDisposable
         {
             static TypeDataCache current;
-            public static ConcurrentDictionary<object, ITypeData> Current => current?.cache;
+            public static TypeDataCache Current => current;
             public static IDisposable Load() => current = new TypeDataCache { previousValue = current };
             
             TypeDataCache previousValue;
-            readonly ConcurrentDictionary<object, ITypeData> cache = new ConcurrentDictionary<object, ITypeData>();
+            public readonly Guid Id;
+
+            TypeDataCache()
+            {
+                Id = Guid.NewGuid();
+            }
+        
+            public readonly ConcurrentDictionary<object, ITypeData> cache = new ConcurrentDictionary<object, ITypeData>();
             public void Dispose() => current = previousValue; 
         }
 
         /// <summary>  Creates a type data cache. Note this should be used with 'using{}' so that it gets removed afterwards. </summary>
         /// <returns> A disposable object removing the cache. </returns>
         public static IDisposable WithTypeDataCache() =>  TypeDataCache.Load();
+
+        internal static bool IsCacheInUse => TypeDataCache.Current != null;
+        internal static Guid CacheId => TypeDataCache.Current.Id;
+        
 
         /// <summary> Gets the type info from a string. </summary>
         static public ITypeData GetTypeData(string name) => new TypeDataProviderStack().GetTypeData(name);

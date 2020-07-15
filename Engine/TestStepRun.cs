@@ -61,10 +61,7 @@ namespace OpenTap
 
                 return TimeSpan.Zero;
             }
-            internal protected set
-            {
-                Parameters["Duration"] = value.TotalSeconds;
-            }
+            internal protected set => Parameters.Overwrite("Duration", value.TotalSeconds, "", null);
         }
 
         /// <summary>
@@ -210,21 +207,9 @@ namespace OpenTap
         {
             StepThread = null;
             // update values in the run. 
-            var newparameters = ResultParameters.GetParams(step);
-            foreach(var parameter in newparameters)
-            {
-                this.Parameters[parameter.Name] = parameter.Value;
-            }
-            try
-            {
-                Duration = runDuration; // Requires update after TestStepRunStart and before TestStepRunCompleted
-            }
-            catch (Exception e)
-            {
-                TraceSource log = Log.CreateSource("TestPlan");
-                log.Warning("Caught exception in result handling task.");
-                log.Debug(e);
-            };
+            ResultParameters.UpdateParams(Parameters, step);
+            
+            Duration = runDuration; // Requires update after TestStepRunStart and before TestStepRunCompleted
             UpgradeVerdict(step.Verdict);
             completedEvent.Set();
         }
@@ -244,7 +229,6 @@ namespace OpenTap
             Verdict = Verdict.NotSet;
             if (attachedParameters != null) Parameters.AddRange(attachedParameters);
             Parent = parent;
-            
         }
         
         internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters = null)

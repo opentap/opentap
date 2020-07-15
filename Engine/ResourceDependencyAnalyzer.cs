@@ -5,7 +5,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 
 namespace OpenTap
 {
@@ -87,15 +86,15 @@ namespace OpenTap
             return new ResourceDep(behavior, o, pi);
         }
 
-        ICollection<ResourceDep> getManyResources<T>(IList<T> steps)
+        ResourceDep[] getManyResources<T>(T[] steps)
         {
-            if (steps.Count == 0)
+            if (steps.Length == 0)
                 return Array.Empty<ResourceDep>();
 
             var result = new HashSet<ResourceDep>();
             TestStepExtensions.GetObjectSettings<IResource, T, ResourceDep>(steps, true, FilterProps, result);
             result.RemoveWhere(dep => dep.Behavior == ResourceOpenBehavior.Ignore);
-            return result;
+            return result.ToArray();
             
         }
 
@@ -115,7 +114,7 @@ namespace OpenTap
                 );
         }
 
-        private List<ResourceNode> GetResourceTree(IEnumerable<ResourceDep> resources)
+        private List<ResourceNode> GetResourceTree(ICollection<ResourceDep> resources)
         {
             Queue<ResourceDep> allResources = new Queue<ResourceDep>(resources);
             HashSet<ResourceDep> knownNodes = new HashSet<ResourceDep>();
@@ -167,8 +166,8 @@ namespace OpenTap
                     var newDeps = n.StrongDependencies.Where(x => x != null)
                         .SelectMany(x => lut[x].StrongDependencies.Concat(lut[x].WeakDependencies))
                         .Except(n.StrongDependencies)
-                        .ToList();
-                    if (newDeps.Count > 0)
+                        .ToArray();
+                    if (newDeps.Length > 0)
                     {
                         changed = true;
                         n.StrongDependencies.AddRange(newDeps);
@@ -248,29 +247,39 @@ namespace OpenTap
         /// Finds all IResource properties on a list of references. The references can be any class derived from ITapPlugin, such as ITestStep or IResource.
         /// If a reference supplied in the <paramref name="references"/> list is a IResource itself it will be added to the resulting list.
         /// </summary>
-        internal List<ResourceNode> GetAllResources(List<object> references, out bool errorDetected)
+        internal List<ResourceNode> GetAllResources(object[] references, out bool errorDetected)
         {
             errorDetected = false;
 
-            ICollection<ResourceDep> stepResources = getManyResources(references);
-            List<ResourceNode> tree = GetResourceTree(references.OfType<IResource>().Select(r => new ResourceDep(r)).Concat(stepResources).ToList());
-
-            //if (tree.Any(x => x.Resource == null))
-            //    return tree;
+            ResourceDep[] stepResources = getManyResources(references);
+            var resourceDeps = new List<ResourceDep>(stepResources);
+            foreach (var reference in references)
+            {
+                if(reference is IResource res)
+                    resourceDeps.Add(new ResourceDep(res));
+            }
+            List<ResourceNode> tree = GetResourceTree(resourceDeps);
 
             ExpandTree(tree);
 
             // Check that no resources have direct references to itself.
             foreach (var scc in tree.Where(x => x.StrongDependencies.Any(dep => dep == x.Resource)))
             {
-                errorDetected = true;
-
-                Log.Error(string.Format("Resource is referencing itself: {0}", scc.Resource.ToString()));
+                foreach (var dep in scc.StrongDependencies)
+                {
+                    if (dep == scc.Resource)
+                    {
+                        errorDetected = true;
+                        Log.Error("Resource is referencing itself: {0}", scc.Resource);
+                        break;
+                    }
+                }
+                
             }
 
             // Figure out if there are circular references, and list the circular references in an exception each.
             var sccs = FindStronglyConnectedComponents(tree);
-            if (sccs.Any())
+            if (sccs.Count > 0)
             {
                 errorDetected = true;
 

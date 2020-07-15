@@ -38,6 +38,7 @@ namespace OpenTap
         [XmlIgnore]
         [Output]
         [SettingsIgnore]
+        [MetaData]
         public Verdict Verdict { get; set; }
 
         bool enabled = true;
@@ -791,7 +792,6 @@ namespace OpenTap
         
         internal static TestStepRun DoRun(this ITestStep Step, TestPlanRun planRun, TestRun parentRun, IEnumerable<ResultParameter> attachedParameters = null)
         {
-            log.Debug("Test Step DoRun");
             {
                 // in case the previous action was not completed yet.
                 // this is a problem because StepRun might be set to null later

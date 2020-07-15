@@ -358,4 +358,13 @@ namespace OpenTap.Diagnostic
         /// </summary>
         int MessageBufferSize { get; set; }
     }
+
+    /// <summary>
+    /// Log context that exposes its listeners.
+    /// </summary>
+    public interface ILogContextListeners
+    {
+        /// <summary>  Gets the log context listeners. </summary>
+        IEnumerable<ILogListener> Listeners { get; }
+    }
 }

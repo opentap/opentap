@@ -290,6 +290,11 @@ namespace OpenTap
             }
         }
 
+        /// <summary>
+        /// Current context.
+        /// </summary>
+        public static ILogContext Context => TapContext;
+
         /// <summary> Makes a TraceListener start receiving log messages. </summary>
         /// <param name="listener">The TraceListener to add.</param>
         public static void AddListener(ILogListener listener)
