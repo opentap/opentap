@@ -163,6 +163,16 @@ namespace OpenTap
             }       
         }
 
+        string assemblyQualifiedName;
+        internal string AssemblyQualifiedName
+        {
+            get
+            {
+                if (_FailedLoad) return "";
+                return assemblyQualifiedName ?? (assemblyQualifiedName = Load().AssemblyQualifiedName);
+            }
+        }
+
         /// <summary>
         /// Creates a new object instance of this type.
         /// Accessing this property causes the underlying Assembly to be loaded if it is not already.

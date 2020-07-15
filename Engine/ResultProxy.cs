@@ -200,19 +200,13 @@ namespace OpenTap
     /// </summary>
     public class ResultSource : IResultSource
     {
-        private List<Exception> deferExceptions = new List<Exception>();
+        
 
         /// <summary>
         /// Logging source for this class.
         /// </summary>
         static readonly TraceSource log = Log.CreateSource("ResultProxy");
 
-        internal static Array GetArray(TypeCode tc, object Value)
-        {
-            var array = Array.CreateInstance(Utils.TypeOf(tc), 1);
-            array.SetValue(Value, 0);
-            return array;
-        }
 
         internal static Array GetArray(Type type, object Value)
         {
@@ -300,16 +294,25 @@ namespace OpenTap
             planRun.WaitForResults();
         }
 
-        readonly WorkQueue DeferWorker = new WorkQueue(WorkQueue.Options.None, "Defer Worker");
+        WorkQueue DeferWorker;
+        List<Exception> deferExceptions;
 
         int deferCount = 0;
         /// <summary>
-        /// Defer an action from the current teststep run. This means the action will be executed some time after
+        /// Defer an action from the current test step run. This means the action will be executed some time after
         /// the current run. 
         /// </summary>
         /// <param name="action"></param>
         public void Defer(Action action)
         {
+            if (DeferWorker == null)
+            {
+                if (DeferWorker == null)
+                {
+                    deferExceptions = new List<Exception>();
+                    DeferWorker = new WorkQueue(WorkQueue.Options.None, "Defer Worker");
+                }
+            }
             Interlocked.Increment(ref deferCount);
             // only one defer task may run at a time.
             DeferWorker.EnqueueWork(() =>
@@ -340,7 +343,7 @@ namespace OpenTap
             if (deferCount == 0)
             {
                 action(Finished);
-                DeferWorker.Dispose();
+                DeferWorker?.Dispose();
             }
             else
             {
@@ -370,9 +373,11 @@ namespace OpenTap
 
         }
 
-        private Dictionary<Type, Func<object, ResultTable>> ResultFunc = new Dictionary<Type, Func<object, ResultTable>>();
-        private Dictionary<Type, Func<string, object, ResultTable>> AnonResultFunc = new Dictionary<Type, Func<string, object, ResultTable>>();
-
+        Dictionary<Type, Func<object, ResultTable>> ResultFunc = null;//new Dictionary<Type, Func<object, ResultTable>>();
+        private Dictionary<Type, Func<string, object, ResultTable>> AnonResultFunc = null;//new Dictionary<Type, Func<string, object, ResultTable>>();
+        object resultFuncLock = new object(); 
+            
+        
         /// <summary>
         /// Stores an object as a result.  These results will be propagated to the ResultStore after the TestStep completes.
         /// </summary>
@@ -383,6 +388,11 @@ namespace OpenTap
             if (result == null)
                 throw new ArgumentNullException("result");
             Type runtimeType = result.GetType();
+            if (ResultFunc == null)
+            {
+                lock (resultFuncLock)
+                    ResultFunc = new Dictionary<Type, Func<object, ResultTable>>();
+            }
             if (!ResultFunc.ContainsKey(runtimeType))
             {
                 var Typename = runtimeType.GetDisplayAttribute().GetFullName();
@@ -414,6 +424,9 @@ namespace OpenTap
         public void Publish<T>(string name, T result)
         {
             Type runtimeType = result.GetType();
+            if(AnonResultFunc == null)
+                lock (resultFuncLock)
+                    AnonResultFunc = new Dictionary<Type, Func<string, object, ResultTable>>();
             if (!AnonResultFunc.ContainsKey(runtimeType))
             {
                 var Props = runtimeType.GetPropertiesTap().Where(p => p.GetMethod != null).Where(p => p.PropertyType.DescendsTo(typeof(IConvertible))).ToList();

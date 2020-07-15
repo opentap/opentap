@@ -132,11 +132,18 @@ namespace OpenTap
         string IAttributedObject.ObjectType => "Parameter";
 
         /// <summary> Gets if this result is metadata. </summary>
-        public bool IsMetaData { get; internal set; }
+        public bool IsMetaData { get; }
 
         /// <summary> null or the macro name representation of the ResultParameter. This will make it possible to insert the parameter value into a string. <see cref="MacroString"/></summary>
         public readonly string MacroName;
 
+        public ResultParameter(string name, IConvertible value)
+        {
+            Name = name;
+            Value = value ?? "NULL";
+            Group = "";
+            MacroName = null;
+        }
         /// <summary>
         /// Initializes a new instance of ResultParameter.
         /// </summary>
@@ -195,8 +202,7 @@ namespace OpenTap
     /// </summary>
     public class ResultParameters : IReadOnlyList<ResultParameter>
     {
-        object addlock = new object();
-        IReadOnlyList<ResultParameter> data;
+        List<ResultParameter> data;
 
         /// <summary>
         /// Gets the parameter with the given index.
@@ -213,6 +219,13 @@ namespace OpenTap
             if (indexByName.TryGetValue(name, out idx) == false)
                 return null;
             return this[idx];
+        }
+        
+        int FindIndex(string name)
+        {
+            if (indexByName.TryGetValue(name, out var idx))
+                return idx;
+            return -1;
         }
 
         /// <summary>
@@ -367,6 +380,8 @@ namespace OpenTap
             {
                 if (!prop.Readable)
                     continue;
+                if (prop.HasAttribute<NonMetaDataAttribute>())
+                    continue;
 
                 var metadataAttr = prop.GetAttribute<MetaDataAttribute>();
                 if (metadataAttr == null)
@@ -418,18 +433,13 @@ namespace OpenTap
 
         internal static void UpdateParams(ResultParameters parameters, object obj, string namePrefix = "")
         {
-            bool commit_started = false;
-            if (parameters.commit == null)
-            {
-                commit_started = true;
-                parameters.commit = new List<ResultParameter>();
-            }
-                
             if (obj == null)
                 return;
             var type = TypeData.GetTypeData(obj);
-            foreach (var (prop, group, _name, metadata) in GetParametersMap(type))
+            var p = GetParametersMap(type);
+            foreach (var (prop, group, _name, metadata) in p)
             {
+                if (prop.GetAttribute<MetaDataAttribute>()?.Frozen == true) continue; 
                 var name = namePrefix + _name;
                 object value = prop.GetValue(obj);
                 if (value == null)
@@ -449,11 +459,6 @@ namespace OpenTap
                 else if((val = StringConvertProvider.GetString(value)) == null)
                     val = value.ToString();
                 parameters.Overwrite(name, val, group, metadata);
-            }
-
-            if (commit_started)
-            {
-                parameters.Commit();
             }
         }
 
@@ -489,7 +494,7 @@ namespace OpenTap
         /// </summary>
         public ResultParameters()
         {
-            data = Array.Empty<ResultParameter>();
+            data = new List<ResultParameter>();
         }
 
         /// <summary>
@@ -497,7 +502,7 @@ namespace OpenTap
         /// </summary>
         public ResultParameters(IEnumerable<ResultParameter> items) : this()
         {
-            addRangeUnsafe(items);
+            addRangeUnsafe(items, true);
         }
 
         /// <summary>
@@ -520,59 +525,73 @@ namespace OpenTap
         /// </summary>
         public int Count => data.Count;
 
-        List<ResultParameter> commit;
         /// <summary>
         /// Adds a new element to the parameters. (synchronized).
         /// </summary>
         /// <param name="parameter"></param>
         public void Add(ResultParameter parameter)
         {
-            if (commit != null)
-            {
-                commit.Add(parameter);
-            }
-            else
-            {
-                AddRange(new[] {parameter});
-            }
+            AddRange(new[] {parameter});
         }
 
-        void Commit()
+        void addRangeUnsafe(IEnumerable<ResultParameter> parameters, bool initCollection = false)
         {
-            var list = commit;
-            commit = null;
-            if(list.Count > 0)
-                AddRange(list);
-        }
-
-        void addRangeUnsafe(IEnumerable<ResultParameter> parameters)
-        {
-            var tmp = data.ToList();
+            if (initCollection)
+            {
+                foreach (var par in parameters)
+                {
+                    if (!indexByName.TryGetValue(par.Name, out var idx))
+                        idx = -1;
+                    if (idx >= 0)
+                    {
+                        data[idx] = par;
+                        continue;
+                    }
+                    indexByName[par.Name] = data.Count;
+                    data.Add(par);
+                }
+                return;
+            }
+            
             Dictionary<string, int> newIndexes = null;
-
+            List<ResultParameter> newParameters = null;
+            
             foreach (var par in parameters)
             {
-                var idx = tmp.FindIndex(rp =>
-                    (rp.Name == par.Name) &&
-                    (rp.Group == par.Group) &&
-                    (rp.ParentLevel == par.ParentLevel));
-
+                if (!indexByName.TryGetValue(par.Name, out var idx))
+                    idx = -1;
 
                 if (idx >= 0)
-                    tmp[idx] = par;
+                {
+                    data[idx] = par;
+                    continue;
+                }
+
+                if (newIndexes == null)
+                {
+                    newIndexes = new Dictionary<string, int>();
+                    newParameters = new List<ResultParameter>();
+                }
+
+                if (newIndexes.TryGetValue(par.Name, out idx))
+                {
+                    newParameters[idx - data.Count] = par;    
+                }
                 else
                 {
-                    int nidx = tmp.Count;
-                    tmp.Add(par);
-                    if (newIndexes == null)
-                        newIndexes = new Dictionary<string, int>(indexByName);
+                    int nidx = data.Count + newParameters.Count;
+                    newParameters.Add(par);
                     newIndexes[par.Name] = nidx;
-                }
+                }   
             }
 
-            data = tmp;
-            if(newIndexes != null)
-                indexByName = newIndexes;
+            if (newIndexes != null)
+            {
+                foreach (var elem in newParameters)
+                    data.Add(elem);
+                foreach (var kv in newIndexes)
+                    indexByName.Add(kv.Key, kv.Value);
+            }
         }
 
         Dictionary<string, int> indexByName = new Dictionary<string, int>();
@@ -585,17 +604,7 @@ namespace OpenTap
         {
             if (parameters == null)
                 throw new ArgumentNullException(nameof(parameters));
-            if (commit != null)
-            {
-                commit.AddRange(parameters);
-            }
-            else
-            {
-                lock (addlock)
-                {
-                    addRangeUnsafe(parameters);
-                }
-            }
+            addRangeUnsafe(parameters);
         }
 
         IEnumerator<ResultParameter> IEnumerable<ResultParameter>.GetEnumerator()
@@ -614,5 +623,30 @@ namespace OpenTap
         {
             return new ResultParameters(this);
         }
+
+        internal IConvertible GetIndexed(string verdictName, ref int verdictIndex)
+        {
+            if(verdictIndex == -1)
+                verdictIndex = FindIndex(verdictName);
+            return data[verdictIndex].Value;
+        }
+
+        internal void SetIndexed(string name, ref int index, IConvertible value)
+        {
+            if(index == -1)
+                index = FindIndex(name);
+            if (index == -1)
+            {
+                Add(new ResultParameter(name, value));
+            }
+            else
+            {
+                data[index].Value = value;
+            }
+        }
+    }
+    class NonMetaDataAttribute : Attribute
+    {
+        
     }
 }

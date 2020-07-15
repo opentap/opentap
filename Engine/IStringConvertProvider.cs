@@ -131,12 +131,17 @@ namespace OpenTap
         public static string GetString(object value, CultureInfo culture = null)
         {
             if (value == null) return null;
+            if (value is string p) return p;
             culture = culture ?? CultureInfo.InvariantCulture;
-            foreach (var provider in Providers)
+            for(int i = 0; i < Providers.Length; i++)
             {
+                var provider = Providers[i];
                 try { 
                     var str = provider.GetString(value, culture);
-                    if (str != null) return str;
+                    if (str != null)
+                    {
+                        return str;
+                    }
                 }
                 catch { } // ignore errors. Assume unsupported value.
             }
@@ -153,6 +158,11 @@ namespace OpenTap
         {
             str = null;
             if (value == null) return false;
+            if (value is string p)
+            {
+                str = p;
+                return true;
+            }
             culture = culture ?? CultureInfo.InvariantCulture;
             foreach (var provider in Providers)
             {
@@ -504,7 +514,6 @@ namespace OpenTap
                 var elemType = type.GetEnumerableElementType();
                 if (elemType == null) return null;
 
-
                 Array seq = null;
                 if (elemType.IsNumeric())
                 {
@@ -592,28 +601,27 @@ namespace OpenTap
             /// <summary> Turns a value into a string, </summary>
             public string GetString(object value, CultureInfo culture)
             {
-                if (value is IEnumerable == false || value is string)
+                if (value is string)
                     return null;
-                var elemType = value.GetType().GetEnumerableElementType();
-                if (elemType == null) return null;
-                if (elemType.IsNumeric())
+                if (value is IEnumerable seq)
                 {
-                    var fmt = new NumberFormatter(culture);
-                    return fmt.FormatRange((IEnumerable)value);
-                }
-                if( value is IEnumerable seq)
-                {
+                    if(seq is IEnumerable<double> || seq is IEnumerable<int> || seq is IEnumerable<float>)
+                    {
+                        var fmt = new NumberFormatter(culture);
+                        return fmt.FormatRange(seq);
+                    }
+
                     string escapeString(string str)
                     {
-                        if(str.Contains(",") || str.Contains("\""))
+                        if (str.Contains(",") || str.Contains("\""))
                             return $"\"{str.Replace("\"", "\"\"")}\"";
                         return str;
                     }
+
                     var sb = new StringBuilder();
                     bool first = true;
                     foreach (var val in seq)
                     {
-                        
                         if (StringConvertProvider.TryGetString(val, out string result, culture))
                         {
                             if (first)
@@ -628,10 +636,12 @@ namespace OpenTap
                             return null;
                         }
                     }
-                    
+
                     return sb.ToString();
+
                     
                 }
+
                 return null;
             }
         }

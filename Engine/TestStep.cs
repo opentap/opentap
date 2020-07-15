@@ -50,6 +50,7 @@ namespace OpenTap
                             " it should be used when the test plan is executed. " +
                             "This value should not be changed during test plan run.", Group: "Common", Order: 20000, Collapsed: true)]
         [Unsweepable]
+        [NonMetaData]
         public bool Enabled
         {
             get => enabled; 
@@ -83,6 +84,7 @@ namespace OpenTap
                               "Name can include names of a setting of the step, this property will dynamically be " +
                               "replaced with it's current value in some views.", Group: "Common", Order: 20001, Collapsed: true)]
         [Unsweepable]
+        [MetaData(Frozen = true)]
         public string Name
         {
             get => name;
@@ -620,6 +622,7 @@ namespace OpenTap
             Step.StepRun.SupportsJumpTo = true;
 
             var steps = Step.ChildTestSteps;
+            if (steps.Count == 0) return Array.Empty<TestStepRun>();
             List<TestStepRun> runs = new List<TestStepRun>(steps.Count);
             try
             {
@@ -976,6 +979,31 @@ namespace OpenTap
                     step.CheckResources();
             }
         }
+
+        static Dictionary<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]> membersLookup = new Dictionary<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]>();
+
+        static (IMemberData, bool hasEnabledAttribute)[] getSettingsLookup(TypeData targetType, ITypeData sourceType)
+        {
+            if(membersLookup.TryGetValue((targetType, sourceType), out var value))
+                return value;
+            var propertyInfos = TypeData.GetTypeData(sourceType).GetMembers();
+
+            List<(IMemberData, bool)> result = new List<(IMemberData, bool)>();
+            foreach (var prop in propertyInfos)
+            {
+                if (prop.Readable == false) continue;
+                if (prop.HasAttribute<SettingsIgnoreAttribute>()) continue;
+                var td2 = prop.TypeDescriptor.AsTypeData();
+                if (td2.IsValueType && targetType.IsValueType == false) continue;
+                if (td2.IsString && targetType.IsString == false) continue;
+                bool hasEnabled = prop.HasAttribute<EnabledIfAttribute>();
+                if(td2.DescendsTo(typeof(IEnabled)) || td2.DescendsTo(targetType) || td2.ElementType == targetType)
+                    result.Add((prop, hasEnabled));
+            }
+
+            return membersLookup[(targetType, sourceType)] = result.ToArray();
+        }
+        
         
         /// <summary>
         /// Returns the properties of a specific type from a number of objects. This will traverse IEnumerable and optionally IEnabled properties.
@@ -990,18 +1018,14 @@ namespace OpenTap
         {
             if(targetType == null) targetType = TypeData.FromType(typeof(T));
             var enabledAttributes = new List<EnabledIfAttribute>();
-            var propertyInfos = TypeData.GetTypeData(item).GetMembers();
 
-            foreach (var prop in propertyInfos)
+            var properties = getSettingsLookup(targetType, TypeData.GetTypeData(item));
+            foreach (var (prop, hasEnabled) in properties)
             {
-                if (prop.Readable == false) continue;
-                if (prop.HasAttribute<SettingsIgnoreAttribute>()) continue;
-                var td2 = prop.TypeDescriptor.AsTypeData();
-                if (td2.IsValueType && targetType.IsValueType == false) continue;
-                if (td2.IsString && targetType.IsString == false) continue;
                 
                 if (onlyEnabled)
                 {
+                    if (hasEnabled == false) continue;
                     enabledAttributes.Clear();
                     prop.GetAttributes<EnabledIfAttribute>(enabledAttributes);
                     bool nextProperty = false;

@@ -420,6 +420,7 @@ namespace OpenTap
                         plan.Save(memstr);
                         var testPlanBytes = memstr.ToArray();
                         TestPlanXml = Encoding.UTF8.GetString(testPlanBytes);
+                        
                         Parameters.Add(new ResultParameter("Test Plan", nameof(Hash), GetHash(testPlanBytes),
                             new MetaDataAttribute(), 0));
                     }

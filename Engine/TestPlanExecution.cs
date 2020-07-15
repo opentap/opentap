@@ -311,7 +311,7 @@ namespace OpenTap
                         summaryListener.PrintSummary();
                     }
 
-                     OpenTap.Log.Flush();
+                    OpenTap.Log.Flush();
                     Logger.Flush();
                     logStream.Flush();
 

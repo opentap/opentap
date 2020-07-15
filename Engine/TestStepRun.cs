@@ -34,6 +34,7 @@ namespace OpenTap
             Parameters = new ResultParameters();
         }
 
+        int verdict_index = -1;
         /// <summary>
         /// <see cref="OpenTap.Verdict"/> resulting from the run.
         /// </summary>
@@ -41,27 +42,21 @@ namespace OpenTap
         [MetaData(macroName: "Verdict")]
         public Verdict Verdict
         {
-            get => (Verdict)Parameters[nameof(Verdict)];
-            protected internal set => Parameters[nameof(Verdict)] = value;
+            get => (Verdict)Parameters.GetIndexed(nameof(Verdict), ref verdict_index);
+            protected internal set => Parameters.SetIndexed(nameof(Verdict), ref verdict_index, value);
         }
-
 
         /// <summary> Length of time it took to run. </summary>
         public virtual TimeSpan Duration
         {
             get
             {
-                var param = Parameters.Find("Duration");   
-                if (param != null)
-                {
-                    var dur = param.Value;
-                    if (dur is double)
-                        return Time.FromSeconds((double)dur);
-                }
-
+                var param = Parameters[nameof(Duration)];   
+                if (param is double duration)
+                    return Time.FromSeconds(duration);
                 return TimeSpan.Zero;
             }
-            internal protected set => Parameters.Overwrite("Duration", value.TotalSeconds, "", null);
+            internal protected set => Parameters[nameof(Duration)] = value.TotalSeconds;
         }
 
         /// <summary>
@@ -168,20 +163,32 @@ namespace OpenTap
         /// The path name of the steps. E.g the name of the step combined with all of its parent steps.
         /// </summary>
         internal string TestStepPath;
-        
-        private ManualResetEventSlim completedEvent = new ManualResetEventSlim(false);
-        
+
+        ManualResetEventSlim completedEvent = null;//new ManualResetEventSlim(false);
+        readonly object completedEventLock = new object();
+        bool completed = false;
         /// <summary>
         /// Waits for the test step run to be entirely done. This includes any deferred processing.
         /// </summary>
         public void WaitForCompletion()
         {
+            if (completed) return;
+            lock (completedEventLock)
+            {
+                if(completedEvent == null)
+                    completedEvent = new ManualResetEventSlim(false);
+            }
+
             if (completedEvent.IsSet) return;
 
             var currentThread = TapThread.Current;
             if(!WasDeferred && StepThread == currentThread) throw new InvalidOperationException("StepRun.WaitForCompletion called from the thread itself. This will either cause a deadlock or do nothing.");
             var waits = new[] { completedEvent.WaitHandle, currentThread.AbortToken.WaitHandle };
-            WaitHandle.WaitAny(waits);
+            while (WaitHandle.WaitAny(waits, 100) == WaitHandle.WaitTimeout)
+            {
+                if (completed)
+                    break;
+            }
         }
 
         /// <summary>  The thread in which the step is running. </summary>
@@ -196,7 +203,7 @@ namespace OpenTap
         internal void StartStepRun()
         {
             if (Verdict != Verdict.NotSet)
-                throw new ArgumentOutOfRangeException("verdict", "StepRun.StartStepRun has already been called once.");
+                throw new ArgumentOutOfRangeException(nameof(Verdict), "StepRun.StartStepRun has already been called once.");
             StepThread = TapThread.Current;
             StartTime = DateTime.Now;
             StartTimeStamp = Stopwatch.GetTimestamp();
@@ -211,7 +218,8 @@ namespace OpenTap
             
             Duration = runDuration; // Requires update after TestStepRunStart and before TestStepRunCompleted
             UpgradeVerdict(step.Verdict);
-            completedEvent.Set();
+            completed = true;
+            completedEvent?.Set();
         }
 
         /// <summary>
@@ -224,7 +232,7 @@ namespace OpenTap
         {
             TestStepId = step.Id;
             TestStepName = step.GetFormattedName();
-            TestStepTypeName = step.GetType().AssemblyQualifiedName;
+            TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
             Parameters = ResultParameters.GetParams(step);
             Verdict = Verdict.NotSet;
             if (attachedParameters != null) Parameters.AddRange(attachedParameters);
@@ -235,7 +243,7 @@ namespace OpenTap
         {
             TestStepId = step.Id;
             TestStepName = step.GetFormattedName();
-            TestStepTypeName = step.GetType().AssemblyQualifiedName;
+            TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
             Parameters = ResultParameters.GetParams(step);
             Verdict = Verdict.NotSet;
             if (attachedParameters != null) Parameters.AddRange(attachedParameters);
