@@ -86,16 +86,6 @@ namespace OpenTap
     }
 
     /// <summary>
-    /// Instructs the ResultListener not to save the 
-    /// public property value as metadata for TestStep results.
-    /// </summary>
-    [AttributeUsage(AttributeTargets.Property)]
-    public class ResultListenerIgnoreAttribute : Attribute
-    {
-
-    }
-
-    /// <summary>
     /// Represents a result parameter.
     /// </summary>
     [DebuggerDisplay("{Name} = {Value}")]
