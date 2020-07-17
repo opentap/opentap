@@ -605,10 +605,17 @@ namespace OpenTap
                     return null;
                 if (value is IEnumerable seq)
                 {
+                    if (seq is IEnumerable<Enum>)
+                    {
+                        
+                    }
                     if(seq is IEnumerable<double> || seq is IEnumerable<int> || seq is IEnumerable<float>)
                     {
-                        var fmt = new NumberFormatter(culture);
-                        return fmt.FormatRange(seq);
+                        if (false == seq.Cast<object>().FirstOrDefault() is Enum)
+                        {
+                            var fmt = new NumberFormatter(culture);
+                            return fmt.FormatRange(seq);    
+                        }
                     }
 
                     string escapeString(string str)

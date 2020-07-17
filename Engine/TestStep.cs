@@ -986,7 +986,7 @@ namespace OpenTap
         {
             if(membersLookup.TryGetValue((targetType, sourceType), out var value))
                 return value;
-            var propertyInfos = TypeData.GetTypeData(sourceType).GetMembers();
+            var propertyInfos = sourceType.GetMembers();
 
             List<(IMemberData, bool)> result = new List<(IMemberData, bool)>();
             foreach (var prop in propertyInfos)
@@ -997,11 +997,11 @@ namespace OpenTap
                 if (td2.IsValueType && targetType.IsValueType == false) continue;
                 if (td2.IsString && targetType.IsString == false) continue;
                 bool hasEnabled = prop.HasAttribute<EnabledIfAttribute>();
-                if(td2.DescendsTo(typeof(IEnabled)) || td2.DescendsTo(targetType) || td2.ElementType == targetType)
+                if(td2.DescendsTo(typeof(IEnabled)) || td2.DescendsTo(targetType) || targetType.DescendsTo(td2) || td2.ElementType.DescendsTo(targetType)|| targetType.DescendsTo(td2.ElementType))
                     result.Add((prop, hasEnabled));
             }
 
-            return membersLookup[(targetType, sourceType)] = result.ToArray();
+             return membersLookup[(targetType, sourceType)] = result.ToArray();
         }
         
         
@@ -1023,23 +1023,22 @@ namespace OpenTap
             foreach (var (prop, hasEnabled) in properties)
             {
                 
-                if (onlyEnabled)
+                if (onlyEnabled && hasEnabled)
                 {
-                    if (hasEnabled == false) continue;
-                    enabledAttributes.Clear();
-                    prop.GetAttributes<EnabledIfAttribute>(enabledAttributes);
-                    bool nextProperty = false;
-                    foreach (var attr in enabledAttributes)
-                    {
-                        bool isEnabled = EnabledIfAttribute.IsEnabled(attr, item);
-                        if (isEnabled == false)
+                        enabledAttributes.Clear();
+                        prop.GetAttributes<EnabledIfAttribute>(enabledAttributes);
+                        bool nextProperty = false;
+                        foreach (var attr in enabledAttributes)
                         {
-                            nextProperty = true;
-                            break;
+                            bool isEnabled = EnabledIfAttribute.IsEnabled(attr, item);
+                            if (isEnabled == false)
+                            {
+                                nextProperty = true;
+                                break;
+                            }
                         }
-                    }
 
-                    if (nextProperty) continue;
+                        if (nextProperty) continue;
                 }
 
                 object value;
