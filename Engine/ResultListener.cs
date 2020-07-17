@@ -89,13 +89,12 @@ namespace OpenTap
     /// Instructs the ResultListener not to save the 
     /// public property value as metadata for TestStep results.
     /// </summary>
-    [Obsolete]
+    [Obsolete("This attribute is no longer in use and will be removed in a later version.")]
     [AttributeUsage(AttributeTargets.Property)]
     public class ResultListenerIgnoreAttribute : Attribute
     {
 
     }
-
 
     /// <summary>
     /// Represents a result parameter.
