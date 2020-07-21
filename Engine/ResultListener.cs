@@ -197,6 +197,8 @@ namespace OpenTap
             return hashCode;
         }
 
+        /// <summary> Clones a single instance of ResultParameter. </summary>
+        /// <returns></returns>
         public ResultParameter Clone() => (ResultParameter) MemberwiseClone();
     }
 

@@ -1016,6 +1016,7 @@ namespace OpenTap
         /// <returns></returns>
         internal static void GetObjectSettings<T,T2,T3>(T2 item, bool onlyEnabled, Func<T, IMemberData, T3> transform, HashSet<T3> itemSet, TypeData targetType = null)
         {
+            if (transform == null) transform = (t, data) => (T3)(object)t; 
             if(targetType == null) targetType = TypeData.FromType(typeof(T));
             var enabledAttributes = new List<EnabledIfAttribute>();
 
@@ -1067,7 +1068,9 @@ namespace OpenTap
                     continue;
                 else if (value == null && prop.TypeDescriptor.DescendsTo(targetType))
                 {
-                    itemSet.Add(transform((T)value, prop));
+                    var tform = transform((T) value, prop);
+                    if(tform != null)
+                        itemSet.Add(tform);
                 }
                 else if (value is IEnumerable seq)
                 {

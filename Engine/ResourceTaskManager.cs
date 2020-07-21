@@ -173,27 +173,29 @@ namespace OpenTap
             }
             return resources;
         }
+
+        class ResourceNodeCache : ICacheOptimizer
+        {
+            public readonly static ThreadField<Dictionary<EnumerableKey, List<ResourceNode>>> Cache = new ThreadField<Dictionary<EnumerableKey, List<ResourceNode>>>();
+            public void LoadCache() => Cache.Value = new Dictionary<EnumerableKey, List<ResourceNode>>();
+
+            public void UnloadCache() => Cache.Value = null;
+        }
         
-        static Dictionary<EnumerableKey, List<ResourceNode>> cache = new Dictionary<EnumerableKey, List<ResourceNode>>();
-        static Guid cacheId; 
         /// <summary>
         /// Gets ResourceNodes for all resources. This includes the ones from <see cref="IResourceManager.EnabledSteps"/> and  <see cref="IResourceManager.StaticResources"/>.
         /// </summary>
         public static List<ResourceNode> GetResourceNodes(IEnumerable<object> _source)
         {
             var source = _source.ToArray();
-            if (TypeData.IsCacheInUse)
+            var cache = ResourceNodeCache.Cache.Value;
+            if (cache != null)
             {
                 var key = new EnumerableKey(source);
                 lock (cache)
                 {
-                    if (cacheId != TypeData.CacheId)
-                    {
-                        cache.Clear();
-                        cacheId = TypeData.CacheId;
-                    }
 
-                    if ( cache.TryGetValue(key, out List<ResourceNode> result))
+                    if (cache.TryGetValue(key, out List<ResourceNode> result))
                         return result;
                     result = GetResourceNodesNoCache(source);
                     cache[key] = result;
@@ -201,12 +203,6 @@ namespace OpenTap
                 }
             }
 
-            if (cache.Count > 0)
-            {
-                lock (cache)
-                    cache.Clear();
-            }
-            
             return GetResourceNodesNoCache(source);
         }
     }
@@ -416,14 +412,13 @@ namespace OpenTap
                 case TestPlanExecutionStage.Execute:
                     if (item is TestPlan)
                     {
-                        var sw = Stopwatch.StartNew();
                         var testplan = item as TestPlan;
                         var resources = ResourceManagerUtils.GetResourceNodes(StaticResources.Cast<object>().Concat(EnabledSteps));
 
                         testplan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
 
                         // Proceed to open resources in case they have been changed or closed since last opening/executing the testplan.
-                        if (resources.Any(r => openTasks.ContainsKey(r.Resource) == false)) // TODO: this only checks if some have been closed.
+                        if (resources.Any(r => r.Resource != null && openTasks.ContainsKey(r.Resource) == false)) // TODO: this only checks if some have been closed.
                             beginOpenResoureces(resources, cancellationToken);
                     }
                     break;
