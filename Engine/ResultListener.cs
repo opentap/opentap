@@ -266,7 +266,7 @@ namespace OpenTap
                 throw new ArgumentNullException("res");
             var parameters = new List<ResultParameter>();
             getMetadataFromObject(res, "", parameters);
-            return new ResultParameters(parameters);
+            return new ResultParameters(parameters, parameters.Count);
         }
 
         /// <summary>
@@ -487,7 +487,7 @@ namespace OpenTap
             GetPropertiesFromObject(step, parameters);
             if (parameters.Count == 0)
                 return new ResultParameters();
-            return new ResultParameters(parameters);
+            return new ResultParameters(parameters, parameters.Count);
         }
 
         /// <summary>
@@ -496,14 +496,23 @@ namespace OpenTap
         public ResultParameters()
         {
             data = new List<ResultParameter>();
+            indexByName = new Dictionary<string, int>();
         }
 
         /// <summary>
         /// Initializes a new instance of the ResultParameters class.
         /// </summary>
-        public ResultParameters(IEnumerable<ResultParameter> items) : this()
+        public ResultParameters(IEnumerable<ResultParameter> items, int capacity)
         {
-            addRangeUnsafe(items, true);
+            addRangeUnsafe(items, true, capacity);
+        }
+        
+        /// <summary>
+        /// Initializes a new instance of the ResultParameters class.
+        /// </summary>
+        public ResultParameters(IEnumerable<ResultParameter> items) : this(items, (items as IList)?.Count ?? 0)
+        {
+            
         }
 
         /// <summary>
@@ -535,21 +544,23 @@ namespace OpenTap
             AddRange(new[] {parameter});
         }
 
-        void addRangeUnsafe(IEnumerable<ResultParameter> parameters, bool initCollection = false)
+        void addRangeUnsafe(IEnumerable<ResultParameter> parameters, bool initCollection = false, int capacity = 0)
         {
             if (initCollection)
             {
+                data = new List<ResultParameter>(capacity);
+                indexByName = new Dictionary<string, int>(capacity);
                 foreach (var par in parameters)
                 {
-                    if (!indexByName.TryGetValue(par.Name, out var idx))
-                        idx = -1;
-                    if (idx >= 0)
+                    if (indexByName.TryGetValue(par.Name, out var idx))
                     {
                         data[idx] = par;
-                        continue;
                     }
-                    indexByName[par.Name] = data.Count;
-                    data.Add(par);
+                    else
+                    {
+                        indexByName[par.Name] = data.Count;
+                        data.Add(par);
+                    }
                 }
                 return;
             }
@@ -595,7 +606,7 @@ namespace OpenTap
             }
         }
 
-        Dictionary<string, int> indexByName = new Dictionary<string, int>();
+        Dictionary<string, int> indexByName;
 
         object addLock = new object();
         
@@ -616,7 +627,7 @@ namespace OpenTap
 
         /// <summary> Copies all the data inside a ResultParameters instance. </summary>
         /// <returns></returns>
-        internal ResultParameters Clone() => new ResultParameters(this.Select(x => x.Clone()));
+        internal ResultParameters Clone() => new ResultParameters(this.Select(x => x.Clone()), Count);
 
         internal IConvertible GetIndexed(string verdictName, ref int verdictIndex)
         {

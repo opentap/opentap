@@ -699,7 +699,7 @@ namespace OpenTap
         
         void pushSeq(StringBuilder sb, IList<BigFloat> seq, BigFloat step)
         {
-            if (seq.Count > 2 && step != 0.0)
+            if (seq.Count > 2 && step.IsZero == false)
             {
                 if (sb.Length != 0)
                     sb.Append(separator);
