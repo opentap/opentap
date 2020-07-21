@@ -134,6 +134,45 @@ namespace OpenTap
             return ' ';
         }
 
+        public static void Format(StringBuilder sb, BigFloat value, bool prefix, string unit, string format, CultureInfo culture,
+            bool compact = false)
+        {
+            char level = prefix ? findLevel(value) : ' ';
+            BigFloat scaling = engineeringPrefixLevel(level);
+            BigFloat post_scale = value / scaling;
+
+            if (string.IsNullOrEmpty(format))
+                post_scale.AppendTo(sb, culture);
+            else
+            {
+                if (format.StartsWith("x", StringComparison.InvariantCultureIgnoreCase))
+                    sb.Append(((long)post_scale.Rounded()).ToString(format, culture));
+                else
+                {
+                    try
+                    {
+                        sb.Append(((decimal)post_scale.ConvertTo(typeof(decimal))).ToString(format, culture));
+                    }
+                    catch
+                    {
+                        post_scale.AppendTo(sb, culture);
+                    }
+                }
+            }
+
+            if (level == ' ' && string.IsNullOrEmpty(unit))
+            {
+                return;
+            }
+
+            string space = compact ? "" : " ";
+            sb.Append(space);
+            if (level != ' ')
+                sb.Append(level);
+            if(unit != null)
+                sb.Append(unit);
+        }
+        
         public static string Format(BigFloat value, bool prefix, string unit, string format, CultureInfo culture, bool compact = false)
         {
             char level = prefix ? findLevel(value) : ' ';
@@ -452,12 +491,31 @@ namespace OpenTap
         {
             return UnitFormatter.TryParse(trimmed, Unit ?? "", Format, culture, out val);
         }
+        
+        void parseBackNumber(BigFloat number, StringBuilder sb)
+        {
+            if (PreScaling != 1.0)
+                number = number / PreScaling;
+            UnitFormatter.Format(sb, number , UsePrefix, Unit ?? "", Format, culture, IsCompact);
+        }
 
         string parseBackNumber(BigFloat number)
         {
             return UnitFormatter.Format(number / PreScaling, UsePrefix, Unit ?? "", Format, culture, IsCompact);
         }
 
+        void parseBackRange(BigFloat Start, BigFloat Step, BigFloat Stop, StringBuilder sb)
+        {
+            parseBackNumber(Start, sb);
+            if (Step != PreScaling)
+            {
+                sb.Append(" : ");
+                parseBackNumber(Step, sb);
+            }
+            sb.Append(" : ");
+            parseBackNumber(Stop, sb);
+        }
+        
         string parseBackRange(Range rng)
         {
             if (rng.Step == PreScaling)
@@ -632,13 +690,20 @@ namespace OpenTap
 
         }
 
-        void pushSeq(StringBuilder sb, List<BigFloat> seq, BigFloat step)
+        void pushSeq(StringBuilder sb, BigFloat val, BigFloat step)
+        {
+            if (sb.Length != 0)
+                sb.Append(separator);
+            parseBackNumber(val, sb);
+        }
+        
+        void pushSeq(StringBuilder sb, IList<BigFloat> seq, BigFloat step)
         {
             if (seq.Count > 2 && step != 0.0)
             {
                 if (sb.Length != 0)
                     sb.Append(separator);
-                sb.Append(parseBackRange(new Range(seq[0], seq[seq.Count - 1], step)));
+                parseBackRange(seq[0], seq[seq.Count - 1], step, sb);
             }
             else
             {
@@ -646,7 +711,7 @@ namespace OpenTap
                 {
                     if (sb.Length != 0)
                         sb.Append(separator);
-                    sb.Append(parseBackNumber(val));
+                    parseBackNumber(val, sb);
                 }
             }
         }
@@ -763,7 +828,7 @@ namespace OpenTap
                         {
                             if (sequence.Count == 2)
                             {
-                                pushSeq(sb, new List<BigFloat> { sequence[0] }, seq_step);
+                                pushSeq(sb, sequence[0], seq_step);
                                 sequence.RemoveAt(0);
                             }
                             else
