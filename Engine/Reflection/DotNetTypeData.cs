@@ -41,7 +41,6 @@ namespace OpenTap
                 return td;
             });
         }
-
         TypeData(Type type)
         {
             this.type = type;
@@ -68,7 +67,6 @@ namespace OpenTap
                 hasFlags = this.HasAttribute<FlagsAttribute>();
                 isValueType = type.IsValueType;
                 postLoaded = true;
-                
             }
         }
 
@@ -150,6 +148,7 @@ namespace OpenTap
             }
         }
 
+        bool? canCreateInstance;
         /// <summary> 
         /// returns true if an instance possibly can be created. 
         /// Accessing this property causes the underlying Assembly to be loaded if it is not already.
@@ -157,9 +156,11 @@ namespace OpenTap
         public bool CanCreateInstance {
             get
             {
+                if (canCreateInstance.HasValue) return canCreateInstance.Value;
                 if (_FailedLoad) return false;
                 var type = Load();
-                return type.IsAbstract == false && type.IsInterface == false && type.ContainsGenericParameters == false && type.GetConstructor(Array.Empty<Type>()) != null;
+                canCreateInstance = type.IsAbstract == false && type.IsInterface == false && type.ContainsGenericParameters == false && type.GetConstructor(Array.Empty<Type>()) != null;
+                return canCreateInstance.Value;
             }       
         }
 

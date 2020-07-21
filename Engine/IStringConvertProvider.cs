@@ -47,35 +47,37 @@ namespace OpenTap
     {
         static class PluginTypeFetcher<T>
         {
-            static readonly Dictionary<Type, T> saveTypes = new Dictionary<Type, T>();
+            static readonly Dictionary<ITypeData, T> saveTypes = new Dictionary<ITypeData, T>();
             static T[] things = Array.Empty<T>();
             public static T[] GetPlugins()
             {
-                var types = PluginManager.GetPlugins<T>();
+                var derivedTypes = TypeData.GetDerivedTypes<T>();
 
-                if (types.Count != saveTypes.Count)
+                int count = derivedTypes.Count(x => x.CanCreateInstance);
+                
+                if (count != saveTypes.Count)
                 {
                     lock (saveTypes)
                     {
-                        if (types.Count != saveTypes.Count)
+                        if (count != saveTypes.Count)
                         {
                             var builder = things.ToList();
 
-                            foreach (var type in types)
+                            foreach (var type in derivedTypes)
                             {
+                                if (type.CanCreateInstance == false) continue;
                                 if (saveTypes.ContainsKey(type) == false)
                                 {
                                     try
                                     {
-                                        var newthing = (T)Activator.CreateInstance(type);
+                                        var newthing = (T)type.CreateInstance();
                                         saveTypes.Add(type, newthing);
                                         builder.Add(newthing);
                                     }
                                     catch
                                     {
                                         saveTypes[type] = default(T);
-
-                                    } // Ignore erros here.
+                                    } // Ignore errors here.
                                 }
                             }
                             things = builder.ToArray();
@@ -87,40 +89,80 @@ namespace OpenTap
             }
         }
 
-        
-        class PreHeater : ITestPlanExecutionHook
+        class CachePopularity: IEnumerable<IStringConvertProvider>
         {
-            public static ThreadHierarchyLocal<IStringConvertProvider[]> preheated = new ThreadHierarchyLocal<IStringConvertProvider[]>();
-            static void PreHeatThread()
+            class Wrap : IStringConvertProvider
             {
-                preheated.LocalValue = PluginTypeFetcher<IStringConvertProvider>.GetPlugins();
+                IStringConvertProvider inner;
+                public long Popularity;
+
+                public Wrap(IStringConvertProvider inner)
+                {
+                    this.inner = inner;
+                }
+
+                public string GetString(object value, CultureInfo culture)
+                {
+                    var str = inner.GetString(value, culture);
+                    if (str != null)
+                        Popularity += 1;
+                    return str;
+                }
+
+                public object FromString(string stringdata, ITypeData type, object contextObject, CultureInfo culture)
+                {
+                    object obj = inner.FromString(stringdata, type, contextObject, culture);
+                    if (obj != null)
+                        Popularity += 1;
+                    return obj;
+                }
+            }
+            
+            readonly Wrap[] wrappers;
+            int[] popularityIndex;
+
+            public CachePopularity(IStringConvertProvider[] elements)
+            {
+                wrappers = elements.Select(x => new Wrap(x)).ToArray();
+                popularityIndex = new int[wrappers.Length];
+                for (int i = 0; i < wrappers.Length; i++)
+                    popularityIndex[i] = i;
             }
 
-            static void CooldownThread()
+            public IEnumerator<IStringConvertProvider> GetEnumerator()
             {
-                preheated.ClearLocal();
+                var popularity = popularityIndex;
+                long prevPopularity = long.MaxValue;
+                for(int i = 0; i < popularity.Length; i++)
+                {
+                    var item = popularity[i];
+                    var wrap = wrappers[item];
+                    if (i > 0 && wrap.Popularity / 4 > prevPopularity && popularityIndex == popularity)
+                    {
+                        var newIndex = popularity.ToArray();
+                        Utils.Swap(ref newIndex[i], ref newIndex[i - 1]);
+                        popularityIndex = newIndex;
+                    }
+
+                    prevPopularity = wrap.Popularity;
+                    yield return wrap;
+                }
             }
 
-            public void AfterTestPlanExecute(TestPlan executedPlan, TestPlan requestedPlan)
-            {
-                CooldownThread();
-            }
-
-            public void AfterTestStepExecute(ITestStep testStep)
-            {
-            }
-
-            public void BeforeTestPlanExecute(TestPlan executingPlan)
-            {
-                PreHeatThread();
-            }
-
-            public void BeforeTestStepExecute(ITestStep testStep)
-            {
-            }
+            IEnumerator IEnumerable.GetEnumerator() =>  GetEnumerator();
+        }
+        
+        class StringConvertCacheOptimizer : ICacheOptimizer
+        {
+            
+            static readonly ThreadField<CachePopularity> cacheField = new ThreadField<CachePopularity>();
+            public void LoadCache() => cacheField.Value = new CachePopularity(PluginTypeFetcher<IStringConvertProvider>.GetPlugins());
+            public void UnloadCache() => cacheField.Value = null;
+            public static IEnumerable<IStringConvertProvider> GetValue() => (IEnumerable<IStringConvertProvider>)cacheField.Value ?? PluginTypeFetcher<IStringConvertProvider>.GetPlugins();
+            
         }
 
-        static IStringConvertProvider[] Providers => PreHeater.preheated.LocalValue ?? PluginTypeFetcher<IStringConvertProvider>.GetPlugins();
+        static IEnumerable<IStringConvertProvider> Providers => StringConvertCacheOptimizer.GetValue();
         
         /// <summary>
         /// Turn value to a string if an IStringConvertProvider plugin supports the value.
@@ -133,9 +175,8 @@ namespace OpenTap
             if (value == null) return null;
             if (value is string p) return p;
             culture = culture ?? CultureInfo.InvariantCulture;
-            for(int i = 0; i < Providers.Length; i++)
+            foreach(var provider in Providers)
             {
-                var provider = Providers[i];
                 try { 
                     var str = provider.GetString(value, culture);
                     if (str != null)
@@ -843,6 +884,5 @@ namespace OpenTap
             }
 
         }
-
     }
 }

@@ -118,14 +118,23 @@ namespace OpenTap
             
             TypeDataCache previousValue;
             public readonly Guid Id;
-
+            ICacheOptimizer[] caches;
             TypeDataCache()
             {
                 Id = Guid.NewGuid();
+                var types = TypeData.GetDerivedTypes<ICacheOptimizer>().Where(x => x.CanCreateInstance).Select(x => x.AsTypeData().Type).ToArray();
+                caches = types.Select(t => t.CreateInstance()).OfType<ICacheOptimizer>().ToArray();
+                foreach (var type in caches)
+                    type.LoadCache();
             }
         
             public readonly ConcurrentDictionary<object, ITypeData> cache = new ConcurrentDictionary<object, ITypeData>();
-            public void Dispose() => current = previousValue; 
+
+            public void Dispose()
+            {
+              foreach(var cache in caches)
+                  cache.UnloadCache();
+            }  
         }
 
         /// <summary>  Creates a type data cache. Note this should be used with 'using{}' so that it gets removed afterwards. </summary>
@@ -134,7 +143,6 @@ namespace OpenTap
 
         internal static bool IsCacheInUse => TypeDataCache.Current != null;
         internal static Guid CacheId => TypeDataCache.Current.Id;
-        
 
         /// <summary> Gets the type info from a string. </summary>
         static public ITypeData GetTypeData(string name) => new TypeDataProviderStack().GetTypeData(name);
@@ -151,4 +159,13 @@ namespace OpenTap
             + "Otherwise cast 'type' to an 'object' first.");
         }
     }
+    
+    /// <summary> Interface for classes that can be used for cache optimizations. </summary>
+    public interface ICacheOptimizer
+    {
+        /// <summary> Loads / heats up the cache.</summary>
+        void LoadCache();
+        /// <summary> Unload / cool down the cache.</summary>
+        void UnloadCache();
+    }   
 }

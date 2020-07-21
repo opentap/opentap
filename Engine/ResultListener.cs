@@ -196,6 +196,8 @@ namespace OpenTap
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(MacroName);
             return hashCode;
         }
+
+        public ResultParameter Clone() => (ResultParameter) MemberwiseClone();
     }
 
     /// <summary>
@@ -593,6 +595,8 @@ namespace OpenTap
 
         Dictionary<string, int> indexByName = new Dictionary<string, int>();
 
+        object addLock = new object();
+        
         /// <summary>
         /// Adds a range of result parameters (synchronized).
         /// </summary>
@@ -601,25 +605,16 @@ namespace OpenTap
         {
             if (parameters == null)
                 throw new ArgumentNullException(nameof(parameters));
-            addRangeUnsafe(parameters);
+            lock(addLock)
+                addRangeUnsafe(parameters);
         }
 
-        IEnumerator<ResultParameter> IEnumerable<ResultParameter>.GetEnumerator()
-        {
-            return data.GetEnumerator();
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return data.GetEnumerator();
-        }
+        IEnumerator<ResultParameter> IEnumerable<ResultParameter>.GetEnumerator() => data.GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => data.GetEnumerator();
 
         /// <summary> Copies all the data inside a ResultParameters instance. </summary>
         /// <returns></returns>
-        internal ResultParameters Clone()
-        {
-            return new ResultParameters(this);
-        }
+        internal ResultParameters Clone() => new ResultParameters(this.Select(x => x.Clone()));
 
         internal IConvertible GetIndexed(string verdictName, ref int verdictIndex)
         {
