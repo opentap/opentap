@@ -623,7 +623,7 @@ namespace OpenTap
                     allSearchFiles = searchFiles.ToArray();
                     matching.InvalidateAll();
                     lastSearch = DateTime.Now;
-                    log.Debug(sw, "Found {0}/{1} assembly files.", files.Count, searchFiles.Count);
+                    log.Debug(sw, "Found {0}/{1} assembly files.", searchFiles.Count, files.Count);
                 }
             }
         }
