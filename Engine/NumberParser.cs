@@ -703,7 +703,7 @@ namespace OpenTap
             {
                 if (sb.Length != 0)
                     sb.Append(separator);
-                parseBackRange(seq[0], seq[seq.Count - 1], step, sb);
+                parseBackRange(seq[0], step, seq[seq.Count - 1], sb);
             }
             else
             {
@@ -844,7 +844,40 @@ namespace OpenTap
                 pushSeq(sb, sequence, seq_step);
                 return sb.ToString();
             }
-            else
+            if (!UsePrefix)
+            {
+                // this ca be done really fast since we dont have to use BigFloat.
+                var sb = new StringBuilder();
+                foreach (var _val in values)
+                {
+                    if (sb.Length != 0)
+                        sb.Append(separator);
+                    switch (_val)
+                    {
+                        case float i:
+                            sb.Append(i.ToString("R", culture));
+                            break;
+                        case decimal i: 
+                            sb.Append(i.ToString("G", culture));
+                            break;
+                        case double i: 
+                            sb.Append(i.ToString("R17", culture));
+                            break;
+                        default:
+                            sb.Append(_val);
+                            break;
+                    }
+
+                    if (string.IsNullOrEmpty(Unit) == false)
+                    {
+                        sb.Append(" ");
+                        sb.Append(Unit);
+                    }
+                }
+
+                return sb.ToString();
+            }
+            
             {
                 StringBuilder sb = new StringBuilder();
                 foreach (var _val in values)
@@ -853,7 +886,7 @@ namespace OpenTap
 
                     if (sb.Length != 0)
                         sb.Append(separator);
-                    sb.Append(parseBackNumber(val));
+                    parseBackNumber(val, sb);
                 }
                 return sb.ToString();
             }

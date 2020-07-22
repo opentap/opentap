@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -1285,6 +1286,27 @@ namespace OpenTap
                 case TypeCode.Char: return typeof(char);
             }
             return typeof(object);
+        }
+
+        public static bool IsNumeric(object obj)
+        {
+            switch (obj)
+            {
+                case float i: return true;
+                case double i: return true;
+                case decimal i: return true;
+                case byte i: return true;
+                case char i: return true;
+                case sbyte i: return true;
+                case short i: return true;
+                case ushort i: return true;
+                case int i: return true;
+                case uint i: return true;
+                case long i: return true;
+                case ulong i: return true;
+                default: return false;
+            }
+         
         }
 
         public static bool IsFinite(double value)

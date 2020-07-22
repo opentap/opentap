@@ -660,7 +660,11 @@ namespace OpenTap
             }
 
             if (a.Numerator == b.Numerator)
+            {
+                if (a.IsPosInf || b.IsNegInf) return NaN;
                 return Zero;
+            }
+
             return new BigFloat(a.Numerator - b.Numerator, b.Denominator).Normalize();
         }
         public static BigFloat operator /(BigFloat a, BigFloat b)
@@ -677,8 +681,15 @@ namespace OpenTap
                 else if (b < 0) return NegativeInfinity;
             }
             else if (b == One) return a;
-            else if (a.IsZero) return Zero;
-            else if (b.IsZero) return a.Numerator > 0 ? Infinity : NegativeInfinity;
+            else if (a.IsZero)
+            {
+                if (b.IsZero) return NaN;
+                return Zero;
+            }
+            else if (b.IsZero)
+            {
+                return a.Numerator > 0 ? Infinity : NegativeInfinity;
+            }
 
             return new BigFloat(a.Numerator * b.Denominator, b.Numerator * a.Denominator).Normalize();
         }
@@ -686,8 +697,17 @@ namespace OpenTap
         public static BigFloat operator *(BigFloat a, BigFloat b)
         {
             if (a.IsNan || b.IsNan) return NaN;
-            if (a.IsZero) return Zero;
-            if (b.IsZero) return Zero;
+            if (a.IsZero)
+            {
+                if (b.IsPosInf || b.IsNegInf) return NaN;
+                return Zero;
+            }
+
+            if (b.IsZero)
+            {
+                if (a.IsPosInf || a.IsNegInf) return NaN;
+                return Zero;
+            }
 
             return new BigFloat(a.Numerator * b.Numerator, a.Denominator * b.Denominator).Normalize();
         }

@@ -40,7 +40,7 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(types.All(t => t.DescendsTo(baseType)));
         }
 
-        public class TypeDataSearcherTestImpl : ITypeDataSearcher, ITypeDataProvider
+        public class TypeDataSearcherTestImpl : ITypeDataSearcher, ITypeDataProvider, ITypeDataSearcherInvalidated
         {
             public class MemberDataTestImpl : IMemberData
             {
@@ -122,7 +122,20 @@ namespace OpenTap.Engine.UnitTests
                 new TypeDataTestImpl( "UnitTestCliActionType", TypeData.FromType(typeof(ICliAction)),() => new SomeTestAction())
             };
 
-            public static bool Enable = false;
+            static bool enabled;
+
+            public static bool Enable
+            {
+                get => enabled;
+                set
+                {
+                    if (enabled == value) return;
+                    enabled = value;
+                    invalidated = true;
+                }
+            }
+
+            static bool invalidated = false;
             public IEnumerable<ITypeData> Types { get; private set; }
 
             public void Search()
@@ -131,6 +144,7 @@ namespace OpenTap.Engine.UnitTests
                     Types = _types;
                 else
                     Types = null;
+                invalidated = false;
             }
 
             public double Priority => 1;
@@ -143,6 +157,8 @@ namespace OpenTap.Engine.UnitTests
                     return _types.Last();
                 return null;
             }
+
+            public bool IsInvalidated => invalidated;
         }
         
         interface NonDerivedInterface { }

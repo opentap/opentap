@@ -952,7 +952,7 @@ namespace OpenTap.Engine.UnitTests
             var planrun = plan.Execute(new[] { pl });
 
             var steprun = pl.StepRuns.First();
-            Assert.IsTrue(steprun.Parameters["ArrayValues"].ToString() == new NumberFormatter(System.Globalization.CultureInfo.CurrentCulture).FormatRange(arrayStep.ArrayValues));
+            Assert.IsTrue(steprun.Parameters["ArrayValues"].ToString() == new NumberFormatter(System.Globalization.CultureInfo.CurrentCulture){UseRanges = false}.FormatRange(arrayStep.ArrayValues));
         }
 
         [Test]
@@ -2041,14 +2041,21 @@ namespace OpenTap.Engine.UnitTests
 
     public class ManySettingsStep : TestStep
     {
-        public int A { get; set; }
-        public int[] B { get; set; }
-        public Instrument[] C { get; set; }
-        public Instrument[] D { get; set; }
-        public Instrument[] E { get; set; }
+        public int A { get; set; } = 123;
+        public int[] B { get; set; } = new[] {1, 2, 3};
+        public Instrument[] C { get; set; } = Array.Empty<Instrument>();
+        public Instrument[] D { get; set; }= Array.Empty<Instrument>();
+        public Instrument[] E { get; set; }= Array.Empty<Instrument>();
         public string F { get; set; } = "Hello world!!";
+        
+        [EnabledIf(nameof(A), 123)]
         public Enabled<string> G { get; set; } = new Enabled<string>() {Value = "Hello"};
+        [EnabledIf(nameof(A), 123)]
         public List<string> H { get; set; } = new List<string>{"1 2 3"};
+        [EnabledIf(nameof(A), 123)]
+        public Enabled<double> I { get; set; } = new Enabled<double>();
+        [EnabledIf(nameof(A), 123)]
+        public ITestStep Step { get; set; }
         
         public override void Run()
         {

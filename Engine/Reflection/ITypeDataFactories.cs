@@ -17,7 +17,7 @@ namespace OpenTap
     public partial class TypeData 
     {
         private static List<ITypeDataSearcher> searchers = new List<ITypeDataSearcher>();
-        private static Dictionary<ITypeData, IEnumerable<ITypeData>> derivedTypesCache = new Dictionary<ITypeData, IEnumerable<ITypeData>>();
+        private static Dictionary<ITypeData, ITypeData[]> derivedTypesCache = new Dictionary<ITypeData, ITypeData[]>();
 
         /// <summary> Get all known types that derive from a given type.</summary>
         /// <typeparam name="BaseType">Base type that all returned types descends to.</typeparam>
@@ -43,17 +43,22 @@ namespace OpenTap
         /// <summary> Get all known types that derive from a given type.</summary>
         /// <param name="baseType">Base type that all returned types descends to.</param>
         /// <returns>All known types that descends to the given base type.</returns>
-        static public IEnumerable<ITypeData> GetDerivedTypes(ITypeData baseType)
+        public static IEnumerable<ITypeData> GetDerivedTypes(ITypeData baseType)
         {
             checkCacheValidity();
-            var searcherTypes = TypeData.FromType(typeof(ITypeDataSearcher)).DerivedTypes;
-            if(derivedTypesCache.ContainsKey(baseType) && searchers.Count == searcherTypes.Count())
-            {
-                return derivedTypesCache[baseType];
-            }
-            if (searchers.Count() != searcherTypes.Count())
+            var searcherTypes = TypeData.FromType(typeof(ITypeDataSearcher)).DerivedTypes.Where(x => x.CanCreateInstance);
+            bool invalidated = searchers.OfType<ITypeDataSearcherInvalidated>().Any(x => x.IsInvalidated);
+            if(derivedTypesCache.ContainsKey(baseType) && searchers.Count == searcherTypes.Count() && !invalidated)
+                    return derivedTypesCache[baseType];
+            
+            if (searchers.Count() != searcherTypes.Count() || invalidated)
             {
                 var searchTasks = new List<Task>();
+                foreach (var s in searchers)
+                {
+                    if (s is ITypeDataSearcherInvalidated inv && inv.IsInvalidated)
+                        searchTasks.Add(Task.Run(() => s.Search()));
+                }
                 foreach (var st in searcherTypes)
                 {
                     if (!searchers.Any(s => TypeData.GetTypeData(s) == st))
@@ -72,26 +77,28 @@ namespace OpenTap
                     Log.CreateSource("TypeData").Debug(ex);
                 }
             }
-            List<ITypeData> DerivedTypes = new List<ITypeData>();
+
+            var derivedTypes = new List<ITypeData>();
             foreach (ITypeDataSearcher searcher in searchers)
             {
                 if (searcher is DotNetTypeDataSearcher && baseType is TypeData td)
                 {
                     // This is a performance shortcut.
-                    DerivedTypes.AddRange(td.DerivedTypes);
+                    derivedTypes.AddRange(td.DerivedTypes);
                     continue;
                 }
-                if (searcher != null && searcher.Types != null)
+                if (searcher?.Types != null)
                 {
                     foreach (ITypeData type in searcher.Types)
                     {
                         if (type.DescendsTo(baseType))
-                            DerivedTypes.Add(type);
+                            derivedTypes.Add(type);
                     }
                 }
             }
-            derivedTypesCache[baseType] = DerivedTypes;
-            return DerivedTypes;
+            var result = derivedTypes.ToArray();
+            derivedTypesCache[baseType] = result;
+            return result;
         }
 
         /// <summary> Get the type info of an object. </summary>

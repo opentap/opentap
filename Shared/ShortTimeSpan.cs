@@ -145,9 +145,9 @@ namespace OpenTap
                 return;
             };
             if (Value < 10)
-                output.Append((Math.Floor(Value * 100) * 0.01).ToString("{0:0.00}", CultureInfo.InvariantCulture));
+                output.Append((Math.Floor(Value * 100) * 0.01).ToString("0.00", CultureInfo.InvariantCulture));
             else if (Value < 100)
-                output.Append((Math.Floor(Value * 10) * 0.1).ToString("{0:0.0}", CultureInfo.InvariantCulture));
+                output.Append((Math.Floor(Value * 10) * 0.1).ToString("0.0", CultureInfo.InvariantCulture));
             else
                 output.Append(Math.Floor(Value).ToString(CultureInfo.InvariantCulture));
             output.Append(' ');

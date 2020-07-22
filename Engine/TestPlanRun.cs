@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
@@ -367,6 +368,15 @@ namespace OpenTap
         {
 
         }
+
+        class StringHashPair
+        {
+            public string Xml { get; set; }
+            public string Hash { get; set; }
+        }
+        
+        /// <summary> Memorizer for storing pairs of Xml and hash. </summary>
+        static ConditionalWeakTable<TestPlan, StringHashPair> testPlanHashMemory = new ConditionalWeakTable<TestPlan, StringHashPair>();
         
         /// <summary>
         /// Starts tasks to open resources. All referenced instruments and duts as well as supplied resultListeners to the plan.
@@ -413,6 +423,29 @@ namespace OpenTap
                     Parameters.Add(new ResultParameter("Test Plan", nameof(Hash), GetHash(Encoding.UTF8.GetBytes(testPlanXml)), new MetaDataAttribute(), 0));
                     return;
                 }
+
+                if (plan.GetCachedXml() is byte[] xml)
+                {
+                    TestPlanXml = Encoding.UTF8.GetString(xml);
+                    if(!testPlanHashMemory.TryGetValue(this.plan, out var pair))
+                    {
+                        if (pair == null)
+                        {
+                            pair = new StringHashPair();
+                            testPlanHashMemory.Add(plan, pair);    
+                        }
+                    }
+
+                    if (Equals(pair.Xml,TestPlanXml) == false)
+                    {
+                        pair.Xml = TestPlanXml;
+                        pair.Hash = GetHash(xml);
+                    }
+
+                    Parameters.Add(new ResultParameter("Test Plan", nameof(Hash), pair.Hash, new MetaDataAttribute(), 0));
+                    return;
+                }
+
                 using (var memstr = new MemoryStream(128))
                 {
                     var sw = Stopwatch.StartNew();

@@ -18,4 +18,11 @@ namespace OpenTap
         /// </summary>
         void Search();
     }
+
+    /// <summary> ITypeDataSearcher that can inform if it has been changed. </summary>
+    public interface ITypeDataSearcherInvalidated : ITypeDataSearcher
+    {
+        /// <summary> Search needs to be called again.</summary>
+        bool IsInvalidated { get; }
+    }
 }

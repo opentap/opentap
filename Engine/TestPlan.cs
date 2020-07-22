@@ -174,8 +174,13 @@ namespace OpenTap
         public bool CacheXml { get; set; }
 
         byte[] xmlCache = null;
+        
         /// <summary>  Flushes the test plan XML cache. </summary>
-        public void FlushXmlCache() => xmlCache = null; 
+        public void FlushXmlCache() => xmlCache = null;
+
+        /// <summary> Get the cached XML (or null if it is not cached)</summary>
+        public byte[] GetCachedXml() => xmlCache;
+
         
         #region Load/Save TestPlan
         /// <summary>

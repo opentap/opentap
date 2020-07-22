@@ -1,5 +1,9 @@
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Linq;
+using System.Text;
 using System.Threading;
 using NUnit.Framework;
 using OpenTap.Cli;
@@ -22,21 +26,42 @@ namespace OpenTap.Engine.UnitTests
                 });
             }
         }
-            
-        [Test, Ignore("Performance test that does not make sense in integration tests.")]
-        public void GeneralPerformanceTest()
+
+        class VirtualPropertiesStep : TestStep
         {
-            var plan = new TestPlan {CacheXml = true};
-            for (int i = 0; i < 100; i++)
+            public virtual string X { get; set; }
+            public virtual string Y { get; set; }
+            public virtual double Z { get; set; }
+            [Browsable(false)]
+            public virtual double[] Values { get; set; } = new double[1024];
+
+            public override void Run()
             {
-                plan.Steps.Add(new SequenceStep());
-                plan.Steps.Add(new ManySettingsStep());
-                plan.Steps.Add(new DeferringResultStep());
+                
             }
+        }
+        
+        
+        public void GeneralPerformanceTest(int count)
+        {
+            void buildSequence(ITestStepParent parent, int levels)
+            {
+                parent.ChildTestSteps.Add(new ManySettingsStep());
+                parent.ChildTestSteps.Add(new DeferringResultStep());
+                parent.ChildTestSteps.Add(new VirtualPropertiesStep());
+                for (int i = 0; i < levels; i++)
+                {
+                    var seq = new SequenceStep();
+                    parent.ChildTestSteps.Add(seq);
+                    buildSequence(seq, levels / 2);
+                }
+            }
+            var plan = new TestPlan {CacheXml = true};
+            buildSequence(plan, 6);
+            var total = Utils.FlattenHeirarchy(plan.ChildTestSteps, x => x.ChildTestSteps).Count();
 
             plan.Execute(); // warm up
 
-            int count = 1000;
             TimeSpan timeSpent = TimeSpan.Zero;
             
                 for (int i = 0; i < count; i++)
@@ -60,9 +85,34 @@ namespace OpenTap.Engine.UnitTests
     [Display("profile")]
     public class ProfileAction : ICliAction
     {
+        [CommandLineArgument("time-span")]
+        public bool ProfileTimeSpanToString { get; set; }
+        
+        [CommandLineArgument("test-plan")]
+        public bool ProfileTestPlan { get; set; }
+        
         public int Execute(CancellationToken cancellationToken)
         {
-            new TestPlanPerformanceTest().GeneralPerformanceTest();
+            if (ProfileTimeSpanToString)
+            {
+                StringBuilder sb =new StringBuilder();
+                ShortTimeSpan.FromSeconds(0.01 ).ToString(sb);
+                var sw = Stopwatch.StartNew();
+                
+                
+                for (int i = 0; i < 1000000; i++)
+                {
+                    //ShortTimeSpan.FromSeconds(0.01 * i).ToString(sb);
+                    ShortTimeSpan.FromSeconds(0.01 * i).ToString(sb);
+                    if (i % 10 == 0)
+                        sb.Clear();
+                }
+
+                Console.WriteLine("TimeSpan: {0}ms", sw.ElapsedMilliseconds);
+            }
+            if(ProfileTestPlan)
+                new TestPlanPerformanceTest().GeneralPerformanceTest(10000);
+            
             return 0;
         }
     }

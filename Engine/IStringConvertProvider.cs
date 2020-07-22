@@ -646,17 +646,20 @@ namespace OpenTap
                     return null;
                 if (value is IEnumerable seq)
                 {
-                    if (seq is IEnumerable<Enum>)
+                    bool isNumeric = true;
+                    foreach (var elem in seq)
                     {
-                        
-                    }
-                    if(seq is IEnumerable<double> || seq is IEnumerable<int> || seq is IEnumerable<float>)
-                    {
-                        if (false == seq.Cast<object>().FirstOrDefault() is Enum)
+                        if (elem is Enum || Utils.IsNumeric(elem) == false)
                         {
-                            var fmt = new NumberFormatter(culture);
-                            return fmt.FormatRange(seq);    
+                            isNumeric = false;
+                            break;
                         }
+                    }
+
+                    if (isNumeric)
+                    {
+                        var fmt = new NumberFormatter(CultureInfo.InvariantCulture) { UseRanges = false};
+                        return fmt.FormatRange(seq);
                     }
 
                     string escapeString(string str)
@@ -670,6 +673,7 @@ namespace OpenTap
                     bool first = true;
                     foreach (var val in seq)
                     {
+                        
                         if (StringConvertProvider.TryGetString(val, out string result, culture))
                         {
                             if (first)
@@ -686,8 +690,6 @@ namespace OpenTap
                     }
 
                     return sb.ToString();
-
-                    
                 }
 
                 return null;

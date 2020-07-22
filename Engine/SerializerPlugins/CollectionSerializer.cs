@@ -234,7 +234,7 @@ namespace OpenTap.Plugins
             Type genericTypeArg = type.GetEnumerableElementType();
             if (genericTypeArg.IsNumeric())
             {
-                var parser = new NumberFormatter(CultureInfo.InvariantCulture);
+                var parser = new NumberFormatter(CultureInfo.InvariantCulture) {UseRanges = false};
                 elem.Value = parser.FormatRange(sourceEnumerable);
                 return true;
             }
