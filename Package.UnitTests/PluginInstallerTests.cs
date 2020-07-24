@@ -136,26 +136,28 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void TestOverwritePackageDetection()
         {
-            
+
+            var success = PackageInstallAction.InstallationQuestion.Success;
+            var overwrite = PackageInstallAction.InstallationQuestion.OverwriteFile;
             // Conflict
-            var conflict = PackageInstallAction.CheckForOverwrittenPackages(MockInstallation.GetInstallation(), MockInstallation.GetConflictingFiles(), false);
-            Assert.AreNotEqual(0, conflict);
+            PackageInstallAction.InstallationQuestion conflict = PackageInstallAction.CheckForOverwrittenPackages(MockInstallation.GetInstallation(), MockInstallation.GetConflictingFiles(), false);
+            Assert.AreNotEqual(success, conflict);
             
             // Conflict + --force
             var conflictForced = PackageInstallAction.CheckForOverwrittenPackages(MockInstallation.GetInstallation(), MockInstallation.GetConflictingFiles(), true);
-            Assert.AreEqual(0, conflictForced);
+            Assert.AreEqual(overwrite, conflictForced);
             
             // No conflict
             var noConflict = PackageInstallAction.CheckForOverwrittenPackages(MockInstallation.GetInstallation(), MockInstallation.TestNonConflicting(), false);
-            Assert.AreEqual(0, noConflict);
+            Assert.AreEqual(success, noConflict);
             
             // Conflicting capitalization between files "package/a/test" vs "Package/A/test". If forced this will work differently based on platform.
             var conflictCapitalization = PackageInstallAction.CheckForOverwrittenPackages(MockInstallation.GetInstallation(), MockInstallation.TestConflictingCapitalization(), false);
-            Assert.AreNotEqual(0, conflictCapitalization);
+            Assert.AreNotEqual(success, conflictCapitalization);
             
             // Conflict but the file is inside Dependencies, so its ok.
             var dependenciesConflict = PackageInstallAction.CheckForOverwrittenPackages(MockInstallation.GetInstallation(), MockInstallation.GetConflictingFilesInDependencies(), false);
-            Assert.AreEqual(0, dependenciesConflict);
+            Assert.AreEqual(success, dependenciesConflict);
         }
 
         [Test]
