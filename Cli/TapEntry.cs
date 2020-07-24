@@ -50,7 +50,8 @@ namespace OpenTap.Cli
         private static bool IsColor()
         {
             string[] arguments = Environment.GetCommandLineArgs();
-            if (arguments.Contains("--color") || arguments.Contains("-c"))
+            if (arguments.Contains("--color") || arguments.Contains("-c") ||
+                arguments.Contains("-color") || arguments.Contains("--c"))
                 return true;
             var envvar = Environment.GetEnvironmentVariable("OPENTAP_COLOR");
             if (envvar == null)
@@ -173,8 +174,10 @@ namespace OpenTap.Cli
             void loadCommandLine()
             {
                 var args = Environment.GetCommandLineArgs();
-                bool isVerbose = args.Contains("--verbose") || args.Contains("-v");
-                bool isQuiet = args.Contains("--quiet") || args.Contains("-q"); ;
+                bool isVerbose = args.Contains("--verbose") || args.Contains("-v") ||
+                                 args.Contains("-verbose") || args.Contains("--v");
+                bool isQuiet = args.Contains("--quiet") || args.Contains("-q") ||
+                               args.Contains("-quiet") || args.Contains("--q");
                 ConsoleTraceListener.SetStartupTime(start);
                 var cliTraceListener = new ConsoleTraceListener(isVerbose, isQuiet, IsColor());
                 Log.AddListener(cliTraceListener);
