@@ -14,7 +14,7 @@ namespace OpenTap.UnitTests
     public class CliCommandTest
     {
         [Test]
-        public void test()
+        public void CliCommand()
         {
             var root = new CliActionTree();
             Assert.IsTrue(root.GetSubCommand(Array.Empty<string>()) == null);
