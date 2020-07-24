@@ -7,6 +7,7 @@ stages:
   - test
   - package
   - installer
+  - testinstaller
   - publish
 
 #############################################
@@ -410,10 +411,6 @@ Installer-Linux:
   stage: installer
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
-  only:
-    - tags
-    - /^release.*$/
-    - master
   dependencies:
      - Package-Linux
   script:
@@ -433,7 +430,6 @@ Installer-Linux:
     expire_in: 1 week
     paths:
        - "OpenTAP.tar"
-
 
 Package-Build-Deb:
   stage: installer
@@ -457,6 +453,25 @@ Package-Build-Deb:
     expire_in: 1 week
     paths: 
       - OpenTAP.deb
+
+#############################################
+# Stage: test installer                     #
+#############################################
+
+Test-Installer-Linux:
+  stage: testinstaller
+  image: mcr.microsoft.com/dotnet/core/runtime:2.1.12-bionic
+  tags: [ docker, gce ]
+  dependencies:
+    - Installer-Linux
+  script:
+    - apt update
+    - apt install unzip -y
+    - tar xf OpenTAP.tar
+    - chmod +x ./INSTALL.sh
+    - echo 'y' | ./INSTALL.sh
+    - $HOME/bin/tap -h
+    - $HOME/bin/tap package list -v
 
 #############################################
 # Stage: publish                            #
