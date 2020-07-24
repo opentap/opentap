@@ -317,8 +317,6 @@ namespace OpenTap
         /// <summary>
         /// Returns true if a type is numeric.
         /// </summary>
-        /// <param name="t"></param>
-        /// <returns></returns>
         public static bool IsNumeric(this Type t)
         {
             if (t.IsEnum)
@@ -340,6 +338,14 @@ namespace OpenTap
                 default:
                     return false;
             }
+        }
+
+        /// <summary>
+        /// Returns true if a type is numeric.
+        /// </summary>
+        public static bool IsNumeric(this ITypeData t)
+        {
+            return t.AsTypeData()?.Type.IsNumeric() == true;
         }
 
         /// <summary> Creates an instance of t with no constructor arguments. </summary>
@@ -1096,7 +1102,7 @@ namespace OpenTap
         /// <returns></returns>
         public static bool IsLongerThan<T>(this IEnumerable<T> source, long count)
         {
-            foreach (var item in source)
+            foreach (var _ in source)
                 if (--count < 0)
                     return true;
             return false;
@@ -1142,6 +1148,38 @@ namespace OpenTap
                 if (selector(x) == false)
                     yield return x;
         }
+
+        /// <summary> As 'Select' but skipping null values.
+        /// Short hand for/more efficient version of 'Select(f).Where(x => x != null)' </summary>
+        /// <param name="source"></param>
+        /// <param name="f"></param>
+        /// <typeparam name="T1"></typeparam>
+        /// <typeparam name="T2"></typeparam>
+        /// <returns></returns>
+        public static IEnumerable<T2> SelectValues<T1, T2>(this IEnumerable<T1> source, Func<T1, T2> f)
+        {
+            foreach (var x in source)
+            {
+                var value = f(x);
+                if (value != null)
+                    yield return value;
+            }
+        }
+
+        /// <summary> As 'Select and FirstOrDefault' but skipping null values.
+        /// Short hand for/more efficient version of 'Select(f).Where(x => x != null).FirstOrDefault()'
+        /// </summary>
+        public static T2 FirstNonDefault<T1, T2>(this IEnumerable<T1> source, Func<T1, T2> f) 
+        {
+            foreach (var x in source)
+            {
+                var value = f(x);
+                if (Equals(value, default(T2)) == false)
+                    return value;
+            }
+
+            return default(T2);
+        } 
 
 
         //We need to remember the timers or they risk getting garbage collected before elapsing.
@@ -1473,6 +1511,23 @@ namespace OpenTap
             // if member is null, fall back to the readable enum string (or description is null)
             return mem?.GetDisplayAttribute().Description ?? EnumToReadableString(value);
         }
+
+        public static string SerializeToString(this TestPlan plan)
+        {
+            using (var mem = new MemoryStream())
+            {
+                plan.Save(mem);
+                return Encoding.UTF8.GetString(mem.ToArray());
+            }
+        }
+
+        public static object DeserializeFromString(string str)
+        {
+            return new TapSerializer().DeserializeFromString(str);
+        }
+
+        public static T DeserializeFromString<T>(string str) => (T) DeserializeFromString(str);
+
     }
 
     static internal class Sequence

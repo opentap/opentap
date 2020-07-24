@@ -92,7 +92,7 @@ There are a few CLI flags which most `package` subcommands have in common:
 | `--target`       | Override which directory the operation is applied in                                                        |
 
 The default values of `os` and `architecture` are automatically configured according to the machine where OpenTAP is
-installed, and the default repository is the official OpenTAP repository, [packages.opentap.io](packages.opentap.io).
+installed, and the default repository is the official OpenTAP repository, [packages.opentap.io](http://packages.opentap.io).
 This is usually what you want, but there are some situations where it may be useful to modify them. For example, you can
 install OpenTAP onto a linux machine from a Windows machine with `tap package install OpenTAP --os Linux --target
 C:\path\to\linux\install`

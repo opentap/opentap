@@ -50,6 +50,7 @@ module.exports = {
                     ["/Developer Guide/Instrument/", "Instrument"],
                     ["/Developer Guide/Result Listener/", "Result Listener"],
                     ["/Developer Guide/Component Setting/", "Component Setting"],
+                    ["/Developer Guide/Annotations/", "Annotations"],
                     ["/Developer Guide/Plugin Packaging and Versioning/", "Plugin Packaging and Versioning"],
                     ["/Developer Guide/Attributes/", "Attributes"],
                     ["/Developer Guide/Appendix A/", "Appendix A: Macro Strings"]
@@ -63,7 +64,8 @@ module.exports = {
                     ['/Release Notes/ReleaseNote_OpenTAP9.4.md', "Release Notes - OpenTAP 9.4"],
                     ['/Release Notes/ReleaseNote_OpenTAP9.5.md', "Release Notes - OpenTAP 9.5"],
                     ['/Release Notes/ReleaseNote_OpenTAP9.6.md', "Release Notes - OpenTAP 9.6"],
-                    ['/Release Notes/ReleaseNote_OpenTAP9.7.md', "Release Notes - OpenTAP 9.7"]
+                    ['/Release Notes/ReleaseNote_OpenTAP9.7.md', "Release Notes - OpenTAP 9.7"],
+                    ['/Release Notes/ReleaseNote_OpenTAP9.8.md', "Release Notes - OpenTAP 9.8"]
                 ]
             },
             "FAQ/"

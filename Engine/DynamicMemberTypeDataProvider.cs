@@ -82,19 +82,38 @@ namespace OpenTap
             Name = name;
 
             var disp = member.GetDisplayAttribute();
-            displayAttribute = new DisplayAttribute(names[names.Length - 1].Trim(), disp.Description, Order: -5,
-                    Groups: names.Take(names.Length - 1).Select(x => x.Trim()).ToArray());
+
+            var displayName = names[names.Length - 1].Trim();
+            var displayGroup = names.Take(names.Length - 1).Select(x => x.Trim()).ToArray();
+
+            displayAttribute = new DisplayAttribute(displayName, disp.Description, Order: -5, Groups: displayGroup);
         }
 
         readonly DisplayAttribute displayAttribute;
-        
+        object[] __attributes__;
         /// <summary> Gets the attributes on this member. </summary>
-        public IEnumerable<object> Attributes => member.Attributes.Select(x =>
+        public IEnumerable<object> Attributes
         {
-            if (x is DisplayAttribute)
-                return displayAttribute;
-            return x;
-        });
+            get
+            {
+                if (__attributes__ != null) return __attributes__;
+                bool anyDisplayAttribute = false;
+                var m = member.Attributes.Select(x =>
+                {
+                    if (x is DisplayAttribute)
+                    {
+                        anyDisplayAttribute = true;
+                        return displayAttribute;
+                    }
+
+                    return x;
+                }).ToArray();
+                if (!anyDisplayAttribute)
+                    m = member.Attributes.Append(displayAttribute).ToArray();
+                __attributes__ = m;
+                return m;
+            }
+        }
 
         /// <summary> The target object to which this member is added.
         /// This should always be the same as the argument to GetValue/SetValue. </summary>
@@ -116,9 +135,11 @@ namespace OpenTap
             string str = null;
             strConvertSuccess = StringConvertProvider.TryGetString(value, out str);
 
+            ICloneable cloneable = value as ICloneable;
+
             TapSerializer serializer = null;
             string serialized = null;
-            if (!strConvertSuccess && value != null)
+            if (cloneable == null && !strConvertSuccess && value != null)
             {
                 serializer = new TapSerializer();
                 try
@@ -141,19 +162,26 @@ namespace OpenTap
                 try
                 {
                     object setVal = value;
-                    if (strConvertSuccess)
+                    if (i >= 0 || TypeData.GetTypeData(setVal).DescendsTo(TypeDescriptor) == false) // let's just set the value on the first property.
                     {
-                        if (StringConvertProvider.TryFromString(str, TypeDescriptor, context, out setVal) == false)
-                            setVal = value;
-                    }
-                    else if (serialized != null)
-                    {
-                        try
+                        if (strConvertSuccess)
                         {
-                            setVal = serializer.DeserializeFromString(serialized);
+                            if (StringConvertProvider.TryFromString(str, TypeDescriptor, context, out setVal) == false)
+                                setVal = value;
                         }
-                        catch
+                        else if (cloneable != null)
                         {
+                            setVal = cloneable.Clone();
+                        }
+                        else if (serialized != null)
+                        {
+                            try
+                            {
+                                setVal = serializer.DeserializeFromString(serialized);
+                            }
+                            catch
+                            {
+                            }
                         }
                     }
 

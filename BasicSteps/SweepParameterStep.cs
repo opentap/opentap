@@ -1,19 +1,22 @@
-using System.Collections.Generic;
-using System.ComponentModel;
+using System;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
-using System.Xml.Serialization;
 
 namespace OpenTap.Plugins.BasicSteps
 {
     [AllowAnyChild]
     [Display("Sweep Parameter", "Table based loop that sweeps the value of its parameters based on a set of values.", "Flow Control")]
-    public class SweepParameterStep : LoopTestStep, ISelectedParameters
+    public class SweepParameterStep : SweepParameterStepBase
     {
+        public bool SweepValuesEnabled => SelectedParameters.Count > 0;
+
         SweepRowCollection sweepValues = new SweepRowCollection();
         [DeserializeOrder(1)] // this should be deserialized as the last thing.
         [Display("Sweep Values", "A table of values to be swept for the selected parameters.", "Sweep")]
+        [HideOnMultiSelect] // todo: In the future support multi-selecting this.
+        [EnabledIf(nameof(SweepValuesEnabled), true)]
+        [Unsweepable]
         public SweepRowCollection SweepValues 
         { 
             get => sweepValues;
@@ -24,94 +27,50 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
 
-
-        public IEnumerable<IMemberData> SweepProperties =>
-            TypeData.GetTypeData(this).GetMembers().OfType<IParameterMemberData>().Where(x =>
-                x.HasAttribute<UnsweepableAttribute>() == false && x.Writable && x.Readable);
-
-        public IEnumerable<string> SweepNames =>
-            SweepProperties.Select(x => x.Name);
-        
-        readonly NotifyChangedList<string> selectedProperties = new NotifyChangedList<string>();
-        
-        [Browsable(false)]
-        public Dictionary<string, bool> Selected { get; set; } = new Dictionary<string, bool>();
-        void updateSelected()
-        {
-            foreach (var prop in SweepProperties)
-            {
-                if (Selected.ContainsKey(prop.Name) == false)
-                    Selected[prop.Name] = true;
-            }
-            foreach (var item in Selected.ToArray())
-            {
-                if (item.Value)
-                {
-                    if (selectedProperties.Contains(item.Key) == false)
-                        selectedProperties.Add(item.Key);
-                }
-                else
-                {
-                    if (selectedProperties.Contains(item.Key))
-                        selectedProperties.Remove(item.Key);
-                }
-            }
-        }
-
-        void onListChanged(IList<string> list)
-        {
-            foreach (var item in Selected.Keys.ToArray())
-            {
-                Selected[item] = list.Contains(item);
-            }
-        }
-        [AvailableValues(nameof(SweepNames))]
-        
-        [XmlIgnore]
-        [Browsable(true)]
-        [Display("Parameters", "These are the parameters that should be swept", "Sweep")]
-        public IList<string> SelectedParameters {
-            get
-            {
-                updateSelected();
-                selectedProperties.ChangedCallback = onListChanged;
-                return selectedProperties;
-            }
-            set
-            {
-                updateSelected();
-                onListChanged(value);
-            } 
-        }
-
-        
         public SweepParameterStep()
         {
             SweepValues.Loop = this;
-            SweepValues.Add(new SweepRow());
             Name = "Sweep {Parameters}";
+            Rules.Add(() => string.IsNullOrWhiteSpace(validateSweepValues()), validateSweepValues, nameof(SweepValues));
+        }
+
+        private string validateSweepValues()
+        {
+            if (SweepValues.Count <= 0 || SweepValues.All(x => x.Enabled == false)) return "No values selected to sweep";
+
+            if (SelectedParameters.Count <= 0)
+            {
+                SweepValues = new SweepRowCollection();
+            }
+            return "";
         }
 
         int iteration;
         
         [Output]
         [Display("Iteration", "Shows the iteration of the sweep that is currently running or about to run.", "Sweep", Order: 3)]
-        public string IterationInfo => string.Format("{0} of {1}", iteration + 1, SweepValues.Count(x => x.Enabled));
+        public string IterationInfo => $"{iteration} of {SweepValues.Count(x => x.Enabled)}";
 
-        
+        public override void PrePlanRun()
+        {
+            base.PrePlanRun();
+            iteration = 0;
+
+            if (SelectedParameters.Count <= 0)
+                throw new InvalidOperationException("No parameters selected to sweep");
+            var errorStr = validateSweepValues();
+            if (!string.IsNullOrWhiteSpace(errorStr))
+                throw new InvalidOperationException(errorStr);
+        }
+
         public override void Run()
         {
             base.Run();
             iteration = 0;
-            var sets = SweepProperties.ToArray();
+            var sets = SelectedMembers.ToArray();
             var originalValues = sets.Select(set => set.GetValue(this)).ToArray();
 
-            var disps = SweepProperties.Select(x => x.GetDisplayAttribute()).ToList();
-            string names = string.Join(", ", disps.Select(x => x.Name));
-            
-            if (disps.Count > 1)
-                names = string.Format("{{{0}}}", names);
-            var rowType = SweepValues.Select(x => TypeData.GetTypeData(x)).FirstOrDefault();
+            var rowType = SweepValues.Select(TypeData.GetTypeData).FirstOrDefault();
             foreach (var Value in SweepValues)
             {
                 if (Value.Enabled == false) continue;
@@ -121,18 +80,24 @@ namespace OpenTap.Plugins.BasicSteps
                 foreach (var set in sets)
                 {
                     var mem = rowType.GetMember(set.Name);
-                    var val = StringConvertProvider.GetString(mem.GetValue(Value), CultureInfo.InvariantCulture);
+                    var value = mem.GetValue(Value);
+                    
+                    string valueString;
+                    if (value == null)
+                        valueString = "";
+                    else if(false == StringConvertProvider.TryGetString(value, out valueString, CultureInfo.InvariantCulture))
+                        valueString = value.ToString();
+                    
                     var disp = mem.GetDisplayAttribute();
-                    AdditionalParams.Add(new ResultParameter(disp.Group.FirstOrDefault() ?? "", disp.Name, val));
-
+                    AdditionalParams.Add(new ResultParameter(disp.Group.FirstOrDefault() ?? "", disp.Name, valueString));
+                    
                     try
                     {
-                        var value = StringConvertProvider.FromString(val, set.TypeDescriptor, this, CultureInfo.InvariantCulture);
                         set.SetValue(this, value);
                     }
                     catch (TargetInvocationException ex)
                     {
-                        Log.Error("Unable to set '{0}' to value '{2}': {1}", set.GetDisplayAttribute().Name, ex.InnerException.Message, Value);
+                        Log.Error("Unable to set '{0}' to value '{2}': {1}", set.GetDisplayAttribute().Name, ex?.InnerException?.Message, valueString);
                         Log.Debug(ex.InnerException);
                     }
                 }
@@ -141,7 +106,7 @@ namespace OpenTap.Plugins.BasicSteps
                 // Notify that values might have changes
                 OnPropertyChanged("");
                 
-                 Log.Info("Running child steps with {0} = {1} ", names, Value);
+                 Log.Info("Running child steps with {0}", Value.GetIterationString());
 
                 var runs = RunChildSteps(AdditionalParams, BreakLoopRequested).ToList();
                 if (BreakLoopRequested.IsCancellationRequested) break;

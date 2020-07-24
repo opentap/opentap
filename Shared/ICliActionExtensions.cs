@@ -166,39 +166,18 @@ namespace OpenTap.Cli
                 })),
                 string.Join(" ", unnamed.Select(x =>
                 {
-                    var str = x.GetAttribute<UnnamedCommandLineArgument>().Name;
+                    var attr = x.GetAttribute<UnnamedCommandLineArgument>();
+                    var str = attr.Name;
 
-                    if (x.TypeDescriptor.IsA(typeof(string[])))
-                        str = "[" + str + "]";
+                    if (x.TypeDescriptor.IsA(typeof(string[])) || attr.Required == false)
+                        str = "[<" + str + ">]";
                     else
                         str = "<" + str + ">";
 
                     return str;
                 })), passName);
 
-            foreach (var opt in options.Values)
-            {
-                if (opt.IsVisible == false)
-                    continue;
-                var arg = "--" + opt.LongName;
-                if (opt.ShortName != default(char))
-                {
-                    arg = String.Format("-{0}, {1}", opt.ShortName, arg);
-                }
-
-                arg = "  " + arg;
-                if (!string.IsNullOrEmpty(opt.Description))
-                {
-                    foreach (var descSplit in opt.Description.Split('\n'))
-                    {
-                        arg = arg + new String(' ', Math.Max(25 - arg.Length, 1)) + descSplit;
-                        Console.WriteLine(arg);
-                        arg = "";
-                    }
-                }
-                else
-                    Console.WriteLine(arg);
-            }
+            Console.Write(options);
         }
         
         private static object ParseEnum(string name, string value, Type propertyType)

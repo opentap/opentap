@@ -705,8 +705,8 @@ namespace OpenTap
     }
 
     /// <summary>
-    /// Marker interface that indicates that an IAnnotation does not support multi selecting. 
-    /// When multiselecting, the UI should not show properties annotated with this. 
+    /// Marker interface that indicates that an IAnnotation does not support multi-selecting. 
+    /// When multi-selecting, the UI should not show properties annotated with this. 
     /// </summary>
     // Used by ManyToOneAnnotation
     public interface IHideOnMultiSelectAnnotation : IAnnotation { }
@@ -793,7 +793,7 @@ namespace OpenTap
                     if (mem == null) continue;
                     var newa = parentAnnotation.AnnotateMember(mem, sources[0].ExtraAnnotations.Append(new MergedValueAnnotation(mergething)).ToArray());
 
-                    var manyAccess = new ManyAccessAnnotation(mergething.Select(x => x.Get<IAccessAnnotation>()).ToArray());
+                    var manyAccess = new ManyAccessAnnotation(mergething.SelectValues(x => x.Get<IAccessAnnotation>()).ToArray());
                     // Enabled if is not supported when multi-selecting.
                     newa.RemoveType<EnabledIfAnnotation>();
                     var method = newa.Get<IMethodAnnotation>();
@@ -802,8 +802,16 @@ namespace OpenTap
                         newa.Add(new ManyToOneMethodAnnotation(newa));
                         newa.Remove(method);
                     }
-
+                    
                     newa.Add(manyAccess);
+
+                    var enabledAnnotations = mergething.SelectValues(x => x.Get<IEnabledAnnotation>()).ToArray();
+                    if (enabledAnnotations.Length > 0)
+                    {
+                        var manyEnabled = new ManyEnabledAnnotation(enabledAnnotations);
+                        newa.RemoveType<IEnabledAnnotation>();
+                        newa.Add(manyEnabled);
+                    }
 
                     newa.Read(parentAnnotation.Get<IObjectValueAnnotation>().Value);
 
@@ -822,9 +830,20 @@ namespace OpenTap
 
                 next_thing:;
                 }
-                return (members = CommonAnnotations.ToArray());
-
+                return members = CommonAnnotations.ToArray();
             }
+        }
+
+        class ManyEnabledAnnotation : IEnabledAnnotation
+        {
+            readonly IEnabledAnnotation[] subAnnotations;
+
+            public ManyEnabledAnnotation(IEnabledAnnotation[] subAnnotationsAnnotations)
+            {
+                subAnnotations = subAnnotationsAnnotations;
+            }
+
+            public bool IsEnabled => subAnnotations.All(x => x.IsEnabled);
         }
 
         /// <summary>
@@ -1038,6 +1057,26 @@ namespace OpenTap
                 {
                     var mem = annotation.ParentAnnotation.Get<IMembersAnnotation>()?.Members;
                     var mem2 = mem.FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name == availableValuesMember);
+                    if (mem2?.Get<IObjectValueAnnotation>() is MergedValueAnnotation merged)
+                    {
+                        // special handling for 'MergedValueAnnotation'
+                        // let's try to intersect the lists.
+                        
+                        var lists = merged.Merged.Select(x => x.Get<IObjectValueAnnotation>().Value).OfType<IEnumerable>()
+                            .ToArray();
+                        
+                        if (lists.FirstOrDefault() is IEnumerable lst)
+                        {
+                            var set = lst.Cast<object>().ToHashSet();
+                            foreach (var subset in lists.Skip(1))
+                            {
+                                set.IntersectWith(subset.Cast<object>());
+                            }
+
+                            return set;
+                        }
+                    }
+                        
 
                     return mem2?.Get<IObjectValueAnnotation>().Value as IEnumerable ?? Enumerable.Empty<object>();
                 }
@@ -1078,7 +1117,7 @@ namespace OpenTap
         }
 
 
-        class InputStepAnnotation : IAvailableValuesSelectedAnnotation, IOwnedAnnotation
+        class InputStepAnnotation : IAvailableValuesSelectedAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation
         {
             struct InputThing
             {
@@ -1110,6 +1149,36 @@ namespace OpenTap
                 }
 
             }
+
+            ITestStepParent getContextStep()
+            {
+                ITestStepParent step;
+                if (parameterized)
+                {
+                    step = (annotation.Get<IMemberAnnotation>()?.Member as IParameterMemberData)
+                        ?.ParameterizedMembers.Select(x => x.Source).OfType<ITestStep>()
+                        .FirstOrDefault();
+                }
+                else
+                {
+                    AnnotationCollection parent = annotation;
+                    while (parent.ParentAnnotation != null)
+                        parent = parent.ParentAnnotation;
+
+                    object context = parent.Get<IObjectValueAnnotation>().Value;
+                    step = context as ITestStep;
+                
+                    if (context is IEnumerable enumerable_context)
+                    {
+                        step = enumerable_context.OfType<ITestStep>().FirstOrDefault();
+                    }
+                }
+
+                while (step.Parent != null)
+                    step = step.Parent;
+                return step;
+            }
+            
             public IEnumerable AvailableValues
             {
                 get
@@ -1121,20 +1190,12 @@ namespace OpenTap
                     while (parent.ParentAnnotation != null)
                         parent = parent.ParentAnnotation;
 
-                    object context = parent.Get<IObjectValueAnnotation>().Value;
-                    ITestStepParent step = context as ITestStep;
-                    if (context is IEnumerable enumerable_context)
-                    {
-                        step = enumerable_context.OfType<ITestStep>().FirstOrDefault();
-                    }
-                    if (step == null) return Enumerable.Empty<object>();
-                    while (step.Parent != null)
-                        step = step.Parent;
+                    ITestStepParent step = getContextStep();
 
                     var steps = Utils.FlattenHeirarchy(step.ChildTestSteps, x => x.ChildTestSteps);
 
                     List<InputThing> accepted = new List<InputThing>();
-                    accepted.Add(new InputThing() { });
+                    accepted.Add(new InputThing() );
                     if (inp is IInputTypeRestriction res)
                     {
                         foreach (var s in steps)
@@ -1157,7 +1218,8 @@ namespace OpenTap
                 }
             }
 
-            IInput getInput() => annotation.GetAll<IObjectValueAnnotation>().FirstOrDefault(x => x != this && x.Value is IInput)?.Value as IInput;
+            IInput getInput() => annotation.GetAll<IObjectValueAnnotation>()
+                .FirstNonDefault(x => x.Value as IInput);
 
             public void Read(object source)
             {
@@ -1197,9 +1259,23 @@ namespace OpenTap
             }
 
             AnnotationCollection annotation;
-            public InputStepAnnotation(AnnotationCollection annotation)
+            readonly bool parameterized;
+
+            public InputStepAnnotation(AnnotationCollection annotation) => this.annotation = annotation;
+
+            public InputStepAnnotation(AnnotationCollection annotation, bool parameterized) : this(annotation) =>
+                this.parameterized = parameterized;
+            
+            public string Value
             {
-                this.annotation = annotation;
+                get 
+                { 
+                    var currentValue = annotation.GetAll<IObjectValueAnnotation>()
+                        .FirstNonDefault(x => x.Value as IInput);
+                    if(currentValue != null && currentValue.Property != null && currentValue.Step != null)
+                        return $"{currentValue.Property?.GetDisplayAttribute().Name} from {currentValue.Step?.GetFormattedName()}";
+                    return "None";
+                }
             }
         }
 
@@ -1525,6 +1601,26 @@ namespace OpenTap
             }
         }
 
+        class MemberDataSequenceStringAnnotation : IStringReadOnlyValueAnnotation
+        {
+            AnnotationCollection annotations;
+
+            public MemberDataSequenceStringAnnotation(AnnotationCollection annotations) =>
+                this.annotations = annotations;
+
+            public string Value
+            {
+                get
+                {
+                    var seq = annotations.Get<IObjectValueAnnotation>().Value as IEnumerable;
+                    var mems = seq?.OfType<IMemberData>();
+                    if (!mems.Any()) return "None";
+                    var things2 = mems.ToLookup(x => x.GetDisplayAttribute().Name);
+                    return string.Join(", ", mems.Select(x => x.GetDisplayAttribute().Name));
+                }
+            }
+        }
+
         class GenericSequenceAnnotation : ICollectionAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation
         {
             public IEnumerable Elements => fac.Get<IObjectValueAnnotation>().Value as IEnumerable;
@@ -1691,6 +1787,10 @@ namespace OpenTap
                     var elem2 = TypeData.FromType(elemType);
                     if (elem2.CanCreateInstance == false)
                     {
+                        if (elem2.Type == typeof(string))
+                            return fac.AnnotateSub(elem2, "");
+                        if (elem2.IsNumeric)
+                            return fac.AnnotateSub(elem2, Convert.ChangeType(0, elem2.Type));
                         return fac.AnnotateSub(elem2, null);
                     }
                     else
@@ -2348,6 +2448,8 @@ namespace OpenTap
                             }
                             else if (innerType.DescendsTo(typeof(ViaPoint)))
                                 annotation.Add(new ViaPointAnnotation(annotation));
+                            else if (innerType.DescendsTo(typeof(IMemberData)))
+                                annotation.Add(new MemberDataSequenceStringAnnotation(annotation));
                         }
                     }
 
@@ -2376,11 +2478,11 @@ namespace OpenTap
                 }
             }
 
-            if (mem != null)
+            if (mem?.Member is IMemberData mem2)
             {
-                if (mem.Member.GetAttribute<AvailableValuesAttribute>() is AvailableValuesAttribute avail)
+                if (mem2.GetAttribute<AvailableValuesAttribute>() is AvailableValuesAttribute avail)
                 {
-                    if (mem.Member.TypeDescriptor.DescendsTo(typeof(IEnumerable<>)) && mem.Member.TypeDescriptor.IsA(typeof(string)) == false)
+                    if (mem2.TypeDescriptor.DescendsTo(typeof(IEnumerable<>)) && mem2.TypeDescriptor.IsA(typeof(string)) == false)
                     {
                         annotation.Add(new MultipleAvailableValuesAnnotation(annotation, avail.PropertyName));
                     }
@@ -2390,14 +2492,19 @@ namespace OpenTap
                     }
                 }
                 
-                if (mem?.Member is MemberData mem2 && mem2.DeclaringType.DescendsTo(typeof(ITestStep)))
+                if (mem2.DeclaringType.DescendsTo(typeof(ITestStep)))
                 {
 
                     if (mem2.Name == nameof(ITestStep.Name))
                         annotation.Add(new StepNameStringValue(annotation, member: true));
                     
-                    if (mem.Member.TypeDescriptor.DescendsTo(typeof(IInput)))
+                    if (mem2.TypeDescriptor.DescendsTo(typeof(IInput)))
                         annotation.Add(new InputStepAnnotation(annotation));
+                }else if (mem2 is IParameterMemberData param)
+                {
+                    if (mem2.TypeDescriptor.DescendsTo(typeof(IInput)) 
+                        && param.ParameterizedMembers.All(x => x.Member.DeclaringType.DescendsTo(typeof(ITestStep))))
+                        annotation.Add(new InputStepAnnotation(annotation, true));
                 }
                 
             }

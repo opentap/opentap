@@ -1470,8 +1470,7 @@ namespace OpenTap.Engine.UnitTests
             var plan1Step2 = new DelayStep() { DelaySecs = 10.0 };
             plan1.ChildTestSteps.Add(plan1Step1);
             plan1.ChildTestSteps.Add(plan1Step2);
-            CancellationToken ctPlan1 = new CancellationToken();
-
+            
             //---------------------------------------------------------------------------------------------------------
             EventWaitHandle ewhPlan2IsRunning = new EventWaitHandle(false, EventResetMode.AutoReset);
             EventWaitHandle ewhPlan2StoppedRunning = new EventWaitHandle(false, EventResetMode.AutoReset);
@@ -1483,29 +1482,38 @@ namespace OpenTap.Engine.UnitTests
             plan2.ChildTestSteps.Add(plan2Step1);
             plan2.ChildTestSteps.Add(plan2Step2);
             plan2.ChildTestSteps.Add(plan2Step3);            
-            CancellationToken ctPlan2 = new CancellationToken();
-
+            
             //---------------------------------------------------------------------------------------------------------
-            TapThread tapThread1 = TapThread.Start(() =>
+            var tapThread1 = TapThread.Start(() =>
             {
-                //TestPlan.Current is null before the TestPlan starts running
-                ctPlan1.Register(TapThread.Current.Abort);
-                plan1.Execute(new IResultListener[] { new TestPlanResultListener(ewhPlan1IsRunning) }, null, new HashSet<ITestStep>(plan1.ChildTestSteps));
-                //TestPlan.Current is null after the TestPlan starts running
-                ewhPlan1StoppedRunning.Set();
+                try
+                {
+                    plan1.Execute(new IResultListener[] {new TestPlanResultListener(ewhPlan1IsRunning)}, null,
+                        new HashSet<ITestStep>(plan1.ChildTestSteps));
+                }
+                finally
+                {
+                    //TestPlan.Current is null after the TestPlan starts running
+                    ewhPlan1StoppedRunning.Set();
+                }
             });
 
             //---------------------------------------------------------------------------------------------------------            
-            TapThread tapThread2= TapThread.Start(() =>
+            var tapThread2= TapThread.Start(() =>
             {
-                //TestPlan.Current is null before the TestPlan starts running
-                ctPlan2.Register(TapThread.Current.Abort);
-                plan2.Execute(new IResultListener[] { new TestPlanResultListener(ewhPlan2IsRunning) }, null, new HashSet<ITestStep>(plan2.ChildTestSteps));
-                //TestPlan.Current is null after the TestPlan starts running
-                ewhPlan2StoppedRunning.Set();
+                try
+                {
+                    plan2.Execute(new IResultListener[] {new TestPlanResultListener(ewhPlan2IsRunning)}, null,
+                        new HashSet<ITestStep>(plan2.ChildTestSteps));
+                }
+                finally
+                {
+                    ewhPlan2StoppedRunning.Set();
+                }
             });
 
-            WaitHandle.WaitAll(new WaitHandle[] { ewhPlan1IsRunning, ewhPlan2IsRunning });
+            if(!WaitHandle.WaitAll(new WaitHandle[] { ewhPlan1IsRunning, ewhPlan2IsRunning }, 120000))
+                Assert.Fail("Test plan running timed out.");
             
             Assert.AreEqual(2, plan1.ChildTestSteps.Count);
             Assert.AreEqual(false, tapThread1.AbortToken.IsCancellationRequested);

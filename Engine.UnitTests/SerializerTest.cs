@@ -2118,8 +2118,65 @@ namespace OpenTap.Engine.UnitTests
             List<SubObjTest> subObjects = new List<SubObjTest>() {subobj};
             bool passed = StringConvertProvider.TryGetString(subObjects, out string result);
             Assert.IsFalse(passed);
-
         }
+
+        public class AnyObjectClass : TestStep
+        {
+            public object Item { get; set; }
+            public override void Run()
+            {
+                
+            }
+        }
+
+        public struct Vec3d
+        {
+            public double X, Y, Z;
+        }
+
+
+        // To fully support IPaddresses, we also need to be able to serialize/deserialize them.
+        // This plugin class takes care of that.
+        public class Vec3dSerializer : ITapSerializerPlugin
+        {
+            public double Order => 5;
+
+            public bool Deserialize(XElement node, ITypeData t, Action<object> setter)
+            {
+                if(t == TypeData.FromType(typeof(Vec3d)) == false) return false;
+                var values = node.Value.Trim().TrimStart('(').TrimEnd(')')
+                    .Split(new char[] {' '}, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(double.Parse).ToArray();
+                setter(new Vec3d{X = values[0], Y = values[1], Z = values[2]});
+                return true;
+            }
+
+            public bool Serialize(XElement node, object obj, ITypeData expectedType)
+            {
+                if(obj is Vec3d v)
+                {
+                    node.Value = $"({v.X} {v.Y} {v.Z})";
+                    return true;
+                }
+                return false;
+            }
+        }
+
+        [Test]
+        public void AnyObjectSerializeTest()
+        {
+            var obj = new AnyObjectClass() {Item = new Vec3d(){Y = 10}};
+            var plan = new TestPlan();
+            plan.Steps.Add(obj);
+            TypeData.GetTypeData(obj).GetMember("Item").Parameterize(plan, obj, "Item");
+            
+            var str = new TapSerializer().SerializeToString(plan);
+            var obj2 = (TestPlan)new TapSerializer().DeserializeFromString(str);
+            var externalParameter = obj2.ExternalParameters.Get("Item");
+            Assert.IsNotNull(externalParameter);
+            Assert.AreEqual(10.0, ((Vec3d) externalParameter.Value).Y);
+        }
+        
     }
 
     

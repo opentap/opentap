@@ -137,7 +137,16 @@ namespace OpenTap
         public void Flush()
         {
             while (deferredLoads.Count > 0)
-                deferredLoads.Dequeue()();
+            {
+                try
+                {
+                    deferredLoads.Dequeue()();
+                }
+                catch (Exception e)
+                {
+                    PushError(null, $"Caught error while finishing serialization: {e.Message}");
+                }
+            }
         }
 
         /// <summary>
@@ -189,6 +198,9 @@ namespace OpenTap
 
         List<ITapSerializerPlugin> serializers = new List<ITapSerializerPlugin>();
         readonly Stack<object> activeSerializers = new Stack<object>(32);
+        
+        /// <summary> Get all the serializers loaded by this TapSerializer. </summary>
+        public ITapSerializerPlugin[] GetSerializers() => serializers.OfType<ITapSerializerPlugin>().ToArray();
         /// <summary>
         /// The stack of serializers. Changes during serialization depending on the order of serializers used.
         /// </summary>

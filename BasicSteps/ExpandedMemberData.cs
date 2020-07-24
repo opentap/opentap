@@ -250,7 +250,7 @@ namespace OpenTap.Plugins.BasicSteps
         public void SetValue(object owner, object value)
         {
             var own = (SweepRow)owner;
-            own.Values[Name] = value;
+            own.Values[Name] = cloneIfPossible(value, own.Loop);
         }
 
         public object GetValue(object owner)
@@ -258,7 +258,34 @@ namespace OpenTap.Plugins.BasicSteps
             var own = (SweepRow)owner;
             if(own.Values.TryGetValue(Name, out var value))
                 return value;
-            return this.innerMember.GetValue(declaringType);
+            var newv = cloneIfPossible(this.innerMember.GetValue(owner), own.Loop);
+            own.Values[Name] = newv;
+            return newv;
+        }
+        
+        TapSerializer tapSerializer;
+        object cloneIfPossible(object value, object context)
+        {
+            var valType = TypeData.GetTypeData(value);
+            var td = valType.AsTypeData();
+            if (td.Type.IsValueType)
+                return value;
+            
+            if (StringConvertProvider.TryGetString(value, out string result))
+            {
+                if (StringConvertProvider.TryFromString(result, valType, context, out object result2))
+                    return result2;
+            }
+            
+            if(tapSerializer == null) tapSerializer = new TapSerializer();
+            try
+            {
+                return tapSerializer.DeserializeFromString(tapSerializer.SerializeToString(value), valType) ?? value;
+            }
+            catch
+            {
+                return value;
+            }
         }
 
         public IEnumerable<(object Source, IMemberData Member)> ParameterizedMembers { get; }
@@ -275,10 +302,11 @@ namespace OpenTap.Plugins.BasicSteps
 
         IEnumerable<IMemberData> GetSweepMembers()
         {
-            var loopmembers = TypeData.GetTypeData(SweepParameterLoop).GetMembers()
-                .Where(x => SweepParameterLoop.SelectedParameters.Contains(x.Name))
+            var selected = SweepParameterLoop.SelectedParameters;
+            var loopMembers = TypeData.GetTypeData(SweepParameterLoop).GetMembers()
+                .Where(x => selected.Contains(x))
                 .OfType<IParameterMemberData>();
-            return loopmembers.Select(x => new SweepRowMemberData(this, x));
+            return loopMembers.Select(x => new SweepRowMemberData(this, x));
         } 
 
         public IMemberData GetMember(string name)

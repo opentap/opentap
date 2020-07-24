@@ -14,7 +14,7 @@ using System.Threading;
 
 namespace OpenTap.Plugins.BasicSteps
 {
-    [Display("Sweep Loop", Groups: new [] { "Flow Control", "Legacy" }, Description: "Loops its child steps while sweeping specified parameters/settings on the child steps.")]
+    [Display("Sweep Loop", Groups: new [] { "Flow Control", "Legacy" }, Description: "Loops its child steps while sweeping specified parameters/settings on the child steps.", Collapsed:true)]
     [AllowAnyChild]
     public class SweepLoop : LoopTestStep, IDeserializedCallback
     {
@@ -184,8 +184,21 @@ namespace OpenTap.Plugins.BasicSteps
                     {
                         try
                         {
+                            // Previously only the member name and type was used for this check
+                            // this can however give some issue since the GUI groups things with
+                            // the same name and group, hence this GetDisplayAttribute has been added
+                            // Actually probably direct member comparison should have been done instead,
+                            // but lots of test plans code depends on the functionality here, so just
+                            // adding a comparison for display attribute is probably the most gentle solution.
+                            var d1 = prop.GetDisplayAttribute();
+                            var d2 = paramProp.GetDisplayAttribute();
+                            if (d1.Name != d2.Name || d1.Group.SequenceEqual(d2.Group) == false)
+                                continue;
+                            if (Equals(paramProp.TypeDescriptor, sweepParameter.Member.TypeDescriptor) == false)
+                                continue;
+                            
                             var tp = TypeData.GetTypeData(val);
-                            if (Equals(paramProp.TypeDescriptor, sweepParameter.Member.TypeDescriptor) && (tp.DescendsTo(paramProp.TypeDescriptor) || val == null))
+                            if ((tp.DescendsTo(paramProp.TypeDescriptor) || val == null))
                                 paramProp.SetValue(childTestStep, val);
                         }
                         catch (TargetInvocationException e)

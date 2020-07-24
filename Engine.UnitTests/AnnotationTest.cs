@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -176,7 +177,7 @@ namespace OpenTap.UnitTests
             public void CallableMethod() => TimesCalled += 1;
         }
 
-        [Test]
+        [Test]    
         public void TestMultiSelectCallMethodAnnotation()
         {
             var elements = new[] {new ClassWithMethodAnnotation(), new ClassWithMethodAnnotation()};
@@ -186,6 +187,75 @@ namespace OpenTap.UnitTests
             foreach(var elem in elements)
                 Assert.AreEqual(1, elem.TimesCalled);
         }
-        
+
+
+        public class ClassWithListOfString : TestStep
+        {
+            public List<string> List { get; set; } = new List<string>{"A", "B"};
+            
+            [AvailableValues(nameof(List))]
+            public string Selected { get; set; }
+
+            public override void Run()
+            {
+                
+            }
+        }
+
+        [Test]
+        public void ListOfStringAnnotation()
+        {
+            var obj = new ClassWithListOfString();
+            var a = AnnotationCollection.Annotate(obj);
+            var member = a.GetMember(nameof(ClassWithListOfString.List));
+            var col = member.Get<ICollectionAnnotation>();
+            var newelem = col.NewElement();
+            Assert.IsTrue(newelem.Get<IReflectionAnnotation>().ReflectionInfo.DescendsTo(typeof(string)));
+            Assert.IsNotNull(newelem.Get<IObjectValueAnnotation>().Value);
+        }
+
+        [Test]
+        public void ListOfStringAnnotation2()
+            {
+              var obj = new ClassWithListOfString();    
+            var targetObject = new DelayStep();
+            var obj2 = new ClassWithListOfString();
+            obj2.List.Add("C");
+            var selectedMember = TypeData.GetTypeData(obj).GetMember(nameof(ClassWithListOfString.Selected));
+            selectedMember.Parameterize(targetObject, obj, selectedMember.Name);
+            selectedMember.Parameterize(targetObject, obj2, selectedMember.Name);
+    
+            // TODO:
+            var b = AnnotationCollection.Annotate(targetObject);
+            var avail = b.GetMember(selectedMember.Name).Get<IAvailableValuesAnnotation>();
+            Assert.AreEqual(2, avail.AvailableValues.Cast<object>().Count());
+        }
+
+        [Test]
+        public void ListOfStringAnnotationTpr()
+        {
+            var tp = new TestPlan();
+            var stepa = new ClassWithListOfString();
+            var selectedMember = TypeData.GetTypeData(stepa).GetMember(nameof(ClassWithListOfString.Selected));
+            var stepb = new ClassWithListOfString();
+            tp.ChildTestSteps.Add(stepa);
+            tp.ChildTestSteps.Add(stepb);
+            selectedMember.Parameterize(tp, stepa, selectedMember.Name);
+            selectedMember.Parameterize(tp, stepb, selectedMember.Name);
+            
+            var name = Guid.NewGuid().ToString() + ".TapPlan";
+            
+            tp.Save(name);
+            var plan2 = new TestPlan();
+            var tpr = new TestPlanReference();
+            plan2.ChildTestSteps.Add(tpr);
+            tpr.Filepath.Text = name;
+            tpr.LoadTestPlan();
+            File.Delete(name);
+
+            var member = AnnotationCollection.Annotate(tpr).GetMember(selectedMember.Name);
+            var avail =  member.Get<IAvailableValuesAnnotation>();
+            Assert.AreEqual(2, avail.AvailableValues.Cast<object>().Count());
+        }
     }
 }
