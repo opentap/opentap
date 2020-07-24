@@ -139,9 +139,12 @@ namespace OpenTap.Cli
             void loadCommandLine()
             {
                 var args = Environment.GetCommandLineArgs();
-                bool isVerbose = args.Contains("--verbose") || args.Contains("-v");
-                bool isQuiet = args.Contains("--quiet");
-                bool isColor = args.Contains("--color") || args.Contains("-c");
+                bool isVerbose = args.Contains("--verbose") || args.Contains("-v") ||
+                                 args.Contains("-verbose") || args.Contains("--v");
+                bool isQuiet = args.Contains("--quiet") || args.Contains("-q") ||
+                               args.Contains("-quiet") || args.Contains("--q");
+                bool isColor = args.Contains("--color") || args.Contains("-c") ||
+                               args.Contains("-color") || args.Contains("--c");
                 ConsoleTraceListener.SetStartupTime(start);
                 var cliTraceListener = new ConsoleTraceListener(isVerbose, isQuiet, isColor);
                 Log.AddListener(cliTraceListener);

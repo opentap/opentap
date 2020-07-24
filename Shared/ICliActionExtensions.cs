@@ -75,7 +75,7 @@ namespace OpenTap.Cli
             var args = ap.Parse(parameters);
 
             if (args.MissingArguments.Any())
-                throw new Exception($"Command line argument '{args.MissingArguments.FirstOrDefault().LongName}' is missing an argument.");
+                throw new Exception($"Command line option '{args.MissingArguments.FirstOrDefault().LongName}' is missing an argument.");
 
             if (args.Contains("help"))
             {
@@ -142,7 +142,7 @@ namespace OpenTap.Cli
             if (args.UnknownsOptions.Any() || requiredArgs.Any())
             {
                 if (args.UnknownsOptions.Any())
-                    Console.WriteLine("Unknown options: " + string.Join(" ", args.UnknownsOptions));
+                    Console.WriteLine("Unknown option(s): " + string.Join(" ", args.UnknownsOptions));
 
                 if (requiredArgs.Any())
                     Console.WriteLine("Missing argument: " + string.Join(" ", requiredArgs.Select(p => p.GetAttribute<UnnamedCommandLineArgument>().Name)));
