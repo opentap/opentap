@@ -13,7 +13,7 @@ namespace OpenTap.Package
     public class PackageIdentifier : IPackageIdentifier
     {
         /// <summary>
-        /// Name of the package to which this object reffers.
+        /// Name of the package to which this object refers.
         /// </summary>
         [XmlAttribute]
         public string Name { get; set; }

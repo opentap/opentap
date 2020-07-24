@@ -60,7 +60,7 @@ namespace OpenTap.Package
             else
                 this.Url = "http://" + url;
 
-            // Trim end to fix redirection. E.g. 'plugins.tap.aalborg.keysight.com:8086/' redirects to 'plugins.tap.aalborg.keysight.com'.
+            // Trim end to fix redirection. E.g. 'packages.opentap.io/' redirects to 'packages.opentap.io'.
             this.Url = this.Url.TrimEnd('/');
             defaultUrl = this.Url;
             this.Url = CheckUrlRedirect(this.Url);

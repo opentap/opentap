@@ -5,6 +5,7 @@
 using OpenTap.Package;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -149,9 +150,16 @@ namespace OpenTap.Cli
                 return 1;
             }
 
-            return action.Execute(TapThread.Current.AbortToken);
+            var actionFullName = td.GetDisplayAttribute().GetFullName();
+            log.Debug($"Executing CLI action: {actionFullName}");
+            var sw = Stopwatch.StartNew();
+            int exitCode = action.Execute(TapThread.Current.AbortToken);
+            log.Debug(sw, "CLI action returned exit code: {0}", exitCode);
+            return exitCode;
         }
 
+        static TraceSource log = Log.CreateSource("CLI"); 
+        
         private static void printOptions(string passName, ArgumentCollection options, List<IMemberData> unnamed)
         {
             Console.WriteLine("Usage: {2} {0} {1}",
