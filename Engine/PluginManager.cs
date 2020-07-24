@@ -451,7 +451,7 @@ namespace OpenTap
         }
 
         #region Version ResultParameters
-        static Memorizer<Assembly, ResultParameter> AssemblyVersions = new Memorizer<Assembly, ResultParameter>(GetVersionResultParameter) { SoftSizeDecayTime = TimeSpan.FromDays(10) };
+        static Memorizer<Assembly, ResultParameter> AssemblyVersions = new Memorizer<Assembly, ResultParameter>(GetVersionResultParameter);
         internal static int ChangeID = 0;
 
         private static ResultParameter GetVersionResultParameter(Assembly assembly)
@@ -675,7 +675,6 @@ namespace OpenTap
             FileFinder.DirectoriesToSearch = directoriesToSearch;
             assemblyResolutionMemorizer = new Memorizer<resolveKey, Assembly>(key => resolveAssembly(key.Name, key.ReflectionOnly))
             {
-                SoftSizeDecayTime = TimeSpan.MaxValue,
                 MaxNumberOfElements = 10000,
                 CylicInvokeResponse = Memorizer.CyclicInvokeMode.ReturnDefaultValue
             };
