@@ -490,7 +490,6 @@ namespace OpenTap
             }
             plugin.TypeAttributes = typeDef.Attributes;
             plugin.Assembly = CurrentAsm;
-            plugin.Handle = handle;
             TypesInCurrentAsm.Add(handle, plugin);
             AllTypes.Add(plugin.Name, plugin);
             if (!typeDef.BaseType.IsNil)
@@ -770,7 +769,6 @@ namespace OpenTap
     [DebuggerDisplay("{Name}")]
     public partial class TypeData
     {
-        internal TypeDefinitionHandle Handle;
         /// <summary>
         /// Gets the fully qualified name of the type, including its namespace but not its assembly.
         /// </summary>

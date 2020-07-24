@@ -253,6 +253,25 @@ namespace OpenTap
             postload();
             return hasFlags;
         }
+
+        /// <summary> Compares two TypeDatas by comparing their inner Type instances. </summary>
+        /// <param name="obj"> Should be a TypeData</param>
+        /// <returns>true if the two Type properties are equals.</returns>
+        public override bool Equals(object obj)
+        {
+            if (obj is TypeData td && td.type != null && type != null )
+                return td.type == type;
+            return ReferenceEquals(this, obj);
+        }
+
+        /// <summary> Calculates the hash code based on the .NET Type instance. </summary>
+        /// <returns></returns>
+        public override int GetHashCode()
+        {
+            var asm = Assembly?.GetHashCode() ?? 0;
+            return (asm + 586093897) * 759429795 + 
+                   (Name.GetHashCode() + 836431542) * 678129773;
+        }
     }
 
     /// <summary>
