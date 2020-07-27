@@ -1030,11 +1030,12 @@ namespace OpenTap
                 {
                     _FailedLoad = true;
                     StringBuilder sb = new StringBuilder(String.Format("Failed to load plugins from {0}", this.Location));
+                    bool addedZoneInfo = false;
                     try
                     {
                         var zonetype = Type.GetType("System.Security.Policy.Zone");
                         if (zonetype != null)
-                        {
+                        {               
                             // Hack to support .net core without having to build separate assemblies.
                             dynamic zone = zonetype.GetMethod("CreateFromUrl").Invoke(null, new object[] { this.Location });
                             var sec = zone.SecurityZone.ToString();
@@ -1042,6 +1043,7 @@ namespace OpenTap
                             {
                                 // The file is in an NTFS Windows operating system blocked state
                                 sb.Append(" The file came from another computer and might be blocked to help protect this computer. Please unblock the file in Windows.");
+                                addedZoneInfo = true;
                             }
                         }
                     }
@@ -1049,18 +1051,24 @@ namespace OpenTap
                     {
                         log.Error("Failed to check Security policy for file.");
                         log.Debug(e);
+                        addedZoneInfo = true;
                     }
+
+                    if (!addedZoneInfo)
+                        sb.Append(" Error: "  + ex.Message);
                     log.Error(sb.ToString());
                     log.Debug(ex);
                 }
             }
-            AssemblyExtensions.lookup[_Assembly] = this.SemanticVersion;
+            if(_Assembly != null)
+                AssemblyExtensions.lookup[_Assembly] = this.SemanticVersion;
             return _Assembly;
         }
     }
 
     internal static class AssemblyExtensions
     {
+        // TODO: Change this to mapping from Assembly to AssemblyData instead.
         internal static ConcurrentDictionary<Assembly, SemanticVersion> lookup = new ConcurrentDictionary<Assembly, SemanticVersion>();
         internal static SemanticVersion GetSemanticVersion(this Assembly asm)
         {
