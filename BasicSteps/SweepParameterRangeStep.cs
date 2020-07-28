@@ -53,6 +53,9 @@ namespace OpenTap.Plugins.BasicSteps
             validateSweepMutex.ReleaseMutex();
         }
 
+        public override IEnumerable<ParameterMemberData> AvailableParameters => base.AvailableParameters.Where(x => x.TypeDescriptor.IsNumeric());
+        
+
         // Check if the test plan is running before validating sweeps.
         // the validateSweep might have been started before the plan started.
         // hence we use the validateSweepMutex to ensure that validation is done before 
@@ -61,7 +64,7 @@ namespace OpenTap.Plugins.BasicSteps
         Mutex validateSweepMutex = new Mutex();
         string validateSweep(decimal Value)
         {   // Mostly copied from Run
-            var props = SweepProperties.ToArray();
+            var props = AvailableParameters.ToArray();
             
             if (props.Length == 0) return "";
             if (isRunning) return ""; // Avoid changing the value during run when the gui asks for validation errors.

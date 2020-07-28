@@ -1,3 +1,4 @@
+using System;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -8,10 +9,13 @@ namespace OpenTap.Plugins.BasicSteps
     [Display("Sweep Parameter", "Table based loop that sweeps the value of its parameters based on a set of values.", "Flow Control")]
     public class SweepParameterStep : SweepParameterStepBase
     {
+        public bool SweepValuesEnabled => SelectedParameters.Count > 0;
+
         SweepRowCollection sweepValues = new SweepRowCollection();
         [DeserializeOrder(1)] // this should be deserialized as the last thing.
         [Display("Sweep Values", "A table of values to be swept for the selected parameters.", "Sweep")]
         [HideOnMultiSelect] // todo: In the future support multi-selecting this.
+        [EnabledIf(nameof(SweepValuesEnabled), true)]
         [Unsweepable]
         public SweepRowCollection SweepValues 
         { 
@@ -26,8 +30,19 @@ namespace OpenTap.Plugins.BasicSteps
         public SweepParameterStep()
         {
             SweepValues.Loop = this;
-            SweepValues.Add(new SweepRow());
             Name = "Sweep {Parameters}";
+            Rules.Add(() => string.IsNullOrWhiteSpace(validateSweepValues()), validateSweepValues, nameof(SweepValues));
+        }
+
+        private string validateSweepValues()
+        {
+            if (SweepValues.Count <= 0 || SweepValues.All(x => x.Enabled == false)) return "No values selected to sweep";
+
+            if (SelectedParameters.Count <= 0)
+            {
+                SweepValues = new SweepRowCollection();
+            }
+            return "";
         }
 
         int iteration;
@@ -40,6 +55,12 @@ namespace OpenTap.Plugins.BasicSteps
         {
             base.PrePlanRun();
             iteration = 0;
+
+            if (SelectedParameters.Count <= 0)
+                throw new InvalidOperationException("No parameters selected to sweep");
+            var errorStr = validateSweepValues();
+            if (!string.IsNullOrWhiteSpace(errorStr))
+                throw new InvalidOperationException(errorStr);
         }
 
         public override void Run()
@@ -59,18 +80,24 @@ namespace OpenTap.Plugins.BasicSteps
                 foreach (var set in sets)
                 {
                     var mem = rowType.GetMember(set.Name);
-                    var val = StringConvertProvider.GetString(mem.GetValue(Value), CultureInfo.InvariantCulture);
+                    var value = mem.GetValue(Value);
+                    
+                    string valueString;
+                    if (value == null)
+                        valueString = "";
+                    else if(false == StringConvertProvider.TryGetString(value, out valueString, CultureInfo.InvariantCulture))
+                        valueString = value.ToString();
+                    
                     var disp = mem.GetDisplayAttribute();
-                    AdditionalParams.Add(new ResultParameter(disp.Group.FirstOrDefault() ?? "", disp.Name, val));
-
+                    AdditionalParams.Add(new ResultParameter(disp.Group.FirstOrDefault() ?? "", disp.Name, valueString));
+                    
                     try
                     {
-                        var value = StringConvertProvider.FromString(val, set.TypeDescriptor, this, CultureInfo.InvariantCulture);
                         set.SetValue(this, value);
                     }
                     catch (TargetInvocationException ex)
                     {
-                        Log.Error("Unable to set '{0}' to value '{2}': {1}", set.GetDisplayAttribute().Name, ex?.InnerException?.Message, val);
+                        Log.Error("Unable to set '{0}' to value '{2}': {1}", set.GetDisplayAttribute().Name, ex?.InnerException?.Message, valueString);
                         Log.Debug(ex.InnerException);
                     }
                 }

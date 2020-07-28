@@ -44,6 +44,7 @@ Table of Contents
 	- [Global and Grouped Settings](Component Setting#global-and-grouped-settings)
 	- [Reading and Writing Component Settings](Component Setting#reading-and-writing-component-settings)
 	- [Connection Management](Component Setting#connection-management)
+- [Annotations](Annotations/Readme.md)
 - [Plugin Packaging and Versioning](Plugin Packaging and Versioning/Readme.md)
 	- [Packaging](Plugin Packaging and Versioning#packaging)
 	- [Packaging Configuration File](Plugin Packaging and Versioning#packaging-configuration-file)

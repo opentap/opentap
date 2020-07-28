@@ -144,11 +144,11 @@ namespace OpenTap.UnitTests
             var member = TypeData.GetTypeData(numberstep).GetMember("A");
             member.Parameterize(sweep, numberstep, "A");
             member.Parameterize(sweep2, numberstep2, "A");
-            sweep.SelectedParameterNames = Enumerable.Empty<string>().ToList();
-            Assert.AreEqual(0, sweep.SelectedParameterNames.Count());
+            sweep.SelectedParameters = Enumerable.Empty<ParameterMemberData>().ToList();
+            Assert.AreEqual(0, sweep.SelectedParameters.Count());
             {
                 var a = AnnotationCollection.Annotate(sweep);
-                var m = a.GetMember(nameof(SweepParameterRangeStep.SelectedParameterNames));
+                var m = a.GetMember(nameof(SweepParameterRangeStep.SelectedParameters));
                 var sweptMember = a.GetMember("A");
                 Assert.IsTrue(sweptMember.Get<IEnabledAnnotation>().IsEnabled);
                 var ms = m.Get<IMultiSelectAnnotationProxy>();
@@ -176,11 +176,11 @@ namespace OpenTap.UnitTests
             sweep.ChildTestSteps.Add(numberstep);
             var member = TypeData.GetTypeData(numberstep).GetMember("A");
             member.Parameterize(sweep, numberstep, "A");
-            sweep.SelectedParameterNames = Enumerable.Empty<string>().ToList();
-            Assert.AreEqual(0, sweep.SelectedParameterNames.Count());
+            sweep.SelectedParameters = Enumerable.Empty<ParameterMemberData>().ToList();
+            Assert.AreEqual(0, sweep.SelectedParameters.Count());
             {
                 var a = AnnotationCollection.Annotate(sweep);
-                var m = a.GetMember(nameof(SweepParameterRangeStep.SelectedParameterNames));
+                var m = a.GetMember(nameof(SweepParameterRangeStep.SelectedParameters));
                 var sweptMember = a.GetMember("A");
                 Assert.IsTrue(sweptMember.Get<IEnabledAnnotation>().IsEnabled);
                 var ms = m.Get<IMultiSelectAnnotationProxy>();
@@ -191,7 +191,7 @@ namespace OpenTap.UnitTests
                 Assert.IsFalse(sweptMember.Get<IEnabledAnnotation>().IsEnabled);
             }
             
-            Assert.AreEqual(1, sweep.SelectedParameterNames.Count());
+            Assert.AreEqual(1, sweep.SelectedParameters.Count());
             
             
             sweep.SweepStart = 1;
@@ -229,20 +229,23 @@ namespace OpenTap.UnitTests
            
             
             sweep.SweepValues.Add(new SweepRow());
+            sweep.SweepValues.Add(new SweepRow());
 
-            TypeData.GetTypeData(step).GetMember(nameof(ScopeTestStep.A)).Parameterize(sweep, step, nameof(ScopeTestStep.A));
+            TypeData.GetTypeData(step).GetMember(nameof(ScopeTestStep.A)).Parameterize(sweep, step, "Parameters \\ A");
             TypeData.GetTypeData(step).GetMember(nameof(ScopeTestStep.EnabledTest)).Parameterize(sweep, step, nameof(ScopeTestStep.EnabledTest));
 
             
             
             var td1 = TypeData.GetTypeData(sweep.SweepValues[0]);
-            var memberA = td1.GetMember(nameof(ScopeTestStep.A));
+            var memberA = td1.GetMember("Parameters \\ A");
             memberA.SetValue(sweep.SweepValues[0], 10);
             memberA.SetValue(sweep.SweepValues[1], 20);
 
             {
                 // verify Enabled<T> works with SweepParameterStep.
                 var annotation = AnnotationCollection.Annotate(sweep);
+                var col = annotation.GetMember(nameof(SweepParameterStep.SelectedParameters)).Get<IStringReadOnlyValueAnnotation>().Value;
+                Assert.AreEqual("A, EnabledTest", col);
                 var elements = annotation.GetMember(nameof(SweepParameterStep.SweepValues))
                     .Get<ICollectionAnnotation>().AnnotatedElements
                     .Select(elem => elem.GetMember(nameof(ScopeTestStep.EnabledTest)))
@@ -262,7 +265,7 @@ namespace OpenTap.UnitTests
             var members2 = td2.GetMembers();
             var rows = sweep2.SweepValues;
             Assert.AreEqual(2, rows.Count);
-            var msgmem = TypeData.GetTypeData(rows[0]).GetMember(nameof(ScopeTestStep.A));
+            var msgmem = TypeData.GetTypeData(rows[0]).GetMember("Parameters \\ A");
             Assert.AreEqual(10, msgmem.GetValue(rows[0]));
 
             // this feature was disabled.
@@ -274,6 +277,9 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(Verdict.Pass, run.Verdict);
 
             Assert.IsTrue(((ScopeTestStep)sweep2.ChildTestSteps[0]).Collection.SequenceEqual(new[] {10, 20}));
+
+            var name = sweep.GetFormattedName();
+            Assert.AreEqual("Sweep A, EnabledTest", name);
         }
 
         [Test]
@@ -362,5 +368,29 @@ namespace OpenTap.UnitTests
 
         }
 
+        [Test]
+        public void SweepLoopNoValuesSelected()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepParameterStep();
+            var step = new DelayStep();
+            plan.ChildTestSteps.Add(sweep);
+            sweep.ChildTestSteps.Add(step);
+
+            Assert.Throws(typeof(InvalidOperationException), sweep.PrePlanRun);
+
+            // Select parameter to sweep
+            TypeData.GetTypeData(step).GetMember(nameof(DelayStep.DelaySecs)).Parameterize(sweep, step, nameof(DelayStep.DelaySecs));
+            try
+            {
+                sweep.PrePlanRun();
+                Assert.Fail("An exception should have been thrown.");
+            }
+            catch (InvalidOperationException ex)
+            {
+                Assert.AreEqual(ex.Message, "No values selected to sweep");
+            }
+
+        }
     }
 }
