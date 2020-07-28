@@ -77,11 +77,7 @@ namespace OpenTap.Package
             if (PackageXmlFile == null)
                 throw new Exception("No packages definition file specified.");
 
-            var result = Process(OutputPaths);
-
-            if (result != 0)
-                return result;
-            return 0;
+            return Process(OutputPaths);
         }
 
         private int Process(string[] OutputPaths)
@@ -111,12 +107,9 @@ namespace OpenTap.Package
                         log.Error("Package name cannot contain invalid file path characters: '{0}'", pkg.Name[illegalCharacter]);
                         return 5;
                     }
-
-
                 }
                 catch (AggregateException aex)
                 {
-
                     foreach (var ex in aex.InnerExceptions)
                     {
                         if (ex is FileNotFoundException)
@@ -127,7 +120,6 @@ namespace OpenTap.Package
                         {
                             log.Error(ex.ToString());
                         }
-
                     }
                     log.Error("Caught errors while loading package definition.");
                     return 4;

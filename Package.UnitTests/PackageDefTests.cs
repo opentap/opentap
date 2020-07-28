@@ -417,7 +417,17 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void SaveTo_FromXmlFile_Dependency()
         {
-            string inputFilename = "Packages/test3/package.xml";
+            string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
+<Package Name='Test3' xmlns ='http://opentap.io/schemas/package'>
+  <Files>
+    <File Path='OpenTap.Package.UnitTests.dll'>
+        <UseVersion/>
+    </File>
+  </Files>
+</Package>
+";
+            string inputFilename = "test3.package.xml";
+            File.WriteAllText(inputFilename,inputXml);
             string outputFileContent = "";
 
             PackageDef pkg = PackageDefExt.FromInputXml(inputFilename);
@@ -440,6 +450,50 @@ namespace OpenTap.Package.UnitTests
 
             // check that the dependency to XSeries is not there twice:
             Assert.IsFalse(Regex.IsMatch(outputFileContent, "(Test1).+\n.+(Test1)"));
+        }
+
+        [Test]
+        public void findDependencies_SharedAssemblyReference()
+        {
+            CliTests.CreateOpenTAPPackage();
+            var inst = new Installation(Directory.GetCurrentDirectory());
+            var pkgs = inst.GetPackages();
+            string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
+<Package Name='Test3' xmlns ='http://opentap.io/schemas/package'>
+  <Files>
+    <File Path='OpenTap.Package.UnitTests.dll'/>
+  </Files>
+</Package>
+";
+            string inputFilename = "test3.package.xml";
+            File.WriteAllText(inputFilename, inputXml);
+
+            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename);
+
+            // This package should depend on the OpenTAP package, since it contains OpenTAP.dll that OpenTap.Package.UnitTests.dll from this package needs
+            CollectionAssert.Contains(pkg.Dependencies.Select(d => d.Name),"OpenTAP");
+        }
+
+        [Test]
+        public void findDependencies_SharedAssemblyReferenceInDependencies()
+        {
+            CliTests.CreateOpenTAPPackage();
+            var inst = new Installation(Directory.GetCurrentDirectory());
+            var pkgs = inst.GetPackages();
+            string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
+<Package Name='Test3' xmlns ='http://opentap.io/schemas/package'>
+  <Files>
+    <File Path='System.Reflection.Metadata.dll'/>
+  </Files>
+</Package>
+";
+            string inputFilename = "test3.package.xml";
+            File.WriteAllText(inputFilename, inputXml);
+
+            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename);
+
+            // This package should not depend on the OpenTAP package, event though it contains System.Collections.Immutable.dll that System.Reflection.Metadata.dll from this package needs
+            CollectionAssert.DoesNotContain(pkg.Dependencies.Select(d => d.Name), "OpenTAP");
         }
 
         /// <summary>
