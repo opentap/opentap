@@ -193,7 +193,8 @@ namespace OpenTap.Cli
                 return Exit(ExitStatus.RuntimeError);
             }
 
-            log.Info("TestPlan: {0}", Plan.Name);
+            log.Info("Test Plan: {0}", Plan.Name);
+
             if (ListExternal)
             {
                 PrintExternalParameters(log);

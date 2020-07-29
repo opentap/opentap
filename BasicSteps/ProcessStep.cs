@@ -81,75 +81,88 @@ namespace OpenTap.Plugins.BasicSteps
         {
             Int32 timeout = Timeout <= 0 ? Int32.MaxValue : Timeout;
 
-            using (Process process = new Process())
+            var process = new Process();
+            process.StartInfo.FileName = Application;
+            process.StartInfo.Arguments = Arguments;
+            process.StartInfo.WorkingDirectory = Path.GetFullPath(WorkingDirectory);
+            process.StartInfo.UseShellExecute = false;
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.RedirectStandardError = true;
+            process.StartInfo.CreateNoWindow = true;
+            var abortRegistration = TapThread.Current.AbortToken.Register(() =>
             {
-                process.StartInfo.FileName = Application;
-                process.StartInfo.Arguments = Arguments;
-                process.StartInfo.WorkingDirectory = Path.GetFullPath(WorkingDirectory);
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.RedirectStandardOutput = true;
-                process.StartInfo.RedirectStandardError = true;
-                process.StartInfo.CreateNoWindow = true;
+                Log.Debug("Ending process '{0}'.", Application);
+                process.Kill();
+            });
 
-                if (WaitForEnd)
+            if (WaitForEnd)
+            {
+                output = new StringBuilder();
+                error = new StringBuilder();
+
+                using (outputWaitHandle = new AutoResetEvent(false))
+                using (errorWaitHandle = new AutoResetEvent(false))
+                using(process)
+                using(abortRegistration)
                 {
-                    output = new StringBuilder();
-                    error = new StringBuilder();
+                    process.OutputDataReceived += OutputDataRecv;
+                    process.ErrorDataReceived += ErrorDataRecv;
 
-                    using (outputWaitHandle = new AutoResetEvent(false))
-                    using (errorWaitHandle = new AutoResetEvent(false))
+                    Log.Debug("Starting process {0} with arguments \"{1}\"", Application, Arguments);
+                    process.Start();
+
+                    process.BeginOutputReadLine();
+                    process.BeginErrorReadLine();
+                    var newlineArray = new [] {Environment.NewLine};
+
+                    if (process.WaitForExit(timeout) &&
+                        outputWaitHandle.WaitOne(timeout) &&
+                        errorWaitHandle.WaitOne(timeout))
                     {
-                        process.OutputDataReceived += OutputDataRecv;
-                        process.ErrorDataReceived += ErrorDataRecv;
+                        var resultData = output.ToString();
 
-                        Log.Debug("Starting process {0} with arguments \"{1}\"", Application, Arguments);
-                        process.Start();
-
-                        process.BeginOutputReadLine();
-                        process.BeginErrorReadLine();
-
-                        if (process.WaitForExit(timeout) &&
-                            outputWaitHandle.WaitOne(timeout) &&
-                            errorWaitHandle.WaitOne(timeout))
+                        if (AddToLog)
                         {
-                            string ResultData = output.ToString();
-
-                            if (AddToLog)
-                            {
-                                foreach (var Line in ResultData.Split(new string[1] { "\r\n" }, StringSplitOptions.None))
-                                Log.Info("{0} {1}", LogHeader, Line);
-                            }
-
-                            ProcessOutput(ResultData);
-                        }
-                        else
-                        {
-                            process.OutputDataReceived -= OutputDataRecv;
-                            process.ErrorDataReceived -= ErrorDataRecv;
-
-                            string ResultData = output.ToString();
-
-                            if (AddToLog)
-                            {
-                                foreach (var Line in ResultData.Split(new string[1] { "\r\n" }, StringSplitOptions.None))
-                                    Log.Info("{0} {1}", LogHeader, Line);
-
-                            }
-
-                            ProcessOutput(ResultData);
-
-                            Log.Error("Timed out while waiting for application. Trying to kill process...");
-
-                            process.Kill();
-                            UpgradeVerdict(Verdict.Fail);
+                            foreach (var line in resultData.Split(newlineArray, StringSplitOptions.None))
+                                Log.Info("{0} {1}", LogHeader, line);
                         }
 
+                        ProcessOutput(resultData);
+                    }
+                    else
+                    {
+                        process.OutputDataReceived -= OutputDataRecv;
+                        process.ErrorDataReceived -= ErrorDataRecv;
+
+                        var resultData = output.ToString();
+
+                        if (AddToLog)
+                        {
+                            foreach (var line in resultData.Split(newlineArray, StringSplitOptions.None))
+                                Log.Info("{0} {1}", LogHeader, line);
+                        }
+
+                        ProcessOutput(resultData);
+
+                        Log.Error("Timed out while waiting for application. Trying to kill process...");
+
+                        process.Kill();
+                        UpgradeVerdict(Verdict.Fail);
                     }
                 }
-                else
+            }
+            else
+            {
+                TapThread.Start(() =>
                 {
-                    process.Start();
-                }
+                    using (process)
+                    using(abortRegistration)
+                    {
+                        process.Start();
+                        process.WaitForExit();
+                        abortRegistration.Dispose();
+                    }
+                });
             }
         }
 
