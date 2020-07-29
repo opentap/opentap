@@ -171,7 +171,7 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
-        static void GenerateAssemblyWithVersion(string assemblyFileName, string testStepName, string version)
+        static void GenerateAssemblyWithVersion(string assemblyFileName, string testStepName, string version, string strongNameKeyFile = null)
         {
             string cs = "";
             cs += "using System.Reflection;\n";
@@ -180,7 +180,7 @@ namespace OpenTap.Engine.UnitTests
             cs += "[assembly: AssemblyVersion(\"" + version + "\")]\n";
             cs += "public class " + testStepName + " { public void Run(){} }";
             var asmname = Path.GetFileNameWithoutExtension(assemblyFileName);
-            var buildResult = CodeGen.BuildCode(cs, asmname);
+            var buildResult = CodeGen.BuildCode(cs, asmname, strongNameKeyFile);
             Assert.IsTrue(buildResult.Success);
             DeleteFile(assemblyFileName);
             File.WriteAllBytes(assemblyFileName, buildResult.Bytes);
@@ -198,7 +198,38 @@ namespace OpenTap.Engine.UnitTests
             PluginManager.SearchAsync().Wait();
             var asm1 = Assembly.Load("Dual1");
             Assert.IsTrue(asm1.GetName().Version.Minor == 2);
+        }
 
+        [Test]
+        public void SameAssemblyDifferentVersions2()
+        {
+            Directory.CreateDirectory("Test1");
+            Directory.CreateDirectory("Test2");
+            Directory.CreateDirectory("Test3");
+            GenerateAssemblyWithVersion("Test1/SameAssemblyDifferentVersions2.dll", "MyStep1", version: "1.0.0", "UnitTesting.snk");
+            GenerateAssemblyWithVersion("Test2/SameAssemblyDifferentVersions2.dll", "MyStep1", version: "1.2.0", "UnitTesting.snk");
+            GenerateAssemblyWithVersion("Test3/SameAssemblyDifferentVersions2.dll", "MyStep1", version: "1.1.0", "UnitTesting.snk");
+            PluginManager.SearchAsync().Wait();
+            var asm1 = Assembly.Load("SameAssemblyDifferentVersions2, Version=1.1.0.0, Culture=neutral, PublicKeyToken=d2d56962f113dd94");
+            Assert.AreEqual(1, asm1.GetName().Version.Minor);
+            var asm2 = Assembly.Load("SameAssemblyDifferentVersions2, Version=1.0.0.0"); // here we load 1.0 even though 1.1 is already loaded, because the assemblies are strong named (even if we don't ask for the strong name).
+            Assert.AreEqual(0, asm2.GetName().Version.Minor); 
+        }
+
+        [Test]
+        public void SameAssemblyDifferentVersions3()
+        {
+            Directory.CreateDirectory("Test1");
+            Directory.CreateDirectory("Test2");
+            Directory.CreateDirectory("Test3");
+            GenerateAssemblyWithVersion("Test1/SameAssemblyDifferentVersions3.dll", "MyStep1", version: "1.0.0");
+            GenerateAssemblyWithVersion("Test2/SameAssemblyDifferentVersions3.dll", "MyStep1", version: "1.2.0");
+            GenerateAssemblyWithVersion("Test3/SameAssemblyDifferentVersions3.dll", "MyStep1", version: "1.1.0");
+            PluginManager.SearchAsync().Wait();
+            var asm1 = Assembly.Load("SameAssemblyDifferentVersions3, Version=1.1.0.0");
+            Assert.AreEqual(1, asm1.GetName().Version.Minor);
+            var asm2 = Assembly.Load("SameAssemblyDifferentVersions3, Version=1.0.0.0"); // here we get still get 1.1 even though we asked for 1.0, because it was already loaded.
+            Assert.AreEqual(1, asm2.GetName().Version.Minor); 
         }
 
         interface FancyInterface<T>
@@ -399,12 +430,12 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void ResolveAssemblyVersions()
         {
-            
+
             string asm1name = "../ResolveAssemblyVersions/ResolveAssemblyVersions.dll";
             string asm2name = "../ResolveAssemblyVersions/ResolveAssemblyVersions.2.dll";
             if(Directory.Exists("../ResolveAssemblyVersions/"))
                 Directory.Delete("../ResolveAssemblyVersions/", true);
-            
+
             Directory.CreateDirectory("../ResolveAssemblyVersions/");
             GenerateAssemblyWithVersion(asm1name, "test", "2.2.0.0");
             GenerateAssemblyWithVersion(asm2name, "test", "2.3.0.0");
