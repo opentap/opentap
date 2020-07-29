@@ -550,7 +550,7 @@ namespace OpenTap.Package
         }
 
         /// <summary>
-        /// Creates a *.TapPlugin package file from the definition in this PackageDef.
+        /// Creates a *.TapPackage file from the definition in this PackageDef.
         /// </summary>
         static public void CreatePackage(this PackageDef pkg, string path, string projectDir)
         {
@@ -587,6 +587,7 @@ namespace OpenTap.Package
                     throw new ArgumentException("Missing plugins to handle XML elements specified in input package.xml...");
             }
 
+            
             string tempDir = Path.GetTempPath() + Path.GetRandomFileName();
             Directory.CreateDirectory(tempDir);
             log.Debug("Using temporary folder at '{0}'", tempDir);
