@@ -166,7 +166,7 @@ namespace OpenTap.Package
                     }
             }
 
-            var searcher = new PluginSearcher();
+            var searcher = new PluginSearcher(PluginSearcher.Options.IncludeSameAssemblies);
             searcher.Search(Directory.GetCurrentDirectory());
             List<AssemblyData> assemblies = searcher.Assemblies.ToList();
 
@@ -401,7 +401,7 @@ namespace OpenTap.Package
             bool foundNew = false;
 
             var notFound = new HashSet<string>();
-            
+
             // First update the pre-entered dependencies
             var installed = new Installation(Directory.GetCurrentDirectory()).GetPackages().Where(p => p.Name != pkg.Name).ToList();
             
@@ -488,7 +488,7 @@ namespace OpenTap.Package
                     foreach (var f in installed)
                     {
                         packageCandidates[f] = packageAssemblies[f]
-                            .Count(asm => dependentAssemblyNames.Any(dep => (dep.Name == asm.Name) && OpenTap.Utils.Compatible(asm.Version, dep.Version)));
+                            .Count(asm => dependentAssemblyNames.Any(dep => (dep.Name == asm.Name && !asm.Location.Contains("Dependencies")) && OpenTap.Utils.Compatible(asm.Version, dep.Version)));
                     }
 
                     var candidate = packageCandidates.OrderByDescending(k => k.Value).FirstOrDefault();
@@ -496,7 +496,7 @@ namespace OpenTap.Package
                     if (packageCandidates.Any() && (candidate.Value > 0))
                     {
                         var offeredFiles = packageAssemblies[candidate.Key]
-                            .Where(asm => dependentAssemblyNames.Any(dep => (dep.Name == asm.Name && OpenTap.Utils.Compatible(asm.Version, dep.Version))))
+                            .Where(asm => dependentAssemblyNames.Any(dep => (dep.Name == asm.Name && !asm.Location.Contains("Dependencies")) && OpenTap.Utils.Compatible(asm.Version, dep.Version)))
                             .Select(ad => ad.Name).Distinct()
                             .ToList();
                         log.Info("Adding dependency on package '{0}' version {1}", candidate.Key.Name, candidate.Key.Version);
@@ -504,6 +504,14 @@ namespace OpenTap.Package
 
                         PackageDependency pd = new PackageDependency(candidate.Key.Name, new VersionSpecifier(candidate.Key.Version, VersionMatchBehavior.Compatible));
                         pkg.Dependencies.Add(pd);
+
+                        // To include dependent assemblies that have same names as those in a candidate but of different version
+                        var nonOfferedFiles = packageAssemblies[candidate.Key]
+                            .SelectMany(asm => dependentAssemblyNames.Where(dep => dep.Name == asm.Name && asm.Location.Contains("Dependencies") && dep.Version.CompareTo(asm.Version) > 0))
+                            .ToList();
+
+                        foreach (var foundAsm in nonOfferedFiles)
+                            AddFileDependencies(pkg, packageAssemblies, foundAsm, foundAsm);
 
                         foundNew = true;
                     }
@@ -517,23 +525,7 @@ namespace OpenTap.Package
 
                             if (foundAsm != null)
                             {
-                                var depender = pkg.Files.FirstOrDefault(f => f.DependentAssemblies.Contains(unknown));
-                                if (depender == null)
-                                    log.Warning("Adding dependent assembly '{0}' to package. It was not found in any other packages.", Path.GetFileName(foundAsm.Location));
-                                else
-                                    log.Info($"'{Path.GetFileName(depender.FileName)}' dependents on '{unknown.Name}' version '{unknown.Version}'. Adding dependency to package, it was not found in any other packages.");
-
-                                var destPath = string.Format("Dependencies/{0}.{1}/{2}", Path.GetFileNameWithoutExtension(foundAsm.Location), foundAsm.Version.ToString(), Path.GetFileName(foundAsm.Location));
-                                pkg.Files.Add(new PackageFile { SourcePath = foundAsm.Location, RelativeDestinationPath = destPath, DependentAssemblies = foundAsm.References.ToList() });
-
-                                // Copy the file to the actual directory so we can rely on it actually existing where we say the package has it.
-                                if (!File.Exists(destPath))
-                                {
-                                    Directory.CreateDirectory(Path.GetDirectoryName(destPath));
-                                    ProgramHelper.FileCopy(foundAsm.Location, destPath);
-                                }
-
-                                packageAssemblies.Invalidate(pkg);
+                                AddFileDependencies(pkg, packageAssemblies, unknown, foundAsm);
 
                                 foundNew = true;
                             }
@@ -547,6 +539,27 @@ namespace OpenTap.Package
                 }
             }
             while (foundNew);
+        }
+
+        private static void AddFileDependencies(PackageDef pkg, Memorizer<PackageDef, List<AssemblyData>> packageAssemblies, AssemblyData unknown, AssemblyData foundAsm)
+        {
+            var depender = pkg.Files.FirstOrDefault(f => f.DependentAssemblies.Contains(unknown));
+            if (depender == null)
+                log.Warning("Adding dependent assembly '{0}' to package. It was not found in any other packages.", Path.GetFileName(foundAsm.Location));
+            else
+                log.Info($"'{Path.GetFileName(depender.FileName)}' dependents on '{unknown.Name}' version '{unknown.Version}'. Adding dependency to package, it was not found in any other packages.");
+
+            var destPath = string.Format("Dependencies/{0}.{1}/{2}", Path.GetFileNameWithoutExtension(foundAsm.Location), foundAsm.Version.ToString(), Path.GetFileName(foundAsm.Location));
+            pkg.Files.Add(new PackageFile { SourcePath = foundAsm.Location, RelativeDestinationPath = destPath, DependentAssemblies = foundAsm.References.ToList() });
+
+            // Copy the file to the actual directory so we can rely on it actually existing where we say the package has it.
+            if (!File.Exists(destPath))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(destPath));
+                ProgramHelper.FileCopy(foundAsm.Location, destPath);
+            }
+
+            packageAssemblies.Invalidate(pkg);
         }
 
         /// <summary>

@@ -44,6 +44,34 @@ namespace OpenTap
     /// </summary>
     public class PluginSearcher
     {
+        private Options Option { get; set; }
+
+        /// <summary>
+        /// Options for Plugin Searcher.
+        /// </summary>
+        [Flags]
+        public enum Options
+        {
+            /// <summary> No options </summary>
+            None = 0,
+            /// <summary> Allow multiple assemblies with the same name </summary>
+            IncludeSameAssemblies = 1
+        }
+
+        /// <summary>
+        /// Searches assemblies for classes implementing ITapPlugin.
+        /// </summary>
+        public PluginSearcher() { }
+
+        /// <summary>
+        /// Searches assemblies for classes implementing ITapPlugin.
+        /// </summary>
+        /// <param name="opts">Option setting for Plugin Searcher.</param>
+        public PluginSearcher(Options opts = Options.None)
+        {
+            Option = opts;
+        }
+
         private class AssemblyRef
         {
             public string Name;
@@ -74,7 +102,9 @@ namespace OpenTap
         private static readonly TraceSource log = Log.CreateSource("Searcher");
         class AssemblyDependencyGraph
         {
-            public AssemblyDependencyGraph()
+            private Options Option { get; set; }
+
+            public AssemblyDependencyGraph(Options opt)
             {
                 nameToAsmMap = new Dictionary<AssemblyRef, AssemblyData>();
 
@@ -82,6 +112,8 @@ namespace OpenTap
                 asmNameToAsmData = new Dictionary<string, AssemblyData>();
                 Assemblies = new List<AssemblyData>();
                 UnfoundAssemblies = new HashSet<AssemblyRef>();
+
+                Option = opt;
             }
 
             /// <summary>
@@ -181,8 +213,8 @@ namespace OpenTap
 
                             // if we were asked to only prvide distinct assembly names and 
                             // this assembly name has already been encountered, just return that.
-                            var thisAssemblyFullName = def.GetAssemblyName().FullName;
-                            if (asmNameToAsmData.TryGetValue(thisAssemblyFullName, out AssemblyData data))
+                            var fileIdentifer = Option.HasFlag(Options.IncludeSameAssemblies) ? file : def.GetAssemblyName().FullName;
+                            if (asmNameToAsmData.TryGetValue(fileIdentifer, out AssemblyData data))
                                 return data;
 
                             thisAssembly.Name = metadata.GetString(def.Name);
@@ -199,7 +231,7 @@ namespace OpenTap
                                 nameToAsmMap2[PathUtils.NormalizePath(thisAssembly.Location)] = thisRef;
                             }
 
-                            asmNameToAsmData[thisAssemblyFullName] = thisAssembly;
+                            asmNameToAsmData[fileIdentifer] = thisAssembly;
 
                             foreach (var asmRefHandle in metadata.AssemblyReferences)
                             {
@@ -310,7 +342,7 @@ namespace OpenTap
         {
             Stopwatch timer = Stopwatch.StartNew();
             if (graph == null)
-                graph = new AssemblyDependencyGraph();
+                graph = new AssemblyDependencyGraph(Option);
             Assemblies = graph.Generate(files);
             log.Debug(timer, "Ordered {0} assemblies according to references.", Assemblies.Count());
 
