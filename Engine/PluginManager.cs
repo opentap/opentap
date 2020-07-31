@@ -767,31 +767,22 @@ namespace OpenTap
                     if (requestedStrongNameToken != null && requestedStrongNameToken.Length == 8)
                     {
                         // the requested assembly has a strong name, only consider assemblies that has that
-                        candidates = candidates.Where(c => requestedStrongNameToken.SequenceEqual(c.Name.GetPublicKeyToken())).ToList();
+                        candidates.RemoveAll(c => false == requestedStrongNameToken.SequenceEqual(c.Name.GetPublicKeyToken()));
                     }
-                    if (candidates.Count() == 1)
+                    var matchingVersion = candidates.FirstOrDefault(c => c.Name.Version == requestedAsmName.Version);
+                    if (matchingVersion.Path != null)
                     {
-                        Assembly asm = tryLoad(candidates.First().Path);
+                        Assembly asm = tryLoad(matchingVersion.Path);
                         if (asm != null)
                             return asm;
+                        candidates.Remove(matchingVersion);
                     }
-                    else if (candidates.Count() > 1)
+                    var ordered = candidates.OrderByDescending(c => c.Name.Version);
+                    foreach (var c in ordered)
                     {
-                        var matchingVersion = candidates.FirstOrDefault(c => c.Name.Version == requestedAsmName.Version);
-                        if (matchingVersion.Path != null)
-                        {
-                            Assembly asm = tryLoad(matchingVersion.Path);
-                            if (asm != null)
-                                return asm;
-                            candidates.Remove(matchingVersion);
-                        }
-                        var ordered = candidates.OrderByDescending(c => c.Name.Version);
-                        foreach (var c in ordered)
-                        {
-                            Assembly asm = tryLoad(c.Path);
-                            if (asm != null)
-                                return asm;
-                        }
+                        Assembly asm = tryLoad(c.Path);
+                        if (asm != null)
+                            return asm;
                     }
                 }
                 else
