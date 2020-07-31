@@ -367,6 +367,12 @@ namespace OpenTap.Package
         /// </summary>
         [XmlAttribute]
         public string Group { get; set; }
+        
+        /// <summary>
+        /// A list of keywords that describe the package. Tags are separated by space.
+        /// </summary>
+        [XmlAttribute]
+        public string Tags { get; set; }
 
         string rawVersion;
         
