@@ -491,6 +491,9 @@ namespace OpenTap.Package
             if (candidates.Count == 1)
                 return candidates.First().GetShortName();
 
+            if(candidates.Select(b => b.GetShortName()).Distinct().Count() == 1) // all candicates have the same name (e.g. on is a local branch and one is the remote of that same branch)
+                return candidates.First().GetShortName();
+
             log.Warning("Several possible branch names found. Picking one.");
 
             // pick the first candidate that is has a merge commit as the child of commit
