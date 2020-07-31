@@ -769,6 +769,7 @@ namespace OpenTap
                         // the requested assembly has a strong name, only consider assemblies that has that
                         candidates.RemoveAll(c => false == requestedStrongNameToken.SequenceEqual(c.Name.GetPublicKeyToken()));
                     }
+                    // Try to find/load an exact match to the requested version:
                     var matchingVersion = candidates.FirstOrDefault(c => c.Name.Version == requestedAsmName.Version);
                     if (matchingVersion.Path != null)
                     {
@@ -777,6 +778,16 @@ namespace OpenTap
                             return asm;
                         candidates.Remove(matchingVersion);
                     }
+                    // Try to find/load a compatible match to the requested version:
+                    var matchingMajorVersion = candidates.Where(c => c.Name.Version.Major == requestedAsmName.Version.Major);
+                    foreach (var c in matchingMajorVersion.OrderBy(c => c.Name.Version))
+                    {
+                        Assembly asm = tryLoad(matchingVersion.Path);
+                        if (asm != null)
+                            return asm;
+                        candidates.Remove(matchingVersion);
+                    }
+                    // Try to load any remaining candidates:
                     var ordered = candidates.OrderByDescending(c => c.Name.Version);
                     foreach (var c in ordered)
                     {
