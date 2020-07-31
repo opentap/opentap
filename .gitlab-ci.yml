@@ -187,7 +187,8 @@ TestPackage:
         - bash run_ubuntu_test.sh
         - ldconfig -p
         - cd ..
-        - publish/tap sdk gitversion --verbose # verify that gitversion works.
+        - publish/tap sdk gitversion -v          # verify that gitversion works.
+        - publish/tap sdk gitversion --log 10 # verify that gitversion log works.
 
 TestUbuntu:
   stage: test
