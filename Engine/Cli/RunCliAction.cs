@@ -26,7 +26,7 @@ namespace OpenTap.Cli
     /// <summary>
     /// Test plan run CLI action. Execute a test plan with 'tap.exe run test.TapPlan'
     /// </summary>
-    [Display("run", Description: "Run a Test Plan.")]
+    [Display("run", Description: "Run a test plan.")]
     public class RunCliAction : ICliAction
     {
         /// <summary>

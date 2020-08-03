@@ -18,11 +18,11 @@ The CLI help of a clean OpenTAP installation looks something like this:
 ```
 > tap
 
-OpenTAP Command Line Interface (9.8.3)
+OpenTAP Command Line Interface (9.9.0)
 Usage: tap <command> [<subcommand(s)>] [<args>]
 
 Valid commands are:
-run                    Run a Test Plan.
+run                    Run a test plan.
 package
    create              Create a package based on an XML description file.
    download            Download one or more packages.
@@ -33,7 +33,7 @@ package
    uninstall           Uninstall one or more packages.
    verify              Verify the integrity of one or all installed packages by checking their fingerprints.
 sdk
-   gitversion          Calculates a semantic version number for a specific git commit.
+   gitversion          Calculate the semantic version number for a specific git commit.
 
 Run "tap.exe <command> [<subcommand>] -h" to get additional help for a specific command.
 ```
@@ -51,18 +51,18 @@ Every CLI action, whether built-in or user-provided, shares three CLI options:
 ## Using the Package Manager
 
 The package manager is meant for installing, uninstalling, and creating packages containing plugins. It is capable of
-listing the packages available and their versions based on the CPU architecture and the operating system on which it is running.
+listing the available packages and their versions based on the CPU architecture and the operating system on which it is running.
 Package names are case sensitive, and package names containing spaces, such as "Developer's System CE", must be
 surrounded by quotation marks.
 
-The package manager has 8 subcommands, which you can verify by running `tap package`.
+The package manager has several subcommands, which you can see by running `tap package`.
 
 Sample output:
 
 ```
 > tap package
 
-OpenTAP Command Line Interface (9.8.3)
+OpenTAP Command Line Interface (9.9.0)
 Usage: tap <command> [<subcommand(s)>] [<args>]
 
 Valid subcommands of package
@@ -157,7 +157,7 @@ Installing a specific version of any package is also simple:
 Whenever you install a package, the package manager will attempt to resolve the dependencies. If you are missing a
 package dependency, the package manager will prompt you, and install it automatically if you confirm. To avoid this
 behavior, you may install a package with the `-y` option to automatically confirm all prompts. If you are trying to
-install a package that is incompatible with your current install, the package manager will stop. This could happen if
+install a package that is incompatible with your current installation, the package manager will stop. This could happen if
 you have a package installed that depends on OpenTAP >= 9.5.1, and you try to install OpenTAP 9.4. You can override this
 behavior by using the `--force` option, but this can lead to a non-functional installation.
 
@@ -174,31 +174,33 @@ plugins for you, so you can always verify the available CLI actions by running `
 
 ### uninstall
 
-Uninstall a package. The package manager will warn you if you attempt to uninstall a package other packages in
+Uninstall one or more packages, e.g., `tap package uninstall Demonstration Python`. The package manager will warn you if you attempt to uninstall a package other packages in
 your installation depend on. Uninstalling dependencies in spite of warnings may break your installation. However, unless
-you removed OpenTAP, you can repair your install by reinstalling the uninstalled dependency.
+you removed OpenTAP, you can repair your installation by reinstalling the uninstalled dependency.
 
 Like the above two commands, `uninstall` supports targeting a different directory.
 
 ### download
 
-Download a package without installing it. The downloaded package is placed in the OpenTAP installation directory. As with the `install`
+Download one or more packages without installing them. The downloaded packages are placed in the OpenTAP installation directory. As with the `install`
 action, dependencies can be automatically added with `--dependencies`, and the os, version, and architecture can all be
-specified.
+specified:
+
+`tap package download Python`.
 
 ### verify
 
 Verify the integrity of a given package by computing the fingerprints of its locally installed files, and comparing them
 with the fingerprints stored in the local XML package description file (`package.xml`).
 If no package name is provided, all installed packages are verified.
-It only works when run from the OpenTAP installation directory.
+This only works when run from the OpenTAP installation directory.
 
 ## Running Test Plans
 
 The `run` commands executes a test plan.
 
 ```
-> tap run
+> tap run -h
 
 Usage: run [-h] [-v] [-c] [--settings <arg>] [--search <arg>] [--metadata <arg>] [--non-interactive] [-e <arg>] [-t <arg>] [--list-external-parameters] [--results <arg>] <Test Plan>
   -h, --help             Write help information.
@@ -232,28 +234,32 @@ Usage: run [-h] [-v] [-c] [--settings <arg>] [--search <arg>] [--metadata <arg>]
 
 Specify a bench settings profile for the test plan being run. This refers to the configuration of DUTs, connections, and
 instruments. The `--settings` parameter should be the name of a subdirectory of `<installation dir>/Settings/Bench`.
-If not specified, `<installation dir>/Settings/Bench/Default` is used.
+If not specified, `<installation dir>/Settings/Bench/Default` is used:
+
+`tap run MyTestPlan.TapPlan --settings RadioTestSetup`.
 
 ### Plugin Search Path
 
-By default, OpenTAP searches for plugins in the installation directory and in the `<installation  dir>/Packages` directory.
+By default, OpenTAP searches for plugins in the installation directory and in the `<installation dir>/Packages` directory.
 More directories to be searched for plugins may be provided with multiple occourrences of the `--search` option,
 one for each additional directory:
 
-`tap run MyTestPlan.TapPlan --search C:\Users\Me\MyDut --search C:\Users\Me\MyInstrument`
+`tap run MyTestPlan.TapPlan --search C:\Users\Me\MyDut --search C:\Users\Me\MyInstrument`.
 
 ### Result Listeners
 
 When running a test plan, OpenTAP enables by default all configured result listeners.
 A subset of them may be enabled by giving their names in a comma-separated list in the `--results` option:
 
-`tap run MyTestPlan.TapPlan--results SQLite,CSV`
+`tap run MyTestPlan.TapPlan --results SQLite,CSV`.
 
 To disable all result listeners use `--results ""`.
 
 ### Non-Interactive Mode
 
-Never prompt for user input.
+Never prompt for user input:
+
+`tap run MyTestPlan.TapPlan --non-interactive`.
 
 ### External Settings
 
@@ -262,7 +268,7 @@ possible to reuse the same test plan for a variety of tests.
 
 To see what external parameters a test plan contains, try:
 
-`tap run My.TapPlan --list-external-parameters`
+`tap run My.TapPlan --list-external-parameters`.
 
 If the output is:
 ```
@@ -274,7 +280,7 @@ Listing 3 external test plan parameters.
 ```
 then you can set these values from the command line with:
 
-`tap run My.TapPlan -e value1=hello -e value2=3 -e value3=0.75`
+`tap run My.TapPlan -e value1=hello -e value2=3 -e value3=0.75`.
 
 Alternatively, you can create a csv file named `values.csv` containing:
 
