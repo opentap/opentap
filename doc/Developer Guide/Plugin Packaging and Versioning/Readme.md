@@ -22,7 +22,8 @@ $(GitVersion) - Gets the version number in the recommended format Major.Minor.Bu
          xmlns="http://opentap.io/schemas/package"
          InfoLink="http://www.keysight.com/"
          Version="0.1.0-alpha"
-         Group="Example">
+         Group="Example"
+         Tags="Example DUT Instrument">
   <Description>Example plugin containing Instrument, DUT and TestStep.</Description>
   <Owner>OpenTAP</Owner>
     <Files>
@@ -53,6 +54,7 @@ The configuration file supports optional attributes:
 | **Architecture**   | Used to filter packages which are compatible with a certain CPU architecture. If the attribute is not specified it is assumed that the Plugin works on all architectures. The available values are AnyCPU, x86, x64 (use for AMD64 or x86-64), arm and arm64.  |
 | **Class**   | This attribute is used to classify a package. It can be set to **package**, **bundle** or **system-wide** (default value: **package**). A package of class **bundle** references a collection of OpenTAP packages, but does not contain the referenced packages. Packages in a bundle do not need to depend on each other to be referenced. For example, Keysight Developer's System is a bundle that reference the Editor (GUI), Timing Analyzer, Results Viewer, and SDK packages. <br><br> A package of class **system-wide** is installed in a global system folder so these packages can affect other installations of OpenTAP and cannot be uninstalled with the PackageManager. System-wide packages should not be OpenTAP plugins, but rather drivers and libraries.  The system folders are located differently depending on operating system and drive specifications: Windows (normally) - `C:\ProgramData\Keysight\OpenTAP`, Linux -  `/usr/share/Keysight/OpenTAP`|
 | **Group** | Name of the group that this package belongs to. Groups can be nested in other groups, in which case this string will have several entries separated with '/' or '\'. May be empty. UIs may use this information to show a list of packages as a tree structure. See the example below. |
+| **Tags** | A list of keywords that describe the package. Tags are separated by space or comma. |
 | **LicenseRequired** | License key(s) required to use this package. During package create all `LicenseRequired` attributes from the `File` Elements will be concatenated into this property. Bundle packages (`Class` is 'bundle') can use this property to show license keys that are required by the bundle dependencies.  |
 
 > **Note:** OpenTAP does not validate any `LicenseRequired` attributes. This attribute is only used by UIs to inform the user of a license key. The license key check should be implemented by the plugin assembly.
@@ -139,7 +141,7 @@ The below configuration file results in `MyPlugin.{version}.TapPackage` file,con
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://myplugin.com"
-		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example">
+		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example" Tags="Example DUT Instrument">
   <Description>
     This is an example of an "package.xml" file.
     <Status>Released</Status>
@@ -173,7 +175,7 @@ This `package.xml` file is preserved inside the TapPackage as metadata. The Pack
 
 ```xml
 <?xml version="1.0" encoding="utf-8" ?>
-<Package Version="9.0.103+d58122db" Name="MyPlugin" InfoLink="http://myplugin.com" Date="03/14/2019 21:20:31" OS="Windows,Linux" Architecture="x64" xmlns="http://opentap.io/schemas/package">
+<Package Version="9.0.103+d58122db" Name="MyPlugin" InfoLink="http://myplugin.com" Date="03/14/2019 21:20:31" OS="Windows,Linux" Architecture="x64" Tags="Example DUT Instrument" xmlns="http://opentap.io/schemas/package">
   <Description>
     This is an example of an "package.xml" file.
     <Status>Released</Status>
