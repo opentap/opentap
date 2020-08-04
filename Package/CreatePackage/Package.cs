@@ -495,15 +495,21 @@ namespace OpenTap.Package
 
                     if (packageCandidates.Any() && (candidate.Value > 0))
                     {
-                        var offeredFiles = packageAssemblies[candidate.Key]
-                            .Where(asm => dependentAssemblyNames.Any(dep => (dep.Name == asm.Name && !asm.Location.Contains("Dependencies")) && OpenTap.Utils.Compatible(asm.Version, dep.Version)))
-                            .Select(ad => ad.Name).Distinct()
-                            .ToList();
-                        log.Info("Adding dependency on package '{0}' version {1}", candidate.Key.Name, candidate.Key.Version);
-                        log.Info("It offers: " + string.Join(", ", offeredFiles));
+                        // Add package dependency provided no duplicates
+                        if (!pkg.Dependencies.Any(s => s.Name == candidate.Key.Name))
+                        {
+                            var offeredFiles = packageAssemblies[candidate.Key]
+                                .Where(asm => dependentAssemblyNames.Any(dep => (dep.Name == asm.Name && !asm.Location.Contains("Dependencies")) && OpenTap.Utils.Compatible(asm.Version, dep.Version)))
+                                .Select(ad => ad.Name).Distinct()
+                                .ToList();
+                            log.Info("Adding dependency on package '{0}' version {1}", candidate.Key.Name, candidate.Key.Version);
+                            log.Info("It offers: " + string.Join(", ", offeredFiles));
 
-                        PackageDependency pd = new PackageDependency(candidate.Key.Name, new VersionSpecifier(candidate.Key.Version, VersionMatchBehavior.Compatible));
-                        pkg.Dependencies.Add(pd);
+                            PackageDependency pd = new PackageDependency(candidate.Key.Name, new VersionSpecifier(candidate.Key.Version, VersionMatchBehavior.Compatible));
+                            pkg.Dependencies.Add(pd);
+
+                            foundNew = true;
+                        }
 
                         // To include dependent assemblies that have same names as those in a candidate but of different version
                         var nonOfferedFiles = packageAssemblies[candidate.Key]
@@ -512,8 +518,6 @@ namespace OpenTap.Package
 
                         foreach (var foundAsm in nonOfferedFiles)
                             AddFileDependencies(pkg, packageAssemblies, foundAsm, foundAsm);
-
-                        foundNew = true;
                     }
                     else
                     {
