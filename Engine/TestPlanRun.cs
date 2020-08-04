@@ -149,6 +149,8 @@ namespace OpenTap
 
         #endregion
 
+        public bool StatusLogging;
+        
         /// <summary>
         /// List of all TestSteps for which PrePlanRun has already been called.
         /// </summary>
@@ -373,6 +375,7 @@ namespace OpenTap
         {
             public string Xml { get; set; }
             public string Hash { get; set; }
+            public byte[] Bytes { get; set; }
         }
         
         /// <summary> Memorizer for storing pairs of Xml and hash. </summary>
@@ -397,7 +400,7 @@ namespace OpenTap
             this.IsCompositeRun = isCompositeRun;
             Parameters = ResultParameters.GetComponentSettingsMetadata();
             // Add metadata from the plan itself.
-            Parameters.AddRange(ResultParameters.GetMetadataFromObject(plan));
+            Parameters.IncludeMetadataFromObject(plan);
 
             this.Verdict = Verdict.NotSet; // set Parameters before setting Verdict.
             ResultListeners = resultListeners ?? Array.Empty<IResultListener>();
@@ -420,13 +423,13 @@ namespace OpenTap
                 if (testPlanXml != null)
                 {
                     TestPlanXml = testPlanXml;
-                    Parameters.Add(new ResultParameter("Test Plan", nameof(Hash), GetHash(Encoding.UTF8.GetBytes(testPlanXml)), new MetaDataAttribute(), 0));
+                    Parameters.Add("Test Plan", nameof(Hash), GetHash(Encoding.UTF8.GetBytes(testPlanXml)), new MetaDataAttribute());
                     return;
                 }
 
                 if (plan.GetCachedXml() is byte[] xml)
                 {
-                    TestPlanXml = Encoding.UTF8.GetString(xml);
+                    
                     if(!testPlanHashMemory.TryGetValue(this.plan, out var pair))
                     {
                         if (pair == null)
@@ -436,13 +439,17 @@ namespace OpenTap
                         }
                     }
 
-                    if (Equals(pair.Xml,TestPlanXml) == false)
+                    
+                    if (Equals(pair.Bytes, xml) == false)
                     {
-                        pair.Xml = TestPlanXml;
+                        pair.Xml = Encoding.UTF8.GetString(xml);
                         pair.Hash = GetHash(xml);
+                        pair.Bytes = xml;
                     }
+                    else
+                        TestPlanXml = pair.Xml;
 
-                    Parameters.Add(new ResultParameter("Test Plan", nameof(Hash), pair.Hash, new MetaDataAttribute(), 0));
+                    Parameters.Add("Test Plan", nameof(Hash), pair.Hash, new MetaDataAttribute());
                     return;
                 }
 

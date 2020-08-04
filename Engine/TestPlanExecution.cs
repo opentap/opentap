@@ -30,9 +30,6 @@ namespace OpenTap
                     runPre = s.PrePostPlanRunUsed;
                 }
                 planRun.StepsWithPrePlanRun.Add(step);
-                string stepPath = null;
-                if(runPre)
-                    stepPath = step.GetStepPath();
                 try
                 {
                     if (runPre)
@@ -75,9 +72,13 @@ namespace OpenTap
                 {
                     if (runPre)
                     {
-                        var newelaps = preTimer.Elapsed;
-                        Log.Debug(newelaps - elaps, "{0} PrePlanRun completed.", stepPath);
-                        elaps = newelaps;
+                        if (planRun.StatusLogging)
+                        {
+                            var newelaps = preTimer.Elapsed;
+
+                            Log.Debug(newelaps - elaps, "{0} PrePlanRun completed.", step.GetStepPath());
+                            elaps = newelaps;
+                        }
                     }
                 }
             }

@@ -38,38 +38,33 @@ namespace OpenTap
         public static TypeData FromType(Type type)
         {
             checkCacheValidity();
-            
-                return dict.GetValue(type, x =>
+            if (dict.TryGetValue(type, out var i))
+                return i;
+            TypeData td = null;
+            var searcher = PluginManager.GetSearcher();
+
+            searcher?.AllTypes.TryGetValue(type.FullName, out td);
+            if (td == null && searcher != null)
+            {
+                // This can occur for some types inside mscorlib such as System.Net.IPAddress.
+                try
                 {
-                    TypeData td = null;
-                    var searcher = PluginManager.GetSearcher();
-                    lock (loadTypeDictLock)
+                    if (type.Assembly != null && type.Assembly.IsDynamic == false &&
+                        type.Assembly.Location != null)
                     {
-                        searcher?.AllTypes.TryGetValue(type.FullName, out td);
-                        if (td == null && searcher != null)
-                        {
-                            // This can occur for some types inside mscorlib such as System.Net.IPAddress.
-                            try
-                            {
-                                if (type.Assembly != null && type.Assembly.IsDynamic == false &&
-                                    type.Assembly.Location != null)
-                                {
-                                    searcher.AddAssembly(type.Assembly.Location, type.Assembly);
-                                    if (searcher.AllTypes.TryGetValue(type.FullName, out td))
-                                        return td;
-                                }
-                            }
-                            catch
-                            {
-
-                            }
-
-                            td = new TypeData(x);
-                        }
+                        searcher.AddAssembly(type.Assembly.Location, type.Assembly);
+                        if (searcher.AllTypes.TryGetValue(type.FullName, out td))
+                            return td;
                     }
-
-                    return td;
-                });
+                }
+                catch
+                {
+                }
+                td = new TypeData(type);
+            }
+            return dict.GetValue(type, x => td);
+            
+                
             
         }
         TypeData(Type type)

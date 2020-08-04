@@ -639,6 +639,8 @@ namespace OpenTap
 
             }
 
+            NumberFormatter fmt = new NumberFormatter(CultureInfo.InvariantCulture) { UseRanges = false};
+            
             /// <summary> Turns a value into a string, </summary>
             public string GetString(object value, CultureInfo culture)
             {
@@ -657,10 +659,7 @@ namespace OpenTap
                     }
 
                     if (isNumeric)
-                    {
-                        var fmt = new NumberFormatter(CultureInfo.InvariantCulture) { UseRanges = false};
                         return fmt.FormatRange(seq);
-                    }
 
                     string escapeString(string str)
                     {

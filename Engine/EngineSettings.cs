@@ -98,7 +98,12 @@ namespace OpenTap
             get { return Log.Timestamper; }
             set { Log.Timestamper = value; }
         }
-        
+
+        /// <summary>
+        /// Gets or sets if test plan status logging is enabled. This affects test plan performance if test steps runs very quickly, in the order of a few ms.
+        /// </summary>
+        [Display("Test Plan Status Logging", Group: "General", Order: 10, Description: "This affects test plan performance if test steps runs very quickly, in the order of a few ms.")]
+        public bool TestPlanStatusLoggingEnabled { get; set; } = true;
 
         /// <summary>
         /// Sets up some default values for the various settings.
