@@ -331,6 +331,24 @@ namespace OpenTap
                 return Expression.GetFuncType(parameters.Append(method.ReturnType).ToArray());
             return Expression.GetActionType(parameters.ToArray());
         }
+        
+        static Func<object, object> buildGetter(PropertyInfo propertyInfo)
+        {
+            var instance = Expression.Parameter(typeof(object), "i");
+            UnaryExpression convert1;
+            if(propertyInfo.PropertyType.IsValueType)
+                convert1 = Expression.Convert(instance, propertyInfo.DeclaringType);
+            else
+                convert1 = Expression.TypeAs(instance, propertyInfo.DeclaringType);
+            var property = Expression.Property(convert1, propertyInfo);
+            var convert = Expression.TypeAs(property, typeof(object));
+            
+            var lambda = Expression.Lambda<Func<object, object>>(convert, instance);
+            var action = lambda.Compile();
+            return action;
+        }
+
+        Func<object, object> propertyGetter = null; 
 
         /// <summary> Gets the value of this member.</summary> 
         /// <param name="owner"></param>
@@ -339,7 +357,12 @@ namespace OpenTap
         {
             switch (Member)
             {
-                case PropertyInfo Property: return Property.GetValue(owner);
+                case PropertyInfo Property:
+                    if (propertyGetter == null)
+                        propertyGetter = buildGetter(Property);
+                    //Building a lambda expression is an order of magnitude faster than Property.GetValue.
+                    return propertyGetter(owner);
+                    
                 case FieldInfo Field: return Field.GetValue(owner);
                 case MethodInfo Method: return Delegate.CreateDelegate(createDelegateType(Method), owner, Method, true);
                 default: throw new InvalidOperationException("Unsupported member type: " + Member);

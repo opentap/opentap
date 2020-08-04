@@ -75,7 +75,7 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void TestProcessContainer()
         {
-            var proc = TapProcessContainer.StartFromArgs("package list", TimeSpan.FromSeconds(10));
+            var proc = TapProcessContainer.StartFromArgs("package list", TimeSpan.FromSeconds(100));
             proc.WaitForEnd();
             
             Assert.AreEqual(0, proc.TapProcess.ExitCode);

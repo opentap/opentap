@@ -657,6 +657,7 @@ namespace OpenTap
 
                 OpenInternal(execStage, continuedExecutionState, currentListeners.Cast<IResource>().ToList(), allEnabledSteps);
                     
+                execStage.WaitForSerialization();
                 execStage.ResourceManager.BeginStep(execStage, this, TestPlanExecutionStage.Execute, TapThread.Current.AbortToken);
 
                 if (continuedExecutionState)

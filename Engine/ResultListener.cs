@@ -217,6 +217,73 @@ namespace OpenTap
         public ResultParameter Clone() => (ResultParameter) MemberwiseClone();
     }
 
+    // this array can be indexed and resized at the same time.
+    class SafeArray<T> : IEnumerable<T>
+    {
+        T[][] arrays = Array.Empty<T[]>();
+
+        int count;
+
+        public SafeArray(T[] init)
+        {
+            arrays = new[] {init};
+            count = init.Length;
+        }
+
+        public SafeArray()
+        {
+            
+        }
+
+        object resizeLock = new object(); 
+            
+        public void Resize(int newSize)
+        {
+            if(newSize < count)
+                throw new InvalidOperationException();
+            if (newSize == count) return;
+            lock (resizeLock)
+            {
+                Array.Resize(ref arrays, arrays.Length + 1);
+                arrays[arrays.Length - 1] = new T[newSize - count];
+                count = newSize;
+            }
+        }
+        
+        public T this[int index]
+        {
+            get
+            {
+                for(int i = 0; i < arrays.Length; i++)
+                {
+                    var array = arrays[i];
+                    if (index < array.Length)
+                        return array[index];
+                    index -= array.Length;
+                }
+                throw new IndexOutOfRangeException();
+            }
+            set
+            {
+                for(int i = 0; i < arrays.Length; i++)
+                {
+                    var array = arrays[i];
+                    if (index < array.Length)
+                    {
+                        array[index] = value;
+                        return;
+                    }
+                    index -= array.Length;
+                }
+                throw new IndexOutOfRangeException();
+            }
+        }
+
+        public IEnumerator<T> GetEnumerator() =>  arrays.SelectMany(x => x).GetEnumerator();
+
+        IEnumerator IEnumerable.GetEnumerator() =>  GetEnumerator();
+    }
+    
     /// <summary>
     /// A collection of parameters related to the results.
     /// </summary>
@@ -240,7 +307,7 @@ namespace OpenTap
                 };
             }
         }
-        resultParameter[] data = Array.Empty<resultParameter>();
+        SafeArray<resultParameter> data = new SafeArray<resultParameter>();
 
         /// <summary>
         /// Gets the parameter with the given index.
@@ -276,11 +343,8 @@ namespace OpenTap
             get => Find(key)?.Value;
             set
             {
-                var rp = Find(key);
-                if (rp != null)
-                    Add(new ResultParameter(rp.Group, key, value, null, rp.ParentLevel));
-                else
-                    Add(new ResultParameter("", key, value, null)); //assume parent level 0.
+                int index = -1;
+                SetIndexed(key, ref index, value);
             }
         }
 
@@ -575,7 +639,7 @@ namespace OpenTap
         {
             if (initCollection)
             {
-                data = new resultParameter[capacity];
+                data = new SafeArray<resultParameter>(new resultParameter[capacity]);
                 indexByName = new Dictionary<string, int>(capacity);
                 foreach (var par in parameters)
                 {
@@ -628,7 +692,7 @@ namespace OpenTap
             if (newIndexes != null)
             {
 
-                Array.Resize(ref data, count + newParameters.Count);
+                data.Resize(count + newParameters.Count);
                 foreach (var elem in newParameters)
                 {
                     data[count] = elem;
@@ -665,7 +729,7 @@ namespace OpenTap
         {
             var r = new ResultParameters
             {
-                data = data.ToArray(),
+                data = new SafeArray<resultParameter>(data.ToArray()),
                 indexByName = new Dictionary<string, int>(indexByName)
             };
             
