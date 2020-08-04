@@ -72,13 +72,11 @@ namespace OpenTap
                 {
                     if (runPre)
                     {
-                        if (planRun.StatusLogging)
-                        {
-                            var newelaps = preTimer.Elapsed;
+                        var newelaps = preTimer.Elapsed;
 
-                            Log.Debug(newelaps - elaps, "{0} PrePlanRun completed.", step.GetStepPath());
-                            elaps = newelaps;
-                        }
+                        Log.Debug(newelaps - elaps, "{0} PrePlanRun completed.", step.GetStepPath());
+                        elaps = newelaps;
+                        
                     }
                 }
             }

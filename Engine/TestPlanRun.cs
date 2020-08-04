@@ -149,7 +149,6 @@ namespace OpenTap
 
         #endregion
 
-        public bool StatusLogging;
         
         /// <summary>
         /// List of all TestSteps for which PrePlanRun has already been called.

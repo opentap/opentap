@@ -847,8 +847,7 @@ namespace OpenTap
                         {
                             if (Step is TestStep _step)
                                 resultSource = _step.Results = new ResultSource(stepRun, Step.PlanRun);
-                            if (planRun.StatusLogging)
-                                TestPlan.Log.Info("{0} started.", stepPath);
+                            TestPlan.Log.Info("{0} started.", stepPath);
                             stepRun.StartStepRun(); // set verdict to running, set Timestamp.
                             planRun.AddTestStepRunStart(stepRun);
                             Step.Run();
@@ -942,13 +941,11 @@ namespace OpenTap
                         stepRun.CompleteStepRun(planRun, Step, time);
                         if (Step.Verdict == Verdict.NotSet)
                         {
-                            if (planRun.StatusLogging)
-                                TestPlan.Log.Info(time, "{0} completed.", stepPath);
+                            TestPlan.Log.Info(time, "{0} completed.", stepPath);
                         }
                         else
                         {
-                            if (planRun.StatusLogging)
-                                TestPlan.Log.Info(time, "{0} completed with verdict '{1}'.", stepPath, Step.Verdict);
+                            TestPlan.Log.Info(time, "{0} completed with verdict '{1}'.", stepPath, Step.Verdict);
                         }
 
                         planRun.AddTestStepRunCompleted(stepRun);

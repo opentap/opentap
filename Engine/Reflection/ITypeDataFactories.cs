@@ -17,7 +17,7 @@ namespace OpenTap
     public partial class TypeData 
     {
         private static List<ITypeDataSearcher> searchers = new List<ITypeDataSearcher>();
-        private static Dictionary<ITypeData, ITypeData[]> derivedTypesCache = new Dictionary<ITypeData, ITypeData[]>();
+        private static ConcurrentDictionary<ITypeData, ITypeData[]> derivedTypesCache = new ConcurrentDictionary<ITypeData, ITypeData[]>();
 
         /// <summary> Get all known types that derive from a given type.</summary>
         /// <typeparam name="BaseType">Base type that all returned types descends to.</typeparam>
@@ -40,6 +40,8 @@ namespace OpenTap
             }
         }
 
+        static object lockSearchers = new object();
+
         /// <summary> Get all known types that derive from a given type.</summary>
         /// <param name="baseType">Base type that all returned types descends to.</param>
         /// <returns>All known types that descends to the given base type.</returns>
@@ -50,31 +52,37 @@ namespace OpenTap
             bool invalidated = searchers.OfType<ITypeDataSearcherInvalidated>().Any(x => x.IsInvalidated);
             if(derivedTypesCache.ContainsKey(baseType) && searchers.Count == searcherTypes.Count() && !invalidated)
                     return derivedTypesCache[baseType];
-            
-            if (searchers.Count() != searcherTypes.Count() || invalidated)
+            lock (lockSearchers)
             {
-                var searchTasks = new List<Task>();
-                foreach (var s in searchers)
+                if (searchers.Count() != searcherTypes.Count() || invalidated)
                 {
-                    if (s is ITypeDataSearcherInvalidated inv && inv.IsInvalidated)
-                        searchTasks.Add(Task.Run(() => s.Search()));
-                }
-                foreach (var st in searcherTypes)
-                {
-                    if (!searchers.Any(s => TypeData.GetTypeData(s) == st))
+
+                    var searchTasks = new List<Task>();
+                    foreach (var s in searchers)
                     {
-                        var searcher = (ITypeDataSearcher)st.CreateInstance(Array.Empty<object>());
-                        searchTasks.Add(Task.Run(() => searcher.Search()));
-                        searchers.Add(searcher);
+                        if (s is ITypeDataSearcherInvalidated inv && inv.IsInvalidated)
+                            searchTasks.Add(Task.Run(() => s.Search()));
                     }
-                }
-                try
-                {
-                    Task.WaitAll(searchTasks.ToArray());
-                }
-                catch (Exception ex)
-                {
-                    Log.CreateSource("TypeData").Debug(ex);
+
+                    foreach (var st in searcherTypes)
+                    {
+                        if (!searchers.Any(s => TypeData.GetTypeData(s) == st))
+                        {
+                            var searcher = (ITypeDataSearcher) st.CreateInstance(Array.Empty<object>());
+                            searchTasks.Add(Task.Run(() => searcher.Search()));
+                            searchers.Add(searcher);
+                        }
+                    }
+
+
+                    try
+                    {
+                        Task.WaitAll(searchTasks.ToArray());
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.CreateSource("TypeData").Debug(ex);
+                    }
                 }
             }
 

@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.ComponentModel;
 using System.Reflection;
@@ -10,6 +11,7 @@ using System.Threading;
 using System.IO;
 using OpenTap.Diagnostic;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace OpenTap
 {
@@ -63,6 +65,7 @@ namespace OpenTap
         /// </summary>
         public void TraceEvent(LogEventType te, int id, string message)
         {
+            
             if (message == null)
                 throw new ArgumentNullException("message");
             log.LogEvent((int)te, message);
@@ -295,6 +298,21 @@ namespace OpenTap
         /// </summary>
         public static ILogContext Context => TapContext;
 
+        static ConcurrentDictionary<string, bool> excludedSources = new ConcurrentDictionary<string, bool>();
+
+        /// <summary> Returns true if the trace source is muted. </summary>
+        /// <param name="trace"></param>
+        /// <returns></returns>
+        public static bool IsMuted(TraceSource trace) => excludedSources.ContainsKey(trace.log.Source);
+        
+        /// <summary> Gets or sets the list of muted log source names. </summary>
+        public static IEnumerable<string> MutedLogSources
+        {
+            get => excludedSources.Keys;
+            set => excludedSources =
+                new ConcurrentDictionary<string, bool>(value.Select(x => new KeyValuePair<string, bool>(x, true)));
+        }
+
         /// <summary> Makes a TraceListener start receiving log messages. </summary>
         /// <param name="listener">The TraceListener to add.</param>
         public static void AddListener(ILogListener listener)
@@ -304,6 +322,8 @@ namespace OpenTap
             Log.Flush();
             TapContext.AttachListener(listener);
         }
+        
+        
 
         /// <summary> Stops a specified TraceListener from receiving log messages. </summary>
         /// <param name="listener">The TraceListener to remove.</param>
@@ -316,11 +336,18 @@ namespace OpenTap
             listener.Flush();
         }
 
+        static ConcurrentBag<string> logNames = new ConcurrentBag<string>();
+
+        /// <summary> Returns the known log names.</summary>
+        /// <returns></returns>
+        public static string[] GetKnownSourceNames() => logNames.ToArray();
+        
         /// <summary> Creates a new log source. </summary>
         /// <param name="name">The name of the Log.</param>
         /// <returns>The created Log.</returns>
         public static TraceSource CreateSource(string name)
         {
+            logNames.Add(name);
             return new TraceSource(TapContext.CreateLog(name));
         }
 
@@ -335,7 +362,7 @@ namespace OpenTap
         {
             if (owner == null)
                 throw new ArgumentNullException("owner");
-            var source = new TraceSource(TapContext.CreateLog(name));
+            var source = CreateSource(name);
             source.Owner = owner;
             lock (addlock)
             {
@@ -397,6 +424,7 @@ namespace OpenTap
         /// <param name="args"></param>
         static void traceEvent(this TraceSource trace, TimeSpan elapsed, LogEventType eventType, string message, params object[] args)
         {
+            if (Log.IsMuted(trace)) return;
             if (message == null)
                 throw new ArgumentNullException(nameof(message));
             var timespan = ShortTimeSpan.FromSeconds(elapsed.TotalSeconds);
@@ -430,6 +458,7 @@ namespace OpenTap
         {
             if (message == null)
                 throw new ArgumentNullException("message");
+            if (Log.IsMuted(trace)) return;
             trace.TraceEvent(eventType, 0, args.Length == 0 ? message : String.Format(message, args));
         }
 
@@ -437,6 +466,7 @@ namespace OpenTap
         {
             if (exception == null)
                 throw new ArgumentNullException("exception");
+            if (Log.IsMuted(trace)) return;
             WriteException(trace, exception, eventType);
         }
 

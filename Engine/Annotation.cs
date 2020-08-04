@@ -3141,6 +3141,7 @@ namespace OpenTap
         /// <param name="target"></param>
         public void Write(object target)
         {
+            
             this.source = target;
             for (int i = 0; i < Annotations.Count; i++)
             {
@@ -3280,5 +3281,10 @@ namespace OpenTap
             var sub = col.Get<IMembersAnnotation>().Members.FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name == name2);
             return sub;
         }
+    }
+
+    internal interface IAnnotationWritten
+    {
+        void AnnotationWritten();
     }
 }

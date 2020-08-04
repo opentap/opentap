@@ -53,7 +53,7 @@ namespace OpenTap.Engine.UnitTests
                 string[] passingThings = new[] { "verdict=\"pass\"", "verdict=\"Not Set\"", "verdict=\"not set\"", fileName };
                 foreach (var v in passingThings)
                 {
-                    var proc = TapProcessContainer.StartFromArgs(string.Format("run verdictPlan.TapPlan -e {0}", v));
+                    var proc = TapProcessContainer.StartFromArgs(string.Format("run verdictPlan.TapPlan -e {0}", v),TimeSpan.FromMinutes(5));
                     proc.WaitForEnd();
                     Assert.AreEqual(0, proc.TapProcess.ExitCode);
                 }
@@ -62,7 +62,7 @@ namespace OpenTap.Engine.UnitTests
                 string[] passingThings = new[] { "fail", "Error" };
                 foreach (var v in passingThings)
                 {
-                    var proc = TapProcessContainer.StartFromArgs(string.Format("run verdictPlan.TapPlan -e verdict=\"{0}\"", v));
+                    var proc = TapProcessContainer.StartFromArgs(string.Format("run verdictPlan.TapPlan -e verdict=\"{0}\"", v), TimeSpan.FromMinutes(5));
                     proc.WaitForEnd();
                     if(v == "Error")
                         Assert.AreEqual((int)ExitStatus.RuntimeError, proc.TapProcess.ExitCode);
@@ -75,8 +75,9 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void TestProcessContainer()
         {
-            var proc = TapProcessContainer.StartFromArgs("package list");
+            var proc = TapProcessContainer.StartFromArgs("package list", TimeSpan.FromSeconds(10));
             proc.WaitForEnd();
+            
             Assert.AreEqual(0, proc.TapProcess.ExitCode);
         }
 

@@ -10,7 +10,7 @@ using System.Runtime.Serialization;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.ComponentModel;
-using System.Collections.Immutable;
+using Microsoft.CodeAnalysis;
 
 namespace OpenTap
 {
@@ -166,6 +166,20 @@ namespace OpenTap
                 IsMetaData = false;
             }
         }
+        
+        /// <summary>  Creates a new ResultParameter. </summary>
+        /// <param name="group"></param>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <param name="macroName"></param>
+        public ResultParameter(string group, string name, IConvertible value, string macroName)
+        {
+            Group = group;
+            Name = name;
+            Value = value ?? "NULL";
+            IsMetaData = macroName != null;
+            MacroName = macroName;
+        }
 
         /// <summary>
         /// Determines whether the specified object is equal to the current object.
@@ -208,13 +222,31 @@ namespace OpenTap
     /// </summary>
     public class ResultParameters : IReadOnlyList<ResultParameter>
     {
-        List<ResultParameter> data;
+        struct resultParameter
+        {
+            public string Name;
+            public IConvertible Value;
+            public string Group;
+            public string MacroName;
+            public ResultParameter ToResultParameter() => new ResultParameter(Group, Name, Value, MacroName);
+            public static implicit operator resultParameter(ResultParameter v)
+            {
+                return new resultParameter
+                {
+                    Name = v.Name,
+                    Value = v.Value,
+                    Group = v.Group,
+                    MacroName = v.MacroName
+                };
+            }
+        }
+        resultParameter[] data = Array.Empty<resultParameter>();
 
         /// <summary>
         /// Gets the parameter with the given index.
         /// </summary>
         /// <param name="index"></param>
-        public ResultParameter this[int index] => data[index];
+        public ResultParameter this[int index] => data[index].ToResultParameter();
 
         /// <summary> Gets a ResultParameter by name. </summary>
         /// <param name="name"></param>
@@ -466,14 +498,7 @@ namespace OpenTap
 
         internal void Overwrite(string name, IConvertible value, string group, MetaDataAttribute metadata)
         {
-            if (Find(name) is ResultParameter param)
-            {
-                param.Value = value;
-            }
-            else
-            {
-                Add(new ResultParameter(group, name, value, metadata));
-            }
+           Add(group, name, value, metadata);
         }
 
         /// <summary>
@@ -496,7 +521,6 @@ namespace OpenTap
         /// </summary>
         public ResultParameters()
         {
-            data = new List<ResultParameter>();
             indexByName = new Dictionary<string, int>();
         }
 
@@ -534,7 +558,7 @@ namespace OpenTap
         /// <summary>
         /// Returns the number of result parameters.
         /// </summary>
-        public int Count => data.Count;
+        public int Count => count;
 
         /// <summary>
         /// Adds a new element to the parameters. (synchronized).
@@ -545,11 +569,13 @@ namespace OpenTap
             AddRange(new[] {parameter});
         }
 
+        int count = 0;
+        
         void addRangeUnsafe(IEnumerable<ResultParameter> parameters, bool initCollection = false, int capacity = 0)
         {
             if (initCollection)
             {
-                data = new List<ResultParameter>(capacity);
+                data = new resultParameter[capacity];
                 indexByName = new Dictionary<string, int>(capacity);
                 foreach (var par in parameters)
                 {
@@ -559,8 +585,9 @@ namespace OpenTap
                     }
                     else
                     {
-                        indexByName[par.Name] = data.Count;
-                        data.Add(par);
+                        indexByName[par.Name] = count;
+                        data[count] = par;
+                        count += 1;
                     }
                 }
                 return;
@@ -588,11 +615,11 @@ namespace OpenTap
 
                 if (newIndexes.TryGetValue(par.Name, out idx))
                 {
-                    newParameters[idx - data.Count] = par;    
+                    newParameters[idx - count] = par;    
                 }
                 else
                 {
-                    int nidx = data.Count + newParameters.Count;
+                    int nidx = count + newParameters.Count;
                     newParameters.Add(par);
                     newIndexes[par.Name] = nidx;
                 }   
@@ -600,8 +627,14 @@ namespace OpenTap
 
             if (newIndexes != null)
             {
+
+                Array.Resize(ref data, count + newParameters.Count);
                 foreach (var elem in newParameters)
-                    data.Add(elem);
+                {
+                    data[count] = elem;
+                    count += 1;
+                }
+
                 foreach (var kv in newIndexes)
                     indexByName.Add(kv.Key, kv.Value);
             }
@@ -623,12 +656,22 @@ namespace OpenTap
                 addRangeUnsafe(parameters);
         }
 
-        IEnumerator<ResultParameter> IEnumerable<ResultParameter>.GetEnumerator() => data.GetEnumerator();
-        IEnumerator IEnumerable.GetEnumerator() => data.GetEnumerator();
+        IEnumerator<ResultParameter> IEnumerable<ResultParameter>.GetEnumerator() => data.Select(x => x.ToResultParameter()).GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => data.Select(x => x.ToResultParameter()).GetEnumerator();
 
         /// <summary> Copies all the data inside a ResultParameters instance. </summary>
         /// <returns></returns>
-        internal ResultParameters Clone() => new ResultParameters(this.Select(x => x.Clone()), Count);
+        internal ResultParameters Clone()
+        {
+            var r = new ResultParameters
+            {
+                data = data.ToArray(),
+                indexByName = new Dictionary<string, int>(indexByName)
+            };
+            
+            return r;
+        }
+        
 
         internal IConvertible GetIndexed(string verdictName, ref int verdictIndex)
         {
@@ -647,8 +690,27 @@ namespace OpenTap
             }
             else
             {
-                data[index].Value = value;
+                data[index] = new resultParameter{Name = name, Value = value};
             }
+        }
+
+        
+        internal void IncludeMetadataFromObject(TestPlan obj)
+        {
+            var metadata = GetMetadataFromObject(obj);
+            AddRange(metadata);
+        }
+
+        /// <summary>
+        /// Adds a new result parameter.
+        /// </summary>
+        /// <param name="group"></param>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <param name="metaDataAttribute"></param>
+        public void Add(string group, string name, IConvertible value, MetaDataAttribute metaDataAttribute)
+        {
+            Add(new ResultParameter(group, name, value, metaDataAttribute));
         }
     }
     class NonMetaDataAttribute : Attribute

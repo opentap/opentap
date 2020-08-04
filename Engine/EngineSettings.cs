@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.ComponentModel;
 using System.Xml.Serialization;
@@ -14,7 +15,7 @@ namespace OpenTap
     /// </summary>
     [Display("Engine", "Engine Settings")]
     [HelpLink(@"EditorHelp.chm::/Configurations/Engine Configuration.html")]
-    public class EngineSettings : ComponentSettings<EngineSettings>
+    public class EngineSettings : ComponentSettings<EngineSettings>, IAnnotationWritten
     {
         /// <summary>
         /// Enum to represent choices for <see cref="AbortTestPlan"/> setting.
@@ -99,11 +100,25 @@ namespace OpenTap
             set { Log.Timestamper = value; }
         }
 
+
+        /// <summary>  Available Log sources. </summary>
+        public IEnumerable<string> KnownLogSources => Log.GetKnownSourceNames().Concat(mutedLogSources).ToArray();
+
+        List<string> mutedLogSources = new List<string>();
+        
         /// <summary>
-        /// Gets or sets if test plan status logging is enabled. This affects test plan performance if test steps runs very quickly, in the order of a few ms.
+        /// Gets or sets the list of excluded (muted) log sources.
         /// </summary>
-        [Display("Test Plan Status Logging", Group: "General", Order: 10, Description: "This affects test plan performance if test steps runs very quickly, in the order of a few ms.")]
-        public bool TestPlanStatusLoggingEnabled { get; set; } = true;
+        [AvailableValues(nameof(KnownLogSources))]
+        public List<string> MutedLogSources
+        {
+            get => mutedLogSources;
+            set
+            {
+                mutedLogSources = value;
+                Log.MutedLogSources = value;
+            }
+        }
 
         /// <summary>
         /// Sets up some default values for the various settings.
@@ -150,6 +165,11 @@ namespace OpenTap
         {
             StartupDir = System.IO.Directory.GetCurrentDirectory();
             Environment.SetEnvironmentVariable("ENGINE_DIR", System.IO.Path.GetDirectoryName(typeof(TestPlan).Assembly.Location));
+        }
+
+        void  IAnnotationWritten.AnnotationWritten()
+        {
+            Log.MutedLogSources = MutedLogSources;
         }
     }
 }
