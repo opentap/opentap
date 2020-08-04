@@ -233,7 +233,7 @@ namespace OpenTap
             TestStepId = step.Id;
             TestStepName = step.GetFormattedName();
             TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
-            Parameters = ResultParameters.GetParams(step);
+            Parameters = ResultParameters.GetParams(step, nameof(Duration), nameof(StartTime));
             Verdict = Verdict.NotSet;
             if (attachedParameters != null) Parameters.AddRange(attachedParameters);
             Parent = parent;
@@ -244,7 +244,7 @@ namespace OpenTap
             TestStepId = step.Id;
             TestStepName = step.GetFormattedName();
             TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
-            Parameters = ResultParameters.GetParams(step);
+            Parameters = ResultParameters.GetParams(step, nameof(Duration), nameof(StartTime));
             Verdict = Verdict.NotSet;
             if (attachedParameters != null) Parameters.AddRange(attachedParameters);
             Parent = parent.Id;

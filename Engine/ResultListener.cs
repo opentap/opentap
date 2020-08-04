@@ -223,11 +223,24 @@ namespace OpenTap
         T[][] arrays = Array.Empty<T[]>();
 
         int count;
+        public int Count => count;
 
         public SafeArray(T[] init)
         {
             arrays = new[] {init};
             count = init.Length;
+        }
+
+        public SafeArray(SafeArray<T> original)
+        {
+            count = original.count;
+            arrays = new []{new T[count]};
+            int offset = 0;
+            foreach (var elems in original.arrays)
+            {
+                elems.CopyTo(arrays[0], offset);
+                offset += elems.Length;
+            }
         }
 
         public SafeArray()
@@ -569,16 +582,24 @@ namespace OpenTap
         /// Returns a <see cref="ResultParameters"/> list with one entry for every setting of the inputted 
         /// TestStep.
         /// </summary>
-        public static ResultParameters GetParams(ITestStep step)
+        internal static ResultParameters GetParams(ITestStep step, params string[] extra)
         {
             if (step == null)
                 throw new ArgumentNullException(nameof(step));
             var parameters = new List<ResultParameter>(5);
+            parameters.AddRange(extra.Select(x => new ResultParameter(x, null)));
             GetPropertiesFromObject(step, parameters);
+            
             if (parameters.Count == 0)
                 return new ResultParameters();
             return new ResultParameters(parameters, parameters.Count);
         }
+        
+        /// <summary>
+        /// Returns a <see cref="ResultParameters"/> list with one entry for every setting of the inputted 
+        /// TestStep.
+        /// </summary>
+        public static ResultParameters GetParams(ITestStep step) => GetParams(step, Array.Empty<string>());
 
         /// <summary>
         /// Initializes a new instance of the ResultParameters class.
@@ -643,6 +664,7 @@ namespace OpenTap
                 indexByName = new Dictionary<string, int>(capacity);
                 foreach (var par in parameters)
                 {
+                    if (par?.Name == null) continue; 
                     if (indexByName.TryGetValue(par.Name, out var idx))
                     {
                         data[idx] = par;
@@ -691,8 +713,9 @@ namespace OpenTap
 
             if (newIndexes != null)
             {
-
-                data.Resize(count + newParameters.Count);
+                var newSize = count + newParameters.Count;
+                if(data.Count < newSize)
+                    data.Resize(newSize);
                 foreach (var elem in newParameters)
                 {
                     data[count] = elem;
@@ -729,7 +752,7 @@ namespace OpenTap
         {
             var r = new ResultParameters
             {
-                data = new SafeArray<resultParameter>(data.ToArray()),
+                data = new SafeArray<resultParameter>(data),
                 indexByName = new Dictionary<string, int>(indexByName)
             };
             

@@ -274,11 +274,11 @@ namespace OpenTap
             
             var typedata = stack.GetTypeData(obj);
             if (internedValues.TryGetValue(typedata, out EmbeddedTypeData val))
-                return val;
+                return val ?? typedata;
             if (typedata.GetMembers().Any(x => x.HasAttribute<EmbedPropertiesAttribute>()))
                 return FromTypeData(typedata);
             // assign null to the value.
-            return internedValues.GetValue(typedata, t => null);
+            return internedValues.GetValue(typedata, t => null) ?? typedata;
         }
     }
 }
