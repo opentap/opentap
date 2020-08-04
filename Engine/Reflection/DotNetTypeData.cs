@@ -336,7 +336,7 @@ namespace OpenTap
         {
             var instance = Expression.Parameter(typeof(object), "i");
             UnaryExpression convert1;
-            if(propertyInfo.PropertyType.IsValueType)
+            if(propertyInfo.DeclaringType.IsValueType)
                 convert1 = Expression.Convert(instance, propertyInfo.DeclaringType);
             else
                 convert1 = Expression.TypeAs(instance, propertyInfo.DeclaringType);
