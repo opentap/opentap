@@ -376,7 +376,7 @@ namespace OpenTap
                 throw new ArgumentNullException("res");
             var parameters = new List<ResultParameter>();
             getMetadataFromObject(res, "", parameters);
-            return new ResultParameters(parameters, parameters.Count);
+            return new ResultParameters(parameters);
         }
 
         /// <summary>
@@ -592,7 +592,7 @@ namespace OpenTap
             
             if (parameters.Count == 0)
                 return new ResultParameters();
-            return new ResultParameters(parameters, parameters.Count);
+            return new ResultParameters(parameters);
         }
         
         /// <summary>
@@ -612,18 +612,11 @@ namespace OpenTap
         /// <summary>
         /// Initializes a new instance of the ResultParameters class.
         /// </summary>
-        public ResultParameters(IEnumerable<ResultParameter> items, int capacity)
+        public ResultParameters(IEnumerable<ResultParameter> items)
         {
-            addRangeUnsafe(items, true, capacity);
+            addRangeUnsafe(items, true);
         }
         
-        /// <summary>
-        /// Initializes a new instance of the ResultParameters class.
-        /// </summary>
-        public ResultParameters(IEnumerable<ResultParameter> items) : this(items, (items as IList)?.Count ?? 0)
-        {
-            
-        }
 
         /// <summary>
         /// Returns a dictionary containing all the values in this list indexed by their <see cref="ResultParameter.Name"/>.
@@ -656,10 +649,13 @@ namespace OpenTap
 
         int count = 0;
         
-        void addRangeUnsafe(IEnumerable<ResultParameter> parameters, bool initCollection = false, int capacity = 0)
+        void addRangeUnsafe(IEnumerable<ResultParameter> parameters, bool initCollection = false)
         {
+            
             if (initCollection)
             {
+                var capacity = parameters.Count();
+                    
                 data = new SafeArray<resultParameter>(new resultParameter[capacity]);
                 indexByName = new Dictionary<string, int>(capacity);
                 foreach (var par in parameters)
