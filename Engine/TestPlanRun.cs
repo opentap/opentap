@@ -416,7 +416,7 @@ namespace OpenTap
 
             StartTime = startTime;
             StartTimeStamp = startTimeStamp;
-
+            this.plan = plan;
             serializePlanTask = Task.Factory.StartNew(() =>
             {
                 if (testPlanXml != null)
