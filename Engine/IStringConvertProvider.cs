@@ -644,8 +644,6 @@ namespace OpenTap
             /// <summary> Turns a value into a string, </summary>
             public string GetString(object value, CultureInfo culture)
             {
-                if (value is string)
-                    return null;
                 if (value is IEnumerable seq)
                 {
                     bool isNumeric = true;

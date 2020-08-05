@@ -1601,6 +1601,27 @@ namespace OpenTap.Engine.UnitTests
                 DutSettings.Current.Remove(dut);
             }
         }
+
+        [Test]
+        public void DefaultPlanMetadata()
+        {
+            PlanRunCollectorListener pl1 = new PlanRunCollectorListener();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(new ManySettingsStep());
+            var run = plan.Execute(new[] {pl1});
+            
+            var parameters = run.Parameters;
+            Assert.IsNotNull(parameters.Find("Station"));
+            Assert.IsNull(parameters.Find("Allow Metadata Prompt"));
+            var stepParameters = pl1.StepRuns.FirstOrDefault().Parameters;
+            Assert.IsNotNull(stepParameters.Find("A"));
+            Assert.IsNotNull(stepParameters.Find("Verdict"));
+            Assert.IsNotNull(stepParameters.Find("Duration"));
+            Assert.IsNull(stepParameters.Find(nameof(ManySettingsStep.Id))); // Id is not saved as Parameter
+            Assert.IsNotNull(run.TestPlanXml);
+            Assert.IsNotNull(run.Hash);
+        }
+        
     }
 
     [TestFixture]

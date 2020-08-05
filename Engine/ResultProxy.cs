@@ -373,11 +373,10 @@ namespace OpenTap
 
         }
 
-        Dictionary<Type, Func<object, ResultTable>> ResultFunc = null;//new Dictionary<Type, Func<object, ResultTable>>();
-        private Dictionary<Type, Func<string, object, ResultTable>> AnonResultFunc = null;//new Dictionary<Type, Func<string, object, ResultTable>>();
+        Dictionary<ITypeData, Func<object, ResultTable>> ResultFunc = null;//new Dictionary<Type, Func<object, ResultTable>>();
+        private Dictionary<ITypeData, Func<string, object, ResultTable>> AnonResultFunc = null;//new Dictionary<Type, Func<string, object, ResultTable>>();
         object resultFuncLock = new object(); 
             
-        
         /// <summary>
         /// Stores an object as a result.  These results will be propagated to the ResultStore after the TestStep completes.
         /// </summary>
@@ -387,25 +386,23 @@ namespace OpenTap
         {
             if (result == null)
                 throw new ArgumentNullException("result");
-            Type runtimeType = result.GetType();
+            ITypeData runtimeType = TypeData.GetTypeData(result);
             if (ResultFunc == null)
             {
                 lock (resultFuncLock)
-                    ResultFunc = new Dictionary<Type, Func<object, ResultTable>>();
+                    ResultFunc = new Dictionary<ITypeData, Func<object, ResultTable>>();
             }
             if (!ResultFunc.ContainsKey(runtimeType))
             {
                 var Typename = runtimeType.GetDisplayAttribute().GetFullName();
-                var Props = runtimeType.GetPropertiesTap().Where(p => p.GetMethod != null).Where(p => p.PropertyType.DescendsTo(typeof(IConvertible))).ToList();
-                var PropNames = Props.Select(p => p.GetDisplayAttribute().GetFullName()).ToList();
+                var Props = runtimeType.GetMembers().Where(x => x.Readable && x.TypeDescriptor.DescendsTo(typeof(IConvertible))).ToArray();
+                var PropNames = Props.Select(p => p.GetDisplayAttribute().GetFullName()).ToArray();
 
                 ResultFunc[runtimeType] = (v) =>
                 {
-                    var cols = new ResultColumn[Props.Count];
-
-                    for (int i = 0; i < Props.Count; i++)
-                        cols[i] = new ResultColumn(PropNames[i], GetArray(Props[i].PropertyType, Props[i].GetValue(v)));
-
+                    var cols = new ResultColumn[Props.Length];
+                    for (int i = 0; i < Props.Length; i++)
+                        cols[i] = new ResultColumn(PropNames[i], GetArray(Props[i].TypeDescriptor.AsTypeData().Type, Props[i].GetValue(v)));
                     return new ResultTable(Typename, cols);
                 };
             }
@@ -423,21 +420,21 @@ namespace OpenTap
         /// <param name="result">The result whose properties should be stored.</param>
         public void Publish<T>(string name, T result)
         {
-            Type runtimeType = result.GetType();
+            var runtimeType = TypeData.GetTypeData(result);
             if(AnonResultFunc == null)
                 lock (resultFuncLock)
-                    AnonResultFunc = new Dictionary<Type, Func<string, object, ResultTable>>();
+                    AnonResultFunc = new Dictionary<ITypeData, Func<string, object, ResultTable>>();
             if (!AnonResultFunc.ContainsKey(runtimeType))
             {
-                var Props = runtimeType.GetPropertiesTap().Where(p => p.GetMethod != null).Where(p => p.PropertyType.DescendsTo(typeof(IConvertible))).ToList();
-                var PropNames = Props.Select(p => p.GetDisplayAttribute().GetFullName()).ToList();
+                var Props = runtimeType.GetMembers().Where(x => x.Readable && x.TypeDescriptor.DescendsTo(typeof(IConvertible))).ToArray();
+                var PropNames = Props.Select(p => p.GetDisplayAttribute().GetFullName()).ToArray();
 
                 AnonResultFunc[runtimeType] = (n, v) =>
                 {
-                    var cols = new ResultColumn[Props.Count];
+                    var cols = new ResultColumn[Props.Length];
 
-                    for (int i = 0; i < Props.Count; i++)
-                        cols[i] = new ResultColumn(PropNames[i], GetArray(Props[i].PropertyType, Props[i].GetValue(v)));
+                    for (int i = 0; i < Props.Length; i++)
+                        cols[i] = new ResultColumn(PropNames[i], GetArray(Props[i].TypeDescriptor.AsTypeData().Type, Props[i].GetValue(v)));
 
                     return new ResultTable(n, cols);
                 };

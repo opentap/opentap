@@ -363,7 +363,7 @@ namespace OpenTap
 
         static void getMetadataFromObject(object res, string nestedName, ICollection<ResultParameter> output)
         {
-            GetPropertiesFromObject(res, output, nestedName);
+            GetPropertiesFromObject(res, output, nestedName, true);
         }
 
         /// <summary>
@@ -532,13 +532,14 @@ namespace OpenTap
             return result;
         }
         
-        private static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "")
+        private static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", bool metadataOnly = false)
         {
             if (obj == null)
                 return;
             var type = TypeData.GetTypeData(obj);
             foreach (var (prop, group, name, metadata) in GetParametersMap(type))
             {
+                if (metadataOnly && metadata == null) continue;
                 object value = prop.GetValue(obj);
                 if (value == null)
                     continue;

@@ -29,9 +29,7 @@ namespace OpenTap
         /// </summary>
         public Type Type => Load();
 
-        // Since AddAssembly is called inside createValueCallback,
-        // the value creation must be locked, throwing an exception
-        // inside createValueCallback can cause critical errors.
+        // add assembly is not thread safe.
         static object loadTypeDictLock = new object();
         
         /// <summary> Creates a new TypeData object to represent a dotnet type. </summary>
@@ -41,32 +39,35 @@ namespace OpenTap
             if (dict.TryGetValue(type, out var i))
                 return i;
             TypeData td = null;
-            var searcher = PluginManager.GetSearcher();
-
-            searcher?.AllTypes.TryGetValue(type.FullName, out td);
-            if (td == null && searcher != null)
+            lock (loadTypeDictLock)
             {
-                // This can occur for some types inside mscorlib such as System.Net.IPAddress.
-                try
+                var searcher = PluginManager.GetSearcher();
+
+                searcher?.AllTypes.TryGetValue(type.FullName, out td);
+                if (td == null && searcher != null)
                 {
-                    if (type.Assembly != null && type.Assembly.IsDynamic == false &&
-                        type.Assembly.Location != null)
+                    // This can occur for some types inside mscorlib such as System.Net.IPAddress.
+                    try
                     {
-                        searcher.AddAssembly(type.Assembly.Location, type.Assembly);
-                        if (searcher.AllTypes.TryGetValue(type.FullName, out td))
-                            return td;
+                        if (type.Assembly != null && type.Assembly.IsDynamic == false &&
+                            type.Assembly.Location != null)
+                        {
+                            searcher.AddAssembly(type.Assembly.Location, type.Assembly);
+                            if (searcher.AllTypes.TryGetValue(type.FullName, out td))
+                                return td;
+                        }
                     }
+                    catch
+                    {
+                    }
+
+                    td = new TypeData(type);
                 }
-                catch
-                {
-                }
-                td = new TypeData(type);
             }
+
             return dict.GetValue(type, x => td);
-            
-                
-            
         }
+        
         TypeData(Type type)
         {
             this.type = type;
