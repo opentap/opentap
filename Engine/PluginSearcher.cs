@@ -796,15 +796,20 @@ namespace OpenTap
         {
             get
             {
-                if (display is null && attributes is object)
-                    if (attributes.OfType<DisplayAttribute>().FirstOrDefault() is DisplayAttribute displayAttr)
-                        display = displayAttr;
+                if (display is null && attributes != null)
+                {
+                    foreach (var attr in attributes)
+                    {
+                        if (attr is DisplayAttribute displayAttr)
+                        {
+                            display = displayAttr;
+                            break;
+                        }
+                    }
+                }    
                 return display;
             }
-            internal set
-            {
-                display = value;
-            }
+            internal set => display = value;
         }
 
 

@@ -145,7 +145,7 @@ namespace OpenTap
         }
         TypeCode typecode = TypeCode.Object;
 
-        IEnumerable<object> attributes = null;
+        object[] attributes = null;
         /// <summary> 
         /// The attributes of this type. 
         /// Accessing this property causes the underlying Assembly to be loaded if it is not already.
@@ -216,12 +216,18 @@ namespace OpenTap
         /// </summary>
         public IMemberData GetMember(string name)
         {
-            var members = GetMembers();
+            var members = (IMemberData[]) GetMembers();
+            foreach(var member in members)
+            {
+                if(member.Name == name)
+                    return member;
+            }
+            
+            // In some cases it could be useful to match in display name as well
+            // we should consider removing this behavior for consistency and performance reasons..
             foreach(var member in members)
             {
                 if(member.GetDisplayAttribute().GetFullName() == name)
-                    return member;
-                else if(member.Name == name)
                     return member;
             }
             return null;

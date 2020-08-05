@@ -426,8 +426,34 @@ namespace OpenTap.Engine.UnitTests
             }
 
             var td2 = TypeData.GetTypeData("System.Windows.WindowState");
-
         }
+
+        class NestedClass
+        {
+            public double X { get; set; }
+        }
+        
+        /// <summary>
+        /// This test verifies the reflection behavior of TypeData to ensure it does not change in the future unpurposedly.
+        /// </summary>
+        [Test]
+        public void TypeDataBehaviors()
+        {
+             
+            var obj = new NestedClass();
+            var t = TypeData.GetTypeData(obj);
+            Assert.AreEqual(nameof(NestedClass), t.GetDisplayAttribute().Name);
+            var members = t.GetMembers();
+            Assert.AreEqual(1, members.Count());
+            var x = members.FirstOrDefault();
+            Assert.AreEqual(x, t.GetMember(nameof(NestedClass.X)));
+            Assert.IsTrue(x.Readable);
+            Assert.IsTrue(x.Writable);
+            Assert.AreEqual(t, x.DeclaringType);
+            Assert.AreEqual(TypeData.FromType(typeof(double)), x.TypeDescriptor);
+            Assert.AreEqual(nameof(NestedClass.X), x.GetDisplayAttribute().Name);
+        }
+        
 
         [Test]
         public void MemberDataSerializeTest()
