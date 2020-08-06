@@ -65,7 +65,7 @@ pages:
   dependencies:
     - Doc-API
   only:
-    - master
+    - /^release.*$/
   cache:
     paths:
     - doc/node_modules/
