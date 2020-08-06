@@ -9,7 +9,8 @@ $(GitVersion) - Gets the version from Git in the recommended format Major.Minor.
 <Package Name="Example Plugin"
          xmlns="http://opentap.io/schemas/package"
          InfoLink="http://www.keysight.com/"
-         Version="0.1.0-alpha">
+         Version="0.1.0-alpha"
+         Tags="sdk example">
   <Description>Example plugin containing Instrument, DUT and TestStep.</Description>
   <Files>
     <File Path="Packages/Example Plugin/OpenTap.Plugins.ExamplePlugin.dll">
