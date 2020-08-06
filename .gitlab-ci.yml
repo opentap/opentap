@@ -190,6 +190,8 @@ TestLinuxPlan:
         - cd ..
         - publish/tap sdk gitversion -v          # verify that gitversion works.
         - publish/tap sdk gitversion --log 10 # verify that gitversion log works.
+        - publish/tap package verify || exit_code=$?
+        - if [ $exit_code -eq 2 ]; then echo \"OK\"; else echo \"FAIL\"; false; fi
 
 TestUbuntu:
   stage: test
