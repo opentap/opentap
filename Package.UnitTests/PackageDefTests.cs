@@ -475,6 +475,61 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
+        public void findDependencies_HardcodedDependency()
+        {
+            CliTests.CreateOpenTAPPackage();
+            var inst = new Installation(Directory.GetCurrentDirectory());
+            var pkgs = inst.GetPackages();
+            string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
+<Package Name='Test3' xmlns ='http://opentap.io/schemas/package'>
+  <Dependencies>
+    <PackageDependency Package='OpenTAP' Version='Any'/>
+  </Dependencies>
+  <Files>
+    <File Path='OpenTap.Package.UnitTests.dll'/>
+  </Files>
+</Package>
+";
+            string inputFilename = "test3.package.xml";
+            File.WriteAllText(inputFilename, inputXml);
+
+            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename);
+
+            // This package should depend on the OpenTAP package only once.
+            Assert.AreEqual(1, pkg.Dependencies.Count(d => d.Name == "OpenTAP"));
+        }
+
+        [Test]
+        public void findDependencies_HardcodedDependencyNotInstalled()
+        {
+            CliTests.CreateOpenTAPPackage();
+            var inst = new Installation(Directory.GetCurrentDirectory());
+            var pkgs = inst.GetPackages();
+            string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
+<Package Name='Test3' xmlns ='http://opentap.io/schemas/package'>
+  <Dependencies>
+    <PackageDependency Package='NotInstalled' Version='Any'/>
+  </Dependencies>
+  <Files>
+    <File Path='OpenTap.Package.UnitTests.dll'/>
+  </Files>
+</Package>
+";
+            string inputFilename = "test3.package.xml";
+            File.WriteAllText(inputFilename, inputXml);
+
+            try
+            {
+                PackageDef pkg = PackageDefExt.FromInputXml(inputFilename);
+                Assert.Fail("Missing dependency should have thrown an exception");
+            }
+            catch(Cli.ExitCodeException ex)
+            {
+                Assert.AreEqual((int)PackageCreateAction.ExitCodes.PackageDependencyError, ex.ExitCode);
+            }
+        }
+
+        [Test]
         public void findDependencies_SharedAssemblyReferenceInDependencies()
         {
             CliTests.CreateOpenTAPPackage();

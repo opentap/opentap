@@ -20,6 +20,17 @@ namespace OpenTap.Package
     [Display("create", Group: "package", Description: "Creates a package based on an XML description file.")]
     public class PackageCreateAction : PackageAction
     {
+        internal enum ExitCodes
+        {
+            // Exit code 1 is used by CliActionExecutor (e.g. for errors parsing command line args)
+            GeneralPackageCreateError = 2,
+            InvalidPackageDefinition = 3,
+            FileSystemError = 4,
+            InvalidPackageName = 5,
+            PackageDependencyError = 6,
+            AssemblyDependencyError = 7,
+        }
+
         /// <summary>
         /// The default file extension for OpenTAP packages.
         /// </summary>
@@ -88,12 +99,12 @@ namespace OpenTap.Package
                 if (!File.Exists(PackageXmlFile))
                 {
                     log.Error("Cannot locate XML file '{0}'", PackageXmlFile);
-                    return 4;
+                    return (int)ExitCodes.FileSystemError;
                 }
                 if (!Directory.Exists(ProjectDir))
                 {
                     log.Error("Project directory '{0}' does not exist.", ProjectDir);
-                    return 4;
+                    return (int)ExitCodes.FileSystemError;
                 }
                 try
                 {
@@ -105,7 +116,7 @@ namespace OpenTap.Package
                     if (illegalCharacter >= 0)
                     {
                         log.Error("Package name cannot contain invalid file path characters: '{0}'", pkg.Name[illegalCharacter]);
-                        return 5;
+                        return (int)ExitCodes.InvalidPackageName;
                     }
                 }
                 catch (AggregateException aex)
@@ -168,19 +179,13 @@ namespace OpenTap.Package
             catch (ArgumentException ex)
             {
                 Console.Error.WriteLine(ex.Message);
-                return 2;
+                return (int)ExitCodes.GeneralPackageCreateError;
             }
             catch (InvalidDataException ex)
             {
                 log.Error("Caught invalid data exception: {0}", ex.Message);
 
-                return 3;
-            }
-            catch (Exception ex)
-            {
-                log.Error(ex.Message);
-                log.Debug(ex);
-                return 4;
+                return (int)ExitCodes.InvalidPackageDefinition;
             }
             return 0;
         }

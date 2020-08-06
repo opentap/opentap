@@ -442,24 +442,29 @@ namespace OpenTap.Package
 
             var packageAssemblies = new Memorizer<PackageDef, List<AssemblyData>>(getPackageAssemblues);
 
-            var missingPackage = new List<string>();
-
-            // TODO: figure out if this is ever needed
-            //foreach (var dep in pkg.Dependencies)
-            //{
-            //    if (dep.Version == null)
-            //    {
-            //        var current = installed.FirstOrDefault(ip => ip.Name == dep.Name);
-
-            //        if (current == null)
-            //            missingPackage.Add(dep.Name);
-            //        else
-            //            dep.Version = new VersionSpecifier(current.Version, VersionMatchBehavior.Compatible);
-            //    }
-            //}
-
-            if (missingPackage.Any())
-                throw new Exception(string.Format("A number of packages could not be found while updating package dependency versions: {0}", string.Join(", ", missingPackage)));
+            // check versions of any hardcoded dependencies against what is currently installed
+            foreach(PackageDependency dep in pkg.Dependencies)
+            {
+                var installedPackage = installed.FirstOrDefault(ip => ip.Name == dep.Name);
+                if (installedPackage != null)
+                {
+                    if (dep.Version == null)
+                    {
+                        dep.Version = new VersionSpecifier(installedPackage.Version, VersionMatchBehavior.Compatible);
+                        log.Info("A version was not specified for package dependency {0}. Using installed version ({1}).", dep.Name, dep.Version);
+                    }
+                    else
+                    {
+                        if (!dep.Version.IsCompatible(installedPackage.Version))
+                            throw new ExitCodeException((int)PackageCreateAction.ExitCodes.PackageDependencyError, $"Installed version of {dep.Name} ({installedPackage.Version}) is incompatible with dependency specified in package definition ({dep.Version}).");
+                    }
+                }
+                else
+                {
+                    throw new ExitCodeException((int)PackageCreateAction.ExitCodes.PackageDependencyError, 
+                                                $"Package dependency '{dep.Name}' specified in package definition is not installed. Please install a compatible version first.");
+                }
+            }
 
             // Find additional dependencies
             do
@@ -505,24 +510,6 @@ namespace OpenTap.Package
                         foreach(AssemblyData candidateAsm in packageAssemblies[candidatePkg])
                         {
                             var requiredAsm = dependentAssemblyNames.FirstOrDefault(dep => dep.Name == candidateAsm.Name);
-                            //if (candidateAsm.Location.Contains("Dependencies"))
-                            //{
-                            //    // We shouldn't satisfy assembly references using a package dependency to a package that only has the desired assembly in its Dependencies folder.
-                            //    // Instead, this package should just also ship that referenced assembly itself inside it's Dependencies folder.
-                            //    var satisfyingAsm = searchedFiles.FirstOrDefault(asm => (asm.Name == requiredAsm.Name) && asm.Version == requiredAsm.Version);
-                            //    if (satisfyingAsm == null)
-                            //    {
-                            //        var depender = pkg.Files.FirstOrDefault(f => f.DependentAssemblies.Contains(requiredAsm));
-                            //        if(depender == null)
-                            //            throw new ExitCodeException(6, $"Required reference {requiredAsm.Name} not found.");
-                            //        else
-                            //            throw new ExitCodeException(6, $"Payload assembly {depender} requires assembly {requiredAsm.Name} which cannot be found.");
-                            //    }
-                                
-                            //    AddFileDependencies(pkg, requiredAsm ?? satisfyingAsm, satisfyingAsm);
-                            //    packageAssemblies.Invalidate(pkg);
-                            //}
-                            //else 
                             if (requiredAsm != null)
                             {
 							    if(OpenTap.Utils.Compatible(candidateAsm.Version, requiredAsm.Version))
@@ -543,7 +530,8 @@ namespace OpenTap.Package
                                     else
                                         log.Error($"{Path.GetFileName(depender.FileName)} in this package require assembly {requiredAsm.Name} in version {requiredAsm.Version} while that assembly is already installed through package '{candidatePkg.Name}' in version {candidateAsm.Version}.");
                                     //log.Error($"Please align the version of {requiredAsm.Name} to ensure interoperability with package '{candidate.Key.Name}' or uninstall that package.");
-                                    throw new ExitCodeException(5, $"Please align the version of {requiredAsm.Name} to ensure interoperability with package '{candidatePkg.Name}' or uninstall that package.");
+                                    throw new ExitCodeException((int)PackageCreateAction.ExitCodes.AssemblyDependencyError, 
+                                                                $"Please align the version of {requiredAsm.Name} to ensure interoperability with package '{candidatePkg.Name}' or uninstall that package.");
                                 }
                             }
                         }
