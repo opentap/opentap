@@ -10,6 +10,7 @@ using System.Threading;
 using System.IO;
 using OpenTap.Diagnostic;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 namespace OpenTap
 {
@@ -309,6 +310,15 @@ namespace OpenTap
             listener.Flush();
             TapContext.DetachListener(listener);
             listener.Flush();
+        }
+
+        /// <summary>
+        /// Gets all added TraceListeners.
+        /// </summary>
+        /// <returns>A readonly collection of TraceListeners.</returns>
+        public static ReadOnlyCollection<ILogListener> GetListeners()
+        {
+            return (TapContext as LogContext)?.GetListeners();
         }
 
         /// <summary> Creates a new log source. </summary>
