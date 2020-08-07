@@ -270,6 +270,10 @@ namespace OpenTap.Package
             AddWritePair("Package Type", package.FileType);
             AddWritePair("Package Class", package.Class);
 
+            var tags = package.Tags?.Split(new string[]{ " ", "," }, StringSplitOptions.RemoveEmptyEntries);
+            if (tags?.Length > 0)
+                AddWritePair("Package Tags", string.Join(" ", tags));
+
             if (package.Dependencies.Count > 0)
             {
                 AddWritePair("Dependencies", string.Join(Environment.NewLine, package.Dependencies.Select(x => x.Name)));
