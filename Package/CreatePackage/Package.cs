@@ -115,7 +115,10 @@ namespace OpenTap.Package
         /// Load from an XML package definition file. 
         /// This file is not expected to have info about the plugins in it, so this method will enumerate the plugins inside each dll by loading them.
         /// </summary>
-        public static PackageDef FromInputXml(string xmlFilePath)
+        /// <param name="xmlFilePath">The Package Definition xml file. Usually named package.xml</param>
+        /// <param name="projectDir">Directory used byt GitVersionCalculator to expand any $(GitVersion) macros in the XML file.</param>
+        /// <returns></returns>
+        public static PackageDef FromInputXml(string xmlFilePath, string projectDir)
         {
             PackageDef.ValidateXml(xmlFilePath);
             var pkgDef = PackageDef.FromXml(xmlFilePath);
@@ -176,7 +179,11 @@ namespace OpenTap.Package
             {
                 EnumeratePlugins(pkgDef, assemblies);
             }
-            
+
+            log.Info("Updating package version.");
+            pkgDef.updateVersion(projectDir);
+            log.Info("Package version is {0}", pkgDef.Version);
+
             pkgDef.findDependencies(excludeAdd, assemblies);
 
             return pkgDef;
@@ -592,7 +599,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Creates a *.TapPackage file from the definition in this PackageDef.
         /// </summary>
-        static public void CreatePackage(this PackageDef pkg, string path, string projectDir)
+        static public void CreatePackage(this PackageDef pkg, string path)
         {
             foreach (PackageFile file in pkg.Files)
             {
@@ -633,10 +640,6 @@ namespace OpenTap.Package
             log.Debug("Using temporary folder at '{0}'", tempDir);
             try
             {
-                log.Info("Updating package version.");
-                pkg.updateVersion(projectDir);
-                log.Info("Package version is {0}", pkg.Version);
-                
                 UpdateVersionInfo(tempDir, pkg.Files, pkg.Version);
 
                 // License Inject

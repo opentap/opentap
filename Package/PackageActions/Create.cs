@@ -109,7 +109,7 @@ namespace OpenTap.Package
                 try
                 {
                     var fullpath = Path.GetFullPath(PackageXmlFile);
-                    pkg = PackageDefExt.FromInputXml(fullpath);
+                    pkg = PackageDefExt.FromInputXml(fullpath,ProjectDir);
 
                     // Check if package name has invalid characters or is not a valid path
                     var illegalCharacter = pkg.Name.IndexOfAny(Path.GetInvalidFileNameChars());
@@ -142,7 +142,7 @@ namespace OpenTap.Package
                 if(string.IsNullOrEmpty(pkg.RawVersion))
                     log.Warning($"Package version is {pkg.Version} due to blank or missing 'Version' XML attribute in 'Package' element");
 
-                pkg.CreatePackage(tmpFile, ProjectDir);
+                pkg.CreatePackage(tmpFile);
 
                 if (OutputPaths == null || OutputPaths.Length == 0)
                     OutputPaths = new string[1] { "" };
