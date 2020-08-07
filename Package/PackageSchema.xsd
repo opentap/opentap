@@ -121,6 +121,7 @@
       <xs:attribute name="FileType" type="xs:string" default="tappackage"/>
       <xs:attribute name="Class" type="xs:string" default="package"/>
       <xs:attribute name="Group" type="xs:string"/>
+      <xs:attribute name="Tags" type="xs:string"/>
     </xs:complexType>
   </xs:element>
 </xs:schema>
