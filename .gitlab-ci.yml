@@ -188,6 +188,15 @@ TestLinuxPlan:
         - tap sdk gitversion --log 10 # verify that gitversion log works.
         - tap package verify || exit_code=$?
         - check_exit_code 2
+        - sed -i "/Sign Certificate/ d" opentap_linux64.package.xml
+        - cd bin/Release/publish
+        - tap package create ../../../opentap_linux64.package.xml -o OpenTAP.TapPackage
+        - tap | grep Interface
+        - mkdir test
+        - tap package install OpenTAP.TapPackage --target test
+        - cd test
+        - ./tap | grep Interface
+        - ./tap package verify OpenTAP
 
 TestUbuntu:
   stage: test
