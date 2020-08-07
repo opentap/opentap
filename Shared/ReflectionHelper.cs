@@ -538,11 +538,9 @@ namespace OpenTap
             public bool IsLocked;
         }
         
-        /// <summary>
-        /// If a certain time passes a result should be removed.
-        /// </summary>
-        public TimeSpan SoftSizeDecayTime = TimeSpan.FromSeconds(30.0);
-        protected Func<ArgT, MemorizerKey> getKey = null;
+        /// <summary> If a certain time passes a result should be removed. By default, never. </summary>
+        public TimeSpan SoftSizeDecayTime = TimeSpan.MaxValue;
+        protected Func<ArgT, MemorizerKey> getKey;
         protected Func<ArgT, ResultT> getData = argt => (ResultT)(object)argt;
         
         readonly Dictionary<MemorizerKey, DateTime> lastUse = new Dictionary<MemorizerKey, DateTime>();
@@ -566,11 +564,8 @@ namespace OpenTap
             Func<ArgT, ResultT> extractData = null)
         {
             if (extractData != null)
-            {
                 getData = extractData;
-            }
             this.getKey = getKey;
-            
         }
 
         /// <summary>
@@ -589,26 +584,32 @@ namespace OpenTap
 
         Status checkSizeConstraints()
         {
-            lock (memorizerTable)
+            if (SoftSizeDecayTime < TimeSpan.MaxValue || MaxNumberOfElements.HasValue
+                && (ulong) memorizerTable.Count > MaxNumberOfElements.Value)
             {
-                var removeKey = lastUse.Keys.FindMin(key2 => lastUse[key2]);
-                if (removeKey != null)
+                lock (memorizerTable)
                 {
-                    if (SoftSizeDecayTime < DateTime.UtcNow - lastUse[removeKey])
+
+                    var removeKey = lastUse.Keys.FindMin(key2 => lastUse[key2]);
+                    if (removeKey != null)
                     {
-                        lastUse.Remove(removeKey);
-                        memorizerTable.Remove(removeKey);
-                        return Status.Changed;
-                    }
-                    else if (MaxNumberOfElements.HasValue
-                       && (ulong)memorizerTable.Count > MaxNumberOfElements.Value)
-                    {
-                        lastUse.Remove(removeKey);
-                        memorizerTable.Remove(removeKey);
-                        return Status.Changed;
+                        if (SoftSizeDecayTime < DateTime.UtcNow - lastUse[removeKey])
+                        {
+                            lastUse.Remove(removeKey);
+                            memorizerTable.Remove(removeKey);
+                            return Status.Changed;
+                        }
+                        else if (MaxNumberOfElements.HasValue
+                                 && (ulong) memorizerTable.Count > MaxNumberOfElements.Value)
+                        {
+                            lastUse.Remove(removeKey);
+                            memorizerTable.Remove(removeKey);
+                            return Status.Changed;
+                        }
                     }
                 }
             }
+
             return Status.Unchanged;
         }
         
@@ -617,13 +618,7 @@ namespace OpenTap
             return getKey == null ? (MemorizerKey)(object)arg : getKey(arg);
         }
 
-        public ResultT this[ArgT arg]
-        {
-            get
-            {
-                return Invoke(arg);
-            }
-        }
+        public ResultT this[ArgT arg] => Invoke(arg);
 
         public ResultT Invoke(ArgT arg)
         {

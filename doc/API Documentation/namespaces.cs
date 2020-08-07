@@ -7,16 +7,16 @@
 
 ///<summary></summary>
 namespace OpenTap{
+  ///<summary>Command Line Interface handling.</summary>
+  namespace Cli {
+
+  }
   ///<summary>Contains diagnostic functionality like the OpenTAP logging system.</summary>
   namespace Diagnostic{
 
   }
   ///<summary> Plugin name space. </summary>
   namespace Plugins{
-
-  }
-  ///<summary> Contains plugins for converting from/to strings..</summary>
-  namespace StringConvertPlugins{
 
   }
 }

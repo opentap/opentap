@@ -7,6 +7,7 @@ stages:
   - test
   - package
   - installer
+  - testinstaller
   - publish
 
 #############################################
@@ -25,32 +26,20 @@ Build-DevGuide:
     paths:
        - sdk/Examples/OpenTAP Developer Guide.pdf
 
-Doc-API-Prepare:
-  stage: build
-  image: opentapio/opentap:9.5-ubuntu18.04
-  tags: [ docker, gce ]
-  script:
-        - tap sdk gitversion --replace "doc/API Documentation/Doxyfile" --fields 2
-  artifacts:
-    expire_in: 1 week
-    paths:
-       - "doc/API Documentation/Doxyfile"
-
 Doc-API:
-  stage: test
+  stage: build
   image: registry.gitlab.com/opentap/buildrunners/doxygen:latest
   tags: [ docker, gce ]
-  dependencies:
-    - Doc-API-Prepare
   script: 
-         - mkdir Help
-         - mkdir API
+         - mkdir Help API
+         - ver=$(grep ^version .gitversion | sed 's/version[ ]*=[ ]*//' | cut -d. -f 1-2)
+         - sed -i "s/\$(GitVersion)/$ver/" "doc/API Documentation/Doxyfile"
          - rootdir=`pwd`
          - cd "doc/API Documentation"
          - doxygen Doxyfile
-         - cd "apiref/html"
+         - cd apiref/html
          - chmcmd index.hhp
-         - cp OpenTapApiReference.chm $rootdir/Help/
+         - mv OpenTapApiReference.chm $rootdir/Help/
          - cp -r . $rootdir/API/
   artifacts:
     expire_in: 1 week
@@ -64,7 +53,7 @@ pages:
   dependencies:
     - Doc-API
   only:
-    - master
+    - /^release.*$/
   cache:
     paths:
     - doc/node_modules/
@@ -152,6 +141,7 @@ TestEngine:
     paths:
        - "TestResult.xml"
 
+
 # Can't run on docker, as a unit test is using dotfuscator
 TestPackage:
   stage: test
@@ -171,6 +161,18 @@ TestPackage:
     paths:
        - "TestResult.xml"
 
+TestLinuxPlan:
+  stage: test
+  tags: [docker, gce]
+  image: mcr.microsoft.com/dotnet/core/sdk:2.1-bionic
+  dependencies:
+    - Build-Linux64
+  needs:
+    - Build-Linux64
+  script:
+    - mv bin/Release/publish/* bin/Release
+    - bin/Release/tap run tests/regression.TapPlan --verbose
+
 .LinuxScript:
   tags: [ docker, gce ]
   dependencies:
@@ -186,7 +188,8 @@ TestPackage:
         - bash run_ubuntu_test.sh
         - ldconfig -p
         - cd ..
-        - publish/tap sdk gitversion --verbose # verify that gitversion works.
+        - publish/tap sdk gitversion -v          # verify that gitversion works.
+        - publish/tap sdk gitversion --log 10 # verify that gitversion log works.
 
 TestUbuntu:
   stage: test
@@ -410,10 +413,6 @@ Installer-Linux:
   stage: installer
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
-  only:
-    - tags
-    - /^release.*$/
-    - master
   dependencies:
      - Package-Linux
   script:
@@ -433,7 +432,6 @@ Installer-Linux:
     expire_in: 1 week
     paths:
        - "OpenTAP.tar"
-
 
 Package-Build-Deb:
   stage: installer
@@ -457,6 +455,25 @@ Package-Build-Deb:
     expire_in: 1 week
     paths: 
       - OpenTAP.deb
+
+#############################################
+# Stage: test installer                     #
+#############################################
+
+Test-Installer-Linux:
+  stage: testinstaller
+  image: mcr.microsoft.com/dotnet/core/runtime:2.1.12-bionic
+  tags: [ docker, gce ]
+  dependencies:
+    - Installer-Linux
+  script:
+    - apt update
+    - apt install unzip -y
+    - tar xf OpenTAP.tar
+    - chmod +x ./INSTALL.sh
+    - echo 'y' | ./INSTALL.sh
+    - $HOME/bin/tap -h
+    - $HOME/bin/tap package list -v
 
 #############################################
 # Stage: publish                            #

@@ -98,6 +98,7 @@ namespace OpenTap.Engine.UnitTests
         ///A test for Run
         ///</summary>
         [Test]
+        [Pairwise]
         public void RunTest([Values(false, true)] bool open)
         {
             TestTraceListener trace = new TestTraceListener();
@@ -551,7 +552,65 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
-        
+        class DeferredResultsStep : TestStep
+        {
+            public bool IsDone = false;
+            public Semaphore sem = new Semaphore(0, 1);
+            public Semaphore canFinish = new Semaphore(0, 1);
+            public override void Run()
+            {
+                Results.Defer(() =>
+                {
+                    sem.Release();
+                    canFinish.WaitOne();
+                });
+            }
+        }
+
+        [Test]
+        public void DeferAndAbort([Values(true, false)] bool WrapSequence)
+        {
+            var defer = new DeferredResultsStep();
+            var plan = new TestPlan();
+            if (WrapSequence)
+            {
+                var sequenceStep = new SequenceStep();
+                sequenceStep.ChildTestSteps.Add(defer);
+                plan.ChildTestSteps.Add(sequenceStep);
+            }
+            else
+            {
+                plan.ChildTestSteps.Add(defer);
+            }
+
+            var sem2 = new Semaphore(0, 1);
+            var thread = TapThread.Start(() =>
+            {
+                try
+                {
+                    plan.Execute();
+                }
+                finally
+                {
+                    sem2.Release();
+                }
+            });
+            defer.sem.WaitOne();
+            thread.Abort();
+            try
+            {
+                bool hangs = sem2.WaitOne(50) == false;
+                Assert.IsTrue(hangs, "Deferred results step should wait.");
+            }
+            finally
+            {
+                defer.canFinish.Release();    
+            }
+            bool isDone = sem2.WaitOne(10000);
+            if(!isDone)
+                Assert.Fail("Test plan timed out");
+            Assert.IsTrue(isDone);
+        }
 
         [Test]
         public void RelativeTestPlanTest()
@@ -1202,7 +1261,7 @@ namespace OpenTap.Engine.UnitTests
         {
             // run an excessively long test plan.
 
-            int Count = 5000;
+            int Count = 500;
             double maxDuration = 50;
             TestPlan plan = new TestPlan();
             TimeGuardStep guard = new TimeGuardStep() { Timeout = maxDuration, StopOnTimeout = true };

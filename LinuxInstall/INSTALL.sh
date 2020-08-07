@@ -15,8 +15,8 @@ Please see https://docs.microsoft.com/en-us/dotnet/core/install/runtime for inst
 '
 fi
 
-DEST_DIR=$HOME/.tap
-BIN_DIR=$HOME/bin
+DEST_DIR="$HOME/.tap"
+BIN_DIR="$HOME/bin"
 
 echo "TAP will be installed in $DEST_DIR, and shortcuts in $BIN_DIR"
 
@@ -27,28 +27,30 @@ if [ -e "$DEST_DIR" ] && [ -n "$(ls -A "$DEST_DIR")" ]; then
 fi
 
 while true; do
-    read -p 'Do you wish to install OpenTAP?
+    read -r -p 'Do you wish to install OpenTAP?
 ' yn
 
     case $yn in
-        [Yy]* ) break;;
-        [Nn]* ) exit;;
-        * ) echo "Please answer yes or no.";;
+    [Yy]*) break ;;
+    [Nn]*) exit ;;
+    *) echo "Please answer yes or no." ;;
     esac
 done
 
-CUR_DIR=`pwd`
+mkdir -p "$DEST_DIR"
+mkdir -p "$BIN_DIR"
 
-mkdir -p $DEST_DIR
-mkdir -p $BIN_DIR
+echo "Unzipping tap"
+unzip "$(pwd)/*.TapPackage" -d "$DEST_DIR" # *: match OpenTAPLinux and just TAPLinux.
 
-cd $DEST_DIR
-unzip $CUR_DIR/*.TapPackage -d $DEST_DIR # *: match OpenTAPLinux and just TAPLinux.
+cd "$DEST_DIR" || exit 1
 chmod -R +w .
 
 chmod +x tap
 
-cd $BIN_DIR
-ln -s -f $DEST_DIR/tap tap
+cd "$BIN_DIR" || exit 1
 
-cd "$CUR_DIR"
+echo "Creating shortcut"
+ln -s -f "$DEST_DIR/tap" tap
+
+echo "Installer finished"

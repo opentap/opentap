@@ -44,6 +44,34 @@ namespace OpenTap
     /// </summary>
     public class PluginSearcher
     {
+        private Options Option { get; set; }
+
+        /// <summary>
+        /// Options for Plugin Searcher.
+        /// </summary>
+        [Flags]
+        public enum Options
+        {
+            /// <summary> No options </summary>
+            None = 0,
+            /// <summary> Allow multiple assemblies with the same name </summary>
+            IncludeSameAssemblies = 1
+        }
+
+        /// <summary>
+        /// Searches assemblies for classes implementing ITapPlugin.
+        /// </summary>
+        public PluginSearcher() { }
+
+        /// <summary>
+        /// Searches assemblies for classes implementing ITapPlugin.
+        /// </summary>
+        /// <param name="opts">Option setting for Plugin Searcher.</param>
+        public PluginSearcher(Options opts = Options.None)
+        {
+            Option = opts;
+        }
+
         private class AssemblyRef
         {
             public string Name;
@@ -74,7 +102,9 @@ namespace OpenTap
         private static readonly TraceSource log = Log.CreateSource("Searcher");
         class AssemblyDependencyGraph
         {
-            public AssemblyDependencyGraph()
+            private Options Option { get; set; }
+
+            public AssemblyDependencyGraph(Options opt)
             {
                 nameToAsmMap = new Dictionary<AssemblyRef, AssemblyData>();
 
@@ -82,6 +112,8 @@ namespace OpenTap
                 asmNameToAsmData = new Dictionary<string, AssemblyData>();
                 Assemblies = new List<AssemblyData>();
                 UnfoundAssemblies = new HashSet<AssemblyRef>();
+
+                Option = opt;
             }
 
             /// <summary>
@@ -181,8 +213,8 @@ namespace OpenTap
 
                             // if we were asked to only prvide distinct assembly names and 
                             // this assembly name has already been encountered, just return that.
-                            var thisAssemblyFullName = def.GetAssemblyName().FullName;
-                            if (asmNameToAsmData.TryGetValue(thisAssemblyFullName, out AssemblyData data))
+                            var fileIdentifer = Option.HasFlag(Options.IncludeSameAssemblies) ? file : def.GetAssemblyName().FullName;
+                            if (asmNameToAsmData.TryGetValue(fileIdentifer, out AssemblyData data))
                                 return data;
 
                             thisAssembly.Name = metadata.GetString(def.Name);
@@ -199,7 +231,7 @@ namespace OpenTap
                                 nameToAsmMap2[PathUtils.NormalizePath(thisAssembly.Location)] = thisRef;
                             }
 
-                            asmNameToAsmData[thisAssemblyFullName] = thisAssembly;
+                            asmNameToAsmData[fileIdentifer] = thisAssembly;
 
                             foreach (var asmRefHandle in metadata.AssemblyReferences)
                             {
@@ -310,7 +342,7 @@ namespace OpenTap
         {
             Stopwatch timer = Stopwatch.StartNew();
             if (graph == null)
-                graph = new AssemblyDependencyGraph();
+                graph = new AssemblyDependencyGraph(Option);
             Assemblies = graph.Generate(files);
             log.Debug(timer, "Ordered {0} assemblies according to references.", Assemblies.Count());
 
@@ -490,7 +522,6 @@ namespace OpenTap
             }
             plugin.TypeAttributes = typeDef.Attributes;
             plugin.Assembly = CurrentAsm;
-            plugin.Handle = handle;
             TypesInCurrentAsm.Add(handle, plugin);
             AllTypes.Add(plugin.Name, plugin);
             if (!typeDef.BaseType.IsNil)
@@ -771,7 +802,6 @@ namespace OpenTap
     [DebuggerDisplay("{Name}")]
     public partial class TypeData
     {
-        internal TypeDefinitionHandle Handle;
         /// <summary>
         /// Gets the fully qualified name of the type, including its namespace but not its assembly.
         /// </summary>
@@ -1042,11 +1072,12 @@ namespace OpenTap
                 {
                     _FailedLoad = true;
                     StringBuilder sb = new StringBuilder(String.Format("Failed to load plugins from {0}", this.Location));
+                    bool addedZoneInfo = false;
                     try
                     {
                         var zonetype = Type.GetType("System.Security.Policy.Zone");
                         if (zonetype != null)
-                        {
+                        {               
                             // Hack to support .net core without having to build separate assemblies.
                             dynamic zone = zonetype.GetMethod("CreateFromUrl").Invoke(null, new object[] { this.Location });
                             var sec = zone.SecurityZone.ToString();
@@ -1054,6 +1085,7 @@ namespace OpenTap
                             {
                                 // The file is in an NTFS Windows operating system blocked state
                                 sb.Append(" The file came from another computer and might be blocked to help protect this computer. Please unblock the file in Windows.");
+                                addedZoneInfo = true;
                             }
                         }
                     }
@@ -1061,18 +1093,24 @@ namespace OpenTap
                     {
                         log.Error("Failed to check Security policy for file.");
                         log.Debug(e);
+                        addedZoneInfo = true;
                     }
+
+                    if (!addedZoneInfo)
+                        sb.Append(" Error: "  + ex.Message);
                     log.Error(sb.ToString());
                     log.Debug(ex);
                 }
             }
-            AssemblyExtensions.lookup[_Assembly] = this.SemanticVersion;
+            if(_Assembly != null)
+                AssemblyExtensions.lookup[_Assembly] = this.SemanticVersion;
             return _Assembly;
         }
     }
 
     internal static class AssemblyExtensions
     {
+        // TODO: Change this to mapping from Assembly to AssemblyData instead.
         internal static ConcurrentDictionary<Assembly, SemanticVersion> lookup = new ConcurrentDictionary<Assembly, SemanticVersion>();
         internal static SemanticVersion GetSemanticVersion(this Assembly asm)
         {

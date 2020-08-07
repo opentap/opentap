@@ -167,10 +167,14 @@ namespace OpenTap
         ManualResetEventSlim completedEvent = null;//new ManualResetEventSlim(false);
         readonly object completedEventLock = new object();
         bool completed = false;
-        /// <summary>
-        /// Waits for the test step run to be entirely done. This includes any deferred processing.
-        /// </summary>
+        /// <summary>  Waits for the test step run to be entirely done. This includes any deferred processing.</summary>
         public void WaitForCompletion()
+        {
+            WaitForCompletion(CancellationToken.None);
+        }
+
+        /// <summary>  Waits for the test step run to be entirely done. This includes any deferred processing. It does not break when the test plan is aborted</summary>
+        public void WaitForCompletion(CancellationToken cancellationToken)
         {
             if (completed) return;
             lock (completedEventLock)
@@ -183,7 +187,12 @@ namespace OpenTap
 
             var currentThread = TapThread.Current;
             if(!WasDeferred && StepThread == currentThread) throw new InvalidOperationException("StepRun.WaitForCompletion called from the thread itself. This will either cause a deadlock or do nothing.");
-            var waits = new[] { completedEvent.WaitHandle, currentThread.AbortToken.WaitHandle };
+            if (cancellationToken == CancellationToken.None)
+            {
+                completedEvent.Wait();
+                return;
+            }
+            var waits = new[] { completedEvent.WaitHandle, cancellationToken.WaitHandle };
             while (WaitHandle.WaitAny(waits, 100) == WaitHandle.WaitTimeout)
             {
                 if (completed)
