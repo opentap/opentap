@@ -229,7 +229,7 @@ namespace OpenTap.Package
             Installation installation)
         {
             var allPackages = installation.GetPackages();
-            var otherVersion = packageVersions.Max(p => p.Version) ?? package.Version; 
+            var latestVersion = packageVersions?.Max(p => p.Version); 
             var packageInstalled = allPackages.Contains(package);
             if (!packageInstalled)
                 allPackages.Add(package);
@@ -250,6 +250,9 @@ namespace OpenTap.Package
             var installedVersion = installation.GetPackages().Where(x => x.Name == package.Name)?.FirstOrDefault()?.Version;
             var installedString = installedVersion == null ? "(not installed)" : $"({installedVersion} installed)";
             AddWritePair("Version", $"{package.Version} {installedString}");
+            
+            if (latestVersion != null && installedVersion != null && latestVersion != installedVersion)
+                AddWritePair("Newest Version in Repository", $"{latestVersion}");
             
             AddWritePair("Compatible Architectures", string.Join(Environment.NewLine, similarReleases.Select(x => x.Architecture).Distinct()));
             AddWritePair("Compatible Platforms", string.Join(Environment.NewLine, similarReleases.Select(x => x.OS).Distinct()));
