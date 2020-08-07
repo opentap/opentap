@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -158,6 +159,11 @@ namespace OpenTap.Diagnostic
                 Listeners.Remove(listener);
                 HasListeners = Listeners.Count > 0;
             }
+        }
+
+        public ReadOnlyCollection<ILogListener> GetListeners()
+        {
+            return new ReadOnlyCollection<ILogListener>(Listeners);
         }
 
         public bool Flush(int timeoutMs = 0)
