@@ -26,32 +26,20 @@ Build-DevGuide:
     paths:
        - sdk/Examples/OpenTAP Developer Guide.pdf
 
-Doc-API-Prepare:
-  stage: build
-  image: opentapio/opentap:9.5-ubuntu18.04
-  tags: [ docker, gce ]
-  script:
-        - tap sdk gitversion --replace "doc/API Documentation/Doxyfile" --fields 2
-  artifacts:
-    expire_in: 1 week
-    paths:
-       - "doc/API Documentation/Doxyfile"
-
 Doc-API:
-  stage: test
+  stage: build
   image: registry.gitlab.com/opentap/buildrunners/doxygen:latest
   tags: [ docker, gce ]
-  dependencies:
-    - Doc-API-Prepare
   script: 
-         - mkdir Help
-         - mkdir API
+         - mkdir Help API
+         - ver=$(grep ^version .gitversion | sed 's/version[ ]*=[ ]*//' | cut -d. -f 1-2)
+         - sed -i "s/\$(GitVersion)/$ver/" "doc/API Documentation/Doxyfile"
          - rootdir=`pwd`
          - cd "doc/API Documentation"
          - doxygen Doxyfile
-         - cd "apiref/html"
+         - cd apiref/html
          - chmcmd index.hhp
-         - cp OpenTapApiReference.chm $rootdir/Help/
+         - mv OpenTapApiReference.chm $rootdir/Help/
          - cp -r . $rootdir/API/
   artifacts:
     expire_in: 1 week
@@ -65,7 +53,7 @@ pages:
   dependencies:
     - Doc-API
   only:
-    - master
+    - /^release.*$/
   cache:
     paths:
     - doc/node_modules/
