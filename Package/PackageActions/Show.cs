@@ -58,6 +58,9 @@ namespace OpenTap.Package
             {
                 consoleWidth = 120; 
             }
+
+            if (consoleWidth < 10) // assume an error and just use 120 as default.
+                consoleWidth = 120;
             var wrapLength = Math.Min(consoleWidth - justify - 3, 100);
             for (int i = 0; i < keys.Count; i++)
             {

@@ -153,6 +153,7 @@ TestEngine:
     paths:
        - "TestResult.xml"
 
+
 # Can't run on docker, as a unit test is using dotfuscator
 TestPackage:
   stage: test
@@ -171,6 +172,18 @@ TestPackage:
     expire_in: 1 week
     paths:
        - "TestResult.xml"
+
+TestLinuxPlan:
+  stage: test
+  tags: [docker, gce]
+  image: mcr.microsoft.com/dotnet/core/sdk:2.1-bionic
+  dependencies:
+    - Build-Linux64
+  needs:
+    - Build-Linux64
+  script:
+    - mv bin/Release/publish/* bin/Release
+    - bin/Release/tap run tests/regression.TapPlan --verbose
 
 .LinuxScript:
   tags: [ docker, gce ]
