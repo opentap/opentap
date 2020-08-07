@@ -181,7 +181,7 @@ namespace OpenTap.Engine.UnitTests
             cs += "public class " + testStepName + " { public void Run(){} }";
             var asmname = Path.GetFileNameWithoutExtension(assemblyFileName);
             var buildResult = CodeGen.BuildCode(cs, asmname, strongNameKeyFile);
-            Assert.IsTrue(buildResult.Success);
+            Assert.IsTrue(buildResult.Success,buildResult.Log);
             DeleteFile(assemblyFileName);
             File.WriteAllBytes(assemblyFileName, buildResult.Bytes);
         }
@@ -196,6 +196,7 @@ namespace OpenTap.Engine.UnitTests
             GenerateAssemblyWithVersion("Test2/Dual1.dll", "MyStep1", version: "1.2.0");
             GenerateAssemblyWithVersion("Test3/Dual1.dll", "MyStep1", version: "1.1.0");
             PluginManager.SearchAsync().Wait();
+            Assert.AreEqual(3,PluginManager.GetSearcher().Assemblies.Count(asm => asm.Name == "Dual1"));
             var asm1 = Assembly.Load("Dual1");
             Assert.IsTrue(asm1.GetName().Version.Minor == 2);
         }

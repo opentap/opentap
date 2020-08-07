@@ -779,13 +779,16 @@ namespace OpenTap
                         candidates.Remove(matchingVersion);
                     }
                     // Try to find/load a compatible match to the requested version:
-                    var matchingMajorVersion = candidates.Where(c => c.Name.Version.Major == requestedAsmName.Version.Major);
-                    foreach (var c in matchingMajorVersion.OrderBy(c => c.Name.Version))
+                    if (requestedAsmName.Version != null)
                     {
-                        Assembly asm = tryLoad(matchingVersion.Path);
-                        if (asm != null)
-                            return asm;
-                        candidates.Remove(matchingVersion);
+                        var matchingMajorVersion = candidates.Where(c => c.Name.Version.Major == requestedAsmName.Version.Major);
+                        foreach (var c in matchingMajorVersion.OrderBy(c => c.Name.Version))
+                        {
+                            Assembly asm = tryLoad(matchingVersion.Path);
+                            if (asm != null)
+                                return asm;
+                            candidates.Remove(matchingVersion);
+                        }
                     }
                     // Try to load any remaining candidates:
                     var ordered = candidates.OrderByDescending(c => c.Name.Version);
