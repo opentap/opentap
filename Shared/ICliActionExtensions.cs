@@ -5,6 +5,7 @@
 using OpenTap.Package;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -149,9 +150,16 @@ namespace OpenTap.Cli
                 return 1;
             }
 
-            return action.Execute(TapThread.Current.AbortToken);
+            var actionFullName = td.GetDisplayAttribute().GetFullName();
+            log.Debug($"Executing CLI action: {actionFullName}");
+            var sw = Stopwatch.StartNew();
+            int exitCode = action.Execute(TapThread.Current.AbortToken);
+            log.Debug(sw, "CLI action returned exit code: {0}", exitCode);
+            return exitCode;
         }
 
+        static TraceSource log = Log.CreateSource("CLI"); 
+        
         private static void printOptions(string passName, ArgumentCollection options, List<IMemberData> unnamed)
         {
             Console.WriteLine("Usage: {2} {0} {1}",
@@ -166,39 +174,18 @@ namespace OpenTap.Cli
                 })),
                 string.Join(" ", unnamed.Select(x =>
                 {
-                    var str = x.GetAttribute<UnnamedCommandLineArgument>().Name;
+                    var attr = x.GetAttribute<UnnamedCommandLineArgument>();
+                    var str = attr.Name;
 
-                    if (x.TypeDescriptor.IsA(typeof(string[])))
-                        str = "[" + str + "]";
+                    if (x.TypeDescriptor.IsA(typeof(string[])) || attr.Required == false)
+                        str = "[<" + str + ">]";
                     else
                         str = "<" + str + ">";
 
                     return str;
                 })), passName);
 
-            foreach (var opt in options.Values)
-            {
-                if (opt.IsVisible == false)
-                    continue;
-                var arg = "--" + opt.LongName;
-                if (opt.ShortName != default(char))
-                {
-                    arg = String.Format("-{0}, {1}", opt.ShortName, arg);
-                }
-
-                arg = "  " + arg;
-                if (!string.IsNullOrEmpty(opt.Description))
-                {
-                    foreach (var descSplit in opt.Description.Split('\n'))
-                    {
-                        arg = arg + new String(' ', Math.Max(25 - arg.Length, 1)) + descSplit;
-                        Console.WriteLine(arg);
-                        arg = "";
-                    }
-                }
-                else
-                    Console.WriteLine(arg);
-            }
+            Console.Write(options);
         }
         
         private static object ParseEnum(string name, string value, Type propertyType)

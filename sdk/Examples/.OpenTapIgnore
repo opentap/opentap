@@ -1,0 +1,3 @@
+Indicates that the OpenTAP plugin searcher should not look for plugins in this folder.
+
+When building the examples, MSBUILD will install OpenTAP in a bin/Debug sub-folder. This file prevents issues with these duplicated assemblies in the installation folder tree.

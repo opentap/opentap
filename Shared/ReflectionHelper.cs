@@ -13,6 +13,7 @@ using System.Runtime.InteropServices;
 using System.IO.MemoryMappedFiles;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 
 //**** WARNING ****//
@@ -137,6 +138,25 @@ namespace OpenTap
         public static object[] GetAllCustomAttributes(this MemberInfo prop)
         {
             return attrslookup.GetValue(prop, getAttributes);
+        }
+        
+        static object[] getAttributesNoInherit(MemberInfo mem)
+        {
+            try
+            {
+                return mem.GetCustomAttributes(false);
+            }
+            catch
+            {
+                return Array.Empty<object>();
+            }
+        }
+        static readonly ConditionalWeakTable<MemberInfo, object[]> attrslookupNoInherit = new ConditionalWeakTable<MemberInfo, object[]>();
+        public static object[] GetAllCustomAttributes(this MemberInfo prop, bool inherit)
+        {
+            if(inherit)
+                return attrslookupNoInherit.GetValue(prop, getAttributesNoInherit);
+            return GetAllCustomAttributes(prop);
         }
 
         /// <summary>
@@ -297,8 +317,6 @@ namespace OpenTap
         /// <summary>
         /// Returns true if a type is numeric.
         /// </summary>
-        /// <param name="t"></param>
-        /// <returns></returns>
         public static bool IsNumeric(this Type t)
         {
             if (t.IsEnum)
@@ -320,6 +338,14 @@ namespace OpenTap
                 default:
                     return false;
             }
+        }
+
+        /// <summary>
+        /// Returns true if a type is numeric.
+        /// </summary>
+        public static bool IsNumeric(this ITypeData t)
+        {
+            return t.AsTypeData()?.Type.IsNumeric() == true;
         }
 
         /// <summary> Creates an instance of t with no constructor arguments. </summary>
@@ -443,6 +469,15 @@ namespace OpenTap
             if (p == null) return null;
             return new InternalMemberData(p);
         }
+        
+        /// <summary> Get the base C# type of a given type. </summary>
+        internal static TypeData AsTypeData(this ITypeData type)
+        {
+            for(;type != null; type = type.BaseType)
+                if (type is TypeData td)
+                    return td;
+            return null;
+        }
     }
     
     internal class InternalMemberData
@@ -558,18 +593,17 @@ namespace OpenTap
             public bool IsLocked;
         }
         
-        /// <summary>
-        /// If a certain time passes a result should be removed.
-        /// </summary>
-        public TimeSpan SoftSizeDecayTime = TimeSpan.FromSeconds(30.0);
-        protected Func<ArgT, MemorizerKey> getKey = null;
+        /// <summary> If a certain time passes a result should be removed. By default, never. </summary>
+        public TimeSpan SoftSizeDecayTime = TimeSpan.MaxValue;
+        protected Func<ArgT, MemorizerKey> getKey;
         protected Func<ArgT, ResultT> getData = argt => (ResultT)(object)argt;
         
         readonly Dictionary<MemorizerKey, DateTime> lastUse = new Dictionary<MemorizerKey, DateTime>();
         readonly Dictionary<MemorizerKey, ResultT> memorizerTable = new Dictionary<MemorizerKey, ResultT>();
         readonly Dictionary<MemorizerKey, LockObject> locks = new Dictionary<MemorizerKey, LockObject>();
 
-        /// <summary> Can be used to create a validation key for each key in the memorizer. </summary>
+        /// <summary> Can be used to create a validation key for each key in the memorizer.
+        /// Validation keys are used for checking if the memory is up to date or if it should be refreshed. </summary>
         public Func<MemorizerKey, object> Validator { get; set; } = null;
         readonly Dictionary<MemorizerKey, object> validatorData = new Dictionary<MemorizerKey, object>();
         
@@ -585,11 +619,8 @@ namespace OpenTap
             Func<ArgT, ResultT> extractData = null)
         {
             if (extractData != null)
-            {
                 getData = extractData;
-            }
             this.getKey = getKey;
-            
         }
 
         /// <summary>
@@ -608,26 +639,32 @@ namespace OpenTap
 
         Status checkSizeConstraints()
         {
-            lock (memorizerTable)
+            if (SoftSizeDecayTime < TimeSpan.MaxValue || MaxNumberOfElements.HasValue
+                && (ulong) memorizerTable.Count > MaxNumberOfElements.Value)
             {
-                var removeKey = lastUse.Keys.FindMin(key2 => lastUse[key2]);
-                if (removeKey != null)
+                lock (memorizerTable)
                 {
-                    if (SoftSizeDecayTime < DateTime.UtcNow - lastUse[removeKey])
+
+                    var removeKey = lastUse.Keys.FindMin(key2 => lastUse[key2]);
+                    if (removeKey != null)
                     {
-                        lastUse.Remove(removeKey);
-                        memorizerTable.Remove(removeKey);
-                        return Status.Changed;
-                    }
-                    else if (MaxNumberOfElements.HasValue
-                       && (ulong)memorizerTable.Count > MaxNumberOfElements.Value)
-                    {
-                        lastUse.Remove(removeKey);
-                        memorizerTable.Remove(removeKey);
-                        return Status.Changed;
+                        if (SoftSizeDecayTime < DateTime.UtcNow - lastUse[removeKey])
+                        {
+                            lastUse.Remove(removeKey);
+                            memorizerTable.Remove(removeKey);
+                            return Status.Changed;
+                        }
+                        else if (MaxNumberOfElements.HasValue
+                                 && (ulong) memorizerTable.Count > MaxNumberOfElements.Value)
+                        {
+                            lastUse.Remove(removeKey);
+                            memorizerTable.Remove(removeKey);
+                            return Status.Changed;
+                        }
                     }
                 }
             }
+
             return Status.Unchanged;
         }
         
@@ -636,13 +673,7 @@ namespace OpenTap
             return getKey == null ? (MemorizerKey)(object)arg : getKey(arg);
         }
 
-        public ResultT this[ArgT arg]
-        {
-            get
-            {
-                return Invoke(arg);
-            }
-        }
+        public ResultT this[ArgT arg] => Invoke(arg);
 
         public ResultT Invoke(ArgT arg)
         {
@@ -1020,7 +1051,7 @@ namespace OpenTap
         }
 
 
-        public static void Evaluate<T>(this IEnumerable<T> source, Action<T> func)
+        public static void ForEach<T>(this IEnumerable<T> source, Action<T> func)
         {
             foreach (var item in source) { func(item); }
         }
@@ -1066,7 +1097,7 @@ namespace OpenTap
         /// <returns></returns>
         public static bool IsLongerThan<T>(this IEnumerable<T> source, long count)
         {
-            foreach (var item in source)
+            foreach (var _ in source)
                 if (--count < 0)
                     return true;
             return false;
@@ -1112,6 +1143,38 @@ namespace OpenTap
                 if (selector(x) == false)
                     yield return x;
         }
+
+        /// <summary> As 'Select' but skipping null values.
+        /// Short hand for/more efficient version of 'Select(f).Where(x => x != null)' </summary>
+        /// <param name="source"></param>
+        /// <param name="f"></param>
+        /// <typeparam name="T1"></typeparam>
+        /// <typeparam name="T2"></typeparam>
+        /// <returns></returns>
+        public static IEnumerable<T2> SelectValues<T1, T2>(this IEnumerable<T1> source, Func<T1, T2> f)
+        {
+            foreach (var x in source)
+            {
+                var value = f(x);
+                if (value != null)
+                    yield return value;
+            }
+        }
+
+        /// <summary> As 'Select and FirstOrDefault' but skipping null values.
+        /// Short hand for/more efficient version of 'Select(f).Where(x => x != null).FirstOrDefault()'
+        /// </summary>
+        public static T2 FirstNonDefault<T1, T2>(this IEnumerable<T1> source, Func<T1, T2> f) 
+        {
+            foreach (var x in source)
+            {
+                var value = f(x);
+                if (Equals(value, default(T2)) == false)
+                    return value;
+            }
+
+            return default(T2);
+        } 
 
 
         //We need to remember the timers or they risk getting garbage collected before elapsing.
@@ -1405,6 +1468,61 @@ namespace OpenTap
                 col[j] = a;
             }
         }
+
+        public static string EnumToReadableString(Enum value)
+        {
+            if (value == null) return null;
+            var enumType = value.GetType();
+            var mem = enumType.GetMember(value.ToString()).FirstOrDefault();
+            if (mem != null) return mem.GetDisplayAttribute().Name;
+            if (false == enumType.HasAttribute<FlagsAttribute>())
+                return value.ToString();
+            
+            // Normally happens when 'value' is a combination of multiple flags.
+            var flags = Enum.GetValues(enumType);
+            var sb = new StringBuilder();
+
+            bool first = true;
+            foreach (Enum flag in flags)
+            {
+                if (value.HasFlag(flag))
+                {
+                    if (!first)
+                        sb.Append(" | ");
+                    else
+                        first = false;
+                    sb.Append(EnumToReadableString(flag));
+                }
+            }
+
+            return sb.ToString();
+        }
+
+        public static string EnumToDescription(Enum value)
+        {
+            if (value == null) return null;
+            var enumType = value.GetType();
+            var mem = enumType.GetMember(value.ToString()).FirstOrDefault();
+            // if member is null, fall back to the readable enum string (or description is null)
+            return mem?.GetDisplayAttribute().Description ?? EnumToReadableString(value);
+        }
+
+        public static string SerializeToString(this TestPlan plan)
+        {
+            using (var mem = new MemoryStream())
+            {
+                plan.Save(mem);
+                return Encoding.UTF8.GetString(mem.ToArray());
+            }
+        }
+
+        public static object DeserializeFromString(string str)
+        {
+            return new TapSerializer().DeserializeFromString(str);
+        }
+
+        public static T DeserializeFromString<T>(string str) => (T) DeserializeFromString(str);
+
     }
 
     static internal class Sequence

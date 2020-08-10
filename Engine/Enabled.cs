@@ -26,12 +26,12 @@ namespace OpenTap
         /// <summary>
         /// Value of the member.
         /// </summary>
-        public T Value { get; set; }
+        public virtual T Value { get; set; }
 
         /// <summary>
         /// Gets or sets if the member is enabled. 
         /// </summary>
-        public bool IsEnabled { get; set; }
+        public virtual bool IsEnabled { get; set; }
 
         /// <summary>
         /// Writes a special string if the value is not enabled. Otherwise just returns Value.ToString.

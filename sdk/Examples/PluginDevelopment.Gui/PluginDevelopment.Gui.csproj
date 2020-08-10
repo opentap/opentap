@@ -23,15 +23,36 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Developer's System is needed to debug in 'Editor' -->
-    <AdditionalOpenTapPackage Include="Developer's System CE" />
-
-    <!--<AdditionalOpenTapPackage Include="Developer's System" />-->
+    <!-- Developer's System is needed to debug in 'Editor' 
+         Normally you can get that in your debug folder with just:
+           <AdditionalOpenTapPackage Include="Developer's System"/>
+         or 
+           <AdditionalOpenTapPackage Include="Developer's System CE"/>
+         Here we do some optimizations that leverages an existing OpenTAP installation in %TAP_PATH%
+    -->
+    <CachedOpenTapPackages Include="$(TAP_PATH)\PackageCache\Developer*"/>
+    <AdditionalOpenTapPackage Include="Developer's System" 
+                              Repository="$(TAP_PATH)\PackageCache" 
+                              Version="Any"
+                              Condition="@(CachedOpenTapPackages) != '' AND Exists('$(TAP_PATH)\Packages\Editor')"/>
+    <AdditionalOpenTapPackage Include="Developer's System" 
+                              Condition="@(CachedOpenTapPackages) == '' AND Exists('$(TAP_PATH)\Packages\Editor')"/>
+    <AdditionalOpenTapPackage Include="Developer's System CE"
+                              Repository="$(TAP_PATH)\PackageCache"
+                              Version="Any"
+                              Condition="@(CachedOpenTapPackages) != '' AND Exists('$(TAP_PATH)\Packages\Editor') == false"/>
+    <AdditionalOpenTapPackage Include="Developer's System CE" 
+                              Condition="@(CachedOpenTapPackages) == '' AND Exists('$(TAP_PATH)\Packages\Editor') == false" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="OpenTAP" Version="$(GitVersion)" />
-    <OpenTapPackageReference Include="WPF Controls" />
+    <OpenTapPackageReference Include="WPF Controls" 
+                             Repository="$(TAP_PATH)\PackageCache"
+                             Version="Any"
+                             Condition="@(CachedOpenTapPackages) != ''"/>
+    <OpenTapPackageReference Include="WPF Controls"
+                             Condition="@(CachedOpenTapPackages) == ''"/>
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
     <Reference Include="System.Windows.Forms" />

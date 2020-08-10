@@ -113,7 +113,23 @@ namespace OpenTap
                 {
                     using (TimeoutOperation.Create(() => PrintWaitingMessage(new List<IResource>() { resultListener })))
                         execStage.ResourceManager.WaitUntilResourcesOpened(TapThread.Current.AbortToken, resultListener);
+                    try
+                    {
+                        // some resources might set metadata in the Open methods.
+                        // this information needs to be propagated to result listeners as well.
+                        // this returns quickly if its a lazy resource manager.
+                        using (TimeoutOperation.Create(
+                            () => PrintWaitingMessage(new List<IResource>() {resultListener})))
+                            execStage.ResourceManager.WaitUntilAllResourcesOpened(TapThread.Current.AbortToken);
+                    }
+                    catch // this error will also be handled somewhere else.
+                    {
+                        
+                    }
+
                     execStage.WaitForSerialization();
+                    foreach(var res in execStage.PromptedResources)
+                        execStage.Parameters.AddRange(ResultParameters.GetMetadataFromObject(res));
                     resultListener.OnTestPlanRunStart(execStage);
                 }
                 catch (OperationCanceledException) when(execStage.MainThread.AbortToken.IsCancellationRequested)
@@ -149,31 +165,40 @@ namespace OpenTap
             
             Stopwatch planRunOnlyTimer = Stopwatch.StartNew();
             var runs = new List<TestStepRun>();
-            
-            for (int i = 0; i < steps.Count; i++)
+
+            try
             {
-                var step = steps[i];
-                if (step.Enabled == false) continue;
-                var run = step.DoRun(execStage, null);
-                if (!run.Skipped)
-                    runs.Add(run);
-                // note: The following is copied inside TestStep.cs
-                if (run.SuggestedNextStep is Guid id)
+                for (int i = 0; i < steps.Count; i++)
                 {
-                    int nextindex = steps.IndexWhen(x => x.Id == id);
-                    if (nextindex >= 0)
-                        i = nextindex - 1;
-                    // if skip to next step, dont add it to the wait queue.
+                    var step = steps[i];
+                    if (step.Enabled == false) continue;
+                    var run = step.DoRun(execStage, execStage);
+                    if (!run.Skipped)
+                        runs.Add(run);
+                    if (run.IsBreakCondition())
+                        break;
+                    // note: The following is copied inside TestStep.cs
+                    if (run.SuggestedNextStep is Guid id)
+                    {
+                        int nextindex = steps.IndexWhen(x => x.Id == id);
+                        if (nextindex >= 0)
+                            i = nextindex - 1;
+                        // if skip to next step, dont add it to the wait queue.
+                    }
                 }
-                
+
+            }
+            finally
+            {
+                // Now wait for them to actually complete. They might defer internally.
+                foreach (var run in runs)
+                {
+                    run.WaitForCompletion();
+                    execStage.UpgradeVerdict(run.Verdict);
+                }    
             }
 
-            // Now wait for them to actually complete. They might defer internally.
-            foreach (var run in runs)
-            {
-                run.WaitForCompletion();
-                execStage.UpgradeVerdict(run.Verdict);
-            }
+            
            
             Log.Debug(planRunOnlyTimer, "Test step runs finished.");
             
@@ -316,7 +341,6 @@ namespace OpenTap
             {
                 foreach (var resource in resources)
                 {
-                    var name = resource.ToString().Trim();
                     var type = TypeData.GetTypeData(resource);
                     foreach (var __prop in type.GetMembers())
                     {
@@ -340,6 +364,7 @@ namespace OpenTap
                     {
                         try
                         {
+                            planRun.PromptedResources = (IResource[]) resources;
                             var obj = new MetadataPromptObject { Resources = resources };
                             UserInput.Request(obj, false);
                             if (obj.Response == MetadataPromptObject.PromptResponse.Abort)
@@ -347,8 +372,8 @@ namespace OpenTap
                         }
                         catch(Exception e)
                         {
-                            Log.Error("Error occured while executing platform requests");
-                            Log.Debug(e);
+                             Log.Debug(e);
+                            planRun.MainThread.Abort("Error occured while executing platform requests. Metadata prompt can be disabled from the Engine settings menu.");
                         }
                         finally
                         {
@@ -640,8 +665,9 @@ namespace OpenTap
             }
             catch (Exception e)
             {
-                if (e is OperationCanceledException)
+                if (e is OperationCanceledException && execStage.MainThread.AbortToken.IsCancellationRequested)
                 {
+                    
                     Log.Warning(String.Format("TestPlan aborted. ({0})", e.Message));
                     execStage.UpgradeVerdict(Verdict.Aborted);
                 }
@@ -649,6 +675,7 @@ namespace OpenTap
                 {
                     // It seems this actually never happens.
                     Log.Warning("TestPlan aborted.");
+                    execStage.UpgradeVerdict(Verdict.Aborted);
                     //Avoid entering the finally clause.
                     Thread.Sleep(500);
                 }
@@ -742,7 +769,6 @@ namespace OpenTap
 
                 Stopwatch timer = Stopwatch.StartNew();
                 currentExecutionState = new TestPlanRun(this, listeners.ToList(), DateTime.Now, Stopwatch.GetTimestamp(), true);
-                currentExecutionState.PromptWaitHandle.Set();
                 OpenInternal(currentExecutionState, false, listeners.Cast<IResource>().ToList(), allSteps);
                 try
                 {

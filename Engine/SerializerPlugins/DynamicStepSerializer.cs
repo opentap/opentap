@@ -53,8 +53,7 @@ namespace OpenTap.Plugins
             {
                 IDynamicStep step = (IDynamicStep)t.CreateInstance(Array.Empty<object>());
                 Serializer.Register(step);
-                var toIgnore = new HashSet<string>();
-
+                
                 TryDeserializeObject(elem, TypeData.GetTypeData(step), setter, step, logWarnings: false);
                 
                 ITestStep genStep = step.GetStep();

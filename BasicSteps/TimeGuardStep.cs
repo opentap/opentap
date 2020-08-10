@@ -8,7 +8,7 @@ using System.Threading;
 namespace OpenTap.Plugins.BasicSteps
 {
     [AllowAnyChild]
-    [Display("Time Guard", Group:"Basic Steps", Description: "Tries to forcibly end the execution of a number of child steps after a specified timeout. This is not guaranteed to happen depending on the construction of the child steps.")]
+    [Display("Time Guard", Group:"Basic Steps", Description: "Tries to end the execution of a number of child steps after a specified timeout. This assumes the test steps comply with the thread abort request issued.")]
     public class TimeGuardStep : TestStep
     {
         double timeout = 30;
@@ -25,13 +25,15 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
         
-        [Display("Stop Test Plan On Timeout", Description: "If set the test plan will stop instead of continuing to the next step on timeout.", Order: 1)]
+        [Display("Abort Test Plan On Timeout", Description: "If set the test plan will be aborted instead of continuing to the next step on timeout.", Order: 1)]
         public bool StopOnTimeout { get; set; }
+
+        [Display("Timeout Verdict", Description: "The verdict assigned to this step if a timeout occurs.", Order: 2)]
+        public Verdict TimeoutVerdict { get; set; } = Verdict.Error;
         
         public override void Run()
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
-            Exception exception = null;
             SemaphoreSlim sem = new SemaphoreSlim(0);
             SemaphoreSlim semStarted = new SemaphoreSlim(0);
             TapThread thread = TapThread.Start(() =>
@@ -41,9 +43,9 @@ namespace OpenTap.Plugins.BasicSteps
                 {
                     RunChildSteps();
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
-                    exception = e;
+                    
                 }
                 finally
                 {
@@ -74,25 +76,13 @@ namespace OpenTap.Plugins.BasicSteps
                     break;
                 }
             }
-            
 
             // If timeout occured and we stop on timeout.
             if (timedOut && StopOnTimeout)
-            {
-                throw new OperationCanceledException("The Time Guard step reached the timeout and aborted the test plan.");
-            }
-            // If time out did not occur, but an exception was thrown inside one of the child steps.
-            if (timedOut == false && exception != null)
-            {
-                if (exception is OperationCanceledException)
-                {
-                    UpgradeVerdict(Verdict.Aborted);
-                    throw new OperationCanceledException("A step inside the Time Guard was aborted.");
-                }
-                else
-                    throw new AggregateException(exception);
-            }
-        }
+                PlanRun.MainThread.Abort();
 
+            if (timedOut)
+                Verdict = TimeoutVerdict;
+        }
     }
 }

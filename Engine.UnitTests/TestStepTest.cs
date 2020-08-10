@@ -207,6 +207,22 @@ namespace OpenTap.Engine.UnitTests
 
     public class DummyDut : Dut
     {
+        [MetaData]
+        [Browsable(false)]
+        public string Serial { get; set; }
+
+        public override void Open()
+        {
+            base.Open();
+            Serial = SerialNumber;
+        } 
+        public override void Close()
+        {
+            base.Close();
+            Serial = null;
+        }
+
+        public static string SerialNumber = "123456";
 
     }
 
@@ -335,7 +351,7 @@ namespace OpenTap.Engine.UnitTests
     }
 
     [TestFixture]
-    public class TestStepTestFixture : EngineTestBase
+    public class TestStepTestFixture 
     {
         [Test]
         public void SetStepNameToNullThrows()
@@ -345,7 +361,7 @@ namespace OpenTap.Engine.UnitTests
     }
 
     [TestFixture]
-    public class AllowChildTest : EngineTestBase
+    public class AllowChildTest
     {
         
         private class BaseAutomationStep : TestStep
@@ -479,6 +495,14 @@ namespace OpenTap.Engine.UnitTests
                 var str = string.Format("Repeat : {0} of {1}", i, repeat.Count);
                 Assert.IsTrue(thelog.Contains(str));    
             }
+        }
+        
+        [Test]
+        public void TestNameFormat3()
+        {
+            var step = new VerdictStep() {Name = "Delay: {Resulting Verdict}", VerdictOutput =  Verdict.NotSet};
+            var fmt = step.GetFormattedName();
+            Assert.AreEqual("Delay: Not Set", fmt); 
         }
         
         [Test]

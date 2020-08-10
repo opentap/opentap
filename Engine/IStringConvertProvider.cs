@@ -376,20 +376,16 @@ namespace OpenTap
                     {
                         Enum result2;
                         if (tryParseEnumString(flagString, type, out result2))
-                        {
-
-                            flags += (int)Convert.ChangeType(result2, typeof(int));
-                        }
+                            flags |= (int)Convert.ChangeType(result2, typeof(int));
                     }
                     result = (Enum)Enum.ToObject(type, flags);
                     return true;
-
-
                 }
+                
+                var names = Enum.GetNames(type);
                 //try
-                var enumValues = Enum.GetValues(type);
                 {   // Look for an exact match.
-                    var names = Enum.GetNames(type);
+                    
                     for(int i = 0; i < names.Length; i++)
                     {
                         if(names[i] == str)
@@ -398,12 +394,24 @@ namespace OpenTap
                             return true;
                         }
                     }
+
+                    // try to match display name.
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        var display = type.GetMember(names[i]).Select(x => x.GetDisplayAttribute()).FirstOrDefault();
+                        if (StringComparer.InvariantCultureIgnoreCase.Equals(display.Name, str))
+                        {
+                            result = (Enum)Enum.GetValues(type).GetValue(i);
+                            return true;
+                        }
+                    }
                 }
+
 
                 {// try a more robust parse method. (tolower, trim, '_'=' ')
 
                     str = str.Trim().ToLower();
-                    var fixedNames = Enum.GetNames(type).Select(name => name.Trim().ToLower()).ToArray();
+                    var fixedNames = names.Select(name => name.Trim().ToLower()).ToArray();
                     for (int i = 0; i < fixedNames.Length; i++)
                     {
                         if (fixedNames[i] == str || fixedNames[i].Replace('_', ' ') == str)
@@ -591,12 +599,30 @@ namespace OpenTap
                     string escapeString(string str)
                     {
                         if(str.Contains(",") || str.Contains("\""))
-                            return $"\"{str?.Replace("\"", "\"\"") ?? ""}\"";
+                            return $"\"{str.Replace("\"", "\"\"")}\"";
                         return str;
                     }
-                    var newvalues = seq.Cast<object>().Select(x => StringConvertProvider.GetString(x, culture))
-                        .Select(escapeString);
-                    return string.Join(", ", newvalues);
+                    var sb = new StringBuilder();
+                    bool first = true;
+                    foreach (var val in seq)
+                    {
+                        
+                        if (StringConvertProvider.TryGetString(val, out string result, culture))
+                        {
+                            if (first)
+                                first = false;
+                            else
+                                sb.Append(", ");
+                            sb.Append(escapeString(result));
+                        }
+                        else
+                        {
+                            // Signal that the thing could not be converted.
+                            return null;
+                        }
+                    }
+                    
+                    return sb.ToString();
                     
                 }
                 return null;
@@ -731,8 +757,10 @@ namespace OpenTap
                 if (!Guid.TryParse(s[0], out id))
                     return null;
                 var prop = s[1];
-                
-                var plan = step.GetParent<TestPlan>();
+
+                ITestStepParent plan = contextObject as ITestStepParent;
+                while (plan.Parent != null)
+                    plan = plan.Parent;
                 var step2 = Utils.FlattenHeirarchy(plan.ChildTestSteps, x => x.ChildTestSteps).FirstOrDefault(x => x.Id == id);
                 if (step2 == null) return null;
                 var inp = (IInput)type.CreateInstance(Array.Empty<object>());

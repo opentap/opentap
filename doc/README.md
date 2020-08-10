@@ -26,7 +26,21 @@ tap package install "Developer's System CE" -y
 
 ### Linux
 <!--When installing on Linux there are a few options:-->
+#### 1. Install dependencies
+On Linux, OpenTAP has a few dependencies that must be manually installed, namely
+libc6, libunwind, unzip, git, and curl. On Debian derivatives, these can be installed
+by running the following command:
 
+`apt-get install libc6-dev libunwind8 unzip git curl`
+
+Note that the packages may have different names on other distributions. OpenTAP
+should still work if you install the equivalent packages for your distribution.
+
+In addition to these packages, OpenTAP depends on dotnet core runtime version 2.1. Version 3.0 and greater are not
+supported. The installation procedure depends on your distribution. Please see [the official documentation from
+Microsoft ](https://docs.microsoft.com/en-us/dotnet/core/install/runtime) for further instructions.
+
+#### 2. Install OpenTAP
 Download the OpenTAP distribution (`.tar`<!--, `.dep` or `.rpm`-->) from our homepage [here](https://www.opentap.io/download.html). 
 
 Install the downloaded distribution:
@@ -38,10 +52,22 @@ Install the downloaded distribution:
 	2. Change the permission of the INSTALL.sh file to be executable: `chmod u+x INSTALL.sh`
 	3. Run the INSTALL.sh script: `./INSTALL.sh`.
 
+### Docker
+We also provide docker images for running OpenTAP. You can find them at
+[hub.docker.com/r/opentapio/opentap](https://hub.docker.com/r/opentapio/opentap).
 
-## Use OpenTAP
-If you are a user of OpenTAP or just want to try it out, have a look at the [User Guide](User%20Guide/) section.
+We maintain two images:
 
 
-## Develop Plugins
-If you are a developer and want to create plugins for OpenTAP, have a look at the [Developer Guide](Developer%20Guide/Introduction/).
+1. a development image which includes all necessary tools to build OpenTAP projects (~2.5GB)
+2. a production image which includes only dependencies required to run OpenTAP (~330MB)
+
+The development image is widely used for building and packaging plugins in highly reproducible environments, and we use
+it internally for continuous deployment. Have a look at the [Demonstration
+plugin's gitlab CI file](https://gitlab.com/OpenTAP/Plugins/demonstration/-/blob/master/.gitlab-ci.yml) where we build, test, version, and publish the plugin directly in a continuous integration pipeline.
+
+
+### Where to go next
+Are you already an OpenTAP user, or want to try it out? Have a look at the [User Guide](User%20Guide/Introduction/).
+
+Are you a developer and want to create plugins for OpenTAP? Have a look at the [Developer Guide](Developer%20Guide/Introduction/).

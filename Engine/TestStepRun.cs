@@ -107,6 +107,13 @@ namespace OpenTap
             }
         }
         readonly object upgradeVerdictLock = new object();
+        
+        
+        /// <summary>
+        /// Calculated abort condition...
+        /// </summary>
+        internal BreakCondition AbortCondition { get; set; }
+
     }
 
     /// <summary>
@@ -167,17 +174,20 @@ namespace OpenTap
         
         private ManualResetEventSlim completedEvent = new ManualResetEventSlim(false);
         
-        /// <summary>
-        /// Waits for the test step run to be entirely done. This includes any deferred processing.
-        /// </summary>
+        /// <summary>  Waits for the test step run to be entirely done. This includes any deferred processing.</summary>
         public void WaitForCompletion()
+        {
+            WaitForCompletion(CancellationToken.None);
+        }
+
+        /// <summary>  Waits for the test step run to be entirely done. This includes any deferred processing. It does not break when the test plan is aborted</summary>
+        public void WaitForCompletion(CancellationToken cancellationToken)
         {
             if (completedEvent.IsSet) return;
 
             var currentThread = TapThread.Current;
             if(!WasDeferred && StepThread == currentThread) throw new InvalidOperationException("StepRun.WaitForCompletion called from the thread itself. This will either cause a deadlock or do nothing.");
-            var waits = new[] { completedEvent.WaitHandle, currentThread.AbortToken.WaitHandle };
-            WaitHandle.WaitAny(waits);
+            completedEvent.Wait(cancellationToken);
         }
 
         /// <summary>  The thread in which the step is running. </summary>
@@ -237,6 +247,34 @@ namespace OpenTap
             Verdict = Verdict.NotSet;
             if (attachedParameters != null) Parameters.AddRange(attachedParameters);
             Parent = parent;
+            
+        }
+        
+        internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters = null)
+        {
+            TestStepId = step.Id;
+            TestStepName = step.GetFormattedName();
+            TestStepTypeName = step.GetType().AssemblyQualifiedName;
+            Parameters = ResultParameters.GetParams(step);
+            Verdict = Verdict.NotSet;
+            if (attachedParameters != null) Parameters.AddRange(attachedParameters);
+            Parent = parent.Id;
+            AbortCondition = calculateAbortCondition(step, parent);
+        }
+        
+        
+        static BreakCondition calculateAbortCondition(ITestStep step, TestRun parentStepRun)
+        {
+            BreakCondition abortCondition = BreakConditionProperty.GetBreakCondition(step);
+            
+            if (abortCondition.HasFlag(BreakCondition.Inherit))
+            {
+                // Retry conditions are not inherited.
+                return parentStepRun.AbortCondition | BreakCondition.Inherit;
+            }
+
+            return abortCondition;
+
         }
 
         internal TestStepRun Clone()
@@ -245,6 +283,48 @@ namespace OpenTap
             run.Parameters = run.Parameters.Clone();
             return run;
         }
+        
         #endregion
+
+        internal bool IsBreakCondition()
+        {
+            if (OutOfRetries 
+                || (Verdict == Verdict.Fail && AbortCondition.HasFlag(BreakCondition.BreakOnFail)) 
+                || (Verdict == Verdict.Error && AbortCondition.HasFlag(BreakCondition.BreakOnError))
+                || (Verdict == Verdict.Inconclusive && AbortCondition.HasFlag(BreakCondition.BreakOnInconclusive)))
+            {
+                return true;
+            }
+
+            return false;
+        }
+        
+        internal void CheckBreakCondition()
+        {
+            if(IsBreakCondition())
+                ThrowDueToBreakConditions();
+        }
+        
+        internal bool OutOfRetries { get; set; }
+
+        internal void ThrowDueToBreakConditions()
+        {
+            throw new TestStepBreakException(TestStepName, Verdict);
+        }
+    }
+
+    class TestStepBreakException : OperationCanceledException
+    {
+        public string TestStepName { get; set; }
+        public Verdict Verdict { get; set; }
+
+        public TestStepBreakException(string testStepName, Verdict verdict)
+        {
+            TestStepName = testStepName;
+            Verdict = verdict;
+        }
+
+        public override string Message =>
+            $"Break issued from '{TestStepName}' due to verdict {Verdict}. See Break Conditions settings.";
     }
 }

@@ -62,7 +62,8 @@ namespace OpenTap.Plugins.BasicSteps
         public WaitForInputResult2 Input2 { get; set; } = WaitForInputResult2.Ok;
     }
 
-    [Display("Dialog", Group: "Basic Steps", Description: "Used to interact with the user.")]
+    [Display("Dialog", Group: "Basic Steps", Description: "Shows a message to the user and waits for a response. " +
+                                                          "A verdict can be set based on the response.")]
     public class DialogStep : TestStep
     {
         [Display("Message", Description: "The message shown to the user.", Order: 0.1)]
@@ -159,8 +160,9 @@ namespace OpenTap.Plugins.BasicSteps
             public DialogStep Step;
         }
 
-        const string legacyNotSetName = "Not_Set";
-        const string legacyDefaultAnswerPropertyName = "DefaultAnswer";
+        static readonly string legacyNotSetName = "Not_Set";
+        static readonly XName legacyDefaultAnswerPropertyName = "DefaultAnswer";
+        static readonly XName TestStepName = nameof(TestStep);
 
         Box currentBox;
         public bool Deserialize(XElement node, ITypeData t, Action<object> setter)
@@ -174,7 +176,7 @@ namespace OpenTap.Plugins.BasicSteps
                 }    
             }
 
-            if(node.Name == nameof(TestStep) && t.DescendsTo(typeof(DialogStep)))
+            if(node.Name == TestStepName && t.DescendsTo(typeof(DialogStep)))
             {
                 if (currentBox != null) return false;
 

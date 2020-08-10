@@ -63,7 +63,7 @@ some dependencies in addition to .NET Core SDK. On Ubuntu, run the following on
 apt:
 
 ```sh
-sudo apt install libc6-dev libunwind8 curl git libcurl3 -y
+sudo apt install libc6-dev libunwind8 curl git -y
 ```
 
 This should install the needed dependencies. Once these are installed, you can

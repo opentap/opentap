@@ -3,48 +3,21 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.ComponentModel;
 using System.Collections.Generic;
-using System.Threading;
-using System.Linq;
-using OpenTap;
 
 namespace OpenTap.Plugins.BasicSteps
 {
-    public abstract class LoopTestStep : TestStep
-    {
-        protected CancellationTokenSource breakLoopToken { get; private set; }
-
-        [Browsable(false)]
-        protected CancellationToken BreakLoopRequested { get { return breakLoopToken.Token; } }
-
-        public LoopTestStep()
-        {
-            breakLoopToken = new CancellationTokenSource();
-        }
-        
-        public void BreakLoop()
-        {
-            breakLoopToken.Cancel();
-        }
-
-        /// <summary> Always call base.Run in LoopTestStep inheritors. </summary>
-        public override void Run()
-        {
-            breakLoopToken = new CancellationTokenSource();
-        }
-    }
-
-
     [Display("Repeat", Group: "Flow Control", Description: "Repeats its child steps a fixed number of times or until the verdict of a child step changes to a specified state.")]
     [AllowAnyChild]
     public class RepeatStep : LoopTestStep
     {
         public enum RepeatStepAction
         {
-            [Display("Fixed Count")]
+            [Display("Fixed Count", "Repeat iteration a fixed number of times.")]
             Fixed_Count,
+            [Display("While", "Repeat while the specified condition is met. This guarantees a minimum of one time.")]
             While,
+            [Display("Until", "Repeat until the specified condition is met. This guarantees a minimum of one time.")]
             Until
         }
 
@@ -52,9 +25,8 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Repeat", Order: 0, Description: "Select if you want to repeat for a fixed number of times or you want to repeat while or until a certain step has a certain verdict.")]
         public RepeatStepAction Action { get; set; }
 
-
-        [StepSelector(StepSelectorAttribute.FilterTypes.AllExcludingSelf)]
-        [EnabledIf("Action", RepeatStepAction.While, RepeatStepAction.Until, HideIfDisabled = true)]
+        [StepSelector(StepSelectorAttribute.FilterTypes.All)]
+        [EnabledIf(nameof(Action), RepeatStepAction.While, RepeatStepAction.Until, HideIfDisabled = true)]
         [Display("Verdict Of", Order: 1, Description: "Select the step that you want to validate the verdict of.")]
         public ITestStep TargetStep { get; set; }
         
@@ -65,6 +37,9 @@ namespace OpenTap.Plugins.BasicSteps
         [EnabledIf("Action",RepeatStepAction.Fixed_Count, HideIfDisabled = true)]
         [Display("Count", Order: 1, Description: "Set the fixed number of times to repeat.")]
         public uint Count { get; set; }
+        
+        [Display("Retry", Order:3, Description: "Clear the verdict and try again if break conditions were reached for child steps.")]
+        public bool Retry { get; set; }
 
         public Enabled<uint> maxCount = new Enabled<uint> { Value = 3, IsEnabled = false };
 
@@ -72,13 +47,8 @@ namespace OpenTap.Plugins.BasicSteps
         [EnabledIf("Action", RepeatStepAction.While, RepeatStepAction.Until, HideIfDisabled = true)]
         public Enabled<uint> MaxCount
         {
-            get { return maxCount; }
-            set
-            {
-                if (value == null)
-                    throw new ArgumentNullException("value", "Cannot assign Max Count a null value.");
-                maxCount = value;
-            }
+            get => maxCount;
+            set => maxCount = value ?? throw new ArgumentNullException(nameof(value), "Cannot assign Max Count a null value.");
         }
         
         [Output]
@@ -93,10 +63,10 @@ namespace OpenTap.Plugins.BasicSteps
                     _iteration = 0;
 
                 if(MaxCount.IsEnabled && Action != RepeatStepAction.Fixed_Count)
-                    return string.Format("{0} of {1}", _iteration, MaxCount.Value);
+                    return $"{_iteration} of {MaxCount.Value}";
                 if(Action == RepeatStepAction.Fixed_Count)
-                     return string.Format("{0} of {1}", _iteration, Count);
-                return string.Format("{0}", _iteration);
+                     return $"{_iteration} of {Count}";
+                return $"{_iteration}";
             }
         }
 
@@ -111,26 +81,37 @@ namespace OpenTap.Plugins.BasicSteps
         }
         uint iteration;
 
-        Verdict getCurrentVerdict()
-        {
-            if (TargetStep == null)
-                return Verdict.NotSet;
-            return TargetStep.Verdict;
-        }
+        Verdict getCurrentVerdict() => TargetStep?.Verdict ?? Verdict.NotSet;
 
         Verdict iterate()
         {
+            TapThread.Current.AbortToken.ThrowIfCancellationRequested();
+            if (Retry && Verdict == Verdict.Error) // previous break conditions were reached
+                Verdict = Verdict.NotSet; 
             this.iteration += 1;
             OnPropertyChanged(nameof(IterationInfo));
             var AdditionalParams = new List<ResultParameter> { new ResultParameter("", "Iteration", this.iteration) };
-            var runs = RunChildSteps(AdditionalParams, BreakLoopRequested);
-            foreach (var r in runs)
-                r.WaitForCompletion();
+            try
+            {
+                var runs = RunChildSteps(AdditionalParams, BreakLoopRequested);
+                foreach (var r in runs)
+                    r.WaitForCompletion();
+            }
+            catch(OperationCanceledException)
+            {
+                // break conditions reached for child steps.
+                // if ClearVerdict is set, retry.
+                
+                if (Retry == false)
+                    throw;
+            }
+
             return getCurrentVerdict();
         }
 
-        static bool isChildOf(ITestStep step, ITestStep parent)
+        static bool IsChildOfOrSelf(ITestStep step, ITestStep parent)
         {
+            if (step == parent) return true;
             step = step.Parent as ITestStep;
             while(step != null && step != parent)
                 step = step.Parent as ITestStep;
@@ -157,7 +138,7 @@ namespace OpenTap.Plugins.BasicSteps
                 // when TargetStep is not a child of this, we need to evaluate the verdict _before_ 
                 // running the first iteration.
 
-                if (Action != RepeatStepAction.Fixed_Count && !isChildOf(TargetStep, this))
+                if (Action != RepeatStepAction.Fixed_Count && !IsChildOfOrSelf(TargetStep, this))
                 {
                     var currentVerdict = getCurrentVerdict();
                     if (currentVerdict != TargetVerdict && Action == RepeatStepAction.While)
@@ -166,12 +147,31 @@ namespace OpenTap.Plugins.BasicSteps
                         return;
                 }
             }
+            
 
-            if (Action == RepeatStepAction.While)
-                while (iterate() == TargetVerdict && iteration < loopCount && !BreakLoopRequested.IsCancellationRequested) { }
-            else if (Action == RepeatStepAction.Until)
-                while (iterate() != TargetVerdict && iteration < loopCount && !BreakLoopRequested.IsCancellationRequested) { }
-            else while (iteration < loopCount && !BreakLoopRequested.IsCancellationRequested) iterate();
+            switch (Action)
+            {
+                case RepeatStepAction.While:
+                {
+                    while (iterate() == TargetVerdict && iteration < loopCount && !BreakLoopRequested.IsCancellationRequested) { }
+
+                    break;
+                }
+                case RepeatStepAction.Until:
+                {
+                    while (iterate() != TargetVerdict && iteration < loopCount && !BreakLoopRequested.IsCancellationRequested) { }
+
+                    break;
+                }
+                case RepeatStepAction.Fixed_Count:
+                {
+                    while (iteration < loopCount && !BreakLoopRequested.IsCancellationRequested) 
+                        iterate();
+                    break;
+                }
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
         }
     }
 }

@@ -61,8 +61,9 @@ namespace OpenTap.Package.UnitTests
             package.Description = "Right version";
             var file2 = DummyPackageGenerator.GeneratePackage(package);
 
-            var result = RunPackageCli("install -f \"" + Path.GetFullPath(file2) + "\"", out int exitcode);
+            var result = RunPackageCli("install -v -f \"" + Path.GetFullPath(file2) + "\"", out int exitcode);
             Assert.IsTrue(result.ToLower().Contains("installed"));
+            Assert.IsTrue(result.ToLower().Contains("downloading file without searching"));
 
             var installedPackage = new Installation(Directory.GetCurrentDirectory()).GetPackages().FirstOrDefault(p => p.Name == package.Name);
             Assert.IsNotNull(installedPackage, "Package was not installed");
@@ -92,6 +93,16 @@ namespace OpenTap.Package.UnitTests
             string output = RunPackageCli("list", out exitCode);
             Assert.AreEqual(0, exitCode, $"Unexpected exit code.{Environment.NewLine}{output}");
             StringAssert.Contains("OpenTAP ", output);
+            Debug.Write(output);
+        }
+
+        [Test]
+        public void ShowTest()
+        {
+            int exitCode;
+            string output = RunPackageCli("show OpenTAP", out exitCode);
+            Assert.AreEqual(0, exitCode, $"Unexpected exit code.{Environment.NewLine}{output}");
+            StringAssert.Contains("OpenTAP", output);
             Debug.Write(output);
         }
 

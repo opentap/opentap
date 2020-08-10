@@ -210,7 +210,7 @@ namespace OpenTap.Engine.UnitTests.UnitTestUtils
             if (exceptions.Any())
             {
                 var warnings = exceptions.Where(ex => ex is WarningPropException);
-                warnings.Evaluate(ex =>
+                warnings.ForEach(ex =>
                 {
                     Debug.Print("Warning: " + ex.Message);
                 });
@@ -233,7 +233,7 @@ namespace OpenTap.Engine.UnitTests.UnitTestUtils
             if (exceptions.Any())
             {
                 var warnings = exceptions.Where(ex => ex is WarningPropException);
-                warnings.Evaluate(ex =>
+                warnings.ForEach(ex =>
                 {
                     Debug.Print("Warning: " + ex.Message);
                 });

@@ -29,9 +29,9 @@ namespace OpenTap.Cli
     public class RunCliAction : ICliAction
     {
         /// <summary>
-        /// Specify a bench settings profile from which to load\nsettings. The parameter given here should correspondto the name of a subdirectory of ./Settings/Bench. If not specified the settings from OpenTAP GUI are used.
+        /// Specify a bench settings profile from which to load\nsettings. The parameter given here should correspond to the name of a subdirectory of %TAP_PATH%/Settings/Bench. If not specified the settings from OpenTAP GUI are used.
         /// </summary>
-        [CommandLineArgument("settings", Description = "Specify a bench settings profile from which to load\nsettings. The parameter given here should correspond\nto the name of a subdirectory of ./Settings/Bench.\nIf not specified the settings from OpenTAP GUI are used.")]
+        [CommandLineArgument("settings", Description = "Specify a bench settings profile from which to load\nsettings. The parameter given here should correspond\nto the name of a subdirectory of %TAP_PATH%/Settings/Bench.\nIf not specified, %TAP_PATH%/Settings/Bench/CurrentProfile is used.")]
         public string Settings { get; set; } = "";
 
         /// <summary>
@@ -193,21 +193,11 @@ namespace OpenTap.Cli
                 return Exit(ExitStatus.RuntimeError);
             }
 
-            log.Info("TestPlan: {0}", Plan.Name);
+            log.Info("Test Plan: {0}", Plan.Name);
 
             if (ListExternal)
             {
-                log.Info("Listing {0} external test plan parameters.", Plan.ExternalParameters.Entries.Count);
-                int pad = 0;
-                foreach (var entry in Plan.ExternalParameters.Entries)
-                {
-                    pad = Math.Max(pad, entry.Name.Length);
-                }
-                foreach (var entry in Plan.ExternalParameters.Entries)
-                {
-                    log.Info(" {2}{0} = {1}", entry.Name, StringConvertProvider.GetString(entry.Value), new String(' ', pad - entry.Name.Length));
-                }
-                log.Info("");
+                PrintExternalParameters(log);
                 return Exit(ExitStatus.Ok);
             }
 
@@ -263,7 +253,7 @@ namespace OpenTap.Cli
                 foreach (var file in externalParameterFiles)
                 {
                     log.Info("Loading external parameters from '{0}'.", file);
-                    var importer = importers.FirstOrDefault(i => i.Extension == Path.GetExtension(file)); 
+                    var importer = importers.FirstOrDefault(i => i.Extension == Path.GetExtension(file));
                     importer?.ImportExternalParameters(Plan, file);
                 }
             }
@@ -281,6 +271,37 @@ namespace OpenTap.Cli
                     log.Warning("External parameter '{0}' does not exist in the test plan.", name);
                     log.Warning("Statement '{0}' has no effect.", externalParam);
                     throw new ArgumentException("");
+                }
+            }
+        }
+
+        private void PrintExternalParameters(TraceSource log)
+        {
+            var annotation = AnnotationCollection.Annotate(Plan).Get<IMembersAnnotation>();
+            log.Info("Listing {0} External Test Plan Parameters:", Plan.ExternalParameters.Entries.Count);
+            foreach (var member in annotation.Members)
+            {
+                if (member.Get<IMemberAnnotation>()?.Member is ParameterMemberData param)
+                {
+                    var multiValues = member.Get<IMultiSelectAnnotationProxy>()?.SelectedValues;
+                    string printStr = "";
+                    if (multiValues != null)
+                    {
+                        foreach (var val in multiValues)
+                            printStr += string.Format("{0} | ", val.Get<IStringReadOnlyValueAnnotation>()?.Value ?? val.Get<IObjectValueAnnotation>()?.Value.ToString());
+                        printStr = printStr.Remove(printStr.Length - 3);    // Remove trailing delimiter
+                    }
+                    else
+                        printStr = member.Get<IStringReadOnlyValueAnnotation>()?.Value ?? member.Get<IObjectValueAnnotation>()?.Value.ToString();
+
+                    log.Info("  {0} = {1}", param.Name, printStr);
+
+                    if (member.Get<IAvailableValuesAnnotationProxy>() is IAvailableValuesAnnotationProxy avail)
+                    {
+                        log.Info("    Available Values:");
+                        foreach (var val in avail.AvailableValues)
+                            log.Info("      {0}", val.Get<IStringReadOnlyValueAnnotation>()?.Value ?? val.Get<IObjectValueAnnotation>()?.Value.ToString());
+                    }
                 }
             }
         }

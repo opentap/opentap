@@ -9,29 +9,34 @@ using System.Reflection;
 using System.Linq;
 using System.IO;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.ComTypes;
-using OpenTap.Package;
 using System.Runtime.CompilerServices;
-using System.ComponentModel;
 
 namespace OpenTap.Cli
 {
     internal class CliActionTree
     {
-        public string Name { get; set; }
-        public bool IsGroup => Type == null;
-        public ITypeData Type { get; set; }
-        public List<CliActionTree> SubCommands { get; set; }
+        public string Name { get; }
+        public bool IsGroup => (SubCommands?.Count ?? 0) > 0;
+        public bool IsBrowsable => (Type?.IsBrowsable() ?? false) || SubCommands.Any(x => x.IsBrowsable); 
+        
+        public ITypeData Type { get; private set; }
+        public List<CliActionTree> SubCommands { get; private set; }
 
-        public static CliActionTree Root { get; internal set; }
+        public CliActionTree Root { get; }
 
-        static CliActionTree()
+        public CliActionTree()
         {
-            var commands = TypeData.GetDerivedTypes(TypeData.FromType(typeof(ICliAction))).Where(t => t.CanCreateInstance && t.GetDisplayAttribute() != null).ToList();
-            Root = new CliActionTree { Name = "tap" };
+            var commands = TypeData.GetDerivedTypes(TypeData.FromType(typeof(ICliAction)))
+                .Where(t => t.CanCreateInstance && t.GetDisplayAttribute() != null).ToList();
+            Name = "tap";
+            Root = this;
             foreach (var item in commands)
                 ParseCommand(item, item.GetDisplayAttribute().Group, Root);
+        }
+
+        CliActionTree(CliActionTree parent, string name)
+        {
+            Name = name;
         }
 
         private static void ParseCommand(ITypeData type, string[] group, CliActionTree command)
@@ -46,7 +51,7 @@ namespace OpenTap.Cli
 
                 if (existingCommand == null)
                 {
-                    existingCommand = new CliActionTree() { Name = group[0] };
+                    existingCommand = new CliActionTree(command, group[0]);
                     command.SubCommands.Add(existingCommand);
                 }
 
@@ -54,8 +59,8 @@ namespace OpenTap.Cli
             }
             else
             {
-                command.SubCommands.Add(new CliActionTree() { Name = type.GetDisplayAttribute().Name, Type = type, SubCommands = new List<CliActionTree>() });
-                command.SubCommands = command.SubCommands.OrderBy(c => c.Name).ToList();
+                command.SubCommands.Add(new CliActionTree(command, type.GetDisplayAttribute().Name) { Type = type, SubCommands = new List<CliActionTree>()});
+                command.SubCommands.Sort((x,y) => string.Compare(x.Name, y.Name));
             }
         }
 
@@ -70,14 +75,38 @@ namespace OpenTap.Cli
                 {
                     if (args.Length == 1 || item.SubCommands.Any() == false)
                        return item;
-                    else
-                    {
-                        return item.GetSubCommand(args.Skip(1).ToArray());
-                    }
+                    var subCmd = item.GetSubCommand(args.Skip(1).ToArray());
+                    return subCmd ?? item;
                 }
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// This method calculates the max length in a command tree. Consider the tree outputted by tap help:
+        /// run
+        /// package
+        ///    create
+        ///    install  = Longest command (10 characters), this method would return the integer 10.
+        /// </summary>
+        /// <param name="levelPadding">How much is each level indenting? In the example above, the subcommands to 'package' is indented with 3 characters</param>
+        /// <returns>Max character length of commands outputted</returns>
+        internal int GetMaxCommandTreeLength(int levelPadding)
+        {
+            var initial = this == Root ? 0 : levelPadding;
+            var x = 0;
+
+            if (SubCommands.Count == 0)
+                return x + Name.Length;
+
+            foreach(var cmd in SubCommands)
+            {
+                int length = cmd.GetMaxCommandTreeLength(levelPadding);
+                if (length > x)
+                    x = length;
+            }
+            return x + initial;
         }
     }
 
@@ -86,6 +115,7 @@ namespace OpenTap.Cli
     /// </summary>
     public class CliActionExecutor
     {
+        internal static readonly int LevelPadding = 3;
         private static TraceSource log = Log.CreateSource("tap");
         private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
         {
@@ -133,7 +163,12 @@ namespace OpenTap.Cli
             try
             {
                 var execThread = TapThread.Current;
-                Console.CancelKeyPress += (s, e) => execThread.Abort();
+                Console.CancelKeyPress += (s, e) =>
+                {
+                    e.Cancel = true;
+                    execThread.Abort();
+                };
+
             }
             catch { }
 
@@ -177,52 +212,55 @@ namespace OpenTap.Cli
             }
 
             ITypeData selectedCommand = null;
-            var requestedCommand = args.FirstOrDefault();
-
+            
             // Find selected command
-            var selectedcmd = CliActionTree.Root.GetSubCommand(args);
+            var actionTree = new CliActionTree();
+            var selectedcmd = actionTree.GetSubCommand(args);
             if (selectedcmd?.Type != null && selectedcmd?.SubCommands.Any() != true)
                 selectedCommand = selectedcmd.Type;
+            void print_command(CliActionTree cmd, int level, int descriptionStart)
+            {
+                if (cmd.IsBrowsable)
+                {
+                    int relativePadding = descriptionStart - (level * LevelPadding); // Calculate amount of characters to pad right before description start to ensure description alignments.
+                    Console.Write($"{"".PadRight(level * LevelPadding)}{cmd.Name.PadRight(relativePadding)}");
+                    if (cmd.Type?.IsBrowsable() ?? false)
+                    {
+                        Console.WriteLine($"{cmd.Type.GetDisplayAttribute().Description}");
+                    }
+                    else
+                    {
+                        Console.WriteLine();
+                    }
 
+                    if (cmd.IsGroup)
+                    {
+                        foreach (var subCmd in cmd.SubCommands)
+                        {
+                            print_command(subCmd, level + 1, descriptionStart);
+                        }
+                    }
+                }
+            }
+            
             // Print default info
-            if (selectedCommand == null || selectedcmd == null)
+            if (selectedCommand == null)
             {
                 Console.WriteLine("OpenTAP Command Line Interface ({0})",Assembly.GetExecutingAssembly().GetSemanticVersion().ToString(4));
-                Console.WriteLine("Usage: tap <command> [<subcommand>] [<args>]\n");
+                Console.WriteLine("Usage: tap <command> [<subcommand(s)>] [<args>]\n");
 
                 if (selectedcmd == null)
                 {
                     Console.WriteLine("Valid commands are:");
-
-                    foreach (var cmd in CliActionTree.Root.SubCommands)
+                    foreach (var cmd in actionTree.SubCommands)
                     {
-                        if (cmd.IsGroup || cmd.Type.IsBrowsable())
-                        {
-                            Console.WriteLine($"  {cmd.Name.PadRight(22)}{(cmd.IsGroup ? "" : cmd.Type.GetDisplayAttribute().Description)}");
-                            foreach (var subcmd in cmd.SubCommands)
-                            {
-                                if (subcmd.IsGroup || subcmd.Type.IsBrowsable())
-                                    Console.WriteLine($"    {subcmd.Name.PadRight(22)}{(subcmd.IsGroup ? "" : subcmd.Type.GetDisplayAttribute().Description)}");
-                            }
-                        }
+                        print_command(cmd, 0, actionTree.GetMaxCommandTreeLength(LevelPadding) + LevelPadding);
                     }
                 }
                 else
                 {
-                    Console.WriteLine($"Valid commands for '{selectedcmd.Name}':");
-                    var availableCommands = selectedcmd.SubCommands.Where(cmd => cmd.IsGroup || (cmd.Type.GetDisplayAttribute() != null && cmd.Type.IsBrowsable())).Distinct().ToList();
-                    foreach (var cmd in availableCommands)
-                    {
-                        if (cmd.IsGroup || cmd.Type.IsBrowsable())
-                        {
-                            Console.WriteLine($"  {cmd.Name.PadRight(22)}{(cmd.IsGroup ? "" : cmd.Type.GetDisplayAttribute().Description)}");
-                            foreach (var subcmd in cmd.SubCommands)
-                            {
-                                if (subcmd.IsGroup || subcmd.Type.IsBrowsable())
-                                    Console.WriteLine($"    {subcmd.Name.PadRight(22)}{(subcmd.IsGroup ? "" : subcmd.Type.GetDisplayAttribute().Description)}");
-                            }
-                        }
-                    }
+                    Console.Write("Valid subcommands of ");
+                    print_command(selectedcmd, 0, actionTree.GetMaxCommandTreeLength(LevelPadding) + LevelPadding);
                 }
 
                 Console.WriteLine($"\nRun \"{(OperatingSystem.Current == OperatingSystem.Windows ? "tap.exe" : "tap")} " +
@@ -233,8 +271,6 @@ namespace OpenTap.Cli
                 else
                     return -1;
             }
-
-
 
             if (selectedCommand != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
                 CliUserInputInterface.Load();

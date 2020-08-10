@@ -29,17 +29,48 @@ namespace OpenTap
         /// </summary>
         public Type Type => Load();
 
+        // Since AddAssembly is called inside createValueCallback,
+        // the value creation must be locked, throwing an exception
+        // inside createValueCallback can cause critical errors.
+        static object loadTypeDictLock = new object();
+        
         /// <summary> Creates a new TypeData object to represent a dotnet type. </summary>
         public static TypeData FromType(Type type)
         {
             checkCacheValidity();
-            return dict.GetValue(type, x =>
-            {
-                TypeData td = null;
-                PluginManager.GetSearcher()?.AllTypes.TryGetValue(type.FullName, out td);
-                if (td == null) td = new TypeData(x);
-                return td;
-            });
+            
+                return dict.GetValue(type, x =>
+                {
+                    TypeData td = null;
+                    var searcher = PluginManager.GetSearcher();
+                    lock (loadTypeDictLock)
+                    {
+                        searcher?.AllTypes.TryGetValue(type.FullName, out td);
+                        if (td == null && searcher != null)
+                        {
+                            // This can occur for some types inside mscorlib such as System.Net.IPAddress.
+                            try
+                            {
+                                if (type.Assembly != null && type.Assembly.IsDynamic == false &&
+                                    type.Assembly.Location != null)
+                                {
+                                    searcher.AddAssembly(type.Assembly.Location, type.Assembly);
+                                    if (searcher.AllTypes.TryGetValue(type.FullName, out td))
+                                        return td;
+                                }
+                            }
+                            catch
+                            {
+
+                            }
+
+                            td = new TypeData(x);
+                        }
+                    }
+
+                    return td;
+                });
+            
         }
 
         TypeData(Type type)
@@ -66,7 +97,20 @@ namespace OpenTap
                 }
                 typecode = Type.GetTypeCode(type);
                 hasFlags = this.HasAttribute<FlagsAttribute>();
+                isValueType = type.IsValueType;
                 postLoaded = true;
+                
+            }
+        }
+
+        bool isValueType;
+        /// <summary> Cached IsValueType for speeding up annotation. </summary>
+        internal bool IsValueType
+        {
+            get
+            {
+                postload();
+                return isValueType;
             }
         }
 
@@ -104,14 +148,14 @@ namespace OpenTap
         /// The attributes of this type. 
         /// Accessing this property causes the underlying Assembly to be loaded if it is not already.
         /// </summary>
-        public IEnumerable<object> Attributes => attributes ?? (attributes = Load().GetAllCustomAttributes());
+        public IEnumerable<object> Attributes => attributes ?? (attributes = Load().GetAllCustomAttributes(false));
 
         /// <summary> The base type of this type. </summary>
         public ITypeData BaseType
         {
             get
             {
-                if (BaseTypes.Any())
+                if (BaseTypes != null)
                     return BaseTypes.First();
                 return Load().BaseType == null ? null : TypeData.FromType(Load().BaseType);
             }
@@ -208,6 +252,25 @@ namespace OpenTap
         {
             postload();
             return hasFlags;
+        }
+
+        /// <summary> Compares two TypeDatas by comparing their inner Type instances. </summary>
+        /// <param name="obj"> Should be a TypeData</param>
+        /// <returns>true if the two Type properties are equals.</returns>
+        public override bool Equals(object obj)
+        {
+            if (obj is TypeData td && td.type != null && type != null )
+                return td.type == type;
+            return ReferenceEquals(this, obj);
+        }
+
+        /// <summary> Calculates the hash code based on the .NET Type instance. </summary>
+        /// <returns></returns>
+        public override int GetHashCode()
+        {
+            var asm = Assembly?.GetHashCode() ?? 0;
+            return (asm + 586093897) * 759429795 + 
+                   (Name.GetHashCode() + 836431542) * 678129773;
         }
     }
 

@@ -15,7 +15,6 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Runtime.CompilerServices;
-
 namespace OpenTap
 {
     /// <summary>
@@ -27,7 +26,7 @@ namespace OpenTap
     /// </remarks>
     [ComVisible(true)]
     [Guid("d0b06600-7bac-47fb-9251-f834e420623f")]
-    public abstract class TestStep : ValidatingObject, ITestStep
+    public abstract class TestStep : ValidatingObject, ITestStep, IBreakConditionProvider, IDescriptionProvider, IDynamicMembersProvider
     {
         #region Properties
         /// <summary>
@@ -45,7 +44,9 @@ namespace OpenTap
         /// Gets or sets boolean indicating whether this step is enabled in the TestPlan
         /// </summary>
         [ColumnDisplayName("", Order : -101)]
-        [Display("Enabled", Group: "Common", Order: 20000, Collapsed: true)]
+        [Display("Enabled", "Enabling/Disabling the test step decides if" +
+                            " it should be used when the test plan is executed. " +
+                            "This value should not be changed during test plan run.", Group: "Common", Order: 20000, Collapsed: true)]
         [Unsweepable]
         public bool Enabled
         {
@@ -64,6 +65,7 @@ namespace OpenTap
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
+        [AnnotationIgnore]
         public bool IsReadOnly { get; set; }
 
         private string name;
@@ -73,7 +75,10 @@ namespace OpenTap
         /// May not be null.
         /// </summary>
         [ColumnDisplayName("Step Name", Order : -100)]
-        [Display("Step Name", Group: "Common", Order: 20001, Collapsed: true)]
+        [Display("Step Name", "The name of the test step, this value can be used to identifiy a test step. " +
+                              "Test step names are not guaranteed to be unique. " +
+                              "Name can include names of a setting of the step, this property will dynamically be " +
+                              "replaced with it's current value in some views.", Group: "Common", Order: 20001, Collapsed: true)]
         [Unsweepable]
         public string Name
         {
@@ -101,6 +106,7 @@ namespace OpenTap
         /// executed instead of the Run method of this TestStep.
         /// </summary>
         [Browsable(false)]
+        [AnnotationIgnore]
         public TestStepList ChildTestSteps
         {
             get => _ChildTestSteps; 
@@ -116,17 +122,20 @@ namespace OpenTap
         /// The parent of this TestStep. Can be another TestStep or the <see cref="TestPlan"/>.  
         /// </summary>
         [XmlIgnore]
+        [AnnotationIgnore]
         public virtual ITestStepParent Parent { get; set; }
 
         /// <summary>
         /// Result proxy that stores TestStep run results until they are propagated to the <see cref="ResultListener"/>.   
         /// </summary>
         [XmlIgnore]
+        [AnnotationIgnore]
         public ResultSource Results { get; internal set; }
 
         /// <summary>
         /// The enumeration of all enabled Child Steps.
         /// </summary>
+        [AnnotationIgnore]
         public IEnumerable<ITestStep> EnabledChildSteps => this.GetEnabledChildSteps();
         
         /// <summary>
@@ -444,9 +453,18 @@ namespace OpenTap
         /// <param name="attachedParameters">Parameters that will be stored together with the actual parameters of the step.</param>
         protected TestStepRun RunChildStep(ITestStep childStep, IEnumerable<ResultParameter> attachedParameters = null)
         {
-            var steprun = this.RunChildStep(childStep, PlanRun, StepRun, attachedParameters);
-            //Results.Defer(() => steprun.WaitForCompletion());
-            return steprun;
+            return this.RunChildStep(childStep, PlanRun, StepRun, attachedParameters);
+        }
+        
+        /// <summary>
+        /// Runs the specified child step if enabled. Upgrades parent verdict to the resulting verdict of the child run. Throws an exception if childStep does not belong or isn't enabled.
+        /// </summary>
+        /// <param name="childStep">The child step to run.</param>
+        /// <param name="throwOnError"></param>
+        /// <param name="attachedParameters">Parameters that will be stored together with the actual parameters of the step.</param>
+        protected TestStepRun RunChildStep(ITestStep childStep, bool throwOnError, IEnumerable<ResultParameter> attachedParameters = null)
+        {
+            return this.RunChildStep(childStep, throwOnError, PlanRun, StepRun, attachedParameters);
         }
 
         /// <summary>
@@ -454,6 +472,7 @@ namespace OpenTap
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
+        [AnnotationIgnore]
         public TestPlanRun PlanRun { get; set; }
 
         /// <summary>
@@ -461,13 +480,23 @@ namespace OpenTap
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
+        [AnnotationIgnore]
         public TestStepRun StepRun { get; set; }
 
         /// <summary> Gets or sets the ID used to uniquely identify a test step within a test plan. </summary>
         [XmlAttribute("Id")]
         [Browsable(false)]
+        [AnnotationIgnore]
         public Guid Id { get; set; } = Guid.NewGuid();
+
+        // Implementing this interface will make setting and getting break conditions faster.
+        BreakCondition IBreakConditionProvider.BreakCondition { get; set; } = BreakCondition.Inherit;
+        // Implementing this interface will make setting and getting descriptions faster.
+        string IDescriptionProvider.Description { get; set; }
+        // Implementing this interface will make setting and getting dynamic members faster.
+        IMemberData[] IDynamicMembersProvider.DynamicMembers { get; set; }
     }
+
 
     /// <summary>
     /// An extension class for the ITestStep interface.
@@ -611,6 +640,11 @@ namespace OpenTap
                             i = stepidx - 1;
                         // if skip to next step, dont add it to the wait queue.
                     }
+                    if (run.IsBreakCondition())
+                    {
+                        Step.UpgradeVerdict(Verdict.Error);
+                        run.ThrowDueToBreakConditions();
+                    }
                     
                     TapThread.ThrowIfAborted();
                 }
@@ -620,7 +654,7 @@ namespace OpenTap
 
                 if (runs.Count > 0) // Avoid deferring if there is nothing to do.
                 {
-                    if (Step is TestStep testStep)
+                    if (Step is TestStep testStep && runs.Any(x => x.WasDeferred))
                     {
                         testStep.Results.Defer(() =>
                         {
@@ -648,6 +682,7 @@ namespace OpenTap
 
             return runs;
         }
+
         /// <summary>
         /// Runs the specified child step if enabled. Upgrades parent verdict to the resulting verdict of the child run. Throws an exception if childStep does not belong or isn't enabled.
         /// </summary>
@@ -656,37 +691,60 @@ namespace OpenTap
         /// <param name="currentPlanRun">The current TestPlanRun.</param>
         /// <param name="currentStepRun">The current TestStepRun.</param>
         /// <param name="attachedParameters">Parameters that will be stored together with the actual parameters of the step.</param>
-        public static TestStepRun RunChildStep(this ITestStep Step, ITestStep childStep, TestPlanRun currentPlanRun, TestStepRun currentStepRun, IEnumerable<ResultParameter> attachedParameters = null)
+        public static TestStepRun RunChildStep(this ITestStep Step, ITestStep childStep,
+            TestPlanRun currentPlanRun, TestStepRun currentStepRun,
+            IEnumerable<ResultParameter> attachedParameters = null)
+        {
+            return Step.RunChildStep(childStep, true, currentPlanRun, currentStepRun, attachedParameters);
+        }
+        
+        
+        /// <summary>
+        /// Runs the specified child step if enabled. Upgrades parent verdict to the resulting verdict of the child run. Throws an exception if childStep does not belong or isn't enabled.
+        /// </summary>
+        /// <param name="Step"></param>
+        /// <param name="childStep">The child step to run.</param>
+        /// <param name="throwOnError"></param>
+        /// <param name="currentPlanRun">The current TestPlanRun.</param>
+        /// <param name="currentStepRun">The current TestStepRun.</param>
+        /// <param name="attachedParameters">Parameters that will be stored together with the actual parameters of the step.</param>
+        public static TestStepRun RunChildStep(this ITestStep Step, ITestStep childStep, bool throwOnError, TestPlanRun currentPlanRun, TestStepRun currentStepRun, IEnumerable<ResultParameter> attachedParameters = null)
         {
             if (childStep == null)
-                throw new ArgumentNullException("childStep");
+                throw new ArgumentNullException(nameof(childStep));
             if (currentPlanRun == null)
-                throw new ArgumentNullException("currentPlanRun");
+                throw new ArgumentNullException(nameof(currentPlanRun));
             if (currentStepRun == null)
-                throw new ArgumentNullException("currentStepRun");
+                throw new ArgumentNullException(nameof(currentStepRun));
             if (Step.StepRun == null)
                 throw new Exception("Can only run child step during own step run.");
             if(childStep.Parent != Step)
-                throw new ArgumentException("childStep must be a child step of Step", "childStep");
+                throw new ArgumentException("childStep must be a child step of Step", nameof(childStep));
             if(childStep.Enabled == false)
-                throw new ArgumentException("childStep must be enabled.", "childStep");
+                throw new ArgumentException("childStep must be enabled.", nameof(childStep));
 
             var run = childStep.DoRun(currentPlanRun, currentStepRun, attachedParameters);
 
-            if (Step is TestStep step)
+            if (Step is TestStep step && run.WasDeferred)
             {
                 step.Results.Defer(() =>
                 {
                     run.WaitForCompletion();
-                    if (run.Verdict > Step.Verdict)
-                        Step.Verdict = run.Verdict;
+                    Step.UpgradeVerdict(run.Verdict);
                 });
             }
             else
             {
-                run.WaitForCompletion();
-                if (run.Verdict > Step.Verdict)
-                    Step.Verdict = run.Verdict;
+                if(run.WasDeferred)
+                    run.WaitForCompletion();
+                Step.UpgradeVerdict(run.Verdict);
+            }
+
+            if (run.IsBreakCondition())
+            {
+                Step.UpgradeVerdict(Verdict.Error);
+                if (throwOnError)
+                    run.ThrowDueToBreakConditions();
             }
 
             return run;
@@ -715,20 +773,14 @@ namespace OpenTap
             return sb.ToString();
         }
 
-        static void checkStepFailure(ITestStep Step, TestPlanRun planRun)
+        internal static void UpgradeVerdict(this ITestStep step, Verdict newVerdict)
         {
-            if ((Step.Verdict == Verdict.Fail && planRun.AbortOnStepFail) || (Step.Verdict == Verdict.Error && planRun.AbortOnStepError))
-            {
-                TestPlan.Log.Warning("OpenTAP is currently configured to abort run on verdict {0}. This can be changed in Engine Settings.", Step.Verdict);
-                planRun.MainThread.Abort(String.Format("Verdict of '{0}' was '{1}'.", Step.Name, Step.Verdict));
-            }
-            if (Step.Verdict == Verdict.Aborted)
-            {
-                planRun.MainThread.Abort(String.Format("Step '{0}' was aborted.", Step.Name));
-            }
+            if (step.Verdict < newVerdict)
+                step.Verdict = newVerdict;
         }
+
         
-        internal static TestStepRun DoRun(this ITestStep Step, TestPlanRun planRun, TestStepRun parentStepRun, IEnumerable<ResultParameter> attachedParameters = null)
+        internal static TestStepRun DoRun(this ITestStep Step, TestPlanRun planRun, TestRun parentRun, IEnumerable<ResultParameter> attachedParameters = null)
         {
             {
                 // in case the previous action was not completed yet.
@@ -737,18 +789,18 @@ namespace OpenTap
                 Step.StepRun?.WaitForCompletion();
                 Debug.Assert(Step.StepRun == null);
             }
-
+            Step.PlanRun = planRun;
             Step.Verdict = Verdict.NotSet;
 
             TapThread.ThrowIfAborted();
             if (!Step.Enabled)
                 throw new Exception("Step not enabled."); // Do not run step if it has been disabled
             planRun.ThrottleResultPropagation();
-            Step.PlanRun = planRun;
-            var stepRun = Step.StepRun = new TestStepRun(Step, parentStepRun == null ? planRun.Id : parentStepRun.Id,
+            
+            var stepRun = Step.StepRun = new TestStepRun(Step, parentRun,
                 attachedParameters)
             {
-                TestStepPath = Step.GetStepPath()
+                TestStepPath = Step.GetStepPath(),
             };
 
             var stepPath = stepRun.TestStepPath;
@@ -757,7 +809,7 @@ namespace OpenTap
             if (stepRun.SuggestedNextStep != null) {
                 Step.StepRun = null;
                 stepRun.Skipped = true;
-                return stepRun;
+                return stepRun;    
             }
 
             TapThread.ThrowIfAborted(); // if an OfferBreak handler called TestPlan.Abort, abort now.
@@ -771,27 +823,28 @@ namespace OpenTap
                 try
                 {
                     // Signal step is going to execute
-                    planRun.ExecutionHooks.ForEach(eh => eh.BeforeTestStepExecute(Step));
+                    Step.PlanRun.ExecutionHooks.ForEach(eh => eh.BeforeTestStepExecute(Step));
 
                     try
                     {
                         // tell result listeners the step started.
-                        planRun.ResourceManager.BeginStep(planRun, Step, TestPlanExecutionStage.Run, TapThread.Current.AbortToken);
+                        Step.PlanRun.ResourceManager.BeginStep(Step.PlanRun, Step, TestPlanExecutionStage.Run,
+                            TapThread.Current.AbortToken);
                         try
                         {
                             if (Step is TestStep _step)
-                                resultSource = _step.Results = new ResultSource(stepRun, planRun);
+                                resultSource = _step.Results = new ResultSource(stepRun, Step.PlanRun);
 
                             TestPlan.Log.Info(stepPath + " started.");
                             stepRun.StartStepRun(); // set verdict to running, set Timestamp.
                             planRun.AddTestStepRunStart(stepRun);
                             Step.Run();
-                            
+
                             TapThread.ThrowIfAborted();
                         }
                         finally
                         {
-                             planRun.AddTestStepStateUpdate(stepRun.TestStepId, stepRun, StepState.Deferred);   
+                            planRun.AddTestStepStateUpdate(stepRun.TestStepId, stepRun, StepState.Deferred);
                         }
                     }
                     finally
@@ -804,22 +857,26 @@ namespace OpenTap
                     planRun.ExecutionHooks.ForEach(eh => eh.AfterTestStepExecute(Step));
                 }
             }
+            catch (TestStepBreakException e)
+            {
+                TestPlan.Log.Info(e.Message);
+                Step.Verdict = Verdict.Error;
+            }
             catch (Exception e)
             {
                 
-                if (e is ThreadAbortException || e is OperationCanceledException)
+                if (e is ThreadAbortException || (e is OperationCanceledException && TapThread.Current.AbortToken.IsCancellationRequested))
                 {
-                    if (Step.Verdict < Verdict.Aborted)
-                        Step.Verdict = Verdict.Aborted;
+                    Step.Verdict = Verdict.Aborted;
                     if(e.Message == new OperationCanceledException().Message)
-                        TestPlan.Log.Warning("Step '{0}' was canceled.", stepPath);
+                        TestPlan.Log.Warning("Step {0} was canceled.", stepPath);
                     else
-                        TestPlan.Log.Warning("Step '{0}' was canceled with message '{1}'.", stepPath, e.Message);
+                        TestPlan.Log.Warning("Step {0} was canceled with message '{1}'.", stepPath, e.Message);
                 }
                 else
                 {
                     Step.Verdict = Verdict.Error;
-                    TestPlan.Log.Error("{0} failed. The error was '{1}'.", stepPath, e.Message);
+                    TestPlan.Log.Error("Error running {0}: {1}.", stepPath, e.Message);
                 }
                 TestPlan.Log.Debug(e);
             }
@@ -836,21 +893,26 @@ namespace OpenTap
                     {
                         runTask.Wait();
                     }
+                    catch (TestStepBreakException e)
+                    {
+                        TestPlan.Log.Info(e.Message);
+                        Step.Verdict = Verdict.Error;
+                    }
                     catch (Exception e)
                     {
-                        if (e is ThreadAbortException || e is OperationCanceledException)
+                        if (e is ThreadAbortException || (e is OperationCanceledException && TapThread.Current.AbortToken.IsCancellationRequested) )
                         {
-                            if (Step.Verdict < Verdict.Aborted)
+                            if (TapThread.Current.AbortToken.IsCancellationRequested && Step.Verdict < Verdict.Aborted)
                                 Step.Verdict = Verdict.Aborted;
                             if (e.Message == new OperationCanceledException().Message)
-                                TestPlan.Log.Warning("Step '{0}' was canceled.", stepPath);
+                                TestPlan.Log.Warning("Step {0} was canceled.", stepPath);
                             else
-                                TestPlan.Log.Warning("Step '{0}' was canceled with message '{1}'.", stepPath, e.Message);
+                                TestPlan.Log.Warning("Step {0} was canceled with message '{1}'.", stepPath, e.Message);
                         }
                         else
                         {
                             Step.Verdict = Verdict.Error;
-                            TestPlan.Log.Error("{0} failed. The error was '{1}'.", stepPath, e.Message);
+                            TestPlan.Log.Error("Error running {0}: {1}.", stepPath, e.Message);
                         }
                         TestPlan.Log.Debug(e);
                     }
@@ -861,7 +923,6 @@ namespace OpenTap
                             if (Step.StepRun == stepRun)
                             {
                                 Step.StepRun = null;
-                                Step.PlanRun = null;
                             }
                         }
                         TimeSpan time = swatch.Elapsed;
@@ -876,7 +937,6 @@ namespace OpenTap
                         }
 
                         planRun.AddTestStepRunCompleted(stepRun);
-                        checkStepFailure(Step, planRun);
                     }
                 }
 
@@ -884,11 +944,13 @@ namespace OpenTap
                     resultSource.Finally(completeAction);
                 else
                     completeAction(Task.FromResult(0));
+                
                 stepRun.WasDeferred = !completeActionExecuted; // completeAction was already executed -> not deferred.
             }
             
             return stepRun;
         }
+
         internal static void CheckResources(this ITestStep Step)
         {
             var resProps2 = GetStepSettings<IResource>(new[] { Step }, true);
@@ -966,7 +1028,7 @@ namespace OpenTap
                             }
                             if (propertyValue is string == false && propertyValue is IEnumerable lst)
                             {
-                                foreach (var item in lst.OfType<T>())
+                                foreach (var item in lst.OfType<T>().ToArray())
                                 {
                                     var item2 = transform(item, prop);
                                     if (!items.Contains(item2))
@@ -1090,6 +1152,8 @@ namespace OpenTap
                             valueString = string.Join(System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NumberGroupSeparator + " ", ((IEnumerable)value).Cast<object>().Select(o => o ?? "NULL"));
                         }
                     }
+                    else if (value is Enum e)
+                        valueString = Utils.EnumToReadableString(e);
                     else
                     {
                         valueString = value.ToString();
@@ -1110,4 +1174,7 @@ namespace OpenTap
             return outName.ToString();
         }
     }
+    
+    
+    
 }

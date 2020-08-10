@@ -18,6 +18,9 @@ using OpenTap.Cli;
 
 namespace OpenTap.Package
 {
+    /// <summary>
+    /// Base class for ICliActions that use a mutex to lock the Target directory for the duration of the command. 
+    /// </summary>
     public abstract class LockingPackageAction : PackageAction
     {
         internal const string CommandLineArgumentRepositoryDescription = "Search this repository for packages instead of using\nsettings from 'Package Manager.xml'.";
@@ -58,7 +61,11 @@ namespace OpenTap.Package
 
             return new Mutex(false, "Keysight.Tap.Package InstallLock " + BitConverter.ToString(hash).Replace("-", ""));
         }
-
+        
+        /// <summary>
+        /// Executes this the action. Derived types should override LockedExecute instead of this.
+        /// </summary>
+        /// <returns>Return 0 to indicate success. Otherwise return a custom errorcode that will be set as the exitcode from the CLI.</returns>
         public override int Execute(CancellationToken cancellationToken)
         {
             if (String.IsNullOrEmpty(Target))
@@ -73,7 +80,8 @@ namespace OpenTap.Package
 
             using (Mutex state = GetMutex(Target))
             {
-                if (Unlocked == false && !state.WaitOne(0))
+                bool useLocking = Unlocked == false;
+                if (useLocking && !state.WaitOne(0))
                 {
                     log.Info("Waiting for other package manager operation to complete.");
                     try
@@ -88,20 +96,36 @@ namespace OpenTap.Package
                                 throw new ExitCodeException(6, "Timeout after 2 minutes while waiting for other package manager operation to complete.");
                         }
                     }
-                    catch(AbandonedMutexException)
+                    catch (AbandonedMutexException)
                     {
                         // Another package manager exited without releasing the mutex. We can should be able to take it now.
-                        if(!state.WaitOne(0))
+                        if (!state.WaitOne(0))
                             throw new ExitCodeException(7, "Unable to run while another package manager operation is running.");
                     }
                 }
 
-                return LockedExecute(cancellationToken);
+                try
+                {
+                    return LockedExecute(cancellationToken);
+                }
+                finally
+                {
+                    if(useLocking)
+                        state.ReleaseMutex();
+                }
             }
         }
 
+        /// <summary>
+        /// The code to be executed by the action while the Target directory is locked.
+        /// </summary>
+        /// <returns>Return 0 to indicate success. Otherwise return a custom errorcode that will be set as the exitcode from the CLI.</returns>
         protected abstract int LockedExecute(CancellationToken cancellationToken);
 
+        
+        /// <summary>
+        /// Only here for compatibility. Use IsolatedPackageAction instead of calling this.
+        /// </summary>
         [Obsolete("Inherit from IsolatedPackageAction instead.")]
         public static bool RunIsolated(string application = null, string target = null)
         {

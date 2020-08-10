@@ -88,7 +88,7 @@ namespace OpenTap.Engine.UnitTests
     }
 
     [TestFixture]
-    public class TestPlanTestFixture3 : EngineTestBase
+    public class TestPlanTestFixture3 
     {
 
 
@@ -127,7 +127,7 @@ namespace OpenTap.Engine.UnitTests
     }
 
     [TestFixture]
-    public class TestPlanEmptyStringProp : EngineTestBase
+    public class TestPlanEmptyStringProp 
     {
 
         public class EmptyStringStep : TestStep
@@ -168,7 +168,7 @@ namespace OpenTap.Engine.UnitTests
     }
 
     [TestFixture]
-    public class TestPlanTimespan : EngineTestBase
+    public class TestPlanTimespan 
     {
         public class TimespanStep : TestStep
         {
@@ -203,7 +203,7 @@ namespace OpenTap.Engine.UnitTests
     }
 
     [TestFixture]
-    public class ListSerialization : EngineTestBase
+    public class ListSerialization 
     {
         public class StringTemp
         {
@@ -637,25 +637,24 @@ namespace OpenTap.Engine.UnitTests
                 StringBuilder sb = new StringBuilder("test:");
                 var ser = new TapSerializer();
                 for (int i = 0; i < 512; i++)
-                {
-                    sb[4] = (char)i;
-                    var st = new StringObject() { TheString = sb.ToString() };
-                    var stt = ser.SerializeToString(st);
-                    var rev = (StringObject)ser.DeserializeFromString(stt);
-                    Assert.IsTrue(string.Compare(st.TheString, rev.TheString) == 0);
-                }
+                    sb.Append((char) i);
+
+                var st = new StringObject() {TheString = sb.ToString()};
+                var stt = ser.SerializeToString(st);
+                var rev = (StringObject) ser.DeserializeFromString(stt);
+                Assert.IsTrue(string.Compare(st.TheString, rev.TheString) == 0);
+                
             }
             {
                 StringBuilder sb = new StringBuilder("test::::");
                 var ser = new TapSerializer();
                 for (int i = 0; i < 512; i++)
-                {
-                    sb[4] = (char)i;
-                    var st = new StringObject() { TheString = sb.ToString() };
-                    var stt = ser.SerializeToString(st);
-                    var rev = (StringObject)ser.DeserializeFromString(stt);
-                    Assert.IsTrue(string.Compare(st.TheString, rev.TheString) == 0);
-                }
+                   sb.Append((char) i);
+                var st = new StringObject() { TheString = sb.ToString() };
+                var stt = ser.SerializeToString(st);
+                 var rev = (StringObject)ser.DeserializeFromString(stt);
+                Assert.IsTrue(string.Compare(st.TheString, rev.TheString) == 0);
+                
             }
 
         }
@@ -1876,6 +1875,44 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(InputButtons.OkCancel, (InputButtons)sl.SweepParameters[1].Values.GetValue(0));
             Assert.AreEqual(true, sl.EnabledRows[0]);
         }
+
+        public class DefaultValueTestStep : TestStep
+        {
+            [DefaultValue("test")]
+            public string Value { get; set; } = "";
+            public override void Run()
+            {    
+                throw new NotImplementedException();
+            }
+        }
+
+        // Technically speaking, DefaultValueAttribute is not supported in the sense that properties with default value
+        // does not get serialized, except for some special cases.
+        // This feature would conflict with External Parameters as it requires there to be an element and also provide strange behaviors if the
+        // default value later gets changed for a given test plan.
+        [TestCase(null)]
+        [TestCase("test")]
+        [TestCase("")]
+        public void ExternalStringValue(string value)
+        {
+            var logStep = new DefaultValueTestStep();
+            var plan = new TestPlan();
+            plan.Steps.Add(logStep);
+            plan.ExternalParameters.Add(logStep, TypeData.GetTypeData(logStep).GetMember(nameof(DefaultValueTestStep.Value)));
+            logStep.Value = value;
+            Assert.IsNotNull(plan.ExternalParameters.Find(logStep, TypeData.GetTypeData(logStep).GetMember(nameof(DefaultValueTestStep.Value))));
+
+            using (var mem = new MemoryStream())
+            {
+                plan.Save(mem);
+                mem.Seek(0, SeekOrigin.Begin);
+                plan = TestPlan.Load(mem, "plan");
+            }
+
+            logStep = (DefaultValueTestStep)plan.Steps[0];
+            Assert.IsNotNull(plan.ExternalParameters.Find(logStep, TypeData.GetTypeData(logStep).GetMember(nameof(DefaultValueTestStep.Value))));
+            Assert.AreEqual(value, logStep.Value);
+        }
     }
 
     [TestFixture]
@@ -2066,7 +2103,83 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(Verdict.Pass, reparse);
         }
 
+        class SubObjTest
+        {
+            public double X { get; set; } 
+            public double Y { get; set; } 
+        } 
+
+    
+        [Test]
+        public void FailingStringConvertTest()
+        {
+            // this should _not_ work
+            var subobj = new SubObjTest();
+            List<SubObjTest> subObjects = new List<SubObjTest>() {subobj};
+            bool passed = StringConvertProvider.TryGetString(subObjects, out string result);
+            Assert.IsFalse(passed);
+        }
+
+        public class AnyObjectClass : TestStep
+        {
+            public object Item { get; set; }
+            public override void Run()
+            {
+                
+            }
+        }
+
+        public struct Vec3d
+        {
+            public double X, Y, Z;
+        }
+
+
+        // To fully support IPaddresses, we also need to be able to serialize/deserialize them.
+        // This plugin class takes care of that.
+        public class Vec3dSerializer : ITapSerializerPlugin
+        {
+            public double Order => 5;
+
+            public bool Deserialize(XElement node, ITypeData t, Action<object> setter)
+            {
+                if(t == TypeData.FromType(typeof(Vec3d)) == false) return false;
+                var values = node.Value.Trim().TrimStart('(').TrimEnd(')')
+                    .Split(new char[] {' '}, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(double.Parse).ToArray();
+                setter(new Vec3d{X = values[0], Y = values[1], Z = values[2]});
+                return true;
+            }
+
+            public bool Serialize(XElement node, object obj, ITypeData expectedType)
+            {
+                if(obj is Vec3d v)
+                {
+                    node.Value = $"({v.X} {v.Y} {v.Z})";
+                    return true;
+                }
+                return false;
+            }
+        }
+
+        [Test]
+        public void AnyObjectSerializeTest()
+        {
+            var obj = new AnyObjectClass() {Item = new Vec3d(){Y = 10}};
+            var plan = new TestPlan();
+            plan.Steps.Add(obj);
+            TypeData.GetTypeData(obj).GetMember("Item").Parameterize(plan, obj, "Item");
+            
+            var str = new TapSerializer().SerializeToString(plan);
+            var obj2 = (TestPlan)new TapSerializer().DeserializeFromString(str);
+            var externalParameter = obj2.ExternalParameters.Get("Item");
+            Assert.IsNotNull(externalParameter);
+            Assert.AreEqual(10.0, ((Vec3d) externalParameter.Value).Y);
+        }
+        
     }
+
+    
 
     [TestFixture]
     public class SecureStringSerializerTest

@@ -66,18 +66,16 @@ namespace OpenTap
         public bool FailedToStart { get; set; }
 
         /// <summary> The thread that started the test plan. Use this to abort the plan thread. </summary>
-        public TapThread MainThread { get; private set; }
+        public TapThread MainThread { get;  }
         
         #region Internal Members used by the TestPlan
 
         internal IList<IResultListener> ResultListeners;
 
+        /// <summary> Wait handle that is set when the metadata action is completed. </summary>
         internal ManualResetEvent PromptWaitHandle = new ManualResetEvent(false);
-
-        /// <summary> Gets if the plan should be aborted on fail verdicts.</summary>
-        internal bool AbortOnStepFail { get; } = EngineSettings.Current.AbortTestPlan.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail);
-        /// <summary> Gets if the plan should be aborted on error verdicts (normal case).</summary>
-        internal bool AbortOnStepError { get; } = EngineSettings.Current.AbortTestPlan.HasFlag(EngineSettings.AbortTestPlanType.Step_Error);
+        /// <summary> Resources touched by the prompt metadata action. </summary>
+        internal IResource[] PromptedResources = Array.Empty<IResource>();
 
         internal readonly IResourceManager ResourceManager;
         internal List<ITestPlanExecutionHook> ExecutionHooks;
@@ -307,7 +305,7 @@ namespace OpenTap
 
         internal void AddTestStepRunCompleted(TestStepRun stepRun)
         {
-            UpgradeVerdict(stepRun.Verdict);
+            
             var instant = Stopwatch.GetTimestamp();
             
             ScheduleInResultProcessingThread<IResultListener>(listener =>
@@ -378,20 +376,17 @@ namespace OpenTap
         /// <param name="startTimeStamp"></param>
         /// <param name="isCompositeRun"></param>
         /// <param name="testPlanXml">Predefined test plan XML. Allowed to be null.</param>
-        public TestPlanRun(TestPlan plan, IList<IResultListener> resultListeners, DateTime startTime, long startTimeStamp, string testPlanXml, bool isCompositeRun = false)
+        public TestPlanRun(TestPlan plan, IList<IResultListener> resultListeners, DateTime startTime, long startTimeStamp, string testPlanXml, bool isCompositeRun = false) : this()
         {
             if (plan == null)
             {
                 throw new ArgumentNullException("plan");
             }
-            MainThread = TapThread.Current;
-            this.FailedToStart = false;
             resultWorkers = new Dictionary<IResultListener, WorkQueue>();
             this.IsCompositeRun = isCompositeRun;
             Parameters = ResultParameters.GetComponentSettingsMetadata();
             // Add metadata from the plan itself.
             Parameters.AddRange(ResultParameters.GetMetadataFromObject(plan));
-
 
             this.Verdict = Verdict.NotSet; // set Parameters before setting Verdict.
             ResultListeners = resultListeners ?? Array.Empty<IResultListener>();
@@ -442,10 +437,35 @@ namespace OpenTap
             this.plan = plan;
         }
 
-        internal TestPlanRun(TestPlanRun original, DateTime startTime, long startTimeStamp)
+        internal TestPlanRun() 
         {
             MainThread = TapThread.Current;
-            this.FailedToStart = false;
+            FailedToStart = false;
+            
+            {   // AbortCondition
+                
+                var abort2 = EngineSettings.Current.AbortTestPlan;
+
+                if (abort2.HasFlag(EngineSettings.AbortTestPlanType.Step_Error))
+                {
+                    if (abort2.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail))
+                    {
+                        AbortCondition = BreakCondition.BreakOnError | BreakCondition.BreakOnFail;
+                    }
+                    else
+                    {
+                        AbortCondition = BreakCondition.BreakOnError;
+                    }
+                }
+                else if (abort2.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail))
+                {
+                    AbortCondition = BreakCondition.BreakOnFail;
+                }
+            }
+        }
+        
+        internal TestPlanRun(TestPlanRun original, DateTime startTime, long startTimeStamp) : this()
+        {
             resultWorkers = original.resultWorkers;
 
             this.Parameters = original.Parameters; // set Parameters before setting Verdict.

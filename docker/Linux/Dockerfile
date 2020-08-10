@@ -1,4 +1,4 @@
-FROM ubuntu:18.04
+FROM ubuntu:18.04 as development
 
 # Update ubuntu
 RUN apt update
@@ -19,10 +19,10 @@ RUN cp -r /tmp/dotnet/sdk/2.1.503 /usr/share/dotnet/sdk
 
 
 # TAP dotnet core 2.1 dependency
-RUN apt install libc6-dev libunwind8 curl git -y
+RUN apt install libc6-dev libunwind8 curl git locales -y
 
-# Install dependency of TAP dependency "Git2Sharp" library
-RUN apt install -y libcurl3
+# .NET SDK MSBuild requires US.UTF-8 locale to execute tasks (see https://github.com/Microsoft/msbuild/issues/4194)
+RUN locale-gen en_US.UTF-8 
 
 # Install TAP
 RUN apt install unzip -y
@@ -36,3 +36,18 @@ ENV TAP_PATH="/opt/tap"
 # Test TAP
 RUN tap -h
 RUN tap package list -v
+
+################## DOTNET CORE RUNTIME #########################################
+FROM mcr.microsoft.com/dotnet/core/runtime:2.1.12-bionic as production
+
+COPY --from=development /opt/tap /opt/tap
+
+RUN chmod -R +w /opt/tap
+RUN chmod +x /opt/tap/tap
+
+RUN apt update
+# TAP dotnet core 2.1 dependency
+RUN apt install libc6-dev libunwind8 curl git -y
+
+ENV PATH="/opt/tap:${PATH}"
+ENV TAP_PATH="/opt/tap"

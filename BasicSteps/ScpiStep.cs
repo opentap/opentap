@@ -59,7 +59,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         [EnabledIf("GeneratesOutput", true)]
         [Display("Regular Expression", Group: "Set Verdict", Order: 1.1, Collapsed: true, Description: "The regular expression to apply to the output.")]
-        [HelpLink("EditorHelp.chm::/Creating a Test Plan/Working with Test Steps/Using Regex in Output Parameters.html")]
+        [HelpLink("EditorHelp.chm::/CreatingATestPlan/Working with Test Steps/Using Regex in Output Parameters.html")]
         public Enabled<string> RegularExpressionPattern { get; set; }
 
         [EnabledIf("GeneratesOutput", true)]
@@ -74,7 +74,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         [EnabledIf("GeneratesOutput", true)]
         [Display("Regular Expression", Group: "Results", Order: 1.5, Collapsed: true, Description: "The regular expression to apply to the output.")]
-        [HelpLink("EditorHelp.chm::/Creating a Test Plan/Working with Test Steps/Using Regex in Output Parameters.html")]
+        [HelpLink("EditorHelp.chm::/CreatingATestPlan/Working with Test Steps/Using Regex in Output Parameters.html")]
         public Enabled<string> ResultRegularExpressionPattern { get; set; }
 
         [EnabledIf("GeneratesOutput", true)]
@@ -201,6 +201,8 @@ namespace OpenTap.Plugins.BasicSteps
             AddToLog = true;
             Rules.Add(() => !string.IsNullOrEmpty(Query), "Command cannot be empty.", "Query");
             Rules.Add(() => Instrument != null, "An instrument must be selected.", "Instrument");
+            Rules.Add(() => !(Query.EndsWith("?") && Action == SCPIAction.Command), "A command cannot end with '?'", "Query");
+            Rules.Add(() => !(Query.EndsWith("?") == false && Action == SCPIAction.Query), "A query must end with '?'", "Query");
             Query = "*IDN?";
         }
         

@@ -89,5 +89,17 @@ namespace OpenTap.Engine.UnitTests
                 Directory.Delete("SameAssemblyTwiceTestDir", true);
             }
         }
+        
+        [Test]
+        public void LocateSystemNetIPAddressTest()
+        {
+            // the plugin searcher does not always locate .NET assemblies if they are part of the framework.
+            // However if they are ever mentioned in respect to a Type, then we must make sure it is correctly loaded. 
+            var type1 = TypeData.FromType(typeof(System.Net.IPAddress));
+            var type2 = TypeData.GetTypeData("System.Net.IPAddress");
+            Assert.AreEqual(type1, type2);
+            Assert.IsNotNull(type1);
+            Assert.IsNotNull(type2);
+        }
     }
 }

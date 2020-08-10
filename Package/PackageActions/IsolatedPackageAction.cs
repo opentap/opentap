@@ -15,17 +15,27 @@ using OpenTap.Cli;
 
 namespace OpenTap.Package
 {
+    /// <summary>
+    /// Base class for ICliActions that makes a copy of the installation to a temp dir before executing. Usefull for making changes to the installation. 
+    /// </summary>
     public abstract class IsolatedPackageAction : LockingPackageAction
     {
+        /// <summary>
+        /// Try to force execution in spite of errors. When true the action will execute even when isolation cannot be achieved.
+        /// </summary>
         [CommandLineArgument("force", Description = "Try to run in spite of errors.", ShortName = "f")]
         public bool Force { get; set; }
 
+        /// <summary>
+        /// Executes this the action. Derived types should override LockedExecute instead of this.
+        /// </summary>
+        /// <returns>Return 0 to indicate success. Otherwise return a custom errorcode that will be set as the exitcode from the CLI.</returns>
         public override int Execute(CancellationToken cancellationToken)
         {
             if (String.IsNullOrEmpty(Target))
                 Target = GetLocalInstallationDir();
             else
-                Target = Path.GetFullPath(Target.Trim());
+                Target = Path.GetFullPath(Target.Trim()); 
             if (!Directory.Exists(Target))
             {
                 log.Error("Destination directory \"{0}\" does not exist.", Target);
@@ -122,12 +132,26 @@ namespace OpenTap.Package
                     deps.Add(new PackageDependency(pkg.Name, new VersionSpecifier(pkg.Version, VersionMatchBehavior.Compatible)));
                 }
 
+                bool force = isolatedAction?.Force ?? false;
+
                 List<string> allFiles = new List<string>();
                 foreach (var d in deps)
                 {
-                    if (!packages.Any(p => p.Name == d.Name && d.Version.IsCompatible(p.Version)))
-                        throw new Exception($"Cannot find needed dependency '{d.Name}'.");
-                    var package = packages.First(p => p.Name == d.Name && d.Version.IsCompatible(p.Version));
+                    var availPackages = packages.Where(p => p.Name == d.Name);
+                    var package = availPackages.FirstOrDefault(p => d.Version.IsCompatible(p.Version));
+                    if(package == null)
+                    {
+                        package = availPackages.FirstOrDefault();
+                        if (!force)
+                        {
+                            if(package != null)
+                                throw new Exception($"Cannot find compatible dependency '{d.Name}' {d.Version}. Version {package.Version} is installed.");
+                            throw new Exception($"Cannot find needed dependency '{d.Name}'.");
+                        }
+
+                        log.Warning("Unable to find compatible package, using {0} v{1} instead.", package.Name, package.Version);
+                    }
+                            
                     var defPath = String.Join("/", PackageDef.PackageDefDirectory, package.Name, PackageDef.PackageDefFileName);
                     if (File.Exists(defPath))
                         allFiles.Add(defPath);

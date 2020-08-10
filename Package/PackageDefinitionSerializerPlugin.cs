@@ -64,7 +64,9 @@ namespace OpenTap.Package
                             pkg.Description = Regex.Match(elm.ToString().Replace("\r", ""), "^<Description.*?>((?:.|\\n)+)</Description>", RegexOptions.Multiline).Groups[1].Value.Trim();
                             break;
                         case "PackageRepositoryUrl":
+#pragma warning disable 618
                             pkg.Location = elm.Value;
+#pragma warning restore 618
                             break;
                         default:
                             var prop = pkg.GetType().GetProperty(elm.Name.LocalName);

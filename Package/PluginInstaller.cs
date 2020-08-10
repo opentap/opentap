@@ -167,7 +167,8 @@ namespace OpenTap.Package
 
             try
             {
-                using (var zip = new ZipArchive(File.OpenRead(packagePath), ZipArchiveMode.Read))
+                using (var fileStream = File.OpenRead(packagePath))
+                using (var zip = new ZipArchive(fileStream, ZipArchiveMode.Read))
                 {
                     foreach (var part in zip.Entries)
                     {
@@ -189,10 +190,8 @@ namespace OpenTap.Package
         }
         
         /// <summary>
-        /// Only public method. Tries to install a plugin from 'path', throws an exception on error.
+        /// Tries to install a plugin from 'path', throws an exception on error.
         /// </summary>
-        /// <param name="path">Absolute or relative path to tap plugin</param>
-        /// <returns>List of installed parts.</returns>
         internal static PackageDef InstallPluginPackage(string target, string path)
         {
             checkExtension(path);
@@ -232,7 +231,6 @@ namespace OpenTap.Package
 
             CustomPackageActionHelper.RunCustomActions(package, PackageActionStage.Install, new CustomPackageActionArgs(null, false));
 
-            
             return package;
         }
 
@@ -270,7 +268,8 @@ namespace OpenTap.Package
             
             try
             {
-                using (var zip = new ZipArchive(File.OpenRead(packagePath), ZipArchiveMode.Read))
+                using (var packageStream = File.OpenRead(packagePath))
+                using (var zip = new ZipArchive(packageStream, ZipArchiveMode.Read))
                 {
                     foreach (var part in zip.Entries)
                     {
@@ -338,7 +337,8 @@ namespace OpenTap.Package
         {
             try
             {
-                using (var zip = new ZipArchive(File.OpenRead(packagePath), ZipArchiveMode.Read))
+                using (var fileStream = File.OpenRead(packagePath))
+                using (var zip = new ZipArchive(fileStream, ZipArchiveMode.Read))
                 {
                     foreach (var part in zip.Entries)
                     {
@@ -365,7 +365,6 @@ namespace OpenTap.Package
         /// <summary>
         /// Uninstalls a package.
         /// </summary>
-        /// <param name="package"></param>
         internal static void Uninstall(PackageDef package, string target)
         {
             var pi = new PluginInstaller();
@@ -478,30 +477,6 @@ namespace OpenTap.Package
             {
                 // Do nothing, it's not a big deal anyway
             }
-        }
-
-        static IMemorizer<string, PackageDef> installedPackageMemorizer = new Memorizer<string, PackageDef, string>(null, loadPackageDef)
-        {
-            Validator = file => new FileInfo(file).LastWriteTimeUtc.Ticks
-        };
-
-        static PackageDef loadPackageDef(string file)
-        {
-            try
-            {
-                using (var f = File.Open(file, FileMode.Open, FileAccess.Read, FileShare.Read))
-                    return PackageDef.FromXml(f);
-            }
-            catch (Exception e)
-            {
-                log.Warning("Unable to read package file '{0}'. Moving it to '.broken'", file);
-                log.Debug(e);
-                var brokenfile = file + ".broken";
-                if (File.Exists(brokenfile))
-                    File.Delete(brokenfile);
-                File.Move(file, brokenfile);
-            }
-            return null;
         }
     }
 }

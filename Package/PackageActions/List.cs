@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 
+#pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
 namespace OpenTap.Package
 {
 
@@ -55,7 +56,7 @@ namespace OpenTap.Package
                         break;
                 }
             }
-
+            
             List<IPackageRepository> repositories = new List<IPackageRepository>();
 
             if (Installed == false)
@@ -124,14 +125,15 @@ namespace OpenTap.Package
                     {
                         log.Info($"Package '{Name}' does not exists with version '{Version}'.");
                         log.Info($"Package '{Name}' exists in {versionsCount} other versions, please specify a different version.");
+                        return 0;
                     }
-                    else
-                        PrintVersionsReadable(package, versions);
                 }
                 else
                 {
                     var opentap = new Installation(Target).GetOpenTapPackage();
                     versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name, opentap).Distinct().ToList();
+
+                    versions = versions.Where(s => s.IsPlatformCompatible(Architecture, OS)).ToList();
 
                     if (versions.Any() == false) // No compatible versions
                     {
@@ -147,7 +149,9 @@ namespace OpenTap.Package
                         return 0;
                     }
 
-                    if (versions.Where(v => versionSpec.IsCompatible(v.Version)).Any() == false) // No versions that are compatible
+
+                    versions = versions.Where(v => versionSpec.IsCompatible(v.Version)).ToList();
+                    if (versions.Any() == false) // No versions that are compatible
                     {
                         if (string.IsNullOrEmpty(Version))
                             log.Warning($"There are no released versions of '{Name}'.");
@@ -161,11 +165,9 @@ namespace OpenTap.Package
 
                         return 0;
                     }
-
-                    PrintVersionsReadable(package, versions);
                 }
+                PrintVersionsReadable(package, versions);
             }
-
             return 0;
         }
 

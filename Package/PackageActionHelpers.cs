@@ -63,7 +63,7 @@ namespace OpenTap.Package
             PackageDef package = null;
             if (compatiblePackages.Any())
                 package = compatiblePackages.GroupBy(p => p.Version).OrderByDescending(g => g.Key).FirstOrDefault()
-                                            .OrderBy(p => repositories.IndexWhen(e => NormalizeRepoUrl(e.Url) == NormalizeRepoUrl(p.Location))).FirstOrDefault();
+                                            .OrderBy(p => repositories.IndexWhen(e => NormalizeRepoUrl(e.Url) == NormalizeRepoUrl((p.PackageSource as IRepositoryPackageDefSource)?.RepositoryUrl))).FirstOrDefault();
 
             if (package == null)
             {
@@ -80,7 +80,7 @@ namespace OpenTap.Package
                 if (filteredVersions.Any() && compatibleWith.Any())
                 {
                     var opentapPackage = compatibleWith.First();
-                    throw new ExitCodeException(1, $"Package '{packageReference.Name}' does not exists in a version compatible with '{opentapPackage.Name}' version '{opentapPackage.Version}'.");
+                    throw new ExitCodeException(1, $"Package '{packageReference.Name}' does not exist in a version compatible with '{opentapPackage.Name}' version '{opentapPackage.Version}'.");
                 }
 
                 // Any compatible with opentap but not platform
@@ -95,7 +95,7 @@ namespace OpenTap.Package
                                     packageReference.Architecture != CpuArchitecture.Unspecified ? $"with '{packageReference.Architecture}' architecture" : null
                             }.Where(x => x != null).ToArray())));
                     else
-                        throw new ExitCodeException(1, $"Package '{packageReference.Name}' does not exists in a version compatible with this OS and architecture.");
+                        throw new ExitCodeException(1, $"Package '{packageReference.Name}' does not exist in a version compatible with this OS and architecture.");
                 }
 
                 // Any version
@@ -103,9 +103,9 @@ namespace OpenTap.Package
                 {
                     var opentapPackage = compatibleWith.FirstOrDefault();
                     if (opentapPackage != null)
-                        throw new ExitCodeException(1, $"Package '{packageReference.Name}' does not exists in a version compatible with this OS, architecture and '{opentapPackage.Name}' version '{opentapPackage.Version}'.");
+                        throw new ExitCodeException(1, $"Package '{packageReference.Name}' does not exist in a version compatible with this OS, architecture and '{opentapPackage.Name}' version '{opentapPackage.Version}'.");
                     else
-                        throw new ExitCodeException(1, $"Package '{packageReference.Name}' does not exists in a version compatible with this OS and architecture.");
+                        throw new ExitCodeException(1, $"Package '{packageReference.Name}' does not exist in a version compatible with this OS and architecture.");
                 }
 
                 throw new ExitCodeException(1, $"Package '{packageReference.Name}' could not be found in any repository.");
@@ -303,12 +303,16 @@ namespace OpenTap.Package
                 filenameParts.Add("TapPackage");
                 var filename = Path.Combine(destinationDir, String.Join(".", filenameParts));
 
+                TapThread.ThrowIfAborted();
+                
                 try
                 {
                     PackageDef existingPkg = null;
                     try
                     {
-                        if (File.Exists(pkg.Location) == false && File.Exists(filename))
+                        // If the package we are installing is from a file, we should always use that file instead of a cached package.
+                        // During development a package might not change version but still have different content.
+                        if (pkg.PackageSource is FilePackageDefSource == false && File.Exists(filename))
                             existingPkg = PackageDef.FromPackage(filename);
                     }
                     catch (Exception e)
@@ -333,7 +337,11 @@ namespace OpenTap.Package
                     }
                     else
                     {
-                        IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(pkg.Location);
+                        string source = (pkg.PackageSource as IRepositoryPackageDefSource)?.RepositoryUrl;
+                        if (source == null && pkg.PackageSource is FilePackageDefSource fileSource)
+                            source = fileSource.PackageFilePath;
+                        
+                        IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(source);
                         if (PackageCacheHelper.PackageIsFromCache(pkg))
                         {
                             rm.DownloadPackage(pkg, filename);
@@ -341,7 +349,7 @@ namespace OpenTap.Package
                         }
                         else
                         {
-                            log.Debug("Downloading '{0}' version '{1}' from '{2}'", pkg.Name, pkg.Version, pkg.Location);
+                            log.Debug("Downloading '{0}' version '{1}' from '{2}'", pkg.Name, pkg.Version, source);
                             rm.DownloadPackage(pkg, filename);
                             log.Info(timer, "Downloaded '{0}' to '{1}'.", pkg.Name, Path.GetFullPath(filename));
                             PackageCacheHelper.CachePackage(filename);

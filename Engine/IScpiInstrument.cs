@@ -3,10 +3,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace OpenTap
 {
@@ -136,6 +132,37 @@ namespace OpenTap
         /// </summary>
         string ResourceClass { get; }
     }
+    
+    /// <summary>
+    /// Represents low-level IO primitives for a given SCPI instrument. IScpiIO2 is the full interface needed to specify a VISA connection.
+    /// </summary>
+    public interface IScpiIO2 : IScpiIO
+    {
+        /// <summary> Opens a connection to the instrument. </summary>
+        /// <param name="visaAddress">Visa address of the instrument.</param>
+        /// <param name="lock">if the instrument should be locked when the connection is established.</param>
+        /// <returns>Visa error code.</returns>
+        ScpiIOResult Open(string visaAddress, bool @lock);
+        /// <summary> Close the connection to the instrument. </summary>
+        /// <returns>Visa Error code.</returns>
+        ScpiIOResult Close();
+        
+        /// <summary> Resource ID attached to this instrument. </summary>
+        int ID { get; }
+
+        /// <summary> Callback from SRQ instrument events. </summary>
+        event ScpiIOSrqDelegate SRQ;
+        
+        /// <summary>  Open SRQ Callback handling. </summary>
+        void OpenSRQ();
+        
+        /// <summary> Close SRQ Callback handling. </summary>
+        void CloseSRQ();
+    }
+    
+    /// <summary> SCPI IO SRQ Event Delegate </summary>
+    /// <param name="sender"></param>
+    public delegate void ScpiIOSrqDelegate(IScpiIO2 sender);
 
     /// <summary> 
     /// Represents a connection to talk to any SCPI-enabled instrument.

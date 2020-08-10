@@ -17,10 +17,10 @@ namespace OpenTap.Package
     [Display("Test Plan Package Dependencies", Description: "Serializer plugin that inserts package dependencies for a test plan in the test plan itself.")]
     internal class TestPlanPackageDependency : TapSerializerPlugin
     {
-        const string PackageDependenciesName = "Package.Dependencies";
-        const string PackageDependencyName = "Package";
-        const string NameName = "Name";
-        const string VersionName = "Version";
+        static readonly XName PackageDependenciesName = "Package.Dependencies";
+        static readonly XName PackageDependencyName = "Package";
+        static readonly XName NameName = "Name";
+        static readonly XName VersionName = "Version";
 
         public override double Order => 100; 
 
@@ -112,7 +112,7 @@ namespace OpenTap.Package
                     string legacyTapBasePackageName = "TAP Base";
                     if (name == legacyTapBasePackageName)
                     {
-                        Log.Warning($"Test plan depends on an older, incompatible version of TAP. Migrating test plan from TAP {version} to the installed version. Please verify the test plan settings.");
+                        Log.Warning($"The saved data depends on an older, incompatible version of OpenTAP. Migrating from OpenTAP {version} to the installed version. Please verify the test plan settings.");
                         continue;
                     }
                     else
@@ -128,7 +128,7 @@ namespace OpenTap.Package
                 }
                 else if (!(version.IsCompatible(plugins[name].Version)))
                 {
-                    errors.Add($"Package '{name}' version {version} is required to load the test plan and the installed version ({plugins[name].Version}) is not compatible.");
+                    errors.Add($"Package '{name}' version {version} is required to load the saved data and the installed version ({plugins[name].Version}) is not compatible.");
                 }
             }
 
@@ -143,19 +143,26 @@ namespace OpenTap.Package
 
         static string getAssemblyName(ITypeData _x)
         {
-            if(_x is TypeData xx && xx.Type is Type x && x.Assembly != null && x.Assembly.IsDynamic == false)
-            {
-                try
-                {
-                    // this can throw an exception, for example if the assembly is dynamic.
-                    return Path.GetFileName(x.Assembly.Location.Replace("\\", "/"));
-                }
-                catch
-                {
+            var asm = _x.AsTypeData()?.Type?.Assembly;
 
-                }
+            if (asm == null)
+            {
+                Log.Warning("Unable to find source of type {0}. No package dependency will be recorded for this type in the xml file.", _x.Name);
+                return null;
             }
-            return null;
+
+            // dynamic or assemblies loaded from bytes cannot be located.
+            if (asm.IsDynamic || string.IsNullOrWhiteSpace(asm.Location))
+                return null;
+
+            try
+            {
+                return Path.GetFileName(asm.Location.Replace("\\", "/"));
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         XElement endnode;
@@ -170,8 +177,8 @@ namespace OpenTap.Package
                 {
                     var pluginsNode = new XElement(PackageDependenciesName);
                     var allAssemblies = Serializer.GetUsedTypes().Select(getAssemblyName).Where(x => x != null).ToHashSet(StringComparer.InvariantCultureIgnoreCase);
-                    var plugins = new Installation(Path.GetDirectoryName(Assembly.GetAssembly(typeof(PluginManager)).Location)).GetPackages();
-
+                    var plugins = new Installation(Path.GetDirectoryName(PluginManager.GetOpenTapAssembly().Location)).GetPackages();
+                    
                     List<PackageDef> packages = new List<PackageDef>();
 
                     foreach (var plugin in plugins)

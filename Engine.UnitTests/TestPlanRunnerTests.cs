@@ -5,9 +5,10 @@
 using System;
 using NUnit.Framework;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using OpenTap.Cli;
-using OpenTap;
+
 namespace OpenTap.Engine.UnitTests
 {
     [TestFixture]
@@ -46,28 +47,34 @@ namespace OpenTap.Engine.UnitTests
             TestPlan plan = new TestPlan();
             plan.Steps.Add(setVerdict);
             plan.ExternalParameters.Add(setVerdict, TypeData.GetTypeData(setVerdict).GetMember("VerdictOutput"),"verdict");
+            plan.ExternalParameters.Get("verdict").Value = "Not Set";
             plan.Save("verdictPlan.TapPlan");
             var fileName = CreateCsvTestFile(new string[] { "verdict" }, new object[] { "pass" });
             {
-                string[] passingThings = new[] { "verdict=\"pass\"", "verdict=\"Not_Set\"", "verdict=\"not set\"", fileName };
-                foreach (var v in passingThings)
+                string[] passingThings = new[] { "verdict=\"pass\"", "verdict=\"Not Set\"", "verdict=\"not set\"", fileName };
+                passingThings.AsParallel().ForAll(v =>
                 {
+
+                    var args = string.Format("run verdictPlan.TapPlan -e {0}", v);
+                    Log.CreateSource("RunParseTest").Debug("Running tap {0}", args);
                     var proc = TapProcessContainer.StartFromArgs(string.Format("run verdictPlan.TapPlan -e {0}", v));
                     proc.WaitForEnd();
                     Assert.AreEqual(0, proc.TapProcess.ExitCode);
-                }
+                });
             }
             {
                 string[] passingThings = new[] { "fail", "Error" };
-                foreach (var v in passingThings)
+                passingThings.AsParallel().ForAll(v =>
                 {
-                    var proc = TapProcessContainer.StartFromArgs(string.Format("run verdictPlan.TapPlan -e verdict=\"{0}\"", v));
+                    var args = string.Format("run verdictPlan.TapPlan -e verdict=\"{0}\"", v);
+                    Log.CreateSource("RunParseTest").Debug("Running tap {0}", args);
+                    var proc = TapProcessContainer.StartFromArgs(args);
                     proc.WaitForEnd();
-                    if(v == "Error")
-                        Assert.AreEqual((int)ExitStatus.RuntimeError, proc.TapProcess.ExitCode);
+                    if (v == "Error")
+                        Assert.AreEqual((int) ExitStatus.RuntimeError, proc.TapProcess.ExitCode);
                     else
-                        Assert.AreEqual((int)ExitStatus.TestPlanFail, proc.TapProcess.ExitCode);
-                }
+                        Assert.AreEqual((int) ExitStatus.TestPlanFail, proc.TapProcess.ExitCode);
+                });
             }
         }
 

@@ -10,6 +10,7 @@ using System.Linq;
 using System.Threading;
 using OpenTap.Cli;
 
+#pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
 namespace OpenTap.Package
 {
     [Display("download", Group: "package", Description: "Downloads one or more packages.")]

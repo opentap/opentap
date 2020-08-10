@@ -22,7 +22,8 @@ $(GitVersion) - Gets the version number in the recommended format Major.Minor.Bu
          xmlns="http://opentap.io/schemas/package"
          InfoLink="http://www.keysight.com/"
          Version="0.1.0-alpha"
-         Group="Example">
+         Group="Example"
+         Tags="Example DUT Instrument">
   <Description>Example plugin containing Instrument, DUT and TestStep.</Description>
   <Owner>OpenTAP</Owner>
     <Files>
@@ -38,10 +39,10 @@ $(GitVersion) - Gets the version number in the recommended format Major.Minor.Bu
 </Package>
 ```
 
-**Note**: A package that references an OpenTAP assembly version 9 is compatible with any OpenTAP version 9.y, but not compatible with an earlier OpenTAP version 8 or a future OpenTAP version 10. The PackageManager checks version compatibility before installing packages.  
+**Note**: A package that references an OpenTAP assembly version 9 is compatible with any OpenTAP version 9.y, but not compatible with version 8 or earlier or a future version 10. The PackageManager checks version compatibility before installing packages.  
 
 ## Packaging Configuration File
-When creating a OpenTAP Package the configuration is specified using an xml file (typically called package.xml).
+When creating a package the configuration is specified using an XML file (typically called package.xml).
 
 The configuration file supports optional attributes:
 
@@ -49,15 +50,18 @@ The configuration file supports optional attributes:
 | ---- | -------- |
 | **InfoLink**   | Specifies a location where additional information about the package can be found. It is visible in the Package Manager as the **More Information** link.  |
 | **Version**  | The version of the package. This field supports the $(GitVersion) macro. The version is displayed in the Package Manager. See [Versioning](#versioning) for more details. |
-| **OS**   | Which operative systems the package is compatible with. This is a comma separated list. Used to filter packages which are compatible with the operating system the PackageManager is running on. If the attribute is not specified, the default "Windows" is used. Example: `OS="Windows,Linux"` |
-| **Architecture**   | Used to filter packages which are compatible with a certain CPU architecture. If the attribute is not specified it is assumed that the Plugin works on all architectures. |
+| **OS**   | Which operative systems the package is compatible with. This is a comma separated list. It is used to filter packages which are compatible with the operating system the PackageManager is running on. If the attribute is not specified, the default "Windows" is used. Example: `OS="Windows,Linux"`. Note, only the following OS values are currently supported by the package manager for automatic detection: Windows, Linux and OSX. So using one of these is recommended. |
+| **Architecture**   | Used to filter packages which are compatible with a certain CPU architecture. If the attribute is not specified it is assumed that the Plugin works on all architectures. The available values are AnyCPU, x86, x64 (use for AMD64 or x86-64), arm and arm64.  |
 | **Class**   | This attribute is used to classify a package. It can be set to **package**, **bundle** or **system-wide** (default value: **package**). A package of class **bundle** references a collection of OpenTAP packages, but does not contain the referenced packages. Packages in a bundle do not need to depend on each other to be referenced. For example, Keysight Developer's System is a bundle that reference the Editor (GUI), Timing Analyzer, Results Viewer, and SDK packages. <br><br> A package of class **system-wide** is installed in a global system folder so these packages can affect other installations of OpenTAP and cannot be uninstalled with the PackageManager. System-wide packages should not be OpenTAP plugins, but rather drivers and libraries.  The system folders are located differently depending on operating system and drive specifications: Windows (normally) - `C:\ProgramData\Keysight\OpenTAP`, Linux -  `/usr/share/Keysight/OpenTAP`|
 | **Group** | Name of the group that this package belongs to. Groups can be nested in other groups, in which case this string will have several entries separated with '/' or '\'. May be empty. UIs may use this information to show a list of packages as a tree structure. See the example below. |
+| **Tags** | A list of keywords that describe the package. Tags are separated by space or comma. |
 | **LicenseRequired** | License key(s) required to use this package. During package create all `LicenseRequired` attributes from the `File` Elements will be concatenated into this property. Bundle packages (`Class` is 'bundle') can use this property to show license keys that are required by the bundle dependencies.  |
 
-One of the comma separated values of the `OS` attribute must be contained in the output of the commands `uname -a` on linux/osx or `ver` on windows for the plugin to be considered compatible. The use of strings like `"Windows"`, `"Linux"` or `"Ubuntu"` is recommended. However, it is possible to use abbreviations, such as `"Win"` or to target a specific version of an operating system. This can be done by writing the exact name and the version number. For example, a plugin with the `OS` attribute `"Microsoft Windows [Version 10.0.14393]"` targets the specified version of Windows and is incompatible with other versions or operating systems. 
-
 > **Note:** OpenTAP does not validate any `LicenseRequired` attributes. This attribute is only used by UIs to inform the user of a license key. The license key check should be implemented by the plugin assembly.
+
+### Description Element
+The **Description** element can be used to write a short description about the plugin. Custom elements like 'Organization' or 'Status' can be added the provide additional highlighted information. 
+
 
 ### Owner Element
 The **Owner** element inside the configuration file is the name of the package owner. There can be multiple owners of a package, in which case this string will have several entries separated with ','. An example of this can be seen in the example below.
@@ -72,9 +76,9 @@ The **File** element inside the configuration file supports the following attrib
 | ---- | -------- |
 | **Path** | The path to the file. This is relative to the root the OpenTAP installation directory. This serves as both source (where the packaging tool should get the file when creating the package) and target (where the file sould be located when installed). Unless there are special requirements, the convention is to put all payload files in a Packages/\<PackageName\>/ subfolder. Wildcards are supported - see later section. |
 | **SourcePath** | Optional. If present the packaging tool will get the file from this path when creating the package. |
-| **LicenseRequired** | License key required by the package file. |
+| **LicenseRequired** | License key required by the package file. This is for information only and is not enforced by OpenTAP. The license key check should be implemented by the plugin assembly.. |
 
-The **File** element can optionally contain custom elements supported by OpenTAP packages. In the above example it includes the `SetAssemblyInfo` element, which is supported by a Keysight OpenTAP package. When `SetAssemblyInfo` is set to `Version`, AssemblyVersion, AssemblyFileVersion and AssemblyInformationalVersion attributes of the file are set according to the package's version.
+The **File** element can optionally contain custom elements supported by OpenTAP packages. In the above example it includes the `SetAssemblyInfo` element, which is supported by the OpenTAP package. When `SetAssemblyInfo` is set to `Version`, AssemblyVersion, AssemblyFileVersion and AssemblyInformationalVersion attributes of the file are set according to the package's version.
 
 ### Package Icon
 A package can also include a package icon. The **File** element inside the configuration file supports adding a package icon by using the `Path` attribute to point to an image and using the `PackageIcon` element inside the `File` element. See the example above.
@@ -108,6 +112,28 @@ When using wildcards in the **Path** attribute, the **SourcePath** attribute has
  ...
  ```
 
+### Folder Conventions
+
+In a the package definition XML file, package authors are able to put payload files anywhere in the installation folder structure for increased flexibility. However, some conventions are defined to encurage an organized folder structure. In this context two subfolders of the OpenTAP installation folder are significant:
+
+#### Packages Folder
+
+The 'Packages' folder contains one folder for every package installed. The name of each of these package folders correspond to the package name. The folders contains at least the package.xml file for that package. By convention other files of the package should also be located here or in subfolders.
+
+#### Dependencies Folder
+
+The 'Dependencies' folder contains managed dependency assemblies (.NET DLL.) that can be shared between several packages. Each assembly has its own subfolder named with the assembly name and version. This allows several versions of the same assembly to be present. `tap package create` will automatically detect any managed assemblies referenced by the assemblies specified in the package.xml, and add them to this folder following this scheme. Files in this folder will not be searched during plugins discovery.
+
+### Excluding Folders From Search
+
+OpenTAP will search assemblies in the installation dir on startup for two purposes:
+- Discovering OpenTAP plugins 
+- Resolving dll dependencies 
+
+Package authors can exclude sub folders from being searched by adding a marker file to the sub folder. This file must be named `.OpenTapIgnore`. The content of the file is not important (can be empty, or document why this folder should be ignored). The presence of this file will cause the folder and all subfolder to be excluded from search for both of the above purposes.
+
+Any folder named exactly "Dependencies" will be excluded from plugin discovery only. See above section on folder conventions.
+
 ### Example
 
 The below configuration file results in `MyPlugin.{version}.TapPackage` file,containing `OpenTap.Plugins.MyPlugin.dll`, `waveform1.wfm` and `waveform2.wfm`. `OpenTap.Plugins.MyPlugin.dll` is obfuscated but none of the waveform files are.  
@@ -115,7 +141,7 @@ The below configuration file results in `MyPlugin.{version}.TapPackage` file,con
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://myplugin.com"
-		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example">
+		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example" Tags="Example DUT Instrument">
   <Description>
     This is an example of an "package.xml" file.
     <Status>Released</Status>
@@ -149,7 +175,7 @@ This `package.xml` file is preserved inside the TapPackage as metadata. The Pack
 
 ```xml
 <?xml version="1.0" encoding="utf-8" ?>
-<Package Version="9.0.103+d58122db" Name="MyPlugin" InfoLink="http://myplugin.com" Date="03/14/2019 21:20:31" OS="Windows,Linux" Architecture="x64" xmlns="http://opentap.io/schemas/package">
+<Package Version="9.0.103+d58122db" Name="MyPlugin" InfoLink="http://myplugin.com" Date="03/14/2019 21:20:31" OS="Windows,Linux" Architecture="x64" Tags="Example DUT Instrument" xmlns="http://opentap.io/schemas/package">
   <Description>
     This is an example of an "package.xml" file.
     <Status>Released</Status>

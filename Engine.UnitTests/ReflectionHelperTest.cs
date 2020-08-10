@@ -29,7 +29,7 @@ namespace OpenTap.Engine.UnitTests
 
             Assert.AreEqual(x.IndexWhen(y => y == 3), 2);
             int sum = 0;
-            x.Evaluate(y => sum += y);
+            x.ForEach(y => sum += y);
             Assert.AreEqual(sum, 10);
         }
 
@@ -257,6 +257,12 @@ namespace OpenTap.Engine.UnitTests
             else
             {
                 Assert.AreEqual(OperatingSystem.Linux, OperatingSystem.Current);
+            }
+
+            if (OperatingSystem.Current == OperatingSystem.Linux)
+            {
+                var current = LinuxVariant.Current;
+                Assert.IsTrue(current != LinuxVariant.Unknown && current != null);
             }
         }
 
