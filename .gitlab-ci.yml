@@ -183,7 +183,7 @@ TestLinuxPlan:
         - cp -r Engine.UnitTests/TestTestPlans bin/Release/publish
         - cd bin/Release/publish
         - chmod +x tap
-        - echo "./tap run -v TestTestPlans/testMultiReferencePlan.TapPlan; if [ \$? -eq 20 ]; then echo \"OK\"; else false; fi" >./run_ubuntu_test.sh
+        - echo "./tap run -v TestTestPlans/testMultiReferencePlan.TapPlan --ignore-load-errors; if [ \$? -eq 20 ]; then echo \"OK\"; else false; fi" >./run_ubuntu_test.sh
         - chmod +x ./run_ubuntu_test.sh
         - bash run_ubuntu_test.sh
         - ldconfig -p
@@ -218,7 +218,7 @@ TestCentos7:
 #      - cp -r opentap/Engine.UnitTests/TestTestPlans $DEST_DIR
 #      - cp bin/linux-x64/publish/OpenTap.UnitTests.dll $DEST_DIR
 #      - cd $DEST_DIR
-#      - echo "./tap run -v TestTestPlans/testMultiReferencePlan.TapPlan
+#      - echo "./tap run -v TestTestPlans/testMultiReferencePlan.TapPlan --ignore-load-errors
 #  if [ \$? -eq 20 ]
 #  then echo \"OK\"
 #  else false
