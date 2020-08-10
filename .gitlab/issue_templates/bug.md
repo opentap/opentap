@@ -7,7 +7,7 @@ OpenTAP x.y.z
 **Steps to reproduce:**
 
 1.
-2.
+2. 
 
 **Actual result:**
 
@@ -16,3 +16,4 @@ OpenTAP x.y.z
 **Expected result:**
 
 **Other remarks:**
+
