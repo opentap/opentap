@@ -682,14 +682,17 @@ namespace OpenTap
                 var obj = Validator(key);
                 lock (memorizerTable)
                 {
-                    if (validatorData.ContainsKey(key))
+                    if (validatorData.TryGetValue(key, out object value))
                     {
-                        if (object.Equals(validatorData[key], obj) == false)
+                        if (false == Equals(value, obj))
                         {
                             Invalidate(arg);
-                        }
+                            validatorData[key] = obj;
+                        }   
+                    }else
+                    {
+                        validatorData[key] = obj;
                     }
-                    else validatorData[key] = obj;
                 }
             }
             
@@ -717,8 +720,8 @@ namespace OpenTap
                     lockObj.IsLocked = true;
                     lock (memorizerTable)
                     {
-                        if (memorizerTable.ContainsKey(key))
-                            return memorizerTable[key];
+                        if (memorizerTable.TryGetValue(key, out ResultT value))
+                            return value;
                     }
                     ResultT o = getData(arg);
                     lock (memorizerTable)
