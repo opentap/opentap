@@ -72,9 +72,4 @@
     </TestStep>
   </Steps>
   <BreakConditions>Inherit</BreakConditions>
-  <Package.Dependencies>
-    <Package Name="GitVersionDependencyTest" />
-    <Package Name="Test" Version="1.2.3-alpha+test" />
-    <Package Name="Test2" Version="1.2.3+4" />
-  </Package.Dependencies>
 </TestPlan>
