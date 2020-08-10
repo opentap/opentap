@@ -301,6 +301,7 @@ namespace OpenTap
                 var memstr = new MemoryStream();
                 stream.CopyTo(memstr);
                 stream = memstr;
+                memstr.Seek(0, SeekOrigin.Begin);
             }
             
             var serializer = new TapSerializer();

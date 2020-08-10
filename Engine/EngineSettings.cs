@@ -15,7 +15,7 @@ namespace OpenTap
     /// </summary>
     [Display("Engine", "Engine Settings")]
     [HelpLink(@"EditorHelp.chm::/Configurations/Engine Configuration.html")]
-    public class EngineSettings : ComponentSettings<EngineSettings>, IAnnotationWritten
+    public class EngineSettings : ComponentSettings<EngineSettings>
     {
         /// <summary>
         /// Enum to represent choices for <see cref="AbortTestPlan"/> setting.
@@ -100,26 +100,6 @@ namespace OpenTap
             set { Log.Timestamper = value; }
         }
 
-
-        /// <summary>  Available Log sources. </summary>
-        public IEnumerable<string> KnownLogSources => Log.GetKnownSourceNames().Concat(mutedLogSources).ToArray();
-
-        List<string> mutedLogSources = new List<string>();
-        
-        /// <summary>
-        /// Gets or sets the list of excluded (muted) log sources.
-        /// </summary>
-        [AvailableValues(nameof(KnownLogSources))]
-        public List<string> MutedLogSources
-        {
-            get => mutedLogSources;
-            set
-            {
-                mutedLogSources = value;
-                Log.MutedLogSources = value;
-            }
-        }
-
         /// <summary>
         /// Sets up some default values for the various settings.
         /// User code should use EngineSettings.Current to access the singleton instead of constructing a new object.
@@ -165,11 +145,6 @@ namespace OpenTap
         {
             StartupDir = System.IO.Directory.GetCurrentDirectory();
             Environment.SetEnvironmentVariable("ENGINE_DIR", System.IO.Path.GetDirectoryName(typeof(TestPlan).Assembly.Location));
-        }
-
-        void  IAnnotationWritten.AnnotationWritten()
-        {
-            Log.MutedLogSources = MutedLogSources;
         }
     }
 }

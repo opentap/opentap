@@ -293,26 +293,7 @@ namespace OpenTap
             }
         }
 
-        /// <summary>
-        /// Current context.
-        /// </summary>
-        public static ILogContext Context => TapContext;
-
-        static ConcurrentDictionary<string, bool> excludedSources = new ConcurrentDictionary<string, bool>();
-
-        /// <summary> Returns true if the trace source is muted. </summary>
-        /// <param name="trace"></param>
-        /// <returns></returns>
-        public static bool IsMuted(TraceSource trace) => excludedSources.ContainsKey(trace.log.Source);
         
-        /// <summary> Gets or sets the list of muted log source names. </summary>
-        public static IEnumerable<string> MutedLogSources
-        {
-            get => excludedSources.Keys;
-            set => excludedSources =
-                new ConcurrentDictionary<string, bool>(value.Select(x => new KeyValuePair<string, bool>(x, true)));
-        }
-
         /// <summary> Makes a TraceListener start receiving log messages. </summary>
         /// <param name="listener">The TraceListener to add.</param>
         public static void AddListener(ILogListener listener)
@@ -335,19 +316,12 @@ namespace OpenTap
             TapContext.DetachListener(listener);
             listener.Flush();
         }
-
-        static ConcurrentBag<string> logNames = new ConcurrentBag<string>();
-
-        /// <summary> Returns the known log names.</summary>
-        /// <returns></returns>
-        public static string[] GetKnownSourceNames() => logNames.ToArray();
         
         /// <summary> Creates a new log source. </summary>
         /// <param name="name">The name of the Log.</param>
         /// <returns>The created Log.</returns>
         public static TraceSource CreateSource(string name)
         {
-            logNames.Add(name);
             return new TraceSource(TapContext.CreateLog(name));
         }
 
@@ -424,7 +398,6 @@ namespace OpenTap
         /// <param name="args"></param>
         static void traceEvent(this TraceSource trace, TimeSpan elapsed, LogEventType eventType, string message, params object[] args)
         {
-            if (Log.IsMuted(trace)) return;
             if (message == null)
                 throw new ArgumentNullException(nameof(message));
             var timespan = ShortTimeSpan.FromSeconds(elapsed.TotalSeconds);
@@ -458,7 +431,6 @@ namespace OpenTap
         {
             if (message == null)
                 throw new ArgumentNullException("message");
-            if (Log.IsMuted(trace)) return;
             trace.TraceEvent(eventType, 0, args.Length == 0 ? message : String.Format(message, args));
         }
 
@@ -466,7 +438,6 @@ namespace OpenTap
         {
             if (exception == null)
                 throw new ArgumentNullException("exception");
-            if (Log.IsMuted(trace)) return;
             WriteException(trace, exception, eventType);
         }
 

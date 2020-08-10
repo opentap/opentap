@@ -215,10 +215,10 @@ namespace OpenTap.Cli
 
         private void HandleExternalParametersAndLoadPlan(string planToLoad)
         {
+            
+            List<string> values = new List<string>();
             var serializer = new TapSerializer();
             var extparams = serializer.GetSerializer<Plugins.ExternalParameterSerializer>();
-            List<string> values = new List<string>();
-
             if (External.Length > 0)
                 values.AddRange(External);
             if (TryExternal.Length > 0)
@@ -246,7 +246,16 @@ namespace OpenTap.Cli
                 extparams.PreloadedValues[name] = value;
             }
             var log = Log.CreateSource("CLI");
-            Plan = (TestPlan)serializer.DeserializeFromFile(planToLoad, type: TypeData.FromType(typeof(TestPlan)));
+            if (extparams.PreloadedValues.Any())
+            {
+
+                Plan = (TestPlan) serializer.DeserializeFromFile(planToLoad, type: TypeData.FromType(typeof(TestPlan)));
+            }
+            else
+            {
+                Plan = TestPlan.Load(planToLoad, externalParameterFiles.Any() == false);
+            }
+
             if (externalParameterFiles.Count > 0)
             {
                 var importers = CreateInstances<IExternalTestPlanParameterImport>();

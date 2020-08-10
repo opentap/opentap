@@ -39,7 +39,7 @@ namespace OpenTap.Diagnostic
         }
     }
 
-    internal class LogContext : ILogContext, ILogContextListeners
+    internal class LogContext : ILogContext
     {
         private int BufferSize;
 
@@ -226,7 +226,6 @@ namespace OpenTap.Diagnostic
 
         public ILogTimestampProvider Timestamper { get { return timestamper; } set { timestamper = value; } }
 
-        IEnumerable<ILogListener> ILogContextListeners.Listeners => Listeners.ToArray();
 
         internal void InjectEvent(Event @event)
         {

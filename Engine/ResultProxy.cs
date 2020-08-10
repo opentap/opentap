@@ -305,13 +305,12 @@ namespace OpenTap
         /// <param name="action"></param>
         public void Defer(Action action)
         {
+            if (TapThread.Current != stepRun.StepThread)
+                throw new InvalidOperationException("Defer may only be executed from the same thread as the test step.");
             if (DeferWorker == null)
             {
-                if (DeferWorker == null)
-                {
-                    deferExceptions = new List<Exception>();
-                    DeferWorker = new WorkQueue(WorkQueue.Options.None, "Defer Worker");
-                }
+                deferExceptions = new List<Exception>();
+                DeferWorker = new WorkQueue(WorkQueue.Options.None, "Defer Worker");
             }
             Interlocked.Increment(ref deferCount);
             // only one defer task may run at a time.

@@ -3282,9 +3282,4 @@ namespace OpenTap
             return sub;
         }
     }
-
-    internal interface IAnnotationWritten
-    {
-        void AnnotationWritten();
-    }
 }

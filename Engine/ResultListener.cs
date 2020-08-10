@@ -117,7 +117,7 @@ namespace OpenTap
         /// Value of the parameter. If null, the value is the string "NULL".  
         /// </summary>
         [DataMember]
-        public IConvertible Value;
+        public readonly IConvertible Value;
         /// <summary>
         /// Indicates the parameter came from a test step in a parent level above the initial object.  
         /// </summary>
@@ -211,10 +211,6 @@ namespace OpenTap
             hashCode = hashCode * -1521134295 + EqualityComparer<string>.Default.GetHashCode(MacroName);
             return hashCode;
         }
-
-        /// <summary> Clones a single instance of ResultParameter. </summary>
-        /// <returns></returns>
-        public ResultParameter Clone() => (ResultParameter) MemberwiseClone();
     }
 
     // this array can be indexed and resized at the same time.

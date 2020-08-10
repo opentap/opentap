@@ -79,6 +79,18 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void SimpleVerdictStepTest()
+        {
+            var setVerdict = new OpenTap.Engine.UnitTests.TestTestSteps.VerdictStep();
+            TestPlan plan = new TestPlan();
+            plan.Steps.Add(setVerdict);
+            plan.Save("verdictPlan.TapPlan");
+            var proc = TapProcessContainer.StartFromArgs("run verdictPlan.TapPlan");
+            proc.WaitForEnd();
+            Assert.AreEqual(0, proc.TapProcess.ExitCode);
+        }
+
+        [Test]
         public void TestProcessContainer()
         {
             var proc = TapProcessContainer.StartFromArgs("package list", TimeSpan.FromSeconds(100));
