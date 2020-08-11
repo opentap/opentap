@@ -227,10 +227,10 @@ namespace OpenTap.Cli
 
         private void HandleExternalParametersAndLoadPlan(string planToLoad)
         {
+            
+            List<string> values = new List<string>();
             var serializer = new TapSerializer();
             var extparams = serializer.GetSerializer<Plugins.ExternalParameterSerializer>();
-            List<string> values = new List<string>();
-
             if (External.Length > 0)
                 values.AddRange(External);
             if (TryExternal.Length > 0)
@@ -258,7 +258,16 @@ namespace OpenTap.Cli
                 extparams.PreloadedValues[name] = value;
             }
             var log = Log.CreateSource("CLI");
-            Plan = (TestPlan)serializer.DeserializeFromFile(planToLoad, type: TypeData.FromType(typeof(TestPlan)));
+
+            var timer = Stopwatch.StartNew();
+            using (var fs = new FileStream(planToLoad, FileMode.Open, FileAccess.Read))
+            {
+                // only cache the XML if there are no external parameters.
+                bool cacheXml = values.Any() == false && externalParameterFiles.Any() == false;
+                
+                Plan = TestPlan.Load(fs, planToLoad, cacheXml, serializer);
+                log.Info(timer, "Loaded test plan from {0}", planToLoad);
+            }
 
             if (!IgnoreLoadErrors && serializer.Errors.Count() != 0)
                 throw new TestPlan.PlanLoadException("Unable to successfully load the test plan. To continue anyway, add the flag '--ignore-load-errors'.");

@@ -170,6 +170,9 @@ namespace OpenTap
         /// <summary> Name of the macro. </summary>
         public string MacroName { get; private set; }
 
+        /// <summary> These properties does not change during test plan run. </summary>
+        public bool Frozen { get; set; }
+
         /// <summary>
         /// Gets the name and value for each metadata property in this object that is not null.
         /// </summary>

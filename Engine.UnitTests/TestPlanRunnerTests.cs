@@ -57,7 +57,7 @@ namespace OpenTap.Engine.UnitTests
 
                     var args = string.Format("run verdictPlan.TapPlan -e {0}", v);
                     Log.CreateSource("RunParseTest").Debug("Running tap {0}", args);
-                    var proc = TapProcessContainer.StartFromArgs(string.Format("run verdictPlan.TapPlan -e {0}", v));
+                    var proc = TapProcessContainer.StartFromArgs(string.Format("run verdictPlan.TapPlan -e {0}", v),TimeSpan.FromMinutes(5));
                     proc.WaitForEnd();
                     Assert.AreEqual(0, proc.TapProcess.ExitCode);
                 });
@@ -68,7 +68,7 @@ namespace OpenTap.Engine.UnitTests
                 {
                     var args = string.Format("run verdictPlan.TapPlan -e verdict=\"{0}\"", v);
                     Log.CreateSource("RunParseTest").Debug("Running tap {0}", args);
-                    var proc = TapProcessContainer.StartFromArgs(args);
+                    var proc = TapProcessContainer.StartFromArgs(args, TimeSpan.FromSeconds(120));
                     proc.WaitForEnd();
                     if (v == "Error")
                         Assert.AreEqual((int) ExitStatus.RuntimeError, proc.TapProcess.ExitCode);
@@ -79,10 +79,23 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void SimpleVerdictStepTest()
+        {
+            var setVerdict = new OpenTap.Engine.UnitTests.TestTestSteps.VerdictStep();
+            TestPlan plan = new TestPlan();
+            plan.Steps.Add(setVerdict);
+            plan.Save("verdictPlan.TapPlan");
+            var proc = TapProcessContainer.StartFromArgs("run verdictPlan.TapPlan");
+            proc.WaitForEnd();
+            Assert.AreEqual(0, proc.TapProcess.ExitCode);
+        }
+
+        [Test]
         public void TestProcessContainer()
         {
-            var proc = TapProcessContainer.StartFromArgs("package list");
+            var proc = TapProcessContainer.StartFromArgs("package list", TimeSpan.FromSeconds(100));
             proc.WaitForEnd();
+            
             Assert.AreEqual(0, proc.TapProcess.ExitCode);
         }
 

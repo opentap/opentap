@@ -30,8 +30,6 @@ namespace OpenTap
                     runPre = s.PrePostPlanRunUsed;
                 }
                 planRun.StepsWithPrePlanRun.Add(step);
-
-                string stepPath = step.GetStepPath();
                 try
                 {
                     if (runPre)
@@ -75,8 +73,10 @@ namespace OpenTap
                     if (runPre)
                     {
                         var newelaps = preTimer.Elapsed;
-                        Log.Debug(newelaps - elaps, "{0} PrePlanRun completed.", stepPath);
+
+                        Log.Debug(newelaps - elaps, "{0} PrePlanRun completed.", step.GetStepPath());
                         elaps = newelaps;
+                        
                     }
                 }
             }
@@ -147,7 +147,8 @@ namespace OpenTap
             
             if (resultListenerError)
                 return failState.StartFail;
-            
+
+            var sw = Stopwatch.StartNew();
             try
             {
                 execStage.StepsWithPrePlanRun.Clear();
@@ -162,6 +163,10 @@ namespace OpenTap
                 Log.Debug(e);
                 return failState.StartFail;
             }
+            finally{
+            {
+                Log.Debug(sw, "PrePlanRun Methods completed");
+            }}
             
             Stopwatch planRunOnlyTimer = Stopwatch.StartNew();
             var runs = new List<TestStepRun>();
@@ -227,9 +232,10 @@ namespace OpenTap
                         try
                         {
                             ITestStep step = run.StepsWithPrePlanRun[i];
-                            stepPath = step.GetStepPath();
+                            
                             if ((step as TestStep)?.PrePostPlanRunUsed ?? true)
                             {
+                                stepPath = step.GetStepPath();
                                 run.AddTestStepStateUpdate(step.Id, null, StepState.PostPlanRun);
                                 try
                                 {
@@ -304,7 +310,7 @@ namespace OpenTap
                         summaryListener.PrintSummary();
                     }
 
-                     OpenTap.Log.Flush();
+                    OpenTap.Log.Flush();
                     Logger.Flush();
                     logStream.Flush();
 
@@ -550,7 +556,6 @@ namespace OpenTap
             else
             {
                 // Remove steps that are already included via their parent steps.
-                HashSet<ITestStep> foundSteps = new HashSet<ITestStep>();
                 foreach (var step in stepsOverride)
                 {
                     if (step == null)
@@ -581,11 +586,12 @@ namespace OpenTap
             var allSteps = Utils.FlattenHeirarchy(steps, step => step.ChildTestSteps);
             var allEnabledSteps = Utils.FlattenHeirarchy(steps.Where(x => x.Enabled), step => step.GetEnabledChildSteps());
 
-            var enabledSinks = TestStepExtensions.GetStepSettings<IResultSink>(allEnabledSteps, true).Where(rl => rl != null).ToList();
-            if(enabledSinks.Any())
+            var enabledSinks = new HashSet<IResultSink>();
+            TestStepExtensions.GetObjectSettings<IResultSink, ITestStep, IResultSink>(allEnabledSteps, true, null, enabledSinks);
+            if(enabledSinks.Count > 0)
             {
                 var sinkListener = new ResultSinkListener(enabledSinks);
-                resultListeners = resultListeners.Concat(new IResultListener[] { sinkListener });
+                resultListeners = resultListeners.Append(sinkListener);
             }
 
             Log.Info("Starting TestPlan '{0}' on {1}, {2} of {3} TestSteps enabled.", Name, initTime, allEnabledSteps.Count, allSteps.Count);
@@ -650,7 +656,8 @@ namespace OpenTap
                 execStage.FailedToStart = true; // Set it here in case OpenInternal throws an exception. Could happen if a step is missing an instrument
 
                 OpenInternal(execStage, continuedExecutionState, currentListeners.Cast<IResource>().ToList(), allEnabledSteps);
-
+                    
+                execStage.WaitForSerialization();
                 execStage.ResourceManager.BeginStep(execStage, this, TestPlanExecutionStage.Execute, TapThread.Current.AbortToken);
 
                 if (continuedExecutionState)

@@ -4,13 +4,13 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Diagnostics;
-using System.ComponentModel;
 using System.Reflection;
 using System.Threading;
 using System.IO;
 using OpenTap.Diagnostic;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace OpenTap
 {
@@ -64,6 +64,7 @@ namespace OpenTap
         /// </summary>
         public void TraceEvent(LogEventType te, int id, string message)
         {
+            
             if (message == null)
                 throw new ArgumentNullException("message");
             log.LogEvent((int)te, message);
@@ -291,6 +292,7 @@ namespace OpenTap
             }
         }
 
+        
         /// <summary> Makes a TraceListener start receiving log messages. </summary>
         /// <param name="listener">The TraceListener to add.</param>
         public static void AddListener(ILogListener listener)
@@ -300,6 +302,8 @@ namespace OpenTap
             Log.Flush();
             TapContext.AttachListener(listener);
         }
+        
+        
 
         /// <summary> Stops a specified TraceListener from receiving log messages. </summary>
         /// <param name="listener">The TraceListener to remove.</param>
@@ -311,7 +315,6 @@ namespace OpenTap
             TapContext.DetachListener(listener);
             listener.Flush();
         }
-
         /// <summary>
         /// Gets all added TraceListeners.
         /// </summary>
@@ -320,7 +323,6 @@ namespace OpenTap
         {
             return (TapContext as LogContext)?.GetListeners();
         }
-
         /// <summary> Creates a new log source. </summary>
         /// <param name="name">The name of the Log.</param>
         /// <returns>The created Log.</returns>
@@ -340,7 +342,7 @@ namespace OpenTap
         {
             if (owner == null)
                 throw new ArgumentNullException("owner");
-            var source = new TraceSource(TapContext.CreateLog(name));
+            var source = CreateSource(name);
             source.Owner = owner;
             lock (addlock)
             {

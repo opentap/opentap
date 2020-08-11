@@ -1294,8 +1294,8 @@ namespace OpenTap.Engine.UnitTests
             {
                 var values = nf.Parse(s).CastTo<double>().ToArray();
                 Assert.AreEqual(cnt, values.Length, "Number of parsed elements");
-
-                var newValues = nf.Parse(nf.FormatRange(values)).CastTo<double>().ToArray();
+                var rng = nf.FormatRange(values);
+                var newValues = nf.Parse(rng).CastTo<double>().ToArray();
                 CollectionAssert.AreEqual(values, newValues, "Array formatting failed");
 
                 var sequence = nf.Parse(s);

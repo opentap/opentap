@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -457,19 +458,6 @@ namespace OpenTap
 
         
 
-        static readonly ConditionalWeakTable<Type, InternalMemberData[]> membersLookup = new ConditionalWeakTable<Type, InternalMemberData[]>();
-        public static InternalMemberData[] GetMemberData(this Type type)
-        {
-            return membersLookup.GetValue(type, InternalMemberData.Get);
-        }
-
-        public static InternalMemberData GetMemberData(this Type type, string name)
-        {
-            var p = type.GetProperty(name);
-            if (p == null) return null;
-            return new InternalMemberData(p);
-        }
-        
         /// <summary> Get the base C# type of a given type. </summary>
         internal static TypeData AsTypeData(this ITypeData type)
         {
@@ -478,60 +466,17 @@ namespace OpenTap
                     return td;
             return null;
         }
+        
+        public static void GetAttributes<T>(this IReflectionData mem, System.Collections.IList outList)
+        {
+            foreach (var item in mem.Attributes)
+            {
+                if (item is T x)
+                    outList.Add(x);
+            }
+        }
     }
     
-    internal class InternalMemberData
-    {
-        public MemberInfo Info;
-        public object[] Attributes;
-
-        DisplayAttribute display;
-
-        public DisplayAttribute Display
-        {
-            get
-            {
-                if (display == null) display = Info.GetDisplayAttribute();
-                return display;
-            }
-            
-        }
-
-        public bool IsProperty => Info is PropertyInfo;
-        public PropertyInfo Property => Info as PropertyInfo;
-        public static InternalMemberData[] Get(Type type)
-        {
-            var properties = type.GetPropertiesTap();
-            var methods = type.GetMethodsTap();
-            return properties.Select(info => new InternalMemberData(info)).OrderBy(x => x.Info.Name).ToArray();
-        }
-        public InternalMemberData(MemberInfo info)
-        {
-            Info = info;
-            Attributes = info.GetAllCustomAttributes();
-        }
-
-        public IEnumerable<T> GetCustomAttributes<T>()
-        {
-            return Attributes.OfType<T>();
-        }
-
-        public bool HasAttribute<T>() where T : Attribute
-        {
-            return GetAttribute<T>() != null;
-        }
-        public T GetAttribute<T>() where T : Attribute
-        {
-            foreach (var attr in Attributes)
-            {
-                if (attr is T a)
-                    return a;
-            }
-            return null;
-        }
-
-        public override string ToString() => $"{Info.DeclaringType}.{Info.Name}";
-    }
 
     static class StreamUtils
     {
@@ -1345,6 +1290,27 @@ namespace OpenTap
                 case TypeCode.Char: return typeof(char);
             }
             return typeof(object);
+        }
+
+        public static bool IsNumeric(object obj)
+        {
+            switch (obj)
+            {
+                case float i: return true;
+                case double i: return true;
+                case decimal i: return true;
+                case byte i: return true;
+                case char i: return true;
+                case sbyte i: return true;
+                case short i: return true;
+                case ushort i: return true;
+                case int i: return true;
+                case uint i: return true;
+                case long i: return true;
+                case ulong i: return true;
+                default: return false;
+            }
+         
         }
 
         public static bool IsFinite(double value)

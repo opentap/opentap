@@ -120,12 +120,16 @@ namespace OpenTap
         /// <returns></returns>
         public static DisplayAttribute GetDisplayAttribute(this IReflectionData mem)
         {
-            DisplayAttribute attr = null;
+            DisplayAttribute attr;
             if (mem is TypeData td)
                 attr = td.Display;
             else
                 attr = mem.GetAttribute<DisplayAttribute>();
-            return attr ?? new DisplayAttribute(mem.Name, null, Order: -10000, Collapsed: false);
+            if (attr != null) return attr;
+            // auto-generate a display attribute.
+            // mem.Name has to be something fully qualifiable, but the display attribute name should be something more human friendly.
+            var name = mem.Name.Split('.').Last().Split('+').Last();
+            return new DisplayAttribute(name);
         }
 
         /// <summary>Gets the help link of 'member'</summary>

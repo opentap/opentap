@@ -2,7 +2,7 @@
   "profiles": {
     "tap (Install Demo)": {
       "commandName": "Project",
-      "commandLineArgs": "install Demonstration -r plugins.tap.aalborg.keysight.com -v -f"
+      "commandLineArgs": "profile --test-plan --quiet"
     },
     "tap (list)": {
       "commandName": "Project",

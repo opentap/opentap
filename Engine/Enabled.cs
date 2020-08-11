@@ -17,17 +17,29 @@ namespace OpenTap
         bool IsEnabled { get; }
     }
 
+    interface IEnabledValue
+    {
+        bool IsEnabled { get; set; }
+        object Value { get; set; }
+    }
+    
     /// <summary>
     /// A value that can be enabled or disabled.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class Enabled<T> : IEnabled, ICloneable
+    public class Enabled<T> : IEnabled, ICloneable, IEnabledValue
     {
         /// <summary>
         /// Value of the member.
         /// </summary>
         public virtual T Value { get; set; }
 
+        object IEnabledValue.Value
+        {
+            get => Value;
+            set => Value = (T) value;
+        }
+        
         /// <summary>
         /// Gets or sets if the member is enabled. 
         /// </summary>

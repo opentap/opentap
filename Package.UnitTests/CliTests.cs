@@ -26,7 +26,7 @@ namespace OpenTap.Package.UnitTests
             using (var stream = File.Create(defFileName))
                 definition.SaveTo(stream);
 
-            var proc = OpenTap.Engine.UnitTests.TapProcessContainer.StartFromArgs("package create " + defFileName); 
+            var proc = OpenTap.Engine.UnitTests.TapProcessContainer.StartFromArgs("package create " + defFileName, TimeSpan.FromMinutes(5)); 
             proc.WaitForEnd();
             string output = proc.ConsoleOutput;
             string outputFile = definition.Name + "." + definition.Version + ".TapPackage";

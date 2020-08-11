@@ -232,6 +232,7 @@ namespace OpenTap.Diagnostic
 
         public ILogTimestampProvider Timestamper { get { return timestamper; } set { timestamper = value; } }
 
+
         internal void InjectEvent(Event @event)
         {
             lock (Listeners)
