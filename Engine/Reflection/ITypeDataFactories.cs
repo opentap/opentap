@@ -151,12 +151,12 @@ namespace OpenTap
 
         /// <summary>  Creates a type data cache. Note this should be used with 'using{}' so that it gets removed afterwards. </summary>
         /// <returns> A disposable object removing the cache. </returns>
-        public static IDisposable WithTypeDataCache() =>  new TypeDataCache();
+        internal static IDisposable WithTypeDataCache() =>  new TypeDataCache();
 
         internal static bool IsCacheInUse => TypeDataCache.Current != null;
 
         /// <summary> Gets the type info from a string. </summary>
-        static public ITypeData GetTypeData(string name) => new TypeDataProviderStack().GetTypeData(name);
+        public static  ITypeData GetTypeData(string name) => new TypeDataProviderStack().GetTypeData(name);
 
         /// <summary>
         /// This throws an exception due to the ambiguousness of TypeData.FromType vs TypeData.GetTypeData. To get TypeData representing a type use TypeData.FromType.
@@ -172,7 +172,7 @@ namespace OpenTap
     }
     
     /// <summary> Interface for classes that can be used for cache optimizations. </summary>
-    public interface ICacheOptimizer
+    internal interface ICacheOptimizer
     {
         /// <summary> Loads / heats up the cache.</summary>
         void LoadCache();

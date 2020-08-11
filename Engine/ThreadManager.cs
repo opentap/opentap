@@ -31,7 +31,7 @@ namespace OpenTap
 
 
     /// <summary> baseclass for ThreadField types. </summary>
-    public abstract class ThreadField
+    internal abstract class ThreadField
     {
         static int threadFieldIndexer = 0;
         /// <summary>  Index of this thread field. </summary>
@@ -44,7 +44,7 @@ namespace OpenTap
     /// Thread fields are static objects that manage the value of a thread field.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class ThreadField<T> : ThreadField
+    internal class ThreadField<T> : ThreadField
     {
         /// <summary>
         /// Gets or sets the value of the thread field. Note that the getter may get a value from a parent thread, while the setter cannot override values from parent fields. 

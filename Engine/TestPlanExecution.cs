@@ -421,8 +421,7 @@ namespace OpenTap
                     try
                     {
                         cancellationToken.Register(TapThread.Current.Abort);
-                        using(TypeData.WithTypeDataCache())
-                            testPlanRun = Execute(resultListeners, metaDataParameters, stepsOverride);
+                        testPlanRun = Execute(resultListeners, metaDataParameters, stepsOverride);
                     }
                     finally
                     {
