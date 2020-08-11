@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="OpenTap.TestPlan" Locked="false">
+  <Steps>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.CreateDirectoryStep" Version="0.0.0" Id="3a8e33d7-d7f9-4d58-868b-c38acbf0c15e">
+      <Directory>../../NewProj</Directory>
+      <Enabled>true</Enabled>
+      <Name>Create Directory: {Directory}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Version="0.0.0" Id="45f82fc0-8acf-41b2-8472-2c1b9db25f32">
+      <String>
+        <Base64>PFByb2plY3QgU2RrPSJNaWNyb3NvZnQuTkVULlNkayI+DQogIDxQcm9wZXJ0eUdyb3VwPg0KICA8VGFyZ2V0RnJhbWV3b3JrSWRlbnRpZmllcj48L1RhcmdldEZyYW1ld29ya0lkZW50aWZpZXI+DQogICAgPFRhcmdldEZyYW1ld29ya1ZlcnNpb24+PC9UYXJnZXRGcmFtZXdvcmtWZXJzaW9uPg0KICAgIDxUYXJnZXRGcmFtZXdvcms+bmV0c3RhbmRhcmQyLjA8L1RhcmdldEZyYW1ld29yaz4NCiAgICA8QXBwZW5kVGFyZ2V0RnJhbWV3b3JrVG9PdXRwdXRQYXRoPmZhbHNlPC9BcHBlbmRUYXJnZXRGcmFtZXdvcmtUb091dHB1dFBhdGg+DQogICAgPENvcHlMb2NhbExvY2tGaWxlQXNzZW1ibGllcz50cnVlPC9Db3B5TG9jYWxMb2NrRmlsZUFzc2VtYmxpZXM+DQogICA8T3V0cHV0UGF0aD5iaW4vRGVidWc8L091dHB1dFBhdGg+DQogIDwvUHJvcGVydHlHcm91cD4NCiAgPEl0ZW1Hcm91cD4NCiAgICA8UGFja2FnZVJlZmVyZW5jZSBJbmNsdWRlPSJPcGVuVEFQIiBWZXJzaW9uPSI5LjguNSIgLz4NCiAgICA8UGFja2FnZVJlZmVyZW5jZSBJbmNsdWRlPSJTU0guTkVUIiBWZXJzaW9uPSIyMDIwLjAuMC1iZXRhMSIvPg0KICAgIDxPcGVuVGFwUGFja2FnZVJlZmVyZW5jZSBJbmNsdWRlPSJTU0giIFZlcnNpb249IjAuMy4wLWJldGEuOCIgUmVwb3NpdG9yeT0icGFja2FnZXMub3BlbnRhcC5pbyIgLz4NCg0KICA8L0l0ZW1Hcm91cD4NCjwvUHJvamVjdD4=</Base64>
+      </String>
+      <File>../../NewProj/NewProj.csproj</File>
+      <Enabled>true</Enabled>
+      <Name>Write {File}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Version="0.0.0" Id="fc4259db-b8d5-4790-a940-5de27bfb515d">
+      <String>
+        <Base64>cHVibGljIGNsYXNzIFRlc3QxDQogICAgew0KICAgIHB1YmxpYyBUZXN0MSgpew0KICAgICAgICAgdHlwZW9mKE9wZW5UYXAuUGx1Z2lucy5Tc2guU3NoRHV0KS5Ub1N0cmluZygpOw0KICAgICAgICAgICB0eXBlb2YoUmVuY2kuU3NoTmV0LlNlc3Npb24pLlRvU3RyaW5nKCk7DQogICAgIH0NCn0NCg==</Base64>
+      </String>
+      <File>../../NewProj/class.cs</File>
+      <Enabled>true</Enabled>
+      <Name>Write {File}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Version="0.0.0" Id="87ef4ac9-541e-4add-8c40-7303cdccda87">
+      <String>
+        <Base64>PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjxQYWNrYWdlIE5hbWU9Ik5ld1Byb2oiIHhtbG5zPSJodHRwOi8vb3BlbnRhcC5pby9zY2hlbWFzL3BhY2thZ2UiIEluZm9MaW5rPSIiIFZlcnNpb249IjAuMS4wLWFscGhhIj4NCiAgPEZpbGVzPg0KICAgIDxGaWxlIFBhdGg9IlBhY2thZ2VzL05ld1Byb2ovTmV3UHJvai5kbGwiIFNvdXJjZVBhdGg9Ik5ld1Byb2ouZGxsIj4NCiAgICA8L0ZpbGU+DQogIDwvRmlsZXM+DQo8L1BhY2thZ2U+DQo=</Base64>
+      </String>
+      <File>../../NewProj/package.xml</File>
+      <Enabled>true</Enabled>
+      <Name>Write {File}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="03572f31-123d-40de-b737-74c714b8cd31">
+      <Application>dotnet</Application>
+      <Arguments>build</Arguments>
+      <WorkingDirectory>../../NewProj</WorkingDirectory>
+      <WaitForEnd>true</WaitForEnd>
+      <Timeout>0</Timeout>
+      <AddToLog>true</AddToLog>
+      <LogHeader />
+      <CheckExitCode>true</CheckExitCode>
+      <RegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </RegularExpressionPattern>
+      <VerdictOnMatch>Pass</VerdictOnMatch>
+      <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+      <ResultRegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </ResultRegularExpressionPattern>
+      <ResultName>Regex Result</ResultName>
+      <Behavior>GroupsAsDimensions</Behavior>
+      <DimensionTitles></DimensionTitles>
+      <Enabled>true</Enabled>
+      <Name>Run: {Application} {Command Line Arguments}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep" Version="0.0.0" Id="76f72e46-1057-4a3f-afce-1cb30574d9ac">
+      <ExpectedVerdict>Fail</ExpectedVerdict>
+      <Enabled>true</Enabled>
+      <Name>Expect {ExpectedVerdict}</Name>
+      <ChildTestSteps>
+        <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="ef81482d-125b-4f3f-a1d5-eaf212d302fe">
+          <Application>tap</Application>
+          <Arguments>package create ../../package.xml --verbose</Arguments>
+          <WorkingDirectory>../../NewProj/bin/Debug</WorkingDirectory>
+          <WaitForEnd>true</WaitForEnd>
+          <Timeout>0</Timeout>
+          <AddToLog>true</AddToLog>
+          <LogHeader />
+          <CheckExitCode>true</CheckExitCode>
+          <RegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </RegularExpressionPattern>
+          <VerdictOnMatch>Pass</VerdictOnMatch>
+          <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+          <ResultRegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </ResultRegularExpressionPattern>
+          <ResultName>Regex Result</ResultName>
+          <Behavior>GroupsAsDimensions</Behavior>
+          <DimensionTitles></DimensionTitles>
+          <Enabled>true</Enabled>
+          <Name>Run: {Application} {Command Line Arguments}</Name>
+          <ChildTestSteps />
+          <BreakConditions>Inherit</BreakConditions>
+        </TestStep>
+      </ChildTestSteps>
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ReplaceInFileStep" Version="0.0.0" Id="409f4045-0fc2-4b4b-a09c-c270de9b227b">
+      <File>../../NewProj/NewProj.csproj</File>
+      <Search>2020.0.0-beta1</Search>
+      <Replace>2016.0.0</Replace>
+      <Enabled>true</Enabled>
+      <Name>Replace In File</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="341f21d3-5f57-4b32-9461-c46186b9e9e8">
+      <Application>dotnet</Application>
+      <Arguments>build</Arguments>
+      <WorkingDirectory>../../NewProj</WorkingDirectory>
+      <WaitForEnd>true</WaitForEnd>
+      <Timeout>0</Timeout>
+      <AddToLog>true</AddToLog>
+      <LogHeader />
+      <CheckExitCode>true</CheckExitCode>
+      <RegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </RegularExpressionPattern>
+      <VerdictOnMatch>Pass</VerdictOnMatch>
+      <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+      <ResultRegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </ResultRegularExpressionPattern>
+      <ResultName>Regex Result</ResultName>
+      <Behavior>GroupsAsDimensions</Behavior>
+      <DimensionTitles></DimensionTitles>
+      <Enabled>true</Enabled>
+      <Name>Run: {Application} {Command Line Arguments}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep" Version="0.0.0" Id="83f384d0-fbef-4fcb-8024-282e2304b1c0">
+      <ExpectedVerdict>Pass</ExpectedVerdict>
+      <Enabled>true</Enabled>
+      <Name>Expect {ExpectedVerdict}</Name>
+      <ChildTestSteps>
+        <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="f63f9625-b293-4240-b75d-29183ae2b290">
+          <Application>tap</Application>
+          <Arguments>package create ../../package.xml</Arguments>
+          <WorkingDirectory>../../NewProj/bin/Debug</WorkingDirectory>
+          <WaitForEnd>true</WaitForEnd>
+          <Timeout>0</Timeout>
+          <AddToLog>true</AddToLog>
+          <LogHeader />
+          <CheckExitCode>true</CheckExitCode>
+          <RegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </RegularExpressionPattern>
+          <VerdictOnMatch>Error</VerdictOnMatch>
+          <VerdictOnNoMatch>NotSet</VerdictOnNoMatch>
+          <ResultRegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </ResultRegularExpressionPattern>
+          <ResultName>Regex Result</ResultName>
+          <Behavior>GroupsAsDimensions</Behavior>
+          <DimensionTitles></DimensionTitles>
+          <Enabled>true</Enabled>
+          <Name>Run: {Application} {Command Line Arguments}</Name>
+          <ChildTestSteps />
+          <BreakConditions>Inherit</BreakConditions>
+        </TestStep>
+      </ChildTestSteps>
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+  </Steps>
+  <BreakConditions>Inherit</BreakConditions>
+</TestPlan>
