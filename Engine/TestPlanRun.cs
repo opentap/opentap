@@ -392,8 +392,15 @@ namespace OpenTap
         public TestPlanRun(TestPlan plan, IList<IResultListener> resultListeners, DateTime startTime, long startTimeStamp, string testPlanXml, bool isCompositeRun = false) : this()
         {
             if (plan == null)
+                throw new ArgumentNullException(nameof(plan));
+            var breakCondition = BreakConditionProperty.GetBreakCondition(plan);
+            if (breakCondition.HasFlag(BreakCondition.Inherit))
             {
-                throw new ArgumentNullException("plan");
+                BreakCondition |= breakCondition;
+            }
+            else
+            {
+                BreakCondition = breakCondition;
             }
             resultWorkers = new Dictionary<IResultListener, WorkQueue>();
             this.IsCompositeRun = isCompositeRun;
@@ -497,16 +504,16 @@ namespace OpenTap
                 {
                     if (abort2.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail))
                     {
-                        AbortCondition = BreakCondition.BreakOnError | BreakCondition.BreakOnFail;
+                        BreakCondition = BreakCondition.BreakOnError | BreakCondition.BreakOnFail;
                     }
                     else
                     {
-                        AbortCondition = BreakCondition.BreakOnError;
+                        BreakCondition = BreakCondition.BreakOnError;
                     }
                 }
                 else if (abort2.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail))
                 {
-                    AbortCondition = BreakCondition.BreakOnFail;
+                    BreakCondition = BreakCondition.BreakOnFail;
                 }
             }
         }

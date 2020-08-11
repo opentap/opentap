@@ -7,7 +7,7 @@ using OpenTap.Plugins.BasicSteps;
 namespace OpenTap.Engine.UnitTests
 {
     [TestFixture]
-    public class AbortConditionsTest
+    public class BreakConditionsTest
     {
         public class TestStepFailsTimes : TestStep
         {
@@ -195,7 +195,7 @@ namespace OpenTap.Engine.UnitTests
 
         public class TestStepAbortPlan : TestStep
         {
-            public AbortConditionsTest.TestStepWaitInfinite WaitFor { get; set; }
+            public BreakConditionsTest.TestStepWaitInfinite WaitFor { get; set; }
             public override void Run()
             {
                 WaitFor?.Sem.WaitOne();
@@ -219,5 +219,44 @@ namespace OpenTap.Engine.UnitTests
                 Assert.AreEqual(Verdict.Aborted, step.Verdict);    
             }
         }
+
+        [Test]
+        public void TestPlanBreakConditions()
+        {
+            var plan = new TestPlan();
+            
+            var errorStep = new VerdictStep() {VerdictOutput = Verdict.Error};
+            var failStep = new VerdictStep() {VerdictOutput = Verdict.Fail};
+            var inconclusiveStep = new VerdictStep() {VerdictOutput = Verdict.Inconclusive};
+            var passStep = new VerdictStep() {VerdictOutput = Verdict.Pass};
+            
+            plan.Steps.Add(errorStep);
+            plan.Steps.Add(failStep);
+            plan.Steps.Add(inconclusiveStep);
+            plan.Steps.Add(passStep);
+            
+            // break on fail, this means that 'passStep' will not get executed 
+            BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnError);
+            var col = new PlanRunCollectorListener();
+            plan.Execute(new []{col});
+            Assert.AreEqual(1, col.StepRuns.Count);
+            
+            BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnFail);
+            col = new PlanRunCollectorListener();
+            plan.Execute(new []{col});
+            Assert.AreEqual(2, col.StepRuns.Count);
+            
+            BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnInconclusive);
+            col = new PlanRunCollectorListener();
+            plan.Execute(new []{col});
+            Assert.AreEqual(3, col.StepRuns.Count);
+            
+            BreakConditionProperty.SetBreakCondition(plan, 0);
+            col = new PlanRunCollectorListener();
+            plan.Execute(new []{col});
+            Assert.AreEqual(4, col.StepRuns.Count);
+            
+        }
+        
     }
 }
