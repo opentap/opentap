@@ -74,7 +74,7 @@ namespace OpenTap
         /// In many cases the name is unique within a test plan, but this should not be assumed, use <see cref="Id"/>for an unique identifier.
         /// May not be null.
         /// </summary>
-        [ColumnDisplayName("Step Name", Order : -100)]
+        [ColumnDisplayName(nameof(Name), Order : -100)]
         [Display("Step Name", "The name of the test step, this value can be used to identifiy a test step. " +
                               "Test step names are not guaranteed to be unique. " +
                               "Name can include names of a setting of the step, this property will dynamically be " +
@@ -96,7 +96,7 @@ namespace OpenTap
         /// <summary>
         /// This TestStep type as a <see cref="string"/>.   
         /// </summary>
-        [ColumnDisplayName("Step Type", Order : 1)]
+        [ColumnDisplayName("Type", Order : 1)]
         [Browsable(false)]
         public string TypeName => GetType().GetDisplayAttribute().GetFullName();
 
@@ -794,7 +794,7 @@ namespace OpenTap
 
             TapThread.ThrowIfAborted();
             if (!Step.Enabled)
-                throw new Exception("Step not enabled."); // Do not run step if it has been disabled
+                throw new Exception("Test step not enabled."); // Do not run step if it has been disabled
             planRun.ThrottleResultPropagation();
             
             var stepRun = Step.StepRun = new TestStepRun(Step, parentRun,
@@ -869,9 +869,9 @@ namespace OpenTap
                 {
                     Step.Verdict = Verdict.Aborted;
                     if(e.Message == new OperationCanceledException().Message)
-                        TestPlan.Log.Warning("Step {0} was canceled.", stepPath);
+                        TestPlan.Log.Warning("Test step {0} was canceled.", stepPath);
                     else
-                        TestPlan.Log.Warning("Step {0} was canceled with message '{1}'.", stepPath, e.Message);
+                        TestPlan.Log.Warning("Test step {0} was canceled with message '{1}'.", stepPath, e.Message);
                 }
                 else
                 {
@@ -905,9 +905,9 @@ namespace OpenTap
                             if (TapThread.Current.AbortToken.IsCancellationRequested && Step.Verdict < Verdict.Aborted)
                                 Step.Verdict = Verdict.Aborted;
                             if (e.Message == new OperationCanceledException().Message)
-                                TestPlan.Log.Warning("Step {0} was canceled.", stepPath);
+                                TestPlan.Log.Warning("Test step {0} was canceled.", stepPath);
                             else
-                                TestPlan.Log.Warning("Step {0} was canceled with message '{1}'.", stepPath, e.Message);
+                                TestPlan.Log.Warning("Test step {0} was canceled with message '{1}'.", stepPath, e.Message);
                         }
                         else
                         {
