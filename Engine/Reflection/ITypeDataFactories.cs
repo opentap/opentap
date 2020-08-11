@@ -49,21 +49,22 @@ namespace OpenTap
         {
             checkCacheValidity();
             var searcherTypes = TypeData.FromType(typeof(ITypeDataSearcher)).DerivedTypes.Where(x => x.CanCreateInstance);
-            bool invalidated = searchers.OfType<ITypeDataSearcherInvalidated>().Any(x => x.IsInvalidated);
-            if(derivedTypesCache.ContainsKey(baseType) && searchers.Count == searcherTypes.Count() && !invalidated)
+            bool invalidated = searchers.Any(s => s?.Types == null);
+            if (derivedTypesCache.ContainsKey(baseType) && searchers.Count == searcherTypes.Count() && !invalidated)
                     return derivedTypesCache[baseType];
             lock (lockSearchers)
             {
-                if (searchers.Count() != searcherTypes.Count() || invalidated)
+                var searchTasks = new List<Task>();
+                if (invalidated)
                 {
-
-                    var searchTasks = new List<Task>();
                     foreach (var s in searchers)
                     {
-                        if (s is ITypeDataSearcherInvalidated inv && inv.IsInvalidated)
+                        if (s != null && s.Types == null)
                             searchTasks.Add(Task.Run(() => s.Search()));
                     }
-
+                }
+                if (searchers.Count() != searcherTypes.Count())
+                {
                     foreach (var st in searcherTypes)
                     {
                         if (!searchers.Any(s => TypeData.GetTypeData(s) == st))
@@ -73,16 +74,14 @@ namespace OpenTap
                             searchers.Add(searcher);
                         }
                     }
-
-
-                    try
-                    {
-                        Task.WaitAll(searchTasks.ToArray());
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.CreateSource("TypeData").Debug(ex);
-                    }
+                }
+                try
+                {
+                    Task.WaitAll(searchTasks.ToArray());
+                }
+                catch (Exception ex)
+                {
+                    Log.CreateSource("TypeData").Debug(ex);
                 }
             }
 

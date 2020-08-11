@@ -40,7 +40,7 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(types.All(t => t.DescendsTo(baseType)));
         }
 
-        public class TypeDataSearcherTestImpl : ITypeDataSearcher, ITypeDataProvider, ITypeDataSearcherInvalidated
+        public class TypeDataSearcherTestImpl : ITypeDataSearcher, ITypeDataProvider
         {
             public class MemberDataTestImpl : IMemberData
             {
@@ -116,49 +116,35 @@ namespace OpenTap.Engine.UnitTests
             }
 
 
-            private static IEnumerable<ITypeData> _types = new List<ITypeData>
+            private static IEnumerable<ITypeData> hardcodedTypes = new List<ITypeData>
             {
                 new TypeDataTestImpl( "UnitTestType", TypeData.FromType(typeof(IResultListener)),null),
                 new TypeDataTestImpl( "UnitTestCliActionType", TypeData.FromType(typeof(ICliAction)),() => new SomeTestAction())
             };
 
-            static bool enabled;
+            public static bool Enable { get; set; }
 
-            public static bool Enable
+            private IEnumerable<ITypeData> _types = new List<ITypeData>();
+            public IEnumerable<ITypeData> Types
             {
-                get => enabled;
-                set
-                {
-                    if (enabled == value) return;
-                    enabled = value;
-                    invalidated = true;
-                }
+                get => Enable ? _types : Enumerable.Empty<ITypeData>();
             }
-
-            static bool invalidated = false;
-            public IEnumerable<ITypeData> Types { get; private set; }
 
             public void Search()
             {
-                if (Enable)
-                    Types = _types;
-                else
-                    Types = null;
-                invalidated = false;
+                _types = hardcodedTypes;
             }
 
             public double Priority => 1;
 
-            public ITypeData GetTypeData(string identifier) => _types.FirstOrDefault(x => x.Name == identifier);
+            public ITypeData GetTypeData(string identifier) => hardcodedTypes.FirstOrDefault(x => x.Name == identifier);
 
             public ITypeData GetTypeData(object obj)
             {
                 if (obj is SomeTestAction)
-                    return _types.Last();
+                    return hardcodedTypes.Last();
                 return null;
             }
-
-            public bool IsInvalidated => invalidated;
         }
         
         interface NonDerivedInterface { }
