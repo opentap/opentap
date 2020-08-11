@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="OpenTap.TestPlan" Locked="false">
+  <Steps>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Version="0.0.0" Id="7326fb79-0666-495c-932e-51bf4ce72795">
+      <String>&lt;Package Name="TestPackage"
+         xmlns="http://opentap.io/schemas/package"
+         InfoLink="http://www.keysight.com/"
+         Version="0.1.0-alpha"
+         Tags="sdk example"&gt;
+  &lt;Description&gt;Just Testing&lt;/Description&gt;
+  &lt;Files&gt;
+    &lt;File Path="test.package.xml"&gt;&lt;/File&gt;
+  &lt;/Files&gt;
+&lt;/Package&gt;</String>
+      <File>test.package.xml</File>
+      <Enabled>true</Enabled>
+      <Name>Write File: {File}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit, BreakOnError</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="76aafc96-fc33-41af-a06d-cd908078b7a4">
+      <Application>tap</Application>
+      <Arguments>package create test.package.xml</Arguments>
+      <WorkingDirectory>.</WorkingDirectory>
+      <WaitForEnd>true</WaitForEnd>
+      <Timeout>0</Timeout>
+      <AddToLog>true</AddToLog>
+      <LogHeader />
+      <RegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </RegularExpressionPattern>
+      <VerdictOnMatch>Pass</VerdictOnMatch>
+      <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+      <ResultRegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </ResultRegularExpressionPattern>
+      <ResultName>Regex Result</ResultName>
+      <Behavior>GroupsAsDimensions</Behavior>
+      <DimensionTitles></DimensionTitles>
+      <Enabled>true</Enabled>
+      <Name>Run: {Application} {Command Line Arguments}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit, BreakOnError</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="a045fa55-e8fa-4e68-8c48-f8ba4e842100">
+      <Application>tap</Application>
+      <Arguments>package show "TestPackage.0.1.0-alpha.TapPackage"</Arguments>
+      <WorkingDirectory>.</WorkingDirectory>
+      <WaitForEnd>true</WaitForEnd>
+      <Timeout>0</Timeout>
+      <AddToLog>true</AddToLog>
+      <LogHeader />
+      <RegularExpressionPattern>
+        <Value>Package Tags.*sdk example</Value>
+        <IsEnabled>true</IsEnabled>
+      </RegularExpressionPattern>
+      <VerdictOnMatch>Pass</VerdictOnMatch>
+      <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+      <ResultRegularExpressionPattern>
+        <Value></Value>
+        <IsEnabled>false</IsEnabled>
+      </ResultRegularExpressionPattern>
+      <ResultName>Regex Result</ResultName>
+      <Behavior>GroupsAsResults</Behavior>
+      <DimensionTitles>Result</DimensionTitles>
+      <Enabled>true</Enabled>
+      <Name>Run: {Application} {Command Line Arguments}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit, BreakOnError</BreakConditions>
+    </TestStep>
+  </Steps>
+  <BreakConditions>Inherit</BreakConditions>
+</TestPlan>

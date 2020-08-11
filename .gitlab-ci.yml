@@ -170,6 +170,9 @@ TestLinuxPlan:
   needs:
     - Build-Linux64
   script:
+    - apt-get update
+    - apt-get install locales
+    - locale-gen en_US.UTF-8
     - mv bin/Release/publish/* bin/Release
     - bin/Release/tap run tests/regression.TapPlan --verbose
 
