@@ -20,6 +20,7 @@ namespace OpenTap.Cli
         TestPlanFail = 30,
         RuntimeError = 50,
         ArgumentError = 60,
+        LoadError = 70,
         PluginError = 80
     }
     /// <summary>
@@ -75,6 +76,12 @@ namespace OpenTap.Cli
         /// </summary>
         [CommandLineArgument("results", Description = "Sets the enabled result listeners for this test plan execution as a comma separated list. An example could be --results SQLite,CSV. To disable all result listeners use --results \"\".")]
         public string Results { get; set; }
+
+        /// <summary>
+        /// Ignore the errors for deserialization of test plan
+        /// </summary>
+        [CommandLineArgument("ignore-load-errors", Description = "Ignore the errors during loading of test plan.")]
+        public bool IgnoreLoadErrors { get; set; } = false;
 
         /// <summary>
         /// Location of test plan to be executed.
@@ -180,6 +187,11 @@ namespace OpenTap.Cli
             {
                 HandleExternalParametersAndLoadPlan(planToLoad);
             }
+            catch (TestPlan.PlanLoadException ex)
+            {
+                log.Error(ex.Message);
+                return Exit(ExitStatus.LoadError);
+            }
             catch (ArgumentException ex)
             {
                 if(!string.IsNullOrWhiteSpace(ex.Message))
@@ -246,15 +258,19 @@ namespace OpenTap.Cli
                 extparams.PreloadedValues[name] = value;
             }
             var log = Log.CreateSource("CLI");
-            if (extparams.PreloadedValues.Any())
-            {
 
-                Plan = (TestPlan) serializer.DeserializeFromFile(planToLoad, type: TypeData.FromType(typeof(TestPlan)));
-            }
-            else
+            var timer = Stopwatch.StartNew();
+            using (var fs = new FileStream(planToLoad, FileMode.Open, FileAccess.Read))
             {
-                Plan = TestPlan.Load(planToLoad, externalParameterFiles.Any() == false);
+                // only cache the XML if there are no external parameters.
+                bool cacheXml = values.Any() == false && externalParameterFiles.Any() == false;
+                
+                Plan = TestPlan.Load(fs, planToLoad, cacheXml, serializer);
+                log.Info(timer, "Loaded test plan from {0}", planToLoad);
             }
+
+            if (!IgnoreLoadErrors && serializer.Errors.Count() != 0)
+                throw new TestPlan.PlanLoadException("Unable to successfully load the test plan. To continue anyway, add the flag '--ignore-load-errors'.");
 
             if (externalParameterFiles.Count > 0)
             {

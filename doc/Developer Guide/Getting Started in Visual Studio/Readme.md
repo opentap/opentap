@@ -43,13 +43,25 @@ The NuGet package also adds build features to help packaging your plugins as a \
 
 When using the OpenTAP NuGet package, you can reference other TapPackages you need directly. TapPackages referenced like this will be installed into your projects output directory (e.g. bin/Debug/) along with OpenTAP itself.
 
-You can specify an OpenTAP package that your project should reference. When doing this any .NET assemblies in that packages are added as references in your project. You do this by adding the following to your csproj file:
+You can specify an OpenTAP package that your project should reference. You do this by adding the following to your csproj file:
 ```xml
 <ItemGroup>
-  <OpenTapPackageReference Include="DMM API" Version="2.1.2" Repository="packages.opentap.io"/>
+  <OpenTapPackageReference Include="DMM API" Version="2.1.2" Repository="packages.opentap.io" IncludeAssemblies="pattern1:pattern2" ExcludeAssemblies="pattern3:pattern4"/>
 </ItemGroup>
 ```
-This should be very similar to the way you add a NuGet package using `<PackageReference>`. `Version` and `Repository` are optional attributes, and default to latest release, and packages.opentap.io if omitted.
+This should be very similar to the way you add a NuGet package using `<PackageReference>`. `Version` and `Repository` are optional attributes, and default to latest release, and packages.opentap.io if omitted. 
+
+When referencing a package in this way, assemblies belonging to that package are also referenced in your project.
+The `IncludeAssemblies` and `ExcludeAssemblies` attributes are optional, and control which assemblies are referenced. The supplied value is interpreted as one or more glob patterns. 
+If not specified, they take on a default value. The default value of `IncludeAssemblies` is `**`, and the default value of ExcludeAssemblies is `Dependencies/**`.
+You can specify several glob patterns, separated by colons (`:`). By leveraging glob patterns, your project can target specific dependencies of other packages. 
+Glob patterns are tested in order of specificity, meaning that the evaluation order of patterns in IncludeAssemblies and ExcludeAssemblies can be interleaved. Specificity is measured by the number of tokens used in the expression.
+By tokens, we mean the components of the expression, and not the characters. The components of `Dependencies/**` are `[Dependencies, /, **]`, for instance.
+Because `Dependencies/**` is more specific than `**`, no DLLs in the Dependencies folder are referenced by default.
+Building on this, the pattern `Dependencies/*AspNet*/**` will match all ASP.NET dependencies that the referenced package contains, and will take precedence over the default exclude pattern because this expression contains more tokens, and is thus more specific. In case of ties, Include patterns take precedence over Exclude patterns.
+There is one exception to this rule: any pattern ending with `.dll`, except patterns ending with `*.dll`, are considered literal expressions, and will always take precedence regardless of the number of tokens, thus allowing for easily targeting a specific dll by using a pattern like `**NameOfDll.dll`.
+
+Note that OpenTAP uses the [DotNet.Glob](https://github.com/dazinator/DotNet.Glob#patterns) library to generate matches, which uses unix-like globbing syntax. 
 
 You can also specify a package that you just want installed (in e.g. bin/Debug/) but don't want your project to reference. This can be useful for defining a larger context in which to debug. It is done as follows:
 ```xml

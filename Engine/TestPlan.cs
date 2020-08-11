@@ -290,8 +290,9 @@ namespace OpenTap
         /// <param name="stream"> The stream from which the file is actually loaded. </param>
         /// <param name="path"> The path to the file. This will be tha value of <see cref="TestPlan.Path"/> on the new TestPlan. </param>
         /// <param name="cacheXml"> Gets or sets if the XML should be cached. </param>
+        /// <param name="serializer">Optionally the serializer used for deserializing the test plan. </param>
         /// <returns>Returns the new test plan.</returns>
-        public static TestPlan Load(Stream stream, string path, bool cacheXml)
+        public static TestPlan Load(Stream stream, string path, bool cacheXml, TapSerializer serializer = null)
         {
             if (stream == null)
                 throw new ArgumentNullException(nameof(stream));
@@ -304,7 +305,7 @@ namespace OpenTap
                 memstr.Seek(0, SeekOrigin.Begin);
             }
             
-            var serializer = new TapSerializer();
+            serializer = serializer ?? new TapSerializer();
             var plan = (TestPlan)serializer.Deserialize(stream, type: TypeData.FromType(typeof(TestPlan)), path: path);
             var errors = serializer.Errors;
             if (errors.Any())

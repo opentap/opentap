@@ -3,14 +3,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.ComponentModel;
 using System.Reflection;
 using System.Threading;
 using System.IO;
 using OpenTap.Diagnostic;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 
 namespace OpenTap
@@ -316,7 +315,14 @@ namespace OpenTap
             TapContext.DetachListener(listener);
             listener.Flush();
         }
-        
+        /// <summary>
+        /// Gets all added TraceListeners.
+        /// </summary>
+        /// <returns>A readonly collection of TraceListeners.</returns>
+        public static ReadOnlyCollection<ILogListener> GetListeners()
+        {
+            return (TapContext as LogContext)?.GetListeners();
+        }
         /// <summary> Creates a new log source. </summary>
         /// <param name="name">The name of the Log.</param>
         /// <returns>The created Log.</returns>
