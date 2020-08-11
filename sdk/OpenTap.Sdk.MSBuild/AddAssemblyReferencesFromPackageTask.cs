@@ -4,82 +4,253 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
+using DotNet.Globbing;
+using DotNet.Globbing.Token;
 using Microsoft.Build.Framework;
-using Microsoft.Build.Utilities;
+using Task = Microsoft.Build.Utilities.Task;
 
 namespace Keysight.OpenTap.Sdk.MSBuild
 {
+    internal class GlobWrapper : IComparable<GlobWrapper>
+    {
+        public bool Include { get; }
+
+        private static GlobOptions _globOptions = new DotNet.Globbing.GlobOptions
+            {Evaluation = {CaseInsensitive = false}};
+
+        public Glob Globber { get; }
+
+        public GlobWrapper(string pattern, bool include)
+        {
+            Include = include;
+            Globber = DotNet.Globbing.Glob.Parse(pattern, _globOptions);
+        }
+
+        public int CompareTo(GlobWrapper other)
+        {
+            bool isLiteral(Glob glob)
+            {
+                var pattern = glob.ToString();
+                return ((pattern.EndsWith(".dll") || pattern.EndsWith(".dll$")) && !(pattern.EndsWith("*.dll") || pattern.EndsWith("*.dll$"))) ||
+                       glob.Tokens.All(x => x is LiteralToken);
+            }
+            
+            var t1IsLiteral = isLiteral(Globber);
+            var t2IsLiteral = isLiteral(other.Globber);
+
+            // If one is literal, put it before the other;
+            if (t1IsLiteral || t2IsLiteral)
+            {
+                var literalComp = t2IsLiteral.CompareTo(t1IsLiteral);
+                if (literalComp != 0)
+                    return literalComp;
+            }
+            
+            // Otherwise, put the one with the most tokens first
+            var lengthComp = other.Globber.Tokens.Length.CompareTo(Globber.Tokens.Length);
+            if (lengthComp != 0)
+                return lengthComp;
+            
+            // Put includes before excludes in case of ties 
+            return other.Include.CompareTo(Include);
+        }
+    }
+
+    internal class GlobTask
+    {
+        private List<GlobWrapper> _globs;
+
+        public static List<GlobTask> ParseString(string tasks)
+        {
+            var result = new List<GlobTask>();
+            var groups = tasks.Split(',').Where(x => x.Length > 0);
+            
+            foreach (var @group in groups)
+            {
+                string g = group;
+                if (g.StartsWith(";"))
+                    g = string.Concat(g.Skip(1));
+
+                var groupParts = g.Split(';').ToArray();
+                if (groupParts.Length > 3)
+                {
+                    throw new Exception("Semicolons are not valid in glob patterns.");
+                }
+                var packageName = groupParts[0];
+                var includeGlobs = groupParts.Length > 1 ? groupParts[1].Replace('\\', '/') : "**";
+                // It is not possible to tell the difference between ExcludeAssemblies being unspecified or deliberately set to ""
+                // If all dependencies are included, builds are likely to fail -- assume this is not the intention
+                string excludeGlobs = "Dependencies/**";
+                if (groupParts.Length > 2)
+                {
+                    if (string.IsNullOrEmpty(groupParts[2]) == false)
+                    {// 
+                        excludeGlobs = groupParts[2].Replace('\\', '/');
+                    }
+                } 
+
+                // If the pattern contained semicolons, they were lost by the split operation above
+                result.Add(new GlobTask(packageName, includeGlobs.Split(':'), excludeGlobs.Split(':')));
+            }            
+            
+            return result;
+        }
+        public string PackageName { get; }
+
+        private GlobTask(string packageName, IEnumerable<string> includePatterns, IEnumerable<string> excludePatterns)
+        {
+            PackageName = packageName;
+            includePatterns = includePatterns.Distinct().Where(x => !string.IsNullOrWhiteSpace(x));
+            excludePatterns = excludePatterns.Distinct().Where(x => !string.IsNullOrWhiteSpace(x));
+            _globs = includePatterns.Select(x => new GlobWrapper(x, true)).Concat(
+                excludePatterns.Select(x => new GlobWrapper(x, false))).ToList();
+            _globs.Sort();
+        }
+
+        public bool Includes(string file)
+        {
+            foreach (var glob in _globs)
+            {
+                if (glob.Globber.IsMatch(file))
+                {
+                    return glob.Include;
+                }
+            }
+
+            // Default to excluding something that isn't explicitly included;
+            // Note that everything is "explicitly included" when no patterns are specified, since we then default to including the "**" pattern
+            return false;
+        }
+    }
+
     /// <summary>
     /// MSBuild Task to help package plugin. This task is used by the OpenTAP SDK project template
     /// </summary>
     [Serializable]
     public class AddAssemblyReferencesFromPackage : Task
     {
-        public string TargetMsBuildFile { get; set; }
+        public AddAssemblyReferencesFromPackage()
+        {
+            _added = new HashSet<string>();
+        }
+        private StreamWriter _writer;
+        private HashSet<string> _added;
+        private Regex dllRx = new Regex("<File +.*Path=\"(?<name>.+\\.dll)\"");
 
-        [Output]
+        [Output] 
         public string[] Assemblies { get; set; }
-
-        public string PackageNames { get; set; }
 
         [Required]
         public string PackageInstallDir { get; set; }
 
+        public string TargetMsBuildFile { get; set; }
+        public string PackagesAndGlobs { get; set; }
 
-        Regex dllRx = new Regex("<File +.*Path=\"(?<name>.+\\.dll)\"");
+        private void InitializeWriter()
+        {
+            if (TargetMsBuildFile == null)
+                throw new Exception("TargetMsBuildFile is null");
+            _writer = File.CreateText(TargetMsBuildFile);
+            _writer.WriteLine("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>");
+            _writer.WriteLine("<Project ToolsVersion=\"14.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">");
+        }
+        private void CloseWriter()
+        {
+            _writer.WriteLine("</Project>");
+            _writer.Close();
+        }
+        
+        private void WriteItemGroup(IEnumerable<string> assembliesInPackage)
+        {
+            _writer.WriteLine("  <ItemGroup>");
+
+            foreach (var asmPath in assembliesInPackage)
+            {
+                _writer.WriteLine($"    <Reference Include=\"{Path.GetFileNameWithoutExtension(asmPath)}\">");
+                _writer.WriteLine($"      <HintPath>$(OutDir)/{asmPath}</HintPath>");
+                _writer.WriteLine("    </Reference>");
+            }
+
+            _writer.WriteLine("  </ItemGroup>");
+        }
+
         public override bool Execute()
         {
-            List<string> assembliesInPackages = new List<string>();
-            if (!String.IsNullOrEmpty(PackageNames))
+            Assemblies = new string[] { };
+            try
             {
-                foreach (string packageName in PackageNames.Split(';'))
-                {
-                    string packageDefPath = Path.Combine(PackageInstallDir, "Packages", packageName, "package.xml");
-                    if (File.Exists(packageDefPath))
-                    {
-                        var matches = dllRx.Matches(File.ReadAllText(packageDefPath));
-                        foreach (Match m in matches)
-                        {
-                            if (m.Groups["name"].Success)
-                            {
-                                string dllPath = m.Groups["name"].Value;
-                                if (dllPath.StartsWith("Dependencies"))
-                                    continue;
-                                string absolutedllPath = Path.Combine(PackageInstallDir, dllPath);
-                                if (IsDotNetAssembly(absolutedllPath))
-                                    assembliesInPackages.Add(dllPath);
-                            }
-                        }
-                    }
-                }
+                var globTasks = GlobTask.ParseString(PackagesAndGlobs);
+
+                InitializeWriter();
+                Parallel.ForEach(globTasks, HandlePackage);
+                CloseWriter();
             }
-            Log.LogMessage(MessageImportance.Normal, "Found these assemblies in OpenTAP references: " + String.Join(", ", assembliesInPackages));
-            if (TargetMsBuildFile != null)
+            catch (Exception e)
             {
-                using (StreamWriter str = File.CreateText(TargetMsBuildFile))
-                {
-                    str.WriteLine("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>");
-                    str.WriteLine("<Project ToolsVersion=\"14.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">");
-                    str.WriteLine("  <ItemGroup>");
-
-                    foreach (string asmPath in assembliesInPackages)
-                    {
-                        str.WriteLine("    <Reference Include=\"{0}\">", Path.GetFileNameWithoutExtension(asmPath));
-                        str.WriteLine("      <HintPath>$(OutDir)\\{0}</HintPath>", asmPath);
-                        str.WriteLine("    </Reference>");
-                    }
-                    str.WriteLine("  </ItemGroup>");
-                    str.WriteLine("</Project>");
-                }
+                Log.LogErrorFromException(e);
+                throw;
             }
-            Assemblies = assembliesInPackages.ToArray();
-
 
             return true;
+        }
+
+        private void HandlePackage(GlobTask globTask)
+        {
+            var assembliesInPackage = new List<string>();
+
+            var packageDefPath = Path.Combine(PackageInstallDir, "Packages", globTask.PackageName, "package.xml");
+            //  Silently ignore the package if its package.xml does not exist
+            if (!File.Exists(packageDefPath))
+                return;
+
+            var dllsInPackage = dllRx.Matches(File.ReadAllText(packageDefPath)).Cast<Match>()
+                .Where(match => match.Groups["name"].Success)
+                .Select(match => match.Groups["name"].Value);
+
+            var matchedDlls = dllsInPackage.Where(globTask.Includes);
+            
+            foreach (var dllPath in matchedDlls.Distinct())
+            {
+                var absolutedllPath = Path.Combine(PackageInstallDir, dllPath);
+
+                lock (_added)
+                {
+                    // Ensure we don't add references twice if they are matched by multiple patterns
+                    if (_added.Contains(absolutedllPath))
+                        continue;
+                    _added.Add(absolutedllPath);
+                }
+
+                if (IsDotNetAssembly(absolutedllPath))
+                    assembliesInPackage.Add(dllPath);
+            }
+            
+            Log.LogMessage(MessageImportance.Normal,
+                "Found these assemblies in OpenTAP references: " + string.Join(", ", assembliesInPackage));
+
+            if (!assembliesInPackage.Any())
+            {
+                Log.LogWarning($"No references added from package '{globTask.PackageName}'.");
+            }
+            else
+            {
+
+                lock (_writer)
+                {
+                    WriteItemGroup(assembliesInPackage);
+                }
+
+                lock (Assemblies)
+                {
+                    Assemblies = Assemblies.Concat(assembliesInPackage).ToArray();
+                }
+            }
         }
 
         private static bool IsDotNetAssembly(string fullPath)

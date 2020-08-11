@@ -29,17 +29,17 @@ namespace OpenTap
         /// <summary> Sets the break condition for a test step. </summary>
         /// <param name="step"> Which step to set it on.</param>
         /// <param name="condition"></param>
-        public static void SetBreakCondition(ITestStep step, BreakCondition condition)
+        public static void SetBreakCondition(ITestStepParent step, BreakCondition condition)
         {
-            DynamicMemberTypeDataProvider.TestStepTypeData.AbortCondition.SetValue(step, condition);
+            DynamicMemberTypeDataProvider.TestStepTypeData.BreakConditions.SetValue(step, condition);
         }
 
         /// <summary> Gets the break condition for a given test step. </summary>
         /// <param name="step"></param>
         /// <returns></returns>
-        public static BreakCondition GetBreakCondition(ITestStep step)
+        public static BreakCondition GetBreakCondition(ITestStepParent step)
         {
-            return (BreakCondition) DynamicMemberTypeDataProvider.TestStepTypeData.AbortCondition.GetValue(step);
+            return (BreakCondition) DynamicMemberTypeDataProvider.TestStepTypeData.BreakConditions.GetValue(step);
         }
     }
 

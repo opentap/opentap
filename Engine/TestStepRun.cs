@@ -112,7 +112,7 @@ namespace OpenTap
         /// <summary>
         /// Calculated abort condition...
         /// </summary>
-        internal BreakCondition AbortCondition { get; set; }
+        internal BreakCondition BreakCondition { get; set; }
 
     }
 
@@ -259,22 +259,17 @@ namespace OpenTap
             Verdict = Verdict.NotSet;
             if (attachedParameters != null) Parameters.AddRange(attachedParameters);
             Parent = parent.Id;
-            AbortCondition = calculateAbortCondition(step, parent);
+            BreakCondition = calculateBreakCondition(step, parent);
         }
         
         
-        static BreakCondition calculateAbortCondition(ITestStep step, TestRun parentStepRun)
+        static BreakCondition calculateBreakCondition(ITestStep step, TestRun parentStepRun)
         {
-            BreakCondition abortCondition = BreakConditionProperty.GetBreakCondition(step);
+            BreakCondition breakCondition = BreakConditionProperty.GetBreakCondition(step);
             
-            if (abortCondition.HasFlag(BreakCondition.Inherit))
-            {
-                // Retry conditions are not inherited.
-                return parentStepRun.AbortCondition | BreakCondition.Inherit;
-            }
-
-            return abortCondition;
-
+            if (breakCondition.HasFlag(BreakCondition.Inherit))
+                return parentStepRun.BreakCondition | BreakCondition.Inherit;
+            return breakCondition;
         }
 
         internal TestStepRun Clone()
@@ -289,9 +284,9 @@ namespace OpenTap
         internal bool IsBreakCondition()
         {
             if (OutOfRetries 
-                || (Verdict == Verdict.Fail && AbortCondition.HasFlag(BreakCondition.BreakOnFail)) 
-                || (Verdict == Verdict.Error && AbortCondition.HasFlag(BreakCondition.BreakOnError))
-                || (Verdict == Verdict.Inconclusive && AbortCondition.HasFlag(BreakCondition.BreakOnInconclusive)))
+                || (Verdict == Verdict.Fail && BreakCondition.HasFlag(BreakCondition.BreakOnFail)) 
+                || (Verdict == Verdict.Error && BreakCondition.HasFlag(BreakCondition.BreakOnError))
+                || (Verdict == Verdict.Inconclusive && BreakCondition.HasFlag(BreakCondition.BreakOnInconclusive)))
             {
                 return true;
             }

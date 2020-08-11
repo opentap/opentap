@@ -273,6 +273,17 @@ namespace OpenTap
 
         readonly ConditionalWeakTable<object, object> dict = new ConditionalWeakTable<object, object>();
 
+        public DynamicMember()
+        {
+            
+        }
+        /// <summary> This overload allows two DynamicMembers to share the same Get/Set value backing field.</summary>
+        /// <param name="base"></param>
+        public DynamicMember(DynamicMember @base)
+        {
+            dict = @base.dict;
+        }
+        
         public virtual void SetValue(object owner, object value)
         {
             dict.Remove(owner);
@@ -352,6 +363,16 @@ namespace OpenTap
     {
         class BreakConditionDynamicMember : DynamicMember
         {
+            public BreakConditionDynamicMember(DynamicMember breakConditions) : base(breakConditions)
+            {
+                
+            }
+
+            public BreakConditionDynamicMember()
+            {
+                
+            }
+
             public override void SetValue(object owner, object value)
             {
                 if (owner is IBreakConditionProvider bc)
@@ -457,14 +478,14 @@ namespace OpenTap
 
         internal class TestStepTypeData : ITypeData
         {
-            internal static readonly DynamicMember AbortCondition = new BreakConditionDynamicMember
+            internal static readonly DynamicMember BreakConditions = new BreakConditionDynamicMember
             {
-                Name = "BreakConditions",
+                Name = nameof(BreakConditions),
                 DefaultValue = BreakCondition.Inherit,
                 Attributes = new Attribute[]
                 {
                     new DisplayAttribute("Break Conditions",
-                        "When enabled, specify new break conditions. When disabled conditions are inherited from the parent test step or the engine settings.",
+                        "When enabled, specify new break conditions. When disabled conditions are inherited from the parent test step, test plan, or engine settings.",
                         "Common", 20001.1),
                     new UnsweepableAttribute()
                 },
@@ -473,6 +494,26 @@ namespace OpenTap
                 Writable = true,
                 TypeDescriptor = TypeData.FromType(typeof(BreakCondition))
             };
+            
+            /// <summary>
+            /// This is slightly different from normal BreakConditions as the Display attribute is different.
+            /// </summary>
+            internal static readonly DynamicMember TestPlanBreakConditions = new BreakConditionDynamicMember(BreakConditions)
+            {
+                Name = nameof(BreakConditions),
+                DefaultValue = BreakCondition.Inherit,
+                Attributes = new Attribute[]
+                {
+                    new DisplayAttribute("Break Conditions",
+                        "When enabled, specify new break conditions. When disabled conditions are inherited from the engine settings.", Order: 1),
+                    new UnsweepableAttribute()
+                },
+                DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
+                Readable = true,
+                Writable = true,
+                TypeDescriptor = TypeData.FromType(typeof(BreakCondition))
+            };
+
 
             internal static readonly DynamicMember DescriptionMember = new DescriptionDynamicMember
             {
@@ -502,11 +543,17 @@ namespace OpenTap
                 TypeDescriptor = TypeData.FromType(typeof((Object,IMemberData)[]))
             };
 
-            static IMemberData[] extraMembers = {AbortCondition, DynamicMembers}; //, DescriptionMember // Future: Include Description Member
+            static IMemberData[] extraMembers = {BreakConditions, DynamicMembers}; //, DescriptionMember // Future: Include Description Member
+            static IMemberData[] extraMembersTestPlan = {TestPlanBreakConditions, DynamicMembers}; //, DescriptionMember // Future: Include Description Member
 
+            IMemberData[] members;
             public TestStepTypeData(ITypeData innerType)
             {
                 this.innerType = innerType;
+                if (innerType.DescendsTo(typeof(TestPlan)))
+                    members = extraMembersTestPlan;
+                else
+                    members = extraMembers;
             }
 
             public override bool Equals(object obj)
@@ -525,12 +572,12 @@ namespace OpenTap
 
             public IEnumerable<IMemberData> GetMembers()
             {
-                return innerType.GetMembers().Concat(extraMembers);
+                return innerType.GetMembers().Concat(members);
             }
 
             public IMemberData GetMember(string name)
             {
-                if (name == AbortCondition.Name) return AbortCondition;
+                if (name == BreakConditions.Name) return BreakConditions;
                 return innerType.GetMember(name);
             }
 

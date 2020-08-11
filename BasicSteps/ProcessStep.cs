@@ -56,22 +56,11 @@ namespace OpenTap.Plugins.BasicSteps
         public string LogHeader { get; set; }
 
         public ProcessStep()
-        {
+        {    
             Application = "";
             Arguments = "";
             WorkingDirectory = Directory.GetCurrentDirectory();
             WaitForEnd = true;
-        }
-
-        public override void PrePlanRun()
-        {
-            base.PrePlanRun();
-
-            string workingDirPath = Path.GetFullPath(WorkingDirectory);
-            if (!Directory.Exists(workingDirPath))
-            {
-                throw new Exception(String.Format("The directory {0} could not be found.", workingDirPath));
-            }
         }
 
         private AutoResetEvent outputWaitHandle, errorWaitHandle;
