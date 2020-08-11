@@ -67,7 +67,7 @@ namespace OpenTap
         /// <summary>
         /// Name of the step. Should be set by the user if using multiple instances of the same type.
         /// </summary>
-        [ColumnDisplayName("Step Name", Order: -100)]
+        [ColumnDisplayName(nameof(Name), Order: -100)]
         [Browsable(false)]
         string Name { get; set; }
 
@@ -100,7 +100,7 @@ namespace OpenTap
         /// <summary>
         /// Name of this <see cref="TestStep"/> type.  
         /// </summary>
-        [ColumnDisplayName("Step Type", Order : 1)]
+        [ColumnDisplayName("Type", Order : 1)]
         [Browsable(false)]
         string TypeName { get; }
 

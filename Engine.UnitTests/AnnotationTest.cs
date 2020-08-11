@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Xml.Serialization;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
 
@@ -256,6 +258,71 @@ namespace OpenTap.UnitTests
             var member = AnnotationCollection.Annotate(tpr).GetMember(selectedMember.Name);
             var avail =  member.Get<IAvailableValuesAnnotation>();
             Assert.AreEqual(2, avail.AvailableValues.Cast<object>().Count());
+        }
+
+        [Test]
+        public void TestPlanAnnotated()
+        {
+            var plan = new TestPlan();
+            var step = new DelayStep();
+            plan.ChildTestSteps.Add(step);
+            var stepType = TypeData.GetTypeData(step);
+            var mem = stepType.GetMember(nameof(DelayStep.DelaySecs));
+            mem.Parameterize(plan, step, "delay");
+
+            var a = AnnotationCollection.Annotate(plan);
+            var members = a.Get<IMembersAnnotation>().Members;
+
+            bool filterCol(AnnotationCollection col)
+            {
+                if (col.Get<IAccessAnnotation>() is IAccessAnnotation access)
+                {
+                    if (access.IsVisible == false) return false;
+                }
+
+                var m = col.Get<IMemberAnnotation>().Member;
+                
+                var browsable = m.GetAttribute<BrowsableAttribute>();
+
+                // Browsable overrides everything
+                if (browsable != null) return browsable.Browsable;
+
+                var xmlIgnore = m.GetAttribute<XmlIgnoreAttribute>();
+                if (xmlIgnore != null)
+                    return false;
+
+                if (m.HasAttribute<OutputAttribute>())
+                    return true;
+                if (!m.Writable || !m.Readable)
+                    return false;
+                return true;
+            }
+            
+            members = members.Where(filterCol).ToArray();
+            // Name, delay
+            Assert.AreEqual(members.Count(), 4);
+            
+            AnnotationCollection getMember(string name) => members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member.Name == name);
+
+            var nameMem = getMember(nameof(TestPlan.Name));
+            Assert.IsNotNull(nameMem);
+            Assert.IsTrue(nameMem.Get<IAccessAnnotation>().IsReadOnly);
+            var delayMember = getMember("delay");
+            Assert.IsNotNull(delayMember);
+            Assert.IsFalse(delayMember.Get<IAccessAnnotation>().IsReadOnly);
+            var lockedMember = getMember(nameof(TestPlan.Locked));
+            Assert.IsNotNull(lockedMember);
+            Assert.IsFalse(lockedMember.Get<IAccessAnnotation>().IsReadOnly);
+            var breakConditionsMember = getMember("BreakConditions");
+            Assert.IsNotNull(breakConditionsMember);
+            var en = breakConditionsMember.GetMember("IsEnabled");
+            en.Get<IObjectValueAnnotation>().Value = true;
+            en.Write();
+            a.Write();
+            var descr = AnnotationCollection.Annotate(step).GetMember("BreakConditions").GetMember("Value")
+                .Get<IValueDescriptionAnnotation>().Describe();
+            Assert.AreEqual("Break on Error (inherited from test plan).", descr);
+
         }
     }
 }

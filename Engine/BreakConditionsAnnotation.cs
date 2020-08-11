@@ -76,13 +76,17 @@ namespace OpenTap
             {
                 ITestStepParent src = _step;
                 src = src.Parent;
-                while (src is ITestStep step)
+                while (src != null)
                 {
-                    var cond = BreakConditionProperty.GetBreakCondition(step);
+                    var cond = BreakConditionProperty.GetBreakCondition(src);
                     if (cond.HasFlag(BreakCondition.Inherit) == false)
-                        return (cond, $"parent step '{step.Name}'");
+                    {
+                        if(src is TestPlan)
+                            return (cond, $"test plan");
+                        return (cond, $"parent step '{((ITestStep)src).GetFormattedName()}'");
+                    }
 
-                    src = step.Parent as ITestStep;
+                    src = src.Parent;
                 }
 
                 return (convertAbortCondition(EngineSettings.Current.AbortTestPlan), "engine settings");

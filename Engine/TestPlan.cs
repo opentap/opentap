@@ -33,6 +33,7 @@ namespace OpenTap
         /// <summary>
         /// A collection of TestStepBase steps.
         /// </summary>
+        [Browsable(false)]
         public TestStepList Steps
         {
             get => _Steps;
@@ -56,6 +57,7 @@ namespace OpenTap
         /// Always null for test plan.
         /// </summary>
         [XmlIgnore]
+        [Browsable(false)]
         public ITestStepParent Parent { get => null; set { } }
 
         /// <summary>
@@ -78,6 +80,8 @@ namespace OpenTap
         /// </summary>
         [XmlIgnore]
         [MetaData(macroName: "TestPlanName")]
+        [Browsable(true)]
+        [Display("Name", "The test plan name. This is usually based on the name of the file to which it is saved.", Order: 1)]
         public string Name
         {
             get
@@ -134,6 +138,7 @@ namespace OpenTap
         /// The GUI respects this.
         /// </summary>
         [XmlAttribute]
+        [Display("Locked", "Checking this makes the test plan read-only.", Order: 1)]
         public bool Locked
         {
             get => locked;
@@ -194,8 +199,8 @@ namespace OpenTap
                 Save(file.BaseStream);
             }
             Path = filePath;
-            OnPropertyChanged("Path");
-            OnPropertyChanged("Name");
+            OnPropertyChanged(nameof(Path));
+            OnPropertyChanged(nameof(Name));
         }
 
         /// <summary>
