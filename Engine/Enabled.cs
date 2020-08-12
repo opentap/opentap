@@ -3,6 +3,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections;
+using System.Linq;
+using System.Globalization;
 
 namespace OpenTap
 {
@@ -51,9 +54,16 @@ namespace OpenTap
         /// <returns></returns>
         public override string ToString()
         {
-            if (IsEnabled)
-                return Value == null ? "NULL" : Value.ToString();
-            return string.Format("{0} (disabled)", Value);
+            string valueString = null;
+            if (Value == null)
+                valueString = "NULL";
+            else
+                valueString = StringConvertProvider.GetString(Value);
+
+            if (!IsEnabled)
+                valueString += " (disabled)";
+
+            return valueString;
         }
 
         /// <summary>

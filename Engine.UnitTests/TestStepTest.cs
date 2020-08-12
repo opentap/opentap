@@ -252,6 +252,44 @@ namespace OpenTap.Engine.UnitTests
         }
     }
 
+    [Display("Enabled Check Boxes")]
+    public class EnabledFormattedNameTest : TestStep
+    {
+        [Display("Checked Bool")]
+        public Enabled<bool> CheckedBool { get; set; }
+        [Display("Checked Bool Array")]
+        public Enabled<bool[]> CheckedBoolArray { get; set; }
+        [Display("Checked Double")]
+        public Enabled<double> CheckedDouble { get; set; }
+        [Display("Checked Double Array")]
+        public Enabled<double[]> CheckedDoubleArray { get; set; }
+        [Display("Checked String")]
+        public Enabled<string> CheckedString { get; set; }
+        [Display("Checked String Array")]
+        public Enabled<string[]> CheckedStringArray { get; set; }
+        [Display("Checked String List")]
+        public Enabled<List<string>> CheckedStringList { get; set; }
+        [Display("Checked Instrument")]
+        public Enabled<Instrument> CheckedInstrument { get; set; }
+
+        public EnabledFormattedNameTest()
+        {
+            CheckedBool = new Enabled<bool>() { IsEnabled = true, Value = false };
+            CheckedBoolArray = new Enabled<bool[]>() { IsEnabled = true, Value = new bool[] { false, true } };
+            CheckedDouble = new Enabled<double>() { IsEnabled = true, Value = 3.21 };
+            CheckedDoubleArray = new Enabled<double[]>() { IsEnabled = true, Value = new double[] { 3.33, 45.6, 88.8 } };
+            CheckedString = new Enabled<string>() { IsEnabled = true, Value = "Some comment" };
+            CheckedStringArray = new Enabled<string[]>() { IsEnabled = true, Value = new string[] { "abc", "DEF", "GhI" } };
+            CheckedStringList = new Enabled<List<string>>() { IsEnabled = true, Value = new List<string> { "One", "Two", "Three" } };
+            CheckedInstrument = new Enabled<Instrument>() { IsEnabled = true };
+        }
+
+        public override void Run()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     public class NullArrayTest : TestStep
     {
         public int[] TestArray { get; set; }
@@ -522,8 +560,105 @@ namespace OpenTap.Engine.UnitTests
 
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Pass, run.Verdict);
+        }
+    }
 
+    public class FormattedNameTests
+    {
+        public class TestNameFormat1
+        {
+            const string testStepName = "Enabled Check Boxes";
+            private EnabledFormattedNameTest step;
+
+            [Test]
+            public void TestNameEnabledType()
+            {
+                step = new EnabledFormattedNameTest();
+                AssertFormatName("{Checked Bool}", "False");
+                AssertFormatName("{Checked Bool Array}", "False, True");
+                AssertFormatName("{Checked Double}", "3.21");
+                AssertFormatName("{Checked Double Array}", "3.33, 45.6, 88.8");
+                AssertFormatName("{Checked String}", "Some comment");
+                AssertFormatName("{Checked String Array}", "abc, DEF, GhI");
+                AssertFormatName("{Checked String List}", "One, Two, Three");
+                AssertFormatName("{Checked Instrument}", "NULL");
+
+                //Uncheck a property
+                step.CheckedBoolArray.IsEnabled = false;
+                AssertFormatName("{Checked Bool Array}", "False, True (disabled)");
+
+                //Remove all value of the properties
+                step.CheckedDoubleArray.Value = new double[] { };
+                AssertFormatName("{Checked Double Array}", "");
+
+                step.CheckedDoubleArray.IsEnabled = false;
+                AssertFormatName("{Checked Double Array}", " (disabled)");
+
+                step.CheckedStringArray.Value = null;
+                AssertFormatName("{Checked String Array}", "NULL");
+            }
+
+            private void AssertFormatName(string formatName, string expectedOutput)
+            {
+                step.Name = testStepName + " " + formatName;
+                var result = step.GetFormattedName();
+                Assert.AreEqual(result, testStepName + " " + expectedOutput);
+            }
         }
 
+        public class TestNameFormat2
+        {
+            const string testStepName = "Handle Input";
+            private HandleInputStep inputStep;
+
+            [Test]
+            public void TestNameInputOutputType()
+            {
+                GenerateOutputStep outputStep = new GenerateOutputStep();
+                inputStep = new HandleInputStep();
+                var plan = new TestPlan();
+                plan.ChildTestSteps.Add(outputStep);
+                plan.ChildTestSteps.Add(inputStep);
+
+                var annotation = AnnotationCollection.Annotate(inputStep);
+                var inputAnnotation = annotation.GetMember(nameof(HandleInputStep.InputBoolArray));
+                SetOutputProperty(inputAnnotation);
+                inputAnnotation = annotation.GetMember(nameof(HandleInputStep.InputDouble));
+                SetOutputProperty(inputAnnotation);
+                inputAnnotation = annotation.GetMember(nameof(HandleInputStep.InputDoubleArray));
+                SetOutputProperty(inputAnnotation);
+                inputAnnotation = annotation.GetMember(nameof(HandleInputStep.InputString));
+                SetOutputProperty(inputAnnotation);
+                inputAnnotation = annotation.GetMember(nameof(HandleInputStep.InputStringArray));
+                SetOutputProperty(inputAnnotation);
+                inputAnnotation = annotation.GetMember(nameof(HandleInputStep.InputStringList));
+                SetOutputProperty(inputAnnotation);
+
+                annotation.Write(inputStep);
+
+                AssertFormatName("{Input Bool Array}", "False, True");
+                AssertFormatName("{Input Double}", "1");
+                AssertFormatName("{Input Double Array}", "1, 2.2");
+                AssertFormatName("{Input String}", "Something");
+                AssertFormatName("{Input String Array}", "tom, dick");
+                AssertFormatName("{Input String List}", "One, Two, Three");
+            }
+
+            private void SetOutputProperty(AnnotationCollection inputAnnotation)
+            {
+                var avail = inputAnnotation.Get<IAvailableValuesAnnotation>();
+                var setVal = avail as IAvailableValuesSelectedAnnotation;
+                var options = avail.AvailableValues.Cast<object>().ToArray();
+
+                setVal.SelectedValue = options[1];
+            }
+
+            private void AssertFormatName(string formatName, string expectedOutput)
+            {
+                inputStep.Name = testStepName + " " + formatName;
+                var result = inputStep.GetFormattedName();
+                Assert.AreEqual(result, testStepName + " " + expectedOutput);
+            }
+        }
     }
 }
