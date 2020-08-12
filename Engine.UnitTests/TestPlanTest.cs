@@ -941,9 +941,48 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(1, TestSubStep.Runs);
             Assert.AreEqual(1, run.StepsWithPrePlanRun.Count);
         }
-        
+
         [Test]
-        public void PromptMetadataTest()
+        public void ComponentSettingMetadataTest()
+        {
+            UserInput.SetInterface(new ComponentSettingPrompt());
+            try
+            {
+                TestComponentSettingList.Current.Clear();
+                TestComponentSettingList.Current.Add(new TestComponentSetting());
+
+                EngineSettings.Current.PromptForMetaData = true;
+
+                {
+                    var plan = new TestPlan();
+                    plan.Steps.Add(new ComponentSettingStep());
+
+                    var run = plan.Execute();
+                    Assert.IsFalse(run.FailedToStart);
+                    Assert.AreEqual(Verdict.Pass, run.Verdict);
+                }
+
+                TestComponentSettingList.Current.OfType<TestComponentSetting>().ForEach(f => f.MetaComment = "Test meta data comment");
+
+                {
+                    var plan = new TestPlan();
+                    plan.Steps.Add(new ComponentSettingStep());
+
+                    {
+                        var run = plan.Execute();
+                        Assert.IsFalse(run.FailedToStart);
+                        Assert.AreEqual(Verdict.Pass, run.Verdict);
+                    }
+                }
+            }
+            finally
+            {
+                UserInput.SetInterface(null);
+            }
+        }
+
+        [Test]
+        public void DutPromptMetadataTest()
         {
             UserInput.SetInterface(new DutInfoPrompt());
 
@@ -1109,6 +1148,39 @@ namespace OpenTap.Engine.UnitTests
             EngineSettings.Current.AbortTestPlan = prevAbortPlanType;
             Debug.WriteLine("TestPlanDeferError {0}", sw.Elapsed);
             //workhard = false;
+        }
+
+        class ComponentSettingPrompt : IUserInputInterface
+        {
+            public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
+            {
+                var sub = AnnotationCollection.Annotate(dataObject).Get<IForwardedAnnotations>().Forwarded.ToArray();
+                var comment = sub.First(x => x.Get<IMemberAnnotation>().Member.Name == "MetaComment");
+                Assert.IsNotNull(comment != null);
+                comment.Get<IStringValueAnnotation>().Value = "Just another meta comment";
+                comment.Write();
+            }
+        }
+
+        public class TestComponentSettingList : ComponentSettingsList<TestComponentSettingList, TestComponentSetting> { }
+
+        public class TestComponentSetting : ComponentSettings<TestComponentSetting>
+        {
+            [MetaData(true)]
+            [Display("MetaComment", Description: "Some comment for meta data")]
+            public string MetaComment { get; set; }
+
+            public TestComponentSetting() { }
+        }
+
+        public class ComponentSettingStep : TestStep
+        {
+            public override void Run()
+            {
+                if (string.Compare("Just another meta comment", TestComponentSetting.Current.MetaComment, true) != 0)
+                    throw new InvalidOperationException();
+                UpgradeVerdict(Verdict.Pass);
+            }
         }
 
         class DutInfoPrompt : IUserInputInterface

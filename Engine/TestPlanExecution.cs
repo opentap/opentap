@@ -340,11 +340,27 @@ namespace OpenTap
         /// </summary>
         internal void StartResourcePromptAsync(TestPlanRun planRun, IEnumerable<IResource> resources)
         {
+            List<Type> componentSettingsWithMetaData = new List<Type>();
+            var componentSettings = PluginManager.GetPlugins<ComponentSettings>();
             resources = resources.Where(x => x != null).ToArray();
             bool AnyMetaData = false;
             planRun.PromptWaitHandle.Reset();
+
             try
             {
+                foreach (var setting in componentSettings)
+                {
+                    foreach (var member in setting.GetMembers())
+                    {
+                        var attr = member.GetAttribute<MetaDataAttribute>();
+                        if (attr != null && attr.PromptUser)
+                        {
+                            AnyMetaData = true;
+                            componentSettingsWithMetaData.Add(setting);
+                        }
+                    }
+                }
+
                 foreach (var resource in resources)
                 {
                     var type = TypeData.GetTypeData(resource);
@@ -352,8 +368,8 @@ namespace OpenTap
                     {
                         IMemberData prop = __prop;
                         var attr = prop.GetAttribute<MetaDataAttribute>();
-                        if (attr == null || attr.PromptUser == false) continue;
-                        AnyMetaData = true;
+                        if (attr != null && attr.PromptUser)
+                            AnyMetaData = true;
                     }
                 }
             }
@@ -363,15 +379,19 @@ namespace OpenTap
                 planRun.PromptWaitHandle.Set();
                 throw;
             }
-
+            
             if (AnyMetaData && EngineSettings.Current.PromptForMetaData)
             {
                 TapThread.Start(() =>
                     {
                         try
                         {
+                            List<object> objects = new List<object>();
+                            objects.AddRange(componentSettingsWithMetaData.Select(ComponentSettings.GetCurrent));
+                            objects.AddRange(resources);
+
                             planRun.PromptedResources = (IResource[]) resources;
-                            var obj = new MetadataPromptObject { Resources = resources };
+                            var obj = new MetadataPromptObject { Resources = objects };
                             UserInput.Request(obj, false);
                             if (obj.Response == MetadataPromptObject.PromptResponse.Abort)
                                 planRun.MainThread.Abort();
@@ -854,7 +874,7 @@ namespace OpenTap
     {
         public string Name { get; private set; } = "Please enter test plan metadata.";
         [Browsable(false)]
-        public IEnumerable<IResource> Resources { get; set; }
+        public IEnumerable<object> Resources { get; set; }
 
         public enum PromptResponse
         {
