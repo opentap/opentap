@@ -28,7 +28,7 @@ OpenTAP uses the following attributes:
 | **HelpLink**   | Defines the help link for a class or property.   |
 | **Layout** | Used to specify the desired layout of the element in the user interface. |
 | **MacroPath**   | Indicates a setting should use MacroPath values, such as &lt;Name&gt; and %Temp%.   |
-| **MetaData**   | A *property* marked by this attribute becomes metadata and will be provided to all result listeners. If a resource is used with this attribute (and *Allow Metadata Dialog* is enabled), a dialog prompts the user. This works for both the GUI Editor and the OpenTAP CLI.  |
+| **MetaData**   | A *property* marked by this attribute becomes metadata and will be provided to all result listeners. If a resource or a component setting is used with this attribute (and *Allow Metadata Dialog* is enabled), a dialog prompts the user. This works for both the GUI Editor and the OpenTAP CLI.  |
 | **Output**   | Indicates a test step property is an output variable.  |
 | **ResourceOpen** | Used to control how and if referenced resources are opened. This attribute is attached to a resource property. Three modes are available, Before, InParallel and Ignore. Refer to the API documentation for more information. |
 | **ResultListenerIgnore**   | Indicates a property that should not be published to ResultListeners.   |
