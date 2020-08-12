@@ -1,4 +1,17 @@
-﻿using System;
+﻿//Copyright 2012-2019 Keysight Technologies
+//
+//Licensed under the Apache License, Version 2.0 (the "License");
+//you may not use this file except in compliance with the License.
+//You may obtain a copy of the License at
+//
+//http://www.apache.org/licenses/LICENSE-2.0
+//
+//Unless required by applicable law or agreed to in writing, software
+//distributed under the License is distributed on an "AS IS" BASIS,
+//WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//See the License for the specific language governing permissions and
+//limitations under the License.
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -17,7 +30,7 @@ namespace PluginDevelopment.Advanced_Examples
     public class ComplexSettingsElement1 : INotifyPropertyChanged
     {
         /// <summary>
-        /// In order to have the right AvailableInts, we need the dut value to always be up to date.
+        /// In order to have the right AvailableInts, we need the DUT value to always be up to date.
         /// </summary>
         public IEnumerable<int> AvailableInts => Dut?.AvailableInts ?? Enumerable.Empty<int>();
 
@@ -57,7 +70,7 @@ namespace PluginDevelopment.Advanced_Examples
         }
     }
     
-    [Display("Complex Settings 1", "Demonstrates how to use a list where items cannot be added or removed." +
+    [Display("Complex Settings DUT1", "Demonstrates how to use a list where items cannot be added or removed." +
                                        " Elements themselves can be changed, but they are also mostly read-only.",
         Groups: new[] { "Examples", "Plugin Development", "Advanced Examples" })]
     public class ComplexSettingsExample1 : Dut
