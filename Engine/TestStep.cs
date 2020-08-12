@@ -1194,22 +1194,22 @@ namespace OpenTap
                     var unitattr = property.GetAttribute<UnitAttribute>();
                     string valueString = null;
                     bool isCollection = value is IEnumerable && false == value is string;
+
                     if (value == null)
-                    {
                         valueString = "Not Set";
-                    }
                     else if (unitattr != null && !isCollection)
                     {
                         var fmt = new NumberFormatter(System.Globalization.CultureInfo.CurrentCulture, unitattr);
                         valueString = fmt.FormatNumber(value);
                     }
-                    else if(isCollection)
+                    else if (isCollection)
                     {   
                         if (value.GetType().GetEnumerableElementType().IsNumeric())
                         {   // if IEnumerable<NumericType> use number formatter.
                             var fmt = new NumberFormatter(System.Globalization.CultureInfo.CurrentCulture, unitattr);
                             valueString = fmt.FormatRange(value as IEnumerable);
-                        }else
+                        }
+                        else
                         {   // else use ToString.
                             valueString = string.Join(System.Globalization.CultureInfo.CurrentCulture.NumberFormat.NumberGroupSeparator + " ", ((IEnumerable)value).Cast<object>().Select(o => o ?? "NULL"));
                         }
