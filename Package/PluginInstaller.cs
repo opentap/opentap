@@ -478,29 +478,5 @@ namespace OpenTap.Package
                 // Do nothing, it's not a big deal anyway
             }
         }
-
-        static IMemorizer<string, PackageDef> installedPackageMemorizer = new Memorizer<string, PackageDef, string>(null, loadPackageDef)
-        {
-            Validator = file => new FileInfo(file).LastWriteTimeUtc.Ticks
-        };
-
-        static PackageDef loadPackageDef(string file)
-        {
-            try
-            {
-                using (var f = File.Open(file, FileMode.Open, FileAccess.Read, FileShare.Read))
-                    return PackageDef.FromXml(f);
-            }
-            catch (Exception e)
-            {
-                log.Warning("Unable to read package file '{0}'. Moving it to '.broken'", file);
-                log.Debug(e);
-                var brokenfile = file + ".broken";
-                if (File.Exists(brokenfile))
-                    File.Delete(brokenfile);
-                File.Move(file, brokenfile);
-            }
-            return null;
-        }
     }
 }

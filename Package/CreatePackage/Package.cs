@@ -12,6 +12,7 @@ using System.Diagnostics;
 using Tap.Shared;
 using System.Runtime.InteropServices;
 using System.Xml.Serialization;
+using OpenTap.Cli;
 
 namespace OpenTap.Package
 {
@@ -114,7 +115,10 @@ namespace OpenTap.Package
         /// Load from an XML package definition file. 
         /// This file is not expected to have info about the plugins in it, so this method will enumerate the plugins inside each dll by loading them.
         /// </summary>
-        public static PackageDef FromInputXml(string xmlFilePath)
+        /// <param name="xmlFilePath">The Package Definition xml file. Usually named package.xml</param>
+        /// <param name="projectDir">Directory used byt GitVersionCalculator to expand any $(GitVersion) macros in the XML file.</param>
+        /// <returns></returns>
+        public static PackageDef FromInputXml(string xmlFilePath, string projectDir)
         {
             PackageDef.ValidateXml(xmlFilePath);
             var pkgDef = PackageDef.FromXml(xmlFilePath);
@@ -166,7 +170,7 @@ namespace OpenTap.Package
                     }
             }
 
-            var searcher = new PluginSearcher();
+            var searcher = new PluginSearcher(PluginSearcher.Options.IncludeSameAssemblies);
             searcher.Search(Directory.GetCurrentDirectory());
             List<AssemblyData> assemblies = searcher.Assemblies.ToList();
 
@@ -175,7 +179,11 @@ namespace OpenTap.Package
             {
                 EnumeratePlugins(pkgDef, assemblies);
             }
-            
+
+            log.Info("Updating package version.");
+            pkgDef.updateVersion(projectDir);
+            log.Info("Package version is {0}", pkgDef.Version);
+
             pkgDef.findDependencies(excludeAdd, assemblies);
 
             return pkgDef;
@@ -401,7 +409,7 @@ namespace OpenTap.Package
             bool foundNew = false;
 
             var notFound = new HashSet<string>();
-            
+
             // First update the pre-entered dependencies
             var installed = new Installation(Directory.GetCurrentDirectory()).GetPackages().Where(p => p.Name != pkg.Name).ToList();
             
@@ -441,24 +449,29 @@ namespace OpenTap.Package
 
             var packageAssemblies = new Memorizer<PackageDef, List<AssemblyData>>(getPackageAssemblues);
 
-            var missingPackage = new List<string>();
-
-            // TODO: figure out if this is ever needed
-            //foreach (var dep in pkg.Dependencies)
-            //{
-            //    if (dep.Version == null)
-            //    {
-            //        var current = installed.FirstOrDefault(ip => ip.Name == dep.Name);
-
-            //        if (current == null)
-            //            missingPackage.Add(dep.Name);
-            //        else
-            //            dep.Version = new VersionSpecifier(current.Version, VersionMatchBehavior.Compatible);
-            //    }
-            //}
-
-            if (missingPackage.Any())
-                throw new Exception(string.Format("A number of packages could not be found while updating package dependency versions: {0}", string.Join(", ", missingPackage)));
+            // check versions of any hardcoded dependencies against what is currently installed
+            foreach(PackageDependency dep in pkg.Dependencies)
+            {
+                var installedPackage = installed.FirstOrDefault(ip => ip.Name == dep.Name);
+                if (installedPackage != null)
+                {
+                    if (dep.Version == null)
+                    {
+                        dep.Version = new VersionSpecifier(installedPackage.Version, VersionMatchBehavior.Compatible);
+                        log.Info("A version was not specified for package dependency {0}. Using installed version ({1}).", dep.Name, dep.Version);
+                    }
+                    else
+                    {
+                        if (!dep.Version.IsCompatible(installedPackage.Version))
+                            throw new ExitCodeException((int)PackageCreateAction.ExitCodes.PackageDependencyError, $"Installed version of {dep.Name} ({installedPackage.Version}) is incompatible with dependency specified in package definition ({dep.Version}).");
+                    }
+                }
+                else
+                {
+                    throw new ExitCodeException((int)PackageCreateAction.ExitCodes.PackageDependencyError, 
+                                                $"Package dependency '{dep.Name}' specified in package definition is not installed. Please install a compatible version first.");
+                }
+            }
 
             // Find additional dependencies
             do
@@ -487,29 +500,60 @@ namespace OpenTap.Package
                     var packageCandidates = new Dictionary<PackageDef, int>();
                     foreach (var f in installed)
                     {
-                        packageCandidates[f] = packageAssemblies[f]
-                            .Count(asm => dependentAssemblyNames.Any(dep => (dep.Name == asm.Name) && OpenTap.Utils.Compatible(asm.Version, dep.Version)));
+                        var candidateAsms = packageAssemblies[f].Where(asm => dependentAssemblyNames.Any(dep => (dep.Name == asm.Name))).ToList();
+
+                        // Don't consider a package that only matches assemblies in the Dependencies subfolder
+                        candidateAsms.RemoveAll(asm => asm.Location.Contains("Dependencies")); // TODO: less lazy check for Dependencies subfolder would be good.
+                        
+                        if (candidateAsms.Count > 0)
+                            packageCandidates[f] = candidateAsms.Count;
                     }
 
-                    var candidate = packageCandidates.OrderByDescending(k => k.Value).FirstOrDefault();
+                    // Look at the most promising candidate (i.e. the one containing most assemblies with the same names as things we need)
+                    PackageDef candidatePkg = packageCandidates.OrderByDescending(k => k.Value).FirstOrDefault().Key;
 
-                    if (packageCandidates.Any() && (candidate.Value > 0))
+                    if (candidatePkg != null)
                     {
-                        var offeredFiles = packageAssemblies[candidate.Key]
-                            .Where(asm => dependentAssemblyNames.Any(dep => (dep.Name == asm.Name && OpenTap.Utils.Compatible(asm.Version, dep.Version))))
-                            .Select(ad => ad.Name).Distinct()
-                            .ToList();
-                        log.Info("Adding dependency on package '{0}' version {1}", candidate.Key.Name, candidate.Key.Version);
-                        log.Info("It offers: " + string.Join(", ", offeredFiles));
+                        foreach(AssemblyData candidateAsm in packageAssemblies[candidatePkg])
+                        {
+                            var requiredAsm = dependentAssemblyNames.FirstOrDefault(dep => dep.Name == candidateAsm.Name);
+                            if (requiredAsm != null)
+                            {
+							    if(OpenTap.Utils.Compatible(candidateAsm.Version, requiredAsm.Version))
+                                {
+                                    log.Info($"Satisfying assembly reference to {requiredAsm.Name} by adding dependency on package {candidatePkg.Name}");
+                                    if (candidateAsm.Version != requiredAsm.Version)
+                                    {
+                                        log.Warning($"Version of {requiredAsm.Name} in {candidatePkg.Name} is different from the version referenced in this package ({requiredAsm.Version} vs {candidateAsm.Version}).");
+                                        log.Warning($"Consider changing your version of {requiredAsm.Name} to {candidateAsm.Version} to match that in {candidatePkg.Name}.");
+                                    }
+                                    foundNew = true;
+                                }
+                                else
+                                {
+                                    var depender = pkg.Files.FirstOrDefault(f => f.DependentAssemblies.Contains(requiredAsm));
+                                    if (depender == null)
+                                        log.Error($"This package require assembly {requiredAsm.Name} in version {requiredAsm.Version} while that assembly is already installed through package '{candidatePkg.Name}' in version {candidateAsm.Version}.");
+                                    else
+                                        log.Error($"{Path.GetFileName(depender.FileName)} in this package require assembly {requiredAsm.Name} in version {requiredAsm.Version} while that assembly is already installed through package '{candidatePkg.Name}' in version {candidateAsm.Version}.");
+                                    //log.Error($"Please align the version of {requiredAsm.Name} to ensure interoperability with package '{candidate.Key.Name}' or uninstall that package.");
+                                    throw new ExitCodeException((int)PackageCreateAction.ExitCodes.AssemblyDependencyError, 
+                                                                $"Please align the version of {requiredAsm.Name} to ensure interoperability with package '{candidatePkg.Name}' or uninstall that package.");
+                                }
+                            }
+                        }
+                        if (foundNew)
+                        {
+                            log.Info("Adding dependency on package '{0}' version {1}", candidatePkg.Name, candidatePkg.Version);
 
-                        PackageDependency pd = new PackageDependency(candidate.Key.Name, new VersionSpecifier(candidate.Key.Version, VersionMatchBehavior.Compatible));
-                        pkg.Dependencies.Add(pd);
-
-                        foundNew = true;
+                            PackageDependency pd = new PackageDependency(candidatePkg.Name, new VersionSpecifier(candidatePkg.Version, VersionMatchBehavior.Compatible));
+                            pkg.Dependencies.Add(pd);
+                        }
                     }
                     else
                     {
-                        // Otherwise add them if we can find any that are compatible
+                        // No installed package can offer any of the remaining referenced assemblies.
+                        // add them as payload in this package in the Dependencies subfolder
                         foreach (var unknown in dependentAssemblyNames)
                         {
                             var foundAsms = searchedFiles.Where(asm => (asm.Name == unknown.Name) && OpenTap.Utils.Compatible(asm.Version, unknown.Version)).ToList();
@@ -517,24 +561,8 @@ namespace OpenTap.Package
 
                             if (foundAsm != null)
                             {
-                                var depender = pkg.Files.FirstOrDefault(f => f.DependentAssemblies.Contains(unknown));
-                                if (depender == null)
-                                    log.Warning("Adding dependent assembly '{0}' to package. It was not found in any other packages.", Path.GetFileName(foundAsm.Location));
-                                else
-                                    log.Info($"'{Path.GetFileName(depender.FileName)}' dependents on '{unknown.Name}' version '{unknown.Version}'. Adding dependency to package, it was not found in any other packages.");
-
-                                var destPath = string.Format("Dependencies/{0}.{1}/{2}", Path.GetFileNameWithoutExtension(foundAsm.Location), foundAsm.Version.ToString(), Path.GetFileName(foundAsm.Location));
-                                pkg.Files.Add(new PackageFile { SourcePath = foundAsm.Location, RelativeDestinationPath = destPath, DependentAssemblies = foundAsm.References.ToList() });
-
-                                // Copy the file to the actual directory so we can rely on it actually existing where we say the package has it.
-                                if (!File.Exists(destPath))
-                                {
-                                    Directory.CreateDirectory(Path.GetDirectoryName(destPath));
-                                    ProgramHelper.FileCopy(foundAsm.Location, destPath);
-                                }
-
+                                AddFileDependencies(pkg, unknown, foundAsm);
                                 packageAssemblies.Invalidate(pkg);
-
                                 foundNew = true;
                             }
                             else if (!notFound.Contains(unknown.Name))
@@ -549,10 +577,29 @@ namespace OpenTap.Package
             while (foundNew);
         }
 
+        private static void AddFileDependencies(PackageDef pkg, AssemblyData dependency, AssemblyData foundAsm)
+        {
+            var depender = pkg.Files.FirstOrDefault(f => f.DependentAssemblies.Contains(dependency));
+            if (depender == null)
+                log.Warning("Adding dependent assembly '{0}' to package. It was not found in any other packages.", Path.GetFileName(foundAsm.Location));
+            else
+                log.Info($"'{Path.GetFileName(depender.FileName)}' dependents on '{dependency.Name}' version '{dependency.Version}'. Adding dependency to package, it was not found in any other packages.");
+
+            var destPath = string.Format("Dependencies/{0}.{1}/{2}", Path.GetFileNameWithoutExtension(foundAsm.Location), foundAsm.Version.ToString(), Path.GetFileName(foundAsm.Location));
+            pkg.Files.Add(new PackageFile { SourcePath = foundAsm.Location, RelativeDestinationPath = destPath, DependentAssemblies = foundAsm.References.ToList() });
+
+            // Copy the file to the actual directory so we can rely on it actually existing where we say the package has it.
+            if (!File.Exists(destPath))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(destPath));
+                ProgramHelper.FileCopy(foundAsm.Location, destPath);
+            }
+        }
+
         /// <summary>
-        /// Creates a *.TapPlugin package file from the definition in this PackageDef.
+        /// Creates a *.TapPackage file from the definition in this PackageDef.
         /// </summary>
-        static public void CreatePackage(this PackageDef pkg, string path, string projectDir)
+        static public void CreatePackage(this PackageDef pkg, string path)
         {
             foreach (PackageFile file in pkg.Files)
             {
@@ -587,15 +634,12 @@ namespace OpenTap.Package
                     throw new ArgumentException("Missing plugins to handle XML elements specified in input package.xml...");
             }
 
+            
             string tempDir = Path.GetTempPath() + Path.GetRandomFileName();
             Directory.CreateDirectory(tempDir);
             log.Debug("Using temporary folder at '{0}'", tempDir);
             try
             {
-                log.Info("Updating package version.");
-                pkg.updateVersion(projectDir);
-                log.Info("Package version is {0}", pkg.Version);
-                
                 UpdateVersionInfo(tempDir, pkg.Files, pkg.Version);
 
                 // License Inject

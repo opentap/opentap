@@ -33,6 +33,7 @@ namespace OpenTap
         /// <summary>
         /// A collection of TestStepBase steps.
         /// </summary>
+        [Browsable(false)]
         public TestStepList Steps
         {
             get => _Steps;
@@ -56,6 +57,7 @@ namespace OpenTap
         /// Always null for test plan.
         /// </summary>
         [XmlIgnore]
+        [Browsable(false)]
         public ITestStepParent Parent { get => null; set { } }
 
         /// <summary>
@@ -78,6 +80,8 @@ namespace OpenTap
         /// </summary>
         [XmlIgnore]
         [MetaData(macroName: "TestPlanName")]
+        [Browsable(true)]
+        [Display("Name", "The test plan name. This is usually based on the name of the file to which it is saved.", Order: 1)]
         public string Name
         {
             get
@@ -134,6 +138,7 @@ namespace OpenTap
         /// The GUI respects this.
         /// </summary>
         [XmlAttribute]
+        [Display("Locked", "Checking this makes the test plan read-only.", Order: 1)]
         public bool Locked
         {
             get => locked;
@@ -169,6 +174,19 @@ namespace OpenTap
             ExternalParameters = new ExternalParameters(this);
         }
         
+        /// <summary>  Gets or sets if the test plan XML for this test plan should be cached. </summary>
+        [XmlIgnore]
+        public bool CacheXml { get; set; }
+
+        byte[] xmlCache = null;
+        
+        /// <summary>  Flushes the test plan XML cache. </summary>
+        public void FlushXmlCache() => xmlCache = null;
+
+        /// <summary> Get the cached XML (or null if it is not cached)</summary>
+        public byte[] GetCachedXml() => xmlCache;
+
+        
         #region Load/Save TestPlan
         /// <summary>
         /// Saves this TestPlan to a stream.
@@ -176,10 +194,26 @@ namespace OpenTap
         /// <param name="stream">The <see cref="Stream"/> in which to save the TestPlan.</param>
         public void Save(Stream stream)
         {
+            if (xmlCache != null)
+            {
+                stream.Write(xmlCache, 0, xmlCache.Length);
+                return;
+            }
+            
             if (stream == null)
                 throw new ArgumentNullException("stream");
             var ser = new TapSerializer();
-            ser.Serialize(stream, this);
+            if (CacheXml)
+            {
+                var str = new MemoryStream();
+                ser.Serialize(str, this);
+                xmlCache = str.ToArray();
+                str.CopyTo(stream);
+            }
+            else
+            {
+                ser.Serialize(stream, this);
+            }
         }
         /// <summary>
         /// Saves this TestPlan to a file path.
@@ -194,25 +228,29 @@ namespace OpenTap
                 Save(file.BaseStream);
             }
             Path = filePath;
-            OnPropertyChanged("Path");
-            OnPropertyChanged("Name");
+            OnPropertyChanged(nameof(Path));
+            OnPropertyChanged(nameof(Name));
         }
 
-        /// <summary>
-        /// Load a TestPlan.
-        /// </summary>
-        /// <param name="filepath">The file path of the TestPlan.</param>
+        /// <summary> Load a TestPlan. </summary>
+        /// <param name="filePath">The file path of the TestPlan.</param>
         /// <returns>Returns the new test plan.</returns>
-        public static TestPlan Load(string filepath)
+        public static TestPlan Load(string filePath) => Load(filePath, false);
+        
+        /// <summary> Load a TestPlan. </summary>
+        /// <param name="filePath">The file path of the TestPlan.</param>
+        /// <param name="cacheXml"> Gets or sets if the XML should be cached. </param>
+        /// <returns>Returns the new test plan.</returns>
+        public static TestPlan Load(string filePath, bool cacheXml)
         {
-            if (filepath == null)
-                throw new ArgumentNullException("filepath");
+            if (filePath == null)
+                throw new ArgumentNullException(nameof(filePath));
             var timer = Stopwatch.StartNew();
             // Open document
-            using (FileStream fs = new FileStream(filepath, FileMode.Open, FileAccess.Read))
+            using (var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read))
             {
-                var loadedPlan = Load(fs, filepath);
-                Log.Info(timer, "Loaded test plan from {0}", filepath);
+                var loadedPlan = Load(fs, filePath, cacheXml);
+                Log.Info(timer, "Loaded test plan from {0}", filePath);
                 return loadedPlan;
             }
         }
@@ -247,17 +285,32 @@ namespace OpenTap
             public PlanLoadErrorResponse Response { get; set; } = PlanLoadErrorResponse.Ignore;
         }
 
-        /// <summary>
-        /// Load a TestPlan.
-        /// </summary>
+        /// <summary> Load a TestPlan. </summary>
         /// <param name="stream">The stream from which the file is actually loaded.</param>
-        /// <param name="path">The path to the file. This will be tha value of <see cref="TestPlan.Path"/> on the new Testplan.</param>
+        /// <param name="path">The path to the file. This will be tha value of <see cref="TestPlan.Path"/> on the new TestPlan.</param>
         /// <returns>Returns the new test plan.</returns>
-        public static TestPlan Load(Stream stream, string path)
+        public static TestPlan Load(Stream stream, string path) => Load(stream, path, false);
+        
+        /// <summary> Load a TestPlan. </summary>
+        /// <param name="stream"> The stream from which the file is actually loaded. </param>
+        /// <param name="path"> The path to the file. This will be tha value of <see cref="TestPlan.Path"/> on the new TestPlan. </param>
+        /// <param name="cacheXml"> Gets or sets if the XML should be cached. </param>
+        /// <param name="serializer">Optionally the serializer used for deserializing the test plan. </param>
+        /// <returns>Returns the new test plan.</returns>
+        public static TestPlan Load(Stream stream, string path, bool cacheXml, TapSerializer serializer = null)
         {
             if (stream == null)
-                throw new ArgumentNullException("stream");
-            var serializer = new TapSerializer();
+                throw new ArgumentNullException(nameof(stream));
+            
+            if (cacheXml)
+            {
+                var memstr = new MemoryStream();
+                stream.CopyTo(memstr);
+                stream = memstr;
+                memstr.Seek(0, SeekOrigin.Begin);
+            }
+            
+            serializer = serializer ?? new TapSerializer();
             var plan = (TestPlan)serializer.Deserialize(stream, type: TypeData.FromType(typeof(TestPlan)), path: path);
             var errors = serializer.Errors;
             if (errors.Any())
@@ -271,6 +324,12 @@ namespace OpenTap
                 {
                     throw new PlanLoadException(string.Join("\n", errors));
                 }
+            }
+
+            if (cacheXml)
+            {
+                plan.CacheXml = true;
+                plan.xmlCache = ((MemoryStream) stream).ToArray();
             }
             return plan;
         }

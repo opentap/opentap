@@ -20,6 +20,7 @@ namespace OpenTap.Cli
         TestPlanFail = 30,
         RuntimeError = 50,
         ArgumentError = 60,
+        LoadError = 70,
         PluginError = 80
     }
     /// <summary>
@@ -75,6 +76,12 @@ namespace OpenTap.Cli
         /// </summary>
         [CommandLineArgument("results", Description = "Sets the enabled result listeners for this test plan execution as a comma separated list. An example could be --results SQLite,CSV. To disable all result listeners use --results \"\".")]
         public string Results { get; set; }
+
+        /// <summary>
+        /// Ignore the errors for deserialization of test plan
+        /// </summary>
+        [CommandLineArgument("ignore-load-errors", Description = "Ignore the errors during loading of test plan.")]
+        public bool IgnoreLoadErrors { get; set; } = false;
 
         /// <summary>
         /// Location of test plan to be executed.
@@ -180,6 +187,11 @@ namespace OpenTap.Cli
             {
                 HandleExternalParametersAndLoadPlan(planToLoad);
             }
+            catch (TestPlan.PlanLoadException ex)
+            {
+                log.Error(ex.Message);
+                return Exit(ExitStatus.LoadError);
+            }
             catch (ArgumentException ex)
             {
                 if(!string.IsNullOrWhiteSpace(ex.Message))
@@ -193,21 +205,11 @@ namespace OpenTap.Cli
                 return Exit(ExitStatus.RuntimeError);
             }
 
-            log.Info("TestPlan: {0}", Plan.Name);
+            log.Info("Test Plan: {0}", Plan.Name);
 
             if (ListExternal)
             {
-                log.Info("Listing {0} external test plan parameters.", Plan.ExternalParameters.Entries.Count);
-                int pad = 0;
-                foreach (var entry in Plan.ExternalParameters.Entries)
-                {
-                    pad = Math.Max(pad, entry.Name.Length);
-                }
-                foreach (var entry in Plan.ExternalParameters.Entries)
-                {
-                    log.Info(" {2}{0} = {1}", entry.Name, StringConvertProvider.GetString(entry.Value), new String(' ', pad - entry.Name.Length));
-                }
-                log.Info("");
+                PrintExternalParameters(log);
                 return Exit(ExitStatus.Ok);
             }
 
@@ -225,10 +227,10 @@ namespace OpenTap.Cli
 
         private void HandleExternalParametersAndLoadPlan(string planToLoad)
         {
+            
+            List<string> values = new List<string>();
             var serializer = new TapSerializer();
             var extparams = serializer.GetSerializer<Plugins.ExternalParameterSerializer>();
-            List<string> values = new List<string>();
-
             if (External.Length > 0)
                 values.AddRange(External);
             if (TryExternal.Length > 0)
@@ -256,14 +258,27 @@ namespace OpenTap.Cli
                 extparams.PreloadedValues[name] = value;
             }
             var log = Log.CreateSource("CLI");
-            Plan = (TestPlan)serializer.DeserializeFromFile(planToLoad, type: TypeData.FromType(typeof(TestPlan)));
+
+            var timer = Stopwatch.StartNew();
+            using (var fs = new FileStream(planToLoad, FileMode.Open, FileAccess.Read))
+            {
+                // only cache the XML if there are no external parameters.
+                bool cacheXml = values.Any() == false && externalParameterFiles.Any() == false;
+                
+                Plan = TestPlan.Load(fs, planToLoad, cacheXml, serializer);
+                log.Info(timer, "Loaded test plan from {0}", planToLoad);
+            }
+
+            if (!IgnoreLoadErrors && serializer.Errors.Count() != 0)
+                throw new TestPlan.PlanLoadException("Unable to successfully load the test plan. To continue anyway, add the flag '--ignore-load-errors'.");
+
             if (externalParameterFiles.Count > 0)
             {
                 var importers = CreateInstances<IExternalTestPlanParameterImport>();
                 foreach (var file in externalParameterFiles)
                 {
                     log.Info("Loading external parameters from '{0}'.", file);
-                    var importer = importers.FirstOrDefault(i => i.Extension == Path.GetExtension(file)); 
+                    var importer = importers.FirstOrDefault(i => i.Extension == Path.GetExtension(file));
                     importer?.ImportExternalParameters(Plan, file);
                 }
             }
@@ -281,6 +296,37 @@ namespace OpenTap.Cli
                     log.Warning("External parameter '{0}' does not exist in the test plan.", name);
                     log.Warning("Statement '{0}' has no effect.", externalParam);
                     throw new ArgumentException("");
+                }
+            }
+        }
+
+        private void PrintExternalParameters(TraceSource log)
+        {
+            var annotation = AnnotationCollection.Annotate(Plan).Get<IMembersAnnotation>();
+            log.Info("Listing {0} External Test Plan Parameters:", Plan.ExternalParameters.Entries.Count);
+            foreach (var member in annotation.Members)
+            {
+                if (member.Get<IMemberAnnotation>()?.Member is ParameterMemberData param)
+                {
+                    var multiValues = member.Get<IMultiSelectAnnotationProxy>()?.SelectedValues;
+                    string printStr = "";
+                    if (multiValues != null)
+                    {
+                        foreach (var val in multiValues)
+                            printStr += string.Format("{0} | ", val.Get<IStringReadOnlyValueAnnotation>()?.Value ?? val.Get<IObjectValueAnnotation>()?.Value.ToString());
+                        printStr = printStr.Remove(printStr.Length - 3);    // Remove trailing delimiter
+                    }
+                    else
+                        printStr = member.Get<IStringReadOnlyValueAnnotation>()?.Value ?? member.Get<IObjectValueAnnotation>()?.Value.ToString();
+
+                    log.Info("  {0} = {1}", param.Name, printStr);
+
+                    if (member.Get<IAvailableValuesAnnotationProxy>() is IAvailableValuesAnnotationProxy avail)
+                    {
+                        log.Info("    Available Values:");
+                        foreach (var val in avail.AvailableValues)
+                            log.Info("      {0}", val.Get<IStringReadOnlyValueAnnotation>()?.Value ?? val.Get<IObjectValueAnnotation>()?.Value.ToString());
+                    }
                 }
             }
         }

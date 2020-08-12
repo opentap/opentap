@@ -134,6 +134,45 @@ namespace OpenTap
             return ' ';
         }
 
+        public static void Format(StringBuilder sb, BigFloat value, bool prefix, string unit, string format, CultureInfo culture,
+            bool compact = false)
+        {
+            char level = prefix ? findLevel(value) : ' ';
+            BigFloat scaling = engineeringPrefixLevel(level);
+            BigFloat post_scale = value / scaling;
+
+            if (string.IsNullOrEmpty(format))
+                post_scale.AppendTo(sb, culture);
+            else
+            {
+                if (format.StartsWith("x", StringComparison.InvariantCultureIgnoreCase))
+                    sb.Append(((long)post_scale.Rounded()).ToString(format, culture));
+                else
+                {
+                    try
+                    {
+                        sb.Append(((decimal)post_scale.ConvertTo(typeof(decimal))).ToString(format, culture));
+                    }
+                    catch
+                    {
+                        post_scale.AppendTo(sb, culture);
+                    }
+                }
+            }
+
+            if (level == ' ' && string.IsNullOrEmpty(unit))
+            {
+                return;
+            }
+
+            string space = compact ? "" : " ";
+            sb.Append(space);
+            if (level != ' ')
+                sb.Append(level);
+            if(unit != null)
+                sb.Append(unit);
+        }
+        
         public static string Format(BigFloat value, bool prefix, string unit, string format, CultureInfo culture, bool compact = false)
         {
             char level = prefix ? findLevel(value) : ' ';
@@ -452,12 +491,31 @@ namespace OpenTap
         {
             return UnitFormatter.TryParse(trimmed, Unit ?? "", Format, culture, out val);
         }
+        
+        void parseBackNumber(BigFloat number, StringBuilder sb)
+        {
+            if (PreScaling != 1.0)
+                number = number / PreScaling;
+            UnitFormatter.Format(sb, number , UsePrefix, Unit ?? "", Format, culture, IsCompact);
+        }
 
         string parseBackNumber(BigFloat number)
         {
             return UnitFormatter.Format(number / PreScaling, UsePrefix, Unit ?? "", Format, culture, IsCompact);
         }
 
+        void parseBackRange(BigFloat Start, BigFloat Step, BigFloat Stop, StringBuilder sb)
+        {
+            parseBackNumber(Start, sb);
+            if (Step != PreScaling)
+            {
+                sb.Append(" : ");
+                parseBackNumber(Step, sb);
+            }
+            sb.Append(" : ");
+            parseBackNumber(Stop, sb);
+        }
+        
         string parseBackRange(Range rng)
         {
             if (rng.Step == PreScaling)
@@ -632,13 +690,20 @@ namespace OpenTap
 
         }
 
-        void pushSeq(StringBuilder sb, List<BigFloat> seq, BigFloat step)
+        void pushSeq(StringBuilder sb, BigFloat val, BigFloat step)
         {
-            if (seq.Count > 2 && step != 0.0)
+            if (sb.Length != 0)
+                sb.Append(separator);
+            parseBackNumber(val, sb);
+        }
+        
+        void pushSeq(StringBuilder sb, IList<BigFloat> seq, BigFloat step)
+        {
+            if (seq.Count > 2 && step.IsZero == false)
             {
                 if (sb.Length != 0)
                     sb.Append(separator);
-                sb.Append(parseBackRange(new Range(seq[0], seq[seq.Count - 1], step)));
+                parseBackRange(seq[0], step, seq[seq.Count - 1], sb);
             }
             else
             {
@@ -646,7 +711,7 @@ namespace OpenTap
                 {
                     if (sb.Length != 0)
                         sb.Append(separator);
-                    sb.Append(parseBackNumber(val));
+                    parseBackNumber(val, sb);
                 }
             }
         }
@@ -702,6 +767,15 @@ namespace OpenTap
             return false;
         }
 
+        [ThreadStatic] static StringBuilder stringBuilder;
+
+        StringBuilder getStringBuilder()
+        {
+            var sb =stringBuilder ?? (stringBuilder = new StringBuilder());
+            sb.Clear();
+            return sb;
+        }
+        
         /// <summary>
         /// Parses a sequence of numbers back into a string.
         /// </summary>
@@ -716,7 +790,7 @@ namespace OpenTap
                 var seqs = values as _ICombinedNumberSequence;
                 if (seqs != null)
                 {
-                    StringBuilder sb = new StringBuilder();
+                    StringBuilder sb = getStringBuilder();
                     foreach (var subseq in seqs.Sequences)
                     {
                         var range = subseq as Range;
@@ -741,7 +815,7 @@ namespace OpenTap
             }
             if (UseRanges)
             { // Parse the slow way.
-                StringBuilder sb = new StringBuilder();
+                StringBuilder sb = getStringBuilder();
                 List<BigFloat> sequence = new List<BigFloat>();
                 BigFloat seq_step = 0;
                 foreach (var _val in values)
@@ -763,7 +837,7 @@ namespace OpenTap
                         {
                             if (sequence.Count == 2)
                             {
-                                pushSeq(sb, new List<BigFloat> { sequence[0] }, seq_step);
+                                pushSeq(sb, sequence[0], seq_step);
                                 sequence.RemoveAt(0);
                             }
                             else
@@ -779,16 +853,49 @@ namespace OpenTap
                 pushSeq(sb, sequence, seq_step);
                 return sb.ToString();
             }
-            else
+            if (!UsePrefix)
             {
-                StringBuilder sb = new StringBuilder();
+                // this ca be done really fast since we dont have to use BigFloat.
+                var sb = getStringBuilder();
+                foreach (var _val in values)
+                {
+                    if (sb.Length != 0)
+                        sb.Append(separator);
+                    switch (_val)
+                    {
+                        case float i:
+                            sb.Append(i.ToString("R", culture));
+                            break;
+                        case decimal i: 
+                            sb.Append(i.ToString("G", culture));
+                            break;
+                        case double i: 
+                            sb.Append(i.ToString("R17", culture));
+                            break;
+                        default:
+                            sb.Append(_val);
+                            break;
+                    }
+
+                    if (string.IsNullOrEmpty(Unit) == false)
+                    {
+                        sb.Append(" ");
+                        sb.Append(Unit);
+                    }
+                }
+
+                return sb.ToString();
+            }
+            
+            {
+                StringBuilder sb = getStringBuilder();
                 foreach (var _val in values)
                 {
                     var val = BigFloat.Convert(_val);
 
                     if (sb.Length != 0)
                         sb.Append(separator);
-                    sb.Append(parseBackNumber(val));
+                    parseBackNumber(val, sb);
                 }
                 return sb.ToString();
             }

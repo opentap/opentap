@@ -106,6 +106,7 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        [Pairwise]
         public void RunSweep([Values(true,false)] bool acrossRuns, [Values(true, false)]bool allEnabled)
         {
             var tp = new TestPlan();

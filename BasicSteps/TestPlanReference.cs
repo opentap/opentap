@@ -140,7 +140,11 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 // Validator is to reload the file if it has been changed.
                 // Assuming it is much faster to check file write time than to read and parse it. Testing has verified this.
-                Validator = str => File.GetLastWriteTime(str),
+                Validator = str =>
+                {
+                    var file = new FileInfo(str);
+                    return $"{file.LastWriteTime} {file.Length}";
+                },
                 MaxNumberOfElements = 100
             };
 

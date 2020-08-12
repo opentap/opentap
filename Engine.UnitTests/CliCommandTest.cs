@@ -16,12 +16,13 @@ namespace OpenTap.UnitTests
         [Test]
         public void test()
         {
-            Assert.IsTrue(CliActionTree.Root.GetSubCommand(Array.Empty<string>()) == null);
-            Assert.IsTrue(CliActionTree.Root.GetSubCommand("".Split(' ')) == null);
-            Assert.IsTrue(CliActionTree.Root.GetSubCommand("test".Split(' ')).Name == "test");
-            Assert.IsTrue(CliActionTree.Root.GetSubCommand("test action".Split(' ')).Name == "action");
-            Assert.IsTrue(CliActionTree.Root.GetSubCommand("test action testaction".Split(' ')).Name == "testaction");
-            Assert.IsTrue(CliActionTree.Root.GetSubCommand("test action testaction arg".Split(' ')).Name == "testaction");
+            var root = new CliActionTree();
+            Assert.IsTrue(root.GetSubCommand(Array.Empty<string>()) == null);
+            Assert.IsTrue(root.GetSubCommand("".Split(' ')) == null);
+            Assert.IsTrue(root.GetSubCommand("test".Split(' ')).Name == "test");
+            Assert.IsTrue(root.GetSubCommand("test action".Split(' ')).Name == "action");
+            Assert.IsTrue(root.GetSubCommand("test action testaction".Split(' ')).Name == "testaction");
+            Assert.IsTrue(root.GetSubCommand("test action testaction arg".Split(' ')).Name == "testaction");
         }
     }
 

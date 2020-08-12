@@ -11,10 +11,13 @@ namespace OpenTap
     /// </summary>
     public interface ITypeDataSearcher
     {
-        /// <summary> Get all types found by the search. </summary>
+        /// <summary> Get all types found by the search. 
+        /// Null will cause Search() to be called (again) before accessing this. </summary>
         IEnumerable<ITypeData> Types { get; }
         /// <summary>
-        /// Performs an implementation specific search for types. Generates ITypeData objects for all types found Types property.
+        /// Performs an implementation specific search for types. 
+        /// Generates ITypeData objects for all types and populates the Types property with these. 
+        /// Always sets the Types property to some value (not null).
         /// </summary>
         void Search();
     }

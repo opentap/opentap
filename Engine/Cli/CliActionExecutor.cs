@@ -15,22 +15,28 @@ namespace OpenTap.Cli
 {
     internal class CliActionTree
     {
-        public string Name { get; set; }
+        public string Name { get; }
         public bool IsGroup => (SubCommands?.Count ?? 0) > 0;
         public bool IsBrowsable => (Type?.IsBrowsable() ?? false) || SubCommands.Any(x => x.IsBrowsable); 
         
         public ITypeData Type { get; private set; }
         public List<CliActionTree> SubCommands { get; private set; }
 
-        public static CliActionTree Root { get; }
+        public CliActionTree Root { get; }
 
-        static CliActionTree()
+        public CliActionTree()
         {
             var commands = TypeData.GetDerivedTypes(TypeData.FromType(typeof(ICliAction)))
                 .Where(t => t.CanCreateInstance && t.GetDisplayAttribute() != null).ToList();
-            Root = new CliActionTree { Name = "tap" };
+            Name = "tap";
+            Root = this;
             foreach (var item in commands)
                 ParseCommand(item, item.GetDisplayAttribute().Group, Root);
+        }
+
+        CliActionTree(CliActionTree parent, string name)
+        {
+            Name = name;
         }
 
         private static void ParseCommand(ITypeData type, string[] group, CliActionTree command)
@@ -45,7 +51,7 @@ namespace OpenTap.Cli
 
                 if (existingCommand == null)
                 {
-                    existingCommand = new CliActionTree() { Name = group[0] };
+                    existingCommand = new CliActionTree(command, group[0]);
                     command.SubCommands.Add(existingCommand);
                 }
 
@@ -53,18 +59,8 @@ namespace OpenTap.Cli
             }
             else
             {
-                var name = type.GetDisplayAttribute().Name;
-                var existingCommand = command.SubCommands.FirstOrDefault(c => c.Name == name);
-                if (existingCommand != null)
-                {
-                    existingCommand.Type = type;
-                }
-                else
-                {
-                    command.SubCommands.Add(new CliActionTree()
-                        {Name = name, Type = type, SubCommands = new List<CliActionTree>()});
-                    command.SubCommands = command.SubCommands.OrderBy(c => c.Name).ToList();
-                }
+                command.SubCommands.Add(new CliActionTree(command, type.GetDisplayAttribute().Name) { Type = type, SubCommands = new List<CliActionTree>()});
+                command.SubCommands.Sort((x,y) => string.Compare(x.Name, y.Name));
             }
         }
 
@@ -167,7 +163,12 @@ namespace OpenTap.Cli
             try
             {
                 var execThread = TapThread.Current;
-                Console.CancelKeyPress += (s, e) => execThread.Abort();
+                Console.CancelKeyPress += (s, e) =>
+                {
+                    e.Cancel = true;
+                    execThread.Abort();
+                };
+
             }
             catch { }
 
@@ -210,10 +211,13 @@ namespace OpenTap.Cli
                 log.Debug(e);
             }
 
-            // Find selected command
-            var selectedCmdNode = CliActionTree.Root.GetSubCommand(args);
-            ITypeData selectedCommand = selectedCmdNode?.Type;
+            ITypeData selectedCommand = null;
             
+            // Find selected command
+            var actionTree = new CliActionTree();
+            var selectedcmd = actionTree.GetSubCommand(args);
+            if (selectedcmd?.Type != null && selectedcmd?.SubCommands.Any() != true)
+                selectedCommand = selectedcmd.Type;
             void print_command(CliActionTree cmd, int level, int descriptionStart)
             {
                 if (cmd.IsBrowsable)
@@ -245,18 +249,18 @@ namespace OpenTap.Cli
                 Console.WriteLine("OpenTAP Command Line Interface ({0})",Assembly.GetExecutingAssembly().GetSemanticVersion().ToString(4));
                 Console.WriteLine("Usage: tap <command> [<subcommand(s)>] [<args>]\n");
 
-                if (selectedCmdNode == null)
+                if (selectedcmd == null)
                 {
                     Console.WriteLine("Valid commands are:");
-                    foreach (var cmd in CliActionTree.Root.SubCommands)
+                    foreach (var cmd in actionTree.SubCommands)
                     {
-                        print_command(cmd, 0, CliActionTree.Root.GetMaxCommandTreeLength(LevelPadding) + LevelPadding);
+                        print_command(cmd, 0, actionTree.GetMaxCommandTreeLength(LevelPadding) + LevelPadding);
                     }
                 }
                 else
                 {
                     Console.Write("Valid subcommands of ");
-                    print_command(selectedCmdNode, 0, CliActionTree.Root.GetMaxCommandTreeLength(LevelPadding) + LevelPadding);
+                    print_command(selectedcmd, 0, actionTree.GetMaxCommandTreeLength(LevelPadding) + LevelPadding);
                 }
 
                 Console.WriteLine($"\nRun \"{(OperatingSystem.Current == OperatingSystem.Windows ? "tap.exe" : "tap")} " +

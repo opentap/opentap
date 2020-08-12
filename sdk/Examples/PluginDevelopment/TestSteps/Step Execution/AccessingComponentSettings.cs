@@ -42,19 +42,19 @@ namespace OpenTap.Plugins.PluginDevelopment
                 Log.Info("The first instrument found has a name of {0}", s);
             }
 
-             // An example of user defined settings, which show up as individual tabs.
-             // Default values will be used, if none exist.
-             // Defined in ExampleSettings.cs
-              Log.Info("DifferentSettings as string={0}", ExampleSettings.Current.ToString());
+            // An example of user defined settings, which show up as individual tabs.
+            // Default values will be used, if none exist.
+            // Defined in ExampleSettings.cs
+            Log.Info("DifferentSettings as string={0}", ExampleSettings.Current.ToString());
+            Log.Info("DifferentSettings comment={0}", ExampleSettings.Current.MyComment);
 
-             // An example of custom Bench settings.
-             // This is similar to the DUT or Instrument editors.
-             // Only use the values if something exists.
-               if (CustomBenchSettingsList.Current.Count > 0)
-               {
+            // An example of custom Bench settings.
+            // This is similar to the DUT or Instrument editors.
+            // Only use the values if something exists.
+            if (CustomBenchSettingsList.Current.Count > 0)
+            {
                 Log.Info("Custom Bench Settings List Count={0}", CustomBenchSettingsList.Current.Count);
-                Log.Info("First instance of Custom Bench setting as string={0}",
-                    CustomBenchSettingsList.GetDefaultOf<CustomBenchSettings>());
+                Log.Info("First instance of Custom Bench setting as string={0}", CustomBenchSettingsList.GetDefaultOf<CustomBenchSettings>());
                 foreach (var customBenchSetting in CustomBenchSettingsList.Current)
                 {
                     Log.Info("Type={0} Time={1} MyProperty={2}", customBenchSetting.GetType(), customBenchSetting.MyTime,

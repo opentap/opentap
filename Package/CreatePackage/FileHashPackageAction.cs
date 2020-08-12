@@ -18,7 +18,7 @@ namespace OpenTap.Package
     {
         static TraceSource log = Log.CreateSource("Verify");
 
-        /// <summary> Returns PacakgeActionStage.Create. </summary>
+        /// <summary> Returns PackageActionStage.Create. </summary>
         public PackageActionStage ActionStage => PackageActionStage.Create;
 
         internal static byte[] hashFile(string file)
@@ -171,6 +171,50 @@ namespace OpenTap.Package
                 verifyPackage(pkg);
             }
             return exitCode;
+        }
+
+        public static List<(PackageDef Package, PackageFile File, PackageDef OffendingPackage)> CalculatePackageInstallConflicts(IEnumerable<PackageDef> installedPackages, IEnumerable<PackageDef> newPackages)
+        {
+            var conflicts = new List<(PackageDef, PackageFile, PackageDef)>();
+            var allFiles = installedPackages.SelectMany(pkg => pkg.Files. Select(file => (pkg, file)))
+                .ToLookup(x => x.file.FileName, StringComparer.CurrentCultureIgnoreCase);
+            
+            foreach (var package in newPackages)
+            {
+                var possibleConflicts=  getConflictedFiles(allFiles, package);
+                conflicts.AddRange(possibleConflicts
+                    // remove conflicts that came from the same package name. These may be overwritten.
+                    .Where(x => x.Item1.Name != package.Name)
+                    // remove conflicts in files that came from Dependencies. 
+                    .Where(x => x.Item2.FileName.StartsWith("Dependencies/", StringComparison.InvariantCultureIgnoreCase) == false)
+                    .Select(x => (x.Item1, x.Item2, package)));
+            }
+
+            return conflicts;
+        }
+        
+        static IEnumerable<(PackageDef, PackageFile)> getConflictedFiles(ILookup<string,(PackageDef, PackageFile)> installedFilesLookup, PackageDef package)
+        {
+            var conflictedFiles = new List<(PackageDef, PackageFile)>();
+            foreach (var file in package.Files)
+            {
+                foreach (var installedFile in installedFilesLookup[file.FileName])
+                {
+                    var hash1 = installedFile.Item2.CustomData.OfType<FileHashPackageAction.Hash>().FirstOrDefault();
+                    // Hash information does not exist. Lets just ignore it then.
+                    if (hash1 == null) continue; 
+                    var hash = file.CustomData.OfType<FileHashPackageAction.Hash>().FirstOrDefault();
+                    // Hash information does not exist. Lets just ignore it then.
+                    // We also cannot compare the binary files, because they might not have been downloaded yet.
+                    if (hash == null) continue;
+                    if (hash1.Equals(hash) == false)
+                    {
+                        // conflict detected!!
+                        conflictedFiles.Add(installedFile);
+                    }
+                }
+            }
+            return conflictedFiles;
         }
     }
 }

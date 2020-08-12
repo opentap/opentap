@@ -229,6 +229,7 @@ namespace OpenTap.UnitTests
            
             
             sweep.SweepValues.Add(new SweepRow());
+            sweep.SweepValues.Add(new SweepRow());
 
             TypeData.GetTypeData(step).GetMember(nameof(ScopeTestStep.A)).Parameterize(sweep, step, "Parameters \\ A");
             TypeData.GetTypeData(step).GetMember(nameof(ScopeTestStep.EnabledTest)).Parameterize(sweep, step, nameof(ScopeTestStep.EnabledTest));
@@ -367,5 +368,29 @@ namespace OpenTap.UnitTests
 
         }
 
+        [Test]
+        public void SweepLoopNoValuesSelected()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepParameterStep();
+            var step = new DelayStep();
+            plan.ChildTestSteps.Add(sweep);
+            sweep.ChildTestSteps.Add(step);
+
+            Assert.Throws(typeof(InvalidOperationException), sweep.PrePlanRun);
+
+            // Select parameter to sweep
+            TypeData.GetTypeData(step).GetMember(nameof(DelayStep.DelaySecs)).Parameterize(sweep, step, nameof(DelayStep.DelaySecs));
+            try
+            {
+                sweep.PrePlanRun();
+                Assert.Fail("An exception should have been thrown.");
+            }
+            catch (InvalidOperationException ex)
+            {
+                Assert.AreEqual(ex.Message, "No values selected to sweep");
+            }
+
+        }
     }
 }

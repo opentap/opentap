@@ -4,8 +4,8 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using System.Security;
@@ -47,35 +47,37 @@ namespace OpenTap
     {
         static class PluginTypeFetcher<T>
         {
-            static readonly Dictionary<Type, T> saveTypes = new Dictionary<Type, T>();
+            static readonly Dictionary<ITypeData, T> saveTypes = new Dictionary<ITypeData, T>();
             static T[] things = Array.Empty<T>();
             public static T[] GetPlugins()
             {
-                var types = PluginManager.GetPlugins<T>();
+                var derivedTypes = TypeData.GetDerivedTypes<T>();
 
-                if (types.Count != saveTypes.Count)
+                int count = derivedTypes.Count(x => x.CanCreateInstance);
+                
+                if (count != saveTypes.Count)
                 {
                     lock (saveTypes)
                     {
-                        if (types.Count != saveTypes.Count)
+                        if (count != saveTypes.Count)
                         {
                             var builder = things.ToList();
 
-                            foreach (var type in types)
+                            foreach (var type in derivedTypes)
                             {
+                                if (type.CanCreateInstance == false) continue;
                                 if (saveTypes.ContainsKey(type) == false)
                                 {
                                     try
                                     {
-                                        var newthing = (T)Activator.CreateInstance(type);
+                                        var newthing = (T)type.CreateInstance();
                                         saveTypes.Add(type, newthing);
                                         builder.Add(newthing);
                                     }
                                     catch
                                     {
                                         saveTypes[type] = default(T);
-
-                                    } // Ignore erros here.
+                                    } // Ignore errors here.
                                 }
                             }
                             things = builder.ToArray();
@@ -87,40 +89,80 @@ namespace OpenTap
             }
         }
 
-        
-        class PreHeater : ITestPlanExecutionHook
+        class CachePopularity: IEnumerable<IStringConvertProvider>
         {
-            public static ThreadHierarchyLocal<IStringConvertProvider[]> preheated = new ThreadHierarchyLocal<IStringConvertProvider[]>();
-            static void PreHeatThread()
+            class Wrap : IStringConvertProvider
             {
-                preheated.LocalValue = PluginTypeFetcher<IStringConvertProvider>.GetPlugins();
+                IStringConvertProvider inner;
+                public long Popularity;
+
+                public Wrap(IStringConvertProvider inner)
+                {
+                    this.inner = inner;
+                }
+
+                public string GetString(object value, CultureInfo culture)
+                {
+                    var str = inner.GetString(value, culture);
+                    if (str != null)
+                        Popularity += 1;
+                    return str;
+                }
+
+                public object FromString(string stringdata, ITypeData type, object contextObject, CultureInfo culture)
+                {
+                    object obj = inner.FromString(stringdata, type, contextObject, culture);
+                    if (obj != null)
+                        Popularity += 1;
+                    return obj;
+                }
+            }
+            
+            readonly Wrap[] wrappers;
+            int[] popularityIndex;
+
+            public CachePopularity(IStringConvertProvider[] elements)
+            {
+                wrappers = elements.Select(x => new Wrap(x)).ToArray();
+                popularityIndex = new int[wrappers.Length];
+                for (int i = 0; i < wrappers.Length; i++)
+                    popularityIndex[i] = i;
             }
 
-            static void CooldownThread()
+            public IEnumerator<IStringConvertProvider> GetEnumerator()
             {
-                preheated.ClearLocal();
+                var popularity = popularityIndex;
+                long prevPopularity = long.MaxValue;
+                for(int i = 0; i < popularity.Length; i++)
+                {
+                    var item = popularity[i];
+                    var wrap = wrappers[item];
+                    if (i > 0 && wrap.Popularity / 4 > prevPopularity && popularityIndex == popularity)
+                    {
+                        var newIndex = popularity.ToArray();
+                        Utils.Swap(ref newIndex[i], ref newIndex[i - 1]);
+                        popularityIndex = newIndex;
+                    }
+
+                    prevPopularity = wrap.Popularity;
+                    yield return wrap;
+                }
             }
 
-            public void AfterTestPlanExecute(TestPlan executedPlan, TestPlan requestedPlan)
-            {
-                CooldownThread();
-            }
-
-            public void AfterTestStepExecute(ITestStep testStep)
-            {
-            }
-
-            public void BeforeTestPlanExecute(TestPlan executingPlan)
-            {
-                PreHeatThread();
-            }
-
-            public void BeforeTestStepExecute(ITestStep testStep)
-            {
-            }
+            IEnumerator IEnumerable.GetEnumerator() =>  GetEnumerator();
+        }
+        
+        class StringConvertCacheOptimizer : ICacheOptimizer
+        {
+            
+            static readonly ThreadField<CachePopularity> cacheField = new ThreadField<CachePopularity>();
+            public void LoadCache() => cacheField.Value = new CachePopularity(PluginTypeFetcher<IStringConvertProvider>.GetPlugins());
+            public void UnloadCache() => cacheField.Value = null;
+            public static IEnumerable<IStringConvertProvider> GetValue() => (IEnumerable<IStringConvertProvider>)cacheField.Value ?? PluginTypeFetcher<IStringConvertProvider>.GetPlugins();
+            
         }
 
-        static IStringConvertProvider[] Providers => PreHeater.preheated.LocalValue ?? PluginTypeFetcher<IStringConvertProvider>.GetPlugins();
+        static IEnumerable<IStringConvertProvider> Providers => StringConvertCacheOptimizer.GetValue();
         
         /// <summary>
         /// Turn value to a string if an IStringConvertProvider plugin supports the value.
@@ -131,12 +173,16 @@ namespace OpenTap
         public static string GetString(object value, CultureInfo culture = null)
         {
             if (value == null) return null;
+            if (value is string p) return p;
             culture = culture ?? CultureInfo.InvariantCulture;
-            foreach (var provider in Providers)
+            foreach(var provider in Providers)
             {
                 try { 
                     var str = provider.GetString(value, culture);
-                    if (str != null) return str;
+                    if (str != null)
+                    {
+                        return str;
+                    }
                 }
                 catch { } // ignore errors. Assume unsupported value.
             }
@@ -153,6 +199,11 @@ namespace OpenTap
         {
             str = null;
             if (value == null) return false;
+            if (value is string p)
+            {
+                str = p;
+                return true;
+            }
             culture = culture ?? CultureInfo.InvariantCulture;
             foreach (var provider in Providers)
             {
@@ -316,23 +367,23 @@ namespace OpenTap
             {
                 Type type = (_type as TypeData)?.Type;
                 if (type == null) return null;
-                if (type.DescendsTo(typeof(Enabled<>)) == false)
+                if (type.DescendsTo(typeof(IEnabledValue)) == false)
                     return null;
                 stringdata = stringdata.Trim();
                 var disabled = "(disabled)";
-                dynamic enabled = Activator.CreateInstance(type);
+                IEnabledValue enabled = (IEnabledValue)Activator.CreateInstance(type);
                 var elemType = GetEnabledElementType(type);
                 if (stringdata.StartsWith(disabled))
                 {
                     if (StringConvertProvider.TryFromString(stringdata.Substring(disabled.Length).Trim(), TypeData.FromType(elemType), null, out object obj, culture))
-                        enabled.Value = (dynamic)obj;
+                        enabled.Value = obj;
                     else return null;
                     enabled.IsEnabled = false;
                 }
                 else
                 {
                     if (StringConvertProvider.TryFromString(stringdata, TypeData.FromType(elemType), null, out object obj, culture))
-                        enabled.Value = (dynamic)obj;
+                        enabled.Value = obj;
                     else return null;
                     enabled.IsEnabled = true;
                 }
@@ -343,13 +394,11 @@ namespace OpenTap
             /// <summary> Turns Enabled into a string. </summary>
             public string GetString(object value, CultureInfo culture)
             {
-                if (value is IEnabled && value.GetType().DescendsTo(typeof(Enabled<>)))
+                if (value is IEnabledValue ev)
                 {
-
-                    dynamic val = value;
-                    var inner = StringConvertProvider.GetString(val.Value, culture);
+                    var inner = StringConvertProvider.GetString(ev.Value, culture);
                     if (inner == null) return null;
-                    if (val.IsEnabled)
+                    if (ev.IsEnabled)
                         return inner;
                     return "(disabled)" + inner;
                 }
@@ -453,15 +502,28 @@ namespace OpenTap
                 }
             }
 
-            /// <summary> Turns an enum into a string. Usually just ToString unless flags. </summary>
+            static ConcurrentDictionary<Enum, string> enumToStringCache = new ConcurrentDictionary<Enum, string>();
+
             public string GetString(object value, CultureInfo culture)
             {
-                if (false == value is Enum) return null;
-                
-                if (getFlagsValues(value.GetType()) is Array values)
+                if (value is Enum e)
+                {
+                    if (enumToStringCache.TryGetValue(e, out var conv))
+                        return conv;
+                    conv = getString(e);
+                    enumToStringCache[e] = conv;
+                    return conv;
+                }
+
+                return null;
+            }
+            
+            /// <summary> Turns an enum into a string. Usually just ToString unless flags. </summary>
+            static string getString(Enum val)
+            {
+                if (getFlagsValues(val.GetType()) is Array values)
                 {
                     StringBuilder sb = new StringBuilder();
-                    Enum val = (Enum)value;
                     bool first = true;
                     foreach (Enum flag in values)
                     {
@@ -476,11 +538,7 @@ namespace OpenTap
                     }
                     return sb.ToString();
                 }
-                else
-                {
-                    return value.ToString();
-                }
-
+                return val.ToString();
             }
         }
 
@@ -496,7 +554,6 @@ namespace OpenTap
 
                 var elemType = type.GetEnumerableElementType();
                 if (elemType == null) return null;
-
 
                 Array seq = null;
                 if (elemType.IsNumeric())
@@ -582,26 +639,33 @@ namespace OpenTap
 
             }
 
+            NumberFormatter fmt = new NumberFormatter(CultureInfo.InvariantCulture) { UseRanges = false};
+            
             /// <summary> Turns a value into a string, </summary>
             public string GetString(object value, CultureInfo culture)
             {
-                if (value is IEnumerable == false || value is string)
-                    return null;
-                var elemType = value.GetType().GetEnumerableElementType();
-                if (elemType == null) return null;
-                if (elemType.IsNumeric())
+                if (value is IEnumerable seq)
                 {
-                    var fmt = new NumberFormatter(culture);
-                    return fmt.FormatRange((IEnumerable)value);
-                }
-                if( value is IEnumerable seq)
-                {
+                    bool isNumeric = true;
+                    foreach (var elem in seq)
+                    {
+                        if (elem is Enum || Utils.IsNumeric(elem) == false)
+                        {
+                            isNumeric = false;
+                            break;
+                        }
+                    }
+
+                    if (isNumeric)
+                        return fmt.FormatRange(seq);
+
                     string escapeString(string str)
                     {
-                        if(str.Contains(",") || str.Contains("\""))
+                        if (str.Contains(",") || str.Contains("\""))
                             return $"\"{str.Replace("\"", "\"\"")}\"";
                         return str;
                     }
+
                     var sb = new StringBuilder();
                     bool first = true;
                     foreach (var val in seq)
@@ -621,10 +685,10 @@ namespace OpenTap
                             return null;
                         }
                     }
-                    
+
                     return sb.ToString();
-                    
                 }
+
                 return null;
             }
         }
@@ -819,6 +883,5 @@ namespace OpenTap
             }
 
         }
-
     }
 }

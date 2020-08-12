@@ -3141,6 +3141,7 @@ namespace OpenTap
         /// <param name="target"></param>
         public void Write(object target)
         {
+            
             this.source = target;
             for (int i = 0; i < Annotations.Count; i++)
             {

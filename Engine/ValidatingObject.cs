@@ -23,6 +23,7 @@ namespace OpenTap
         /// All the validation rules. Add new rules to this in order to get runtime value validation.
         /// </summary>
         [AnnotationIgnore]
+        [SettingsIgnore]
         public ValidationRuleCollection Rules
         {
             get
@@ -113,8 +114,9 @@ namespace OpenTap
         /// <exception cref="AggregateException">Thrown when any <see cref="Rules"/> on this object are invalid. This exception contains an ArgumentException for each invalid setting.</exception>
         protected void ThrowOnValidationError(bool ignoreDisabledProperties)
         {
-            List<Exception> errors = new List<Exception>();
-            List<string> propertyNames = TestStepExtensions.GetObjectSettings(new object[] { this }, ignoreDisabledProperties, (object o, PropertyInfo pi) => pi.Name);
+            var propertyNames = new HashSet<string>();
+            TestStepExtensions.GetObjectSettings(this, ignoreDisabledProperties, 
+                (object o, IMemberData pi) => pi.Name, propertyNames);
             foreach (ValidationRule rule in Rules)
             {
                 if (!rule.IsValid() && propertyNames.Contains(rule.PropertyName))

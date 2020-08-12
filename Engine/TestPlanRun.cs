@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
@@ -101,6 +102,7 @@ namespace OpenTap
         internal void ThrottleResultPropagation()
         {
 
+            if (resultWorkers.Count == 0) return;
             lock (workThrottleLock)
             {
                 foreach (var worker in resultWorkers)
@@ -147,6 +149,7 @@ namespace OpenTap
 
         #endregion
 
+        
         /// <summary>
         /// List of all TestSteps for which PrePlanRun has already been called.
         /// </summary>
@@ -235,28 +238,28 @@ namespace OpenTap
         /// <returns></returns>
         internal int ScheduleInResultProcessingThread<T>(Action<T> r, bool blocking = false)
         {
-            if (!blocking) { 
+            if (!blocking)
                 return ScheduleInResultProcessingThread(r);
-            }
             if (resultWorkers.Count == 0) return 0;
-            
-            SemaphoreSlim sem = new SemaphoreSlim(0, resultWorkers.Count);
-            int count = ScheduleInResultProcessingThread<T>(l =>
+       
+            using (var sem = new SemaphoreSlim(0, resultWorkers.Count))
             {
-                try
+                int count = ScheduleInResultProcessingThread<T>(l =>
                 {
-                    r(l);
-                }
-                finally
-                {
-                    sem.Release();
-                }
-            });
+                    try
+                    {
+                        r(l);
+                    }
+                    finally
+                    {
+                        sem.Release();
+                    }
+                });
 
-            for (int i = 0; i < count; i++)
-                sem.Wait();
-            sem.Dispose();
-            return count;
+                for (int i = 0; i < count; i++)
+                    sem.Wait();
+                return count;
+            }
         }
 
         internal void AddTestStepRunStart(TestStepRun stepRun)
@@ -366,6 +369,16 @@ namespace OpenTap
         {
 
         }
+
+        class StringHashPair
+        {
+            public string Xml { get; set; }
+            public string Hash { get; set; }
+            public byte[] Bytes { get; set; }
+        }
+        
+        /// <summary> Memorizer for storing pairs of Xml and hash. </summary>
+        static ConditionalWeakTable<TestPlan, StringHashPair> testPlanHashMemory = new ConditionalWeakTable<TestPlan, StringHashPair>();
         
         /// <summary>
         /// Starts tasks to open resources. All referenced instruments and duts as well as supplied resultListeners to the plan.
@@ -379,14 +392,21 @@ namespace OpenTap
         public TestPlanRun(TestPlan plan, IList<IResultListener> resultListeners, DateTime startTime, long startTimeStamp, string testPlanXml, bool isCompositeRun = false) : this()
         {
             if (plan == null)
+                throw new ArgumentNullException(nameof(plan));
+            var breakCondition = BreakConditionProperty.GetBreakCondition(plan);
+            if (breakCondition.HasFlag(BreakCondition.Inherit))
             {
-                throw new ArgumentNullException("plan");
+                BreakCondition |= breakCondition;
+            }
+            else
+            {
+                BreakCondition = breakCondition;
             }
             resultWorkers = new Dictionary<IResultListener, WorkQueue>();
             this.IsCompositeRun = isCompositeRun;
             Parameters = ResultParameters.GetComponentSettingsMetadata();
             // Add metadata from the plan itself.
-            Parameters.AddRange(ResultParameters.GetMetadataFromObject(plan));
+            Parameters.IncludeMetadataFromObject(plan);
 
             this.Verdict = Verdict.NotSet; // set Parameters before setting Verdict.
             ResultListeners = resultListeners ?? Array.Empty<IResultListener>();
@@ -403,28 +423,62 @@ namespace OpenTap
 
             StartTime = startTime;
             StartTimeStamp = startTimeStamp;
-
+            this.plan = plan;
             serializePlanTask = Task.Factory.StartNew(() =>
             {
                 if (testPlanXml != null)
                 {
                     TestPlanXml = testPlanXml;
-                    Parameters.Add(new ResultParameter("Test Plan", nameof(Hash), GetHash(Encoding.UTF8.GetBytes(testPlanXml)), new MetaDataAttribute(), 0));
+                    Parameters.Add("Test Plan", nameof(Hash), GetHash(Encoding.UTF8.GetBytes(testPlanXml)), new MetaDataAttribute());
                     return;
                 }
+
+                if (plan.GetCachedXml() is byte[] xml)
+                {
+                    
+                    if(!testPlanHashMemory.TryGetValue(this.plan, out var pair))
+                    {
+                        if (pair == null)
+                        {
+                            pair = new StringHashPair();
+                            testPlanHashMemory.Add(plan, pair);    
+                        }
+                    }
+
+                    
+                    if (Equals(pair.Bytes, xml) == false)
+                    {
+                        pair.Xml = Encoding.UTF8.GetString(xml);
+                        pair.Hash = GetHash(xml);
+                        pair.Bytes = xml;
+                    }
+                    else
+                        TestPlanXml = pair.Xml;
+
+                    Parameters.Add("Test Plan", nameof(Hash), pair.Hash, new MetaDataAttribute());
+                    return;
+                }
+
                 using (var memstr = new MemoryStream(128))
                 {
+                    var sw = Stopwatch.StartNew();
                     try
                     {
                         plan.Save(memstr);
                         var testPlanBytes = memstr.ToArray();
                         TestPlanXml = Encoding.UTF8.GetString(testPlanBytes);
-                        Parameters.Add(new ResultParameter("Test Plan", nameof(Hash), GetHash(testPlanBytes), new MetaDataAttribute(), 0));
+                        
+                        Parameters.Add(new ResultParameter("Test Plan", nameof(Hash), GetHash(testPlanBytes),
+                            new MetaDataAttribute(), 0));
                     }
                     catch (Exception e)
                     {
                         log.Warning("Unable to XML serialize test plan.");
                         log.Debug(e);
+                    }
+                    finally
+                    {
+                        log.Debug(sw, "Saved Test Plan XML");
                     }
                 }
             });
@@ -450,16 +504,16 @@ namespace OpenTap
                 {
                     if (abort2.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail))
                     {
-                        AbortCondition = BreakCondition.BreakOnError | BreakCondition.BreakOnFail;
+                        BreakCondition = BreakCondition.BreakOnError | BreakCondition.BreakOnFail;
                     }
                     else
                     {
-                        AbortCondition = BreakCondition.BreakOnError;
+                        BreakCondition = BreakCondition.BreakOnError;
                     }
                 }
                 else if (abort2.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail))
                 {
-                    AbortCondition = BreakCondition.BreakOnFail;
+                    BreakCondition = BreakCondition.BreakOnFail;
                 }
             }
         }

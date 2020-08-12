@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace OpenTap
 {
@@ -252,18 +253,10 @@ namespace OpenTap
     {
         public double Priority => 10;
         internal const string exp = "emb:";
-        static ConcurrentDictionary<EmbeddedTypeData, EmbeddedTypeData> internedValues = new ConcurrentDictionary<EmbeddedTypeData, EmbeddedTypeData>();
-        static EmbeddedTypeData Intern(EmbeddedTypeData e)
-        {
-            if (internedValues.TryGetValue(e, out EmbeddedTypeData val))
-                return val;
-            if (internedValues.TryAdd(e, e))
-                return e;
-            internedValues.TryGetValue(e, out val);
-            return val; // fallback, not probable.
-        }
+        static ConditionalWeakTable<ITypeData, EmbeddedTypeData> internedValues = new ConditionalWeakTable<ITypeData, EmbeddedTypeData>();
+        static EmbeddedTypeData getOrCreate(ITypeData e) =>  internedValues.GetValue(e, t => new EmbeddedTypeData{BaseType =  e});
 
-        public static EmbeddedTypeData FromTypeData(ITypeData basetype) => Intern(new EmbeddedTypeData { BaseType = basetype });
+        public static EmbeddedTypeData FromTypeData(ITypeData basetype) => getOrCreate(basetype);
 
         public ITypeData GetTypeData(string identifier, TypeDataProviderStack stack)
         {
@@ -278,10 +271,14 @@ namespace OpenTap
 
         public ITypeData GetTypeData(object obj, TypeDataProviderStack stack)
         {
+            
             var typedata = stack.GetTypeData(obj);
-            if(typedata.GetMembers().Any(x => x.HasAttribute<EmbedPropertiesAttribute>()))
+            if (internedValues.TryGetValue(typedata, out EmbeddedTypeData val))
+                return val ?? typedata;
+            if (typedata.GetMembers().Any(x => x.HasAttribute<EmbedPropertiesAttribute>()))
                 return FromTypeData(typedata);
-            return typedata;
+            // assign null to the value.
+            return internedValues.GetValue(typedata, t => null) ?? typedata;
         }
     }
 }

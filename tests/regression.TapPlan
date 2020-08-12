@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="OpenTap.TestPlan" Locked="false">
+  <Steps>
+    <TestStep type="OpenTap.Plugins.BasicSteps.ParallelStep" Version="9.4.0-Development" Id="34790b3c-9a04-4813-b65f-8de58b55795b">
+      <Enabled>true</Enabled>
+      <Name>Parallel</Name>
+      <ChildTestSteps>
+        <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="1e18241d-7317-4cf0-9d1e-e6b920256386">
+          <Filepath>../../tests/show-tags.TapPlan</Filepath>
+          <StepMapping />
+          <Enabled>true</Enabled>
+          <Name>Test Plan: {Referenced Plan} (1)</Name>
+          <BreakConditions>Inherit</BreakConditions>
+        </TestStep>
+        <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="f05ae695-da0b-47c1-9562-32a89c3c424c">
+          <Filepath>../../tests/package-create-error.TapPlan</Filepath>
+          <StepMapping />
+          <Enabled>true</Enabled>
+          <Name>Test Plan: {Referenced Plan}</Name>
+          <BreakConditions>Inherit</BreakConditions>
+        </TestStep>
+      </ChildTestSteps>
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+  </Steps>
+  <BreakConditions>Inherit</BreakConditions>
+</TestPlan>

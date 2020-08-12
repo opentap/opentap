@@ -116,31 +116,33 @@ namespace OpenTap.Engine.UnitTests
             }
 
 
-            private static IEnumerable<ITypeData> _types = new List<ITypeData>
+            private static IEnumerable<ITypeData> hardcodedTypes = new List<ITypeData>
             {
                 new TypeDataTestImpl( "UnitTestType", TypeData.FromType(typeof(IResultListener)),null),
                 new TypeDataTestImpl( "UnitTestCliActionType", TypeData.FromType(typeof(ICliAction)),() => new SomeTestAction())
             };
 
-            public static bool Enable = false;
-            public IEnumerable<ITypeData> Types { get; private set; }
+            public static bool Enable { get; set; }
+
+            private IEnumerable<ITypeData> _types = new List<ITypeData>();
+            public IEnumerable<ITypeData> Types
+            {
+                get => Enable ? _types : Enumerable.Empty<ITypeData>();
+            }
 
             public void Search()
             {
-                if (Enable)
-                    Types = _types;
-                else
-                    Types = null;
+                _types = hardcodedTypes;
             }
 
             public double Priority => 1;
 
-            public ITypeData GetTypeData(string identifier) => _types.FirstOrDefault(x => x.Name == identifier);
+            public ITypeData GetTypeData(string identifier) => hardcodedTypes.FirstOrDefault(x => x.Name == identifier);
 
             public ITypeData GetTypeData(object obj)
             {
                 if (obj is SomeTestAction)
-                    return _types.Last();
+                    return hardcodedTypes.Last();
                 return null;
             }
         }
@@ -157,6 +159,7 @@ namespace OpenTap.Engine.UnitTests
         public void ITypeDataSearcherTest()
         {
             TypeDataSearcherTestImpl.Enable = true;
+            PluginManager.Search();
             ITypeData baseType = TypeData.FromType(typeof(IResultListener));
             var types = TypeData.GetDerivedTypes(baseType);
             TypeDataSearcherTestImpl.Enable = false;
@@ -184,8 +187,10 @@ namespace OpenTap.Engine.UnitTests
         public void ITypeDataSearcherTest2()
         {
             TypeDataSearcherTestImpl.Enable = true;
+            PluginManager.Search();
             try
             {
+                
                 var actionTypes = TypeData.GetDerivedTypes<ICliAction>();
                 Assert.IsTrue(actionTypes.Any(t => t.Name.EndsWith("UnitTestCliActionType")));
                 SomeTestAction.WasRun = false;
@@ -410,8 +415,34 @@ namespace OpenTap.Engine.UnitTests
             }
 
             var td2 = TypeData.GetTypeData("System.Windows.WindowState");
-
         }
+
+        class NestedClass
+        {
+            public double X { get; set; }
+        }
+        
+        /// <summary>
+        /// This test verifies the reflection behavior of TypeData to ensure it does not change in the future unpurposedly.
+        /// </summary>
+        [Test]
+        public void TypeDataBehaviors()
+        {
+             
+            var obj = new NestedClass();
+            var t = TypeData.GetTypeData(obj);
+            Assert.AreEqual(nameof(NestedClass), t.GetDisplayAttribute().Name);
+            var members = t.GetMembers();
+            Assert.AreEqual(1, members.Count());
+            var x = members.FirstOrDefault();
+            Assert.AreEqual(x, t.GetMember(nameof(NestedClass.X)));
+            Assert.IsTrue(x.Readable);
+            Assert.IsTrue(x.Writable);
+            Assert.AreEqual(t, x.DeclaringType);
+            Assert.AreEqual(TypeData.FromType(typeof(double)), x.TypeDescriptor);
+            Assert.AreEqual(nameof(NestedClass.X), x.GetDisplayAttribute().Name);
+        }
+        
 
         [Test]
         public void MemberDataSerializeTest()

@@ -26,7 +26,7 @@ namespace OpenTap
     {
         /// <summary>
         /// Returns a list of the current access controllers. 
-        /// These are ComponentSettings instances that inherits from ITestPlanAccessController.
+        /// These are ComponentSettings instances that inherits from ITestPlanRunMonitor.
         /// </summary>
         /// <returns></returns>
         static public ITestPlanRunMonitor[] GetCurrent()

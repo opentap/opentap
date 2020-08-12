@@ -367,17 +367,30 @@ namespace OpenTap.Package
         /// </summary>
         [XmlAttribute]
         public string Group { get; set; }
+        
+        /// <summary>
+        /// A list of keywords that describe the package. Tags are separated by space or comma.
+        /// </summary>
+        [XmlAttribute]
+        public string Tags { get; set; }
 
+        string rawVersion;
+        
         /// <summary>
         /// Returns version as a <see cref="SemanticVersion"/>.
         /// </summary>
         /// <returns></returns>
         internal string RawVersion
         {
-            get;
-            set;
+            get => rawVersion;
+            set
+            {
+                rawVersion = value;
+                if (this.Version == null && SemanticVersion.TryParse(value, out var version))
+                    Version = version;
+            }
         }
-        
+
         /// <summary>
         /// A list of files contained in this package.
         /// </summary>

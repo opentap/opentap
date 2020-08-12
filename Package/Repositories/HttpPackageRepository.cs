@@ -60,7 +60,7 @@ namespace OpenTap.Package
             else
                 this.Url = "http://" + url;
 
-            // Trim end to fix redirection. E.g. 'plugins.tap.aalborg.keysight.com:8086/' redirects to 'plugins.tap.aalborg.keysight.com'.
+            // Trim end to fix redirection. E.g. 'packages.opentap.io/' redirects to 'packages.opentap.io'.
             this.Url = this.Url.TrimEnd('/');
             defaultUrl = this.Url;
             this.Url = CheckUrlRedirect(this.Url);
@@ -76,14 +76,13 @@ namespace OpenTap.Package
             UpdateId = String.Format("{0:X8}{1:X8}", MurMurHash3.Hash(mac), MurMurHash3.Hash(installDir));
         }
 
-        private async Task DoDownloadPackage(PackageDef package, string destination, CancellationToken cancellationToken)
+        async Task DoDownloadPackage(PackageDef package, FileStream fileStream, CancellationToken cancellationToken)
         {
             bool finished = false;
             try
             {
                 using (HttpClientHandler hch = new HttpClientHandler() { UseProxy = true, Proxy = WebRequest.GetSystemWebProxy() })
                 using (HttpClient hc = new HttpClient(hch) { Timeout = Timeout.InfiniteTimeSpan })
-                using (var fileStream = new FileStream(destination, FileMode.Create))
                 {
                     HttpResponseMessage response = null;
                     hc.DefaultRequestHeaders.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
@@ -178,11 +177,6 @@ namespace OpenTap.Package
                     throw;
                 }
                 log.Error(ex);
-            }
-            finally
-            {
-                if ((!finished || cancellationToken.IsCancellationRequested) && File.Exists(destination))
-                    File.Delete(destination);
             }
         }
         
@@ -410,12 +404,37 @@ namespace OpenTap.Package
 
         public void DownloadPackage(IPackageIdentifier package, string destination, CancellationToken cancellationToken)
         {
-            if (package is PackageDef)
-                DoDownloadPackage(package as PackageDef, destination, cancellationToken).Wait();
-            else
+            var tmpPath = destination + "." + Guid.NewGuid().ToString();
+            //Use DeleteOnClose to auto-magically remove the file when the stream or application is closed. 
+            using (var tmpFile = new FileStream(tmpPath, FileMode.Create, FileAccess.ReadWrite,
+                FileShare.Delete | FileShare.Read, 4096, FileOptions.DeleteOnClose))
             {
-                var packageDef = new PackageDef() { Name = package.Name, Version = package.Version, Architecture = package.Architecture, OS = package.OS };
-                DoDownloadPackage(packageDef, destination, cancellationToken).Wait();
+
+                try
+                {
+                    var packageDef = package as PackageDef ?? new PackageDef
+                    {
+                        Name = package.Name, Version = package.Version, 
+                        Architecture = package.Architecture, OS = package.OS
+                    };
+                    DoDownloadPackage(packageDef, tmpFile, cancellationToken).Wait(cancellationToken);
+
+                    if (cancellationToken.IsCancellationRequested == false)
+                    {
+                        tmpFile.Flush();
+                        File.Delete(destination);
+                        File.Copy(tmpFile.Name, destination);
+                    }
+                }
+                catch
+                {
+                    log.Warning("Download failed.");
+                    throw;
+                }
+                finally
+                {
+                    File.Delete(tmpFile.Name);
+                }
             }
         }
 

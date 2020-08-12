@@ -215,9 +215,9 @@ namespace OpenTap.Package
         /// </summary>
         public SemanticVersion GetVersion(string sha)
         {
-            Commit commit = repo.Commits.FirstOrDefault(c => c.Sha.StartsWith(sha));
+            Commit commit = repo.Lookup<Commit>(sha);
             if (commit == null)
-                throw new ArgumentException($"Commit with hash {sha} does not exist in repository.");
+                throw new ArgumentException($"The commit with reference {sha} does not exist in the repository.");
             return GetVersion(commit);
         }
 
@@ -226,9 +226,8 @@ namespace OpenTap.Package
         /// </summary>
         public SemanticVersion GetVersion(Commit targetCommit)
         {
-            targetCommit = repo.Commits.FirstOrDefault(c => c.Sha == targetCommit.Sha);
-            if (targetCommit == null)
-                throw new ArgumentException("Commit does not exist in repository.");
+            if (repo.Lookup<Commit>(targetCommit.Sha) == null)
+                throw new ArgumentException($"The commit with hash {targetCommit} does not exist the in repository.");
             if(!targetCommit.Tree.Any(t => t.Name == configFileName))
             {
                 log.Warning("Did not find any .gitversion file.");
@@ -326,7 +325,7 @@ namespace OpenTap.Package
                     break;
                 }
                 b1Commit = b1Commit.Parents.FirstOrDefault();
-                var releaseCommits = (IQueryableCommitLog)repo.Commits.QueryBy(new CommitFilter() { IncludeReachableFrom = b1Commit });
+                var releaseCommits = (IQueryableCommitLog)repo.Commits.QueryBy(new CommitFilter() { SortBy = CommitSortStrategies.Topological, IncludeReachableFrom = b1Commit });
                 firstCommon = releaseCommits.FirstOrDefault(c => targetHistory.Contains(c));
             }
             return firstCommon;
@@ -478,6 +477,8 @@ namespace OpenTap.Package
                         candidates.Add(branch);
                         break;
                     }
+                    if (!commitOnBranch.Parents.Any())
+                        break;
                     commitOnBranch = commitOnBranch.Parents.First();
                 }
             }
@@ -488,6 +489,9 @@ namespace OpenTap.Package
                 return "ERROR";
             }
             if (candidates.Count == 1)
+                return candidates.First().GetShortName();
+
+            if(candidates.Select(b => b.GetShortName()).Distinct().Count() == 1) // all candicates have the same name (e.g. on is a local branch and one is the remote of that same branch)
                 return candidates.First().GetShortName();
 
             log.Warning("Several possible branch names found. Picking one.");

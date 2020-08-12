@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -160,6 +161,11 @@ namespace OpenTap.Diagnostic
             }
         }
 
+        public ReadOnlyCollection<ILogListener> GetListeners()
+        {
+            return new ReadOnlyCollection<ILogListener>(Listeners);
+        }
+
         public bool Flush(int timeoutMs = 0)
         {
             long posted = LogQueue.PostedMessages;
@@ -225,6 +231,7 @@ namespace OpenTap.Diagnostic
         }
 
         public ILogTimestampProvider Timestamper { get { return timestamper; } set { timestamper = value; } }
+
 
         internal void InjectEvent(Event @event)
         {

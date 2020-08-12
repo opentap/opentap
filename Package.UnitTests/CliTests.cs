@@ -26,7 +26,7 @@ namespace OpenTap.Package.UnitTests
             using (var stream = File.Create(defFileName))
                 definition.SaveTo(stream);
 
-            var proc = OpenTap.Engine.UnitTests.TapProcessContainer.StartFromArgs("package create " + defFileName); 
+            var proc = OpenTap.Engine.UnitTests.TapProcessContainer.StartFromArgs("package create " + defFileName, TimeSpan.FromMinutes(5)); 
             proc.WaitForEnd();
             string output = proc.ConsoleOutput;
             string outputFile = definition.Name + "." + definition.Version + ".TapPackage";
@@ -39,6 +39,32 @@ namespace OpenTap.Package.UnitTests
         public static void AddFile(this PackageDef def, string filename)
         {
             def.Files.Add(new PackageFile { RelativeDestinationPath = filename, Plugins = new List<PluginFile>() });
+        }
+
+        internal static void InstallDummyPackage(string packageName = "Dummy", string version = "1.0", string contentFileName = "Dummy")
+        {
+            string installDir = Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location);
+            string packageXmlPath = Path.Combine(installDir, "Packages", packageName, "package.xml");
+            Directory.CreateDirectory(Path.Combine(installDir, "Packages", packageName));
+            File.WriteAllText(packageXmlPath, $@"<?xml version='1.0' encoding='utf-8' ?>
+<Package Name='{packageName}' Version='{version}' xmlns ='http://opentap.io/schemas/package'>
+  <Files>
+    <File Path='Packages/{packageName}/{contentFileName}.txt'/>
+  </Files>
+</Package>");
+            string contentFilePath = Path.Combine(installDir, "Packages", packageName, contentFileName);
+            if (!File.Exists(contentFilePath))
+                File.WriteAllText(contentFilePath, "hello");
+        }
+
+        internal static void UninstallDummyPackage(string packageName = "Dummy")
+        {
+            string installDir = Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location);
+            string packageDir = Path.Combine(installDir, "Packages", packageName);
+            if (Directory.Exists(packageDir))
+            {
+                Directory.Delete(packageDir, true);
+            }
         }
     }
 
@@ -222,7 +248,9 @@ namespace OpenTap.Package.UnitTests
             dummyDef.Version = SemanticVersion.Parse("1.0");
             dummyDef.AddFile("Dummy.txt");
             dummyDef.Dependencies.Add(new PackageDependency( "Dependency", VersionSpecifier.Parse("1.0")));
+            DummyPackageGenerator.InstallDummyPackage("Dependency"); // We need to have "Dependency" installed before we can create a package that depends on it.
             string dummyFile = DummyPackageGenerator.GeneratePackage(dummyDef);
+            DummyPackageGenerator.UninstallDummyPackage("Dependency");
 
             try
             {
@@ -250,19 +278,23 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void CyclicDependenciesTest()
         {
+            DummyPackageGenerator.InstallDummyPackage(); // We need to have "Dummy" installed before we can create a package that depends on it.
             var depDef = new PackageDef();
             depDef.Name = "Dependency";
             depDef.Version = SemanticVersion.Parse("1.0");
             depDef.AddFile("Dependency.txt");
             depDef.Dependencies.Add(new PackageDependency("Dummy", VersionSpecifier.Parse("1.0")));
             string dep0File = DummyPackageGenerator.GeneratePackage(depDef);
+            DummyPackageGenerator.UninstallDummyPackage();
 
+            DummyPackageGenerator.InstallDummyPackage("Dependency");
             var dummyDef = new PackageDef();
             dummyDef.Name = "Dummy";
             dummyDef.Version = SemanticVersion.Parse("1.0");
             dummyDef.AddFile("Dummy.txt");
             dummyDef.Dependencies.Add(new PackageDependency("Dependency", VersionSpecifier.Parse("1.0")));
             string dummyFile = DummyPackageGenerator.GeneratePackage(dummyDef);
+            DummyPackageGenerator.UninstallDummyPackage("Dependency");
 
             try
             {
@@ -368,7 +400,9 @@ namespace OpenTap.Package.UnitTests
             dummyDef.Version = SemanticVersion.Parse("1.0");
             dummyDef.AddFile("Dummy.txt");
             dummyDef.Dependencies.Add(new PackageDependency("Dependency", VersionSpecifier.Parse("1.0")));
+            DummyPackageGenerator.InstallDummyPackage("Dependency");
             string dummyFile = DummyPackageGenerator.GeneratePackage(dummyDef);
+            DummyPackageGenerator.UninstallDummyPackage("Dependency");
 
 
             try
@@ -412,7 +446,9 @@ namespace OpenTap.Package.UnitTests
             def.Version = SemanticVersion.Parse("1.0");
             def.AddFile("Dummy.txt");
             def.Dependencies.Add(new PackageDependency("Missing", VersionSpecifier.Parse("1.0")));
+            DummyPackageGenerator.InstallDummyPackage("Missing");
             string pkgFile = DummyPackageGenerator.GeneratePackage(def);
+            DummyPackageGenerator.UninstallDummyPackage("Missing");
 
             try
             {

@@ -34,6 +34,7 @@ namespace OpenTap
             Parameters = new ResultParameters();
         }
 
+        int verdict_index = -1;
         /// <summary>
         /// <see cref="OpenTap.Verdict"/> resulting from the run.
         /// </summary>
@@ -41,30 +42,21 @@ namespace OpenTap
         [MetaData(macroName: "Verdict")]
         public Verdict Verdict
         {
-            get => (Verdict)Enum.Parse(typeof(Verdict), Parameters[nameof(Verdict)].ToString());
-            protected internal set => Parameters[nameof(Verdict)] = value.ToString();
+            get => (Verdict)Parameters.GetIndexed(nameof(Verdict), ref verdict_index);
+            protected internal set => Parameters.SetIndexed(nameof(Verdict), ref verdict_index, value);
         }
-
 
         /// <summary> Length of time it took to run. </summary>
         public virtual TimeSpan Duration
         {
             get
             {
-                var param = Parameters.Find("Duration");   
-                if (param != null)
-                {
-                    var dur = param.Value;
-                    if (dur is double)
-                        return Time.FromSeconds((double)dur);
-                }
-
+                var param = Parameters[nameof(Duration)];   
+                if (param is double duration)
+                    return Time.FromSeconds(duration);
                 return TimeSpan.Zero;
             }
-            internal protected set
-            {
-                Parameters["Duration"] = value.TotalSeconds;
-            }
+            internal protected set => Parameters[nameof(Duration)] = value.TotalSeconds;
         }
 
         /// <summary>
@@ -112,7 +104,7 @@ namespace OpenTap
         /// <summary>
         /// Calculated abort condition...
         /// </summary>
-        internal BreakCondition AbortCondition { get; set; }
+        internal BreakCondition BreakCondition { get; set; }
 
     }
 
@@ -171,20 +163,41 @@ namespace OpenTap
         /// The path name of the steps. E.g the name of the step combined with all of its parent steps.
         /// </summary>
         internal string TestStepPath;
-        
-        private ManualResetEventSlim completedEvent = new ManualResetEventSlim(false);
-        
-        /// <summary>
-        /// Waits for the test step run to be entirely done. This includes any deferred processing.
-        /// </summary>
+
+        ManualResetEventSlim completedEvent = null;//new ManualResetEventSlim(false);
+        readonly object completedEventLock = new object();
+        bool completed = false;
+        /// <summary>  Waits for the test step run to be entirely done. This includes any deferred processing.</summary>
         public void WaitForCompletion()
         {
+            WaitForCompletion(CancellationToken.None);
+        }
+
+        /// <summary>  Waits for the test step run to be entirely done. This includes any deferred processing. It does not break when the test plan is aborted</summary>
+        public void WaitForCompletion(CancellationToken cancellationToken)
+        {
+            if (completed) return;
+            lock (completedEventLock)
+            {
+                if(completedEvent == null)
+                    completedEvent = new ManualResetEventSlim(false);
+            }
+
             if (completedEvent.IsSet) return;
 
             var currentThread = TapThread.Current;
             if(!WasDeferred && StepThread == currentThread) throw new InvalidOperationException("StepRun.WaitForCompletion called from the thread itself. This will either cause a deadlock or do nothing.");
-            var waits = new[] { completedEvent.WaitHandle, currentThread.AbortToken.WaitHandle };
-            WaitHandle.WaitAny(waits);
+            if (cancellationToken == CancellationToken.None)
+            {
+                completedEvent.Wait();
+                return;
+            }
+            var waits = new[] { completedEvent.WaitHandle, cancellationToken.WaitHandle };
+            while (WaitHandle.WaitAny(waits, 100) == WaitHandle.WaitTimeout)
+            {
+                if (completed)
+                    break;
+            }
         }
 
         /// <summary>  The thread in which the step is running. </summary>
@@ -199,7 +212,7 @@ namespace OpenTap
         internal void StartStepRun()
         {
             if (Verdict != Verdict.NotSet)
-                throw new ArgumentOutOfRangeException("verdict", "StepRun.StartStepRun has already been called once.");
+                throw new ArgumentOutOfRangeException(nameof(Verdict), "StepRun.StartStepRun has already been called once.");
             StepThread = TapThread.Current;
             StartTime = DateTime.Now;
             StartTimeStamp = Stopwatch.GetTimestamp();
@@ -210,23 +223,12 @@ namespace OpenTap
         {
             StepThread = null;
             // update values in the run. 
-            var newparameters = ResultParameters.GetParams(step);
-            foreach(var parameter in newparameters)
-            {
-                this.Parameters[parameter.Name] = parameter.Value;
-            }
-            try
-            {
-                Duration = runDuration; // Requires update after TestStepRunStart and before TestStepRunCompleted
-            }
-            catch (Exception e)
-            {
-                TraceSource log = Log.CreateSource("TestPlan");
-                log.Warning("Caught exception in result handling task.");
-                log.Debug(e);
-            };
+            ResultParameters.UpdateParams(Parameters, step);
+            
+            Duration = runDuration; // Requires update after TestStepRunStart and before TestStepRunCompleted
             UpgradeVerdict(step.Verdict);
-            completedEvent.Set();
+            completed = true;
+            completedEvent?.Set();
         }
 
         /// <summary>
@@ -239,39 +241,33 @@ namespace OpenTap
         {
             TestStepId = step.Id;
             TestStepName = step.GetFormattedName();
-            TestStepTypeName = step.GetType().AssemblyQualifiedName;
-            Parameters = ResultParameters.GetParams(step);
+            TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
+            Parameters = ResultParameters.GetParams(step, nameof(Duration), nameof(StartTime));
             Verdict = Verdict.NotSet;
             if (attachedParameters != null) Parameters.AddRange(attachedParameters);
             Parent = parent;
-            
         }
         
         internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters = null)
         {
             TestStepId = step.Id;
             TestStepName = step.GetFormattedName();
-            TestStepTypeName = step.GetType().AssemblyQualifiedName;
-            Parameters = ResultParameters.GetParams(step);
+            TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
+            Parameters = ResultParameters.GetParams(step, nameof(Duration), nameof(StartTime));
             Verdict = Verdict.NotSet;
             if (attachedParameters != null) Parameters.AddRange(attachedParameters);
             Parent = parent.Id;
-            AbortCondition = calculateAbortCondition(step, parent);
+            BreakCondition = calculateBreakCondition(step, parent);
         }
         
         
-        static BreakCondition calculateAbortCondition(ITestStep step, TestRun parentStepRun)
+        static BreakCondition calculateBreakCondition(ITestStep step, TestRun parentStepRun)
         {
-            BreakCondition abortCondition = BreakConditionProperty.GetBreakCondition(step);
+            BreakCondition breakCondition = BreakConditionProperty.GetBreakCondition(step);
             
-            if (abortCondition.HasFlag(BreakCondition.Inherit))
-            {
-                // Retry conditions are not inherited.
-                return parentStepRun.AbortCondition | BreakCondition.Inherit;
-            }
-
-            return abortCondition;
-
+            if (breakCondition.HasFlag(BreakCondition.Inherit))
+                return parentStepRun.BreakCondition | BreakCondition.Inherit;
+            return breakCondition;
         }
 
         internal TestStepRun Clone()
@@ -285,10 +281,11 @@ namespace OpenTap
 
         internal bool IsBreakCondition()
         {
+            var verdict = Verdict;
             if (OutOfRetries 
-                || (Verdict == Verdict.Fail && AbortCondition.HasFlag(BreakCondition.BreakOnFail)) 
-                || (Verdict == Verdict.Error && AbortCondition.HasFlag(BreakCondition.BreakOnError))
-                || (Verdict == Verdict.Inconclusive && AbortCondition.HasFlag(BreakCondition.BreakOnInconclusive)))
+                || (verdict == Verdict.Fail && BreakCondition.HasFlag(BreakCondition.BreakOnFail)) 
+                || (verdict == Verdict.Error && BreakCondition.HasFlag(BreakCondition.BreakOnError))
+                || (verdict == Verdict.Inconclusive && BreakCondition.HasFlag(BreakCondition.BreakOnInconclusive)))
             {
                 return true;
             }

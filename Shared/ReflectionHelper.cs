@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -457,19 +458,6 @@ namespace OpenTap
 
         
 
-        static readonly ConditionalWeakTable<Type, InternalMemberData[]> membersLookup = new ConditionalWeakTable<Type, InternalMemberData[]>();
-        public static InternalMemberData[] GetMemberData(this Type type)
-        {
-            return membersLookup.GetValue(type, InternalMemberData.Get);
-        }
-
-        public static InternalMemberData GetMemberData(this Type type, string name)
-        {
-            var p = type.GetProperty(name);
-            if (p == null) return null;
-            return new InternalMemberData(p);
-        }
-        
         /// <summary> Get the base C# type of a given type. </summary>
         internal static TypeData AsTypeData(this ITypeData type)
         {
@@ -478,60 +466,17 @@ namespace OpenTap
                     return td;
             return null;
         }
+        
+        public static void GetAttributes<T>(this IReflectionData mem, System.Collections.IList outList)
+        {
+            foreach (var item in mem.Attributes)
+            {
+                if (item is T x)
+                    outList.Add(x);
+            }
+        }
     }
     
-    internal class InternalMemberData
-    {
-        public MemberInfo Info;
-        public object[] Attributes;
-
-        DisplayAttribute display;
-
-        public DisplayAttribute Display
-        {
-            get
-            {
-                if (display == null) display = Info.GetDisplayAttribute();
-                return display;
-            }
-            
-        }
-
-        public bool IsProperty => Info is PropertyInfo;
-        public PropertyInfo Property => Info as PropertyInfo;
-        public static InternalMemberData[] Get(Type type)
-        {
-            var properties = type.GetPropertiesTap();
-            var methods = type.GetMethodsTap();
-            return properties.Select(info => new InternalMemberData(info)).OrderBy(x => x.Info.Name).ToArray();
-        }
-        public InternalMemberData(MemberInfo info)
-        {
-            Info = info;
-            Attributes = info.GetAllCustomAttributes();
-        }
-
-        public IEnumerable<T> GetCustomAttributes<T>()
-        {
-            return Attributes.OfType<T>();
-        }
-
-        public bool HasAttribute<T>() where T : Attribute
-        {
-            return GetAttribute<T>() != null;
-        }
-        public T GetAttribute<T>() where T : Attribute
-        {
-            foreach (var attr in Attributes)
-            {
-                if (attr is T a)
-                    return a;
-            }
-            return null;
-        }
-
-        public override string ToString() => $"{Info.DeclaringType}.{Info.Name}";
-    }
 
     static class StreamUtils
     {
@@ -593,11 +538,9 @@ namespace OpenTap
             public bool IsLocked;
         }
         
-        /// <summary>
-        /// If a certain time passes a result should be removed.
-        /// </summary>
-        public TimeSpan SoftSizeDecayTime = TimeSpan.FromSeconds(30.0);
-        protected Func<ArgT, MemorizerKey> getKey = null;
+        /// <summary> If a certain time passes a result should be removed. By default, never. </summary>
+        public TimeSpan SoftSizeDecayTime = TimeSpan.MaxValue;
+        protected Func<ArgT, MemorizerKey> getKey;
         protected Func<ArgT, ResultT> getData = argt => (ResultT)(object)argt;
         
         readonly Dictionary<MemorizerKey, DateTime> lastUse = new Dictionary<MemorizerKey, DateTime>();
@@ -621,11 +564,8 @@ namespace OpenTap
             Func<ArgT, ResultT> extractData = null)
         {
             if (extractData != null)
-            {
                 getData = extractData;
-            }
             this.getKey = getKey;
-            
         }
 
         /// <summary>
@@ -644,26 +584,32 @@ namespace OpenTap
 
         Status checkSizeConstraints()
         {
-            lock (memorizerTable)
+            if (SoftSizeDecayTime < TimeSpan.MaxValue || MaxNumberOfElements.HasValue
+                && (ulong) memorizerTable.Count > MaxNumberOfElements.Value)
             {
-                var removeKey = lastUse.Keys.FindMin(key2 => lastUse[key2]);
-                if (removeKey != null)
+                lock (memorizerTable)
                 {
-                    if (SoftSizeDecayTime < DateTime.UtcNow - lastUse[removeKey])
+
+                    var removeKey = lastUse.Keys.FindMin(key2 => lastUse[key2]);
+                    if (removeKey != null)
                     {
-                        lastUse.Remove(removeKey);
-                        memorizerTable.Remove(removeKey);
-                        return Status.Changed;
-                    }
-                    else if (MaxNumberOfElements.HasValue
-                       && (ulong)memorizerTable.Count > MaxNumberOfElements.Value)
-                    {
-                        lastUse.Remove(removeKey);
-                        memorizerTable.Remove(removeKey);
-                        return Status.Changed;
+                        if (SoftSizeDecayTime < DateTime.UtcNow - lastUse[removeKey])
+                        {
+                            lastUse.Remove(removeKey);
+                            memorizerTable.Remove(removeKey);
+                            return Status.Changed;
+                        }
+                        else if (MaxNumberOfElements.HasValue
+                                 && (ulong) memorizerTable.Count > MaxNumberOfElements.Value)
+                        {
+                            lastUse.Remove(removeKey);
+                            memorizerTable.Remove(removeKey);
+                            return Status.Changed;
+                        }
                     }
                 }
             }
+
             return Status.Unchanged;
         }
         
@@ -672,13 +618,7 @@ namespace OpenTap
             return getKey == null ? (MemorizerKey)(object)arg : getKey(arg);
         }
 
-        public ResultT this[ArgT arg]
-        {
-            get
-            {
-                return Invoke(arg);
-            }
-        }
+        public ResultT this[ArgT arg] => Invoke(arg);
 
         public ResultT Invoke(ArgT arg)
         {
@@ -687,14 +627,17 @@ namespace OpenTap
                 var obj = Validator(key);
                 lock (memorizerTable)
                 {
-                    if (validatorData.ContainsKey(key))
+                    if (validatorData.TryGetValue(key, out object value))
                     {
-                        if (object.Equals(validatorData[key], obj) == false)
+                        if (false == Equals(value, obj))
                         {
                             Invalidate(arg);
-                        }
+                            validatorData[key] = obj;
+                        }   
+                    }else
+                    {
+                        validatorData[key] = obj;
                     }
-                    else validatorData[key] = obj;
                 }
             }
             
@@ -722,8 +665,8 @@ namespace OpenTap
                     lockObj.IsLocked = true;
                     lock (memorizerTable)
                     {
-                        if (memorizerTable.ContainsKey(key))
-                            return memorizerTable[key];
+                        if (memorizerTable.TryGetValue(key, out ResultT value))
+                            return value;
                     }
                     ResultT o = getData(arg);
                     lock (memorizerTable)
@@ -1347,6 +1290,27 @@ namespace OpenTap
                 case TypeCode.Char: return typeof(char);
             }
             return typeof(object);
+        }
+
+        public static bool IsNumeric(object obj)
+        {
+            switch (obj)
+            {
+                case float i: return true;
+                case double i: return true;
+                case decimal i: return true;
+                case byte i: return true;
+                case char i: return true;
+                case sbyte i: return true;
+                case short i: return true;
+                case ushort i: return true;
+                case int i: return true;
+                case uint i: return true;
+                case long i: return true;
+                case ulong i: return true;
+                default: return false;
+            }
+         
         }
 
         public static bool IsFinite(double value)

@@ -17,7 +17,7 @@ namespace OpenTap
     public partial class TypeData : ITypeData
     {
         /// <summary> Creates a string value of this.</summary>
-        public override string ToString() => $"{type.FullName}";
+        public override string ToString() => Name;
 
         static ConditionalWeakTable<Type, TypeData> dict = new ConditionalWeakTable<Type, TypeData>();
 
@@ -29,50 +29,45 @@ namespace OpenTap
         /// </summary>
         public Type Type => Load();
 
-        // Since AddAssembly is called inside createValueCallback,
-        // the value creation must be locked, throwing an exception
-        // inside createValueCallback can cause critical errors.
+        // add assembly is not thread safe.
         static object loadTypeDictLock = new object();
         
         /// <summary> Creates a new TypeData object to represent a dotnet type. </summary>
         public static TypeData FromType(Type type)
         {
             checkCacheValidity();
-            
-                return dict.GetValue(type, x =>
+            if (dict.TryGetValue(type, out var i))
+                return i;
+            TypeData td = null;
+            lock (loadTypeDictLock)
+            {
+                var searcher = PluginManager.GetSearcher();
+
+                searcher?.AllTypes.TryGetValue(type.FullName, out td);
+                if (td == null && searcher != null)
                 {
-                    TypeData td = null;
-                    var searcher = PluginManager.GetSearcher();
-                    lock (loadTypeDictLock)
+                    // This can occur for some types inside mscorlib such as System.Net.IPAddress.
+                    try
                     {
-                        searcher?.AllTypes.TryGetValue(type.FullName, out td);
-                        if (td == null && searcher != null)
+                        if (type.Assembly != null && type.Assembly.IsDynamic == false &&
+                            type.Assembly.Location != null)
                         {
-                            // This can occur for some types inside mscorlib such as System.Net.IPAddress.
-                            try
-                            {
-                                if (type.Assembly != null && type.Assembly.IsDynamic == false &&
-                                    type.Assembly.Location != null)
-                                {
-                                    searcher.AddAssembly(type.Assembly.Location, type.Assembly);
-                                    if (searcher.AllTypes.TryGetValue(type.FullName, out td))
-                                        return td;
-                                }
-                            }
-                            catch
-                            {
-
-                            }
-
-                            td = new TypeData(x);
+                            searcher.AddAssembly(type.Assembly.Location, type.Assembly);
+                            if (searcher.AllTypes.TryGetValue(type.FullName, out td))
+                                return td;
                         }
                     }
+                    catch
+                    {
+                    }
 
-                    return td;
-                });
-            
+                    td = new TypeData(type);
+                }
+            }
+
+            return dict.GetValue(type, x => td);
         }
-
+        
         TypeData(Type type)
         {
             this.type = type;
@@ -99,7 +94,6 @@ namespace OpenTap
                 hasFlags = this.HasAttribute<FlagsAttribute>();
                 isValueType = type.IsValueType;
                 postLoaded = true;
-                
             }
         }
 
@@ -141,9 +135,17 @@ namespace OpenTap
             }
         }
 
+        internal bool IsString
+        {
+            get
+            {
+                postload();
+                return typecode == TypeCode.String;
+            }
+        }
         TypeCode typecode = TypeCode.Object;
 
-        IEnumerable<object> attributes = null;
+        object[] attributes = null;
         /// <summary> 
         /// The attributes of this type. 
         /// Accessing this property causes the underlying Assembly to be loaded if it is not already.
@@ -173,6 +175,7 @@ namespace OpenTap
             }
         }
 
+        bool? canCreateInstance;
         /// <summary> 
         /// returns true if an instance possibly can be created. 
         /// Accessing this property causes the underlying Assembly to be loaded if it is not already.
@@ -180,10 +183,22 @@ namespace OpenTap
         public bool CanCreateInstance {
             get
             {
+                if (canCreateInstance.HasValue) return canCreateInstance.Value;
                 if (_FailedLoad) return false;
                 var type = Load();
-                return type.IsAbstract == false && type.IsInterface == false && type.ContainsGenericParameters == false && type.GetConstructor(Array.Empty<Type>()) != null;
+                canCreateInstance = type.IsAbstract == false && type.IsInterface == false && type.ContainsGenericParameters == false && type.GetConstructor(Array.Empty<Type>()) != null;
+                return canCreateInstance.Value;
             }       
+        }
+
+        string assemblyQualifiedName;
+        internal string AssemblyQualifiedName
+        {
+            get
+            {
+                if (_FailedLoad) return "";
+                return assemblyQualifiedName ?? (assemblyQualifiedName = Load().AssemblyQualifiedName);
+            }
         }
 
         /// <summary>
@@ -201,17 +216,24 @@ namespace OpenTap
         /// </summary>
         public IMemberData GetMember(string name)
         {
-            var members = GetMembers();
+            var members = (IMemberData[]) GetMembers();
+            foreach(var member in members)
+            {
+                if(member.Name == name)
+                    return member;
+            }
+            
+            // In some cases it could be useful to match in display name as well
+            // we should consider removing this behavior for consistency and performance reasons..
             foreach(var member in members)
             {
                 if(member.GetDisplayAttribute().GetFullName() == name)
                     return member;
-                else if(member.Name == name)
-                    return member;
             }
             return null;
         }
-        IEnumerable<IMemberData> members = null;
+        
+        IMemberData[] members;
 
         /// <summary>
         /// Gets all the members of this type. 
@@ -225,12 +247,19 @@ namespace OpenTap
                 List<IMemberData> m = new List<IMemberData>(props.Length);
                 foreach (var mem in props)
                 {
-                    if(mem.GetMethod != null && mem.GetMethod.GetParameters().Length > 0)
+                    try
+                    {
+                        if (mem.GetMethod != null && mem.GetMethod.GetParameters().Length > 0)
+                            continue;
+
+                        if (mem.SetMethod != null && mem.SetMethod.GetParameters().Length != 1)
+                            continue;
+                    }
+                    catch
+                    {
                         continue;
-                    
-                    if (mem.SetMethod != null && mem.SetMethod.GetParameters().Length != 1)
-                        continue;
-                    
+                    }
+
                     m.Add(MemberData.Create(mem));
                 }
 
@@ -252,6 +281,25 @@ namespace OpenTap
         {
             postload();
             return hasFlags;
+        }
+
+        /// <summary> Compares two TypeDatas by comparing their inner Type instances. </summary>
+        /// <param name="obj"> Should be a TypeData</param>
+        /// <returns>true if the two Type properties are equals.</returns>
+        public override bool Equals(object obj)
+        {
+            if (obj is TypeData td && td.type != null && type != null )
+                return td.type == type;
+            return ReferenceEquals(this, obj);
+        }
+
+        /// <summary> Calculates the hash code based on the .NET Type instance. </summary>
+        /// <returns></returns>
+        public override int GetHashCode()
+        {
+            var asm = Assembly?.GetHashCode() ?? 0;
+            return (asm + 586093897) * 759429795 + 
+                   (Name.GetHashCode() + 836431542) * 678129773;
         }
     }
 
@@ -309,6 +357,24 @@ namespace OpenTap
                 return Expression.GetFuncType(parameters.Append(method.ReturnType).ToArray());
             return Expression.GetActionType(parameters.ToArray());
         }
+        
+        static Func<object, object> buildGetter(PropertyInfo propertyInfo)
+        {
+            var instance = Expression.Parameter(typeof(object), "i");
+            UnaryExpression convert1;
+            if(propertyInfo.DeclaringType.IsValueType)
+                convert1 = Expression.Convert(instance, propertyInfo.DeclaringType);
+            else
+                convert1 = Expression.TypeAs(instance, propertyInfo.DeclaringType);
+            var property = Expression.Property(convert1, propertyInfo);
+            var convert = Expression.TypeAs(property, typeof(object));
+            
+            var lambda = Expression.Lambda<Func<object, object>>(convert, instance);
+            var action = lambda.Compile();
+            return action;
+        }
+
+        Func<object, object> propertyGetter = null; 
 
         /// <summary> Gets the value of this member.</summary> 
         /// <param name="owner"></param>
@@ -317,7 +383,12 @@ namespace OpenTap
         {
             switch (Member)
             {
-                case PropertyInfo Property: return Property.GetValue(owner);
+                case PropertyInfo Property:
+                    if (propertyGetter == null)
+                        propertyGetter = buildGetter(Property);
+                    //Building a lambda expression is an order of magnitude faster than Property.GetValue.
+                    return propertyGetter(owner);
+                    
                 case FieldInfo Field: return Field.GetValue(owner);
                 case MethodInfo Method: return Delegate.CreateDelegate(createDelegateType(Method), owner, Method, true);
                 default: throw new InvalidOperationException("Unsupported member type: " + Member);
@@ -366,6 +437,8 @@ namespace OpenTap
             }
         }
 
+        bool? readable; 
+        
         /// <summary> Gets if the member is readable.  </summary>
         public bool Readable
         {
@@ -373,7 +446,7 @@ namespace OpenTap
             {
                 switch (Member)
                 {
-                    case PropertyInfo Property: return Property.CanRead && Property.GetGetMethod() != null;
+                    case PropertyInfo Property: return (readable ?? (readable = Property.CanRead && Property.GetGetMethod() != null)).Value;
                     case FieldInfo _: return true;
                     default: return false;
                 }

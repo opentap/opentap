@@ -15,13 +15,15 @@ namespace OpenTap.Package
     /// <summary>
     /// CLI sub command `tap sdk gitversion` that can calculate a version number based on the git history and a .gitversion file.
     /// </summary>
-    [Display("gitversion", Group: "sdk", Description: "Calculates a semantic version number for a specific git commit.")]
+    [Display("gitversion", Group: "sdk", Description: "Calculate the semantic version number for a specific git commit.")]
     public class GitVersionAction : OpenTap.Cli.ICliAction
     {
+        private static readonly TraceSource log = Log.CreateSource("GitVersion");
+
         /// <summary>
         /// Represents the --log command line argument which prints git log for the last n commits including version numbers for each commit.
         /// </summary>
-        [CommandLineArgument("log",     Description = "Print git log for the last n commits including version numbers for each commit.")]
+        [CommandLineArgument("log",     Description = "Print the git log for the last <arg> commits including their semantic version number.")]
         public string PrintLog { get; set; }
 
         /// <summary>
@@ -33,22 +35,21 @@ namespace OpenTap.Package
         /// <summary>
         /// Represents the --replace command line argument which causes this command to replace all occurrences of $(GitVersion) in the specified file. Cannot be used together with --log.
         /// </summary>
-        [CommandLineArgument("replace", Description = "Replace all occurrences of $(GitVersion) in the specified file.\nCannot be used together with --log.")]
+        [CommandLineArgument("replace", Description = "Replace all occurrences of $(GitVersion) in the specified file\nwith the calculated semantic version number. It cannot be used with --log.")]
         public string ReplaceFile { get; set; }
 
         /// <summary>
         /// Represents the --fields command line argument which specifies the number of version fields to print/replace.
         /// </summary>
-        [CommandLineArgument("fields",  Description = "Number of version fields to print/replace. Fields are: major, minor, patch,\n" +
-                                                      "prerelease and build metadata. E.g. --fields=2 results in only major and minor\n" +
-                                                      "fields in the version number. Default is 5 (all fields).")]
+        [CommandLineArgument("fields",  Description = "Number of version fields to print/replace. The fields are: major, minor, patch,\n" +
+                                                      "pre-release, and build metadata. E.g., --fields=2 results in a version number\n" +
+                                                      "containing only the major and minor field. The default is 5 (all fields).")]
         public int FieldCount { get; set; }
 
-        
         /// <summary>
         /// Represents the --dir command line argument which specifies the directory in which the git repository to use is located.
         /// </summary>
-        [CommandLineArgument("dir",     Description = "Directory containing git repository to calculate the version number from.")]
+        [CommandLineArgument("dir",     Description = "Directory containing the git repository to calculate the version number from.")]
         public string RepoPath { get; set; }
 
         /// <summary>
@@ -66,12 +67,35 @@ namespace OpenTap.Package
         /// <returns>Returns 0 to indicate success.</returns>
         public int Execute(CancellationToken cancellationToken)
         {
+            string repositoryDir = RepoPath;
+            while (!Directory.Exists(Path.Combine(repositoryDir, ".git")))
+            {
+                repositoryDir = Path.GetDirectoryName(repositoryDir);
+                if (repositoryDir == null)
+                {
+                    log.Error("Directory {0} is not a git repository.", RepoPath);
+                    return 1;
+                }
+            }
+            RepoPath = repositoryDir;
+
+            if (FieldCount < 1 || FieldCount > 5)
+            {
+                log.Error("The argument for --fields ({0}) must be an integer between 1 and 5.", FieldCount);
+                return 1;
+            }
+
             if (!String.IsNullOrEmpty(PrintLog))
             {
-                DoPrintLog(cancellationToken);
-                return 0;
+                int nLines = 0;
+                if (!int.TryParse(PrintLog, out nLines) || nLines <= 0)
+                {
+                    log.Error("The argument for --log ({0}) must be an integer greater than 0.", PrintLog);
+                    return 1;
+                }
+                return DoPrintLog(cancellationToken);
             }
-            TraceSource log = Log.CreateSource("GitVersion");
+
             string versionString = null;
             using (GitVersionCalulator calc = new GitVersionCalulator(RepoPath))
             {
@@ -120,27 +144,23 @@ namespace OpenTap.Package
             return replaceLineCount;
         }
 
-        private void DoPrintLog(CancellationToken cancellationToken)
+        private int DoPrintLog(CancellationToken cancellationToken)
         {
             ConsoleColor defaultColor = Console.ForegroundColor;
             ConsoleColor graphColor = ConsoleColor.DarkYellow;
             ConsoleColor versionColor = ConsoleColor.DarkRed;
-            string repositoryDir = RepoPath;
-            while (!Directory.Exists(Path.Combine(repositoryDir, ".git")))
-            {
-                repositoryDir = Path.GetDirectoryName(repositoryDir);
-                if (repositoryDir == null)
-                    throw new ArgumentException("Directory is not a git repository.", "repositoryDir");
-            }
-            using (LibGit2Sharp.Repository repo = new LibGit2Sharp.Repository(repositoryDir))
+
+            using (GitVersionCalulator versionCalculater = new GitVersionCalulator(RepoPath))
+            using (LibGit2Sharp.Repository repo = new LibGit2Sharp.Repository(RepoPath))
             {
                 Commit tip = repo.Head.Tip;
                 if (!string.IsNullOrEmpty(Sha))
                 {
-                    repo.RevParse(Sha, out _, out GitObject obj);
-                    if(obj is Commit c)
+                    tip = repo.Lookup<Commit>(Sha);
+                    if(tip == null)
                     {
-                        tip = c;
+                        log.Error($"The commit with reference {Sha} does not exist in the repository.");
+                        return 1;
                     }
                 }
                 IEnumerable<Commit> History = repo.Commits.QueryBy(new CommitFilter() { IncludeReachableFrom = tip, SortBy = CommitSortStrategies.Topological });
@@ -155,26 +175,45 @@ namespace OpenTap.Package
                 foreach (Commit c in History)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+
+                    if (maxPosition < commitPosition[c])
+                        maxPosition = commitPosition[c];
+
                     if(!c.Parents.Any())
                     {
-                        // this is the vary first commit in the repo. Stop here.
-                        maxLines = lineCount;
+                        // this is the very first commit in the repo. Stop here.
+                        maxLines = ++lineCount;
                         break;
                     }
                     Commit p1 = c.Parents.First();
                     if (c.Parents.Count() > 1)
                     {
                         Commit p2 = c.Parents.Last();
+
+                        if (commitPosition.ContainsKey(p1))
+                            if (commitPosition[p1] != commitPosition[c])
+                            {
+                                int startPos = Math.Min(commitPosition[p1], commitPosition[c]);
+                                int endPos = Math.Max(commitPosition[p1], commitPosition[c]);
+
+                                commitPosition[c] = startPos;
+
+                                foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == endPos).ToList())
+                                {
+                                    commitPosition.Remove(kvp.Key);
+                                }
+                            }
+
                         if (!commitPosition.ContainsKey(p2))
                         {
                             // move out to an position out for the new branch
                             int newPosition = commitPosition[c] + 1;
-                            while (newPosition <= commitPosition.Values.Max())
+                            while (commitPosition.ContainsValue(newPosition) &&
+                                    (newPosition <= commitPosition.Values.Max()))
                                 newPosition++;
                             commitPosition[p2] = newPosition;
 
-                            if (!commitPosition.ContainsKey(p1))
-                                commitPosition[p1] = commitPosition[c];
+                            commitPosition[p1] = commitPosition[c];
                         }
                         else if (!commitPosition.ContainsKey(p1))
                         {
@@ -191,8 +230,6 @@ namespace OpenTap.Package
                             int startPos = Math.Min(commitPosition[p1], commitPosition[c]);
                             int endPos = Math.Max(commitPosition[p1], commitPosition[c]);
 
-                            if (maxPosition < endPos)
-                                maxPosition = endPos;
                             // c is now merged back, no need to keep track of it (or any other commit on this branch)
                             // this way we can reuse the position for another branch 
                             foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == endPos).ToList())
@@ -200,24 +237,24 @@ namespace OpenTap.Package
                                 commitPosition.Remove(kvp.Key);
                             }
                             commitPosition[p1] = startPos;
+                            foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == startPos).ToList())
+                            {
+                                if(kvp.Key != p1)
+                                    commitPosition.Remove(kvp.Key);
+                            }
                         }
                     }
-                    if (lineCount++ > maxLines)
+                    if (++lineCount >= maxLines)
                         break;
                 }
                 {
-                    int endMax = commitPosition.Values.Max();
-                    if (maxPosition < endMax)
-                        maxPosition = endMax;
                     maxPosition++;
                 }
 
-                using (GitVersionCalulator versionCalculater = new GitVersionCalulator(RepoPath))
                 {
                     // Run through again to print
                     lineCount = 0;
                     commitPosition = new Dictionary<Commit, int>();
-                    var longBranchOut = new List<Commit>();
                     commitPosition.Add(History.First(), 0);
                     HashSet<Commit> taggedCommits = repo.Tags.Select(t => t.Target.Peel<Commit>()).ToHashSet();
                     foreach (Commit c in History)
@@ -244,30 +281,6 @@ namespace OpenTap.Package
                             }
                         }
 
-                        foreach (Commit lb in longBranchOut.ToList())
-                        {
-                            if(lb.Parents.Contains(c))
-                            {
-                                if (commitPosition.ContainsKey(lb))
-                                {
-                                    if (commitPosition[lb] != commitPosition[c])
-                                    {
-                                        int startPos = Math.Min(commitPosition[lb], commitPosition[c]);
-                                        // something we already printed has the current commit as its parent, draw the line to that commit now
-                                        DrawPositionSpacer(0, startPos);
-                                        // Draw ├─┘
-                                        Console.Write("\u251C\u2500");
-                                        int endPos = Math.Max(commitPosition[lb], commitPosition[c]);
-                                        DrawMergePositionSpacer(startPos + 1, endPos);
-                                        Console.Write("\u2518 ");
-                                        DrawPositionSpacer(endPos + 1, maxPosition);
-                                        Console.WriteLine();
-                                    }
-                                    commitPosition.Remove(lb);
-                                }
-                                longBranchOut.Remove(lb);
-                            }
-                        }
                         Console.ForegroundColor = graphColor;
                         DrawPositionSpacer(0, commitPosition[c]);
                         Console.ForegroundColor = defaultColor;
@@ -284,6 +297,13 @@ namespace OpenTap.Package
 
                         Console.Write(" - ");
                         Console.Write(c.MessageShort.Trim());
+
+                        if (++lineCount >= maxLines)
+                        {
+                            Console.WriteLine();
+                            break;
+                        }
+
                         if (c.Parents.Any())
                         {
                             Commit p1 = c.Parents.First();
@@ -293,32 +313,61 @@ namespace OpenTap.Package
                             if (c.Parents.Count() > 1)
                             {
                                 Commit p2 = c.Parents.Last();
+
+                                int startPos;
+                                int endPos;
+
+                                if (commitPosition.ContainsKey(p1))
+                                    if (commitPosition[p1] != commitPosition[c])
+                                    {
+                                        startPos = Math.Min(commitPosition[p1], commitPosition[c]);
+                                        // something we already printed has the current commit as its parent, draw the line to that commit now
+                                        DrawPositionSpacer(0, startPos);
+                                        // Draw ├─┘
+                                        Console.Write("\u251C\u2500");
+                                        endPos = Math.Max(commitPosition[p1], commitPosition[c]);
+                                        DrawMergePositionSpacer(startPos + 1, endPos);
+                                        Console.Write("\u2518 ");
+                                        DrawPositionSpacer(endPos + 1, maxPosition);
+                                        Console.WriteLine();
+                                        commitPosition[c] = startPos;
+                                        foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == endPos).ToList())
+                                        {
+                                            commitPosition.Remove(kvp.Key);
+                                        }
+                                    }
+
                                 if (!commitPosition.ContainsKey(p2))
                                 {
                                     DrawPositionSpacer(0, commitPosition[c]);
                                     // move out to an position out for the new branch
                                     int newPosition = commitPosition[c] + 1;
-                                    while (newPosition <= commitPosition.Values.Max())
+                                    while (commitPosition.ContainsValue(newPosition) &&
+                                            (newPosition <= commitPosition.Values.Max()))
                                         newPosition++;
                                     commitPosition[p2] = newPosition;
 
-                                    //if (!commitPosition.ContainsKey(p1))
-                                        commitPosition[p1] = commitPosition[c];
+                                    commitPosition[p1] = commitPosition[c];
                                     // Draw ├─┐
                                     Console.Write("\u251C\u2500");
                                     DrawMergePositionSpacer(commitPosition[c] + 1, commitPosition[p2]);
-                                    Console.WriteLine("\u2510");
+                                    Console.Write("\u2510 ");
+                                    DrawPositionSpacer(commitPosition[p2] + 1, maxPosition);
+                                    Console.WriteLine();
                                 }
                                 else if (!commitPosition.ContainsKey(p1))
                                 {
                                     commitPosition[p1] = commitPosition[c];
                                     // this branch is merged several times
-                                    int startPos = Math.Min(commitPosition[p2], commitPosition[c]);
+                                    startPos = Math.Min(commitPosition[p2], commitPosition[c]);
                                     DrawPositionSpacer(0, startPos);
                                     // draws something like: ├─┤
                                     Console.Write("\u251C\u2500");
-                                    DrawMergePositionSpacer(startPos + 1, Math.Max(commitPosition[p2], commitPosition[c]));
-                                    Console.WriteLine("\u2524");
+                                    endPos = Math.Max(commitPosition[p2], commitPosition[c]);
+                                    DrawMergePositionSpacer(startPos + 1, endPos);
+                                    Console.Write("\u2524 ");
+                                    DrawPositionSpacer(endPos + 1, maxPosition);
+                                    Console.WriteLine();
                                 }
                                 //else
                                 //{
@@ -358,17 +407,12 @@ namespace OpenTap.Package
                                     }
 
                                 }
-                                else
-                                {
-                                    longBranchOut.Add(c);
-                                }
                             }
                         }
-                        if (lineCount++ > maxLines)
-                            break;
                     }
                 }
             }
+            return 0;
         }
     }
 
