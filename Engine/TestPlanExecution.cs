@@ -378,7 +378,7 @@ namespace OpenTap
                         }
                         catch(Exception e)
                         {
-                             Log.Debug(e);
+                            Log.Debug(e);
                             planRun.MainThread.Abort("Error occured while executing platform requests. Metadata prompt can be disabled from the Engine settings menu.");
                         }
                         finally
