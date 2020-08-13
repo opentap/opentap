@@ -149,7 +149,8 @@ namespace OpenTap.Plugins.BasicSteps
             };
 
         static XDocument readXmlFile(string path) => dict.Invoke(path);
-            
+
+        internal TestPlan plan;
         
         void UpdateStep()
         {
@@ -203,14 +204,15 @@ namespace OpenTap.Plugins.BasicSteps
                     var ext = newSerializer.GetSerializer<ExternalParameterSerializer>();
                     ExternalParameters.ToList().ForEach(e =>
                     {
-                        ext.PreloadedValues[e.Name] = StringConvertProvider.GetString(e.Value);
+                        ext.PreloadedValues[e.Name] = StringConvertProvider.GetString(e.GetValue(plan));
                     });
 
                     CurrentMappings = allMapping;
 
                     TestPlan tp = (TestPlan)newSerializer.Deserialize(readXmlFile(Data), TypeData.FromType(typeof(TestPlan)), true, Data) ;
+                    plan = tp;
 
-                    ExternalParameters = tp.ExternalParameters.Entries.ToArray();
+                    ExternalParameters = TypeData.GetTypeData(tp).GetMembers().OfType<ParameterMemberData>().ToArray();
 
                     var flatSteps = Utils.FlattenHeirarchy(tp.ChildTestSteps, x => x.ChildTestSteps);
 
@@ -273,12 +275,12 @@ namespace OpenTap.Plugins.BasicSteps
             
             if (string.IsNullOrWhiteSpace(Filepath))
             {
-                ExternalParameters = Array.Empty<ExternalParameter>();
+                ExternalParameters = Array.Empty<ParameterMemberData>();
                 return;
             }
             
             UpdateStep();
         }
-        internal ExternalParameter[] ExternalParameters { get; private set; } = Array.Empty<ExternalParameter>();
+        internal ParameterMemberData[] ExternalParameters { get; private set; } = Array.Empty<ParameterMemberData>();
     }
 }

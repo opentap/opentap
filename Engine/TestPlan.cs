@@ -138,7 +138,7 @@ namespace OpenTap
         /// The GUI respects this.
         /// </summary>
         [XmlAttribute]
-        [Display("Locked", "Checking this makes the test plan read-only.", Order: 1)]
+        [Display("Locked", "Checking this makes the test plan read-only.", Order: 2)]
         public bool Locked
         {
             get => locked;
