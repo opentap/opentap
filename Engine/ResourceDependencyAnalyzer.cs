@@ -277,6 +277,19 @@ namespace OpenTap
                 
             }
 
+            // Figure out if all resources has their resource properties set
+            foreach(var leaf in tree)
+            {
+                if(leaf.StrongDependencies.Any(s => s is null))
+                {
+                    errorDetected = true;
+                    Log.Error($"Resource setting not set on resource {leaf.Resource}. Please configure or disable the resource.");
+                }
+            }
+
+            if (errorDetected) // If any resources has resource properties which is not set, let's return early, because FindStronglyConntectedComponents method below will throw a confusing error in this case.
+                return tree;
+
             // Figure out if there are circular references, and list the circular references in an exception each.
             var sccs = FindStronglyConnectedComponents(tree);
             if (sccs.Count > 0)
