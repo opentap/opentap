@@ -82,8 +82,14 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 {
                     throw new Exception("Semicolons are not valid in glob patterns.");
                 }
+                // Remove the last character in this string to circumvent disgusting workaround needed in targets file
+                groupParts[1] = groupParts[1].Substring(0, groupParts[1].Length - 1);
                 var packageName = groupParts[0];
-                var includeGlobs = groupParts.Length > 1 ? groupParts[1].Replace('\\', '/') : "**";
+                var includeGlobs = "**";
+                if (groupParts.Length > 1 && string.IsNullOrWhiteSpace(groupParts[1]) == false)
+                {
+                    includeGlobs = groupParts[1].Replace('\\', '/');
+                }
                 // It is not possible to tell the difference between ExcludeAssemblies being unspecified or deliberately set to ""
                 // If all dependencies are included, builds are likely to fail -- assume this is not the intention
                 string excludeGlobs = "Dependencies/**";
