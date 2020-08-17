@@ -10,11 +10,14 @@ using OpenTap.Package;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using Newtonsoft.Json;
 
 namespace OpenTap.Sdk.New
 {
@@ -29,7 +32,7 @@ namespace OpenTap.Sdk.New
 
         private SemanticVersion GetOpenTapVersion()
         {
-            var version = NugetInterop.GetLatestNugetVersionOldestFirst()?.LastOrDefault();
+            var version = NugetInterop.GetLatestNugetVersion();
             if(version == null)
             {
                 log.Warning("Unable to get an OpenTAP version from Nuget, using the local version instead.");
@@ -89,16 +92,47 @@ namespace OpenTap.Sdk.New
                 dest = Directory.CreateDirectory(dest.FullName);
             }
 
-            var newProject = dest.EnumerateFiles("*.sln").Any() == false;
+            var newProject = dest.EnumerateFiles("*.sln").Any() == false;            
 
             if (newProject && string.IsNullOrWhiteSpace(output))
             {
                 var exists = dest.EnumerateDirectories().FirstOrDefault(x => x.Name == Name);
-                dest = exists ?? dest.CreateSubdirectory(Name);
+                dest = exists ?? new DirectoryInfo(Path.Combine(dest.FullName, Name)); 
+            }
+            
+            log.Info($"Creating project in '{dest.FullName}'");
+
+            if (dest.Exists && dest.EnumerateDirectories().Any(x => x.Name == Name))
+            {
+                if (newProject)
+                    throw new Exception($"Cannot create solution directory {Name} because a directory with that name already exists.");
+                throw new Exception($"Project '{Name}' already exists in this solution.");
             }
 
-            if (dest.EnumerateDirectories().Any(x => x.Name == Name))
-                throw new Exception($"Project {Name} already exists in this solution.");
+            if (newProject)
+            {
+                var parentInstall = GetAncestorTapInstall(dest);
+                if (parentInstall != null)
+                {
+                    // warn about potential issues and prompt to continue
+                    log.Warning($"OpenTAP installation detected in directory '{parentInstall.DirectoryName}'.\n" +
+                                $"Creating a project as a descendant of another OpenTAP installation can cause the installation to stop working correctly.\n");
+
+                    log.Info("Are you sure you want to continue?");
+
+                    var request = new OverrideRequest();
+                    UserInput.Request(request, true);
+
+                    if (request.Override == RequestEnum.No)
+                    {
+                        log.Info("Project creation cancelled.");
+                        return 0;
+                    }
+                }
+            }
+
+            if (!dest.Exists)
+                dest.Create();
 
             CreateSolutionFile(dest);
 
@@ -132,6 +166,23 @@ namespace OpenTap.Sdk.New
             }
             
             return 0;
+        }
+
+        private FileInfo GetAncestorTapInstall(DirectoryInfo dest)
+        {
+            if (dest == null)
+                return null;
+            
+            if (dest.Exists)
+            {
+                var file = dest.EnumerateFiles().FirstOrDefault(x => x.Name == "OpenTap.dll");
+                if (file != null)
+                {
+                    return file;
+                }
+            }
+            
+            return GetAncestorTapInstall(dest.Parent);
         }
 
         private void AddProjectToSolutionFile(string name, FileInfo slnFile)
@@ -203,7 +254,7 @@ namespace OpenTap.Sdk.New
     class NugetInterop
     {
         /// <summary> Gets all the available OpenTAP versions from Nuget (api.nuget.org) or returns null on a failure (unable to connect). It never throws. </summary> 
-        public static IEnumerable<SemanticVersion> GetLatestNugetVersionOldestFirst()
+        public static SemanticVersion GetLatestNugetVersion()
         {
             var log = Log.CreateSource("Nuget");
             
@@ -212,7 +263,7 @@ namespace OpenTap.Sdk.New
                 using (var http = new HttpClient())
                 {
                     var sw = Stopwatch.StartNew();
-                    var stringTask = http.GetAsync("https://api.nuget.org/v3/registration4/opentap/index.json");
+                    var stringTask = http.GetAsync("https://api-v2v3search-0.nuget.org/query?q=packageid:opentap&prerelease=false");
                     log.Debug("Getting the latest OpenTAP Nuget package version. This can be changed in the project settings.");
                     while (!stringTask.Wait(1000, TapThread.Current.AbortToken))
                     {
@@ -225,21 +276,12 @@ namespace OpenTap.Sdk.New
 
                     log.Debug(sw, "Got response from server");
                     var content = str.Content.ReadAsStringAsync().Result;
+                    
                     var j = JObject.Parse(content);
                     log.Debug("Parsed JSON content");
-                    List<SemanticVersion> tapVersions = new List<SemanticVersion>();
-                    foreach (var tapitem in j["items"] )
-                    {
-                        foreach (var tapitem2 in tapitem["items"])
-                        {
-                            var version = tapitem2["catalogEntry"]["version"].Value<string>();
-                            if(SemanticVersion.TryParse(version, out SemanticVersion r))
-                                tapVersions.Add(r);
-                        }
-                    }
-                    tapVersions.Sort();
-                    log.Debug("Found OpenTap Versions: {0}", string.Join(", ", tapVersions));
-                    return tapVersions;
+                    if (SemanticVersion.TryParse(j["data"][0]["version"].Value<string>(), out SemanticVersion v))
+                        return v;
+                    return null;
                 }
             }
             catch
