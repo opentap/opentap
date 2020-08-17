@@ -372,6 +372,7 @@ Package-NuGet:
     - Move-Item OpenTap.Package.xml ../../nuget/build/payload
     - ./tap sdk gitversion --replace ../../nuget/OpenTAP.nuspec --fields 4
     - Move-Item Keysight.OpenTap.Sdk.MSBuild.dll ../../nuget/build
+    - Move-Item DotNet.Glob.dll ../../nuget/build
     - cd ../../nuget/
     - Move-Item ../bin/Linux/tap build/payload/
     - Move-Item ../bin/Linux/tap.dll build/payload/
