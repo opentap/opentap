@@ -120,10 +120,14 @@ namespace OpenTap.Package
             // so at this moment we need to check which version we are on
             // and move the file to a position that is checked.
             string libgit2name = "libgit2-4aecb64";
+            var requiredFile = Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.so");
+
+            if (File.Exists(requiredFile))
+                return;
+
             string libgitfoldername = "Dependencies/LibGit2Sharp.0.25.0.0/";
             IEnumerable<FileInfo> libgit2files = new[] {"ubuntu", "redhat", "linux-x64"}
                 .Select(x => Path.Combine(PathUtils.OpenTapDir, libgitfoldername, $"{libgit2name}.so.{x}")).Select(x => new FileInfo(x));
-            var requiredFile = Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.so");
 
             var file = libgit2files.FirstOrDefault(x => x.Name.EndsWith(LinuxVariant.Current.Name));
             try
