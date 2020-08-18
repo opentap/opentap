@@ -40,12 +40,12 @@ namespace OpenTap.Plugins.BasicSteps
             var tpr = owner as TestPlanReference;
             var ep = tpr.ExternalParameters.FirstOrDefault(x => x.Name == epName);
 
-            var Member = ep.PropertyInfos.First();
+            var Member = ep.ParameterizedMembers.First().Member;
             TypeDescriptor = Member.TypeDescriptor;
-            return ep.Value;
+            return ep.GetValue(tpr.plan);
         }
 
-        public ExternalParameter ExternalParameter
+        public ParameterMemberData ExternalParameter
         {
             get
             {
@@ -61,24 +61,26 @@ namespace OpenTap.Plugins.BasicSteps
         {
             var tpr = owner as TestPlanReference;
             var ep = tpr.ExternalParameters.FirstOrDefault(x => x.Name == epName);
-            var Member = ep.PropertyInfos.First();
+            var Member = ep.ParameterizedMembers.First().Member;
             TypeDescriptor = Member.TypeDescriptor;
-            ep.Value = value;
+            ep.SetValue(tpr.plan, value);
         }
 
-        public ExpandedMemberData(ExternalParameter ep, string name)
+        public ExpandedMemberData(ParameterMemberData ep, string name)
         {
             Name = name;
-            var Member = ep.PropertyInfos.First();
+            var Member = ep.ParameterizedMembers.First().Member;
+            
             epName = ep.Name;
             TypeDescriptor = Member.TypeDescriptor;
             var attrs = Member.Attributes.ToList();
             attrs.RemoveIf<object>(x => x is DisplayAttribute);
-            var dis = Member.GetDisplayAttribute();
-            var groups = dis.Group;
-            if (groups.FirstOrDefault() != "Settings")
-                groups = new[] {"Settings"}.Append(dis.Group).ToArray();
-            attrs.Add(new DisplayAttribute(ep.Name, Description: dis.Description, Order: 5, Groups: groups));
+            
+            var dis = ep.Attributes.OfType<DisplayAttribute>().FirstOrDefault();
+            if (dis == null)
+                dis = Member.GetDisplayAttribute();
+            
+            attrs.Add(new DisplayAttribute(dis.Name, Description: dis.Description, Order: 5, Groups:dis.Group));
             if (attrs.Any(x => x is ColumnDisplayNameAttribute))
             {
                 var colAttr = (ColumnDisplayNameAttribute) attrs.FirstOrDefault(x => x is ColumnDisplayNameAttribute);
@@ -92,7 +94,9 @@ namespace OpenTap.Plugins.BasicSteps
         }
 
         public IEnumerable<(object, IMemberData)> ParameterizedMembers =>
-            ExternalParameter.Properties.SelectMany(x => x.Value.Select(y => ((object)x.Key, y)));
+            ExternalParameter.ParameterizedMembers
+                .Select(x => new KeyValuePair<ITestStep, IEnumerable<IMemberData>>((ITestStep)x.Source, new []{x.Member}))
+                .SelectMany(x => x.Value.Select(y => ((object)x.Key, y)));
     }
 
     class ExpandedTypeData : ITypeData

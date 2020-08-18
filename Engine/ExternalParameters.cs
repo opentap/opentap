@@ -52,7 +52,7 @@ namespace OpenTap
             return Properties.Where(x => x.Key == step).SelectMany(x => x.Value).ToList();
         }
 
-        ParameterMemberData member;
+        internal readonly ParameterMemberData member;
 
         /// <summary> Constructor for the ExternalParameter. </summary>
         /// <param name="Plan"></param>
