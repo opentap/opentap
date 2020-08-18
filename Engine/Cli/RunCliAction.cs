@@ -38,7 +38,7 @@ namespace OpenTap.Cli
         /// <summary>
         /// Add directories to search for plugin dlls.
         /// </summary>
-        [CommandLineArgument("search", Description = "Add directories to search for plugin dlls.")]
+        [CommandLineArgument("search", Description = "Add directories to search for plugin dlls.", Visible = false)]
         public string[] Search { get; set; } = new string[0];
 
         /// <summary>
@@ -117,6 +117,14 @@ namespace OpenTap.Cli
             HandleMetadata(metaData);
 
             string planToLoad = null;
+
+            // If the --search argument is used, add the --ignore-load-errors to fix any load issues.
+            if (Search.Any())
+            {
+                // Warn
+                log.Warning("Argument '--search' is deprecated. The '--ignore-load-errors' argument has been added to avoid potential test plan load issues.");
+                IgnoreLoadErrors = true;
+            }
 
             try
             {
@@ -265,12 +273,9 @@ namespace OpenTap.Cli
                 // only cache the XML if there are no external parameters.
                 bool cacheXml = values.Any() == false && externalParameterFiles.Any() == false;
                 
-                Plan = TestPlan.Load(fs, planToLoad, cacheXml, serializer);
+                Plan = TestPlan.Load(fs, planToLoad, cacheXml, serializer, IgnoreLoadErrors);
                 log.Info(timer, "Loaded test plan from {0}", planToLoad);
             }
-
-            if (!IgnoreLoadErrors && serializer.Errors.Count() != 0)
-                throw new TestPlan.PlanLoadException("Unable to successfully load the test plan. To continue anyway, add the flag '--ignore-load-errors'.");
 
             if (externalParameterFiles.Count > 0)
             {
