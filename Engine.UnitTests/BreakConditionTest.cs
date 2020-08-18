@@ -234,6 +234,9 @@ namespace OpenTap.Engine.UnitTests
             plan.Steps.Add(failStep);
             plan.Steps.Add(inconclusiveStep);
             plan.Steps.Add(passStep);
+
+            var defaultValue = BreakConditionProperty.GetBreakCondition(plan);
+            Assert.AreEqual(BreakCondition.Inherit, defaultValue);
             
             // break on fail, this means that 'passStep' will not get executed 
             BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnError);
