@@ -193,7 +193,8 @@ TestLinuxPlan:
         - check_exit_code 2
         - sed -i "/Sign Certificate/ d" opentap_linux64.package.xml
         - cd bin/Release/publish
-        - tap package create ../../../opentap_linux64.package.xml -o OpenTAP.TapPackage
+        - rm -rf Packages/*
+        - tap package create --install ../../../opentap_linux64.package.xml -o OpenTAP.TapPackage
         - tap | grep Interface
         - mkdir test
         - tap package install OpenTAP.TapPackage --target test
@@ -201,7 +202,6 @@ TestLinuxPlan:
         - ./tap | grep Interface
         - ./tap package verify OpenTAP
         - cd -
-        - rm -rf Packages/*
         - mkdir Packages/SDK
         - touch '../../../sdk/Examples/OpenTAP Developer Guide.pdf'
         - cp -r ../../../sdk/Examples Packages/SDK
