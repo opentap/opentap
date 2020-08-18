@@ -206,7 +206,7 @@ TestLinuxPlan:
         - touch '../../../sdk/Examples/OpenTAP Developer Guide.pdf'
         - cp -r ../../../sdk/Examples Packages/SDK
         - cp    ../../../Package/PackageSchema.xsd Packages/SDK
-        - tap package create ../../../sdk/sdk.package.xml -o SDK.TapPackage
+        - tap package create -v ../../../sdk/sdk.package.xml -o SDK.TapPackage
         - tap package install SDK.TapPackage --target test
         - cd test
         - ./tap | grep Interface
@@ -354,7 +354,7 @@ Package-SDK:
          - ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/PluginDevelopment.Gui/PluginDevelopment.Gui.csproj"
          - ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/TestPlanExecution/BuildTestPlan.Api/BuildTestPlan.Api.csproj"
          - ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/TestPlanExecution/RunTestPlan.Api/RunTestPlan.Api.csproj"
-         - ./tap package create ../../sdk/sdk.package.xml
+         - ./tap package create -v ../../sdk/sdk.package.xml
          - Move-Item "*.TapPackage" "../.."
   artifacts:
     when: on_success

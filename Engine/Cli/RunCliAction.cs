@@ -247,19 +247,11 @@ namespace OpenTap.Cli
             List<string> externalParameterFiles = new List<string>();
             foreach (var externalParam in values)
             {
-                int equalIdx = externalParam.IndexOf("=");
+                int equalIdx = externalParam.IndexOf('=');
                 if (equalIdx == -1)
                 {
-                    //try "Import External Parameters File"
-                    try
-                    {
-                        externalParameterFiles.Add(externalParam);
-                        continue;
-                    }
-                    catch
-                    {
-                        throw new ArgumentException("Unable to read external test plan parameter {0}. Expected '=' or ExternalParameters file.", externalParam);
-                    }
+                    externalParameterFiles.Add(externalParam);
+                    continue;
                 }
                 var name = externalParam.Substring(0, equalIdx);
                 var value = externalParam.Substring(equalIdx + 1);
@@ -282,17 +274,26 @@ namespace OpenTap.Cli
                 var importers = CreateInstances<IExternalTestPlanParameterImport>();
                 foreach (var file in externalParameterFiles)
                 {
-                    log.Info("Loading external parameters from '{0}'.", file);
-                    var importer = importers.FirstOrDefault(i => i.Extension == Path.GetExtension(file));
-                    importer?.ImportExternalParameters(Plan, file);
+                    var ext = Path.GetExtension(file);
+                    log.Info($"Loading external parameters from '{file}'.");
+                    var importer = importers.FirstOrDefault(i => i.Extension == ext);
+                    if (importer != null)
+                    {
+                        importer.ImportExternalParameters(Plan, file);
+                    }
+                    else
+                    {
+                        log.Error($"No installed plugins provide loading of external parameters from '{ext}' files. No external parameters loaded from '{file}'.");
+                    }
                 }
             }
+
             if (External.Length > 0)
             {   // Print warnings if an --external parameter was not in the test plan. 
 
                 foreach (var externalParam in External)
                 {
-                    var equalIdx = externalParam.IndexOf("=");
+                    var equalIdx = externalParam.IndexOf('=');
                     if (equalIdx == -1) continue;
 
                     var name = externalParam.Substring(0, equalIdx);
