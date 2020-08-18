@@ -28,12 +28,36 @@
          Here we do some optimizations that leverages an existing OpenTAP installation in %TAP_PATH%
     -->
     <CachedOpenTapPackages Include="$(TAP_PATH)\PackageCache\Developer*"/>
-    <AdditionalOpenTapPackage Include="Developer's System" 
-                              Repository="$(TAP_PATH)\PackageCache" 
+
+    <!-- Editor, included dependency: WPF Controls -->
+    <AdditionalOpenTapPackage Include="Editor"
+                              Repository="$(TAP_PATH)\PackageCache"
                               Version="Any"
                               Condition="@(CachedOpenTapPackages) != '' AND Exists('$(TAP_PATH)\Packages\Editor')"/>
-    <AdditionalOpenTapPackage Include="Developer's System" 
+    <AdditionalOpenTapPackage Include="Editor"
                               Condition="@(CachedOpenTapPackages) == '' AND Exists('$(TAP_PATH)\Packages\Editor')"/>
+    <!-- Results Viewer, included dependency: CSV -->
+    <AdditionalOpenTapPackage Include="Results Viewer"
+                              Repository="$(TAP_PATH)\PackageCache"
+                              Version="Any"
+                              Condition="@(CachedOpenTapPackages) != '' AND Exists('$(TAP_PATH)\Packages\Editor')"/>
+    <AdditionalOpenTapPackage Include="Results Viewer"
+                              Condition="@(CachedOpenTapPackages) == '' AND Exists('$(TAP_PATH)\Packages\Editor')"/>
+    <!-- Timing Analyzer -->
+    <AdditionalOpenTapPackage Include="Timing Analyzer"
+                              Repository="$(TAP_PATH)\PackageCache"
+                              Version="Any"
+                              Condition="@(CachedOpenTapPackages) != '' AND Exists('$(TAP_PATH)\Packages\Editor')"/>
+    <AdditionalOpenTapPackage Include="Timing Analyzer"
+                              Condition="@(CachedOpenTapPackages) == '' AND Exists('$(TAP_PATH)\Packages\Editor')"/>
+    <!-- SQLite and PostgreSQL -->
+    <AdditionalOpenTapPackage Include="SQLite and PostgreSQL"
+                              Repository="$(TAP_PATH)\PackageCache"
+                              Version="Any"
+                              Condition="@(CachedOpenTapPackages) != '' AND Exists('$(TAP_PATH)\Packages\Editor')"/>
+    <AdditionalOpenTapPackage Include="SQLite and PostgreSQL"
+                              Condition="@(CachedOpenTapPackages) == '' AND Exists('$(TAP_PATH)\Packages\Editor')"/>
+
     <AdditionalOpenTapPackage Include="Developer's System CE"
                               Repository="$(TAP_PATH)\PackageCache"
                               Version="Any"

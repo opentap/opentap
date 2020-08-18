@@ -1908,7 +1908,7 @@ namespace OpenTap
             }
         }
 
-        class EnabledAnnotation : IMembersAnnotation, IOwnedAnnotation
+        class EnabledAnnotation : IEnabledValueAnnotation, IMembersAnnotation, IOwnedAnnotation
         {
             class EnabledAccessAnnotation : IAccessAnnotation
             {
@@ -1922,55 +1922,68 @@ namespace OpenTap
                 public bool IsVisible => true;
             }
 
-            IEnumerable<AnnotationCollection> members;
-            public IEnumerable<AnnotationCollection> Members
+            readonly AnnotationCollection annotations;
+
+            private AnnotationCollection isEnabled;
+            public AnnotationCollection IsEnabled
             {
                 get
                 {
-                    if (this.members != null) return this.members;
-                    var members = annotation.GetAll<IMembersAnnotation>().FirstOrDefault(x => x != this)?.Members;
-
-                    var enabledMember = members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member.Name == nameof(Enabled<int>.IsEnabled));
-
-                    var valueMember = members.FirstOrDefault(x => x != enabledMember);
-
-                    var unit = annotation.Get<UnitAttribute>();
-                    var avail = annotation.Get<IAvailableValuesAnnotation>();
+                    if (isEnabled == null)
+                        isEnabled = annotations.Get<IMembersAnnotation>(from : this).Members
+                                               .FirstOrDefault(x => x.Get<IMemberAnnotation>().Member.Name == nameof(Enabled<int>.IsEnabled));
+                    return isEnabled;
+                }
+            }
+            private AnnotationCollection value;
+            public AnnotationCollection Value
+            {
+                get
+                {
+                    if (value != null) return value;
+                    var unit = annotations.Get<UnitAttribute>();
+                    var avail = annotations.Get<IAvailableValuesAnnotation>();
                     List<IAnnotation> extra = new List<IAnnotation>();
                     if (unit != null) { extra.Add(unit); }
                     if (avail != null) { extra.Add(avail); }
-                    if (annotation.Get<DirectoryPathAttribute>() is DirectoryPathAttribute d)
+                    if (annotations.Get<DirectoryPathAttribute>() is DirectoryPathAttribute d)
                         extra.Add(d);
-                    if (annotation.Get<FilePathAttribute>() is FilePathAttribute f)
+                    if (annotations.Get<FilePathAttribute>() is FilePathAttribute f)
                         extra.Add(f);
-                    if (annotation.Get<ISuggestedValuesAnnotation>() is ISuggestedValuesAnnotation s)
+                    if (annotations.Get<ISuggestedValuesAnnotation>() is ISuggestedValuesAnnotation s)
                         extra.Add(s);
 
-                    extra.Add(new EnabledAccessAnnotation(annotation));
-                    var src = annotation.Get<IObjectValueAnnotation>().Value;
-                    var newValueMember = annotation.AnnotateMember(valueMember.Get<IMemberAnnotation>().Member, src, extra.ToArray());
-
-                    if (src != null)
-                        newValueMember.Read(src);
-                    this.members = new[] { enabledMember, newValueMember };
-                    return this.members;
+                    extra.Add(new EnabledAccessAnnotation(annotations));
+                    var valueMember = annotations.Get<IMembersAnnotation>(from: this).Members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member.Name != nameof(Enabled<int>.IsEnabled));
+                    var src = annotations.Get<IObjectValueAnnotation>().Value as IEnabledValue;
+                    var sub = annotations.AnnotateSub(valueMember.Get<IReflectionAnnotation>().ReflectionInfo, src?.Value, extra.ToArray());
+                    sub.Add(new AnnotationCollection.MemberAnnotation(TypeData.GetTypeData(src).GetMember("Value") ?? TypeData.FromType(typeof(IEnabledValue)).GetMember("Value"))); // for compatibility with 9.8 UIs, emulate that this is a Value member from a Enabled<T> class
+                    value = sub;
+                    return value;
                 }
             }
 
-            AnnotationCollection annotation;
-            public EnabledAnnotation(AnnotationCollection annotation)
+            public IEnumerable<AnnotationCollection> Members => new [] { IsEnabled, Value };
+
+            public EnabledAnnotation(AnnotationCollection annotations)
             {
-                this.annotation = annotation;
+                this.annotations = annotations;
             }
 
             public void Read(object source)
             {
                 if (Members != null)
                 {
-                    var val = annotation.Get<IObjectValueAnnotation>().Value;
+                    var val = annotations.Get<IObjectValueAnnotation>().Value;
                     if (val == null) return;
                     foreach (var member in Members)
                         member.Read(val);
+                }
+
+                if (value != null)
+                {
+                    var val = annotations.Get<IObjectValueAnnotation>().Value as IEnabledValue;
+                    value.Get<ObjectValueAnnotation>().Value = val?.Value;
                 }
             }
 
@@ -1978,16 +1991,21 @@ namespace OpenTap
             {
                 if (Members != null)
                 {
-                    var val = annotation.Get<IObjectValueAnnotation>().Value;
+                    var val = annotations.Get<IObjectValueAnnotation>().Value;
                     foreach (var member in Members)
                         member.Write(val);
                     {
                         // since the Enabled annotation overrides the other IMembersAnnotation
                         // we need to make sure to update that too.
-                        var otherMembers = annotation.Get<IMembersAnnotation>(from: this);
+                        var otherMembers = annotations.Get<IMembersAnnotation>(from: this);
                         foreach (var member in otherMembers.Members)
                             member.Read();
                     }
+                }
+                if (value != null)
+                {
+                    if(annotations.Get<IObjectValueAnnotation>().Value is IEnabledValue en)
+                        en.Value = value.Get<ObjectValueAnnotation>().Value;
                 }
             }
         }
@@ -2457,7 +2475,7 @@ namespace OpenTap
                     {
                         if (type == typeof(BreakCondition))
                         {
-                                annotation.Add(new BreakConditionsAnnotation(annotation));
+                            annotation.Add(new BreakConditionsAnnotation(annotation));
                         }
                         else
                         {    
@@ -2981,7 +2999,7 @@ namespace OpenTap
     /// <summary> A collection of annotations. Used to store high-level information about an object. </summary>
     public class AnnotationCollection : IEnumerable<IAnnotation>
     {
-        class MemberAnnotation : IMemberAnnotation, IReflectionAnnotation
+        internal class MemberAnnotation : IMemberAnnotation, IReflectionAnnotation
         {
             public IMemberData Member { get; private set; }
             public ITypeData ReflectionInfo => Member.TypeDescriptor;

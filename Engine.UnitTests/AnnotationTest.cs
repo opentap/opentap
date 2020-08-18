@@ -261,6 +261,22 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
+        public void EnabledAnnotated()
+        {
+            var step = new ProcessStep();
+            var a = AnnotationCollection.Annotate(step);
+            var x = a.GetMember(nameof(step.RegularExpressionPattern));
+            var str = x.GetMember("Value");
+            var strval =str.Get<IStringValueAnnotation>();
+            var v1 = strval.Value.ToString();
+            Assert.AreEqual("(.*)", v1);
+            step.RegularExpressionPattern.Value = "test";
+            a.Read();
+            var v2 = strval.Value;
+            Assert.AreEqual("test", v2);
+        }
+
+        [Test]
         public void TestPlanAnnotated()
         {
             var plan = new TestPlan();
@@ -319,9 +335,26 @@ namespace OpenTap.UnitTests
             en.Get<IObjectValueAnnotation>().Value = true;
             en.Write();
             a.Write();
+            
             var descr = AnnotationCollection.Annotate(step).GetMember("BreakConditions").GetMember("Value")
                 .Get<IValueDescriptionAnnotation>().Describe();
             Assert.AreEqual("Break on Error (inherited from test plan).", descr);
+
+            {
+                var stepAnnotation = AnnotationCollection.Annotate(step);
+                var enabled = stepAnnotation.GetMember("BreakConditions").GetMember("IsEnabled").Get<IObjectValueAnnotation>();
+                enabled.Value = true; 
+                //stepAnnotation.Write();
+                var value = stepAnnotation.GetMember("BreakConditions").GetMember("Value").Get<IObjectValueAnnotation>();
+                var thing = stepAnnotation.GetMember("BreakConditions").GetMember("Value");
+                var proxy = thing.Get<IMultiSelectAnnotationProxy>();
+                var sel = proxy.SelectedValues.ToArray();
+                value.Value = BreakCondition.BreakOnInconclusive;
+                stepAnnotation.Write();
+                var descr2 = stepAnnotation.GetMember("BreakConditions").GetMember("Value")
+                    .Get<IValueDescriptionAnnotation>().Describe();
+                
+            }
 
         }
     }

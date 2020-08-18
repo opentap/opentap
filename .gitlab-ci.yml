@@ -183,16 +183,34 @@ TestLinuxPlan:
   needs:
      - Build-Linux64
   script:
-        - cp -r Engine.UnitTests/TestTestPlans bin/Release/publish
+        - ln -sf $PWD/bin/Release/publish/tap /bin
+        - check_exit_code () { if [ $exit_code -eq $1 ]; then echo "OK"; else echo "FAIL ($exit_code)"; false; fi }
+        - tap run -v Engine.UnitTests/TestTestPlans/testMultiReferencePlan.TapPlan --ignore-load-errors || exit_code=$?
+        - check_exit_code 20
+        - tap sdk gitversion -v       # verify that gitversion works.
+        - tap sdk gitversion --log 10 # verify that gitversion log works.
+        - tap package verify || exit_code=$?
+        - check_exit_code 2
+        - sed -i "/Sign Certificate/ d" opentap_linux64.package.xml
         - cd bin/Release/publish
-        - chmod +x tap
-        - echo "./tap run -v TestTestPlans/testMultiReferencePlan.TapPlan --ignore-load-errors; if [ \$? -eq 20 ]; then echo \"OK\"; else false; fi" >./run_ubuntu_test.sh
-        - chmod +x ./run_ubuntu_test.sh
-        - bash run_ubuntu_test.sh
-        - ldconfig -p
-        - cd ..
-        - publish/tap sdk gitversion -v          # verify that gitversion works.
-        - publish/tap sdk gitversion --log 10 # verify that gitversion log works.
+        - rm -rf Packages/*
+        - tap package create --install ../../../opentap_linux64.package.xml -o OpenTAP.TapPackage
+        - tap | grep Interface
+        - mkdir test
+        - tap package install OpenTAP.TapPackage --target test
+        - cd test
+        - ./tap | grep Interface
+        - ./tap package verify OpenTAP
+        - cd -
+        - mkdir Packages/SDK
+        - touch '../../../sdk/Examples/OpenTAP Developer Guide.pdf'
+        - cp -r ../../../sdk/Examples Packages/SDK
+        - cp    ../../../Package/PackageSchema.xsd Packages/SDK
+        - tap package create -v ../../../sdk/sdk.package.xml -o SDK.TapPackage
+        - tap package install SDK.TapPackage --target test
+        - cd test
+        - ./tap | grep Interface
+        - ./tap package verify SDK
 
 TestUbuntu:
   stage: test
@@ -336,7 +354,7 @@ Package-SDK:
          - ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/PluginDevelopment.Gui/PluginDevelopment.Gui.csproj"
          - ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/TestPlanExecution/BuildTestPlan.Api/BuildTestPlan.Api.csproj"
          - ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/TestPlanExecution/RunTestPlan.Api/RunTestPlan.Api.csproj"
-         - ./tap package create ../../sdk/sdk.package.xml
+         - ./tap package create -v ../../sdk/sdk.package.xml
          - Move-Item "*.TapPackage" "../.."
   artifacts:
     when: on_success
@@ -372,6 +390,7 @@ Package-NuGet:
     - Move-Item OpenTap.Package.xml ../../nuget/build/payload
     - ./tap sdk gitversion --replace ../../nuget/OpenTAP.nuspec --fields 4
     - Move-Item Keysight.OpenTap.Sdk.MSBuild.dll ../../nuget/build
+    - Move-Item DotNet.Glob.dll ../../nuget/build
     - cd ../../nuget/
     - Move-Item ../bin/Linux/tap build/payload/
     - Move-Item ../bin/Linux/tap.dll build/payload/

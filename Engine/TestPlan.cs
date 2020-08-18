@@ -138,7 +138,7 @@ namespace OpenTap
         /// The GUI respects this.
         /// </summary>
         [XmlAttribute]
-        [Display("Locked", "Checking this makes the test plan read-only.", Order: 1)]
+        [Display("Locked", "Checking this makes the test plan read-only.", Order: 2)]
         public bool Locked
         {
             get => locked;
@@ -299,6 +299,11 @@ namespace OpenTap
         /// <returns>Returns the new test plan.</returns>
         public static TestPlan Load(Stream stream, string path, bool cacheXml, TapSerializer serializer = null)
         {
+            return Load(stream, path, cacheXml, serializer, false);
+        }
+
+        internal static TestPlan Load(Stream stream, string path, bool cacheXml, TapSerializer serializer, bool IgnoreLoadErrors)
+        {
             if (stream == null)
                 throw new ArgumentNullException(nameof(stream));
             
@@ -313,7 +318,7 @@ namespace OpenTap
             serializer = serializer ?? new TapSerializer();
             var plan = (TestPlan)serializer.Deserialize(stream, type: TypeData.FromType(typeof(TestPlan)), path: path);
             var errors = serializer.Errors;
-            if (errors.Any())
+            if (IgnoreLoadErrors == false && errors.Any())
             {
                 // eventual errors were already printed.
                 var err = new PlanLoadError();
