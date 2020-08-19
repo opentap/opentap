@@ -71,17 +71,20 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             var result = new List<GlobTask>();
             var groups = tasks.Split(',').Where(x => x.Length > 0);
             
-            foreach (var @group in groups)
+            foreach (var group in groups)
             {
                 string g = group;
                 if (g.StartsWith(";"))
                     g = string.Concat(g.Skip(1));
 
                 var groupParts = g.Split(';').ToArray();
+                
                 if (groupParts.Length > 3)
-                {
-                    throw new Exception("Semicolons are not valid in glob patterns.");
-                }
+                    throw new Exception("Semicolons are not valid in IncludeAssemblies/ExcludeAssemblies patterns.");
+
+                if (groupParts.Length != 3)
+                    throw new Exception($"Input '{group}' appears to be invalid.");
+                
                 // Remove the last character in this string to circumvent disgusting workaround needed in targets file
                 groupParts[1] = groupParts[1].Substring(0, groupParts[1].Length - 1);
                 var packageName = groupParts[0];
@@ -90,13 +93,14 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 {
                     includeGlobs = groupParts[1].Replace('\\', '/');
                 }
+                
                 // It is not possible to tell the difference between ExcludeAssemblies being unspecified or deliberately set to ""
                 // If all dependencies are included, builds are likely to fail -- assume this is not the intention
                 string excludeGlobs = "Dependencies/**";
                 if (groupParts.Length > 2)
                 {
                     if (string.IsNullOrEmpty(groupParts[2]) == false)
-                    {// 
+                    {
                         excludeGlobs = groupParts[2].Replace('\\', '/');
                     }
                 } 
@@ -188,19 +192,24 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
         public override bool Execute()
         {
+            if (PackagesAndGlobs == "^;,")
+            {   // This happens when a .csproj file does not specify any OpenTapPackageReferences -- simply ignore it
+                return true;
+            }
+
             Assemblies = new string[] { };
             try
             {
                 var globTasks = GlobTask.ParseString(PackagesAndGlobs);
-
                 InitializeWriter();
                 Parallel.ForEach(globTasks, HandlePackage);
                 CloseWriter();
             }
             catch (Exception e)
             {
+                Log.LogWarning($"Unexpected error when parsing patterns in '<OpenTapPackageReference>' ('{PackagesAndGlobs}'). If the problem persists, please open an issue and include the build log.");
                 Log.LogErrorFromException(e);
-                throw;
+                // throw;
             }
 
             return true;
