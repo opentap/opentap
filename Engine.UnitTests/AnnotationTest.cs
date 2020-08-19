@@ -260,6 +260,125 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(2, avail.AvailableValues.Cast<object>().Count());
         }
 
+        class MenuTestUserInterface : IUserInputInterface, IUserInterface
+        {
+            public bool WasInvoked;
+            public string SelectName { get; set; }
+            public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
+            {
+                var datas = AnnotationCollection.Annotate(dataObject);
+                var selectedName = datas.GetMember("SelectedName");
+                selectedName.Get<IStringValueAnnotation>().Value = SelectName;
+                
+                var scope = datas.GetMember("Scope");
+                var avail = scope.Get<IAvailableValuesAnnotationProxy>();
+                var values = avail.AvailableValues.ToArray();
+                avail.SelectedValue = avail.AvailableValues.First(); // sequence step!
+                Assert.IsTrue(values.Length > 0);
+                datas.Write();
+                
+                WasInvoked = true;
+            }
+
+            public void NotifyChanged(object obj, string property) { }
+        }
+        
+        [Test]
+        public void MenuAnnotationTest()
+        {
+            var currentUserInterface = UserInput.Interface;
+            var menuInterface = new MenuTestUserInterface();
+            UserInput.SetInterface(menuInterface);
+            try
+            {
+                var plan = new TestPlan();
+                var sequenceRoot = new SequenceStep();
+                var sequence = new SequenceStep();
+                var step = new DelayStep();
+                plan.Steps.Add(sequenceRoot);
+                sequenceRoot.ChildTestSteps.Add(sequence);
+                var step2 = new DelayStep();
+                sequenceRoot.ChildTestSteps.Add(step);
+                sequence.ChildTestSteps.Add(step2);
+                
+                { // basic functionalities test 
+                    var member = AnnotationCollection.Annotate(step2).GetMember(nameof(DelayStep.DelaySecs));
+                    var menu = member.Get<MenuAnnotation>();
+                    
+                    var items = menu.MenuItems;
+
+                    var icons = items.ToLookup(item =>
+                        item.Get<IIconAnnotation>()?.IconName ?? "");
+                    var parameterizeOnTestPlan = icons[IconNames.ParameterizeOnTestPlan].First();
+                    Assert.IsNotNull(parameterizeOnTestPlan);
+
+                    // invoking this method should
+                    var method = parameterizeOnTestPlan.Get<IMethodAnnotation>();
+                    method.Invoke();
+                    Assert.IsNotNull(plan.ExternalParameters.Get("Time Delay"));
+
+                    var unparameterize = icons[IconNames.Unparameterize].First();
+                    unparameterize.Get<IMethodAnnotation>().Invoke();
+                    Assert.IsNull(plan.ExternalParameters.Get("Time Delay"));
+
+                    var createOnParent = icons[IconNames.ParameterizeOnParent].First();
+                    Assert.IsNotNull(createOnParent);
+                    createOnParent.Get<IMethodAnnotation>().Invoke();
+                    Assert.IsNotNull(TypeData.GetTypeData(sequence).GetMember("Parameters \\ Time Delay"));
+
+                    unparameterize.Get<IMethodAnnotation>().Invoke();
+                    Assert.IsNull(TypeData.GetTypeData(sequence).GetMember("Parameters \\ Time Delay"));
+
+                    menuInterface.SelectName = "A";
+
+                    var parameterize = icons[IconNames.Parameterize].First();
+                    parameterize.Get<IMethodAnnotation>().Invoke();
+                    Assert.IsTrue(menuInterface.WasInvoked);
+
+                    var newParameter = TypeData.GetTypeData(sequence).GetMember("A");
+                    Assert.IsNotNull(newParameter);
+                    unparameterize.Get<IMethodAnnotation>().Invoke();
+                    Assert.IsNull(TypeData.GetTypeData(sequence).GetMember("A"));
+                    parameterize.Get<IMethodAnnotation>().Invoke();
+
+                    var editParameter = AnnotationCollection.Annotate(sequence).GetMember("A").Get<MenuAnnotation>()
+                        .MenuItems
+                        .FirstOrDefault(x => x.Get<IconAnnotationAttribute>()?.IconName == IconNames.EditParameter);
+
+                    menuInterface.SelectName = "B";
+                    editParameter.Get<IMethodAnnotation>().Invoke();
+
+                    Assert.IsNull(TypeData.GetTypeData(sequence).GetMember("A"));
+                    Assert.IsNotNull(TypeData.GetTypeData(sequence).GetMember("B"));
+                }
+                
+                { // test multi-select
+                    var memberMulti = AnnotationCollection.Annotate(new[] {step, step2})
+                        .GetMember(nameof(DelayStep.DelaySecs));
+                    var menuMulti = memberMulti.Get<MenuAnnotation>();
+                    Assert.IsNotNull(menuMulti);
+
+                    var icons2 = menuMulti.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+                    var parmeterizeOnTestPlanMulti = icons2[IconNames.ParameterizeOnTestPlan].First();
+                    parmeterizeOnTestPlanMulti.Get<IMethodAnnotation>().Invoke();
+                    Assert.AreEqual(2, plan.ExternalParameters.Entries.FirstOrDefault().Properties.Count());
+
+                    var unparmeterizePlanMulti = icons2[IconNames.Unparameterize].First();
+                    unparmeterizePlanMulti.Get<IMethodAnnotation>().Invoke();
+                    Assert.IsNull(plan.ExternalParameters.Entries.FirstOrDefault());
+
+                    var parmeterizeOnParentMulti = icons2[IconNames.ParameterizeOnParent].First();
+                    Assert.IsFalse(parmeterizeOnParentMulti.Get<IEnabledAnnotation>().IsEnabled);
+                }
+
+            }
+            finally
+            {
+                UserInput.SetInterface(currentUserInterface as IUserInputInterface);
+            }
+
+        }
+
         [Test]
         public void EnabledAnnotated()
         {
