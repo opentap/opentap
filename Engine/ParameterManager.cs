@@ -407,7 +407,7 @@ namespace OpenTap
             }
 
 
-            if (steps.Any(x => ((x is ITestStep step && step.IsReadOnly) && (x is TestPlan == false)) || property == null || property.Readable == false ||
+            if (steps.Any(x => ((x is ITestStep step && step.IsReadOnly) && (x is TestPlan == false)) || x is TestPlan || property == null || property.Readable == false ||
                                property.Writable == false))
             {
                 return false;

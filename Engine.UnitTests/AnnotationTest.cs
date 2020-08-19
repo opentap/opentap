@@ -371,6 +371,50 @@ namespace OpenTap.UnitTests
                     Assert.IsFalse(parmeterizeOnParentMulti.Get<IEnabledAnnotation>().IsEnabled);
                 }
 
+                { // Test Plan Enabled Items Locked
+                    var annotation = AnnotationCollection.Annotate(step);
+                    var menu = annotation.GetMember(nameof(DelayStep.DelaySecs))
+                        .Get<MenuAnnotation>();
+                    var icons = menu.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+                    icons[IconNames.ParameterizeOnTestPlan].First().Get<IMethodAnnotation>().Invoke();
+                    annotation.Read();
+                    
+                    Assert.IsTrue(icons[IconNames.ParameterizeOnTestPlan].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsTrue(icons[IconNames.Parameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsTrue(icons[IconNames.ParameterizeOnParent].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsTrue(icons[IconNames.Unparameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(icons[IconNames.EditParameter].First().Get<IEnabledAnnotation>().IsEnabled);
+                    
+                    var planAnnotation = AnnotationCollection.Annotate(plan);
+                    var planMenu = planAnnotation.GetMember("Time Delay")
+                        .Get<MenuAnnotation>();
+                    var planIcons = planMenu.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+                    Assert.IsFalse(planIcons[IconNames.ParameterizeOnTestPlan].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(planIcons[IconNames.Parameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsTrue(planIcons[IconNames.EditParameter].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(planIcons[IconNames.ParameterizeOnParent].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(planIcons[IconNames.Unparameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    
+                    plan.Locked = true;
+                    menu = AnnotationCollection.Annotate(step).GetMember(nameof(DelayStep.DelaySecs))
+                        .Get<MenuAnnotation>();
+                    icons = menu.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+                    Assert.IsFalse(icons[IconNames.ParameterizeOnTestPlan].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(icons[IconNames.Parameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(icons[IconNames.ParameterizeOnParent].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(icons[IconNames.Unparameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(icons[IconNames.EditParameter].First().Get<IEnabledAnnotation>().IsEnabled);
+                    planAnnotation = AnnotationCollection.Annotate(plan);
+                    planMenu = planAnnotation.GetMember("Time Delay")
+                        .Get<MenuAnnotation>();
+                    planIcons = planMenu.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+                    Assert.IsFalse(planIcons[IconNames.ParameterizeOnTestPlan].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(planIcons[IconNames.Parameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(planIcons[IconNames.EditParameter].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(planIcons[IconNames.ParameterizeOnParent].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(planIcons[IconNames.Unparameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    
+                }
             }
             finally
             {
