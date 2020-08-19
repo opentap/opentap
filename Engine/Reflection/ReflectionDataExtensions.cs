@@ -75,6 +75,7 @@ namespace OpenTap
         {
             if(typeof(T) == typeof(DisplayAttribute) && mem is TypeData td)
             {
+                
                 return (T)((object)td.Display);
             }
             if (mem.Attributes is object[] array)
