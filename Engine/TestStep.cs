@@ -519,19 +519,25 @@ namespace OpenTap
         /// </summary>
         /// <typeparam name="T">The type of TestStep to get.</typeparam>
         /// <returns>The closest TestStep of the requested type in the hierarchy.</returns>
-        public static T GetParent<T>(this ITestStep Step) where T : ITestStepParent
+        public static T GetParent<T>(this ITestStep step) where T : ITestStepParent =>  GetParent<T>(step as ITestStepParent);
+        
+        /// <summary>
+        /// Searches up through the Parent steps and returns the first step of the requested type that it finds.  
+        /// </summary>
+        /// <typeparam name="T">The type of TestStep to get.</typeparam>
+        /// <returns>The closest TestStep of the requested type in the hierarchy.</returns>
+        public static T GetParent<T>(this ITestStepParent item) where T : ITestStepParent
         {
-            ITestStepParent parent = Step.Parent;
-            while (parent != null)
+            item = item.Parent;
+            while (item != null)
             {
-                if (parent is T)
-                {
-                    return (T)parent;
-                }
-                parent = parent.Parent;
+                if (item is T p)
+                    return p;
+                item = item.Parent;
             }
-            return default(T);
+            return default;
         }
+        
         /// <summary> 
         /// Raises the <see cref="TestPlan.BreakOffered"/> event on the <see cref="TestPlan"/> object to which this TestStep belongs. 
         /// </summary>

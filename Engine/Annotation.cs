@@ -103,7 +103,7 @@ namespace OpenTap
     {
         
     }
-
+    
     /// <summary> Defines a read-only string value annotation implementation. </summary>
     public interface IStringReadOnlyValueAnnotation : IAnnotation
     {
@@ -134,7 +134,7 @@ namespace OpenTap
         /// <summary> Gets if the annotation is visible. This state can be temporary or permanent. </summary>
         bool IsVisible { get; }
     }
-
+    
     /// <summary>
     /// Owned annotations interacts directly with the source object. It is updated through the Read operation and changes are written with the Write operation. Specialized knowledge about the object is needed for implementation.
     /// </summary>
@@ -285,8 +285,6 @@ namespace OpenTap
         }
 
         public IEnumerable<AnnotationCollection> Members => getMembers();
-
-
 
         AnnotationCollection fac;
         public MembersAnnotation(AnnotationCollection fac)
@@ -1503,30 +1501,18 @@ namespace OpenTap
             {
                 if (source == null)
                     throw new InvalidOperationException("Unable to invoke method");
-                var action_proto = member.GetValue(source);
-                var action = action_proto as Action;
-                if (action != null)
+                if(member.GetValue(source) is Action action)
                     action();
             }
 
-            public MethodAnnotation(IMemberData member)
-            {
-                this.member = member;
-            }
+            public MethodAnnotation(IMemberData member) => this.member = member;
 
             IMemberData member;
-
             object source;
 
-            public void Read(object source)
-            {
-                this.source = source;
-            }
+            public void Read(object source) => this.source = source;
 
-            public void Write(object source)
-            {
-
-            }
+            public void Write(object source) { }
         }
 
         class BasicCollectionAnnotation : IBasicCollectionAnnotation, IOwnedAnnotation, IFixedSizeCollectionAnnotation
@@ -2349,16 +2335,19 @@ namespace OpenTap
                 if (annotation.Get<IObjectValueAnnotation>() == null)
                     annotation.Add(new MemberValueAnnotation(annotation));
 
-                annotation.Add(mem.Member.GetDisplayAttribute());
-
-                if (mem.Member.GetAttribute<SuggestedValuesAttribute>() is SuggestedValuesAttribute suggested)
-                    annotation.Add(new SuggestedValueAnnotation(annotation, suggested.PropertyName));
-
-                if (mem.Member.GetAttribute<DeviceAddressAttribute>() is DeviceAddressAttribute dev_addr)
-                    annotation.Add(new DeviceAddressAnnotation(annotation));
-
-                if (mem.Member.GetAttribute<PluginTypeSelectorAttribute>() is PluginTypeSelectorAttribute typeSelector)
-                    annotation.Add(new PluginTypeSelectAnnotation(annotation));
+                var attributes = mem.Member.Attributes;
+                bool displayFound = false;
+                Sequence.ProcessPattern(attributes,
+                    (SuggestedValuesAttribute suggested) => annotation.Add(new SuggestedValueAnnotation(annotation, suggested.PropertyName)),
+                    (DeviceAddressAttribute x) => annotation.Add(new DeviceAddressAnnotation(annotation)),
+                    (PluginTypeSelectorAttribute x) => annotation.Add(new PluginTypeSelectAnnotation(annotation)),
+                    (DisplayAttribute x) =>
+                    {
+                        displayFound = true;
+                        annotation.Add(x);
+                    }); 
+                if(!displayFound)
+                    annotation.Add(mem.Member.GetDisplayAttribute());
 
                 var browsable = mem.Member.GetAttribute<BrowsableAttribute>();
                 if(mem.Member.Writable == false || browsable != null)
@@ -2370,17 +2359,15 @@ namespace OpenTap
 
                 if (mem.ReflectionInfo.DescendsTo(typeof(TimeSpan)))
                     annotation.Add(new TimeSpanAnnotation(annotation));
-
-                if (mem.Member.GetAttribute<UnitAttribute>() is UnitAttribute unit)
-                    annotation.Add(unit);
-                if (mem.Member.GetAttribute<HelpLinkAttribute>() is HelpLinkAttribute help)
-                    annotation.Add(help);
-                if (mem.Member.GetAttribute<ColumnDisplayNameAttribute>() is ColumnDisplayNameAttribute col)
-                    annotation.Add(col);
-                if (mem.Member.GetAttribute<FilePathAttribute>() is FilePathAttribute fp)
-                    annotation.Add(fp);
-                if (mem.Member.GetAttribute<DirectoryPathAttribute>() is DirectoryPathAttribute dp)
-                    annotation.Add(dp);
+                
+                Sequence.ProcessPattern(attributes, 
+                    (UnitAttribute x) => annotation.Add(x), 
+                    (HelpLinkAttribute x) => annotation.Add(x),
+                    (ColumnDisplayNameAttribute x) => annotation.Add(x),
+                    (FilePathAttribute x) => annotation.Add(x),
+                    (DirectoryPathAttribute x) => annotation.Add(x),
+                    (IconAnnotationAttribute x) => annotation.Add(x) 
+                    );
             }
 
             var availMem = annotation.Get<AvailableMemberAnnotation>();
@@ -2525,9 +2512,13 @@ namespace OpenTap
                         annotation.Add(new InputStepAnnotation(annotation, true));
                 }
                 
+                if (mem2.DeclaringType.DescendsTo(typeof(ITestStepParent)))
+                    annotation.Add(new MenuAnnotation(mem2));
+
+                if (mem2.Name == nameof(ParameterManager.NamingQuestion.Settings) && mem2.DeclaringType.DescendsTo(TypeData.FromType(typeof(ParameterManager.NamingQuestion))))
+                    annotation.Add(new ParameterManager.SettingsName(annotation));
             }
             
-
             if (reflect?.ReflectionInfo is ITypeData tp)
             {
                 if (tp.DescendsTo(typeof(ITestStep)))

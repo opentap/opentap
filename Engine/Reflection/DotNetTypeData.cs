@@ -150,7 +150,7 @@ namespace OpenTap
         /// The attributes of this type. 
         /// Accessing this property causes the underlying Assembly to be loaded if it is not already.
         /// </summary>
-        public IEnumerable<object> Attributes => attributes ?? (attributes = Load().GetAllCustomAttributes(false));
+        public IEnumerable<object> Attributes => attributes ?? (attributes = Load()?.GetAllCustomAttributes(false)) ?? Array.Empty<object>();
 
         /// <summary> The base type of this type. </summary>
         public ITypeData BaseType

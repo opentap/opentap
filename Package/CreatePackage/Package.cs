@@ -236,7 +236,7 @@ namespace OpenTap.Package
                     {
                         newEntries.AddRange(files.Select(f => new PackageFile
                         {
-                            RelativeDestinationPath = f,
+                            RelativeDestinationPath = f.Replace('\\', '/'),
                             LicenseRequired = fileEntry.LicenseRequired,
                             IgnoredDependencies = fileEntry.IgnoredDependencies,
                             // clone the list to ensure further modifications happens
