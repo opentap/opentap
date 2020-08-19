@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -974,6 +975,17 @@ namespace OpenTap
             return buffer;
         }
 
+        public static List<T> FlattenHeirarchy<T>(IEnumerable<T> lst, Func<T, T> lookup, bool distinct = false,
+            List<T> buffer = null)
+        {
+            if (buffer != null)
+                buffer.Clear();
+            else
+                buffer = new List<T>();
+            flattenHeirarchy(lst, x => new []{lookup(x)}, buffer, distinct ? new HashSet<T>() : null);
+            return buffer;
+        }
+
         public static void FlattenHeirarchyInto<T>(IEnumerable<T> lst, Func<T, IEnumerable<T>> lookup, ISet<T> set)
         {
             foreach (var item in lst)
@@ -1513,6 +1525,162 @@ namespace OpenTap
                 i++;
             }
             return d.OrderBy(kv => kv.Value).Select(kv => kv.Key).ToList();
+        }
+        
+                internal static int ProcessPattern<T1>(IEnumerator objs, Action<T1> f1)
+        {
+            while (objs.MoveNext())
+            {
+                switch (objs.Current)
+                {
+                    case T1 t:
+                        f1(t);
+                        return 1;
+                }
+            }
+            return 0;
+        }
+        
+        internal static int ProcessPattern<T1, T2>(IEnumerator objs, Action<T1> f1, Action<T2> f2 )
+        {
+            while (objs.MoveNext())
+            {
+                switch (objs.Current)
+                {
+                    case T1 t:
+                        f1(t); 
+                        return 1 + ProcessPattern(objs, f2);
+                    case T2 t:
+                        f2(t);
+                        return 1 + ProcessPattern(objs, f1);
+                }
+            }
+            return 0;
+        }
+        
+        internal static int ProcessPattern<T1, T2, T3>(IEnumerator objs, Action<T1> f1, Action<T2> f2, Action<T3> f3 )
+        {
+            while (objs.MoveNext())
+            {
+                switch (objs.Current)
+                {
+                    case T1 t:
+                        f1(t); 
+                        return 1 + ProcessPattern(objs, f2, f3);
+                    case T2 t:
+                        f2(t);
+                        return 1 + ProcessPattern(objs, f1, f3);
+                    case T3 t:
+                        f3(t);
+                        return 1 + ProcessPattern(objs, f1, f2);
+                }
+            }
+            return 0;
+        }
+        
+        internal static int ProcessPattern<T1, T2, T3, T4>(IEnumerator objs, Action<T1> f1, Action<T2> f2, Action<T3> f3, Action<T4> f4 )
+        {
+            while (objs.MoveNext())
+            {
+                switch (objs.Current)
+                {
+                    case T1 t:
+                        f1(t); 
+                        return 1 + ProcessPattern(objs, f2, f3, f4);
+                    case T2 t:
+                        f2(t);
+                        return 1 + ProcessPattern(objs, f1, f3, f4);
+                    case T3 t:
+                        f3(t);
+                        return 1 + ProcessPattern(objs, f1, f2, f4);
+                    case T4 t:
+                        f4(t);
+                        return 1 + ProcessPattern(objs, f1, f2, f3);
+                }
+            }
+            return 0;
+        }
+        
+        public static int ProcessPattern<T1, T2, T3, T4, T5>(IEnumerator objs, Action<T1> f1, Action<T2> f2, Action<T3> f3, Action<T4> f4 , Action<T5> f5 )
+        {
+            while (objs.MoveNext())
+            {
+                switch (objs.Current)
+                {
+                    case T1 t:
+                        f1(t); 
+                        return 1 + ProcessPattern(objs, f2, f3, f4, f5);
+                    case T2 t:
+                        f2(t);
+                        return 1 + ProcessPattern(objs, f1, f3, f4, f5);
+                    case T3 t:
+                        f3(t);
+                        return 1 + ProcessPattern(objs, f1, f2, f4, f5);
+                    case T4 t:
+                        f4(t);
+                        return 1 + ProcessPattern(objs, f1, f2, f3, f5);
+                    case T5 t:
+                        f5(t);
+                        return 1 + ProcessPattern(objs, f1, f2, f3, f4);
+                }
+            }
+            return 0;
+        }
+        
+        public static int ProcessPattern<T1, T2, T3, T4, T5, T6>(IEnumerator objs, Action<T1> f1, Action<T2> f2, Action<T3> f3, Action<T4> f4 , Action<T5> f5, Action<T6> f6 )
+        {
+            while (objs.MoveNext())
+            {
+                switch (objs.Current)
+                {
+                    case T1 t:
+                        f1(t); 
+                        return 1 + ProcessPattern(objs, f2, f3, f4, f5, f6);
+                    case T2 t:
+                        f2(t);
+                        return 1 + ProcessPattern(objs, f1, f3, f4, f5, f6);
+                    case T3 t:
+                        f3(t);
+                        return 1 + ProcessPattern(objs, f1, f2, f4, f5,f6);
+                    case T4 t:
+                        f4(t);
+                        return 1 + ProcessPattern(objs, f1, f2, f3, f5,f6);
+                    case T5 t:
+                        f5(t);
+                        return 1 + ProcessPattern(objs, f1, f2, f3, f4,f6);
+                    case T6 t:
+                        f6(t);
+                        return 1 + ProcessPattern(objs, f1, f2, f3, f4, f5);
+                }
+            }
+            return 0;
+        }
+        
+        public static int ProcessPattern<T1, T2>(IEnumerable<object> objs, Action<T1> f1, Action<T2> f2)
+        {
+            using (var e = objs.GetEnumerator())
+                return ProcessPattern(e, f1, f2);
+        }
+        
+        public static int ProcessPattern<T1, T2, T3>(IEnumerable<object> objs, Action<T1> f1, Action<T2> f2, Action<T3> f3)
+        {
+            using (var e = objs.GetEnumerator())
+                return ProcessPattern(e, f1, f2, f3);
+        }
+        public static int ProcessPattern<T1, T2, T3, T4>(IEnumerable<object> objs, Action<T1> f1, Action<T2> f2, Action<T3> f3, Action<T4> f4)
+        {
+            using (var e = objs.GetEnumerator())
+                return ProcessPattern(e, f1, f2, f3, f4);
+        }
+        public static int ProcessPattern<T1, T2, T3, T4, T5>(IEnumerable<object> objs, Action<T1> f1, Action<T2> f2, Action<T3> f3, Action<T4> f4, Action<T5> f5)
+        {
+            using (var e = objs.GetEnumerator())
+                return ProcessPattern(e, f1, f2, f3, f4, f5);
+        }
+        public static int ProcessPattern<T1, T2, T3, T4, T5, T6>(IEnumerable<object> objs, Action<T1> f1, Action<T2> f2, Action<T3> f3, Action<T4> f4, Action<T5> f5, Action<T6> f6)
+        {
+            using (var e = objs.GetEnumerator())
+                return ProcessPattern(e, f1, f2, f3, f4, f5, f6);
         }
     }
 
