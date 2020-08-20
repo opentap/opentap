@@ -260,6 +260,24 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(4, col.StepRuns.Count);
             
         }
+
+        /// <summary>
+        /// Testing that TestPlan.Locked causes BreakConditions to be locked.
+        /// </summary>
+        [Test]
+        public void TestBreakConditionsLocked()
+        {
+            var plan = new TestPlan();
+            var a = AnnotationCollection.Annotate(plan);
+            var mem = a.GetMember("BreakConditions");
+            Assert.IsFalse(mem.Get<IAccessAnnotation>().IsReadOnly);
+            plan.Locked = true;
+            a.Read();
+            Assert.IsTrue(mem.Get<IAccessAnnotation>().IsReadOnly);
+            plan.Locked = false;
+            a.Read();
+            Assert.IsFalse(mem.Get<IAccessAnnotation>().IsReadOnly);
+        }
         
     }
 }

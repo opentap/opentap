@@ -506,7 +506,8 @@ namespace OpenTap
                 {
                     new DisplayAttribute("Break Conditions",
                         "When enabled, specify new break conditions. When disabled conditions are inherited from the engine settings.", Order: 3),
-                    new UnsweepableAttribute()
+                    new UnsweepableAttribute(),
+                    new EnabledIfAttribute("Locked", false), 
                 },
                 DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
                 Readable = true,
