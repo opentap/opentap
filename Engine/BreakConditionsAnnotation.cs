@@ -24,7 +24,7 @@ namespace OpenTap
 
     internal class BreakConditionsAnnotation : IEnabledValueAnnotation, IOwnedAnnotation, IMembersAnnotation
     {
-        class BreakConditionValueAnnotation : IStringReadOnlyValueAnnotation, IValueDescriptionAnnotation, IAccessAnnotation
+        internal class BreakConditionValueAnnotation : IStringReadOnlyValueAnnotation, IValueDescriptionAnnotation, IAccessAnnotation
         {
             static BreakCondition[] conditions = Enum.GetValues(typeof(BreakCondition)).OfType<BreakCondition>().ToArray();
 
@@ -32,7 +32,7 @@ namespace OpenTap
                 conditions.Where(x => x.ToString().Contains("Break")).ToArray();
             static string getEnumString(BreakCondition value)
             {
-                if (value == 0) return "None";
+                if (value == 0) return "";
                 var sb = new StringBuilder();
                 var breakFlags = breakConditions.Where(x => value.HasFlag(x));
                 if (breakFlags.Any())
@@ -78,7 +78,7 @@ namespace OpenTap
                 if (annotation.Conditions.HasFlag(BreakCondition.Inherit) && annotation.annotation.Source is ITestStepParent step)
                     return getInheritedVerdict(step);
 
-                var valuemem = (BreakCondition)valueAnnotation.Get<IObjectValueAnnotation>().Value;
+                var valuemem = (BreakCondition)(valueAnnotation.Get<IObjectValueAnnotation>().Value ?? 0);
                 return (valuemem, null);
             }
 

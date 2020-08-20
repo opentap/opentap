@@ -790,6 +790,11 @@ namespace OpenTap
                     }
                     if (mem == null) continue;
                     var newa = parentAnnotation.AnnotateMember(mem, sources[0].ExtraAnnotations.Append(new MergedValueAnnotation(mergething)).ToArray());
+                    if(parentAnnotation.Get<MergedValueAnnotation>()?.Merged.First().Get<BreakConditionsAnnotation>() is BreakConditionsAnnotation br)
+                    {
+                        if(br.Value.Get<IMemberAnnotation>().Member.Name == mem.Name)
+                            newa.Add(new BreakConditionsAnnotation.BreakConditionValueAnnotation(br) { valueAnnotation = newa });
+                    }
 
                     var manyAccess = new ManyAccessAnnotation(mergething.SelectValues(x => x.Get<IAccessAnnotation>()).ToArray());
                     // Enabled if is not supported when multi-selecting.
