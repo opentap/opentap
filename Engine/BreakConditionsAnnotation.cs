@@ -141,7 +141,7 @@ namespace OpenTap
         {
             var _value = (Values)(int)Conditions;
             var sub = annotation.AnnotateSub(TypeData.GetTypeData(_value), _value);
-            sub.Add(new AnnotationCollection.MemberAnnotation(TypeData.FromType(typeof(IEnabledValue)).GetMember("Value"))); // for compatibility with 9.8 UIs, emulate that this is a Value member from a Enabled<T> class
+            sub.Add(new AnnotationCollection.MemberAnnotation(TypeData.FromType(typeof(Enabled<Values>)).GetMember("Value"))); // for compatibility with 9.8 UIs, emulate that this is a Value member from a Enabled<T> class
             sub.Add(str = new BreakConditionValueAnnotation(this) { valueAnnotation = sub });
             return sub;
         }
@@ -188,12 +188,15 @@ namespace OpenTap
             {
                 var cond2 = str.GetCondition();
                 cond = cond2.Item1;
+            } 
+            else if (dontInherit == false)
+            {
+                cond = BreakCondition.Inherit;
             }
             
             cond = cond.SetFlag(BreakCondition.Inherit, !dontInherit);
             Conditions = cond;
-            if (source is ITestStepParent step)
-                BreakConditionProperty.SetBreakCondition(step, cond);
+            annotation.Get<IObjectValueAnnotation>().Value = cond;
             Read(source);
         }
     }

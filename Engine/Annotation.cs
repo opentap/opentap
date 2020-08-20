@@ -800,6 +800,13 @@ namespace OpenTap
                         newa.Add(new ManyToOneMethodAnnotation(newa));
                         newa.Remove(method);
                     }
+
+                    var enabledValue = newa.Get<IEnabledValueAnnotation>();
+                    if (enabledValue != null)
+                    {
+                        newa.Add(new ManyIEnabledValueAnnotation(newa));
+                        newa.Remove(enabledValue);
+                    }
                     
                     newa.Add(manyAccess);
 
@@ -829,6 +836,36 @@ namespace OpenTap
                 next_thing:;
                 }
                 return members = CommonAnnotations.ToArray();
+            }
+        }
+
+        class ManyIEnabledValueAnnotation : IEnabledValueAnnotation
+        {
+            AnnotationCollection annotation;
+            public ManyIEnabledValueAnnotation(AnnotationCollection annotation) => this.annotation = annotation;
+
+            public AnnotationCollection IsEnabled
+            {
+                get
+                {
+                    var eMember = annotation.Get<ManyToOneAnnotation>().Members
+                        .FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name == "IsEnabled");
+                    return eMember;
+                }
+            }
+
+            public AnnotationCollection Value
+            {
+                get
+                {
+                    var eMember = annotation.Get<ManyToOneAnnotation>().Members
+                        .FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name != "IsEnabled")?.Clone();
+                    if(annotation.Get<UnitAttribute>() is UnitAttribute attr)
+                        eMember.Add(attr);
+                    if(annotation.Get<IAvailableValuesAnnotation>() is IAvailableValuesAnnotation avail)
+                        eMember.Add(avail);
+                    return eMember;
+                }
             }
         }
 

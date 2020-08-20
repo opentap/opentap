@@ -1193,8 +1193,10 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void MultiSelectAnnotationsInterfaceTest()
         {
+            var plan = new TestPlan();
             var steps = new List<DialogStep> { new DialogStep { UseTimeout = false }, new DialogStep { UseTimeout = false }, new DialogStep { UseTimeout = true } };
-
+            plan.ChildTestSteps.AddRange(steps);
+            
             var mem = AnnotationCollection.Annotate(steps);
             var val = mem.Get<IMembersAnnotation>();
             Assert.IsNotNull(val);
@@ -1212,6 +1214,59 @@ namespace OpenTap.Engine.UnitTests
                 Assert.IsTrue(string.Compare(theMessage, step.Message) == 0);
                 Assert.IsTrue(step.UseTimeout);
             }
+
+            {
+                // check Break Conditions
+                var cval = BreakConditionProperty.GetBreakCondition(steps[0]);
+                Assert.AreEqual(BreakCondition.Inherit, cval);
+                var bk = mem.GetMember("BreakConditions");
+                var enabled = bk.Get<IEnabledValueAnnotation>();
+                Assert.IsNotNull(enabled.Value.Get<IAvailableValuesAnnotationProxy>());
+                Assert.IsFalse((bool)(enabled.IsEnabled.Get<IObjectValueAnnotation>().Value));
+                enabled.IsEnabled.Get<IObjectValueAnnotation>().Value = true;
+                mem.Write();
+                mem.Read();
+                
+                cval = BreakConditionProperty.GetBreakCondition(steps[0]);
+                Assert.AreEqual(BreakCondition.BreakOnError, cval);
+                Assert.IsTrue((bool)enabled.IsEnabled.Get<IObjectValueAnnotation>().Value);
+                enabled.IsEnabled.Get<IObjectValueAnnotation>().Value = false;
+                mem.Write();
+                cval = BreakConditionProperty.GetBreakCondition(steps[0]);
+                Assert.AreEqual(BreakCondition.Inherit, cval);
+            }
+        }
+        
+        [Test]
+        public void MultiSelectAnnotationsInterfaceTest2()
+        {
+            var plan = new TestPlan();
+            var steps = new List<ProcessStep> { new ProcessStep {}, new ProcessStep {}, new ProcessStep {} };
+            plan.ChildTestSteps.AddRange(steps);
+            
+            var mem = AnnotationCollection.Annotate(steps);
+
+            {
+                // check Break Conditions
+                var cval =steps[0].ResultRegularExpressionPattern;
+                Assert.IsFalse(cval.IsEnabled);
+                var bk = mem.GetMember("ResultRegularExpressionPattern");
+                var enabled = bk.Get<IEnabledValueAnnotation>();
+                Assert.IsFalse((bool)(enabled.IsEnabled.Get<IObjectValueAnnotation>().Value));
+                enabled.IsEnabled.Get<IObjectValueAnnotation>().Value = true;
+                mem.Write();
+                mem.Read();
+                
+                cval = steps[0].ResultRegularExpressionPattern;
+                Assert.IsTrue(cval.IsEnabled);
+                Assert.IsTrue((bool)enabled.IsEnabled.Get<IObjectValueAnnotation>().Value);
+                enabled.IsEnabled.Get<IObjectValueAnnotation>().Value = false;
+                mem.Write();
+                cval = steps[0].ResultRegularExpressionPattern;
+                Assert.IsFalse(cval.IsEnabled);
+            }
+
+
         }
 
         [Test]
