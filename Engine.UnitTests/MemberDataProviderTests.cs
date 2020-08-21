@@ -1220,6 +1220,13 @@ namespace OpenTap.Engine.UnitTests
                 var cval = BreakConditionProperty.GetBreakCondition(steps[0]);
                 Assert.AreEqual(BreakCondition.Inherit, cval);
                 var bk = mem.GetMember("BreakConditions");
+                var descriptor = bk.GetMember("Value").Get<IValueDescriptionAnnotation>();
+                var description = descriptor.Describe();
+                var tostringer = bk.GetMember("Value").Get<IStringReadOnlyValueAnnotation>();
+                var tostringvalue = tostringer.Value;
+                
+                Assert.AreEqual("Break on Error (inherited from engine settings).", description);
+                Assert.AreEqual("Break on Error", tostringvalue);
                 var enabled = bk.Get<IEnabledValueAnnotation>();
                 Assert.IsNotNull(enabled.Value.Get<IAvailableValuesAnnotationProxy>());
                 Assert.IsFalse((bool)(enabled.IsEnabled.Get<IObjectValueAnnotation>().Value));
