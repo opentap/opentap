@@ -63,10 +63,16 @@ namespace OpenTap
         public bool IsParameterized => isParameterized();
         public bool IsParameter => member is ParameterMemberData;
 
-        public bool TestPlanLocked => source
-            .Select(step => step is TestPlan plan ? plan : step.GetParent<TestPlan>())
-            .FirstOrDefault()?.Locked ?? false;
-        
+        public bool TestPlanLocked
+        {
+            get
+            {
+                var plan2 = source
+                    .Select(step => step is TestPlan plan ? plan : step.GetParent<TestPlan>()).FirstOrDefault();
+                return plan2.IsRunning || plan2.Locked;
+            }
+        }
+
         [EnabledIf(nameof(IsParameterized), true, HideIfDisabled = true)]
         [EnabledIf(nameof(TestPlanLocked), false)]
         [Display("Unparameterize", "Removes the parameterization of this setting.", Order: 1.0)]

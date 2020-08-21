@@ -461,31 +461,10 @@ namespace OpenTap
             checkParameterSanity(step);
         }
         
-        static void checkParameterSanity(ITestStepParent step)
+        static bool checkParameterSanity(ITestStepParent step)
         {
-            if (step == null) return;
-            if (step is TestPlan plan)
-            {
-                foreach (var kvp in plan.ExternalParameters.Entries
-                    .SelectMany(x => x.Properties)
-                    .ToArray())
-                {
-                    var step2 = kvp.Key;
-                    var properties = kvp.Value;
-                    var steptype = TypeData.GetTypeData(step2);
-                    foreach (var property in properties.ToArray())
-                    {
-                        var existing = steptype.GetMember(property.Name);
-                        if (!Equals(existing, property))
-                        {
-                            plan.ExternalParameters.Remove(step2, property);
-                            log.Warning("External test plan parameter mismatch {0} does not exist on {1}. Removing.", property.Name, step2.GetFormattedName());
-                        }
-                    }
-                }
-
-                return;
-            }
+            bool isSane = true;
+            if (step == null) return isSane;
             var forwarded = TypeData.GetTypeData(step).GetMembers().OfType<ParameterMemberData>();
             foreach (var item in forwarded.ToArray())
             {
@@ -495,23 +474,22 @@ namespace OpenTap
                     var mem = fwd.Member;
                     var existing = TypeData.GetTypeData(src).GetMember(mem.Name);
                     bool isParent = false;
-                    bool unparented = true;
+                    bool unparented = false;
                     var subparent = (src as ITestStep)?.Parent;
                     
                     // Multiple situations possible.
                     // 1. the step is no longer a child of the parent to which it has parameterized a setting.
                     // 2. the member of a parameter no longer exists.
                     // 3. the child has been deleted from the step heirarchy.
-                    
-                    if (subparent != null && subparent.ChildTestSteps.Contains((ITestStep) src))
-                        unparented = false; // check if the step has been removed.
-                    
+                    if (subparent != null && subparent.ChildTestSteps.Contains(src) == false)
+                        unparented = true;
                     while (subparent != null)
                     {
+                        if (subparent.Parent != null && subparent.Parent.ChildTestSteps.Contains(subparent) == false)
+                            unparented = true;
                         if (subparent == step)
                         {
                             isParent = true;
-                            break;
                         }
                         subparent = subparent.Parent;
                     }
@@ -522,12 +500,15 @@ namespace OpenTap
                             log.Warning("Step {0} is no longer a child step of the parameter owner.", (src as ITestStep)?.GetFormattedName() ?? src?.ToString());
                         else
                             log.Warning("Member {0} no longer exists, unparameterizing member.", mem.Name);
+                        isSane = false;
                     }
                 }
             }
             if(step.Parent is ITestStepParent parent)
-                checkParameterSanity(parent);
+                return checkParameterSanity(parent) & isSane;
+            return isSane;
         }
+        
         
         public class SettingsName : IStringReadOnlyValueAnnotation
         {
