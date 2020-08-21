@@ -24,7 +24,7 @@ namespace OpenTap
 
     internal class BreakConditionsAnnotation : IEnabledValueAnnotation, IOwnedAnnotation, IMembersAnnotation
     {
-        class BreakConditionValueAnnotation : IStringReadOnlyValueAnnotation, IValueDescriptionAnnotation, IAccessAnnotation
+        internal class BreakConditionValueAnnotation : IStringReadOnlyValueAnnotation, IValueDescriptionAnnotation, IAccessAnnotation
         {
             static BreakCondition[] conditions = Enum.GetValues(typeof(BreakCondition)).OfType<BreakCondition>().ToArray();
 
@@ -32,7 +32,7 @@ namespace OpenTap
                 conditions.Where(x => x.ToString().Contains("Break")).ToArray();
             static string getEnumString(BreakCondition value)
             {
-                if (value == 0) return "None";
+                if (value == 0) return "";
                 var sb = new StringBuilder();
                 var breakFlags = breakConditions.Where(x => value.HasFlag(x));
                 if (breakFlags.Any())
@@ -78,7 +78,7 @@ namespace OpenTap
                 if (annotation.Conditions.HasFlag(BreakCondition.Inherit) && annotation.annotation.Source is ITestStepParent step)
                     return getInheritedVerdict(step);
 
-                var valuemem = (BreakCondition)valueAnnotation.Get<IObjectValueAnnotation>().Value;
+                var valuemem = (BreakCondition)(valueAnnotation.Get<IObjectValueAnnotation>().Value ?? 0);
                 return (valuemem, null);
             }
 
@@ -141,7 +141,7 @@ namespace OpenTap
         {
             var _value = (Values)(int)Conditions;
             var sub = annotation.AnnotateSub(TypeData.GetTypeData(_value), _value);
-            sub.Add(new AnnotationCollection.MemberAnnotation(TypeData.FromType(typeof(IEnabledValue)).GetMember("Value"))); // for compatibility with 9.8 UIs, emulate that this is a Value member from a Enabled<T> class
+            sub.Add(new AnnotationCollection.MemberAnnotation(TypeData.FromType(typeof(Enabled<Values>)).GetMember("Value"))); // for compatibility with 9.8 UIs, emulate that this is a Value member from a Enabled<T> class
             sub.Add(str = new BreakConditionValueAnnotation(this) { valueAnnotation = sub });
             return sub;
         }
@@ -188,12 +188,15 @@ namespace OpenTap
             {
                 var cond2 = str.GetCondition();
                 cond = cond2.Item1;
+            } 
+            else if (dontInherit == false)
+            {
+                cond = BreakCondition.Inherit;
             }
             
             cond = cond.SetFlag(BreakCondition.Inherit, !dontInherit);
             Conditions = cond;
-            if (source is ITestStepParent step)
-                BreakConditionProperty.SetBreakCondition(step, cond);
+            annotation.Get<IObjectValueAnnotation>().Value = cond;
             Read(source);
         }
     }
