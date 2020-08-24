@@ -77,6 +77,8 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(verdictOutput, run.Verdict);
             Assert.AreEqual(1, l.StepRuns.Count);
             Assert.AreEqual(BreakCondition.Inherit, BreakConditionProperty.GetBreakCondition(verdict2));
+            var log = l.LogString;
+            Assert.IsTrue(log.Contains("Break issued from"));
         }
 
         [TestCase(Verdict.Pass, EngineSettings.AbortTestPlanType.Step_Error, 2)]
