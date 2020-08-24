@@ -180,8 +180,8 @@ namespace OpenTap
                     var run = step.DoRun(execStage, execStage);
                     if (!run.Skipped)
                         runs.Add(run);
-                    if (run.IsBreakCondition())
-                        break;
+                    run.CheckBreakCondition();
+
                     // note: The following is copied inside TestStep.cs
                     if (run.SuggestedNextStep is Guid id)
                     {
@@ -191,7 +191,10 @@ namespace OpenTap
                         // if skip to next step, dont add it to the wait queue.
                     }
                 }
-
+            }
+            catch(TestStepBreakException breakEx)
+            {
+                Log.Info("{0}", breakEx.Message);
             }
             finally
             {
