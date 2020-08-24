@@ -1229,6 +1229,7 @@ namespace OpenTap.Engine.UnitTests
                 Assert.AreEqual("Break on Error", tostringvalue);
                 var enabled = bk.Get<IEnabledValueAnnotation>();
                 Assert.IsNotNull(enabled.Value.Get<IAvailableValuesAnnotationProxy>());
+
                 Assert.IsFalse((bool)(enabled.IsEnabled.Get<IObjectValueAnnotation>().Value));
                 enabled.IsEnabled.Get<IObjectValueAnnotation>().Value = true;
                 mem.Write();
@@ -1243,7 +1244,34 @@ namespace OpenTap.Engine.UnitTests
                 Assert.AreEqual(BreakCondition.Inherit, cval);
             }
         }
-        
+
+        [Test]
+        public void MultiSelectAnnotationsInterfaceTest3()
+        {
+            var plan = new TestPlan();
+            var steps = new List<DialogStep> { new DialogStep { UseTimeout = false }, new DialogStep { UseTimeout = false }, new DialogStep { UseTimeout = true } };
+            BreakConditionProperty.SetBreakCondition(steps[0], BreakCondition.BreakOnError);
+            BreakConditionProperty.SetBreakCondition(steps[1], BreakCondition.BreakOnFail);
+            BreakConditionProperty.SetBreakCondition(steps[2], BreakCondition.BreakOnInconclusive);
+            plan.ChildTestSteps.AddRange(steps);
+
+            var mem = AnnotationCollection.Annotate(steps);
+            var bk = mem.GetMember("BreakConditions");
+            var descriptor = bk.GetMember("Value").Get<IValueDescriptionAnnotation>();
+            var description = descriptor.Describe();
+            var tostringer = bk.GetMember("Value").Get<IStringReadOnlyValueAnnotation>();
+            var tostringvalue = tostringer.Value;
+            StringAssert.Contains("different", description);
+            Assert.AreEqual("", tostringvalue);
+
+            BreakConditionProperty.SetBreakCondition(steps[0], 0);
+            BreakConditionProperty.SetBreakCondition(steps[1], 0);
+            BreakConditionProperty.SetBreakCondition(steps[2], 0);
+            mem.Read();
+            var tostringvalue2 = tostringer.Value;
+            Assert.AreEqual("None", tostringvalue2);
+        }
+
         [Test]
         public void MultiSelectAnnotationsInterfaceTest2()
         {

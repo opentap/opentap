@@ -20,6 +20,7 @@ namespace OpenTap
         public bool CanExecuteParameterize => ParameterManager.CanParameter(this);
         
         [EnabledIf(nameof(CanExecuteParameterize), true, HideIfDisabled = true)]
+        [EnabledIf(nameof(TestPlanLocked), false)]
         [Browsable(true)]
         [IconAnnotation(IconNames.Parameterize)]
         [Display("Parameterize...", "Parameterize this setting by creating, or adding to, an existing parameter.", Order: 1.0)]
@@ -29,6 +30,7 @@ namespace OpenTap
 
         [EnabledIf(nameof(CanExecuteParameterize), true, HideIfDisabled = true)]
         [EnabledIf(nameof(HasTestPlanParent), true, HideIfDisabled = true)]
+        [EnabledIf(nameof(TestPlanLocked), false)]
         [Browsable(true)]
         [IconAnnotation(IconNames.ParameterizeOnTestPlan)]
         [Display("Parameterize On Test Plan", "Parameterize this setting by creating, or adding to, an existing external test plan parameter.", Order: 1.0)]
@@ -42,6 +44,7 @@ namespace OpenTap
         public bool HasSameParents => source.Select(x => x.Parent).OfType<ITestStep>().Distinct().Take(2).Count() == 1;
         public bool CanExecutedParameterizeOnParent => CanExecuteParameterize && HasSameParents; 
         [EnabledIf(nameof(CanExecutedParameterizeOnParent), true, HideIfDisabled = true)]
+        [EnabledIf(nameof(TestPlanLocked), false)]
         [Browsable(true)]
         [IconAnnotation(IconNames.ParameterizeOnParent)]
         [Display("Parameterize On Parent", "Parameterize this setting by creating, or adding to, an existing parameter.", Order: 1.0)]
@@ -60,7 +63,18 @@ namespace OpenTap
         public bool IsParameterized => isParameterized();
         public bool IsParameter => member is ParameterMemberData;
 
+        public bool TestPlanLocked
+        {
+            get
+            {
+                var plan2 = source
+                    .Select(step => step is TestPlan plan ? plan : step.GetParent<TestPlan>()).FirstOrDefault();
+                return plan2.IsRunning || plan2.Locked;
+            }
+        }
+
         [EnabledIf(nameof(IsParameterized), true, HideIfDisabled = true)]
+        [EnabledIf(nameof(TestPlanLocked), false)]
         [Display("Unparameterize", "Removes the parameterization of this setting.", Order: 1.0)]
         [IconAnnotation(IconNames.Unparameterize)]
         [Browsable(true)]
@@ -68,6 +82,7 @@ namespace OpenTap
 
         [Display("Edit Parameter", "Edit an existing parameterization.", Order: 1.0)]
         [Browsable(true)]
+        [EnabledIf(nameof(TestPlanLocked), false)]
         [IconAnnotation(IconNames.EditParameter)]
         [EnabledIf(nameof(IsParameter), true, HideIfDisabled = true)]
         public void EditParameter() => ParameterManager.EditParameter(this);
@@ -77,7 +92,7 @@ namespace OpenTap
     {
         public IMenuModel CreateModel(IMemberData member)
         {
-            if(member.DeclaringType.DescendsTo(typeof(ITestStep)))
+            if(member.DeclaringType.DescendsTo(typeof(ITestStepParent)))
                 return new TestStepMenuModel(member);
             return null;
         }
