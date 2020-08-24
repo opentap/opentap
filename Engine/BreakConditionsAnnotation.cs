@@ -32,7 +32,7 @@ namespace OpenTap
                 conditions.Where(x => x.ToString().Contains("Break")).ToArray();
             static string getEnumString(BreakCondition value)
             {
-                if (value == 0) return "";
+                if (value == 0) return "None";
                 var sb = new StringBuilder();
                 var breakFlags = breakConditions.Where(x => value.HasFlag(x));
                 if (breakFlags.Any())
@@ -53,7 +53,7 @@ namespace OpenTap
                        | (abortType.HasFlag(EngineSettings.AbortTestPlanType.Step_Error) ? BreakCondition.BreakOnError : 0);
             }
 
-            public static (BreakCondition, string) getInheritedVerdict(ITestStepParent _step)
+            private static (BreakCondition Condition, string InheritKind, bool MultiselectDifference) getInheritedVerdict(ITestStepParent _step)
             {
                 ITestStepParent src = _step;
                 src = src.Parent;
@@ -63,30 +63,47 @@ namespace OpenTap
                     if (cond.HasFlag(BreakCondition.Inherit) == false)
                     {
                         if (src is TestPlan)
-                            return (cond, $"test plan");
-                        return (cond, $"parent step '{((ITestStep)src).GetFormattedName()}'");
+                            return (cond, $"test plan", false);
+                        return (cond, $"parent step '{((ITestStep)src).GetFormattedName()}'", false);
                     }
 
                     src = src.Parent;
                 }
 
-                return (convertAbortCondition(EngineSettings.Current.AbortTestPlan), "engine settings");
+                return (convertAbortCondition(EngineSettings.Current.AbortTestPlan), "engine settings", false);
             }
 
-            public (BreakCondition, string) GetCondition()
+            public (BreakCondition Condition, string InheritKind, bool MultiselectDifference) GetCondition()
             {
-                if (annotation.Conditions.HasFlag(BreakCondition.Inherit) && annotation.annotation.Source is ITestStepParent step)
-                    return getInheritedVerdict(step);
+                if (annotation.Conditions.HasFlag(BreakCondition.Inherit))
+                {
+                    if(annotation.annotation.Source is ITestStepParent step)
+                        return getInheritedVerdict(step);
+                    if (annotation.annotation.Source is IEnumerable<ITestStepParent> stepList)
+                    {
+                        return getInheritedVerdict(stepList.First());
+                    }
+                }
 
-                var valuemem = (BreakCondition)(valueAnnotation.Get<IObjectValueAnnotation>().Value ?? 0);
-                return (valuemem, null);
+                if (valueAnnotation.Get<IObjectValueAnnotation>().Value == null)
+                {
+                    var valuemem = (BreakCondition)0;
+                    return (valuemem, null, true);
+                }
+                else
+                {
+                    var valuemem = (BreakCondition)valueAnnotation.Get<IObjectValueAnnotation>().Value;
+                    return (valuemem, null, false);
+                }
             }
 
             public string Value
             {
                 get
                 {
-                    var (condition, _) = GetCondition();
+                    var (condition, _, multiselectDifference) = GetCondition();
+                    if (multiselectDifference)
+                        return "";
                     return getEnumString(condition);
                 }
             }
@@ -100,7 +117,9 @@ namespace OpenTap
 
             public string Describe()
             {
-                var (condition, kind) = GetCondition();
+                var (condition, kind, multiselectDifference) = GetCondition();
+                if (multiselectDifference)
+                    return "Selected Test Steps has different values for this setting.";
                 var str = getEnumString(condition);
                 if (kind == null) return str;
                 return $"{str} (inherited from {kind}).";
@@ -187,7 +206,7 @@ namespace OpenTap
             if (dontInherit && cond.HasFlag(BreakCondition.Inherit))
             {
                 var cond2 = str.GetCondition();
-                cond = cond2.Item1;
+                cond = cond2.Condition;
             } 
             else if (dontInherit == false)
             {
