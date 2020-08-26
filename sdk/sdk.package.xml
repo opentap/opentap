@@ -7,7 +7,7 @@
   <SourceUrl>https://gitlab.com/OpenTAP/opentap</SourceUrl>
   <Owner>OpenTAP</Owner>
   <Dependencies>
-    <PackageDependency Package="OpenTAP" Version="$(GitVersion)" />
+    <PackageDependency Package="OpenTAP" Version="^$(GitVersion)" />
       </Dependencies>
   <Files>
     <File Path="Packages/SDK/Keysight.OpenTap.Sdk.MSBuild.dll" SourcePath="Keysight.OpenTap.Sdk.MSBuild.dll">
