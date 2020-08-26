@@ -1752,7 +1752,31 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsNotNull(run.TestPlanXml);
             Assert.IsNotNull(run.Hash);
         }
-        
+
+        class CheckTestPlanXmlListener : ResultListener
+        {   
+            public override void OnTestPlanRunStart(TestPlanRun planRun)
+            {
+                base.OnTestPlanRunStart(planRun);
+                if (planRun.TestPlanXml == null)
+                    throw new Exception("Test plan XML is null!!");
+            }
+        }
+
+        [Test]
+        public void TestLoadCacheAndRun([Values(true, false)] bool cacheXml)
+        {
+            // this unit test checks that the TestPlanRun.TestPlanXml is not null
+            // depending on CacheXML=true.
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(new LogStep());
+            var memstr = new MemoryStream();
+            plan.Save(memstr);
+            memstr.Seek(0, SeekOrigin.Begin);
+            plan = TestPlan.Load(memstr, "test", cacheXml);
+            var run = plan.Execute(new []{new CheckTestPlanXmlListener()});
+            Assert.AreEqual(Verdict.NotSet, run.Verdict);
+        }
     }
 
     [TestFixture]

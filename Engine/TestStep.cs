@@ -971,12 +971,12 @@ namespace OpenTap
 
         internal static void CheckResources(this ITestStep Step)
         {
-            var resProps2 = new HashSet<IResource>();
-            GetObjectSettings<IResource,ITestStep, IResource>(Step, true, null, resProps2);
-            foreach(var res in resProps2)
+            // collect null members into a set. Any null member here is an error.
+            var nullMembers = new HashSet<IMemberData>();
+            GetObjectSettings<IResource,ITestStep, IMemberData>(Step, true, (x, mem) => x == null ? mem : null, nullMembers);
+            foreach(var res in nullMembers)
             {
-                if(res == null)
-                    throw new Exception(String.Format("Resource setting not set on step {0}. Please configure or disable step.", Step.Name));
+                throw new Exception(String.Format("Resource setting {1} not set on step {0}. Please configure or disable step.", Step.Name, res.GetDisplayAttribute().GetFullName()));
             }
             foreach(var step in Step.ChildTestSteps)
             {

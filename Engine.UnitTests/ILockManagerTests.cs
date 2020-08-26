@@ -69,7 +69,13 @@ namespace OpenTap.UnitTests
         {
 
         }
-        
+
+        public class InstrumentWithMetadata : Instrument
+        {
+            [MetaData(promptUser:true)]
+            public string Data { get; set; }
+        }
+
         [Test]
         public void SimpleTestDefaultManager()
         {
@@ -333,6 +339,52 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(Verdict.NotSet, run.Verdict);
             Assert.AreEqual(expectedCount, UnitTestingLockManager.BeforeOpenArgs.Count(), "BeforeOpen hook called an unexpected number of times.");
             Assert.AreEqual(expectedCount, UnitTestingLockManager.AfterCloseArgs.Count(), "AfterClose hook called an unexpected number of times.");
+        }
+
+        class UnitTestingPromptHandler : IUserInputInterface
+        {
+            public bool wasCalled = false;
+            public object[] Resources;
+            public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
+            {
+                if (dataObject is MetadataPromptObject prompt)
+                {
+                    Resources = prompt.Resources.ToArray();
+                    wasCalled = true;
+                }
+            }
+        }
+
+        //[TestCase(typeof(LazyResourceManager))]  ResourcePrompt is actually not very well supported with LazyResourceManager
+        [TestCase(typeof(ResourceTaskManager))]
+        public void ResourceSetToNullAfterPlanOpen(Type managerType)
+        {
+            EngineSettings.Current.ResourceManagerType = (IResourceManager)Activator.CreateInstance(managerType);
+            IInstrument instr1 = new InstrumentWithMetadata() { Name = "INSTR1" };
+            InstrumentSettings.Current.Add(instr1);
+            try
+            {
+                var prompt = new UnitTestingPromptHandler();
+                UserInput.SetInterface(prompt);
+                {
+                    TestPlan plan = new TestPlan();
+                    InstrumentTestStep step1 = new InstrumentTestStep() { Instrument = instr1 };
+                    plan.Steps.Add(step1);
+                    plan.Open();
+                    UnitTestingLockManager.Enable();
+                    UnitTestingLockManager.BeforeOpenEffect = SetNullResources;
+                    step1.Instrument = null;
+                    var run = plan.Execute();
+                    UnitTestingLockManager.Disable();
+                    Assert.AreEqual(Verdict.NotSet, run.Verdict);
+                    Assert.AreEqual(1, prompt.Resources.OfType<IResource>().Count(), "The LockManager should have set the null resource to a value before the resource prompt happens.");
+                    Assert.AreEqual(1, UnitTestingLockManager.BeforeOpenArgs.Count(), "BeforeOpen hook called an unexpected number of times.");
+                }
+            }
+            finally
+            {
+                InstrumentSettings.Current.Remove(instr1);
+            }
         }
     }
 }
