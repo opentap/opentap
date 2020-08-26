@@ -497,6 +497,23 @@ Test-Installer-Linux:
     - $HOME/bin/tap -h
     - $HOME/bin/tap package list -v
 
+Test-Installer-Package-Dependencies:
+  stage: testinstaller
+  image: mcr.microsoft.com/dotnet/core/runtime:2.1.12-bionic
+  tags: [ docker, gce ]
+  dependencies:
+    - Package-Linux
+    - Package-Windows64
+  needs:
+    - Package-Linux
+    - Package-Windows64
+  script:
+    - apt update
+    - apt install unzip -y
+    - unzip OpenTAP.*.Linux.TapPackage -d lin
+    - unzip OpenTAP.*.Windows.TapPackage -d win
+    - diff -q win/Dependencies/ lin/Dependencies/ | grep Only
+
 #############################################
 # Stage: publish                            #
 #############################################
