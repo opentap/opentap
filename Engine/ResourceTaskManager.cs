@@ -415,17 +415,21 @@ namespace OpenTap
                         var testplan = item as TestPlan;
                         var resources = ResourceManagerUtils.GetResourceNodes(StaticResources.Cast<object>().Concat(EnabledSteps));
 
-                        testplan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
-
                         // Proceed to open resources in case they have been changed or closed since last opening/executing the testplan.
-                        if (resources.Any(r => r.Resource != null && openTasks.ContainsKey(r.Resource) == false)) // TODO: this only checks if some have been closed.
+                        // In case any are null, we need to do this before the resource prompt to allow a ILockManager implementation to 
+                        // set the resource first.
+                        if (resources.Any(r => r.Resource == null))
                             beginOpenResoureces(resources, cancellationToken);
+
+                        testplan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
+                        
+                        if (resources.Any(r => openTasks.ContainsKey(r.Resource) == false))
+                            beginOpenResoureces(resources, cancellationToken); 
                     }
                     break;
                 case TestPlanExecutionStage.Open:
                     if (item is TestPlan)
                     {
-                        var sw = Stopwatch.StartNew();
                         var resources = ResourceManagerUtils.GetResourceNodes(StaticResources.Cast<object>().Concat(EnabledSteps));
                         beginOpenResoureces(resources, cancellationToken);
                     }
@@ -433,7 +437,6 @@ namespace OpenTap
                 case TestPlanExecutionStage.Run:
                 case TestPlanExecutionStage.PrePlanRun:
                     {
-                        var sw = Stopwatch.StartNew();
                         bool openCompletedWithSuccess = openTasks.Values.All(x => x.Status == TaskStatus.RanToCompletion);
                         if (!openCompletedWithSuccess)
                         {   // open did not complete or threw an exception.
