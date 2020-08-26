@@ -55,6 +55,8 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Log Header", Order: -2.0, Description: "This string is added to the front of the result of the query.")]
         public string LogHeader { get; set; }
 
+        private string prepend;
+
         [Display("Check Exit Code", "Check the exit code of the application and set verdict to fail if it is non-zero, else pass. 'Wait For End' must be set for this to work.", "Set Verdict", Order: 1.1)]
         [EnabledIf(nameof(WaitForEnd), true)]
         public bool CheckExitCode { get; set; }
@@ -74,6 +76,7 @@ namespace OpenTap.Plugins.BasicSteps
         public override void Run()
         {
             Int32 timeout = Timeout <= 0 ? Int32.MaxValue : Timeout;
+            prepend = string.IsNullOrEmpty(LogHeader) ? "" : LogHeader + " ";
 
             var process = new Process();
             process.StartInfo.FileName = Application;
@@ -133,7 +136,10 @@ namespace OpenTap.Plugins.BasicSteps
                         if (AddToLog)
                         {
                             foreach (var line in resultData.Split(newlineArray, StringSplitOptions.None))
-                                Log.Info("{0} {1}", LogHeader, line);
+                            {
+                                Log.Info("{0}{1}", prepend, line);
+                            }
+
                         }
 
                         ProcessOutput(resultData);
@@ -171,7 +177,7 @@ namespace OpenTap.Plugins.BasicSteps
                 else
                 {
                     if(AddToLog)
-                        Log.Info("{0}", e.Data);
+                        Log.Info("{0}{1}", prepend, e.Data);
                     lock(output)
                         output.AppendLine(e.Data);
                 }
@@ -193,7 +199,7 @@ namespace OpenTap.Plugins.BasicSteps
                 else
                 {
                     if(AddToLog)
-                        Log.Error("{0}", e.Data);
+                        Log.Error("{0}{1}", prepend, e.Data);
                     lock(output)
                         output.AppendLine(e.Data);
                 }
