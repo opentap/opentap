@@ -451,6 +451,7 @@ namespace OpenTap
                         pair.Xml = Encoding.UTF8.GetString(xml);
                         pair.Hash = GetHash(xml);
                         pair.Bytes = xml;
+                        TestPlanXml = pair.Xml;
                     }
                     else
                         TestPlanXml = pair.Xml;
