@@ -320,6 +320,9 @@ namespace OpenTap
                 isLoaded = true;
 
                 SessionLogs.Initialize();
+                if (Utils.IsDebugBuild) // log when an assembly is loaded by .NET.
+                    AppDomain.CurrentDomain.AssemblyLoad += (s, args) => log.Debug("Loaded Assembly {0}", args.LoadedAssembly.FullName);
+
                 string tapEnginePath = Assembly.GetExecutingAssembly().Location;
                 if(String.IsNullOrEmpty(tapEnginePath))
                 {
@@ -565,6 +568,9 @@ namespace OpenTap
                 }
             }
 
+            /// <summary>
+            /// Updates the dll file cache
+            /// </summary>
             private void SyncFiles()
             {
                 lock (syncLock)
@@ -763,7 +769,7 @@ namespace OpenTap
                         }
                     }
 
-                    var candidates = asmPaths.Select(p => (Path: p, Name: tryGetAssemblyName(p))).ToList();
+                    var candidates = asmPaths.Select(p => new MatchingAssembly{Path = p, Name = tryGetAssemblyName(p)}).ToList();
                     if (requestedStrongNameToken != null && requestedStrongNameToken.Length == 8)
                     {
                         // the requested assembly has a strong name, only consider assemblies that has that
@@ -784,7 +790,7 @@ namespace OpenTap
                         var matchingMajorVersion = candidates.Where(c => c.Name.Version.Major == requestedAsmName.Version.Major);
                         foreach (var c in matchingMajorVersion.OrderBy(c => c.Name.Version))
                         {
-                            Assembly asm = tryLoad(matchingVersion.Path);
+                            Assembly asm = tryLoad(c.Path);
                             if (asm != null)
                                 return asm;
                             candidates.Remove(matchingVersion);
@@ -825,6 +831,16 @@ namespace OpenTap
             }
             log.Debug("Unable to find match for {0}", name);
             return null;
+        }
+
+        /// <summary>
+        /// This is used instead of a tuple in the above function. Tuples should _not_ be used in the assembly resolving process
+        /// as it sometimes requires assembly resolving to load System.ValueTyple.dll.
+        /// </summary>
+        struct MatchingAssembly
+        {
+            public string Path;
+            public AssemblyName Name;
         }
     }
 }
