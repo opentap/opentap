@@ -2,6 +2,10 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
+
+using System;
+using System.IO;
+using System.Text;
 using OpenTap.EngineUnitTestUtils;
 using NUnit.Framework;
 using OpenTap;
@@ -69,5 +73,36 @@ namespace OpenTap.Engine.UnitTests
 
             ResultSettings.Current.Remove(log);
         }
+
+        [Test]
+        public void SimulateTestPlan()
+        {
+            var rl = new LogResultListener();
+            var planrun = new TestPlanRun();
+            planrun.StartTime = DateTime.Now;
+            planrun.Duration = TimeSpan.FromSeconds(1);
+            planrun.Parameters["TestPlanName"] = "test";
+            
+            // An issue was found where first setting planrun.Parameters["Verdict"] to a string and
+            // then getting it as a Verdict.
+            planrun.Parameters["Verdict"] = "Pass";
+            Assert.AreEqual(Verdict.Pass, planrun.Verdict);
+            rl.OnTestPlanRunStart(planrun);
+
+            string testString = "Test Test Test";
+            
+            var ms = new MemoryStream(Encoding.UTF8.GetBytes(testString));
+            rl.OnTestPlanRunCompleted(planrun, ms);
+            var file = rl.FilePath.Expand(planrun);
+            try
+            {
+                Assert.AreEqual(testString, File.ReadAllText(file));
+            }
+            finally
+            {
+                File.Delete(file);
+            }
+        }
+        
     }
 }
