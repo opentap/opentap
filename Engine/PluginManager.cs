@@ -320,6 +320,7 @@ namespace OpenTap
                 isLoaded = true;
 
                 SessionLogs.Initialize();
+
                 string tapEnginePath = Assembly.GetExecutingAssembly().Location;
                 if(String.IsNullOrEmpty(tapEnginePath))
                 {
@@ -565,6 +566,9 @@ namespace OpenTap
                 }
             }
 
+            /// <summary>
+            /// Updates the dll file cache
+            /// </summary>
             private void SyncFiles()
             {
                 lock (syncLock)
@@ -639,11 +643,15 @@ namespace OpenTap
             {
                 var name = Path.GetFileNameWithoutExtension(asm.Location);
                 asmLookup[name] = asm.Location;
+                if (Utils.IsDebugBuild)
+                    log.Debug("Loaded assembly {0} from {1}", asm.FullName, asm.Location);
+            }
+            else
+            {
+                if (Utils.IsDebugBuild)
+                    log.Debug("Loaded assembly {0}", asm.FullName);
             }
 
-            // This spams the log a bit, and we should only enable this when we have the ability to hide log sources in the GUI (TAP 8.5)
-            //if(!asm.IsDynamic)
-            //    log.Debug("Loaded assembly {0} from {1}", asm.FullName, asm.Location);
             assemblyResolutionMemorizer.Add(new resolveKey { Name = asm.FullName, ReflectionOnly = asm.ReflectionOnly }, asm);
         }
         HashSet<string> lastSearchedDirs = new HashSet<string>();
@@ -763,7 +771,7 @@ namespace OpenTap
                         }
                     }
 
-                    var candidates = asmPaths.Select(p => (Path: p, Name: tryGetAssemblyName(p))).ToList();
+                    var candidates = asmPaths.Select(p => new MatchingAssembly{Path = p, Name = tryGetAssemblyName(p)}).ToList();
                     if (requestedStrongNameToken != null && requestedStrongNameToken.Length == 8)
                     {
                         // the requested assembly has a strong name, only consider assemblies that has that
@@ -782,12 +790,12 @@ namespace OpenTap
                     if (requestedAsmName.Version != null)
                     {
                         var matchingMajorVersion = candidates.Where(c => c.Name.Version.Major == requestedAsmName.Version.Major);
-                        foreach (var c in matchingMajorVersion.OrderBy(c => c.Name.Version))
+                        foreach (var compatibleVersion in matchingMajorVersion.OrderBy(c => c.Name.Version))
                         {
-                            Assembly asm = tryLoad(matchingVersion.Path);
+                            Assembly asm = tryLoad(compatibleVersion.Path);
                             if (asm != null)
                                 return asm;
-                            candidates.Remove(matchingVersion);
+                            candidates.Remove(compatibleVersion);
                         }
                     }
                     // Try to load any remaining candidates:
@@ -825,6 +833,16 @@ namespace OpenTap
             }
             log.Debug("Unable to find match for {0}", name);
             return null;
+        }
+
+        /// <summary>
+        /// This is used instead of a tuple in the above function. Tuples should _not_ be used in the assembly resolving process
+        /// as it sometimes requires assembly resolving to load System.ValueTyple.dll.
+        /// </summary>
+        struct MatchingAssembly
+        {
+            public string Path;
+            public AssemblyName Name;
         }
     }
 }
