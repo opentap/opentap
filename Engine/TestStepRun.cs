@@ -42,7 +42,12 @@ namespace OpenTap
         [MetaData(macroName: "Verdict")]
         public Verdict Verdict
         {
-            get => (Verdict)Parameters.GetIndexed(nameof(Verdict), ref verdict_index);
+            get
+            {
+                var result = Parameters.GetIndexed(nameof(Verdict), ref verdict_index);
+                if (result is Verdict verdict) return verdict;
+                return (Verdict) StringConvertProvider.FromString((string)result, TypeData.FromType(typeof(Verdict)), null);
+            }
             protected internal set => Parameters.SetIndexed(nameof(Verdict), ref verdict_index, value);
         }
 
