@@ -320,8 +320,6 @@ namespace OpenTap
                 isLoaded = true;
 
                 SessionLogs.Initialize();
-                if (Utils.IsDebugBuild) // log when an assembly is loaded by .NET.
-                    AppDomain.CurrentDomain.AssemblyLoad += (s, args) => log.Debug("Loaded Assembly {0}", args.LoadedAssembly.FullName);
 
                 string tapEnginePath = Assembly.GetExecutingAssembly().Location;
                 if(String.IsNullOrEmpty(tapEnginePath))
@@ -645,11 +643,15 @@ namespace OpenTap
             {
                 var name = Path.GetFileNameWithoutExtension(asm.Location);
                 asmLookup[name] = asm.Location;
+                if (Utils.IsDebugBuild)
+                    log.Debug("Loaded assembly {0} from {1}", asm.FullName, asm.Location);
+            }
+            else
+            {
+                if (Utils.IsDebugBuild)
+                    log.Debug("Loaded assembly {0}", asm.FullName);
             }
 
-            // This spams the log a bit, and we should only enable this when we have the ability to hide log sources in the GUI (TAP 8.5)
-            //if(!asm.IsDynamic)
-            //    log.Debug("Loaded assembly {0} from {1}", asm.FullName, asm.Location);
             assemblyResolutionMemorizer.Add(new resolveKey { Name = asm.FullName, ReflectionOnly = asm.ReflectionOnly }, asm);
         }
         HashSet<string> lastSearchedDirs = new HashSet<string>();
@@ -788,12 +790,12 @@ namespace OpenTap
                     if (requestedAsmName.Version != null)
                     {
                         var matchingMajorVersion = candidates.Where(c => c.Name.Version.Major == requestedAsmName.Version.Major);
-                        foreach (var c in matchingMajorVersion.OrderBy(c => c.Name.Version))
+                        foreach (var compatibleVersion in matchingMajorVersion.OrderBy(c => c.Name.Version))
                         {
-                            Assembly asm = tryLoad(c.Path);
+                            Assembly asm = tryLoad(compatibleVersion.Path);
                             if (asm != null)
                                 return asm;
-                            candidates.Remove(matchingVersion);
+                            candidates.Remove(compatibleVersion);
                         }
                     }
                     // Try to load any remaining candidates:
