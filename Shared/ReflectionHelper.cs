@@ -790,6 +790,12 @@ namespace OpenTap
 
     static class Utils
     {
+    #if DEBUG
+        public static readonly bool IsDebugBuild = true;
+    #else
+        public static readonly bool IsDebugBuild = false;
+    #endif
+        
         static public Action ActionDefault = () => { };
 
         public static void Swap<T>(ref T a, ref T b)
