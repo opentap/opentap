@@ -1754,11 +1754,11 @@ namespace OpenTap
                                 // if this is the case, remove it. This handles cases where things has been moved.
                                 if (values[i1] == lst2[i3])
                                 {
-                                    var item = lst2[i3];
                                     lst2.RemoveAt(i3);
                                     break;
                                 }
                             }
+
                             lst2.Insert(i2, values[i1]);
                         }
                         while (lst2.Count > values.Count)
@@ -1819,6 +1819,15 @@ namespace OpenTap
                             return fac.AnnotateSub(elem2, "");
                         if (elem2.IsNumeric)
                             return fac.AnnotateSub(elem2, Convert.ChangeType(0, elem2.Type));
+                        if (elem2.IsValueType)
+                        {
+                            if (elem2.DescendsTo(typeof(Enum)))
+                                return fac.AnnotateSub(elem2, Enum.ToObject(elem2.Type, 0));
+                            if(elem2.DescendsTo(typeof(DateTime)))
+                                return fac.AnnotateSub(elem2, DateTime.MinValue);
+                            if(elem2.DescendsTo(typeof(TimeSpan)))
+                                return fac.AnnotateSub(elem2, TimeSpan.MinValue);
+                        }
                         return fac.AnnotateSub(elem2, null);
                     }
                     else
