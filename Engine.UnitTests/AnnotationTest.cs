@@ -520,5 +520,28 @@ namespace OpenTap.UnitTests
             }
 
         }
+
+        public class MemberWithException
+        {
+            public class SubThing
+            {
+                public double Value => throw new ArgumentNullException();
+            }
+            public SubThing Value
+            {
+                get => throw new ArgumentNullException();
+                set { }    
+            }
+        }
+
+        [Test]
+        public void TestMemberWithExceptionAnnotation()
+        {
+            var annotation = AnnotationCollection.Annotate(new MemberWithException());
+            Assert.AreEqual(1, annotation.Get<IMembersAnnotation>().Members.Count());
+            annotation.Read();
+            Assert.AreEqual(1, annotation.Get<IMembersAnnotation>().Members.Count());
+        } 
+        
     }
 }

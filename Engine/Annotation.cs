@@ -1029,7 +1029,7 @@ namespace OpenTap
             {
                 currentValue = m.Member.GetValue(annotation.Source);
             }
-            catch (System.Reflection.TargetInvocationException)
+            catch
             {
                 // the member itself threw an exception. 
             }
