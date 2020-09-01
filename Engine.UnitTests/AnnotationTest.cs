@@ -532,6 +532,12 @@ namespace OpenTap.UnitTests
                 get => throw new ArgumentNullException();
                 set { }    
             }
+
+            public SubThing Value2
+            {
+                set{}
+            }
+            
         }
 
         [Test]

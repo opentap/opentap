@@ -277,6 +277,7 @@ namespace OpenTap
             foreach (var item in members2)
             {
                 if (item.HasAttribute<AnnotationIgnoreAttribute>()) continue;
+                if (item.Readable == false) continue;
                 GetMember(item);
             }
 
