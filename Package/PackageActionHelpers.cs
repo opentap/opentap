@@ -65,6 +65,7 @@ namespace OpenTap.Package
                 package = compatiblePackages.GroupBy(p => p.Version).OrderByDescending(g => g.Key).FirstOrDefault()
                                             .OrderBy(p => repositories.IndexWhen(e => NormalizeRepoUrl(e.Url) == NormalizeRepoUrl((p.PackageSource as IRepositoryPackageDefSource)?.RepositoryUrl))).FirstOrDefault();
 
+            // If no package was found, try to figure out why
             if (package == null)
             {
                 var compatibleVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageReference.Name, compatibleWith);
@@ -73,7 +74,13 @@ namespace OpenTap.Package
                 // Any packages compatible with opentap and platform
                 var filteredVersions = compatibleVersions.Where(v => v.IsPlatformCompatible(packageReference.Architecture, packageReference.OS)).ToList();
                 if (filteredVersions.Any())
-                    throw new ExitCodeException(1, $"Package '{packageReference.Name}' matching version '{packageReference.Version}' could not be found. Latest compatible version is '{filteredVersions.FirstOrDefault().Version}'.");
+                {
+                    // if the specified version exist, don't say it could not be found. 
+                    if (versions.Any(v => packageReference.Version.IsCompatible(v.Version)))
+                        throw new ExitCodeException(1, $"Package '{packageReference.Name}' matching version '{packageReference.Version}' is not compatible. Latest compatible version is '{filteredVersions.FirstOrDefault().Version}'.");
+                    else
+                        throw new ExitCodeException(1, $"Package '{packageReference.Name}' matching version '{packageReference.Version}' could not be found. Latest compatible version is '{filteredVersions.FirstOrDefault().Version}'.");
+                }
 
                 // Any compatible with platform but not opentap
                 filteredVersions = versions.Where(v => v.IsPlatformCompatible(packageReference.Architecture, packageReference.OS)).ToList();
