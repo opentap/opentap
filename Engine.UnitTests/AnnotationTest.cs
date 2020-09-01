@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -518,7 +519,35 @@ namespace OpenTap.UnitTests
                     .Get<IValueDescriptionAnnotation>().Describe();
                 
             }
+        }
 
+        class ListOfEnumAnnotationClass
+        {
+            public List<string> Strings { get; set; } = new List<string>{"A", "B", "C"};
+            public List<Verdict> Verdicts { get; set; } = new List<Verdict>{Verdict.Aborted, Verdict.Error};
+            public List<DateTime> Dates { get; set; } = new List<DateTime>{DateTime.Now};
+            public List<TimeSpan> TimeSpans { get; set; } = new List<TimeSpan>{TimeSpan.Zero, TimeSpan.Zero};
+            
+        }
+        
+        [Test]
+        public void ListOfEnumAnnotation()
+        {
+            var obj = new ListOfEnumAnnotationClass();
+            var annotation = AnnotationCollection.Annotate(obj);
+            Assert.AreEqual(4, TypeData.GetTypeData(obj).GetMembers().Count());
+
+            foreach (var member in TypeData.GetTypeData(obj).GetMembers())
+            {
+                int initCount = (member.GetValue(obj) as IList).Count;
+                var memberAnnotation = annotation.GetMember(member.Name);
+                var collection = memberAnnotation.Get<ICollectionAnnotation>();
+                collection.AnnotatedElements = collection.AnnotatedElements.Append(collection.NewElement());
+                annotation.Write();
+                int finalCount = (TypeData.GetTypeData(obj).GetMember(member.Name).GetValue(obj) as IList).Count;
+                Assert.IsTrue(initCount == finalCount - 1);
+                
+            }
         }
     }
 }
