@@ -277,6 +277,7 @@ namespace OpenTap
             foreach (var item in members2)
             {
                 if (item.HasAttribute<AnnotationIgnoreAttribute>()) continue;
+                if (item.Readable == false) continue;
                 GetMember(item);
             }
 
@@ -1029,7 +1030,7 @@ namespace OpenTap
             {
                 currentValue = m.Member.GetValue(annotation.Source);
             }
-            catch (System.Reflection.TargetInvocationException)
+            catch
             {
                 // the member itself threw an exception. 
             }
