@@ -9,7 +9,7 @@
           <Filepath>../../tests/show-tags.TapPlan</Filepath>
           <StepMapping />
           <Enabled>true</Enabled>
-          <Name>Test Plan: {Referenced Plan} (1)</Name>
+          <Name>Test Plan: {Referenced Plan}</Name>
           <BreakConditions>Inherit</BreakConditions>
         </TestStep>
         <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="f05ae695-da0b-47c1-9562-32a89c3c424c">
@@ -19,9 +19,46 @@
           <Name>Test Plan: {Referenced Plan}</Name>
           <BreakConditions>Inherit</BreakConditions>
         </TestStep>
+        <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="321543e3-31fc-4923-ae06-674cc13bc232">
+          <Filepath>../../tests/ILGitVersionBug.TapPlan</Filepath>
+          <StepMapping>
+            <GuidMapping>
+              <Guid1>3a8e33d7-d7f9-4d58-868b-c38acbf0c15e</Guid1>
+              <Guid2>e8c42535-b680-4922-9251-a0b3805d2e76</Guid2>
+            </GuidMapping>
+            <GuidMapping>
+              <Guid1>45f82fc0-8acf-41b2-8472-2c1b9db25f32</Guid1>
+              <Guid2>32ccc3e7-e8aa-4e34-93ff-3244e0ae6f8d</Guid2>
+            </GuidMapping>
+            <GuidMapping>
+              <Guid1>fc4259db-b8d5-4790-a940-5de27bfb515d</Guid1>
+              <Guid2>c39f9346-77e0-474c-9cbc-1663c5f586cf</Guid2>
+            </GuidMapping>
+            <GuidMapping>
+              <Guid1>87ef4ac9-541e-4add-8c40-7303cdccda87</Guid1>
+              <Guid2>95b1b48f-2bef-4320-bb05-1237cb9f5738</Guid2>
+            </GuidMapping>
+            <GuidMapping>
+              <Guid1>03572f31-123d-40de-b737-74c714b8cd31</Guid1>
+              <Guid2>6541135f-3800-4c45-b85f-0adfc457f075</Guid2>
+            </GuidMapping>
+            <GuidMapping>
+              <Guid1>ef81482d-125b-4f3f-a1d5-eaf212d302fe</Guid1>
+              <Guid2>c6ea9599-17d0-4574-9252-88f08c755664</Guid2>
+            </GuidMapping>
+          </StepMapping>
+          <Enabled>true</Enabled>
+          <Name>Test Plan: {Referenced Plan}</Name>
+          <BreakConditions>Inherit</BreakConditions>
+        </TestStep>
       </ChildTestSteps>
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
   </Steps>
   <BreakConditions>Inherit</BreakConditions>
+  <Package.Dependencies>
+    <Package Name="GitVersionDependencyTest" />
+    <Package Name="Test" Version="1.2.3-alpha+test" />
+    <Package Name="Test2" Version="1.2.3+4" />
+  </Package.Dependencies>
 </TestPlan>
