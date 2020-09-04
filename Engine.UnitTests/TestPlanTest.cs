@@ -1960,6 +1960,56 @@ namespace OpenTap.Engine.UnitTests
                 EngineSettings.Current.ResourceManagerType = lastrm;
             }
         }
+        
+        public class DeferredResultsStep : TestStep
+        {
+            public bool DeferredDone;
+            public bool FailedDeferExecuted;
+            public override void Run()
+            {
+                DeferredDone = false;
+                FailedDeferExecuted = false;
+                var sem = new Semaphore(0, 1);
+                Results.Defer(() =>
+                {
+                    sem.WaitOne();
+                    DeferredDone = true;
+                    Log.Info("Deferred Step also done");
+                });
+
+                TapThread.Start(() =>
+                {
+                    try
+                    {
+                        Results.Defer(() =>
+                        {
+                            // this should fail.
+                            Log.Error("This should never be called!!!");
+                        });
+                        FailedDeferExecuted = false;
+                    }
+                    catch
+                    {
+                        FailedDeferExecuted = true;
+                    }
+
+                    sem.Release();
+                });
+            }
+        }
+
+        [Test]
+        public void TestDeferResultsStepInParallel()
+        {
+            var plan = new TestPlan();
+            var parallel = new ParallelStep();
+            var defer = new DeferredResultsStep();
+            plan.Steps.Add(parallel);
+            parallel.ChildTestSteps.Add(defer);
+            plan.Execute();
+            Assert.IsTrue(defer.DeferredDone);
+            Assert.IsTrue(defer.FailedDeferExecuted);
+        }
     }
 
     public class TestITestStep : ValidatingObject, ITestStep
