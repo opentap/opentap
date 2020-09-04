@@ -9,7 +9,6 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -674,7 +673,7 @@ namespace OpenTap
                 {
                     if (Step is TestStep testStep && runs.Any(x => x.WasDeferred))
                     {
-                        testStep.Results.Defer(() =>
+                        testStep.Results.DeferNoCheck(() =>
                         {
                             foreach (var run in runs)
                             {
@@ -742,10 +741,9 @@ namespace OpenTap
                 throw new ArgumentException("childStep must be enabled.", nameof(childStep));
 
             var run = childStep.DoRun(currentPlanRun, currentStepRun, attachedParameters);
-
             if (Step is TestStep step && run.WasDeferred)
             {
-                step.Results.Defer(() =>
+                step.Results.DeferNoCheck(() =>
                 {
                     run.WaitForCompletion();
                     Step.UpgradeVerdict(run.Verdict);
