@@ -471,94 +471,9 @@ namespace OpenTap
         /// <returns>TestPlanRun results, no StepResults.</returns>
         public TestPlanRun Execute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters = null, HashSet<ITestStep> stepsOverride = null)
         {
-            var preHooks = PluginManager.GetPlugins<IPreTestPlanExecutionHook>()
-                .Select(type => (IPreTestPlanExecutionHook)type.CreateInstance())
-                .OrderBy(type => type.GetType().GetDisplayAttribute().Order)
-                .ToList();
-
-            var executionHooks = PluginManager.GetPlugins<ITestPlanExecutionHook>()
-                .Select(type => (ITestPlanExecutionHook)type.CreateInstance())
-                .OrderBy(type => type.GetType().GetDisplayAttribute().Order)
-                .ToList();
-
-            var tp = this;
-
-            foreach (var hook in preHooks)
-            {
-                PreExecutionHookArgs args = new PreExecutionHookArgs { TestPlan = tp, IsSettingsInvalid = false };
-                hook.BeforeTestPlanExecute(args);
-
-                Stopwatch sw = Stopwatch.StartNew();
-
-                if (IsOpen && ((this != args.TestPlan) || args.IsSettingsInvalid))
-                {
-                    Close();
-
-                    Log.Debug(sw, "The testplan was closed by a pre-execution hook ({0}).", hook.ToString());
-                    sw.Restart();
-
-                    OnPropertyChanged("IsOpen");
-                }
-
-                if (args.IsSettingsInvalid)
-                {
-                    using (var ms = new MemoryStream())
-                    {
-                        args.TestPlan.Save(ms);
-                        ms.Seek(0, 0);
-
-                        ComponentSettings.InvalidateAllSettings();
-
-                        tp = Load(ms, args.TestPlan.Path);
-
-                        Log.Debug(sw, "Reloaded testplan because settings were invalidate by a pre-execution hook ({0}).", hook.ToString());
-                    }
-                }
-                else
-                    tp = args.TestPlan;
-            }
-
-            // Hook up the correct events in case testplan was changed.
-            if (tp != this)
-            {
-                tp.BreakOffered += ForwardOfferBreak;
-            }
-
-            List<ITestPlanExecutionHook> successfulHooks = new List<ITestPlanExecutionHook>();
-            try
-            {
-                // Send event that testplan changed to `tp`
-                // Exceptions before the testplan starts executing are expected to abort, so they will not be caught here
-                executionHooks.ForEach(eh =>
-                {
-                    eh.BeforeTestPlanExecute(tp);
-                    successfulHooks.Add(eh);
-                });
-                TestPlanRun run = null;
-                TapThread.WithNewContext(() => run = tp.DoExecute(resultListeners, metaDataParameters, stepsOverride, executionHooks));
-                return run;
-            }
-            finally
-            {
-                // Send event that testplan changed back to `this`
-                successfulHooks.ForEach(eh =>
-                {
-                    try
-                    {
-                        eh.AfterTestPlanExecute(tp, this);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error("Post execution hook '{0}' failed with error: {1}", eh, ex.Message);
-                        Log.Debug(ex);
-                    }
-                });
-
-                if (tp != this)
-                {
-                    tp.BreakOffered -= ForwardOfferBreak;
-                }
-            }
+            TestPlanRun run = null;
+            TapThread.WithNewContext(() => run = this.DoExecute(resultListeners, metaDataParameters, stepsOverride));
+            return run;
         }
 
         private void ForwardOfferBreak(object sender, BreakOfferedEventArgs e)
@@ -566,7 +481,7 @@ namespace OpenTap
             OnBreakOffered(e);
         }
 
-        private TestPlanRun DoExecute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride, List<ITestPlanExecutionHook> executionHooks)
+        private TestPlanRun DoExecute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride)
         {
             if (resultListeners == null)
                 throw new ArgumentNullException("resultListeners");
@@ -662,7 +577,6 @@ namespace OpenTap
                 };
             }
 
-            execStage.ExecutionHooks = executionHooks;
 
             if (metaDataParameters != null)
                 execStage.Parameters.AddRange(metaDataParameters);
