@@ -815,11 +815,11 @@ namespace OpenTap.Engine.UnitTests
                     try
                     {
                         member.Write();
-                        Assert.Fail("This should have thrown an exception");
                     }
                     catch
                     {
-                        // index out of bounds
+                        // See OpenTAP issue #347 -- functionality was added to allow writing to fixed size collections by resizing them
+                        Assert.Fail("This shouldn't throw an exception");
                     }
                     member.Read();
                 }
