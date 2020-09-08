@@ -9,7 +9,6 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -674,7 +673,7 @@ namespace OpenTap
                 {
                     if (Step is TestStep testStep && runs.Any(x => x.WasDeferred))
                     {
-                        testStep.Results.Defer(() =>
+                        testStep.Results.DeferNoCheck(() =>
                         {
                             foreach (var run in runs)
                             {
@@ -742,10 +741,9 @@ namespace OpenTap
                 throw new ArgumentException("childStep must be enabled.", nameof(childStep));
 
             var run = childStep.DoRun(currentPlanRun, currentStepRun, attachedParameters);
-
             if (Step is TestStep step && run.WasDeferred)
             {
-                step.Results.Defer(() =>
+                step.Results.DeferNoCheck(() =>
                 {
                     run.WaitForCompletion();
                     Step.UpgradeVerdict(run.Verdict);
@@ -1002,7 +1000,7 @@ namespace OpenTap
                 if (td2.IsValueType && targetType.IsValueType == false) continue;
                 if (td2.IsString && targetType.IsString == false) continue;
                 bool hasEnabled = prop.HasAttribute<EnabledIfAttribute>();
-                if(td2.DescendsTo(typeof(IEnabled)) || td2.DescendsTo(targetType) || targetType.DescendsTo(td2) || td2.ElementType.DescendsTo(targetType)|| targetType.DescendsTo(td2.ElementType))
+                if(td2.DescendsTo(typeof(IEnabled)) || td2.DescendsTo(targetType) || td2.ElementType.DescendsTo(targetType))
                     result.Add((prop, hasEnabled));
             }
 
@@ -1067,15 +1065,13 @@ namespace OpenTap
 
                 if (value is T t2)
                 {
-                    itemSet.Add(transform(t2, prop));
+                    itemSet.AddExceptNull(transform(t2, prop));
                 }
                 else if (value is string)
                     continue;
                 else if (value == null && prop.TypeDescriptor.DescendsTo(targetType))
                 {
-                    var tform = transform((T) value, prop);
-                    if(tform != null)
-                        itemSet.Add(tform);
+                    itemSet.AddExceptNull(transform((T) value, prop));
                 }
                 else if (value is IEnumerable seq)
                 {
@@ -1085,7 +1081,7 @@ namespace OpenTap
                         {
                             var value2 = lst[i];
                             if (value2 is T x)
-                                itemSet.Add(transform(x, prop));
+                                itemSet.AddExceptNull(transform(x, prop));
                         }
                     }
                     else
@@ -1093,12 +1089,12 @@ namespace OpenTap
                         if (value is IEnumerable<T> seq2)
                         {
                             foreach (var x in seq2.ToArray())
-                                itemSet.Add(transform(x, prop));
+                                itemSet.AddExceptNull(transform(x, prop));
                         }
                         else
                         {
                             foreach (var x in seq.OfType<T>().ToArray())
-                                itemSet.Add(transform(x, prop));
+                                itemSet.AddExceptNull(transform(x, prop));
                         }
                     }
                 }

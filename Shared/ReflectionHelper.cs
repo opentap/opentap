@@ -1583,6 +1583,13 @@ namespace OpenTap
             }
             return 0;
         }
+
+        /// <summary> Adds elements that arent null to the list. </summary>
+        internal static void AddExceptNull<T>(this ICollection<T> list, T x)
+        {
+            if (x != null)
+                list.Add(x);
+        }
         
         internal static int ProcessPattern<T1, T2, T3, T4>(IEnumerator objs, Action<T1> f1, Action<T2> f2, Action<T3> f3, Action<T4> f4 )
         {
