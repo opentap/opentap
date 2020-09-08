@@ -1067,15 +1067,13 @@ namespace OpenTap
 
                 if (value is T t2)
                 {
-                    itemSet.Add(transform(t2, prop));
+                    itemSet.AddExceptNull(transform(t2, prop));
                 }
                 else if (value is string)
                     continue;
                 else if (value == null && prop.TypeDescriptor.DescendsTo(targetType))
                 {
-                    var tform = transform((T) value, prop);
-                    if(tform != null)
-                        itemSet.Add(tform);
+                    itemSet.AddExceptNull(transform((T) value, prop));
                 }
                 else if (value is IEnumerable seq)
                 {
@@ -1085,7 +1083,7 @@ namespace OpenTap
                         {
                             var value2 = lst[i];
                             if (value2 is T x)
-                                itemSet.Add(transform(x, prop));
+                                itemSet.AddExceptNull(transform(x, prop));
                         }
                     }
                     else
@@ -1093,12 +1091,12 @@ namespace OpenTap
                         if (value is IEnumerable<T> seq2)
                         {
                             foreach (var x in seq2.ToArray())
-                                itemSet.Add(transform(x, prop));
+                                itemSet.AddExceptNull(transform(x, prop));
                         }
                         else
                         {
                             foreach (var x in seq.OfType<T>().ToArray())
-                                itemSet.Add(transform(x, prop));
+                                itemSet.AddExceptNull(transform(x, prop));
                         }
                     }
                 }

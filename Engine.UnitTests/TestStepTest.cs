@@ -226,6 +226,11 @@ namespace OpenTap.Engine.UnitTests
 
     }
 
+    public class DummyInstrument : Instrument
+    {
+        
+    }
+    
     [DisplayName("Test\\UnitTest resultListener2")]
     public class resultListener2 : ResultListener
     {
