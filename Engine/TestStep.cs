@@ -1002,7 +1002,7 @@ namespace OpenTap
                 if (td2.IsValueType && targetType.IsValueType == false) continue;
                 if (td2.IsString && targetType.IsString == false) continue;
                 bool hasEnabled = prop.HasAttribute<EnabledIfAttribute>();
-                if(td2.DescendsTo(typeof(IEnabled)) || td2.DescendsTo(targetType) || targetType.DescendsTo(td2) || td2.ElementType.DescendsTo(targetType)|| targetType.DescendsTo(td2.ElementType))
+                if(td2.DescendsTo(typeof(IEnabled)) || td2.DescendsTo(targetType) || td2.ElementType.DescendsTo(targetType))
                     result.Add((prop, hasEnabled));
             }
 
