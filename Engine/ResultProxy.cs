@@ -297,7 +297,6 @@ namespace OpenTap
         WorkQueue DeferWorker;
         List<Exception> deferExceptions;
 
-        int deferCount = 0;
         /// <summary>
         /// Defer an action from the current test step run. This means the action will be executed some time after
         /// the current run. 
@@ -307,6 +306,14 @@ namespace OpenTap
         {
             if (TapThread.Current != stepRun.StepThread)
                 throw new InvalidOperationException("Defer may only be executed from the same thread as the test step.");
+            DeferNoCheck(action);
+        }
+
+        int deferCount = 0;
+        
+        internal void DeferNoCheck(Action action)
+        {
+            
             if (DeferWorker == null)
             {
                 deferExceptions = new List<Exception>();
