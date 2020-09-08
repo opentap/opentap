@@ -1760,7 +1760,15 @@ namespace OpenTap
                                 }
                             }
 
-                            lst2.Insert(i2, values[i1]);
+                            var val = values[i1];
+                            if (val == null)
+                            {
+                                var typedata = fac.Get<IReflectionAnnotation>().ReflectionInfo.AsTypeData().ElementType;
+                                if (typedata.CanCreateInstance || typedata.IsValueType)
+                                    val = typedata.Type.CreateInstance();
+                            }
+
+                            lst2.Insert(i2, val);
                         }
                         while (lst2.Count > values.Count)
                         {
@@ -1772,6 +1780,29 @@ namespace OpenTap
 
                         if (!rdonly)
                             lst2.Clear();
+
+                        if (lst2.IsFixedSize)
+                        {
+                            var nElements = annotatedElements.Count();
+                            if (nElements != lst2.Count)
+                            {
+                                var typedata = fac.Get<IReflectionAnnotation>().ReflectionInfo.AsTypeData();
+                                if (typedata.DescendsTo(typeof(Array)))
+                                {
+                                    if ((fac.Get<IMemberAnnotation>()?.Member?.Writable) == false)
+                                        throw new Exception($"Cannot add elements to collection because it is not writable.");
+                                        
+                                    lst2 = Array.CreateInstance(typedata.ElementType.Type, nElements);
+                                    objValue.Value = lst2;
+                                    
+                                }
+                                else
+                                {
+                                    throw new Exception("Could not extend container of fixed size.");
+                                }
+                            }
+                        }
+
                         int index = 0;
                         foreach (var elem in annotatedElements)
                         {
