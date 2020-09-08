@@ -303,5 +303,31 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(1, run.StepsWithPrePlanRun.Count);
             Assert.AreEqual(Verdict.Pass, run.Verdict, listener.GetLog());
         }
+
+        public class SelfHiddenCyclicResource : Instrument
+        {
+            public object Self => this;
+        }
+
+        public class SelfHiddenCyclicResourceTestStep : TestStep
+        {
+            public SelfHiddenCyclicResource Resource { get; set; }
+
+            public override void Run()
+            {
+                UpgradeVerdict(Verdict.Pass);
+            }
+        }
+
+        [Test]
+        public void SelfHiddenCyclicResourceTest()
+        {
+            var step = new SelfHiddenCyclicResourceTestStep
+                {Resource = new SelfHiddenCyclicResource()};
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step);
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, run.Verdict);
+        }
     }
 }
