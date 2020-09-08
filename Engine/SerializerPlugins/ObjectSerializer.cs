@@ -528,7 +528,9 @@ namespace OpenTap.Plugins
         HashSet<object> cycleDetetionSet = new HashSet<object>();
 
         bool AlwaysG17DoubleFormat = false;
-        
+
+        internal static readonly XName DefaultValue = "DefaultValue";
+
         /// <summary>
         /// Deserializes an object from XML.
         /// </summary>
@@ -744,20 +746,22 @@ namespace OpenTap.Plugins
                                     {
                                         string name = attr.ElementName ?? subProp.Name;
                                         XElement elem2 = new XElement(XmlConvert.EncodeLocalName(name));
-                                        Serializer.Serialize(elem2, item,
-                                            TypeData.FromType(cst.Type.GetGenericArguments().First()));
+                                        SetHasDefaultValueAttribute(subProp, item, elem2);
                                         elem.Add(elem2);
+                                        Serializer.Serialize(elem2, item, TypeData.FromType(cst.Type.GetGenericArguments().First()));
                                     }
                                 }
                                 else
                                 {
                                     XElement elem2 = new XElement(XmlConvert.EncodeLocalName(subProp.Name));
-                                    Serializer.Serialize(elem2, val, subProp.TypeDescriptor);
+                                    SetHasDefaultValueAttribute(subProp, val, elem2);
                                     elem.Add(elem2);
+                                    Serializer.Serialize(elem2, val, subProp.TypeDescriptor);
                                 }
                             }
                             catch (Exception e)
                             {
+
                                 Log.Warning("Unable to serialize property '{0}'.", subProp.Name);
                                 Log.Debug(e);
                             }
@@ -778,6 +782,15 @@ namespace OpenTap.Plugins
                 Object = prevObj;
                 if (!cycleDetetionSet.Remove(theobj))
                     throw new InvalidOperationException("obj was modified.");
+            }
+        }
+
+        private void SetHasDefaultValueAttribute(IMemberData subProp, object val, XElement elem2)
+        {
+            var attr = subProp.GetAttribute<DefaultValueAttribute>();
+            if (attr != null && !(subProp is IParameterMemberData))
+            {
+                elem2.SetAttributeValue(DefaultValue, attr.Value);
             }
         }
     }
