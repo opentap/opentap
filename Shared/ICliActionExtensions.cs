@@ -178,7 +178,7 @@ namespace OpenTap.Cli
                     var attr = x.GetAttribute<UnnamedCommandLineArgument>();
                     var str = attr.Name;
 
-                    if (x.TypeDescriptor.IsA(typeof(string[])) || attr.Required == false)
+                    if (attr.Required == false)
                         str = "[<" + str + ">]";
                     else
                         str = "<" + str + ">";
