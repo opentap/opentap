@@ -1,6 +1,21 @@
-﻿using System.Collections;
+﻿//Copyright 2012-2019 Keysight Technologies
+//
+//Licensed under the Apache License, Version 2.0 (the "License");
+//you may not use this file except in compliance with the License.
+//You may obtain a copy of the License at
+//
+//http://www.apache.org/licenses/LICENSE-2.0
+//
+//Unless required by applicable law or agreed to in writing, software
+//distributed under the License is distributed on an "AS IS" BASIS,
+//WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//See the License for the specific language governing permissions and
+//limitations under the License.
+using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
+using System.Xml.Serialization;
 using OpenTap;
 
 namespace PluginDevelopment.Advanced_Examples
@@ -14,6 +29,8 @@ namespace PluginDevelopment.Advanced_Examples
         public int B { get; set; }
     }
 
+    [Display("Complex Settings DUT3", "Demonstrates how to use Annotations to handle complex data.",
+             Groups: new[] { "Examples", "Plugin Development", "Advanced Examples" })]
     public class ComplexSettingsExample3 : Dut
     {
         public List<int> AvailableValuesForElements { get; set; } = new List<int>() {1, 2, 3};
@@ -39,11 +56,13 @@ namespace PluginDevelopment.Advanced_Examples
         public int SubViewStart { get; set; } = 0;
         public int SubViewStop { get; set; } = 0;
 
+        [XmlIgnore]
+        [Browsable(true)]
         public IReadOnlyList<ComplexSettingsElement3> SubView
         {
             get => ListOfElements.Skip(SubViewStop).Take(SubViewStop - SubViewStart)
                 .ToList().AsReadOnly();
-            set
+            private set
             {
                 
             }
