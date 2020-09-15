@@ -23,7 +23,7 @@ namespace OpenTap.Sdk.New
             {
                 var ns = TryGetNamespace();
                 var content = ReplaceInTemplate(reader.ReadToEnd(), ns);
-                WriteFile(output ?? Path.Combine(Directory.GetCurrentDirectory(), ns + ".sln"), content);
+                WriteFile(output ?? Path.Combine(WorkingDirectory, ns + ".sln"), content);
             }
 
             return 0;
@@ -39,7 +39,7 @@ namespace OpenTap.Sdk.New
             using (var reader = new StreamReader(stream))
             {
                 var content = ReplaceInTemplate(reader.ReadToEnd(), TryGetNamespace());
-                WriteFile(output ?? Path.Combine(Directory.GetCurrentDirectory(), ".gitlab-ci.yml"), content);
+                WriteFile(output ?? Path.Combine(WorkingDirectory, ".gitlab-ci.yml"), content);
             }
 
             return 0;
@@ -67,19 +67,17 @@ namespace OpenTap.Sdk.New
             using (var reader = new StreamReader(stream))
             {
                 var content = ReplaceInTemplate(reader.ReadToEnd(), TryGetNamespace());
-                var tapPlans = Directory.GetFiles(Directory.GetCurrentDirectory(), "*.TapPlan", SearchOption.AllDirectories);
+                var tapPlans = Directory.GetFiles(WorkingDirectory, "*.TapPlan", SearchOption.AllDirectories);
                 if (tapPlans.Count() == 1)
                 {
                     log.Info("Found one TapPlan. Using the plan for debugging.");
-                    content = Regex.Replace(content, "<tap plan>", (m) =>
-                    {
-                        return Path.GetFileName(tapPlans.First());
-                    });
+                    content = Regex.Replace(content, "<tap plan>", m => Path.GetFullPath(tapPlans.First()).Substring(Path.GetFullPath(WorkingDirectory).Length + 1));
                 }
                 else
                     log.Info("Please change <tap plan> in the '.vscode/launch.json' file.");
 
-                WriteFile(output ?? Path.Combine(vsCodeDir, "launch.json"), content);
+                if (WriteFile(output ?? Path.Combine(vsCodeDir, "launch.json"), content))
+                    log.Info($"Please note: The vscode integration assumes OutputPath is in '{WorkingDirectory}/bin/Debug>'.");
             }
 
             return 0;
@@ -89,29 +87,45 @@ namespace OpenTap.Sdk.New
     [Display("gitversion", "Configures automatic version of the package using version numbers generated from git history.", Groups: new[] { "sdk", "new", "integration" })]
     public class GenerateGit : GenerateType
     {
+        private IEnumerable<FileInfo> GetPackageXmlFiles(DirectoryInfo root, Func<string, bool> include)
+        {
+            foreach (var file in root.GetFiles("package.xml", SearchOption.TopDirectoryOnly))
+            {
+                yield return file;
+            }
+
+            foreach (var subdir in root.GetDirectories().Where(x => include(x.Name)))
+            {
+                foreach (var result in GetPackageXmlFiles(subdir, include))
+                {
+                    yield return result;
+                }
+            }
+        }
         public override int Execute(CancellationToken cancellationToken)
         {
+            var target = string.IsNullOrWhiteSpace(output) ? Path.Combine(WorkingDirectory, ".gitversion") : output;
+            var targetDir = new FileInfo(target).Directory;
+            
             using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("OpenTap.Sdk.New.Resources.GitVersionTemplate.txt"))
             using (var reader = new StreamReader(stream))
             {
-                if (File.Exists("package.xml"))
+                foreach (var packageXml in GetPackageXmlFiles(targetDir, (dirName) => dirName != "bin"))
                 {
-                    log.Info("Found 'package.xml' file. Do you want to update the version?");
+                    var filename = packageXml.FullName;
+                    log.Info($"Found {filename}. Do you want to enable automatic version update using a '.gitversion' file?");
 
                     var request = new OverrideRequest();
                     UserInput.Request(request, true);
 
                     if (request.Override == RequestEnum.Yes)
                     {
-                        var text = File.ReadAllText("package.xml");
-                        text = Regex.Replace(text, "(<Package.*?Version=\")(.*?)(\".*?>)", (m) =>
-                        {
-                            return $"{m.Groups[1].Value}$(GitVersion){m.Groups[3].Value}";
-                        });
-                        File.WriteAllText("package.xml", text);
+                        var text = File.ReadAllText(filename);
+                        text = Regex.Replace(text, "(<Package.*?Version=\")(.*?)(\".*?>)", (m) => $"{m.Groups[1].Value}$(GitVersion){m.Groups[3].Value}");
+                        File.WriteAllText(filename, text);
                     }
                 }
-                WriteFile(output ?? Path.Combine(Directory.GetCurrentDirectory(), ".gitversion"), reader.ReadToEnd());
+                WriteFile(target, reader.ReadToEnd());
             }
 
             return 0;

@@ -12,6 +12,7 @@ namespace OpenTap
     /// </summary>
     public class DisplayAttribute : Attribute, IAnnotation
     {
+        internal const string GroupSeparator = " \\ ";
         /// <summary> Optional text that provides a description of the item. 
         /// Consider using HelpLinkAttribute if a link to documentation is needed. 
         /// </summary>
@@ -48,7 +49,7 @@ namespace OpenTap
                 if (Group.Length == 0)
                     fullName = Name;
                 else
-                    fullName = string.Join(" \\ ", Group.Append(Name));
+                    fullName = string.Join(GroupSeparator, Group.Append(Name));
             }
             return fullName;
         }

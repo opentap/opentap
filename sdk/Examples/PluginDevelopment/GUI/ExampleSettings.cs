@@ -30,10 +30,15 @@ namespace OpenTap.Plugins.PluginDevelopment
         [Display("My Integer", Description: "Some integer.")]
         public int MyInt { get; set; }
 
+        [MetaData(true)]
+        [Display("My Comment", Description: "Some meta data comment")]
+        public string MyComment { get; set; }
+
         public ExampleSettings()
         {
             DemoTime = DateTime.Now;
             MyInt = 12345;
+            MyComment = "";
         }
 
         public override string ToString()

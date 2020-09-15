@@ -18,9 +18,19 @@ namespace OpenTap.Plugins
 {
 
     /// <summary>
+    /// Implemented by serializer plugins that creates and populates members of an object.
+    /// </summary>
+    public interface IConstructingSerializer
+    {
+        /// <summary> The object currently being serialized/deserialized. </summary>
+        object Object { get; }
+        /// <summary> Optionally set to indicate which member of Object is being serialized/deserialized. </summary>
+        IMemberData CurrentMember { get; }
+    }
+    /// <summary>
     /// Default object serializer.
     /// </summary>
-    internal class ObjectSerializer : TapSerializerPlugin, ITapSerializerPlugin
+    internal class ObjectSerializer : TapSerializerPlugin, ITapSerializerPlugin, IConstructingSerializer
     {
         /// <summary>
         /// Gets the member currently being serialized.
@@ -79,8 +89,10 @@ namespace OpenTap.Plugins
             Object = newobj;    
             var t2 = t;
             if (newobj == null)
-                throw new ArgumentNullException("newobj");
-            var properties = t2.GetMembers().Where(x => x.HasAttribute<XmlIgnoreAttribute>() == false).ToArray();
+                throw new ArgumentNullException(nameof(newobj));
+            var properties = t2.GetMembers()
+                .Where(x => x.HasAttribute<XmlIgnoreAttribute>() == false)
+                .ToArray();
             try
             {
                 
@@ -129,7 +141,7 @@ namespace OpenTap.Plugins
                     bool[] visited = new bool[elements.Length];
                     
                     double order = 0;
-
+                    int foundWithCurrentType = 0;
                     while (true)
                     {
                         double nextOrder = 1000;
@@ -209,7 +221,17 @@ namespace OpenTap.Plugins
                                 }
                                 else
                                 {
-                                    Action<object> setValue = x => property.SetValue(newobj, x);
+                                    Action<object> setValue = x =>
+                                    {
+                                        var current = property.GetValue(newobj);
+                                        property.SetValue(newobj, x);
+                                        if (false == Equals(current, x))
+                                        { // for some value-like type, it may be needed
+                                            // to set the parent object when a property is changed
+                                            // example: complex test plan parameters.
+                                            setter(newobj);
+                                        }
+                                    };
                                     Serializer.Deserialize(element2, setValue, property.TypeDescriptor);
                                 }
                             }
@@ -227,18 +249,80 @@ namespace OpenTap.Plugins
                                 CurrentMember = prev;
                             }
                         }
-                        if (found == visited.Count(x => x) && order == nextOrder)
+
+                        int nowFound = visited.Count(x => x);
+                        if (found == nowFound && order == nextOrder)
                         {
-                            if (logWarnings && visited.Count(x => x) < elements.Length)
+                            // The might have changed by loading properties.
+                            var t3 = TypeData.GetTypeData(newobj);
+                            if (Equals(t3, t2) == false)
                             {
-                                // print a warning message if the element could not be deserialized.
-                                for(int j = 0; j < elements.Length; j++)
-                                {
-                                    if (visited[j]) continue;
-                                    var elem = elements[j];
-                                    var message = string.Format("Unable to read element '{0}'. The property does not exist.", elem.Name.LocalName);
-                                    Serializer.PushError(elem, message);
+                                if (nowFound != foundWithCurrentType) 
+                                {  //  check avoids infinite loop if ITypeData did not overload Equals.
+                                    
+                                    foundWithCurrentType = nowFound;
+                                    t2 = t3;
+                                    continue;
                                 }
+                            }
+                            if (nowFound < elements.Length)
+                            { // still elements left to check. Last resort to try loading at defer.
+
+                                // Some of the items might not be deserializable before defer load.
+                                // if this is the case do this as a defer action.
+                                void postDeserialize()
+                                {
+                                    t2 = TypeData.GetTypeData(newobj);
+                                    for(int j = 0; j < elements.Length; j++)
+                                    {
+                                        if (visited[j]) continue;
+                                        var propertyElement = elements[j];
+                                        IMemberData property = null;
+                                        var elementName = XmlConvert.DecodeName(propertyElement.Name.LocalName);
+                                        try
+                                        {   
+                                            property = t2.GetMember(elementName);
+                                            if (property == null)
+                                                property = t2.GetMembers().FirstOrDefault(x => x.Name == elementName);
+                                        }
+                                        catch { }
+                                        if (property == null || property.Writable == false)
+                                        {
+                                            continue;
+                                        }
+                                        
+                                        Action<object> setValue = x => property.SetValue(newobj, x);
+                                        var prevobj2 = Object;
+                                        var prevmember = this.CurrentMember;
+                                        Object = newobj;
+                                        CurrentMember = property;
+                                        // at this point the serializer stack is technically empty,
+                                        // so add the current on top and deserialize.
+                                        Serializer.PushActiveSerializer(this);
+                                        try
+                                        {
+                                            Serializer.Deserialize(propertyElement, setValue, property.TypeDescriptor);
+                                        }
+                                        finally
+                                        {
+                                            // clean up.
+                                            Serializer.PopActiveSerializer();
+                                            Object = prevobj2;
+                                            CurrentMember = prevmember;
+                                        }
+
+                                        visited[j] = true;
+                                    }
+                                    // print a warning message if the element could not be deserialized.
+                                    for (int j = 0; j < elements.Length; j++)
+                                    {
+                                        if (visited[j]) continue;
+                                        var elem = elements[j];
+                                        var message =$"Unable to read element '{elem.Name.LocalName}'. The property does not exist.";
+                                        Serializer.PushError(elem, message);
+                                    }
+                                }
+                                Serializer.DeferLoad(postDeserialize);
                             }
                             break;
                         }
@@ -454,7 +538,6 @@ namespace OpenTap.Plugins
         /// <returns></returns>
         public override bool Deserialize(XElement element, ITypeData t, Action<object> setter)
         {
-            object result = null;
             try
             {
                 if (t is TypeData ctd)
@@ -474,13 +557,8 @@ namespace OpenTap.Plugins
             }
             try
             {
-
-                if (TryDeserializeObject(element, t, x => result = x))
-                {
-                    setter(result);
+                if (TryDeserializeObject(element, t, setter))
                     return true;
-                }
-
             }
             catch (Exception)
             {

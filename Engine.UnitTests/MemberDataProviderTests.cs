@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Xml.Serialization;
 using System.ComponentModel;
+using System.IO;
 using System.Text;
 using OpenTap.Cli;
 using System.Threading;
@@ -115,31 +116,33 @@ namespace OpenTap.Engine.UnitTests
             }
 
 
-            private static IEnumerable<ITypeData> _types = new List<ITypeData>
+            private static IEnumerable<ITypeData> hardcodedTypes = new List<ITypeData>
             {
                 new TypeDataTestImpl( "UnitTestType", TypeData.FromType(typeof(IResultListener)),null),
                 new TypeDataTestImpl( "UnitTestCliActionType", TypeData.FromType(typeof(ICliAction)),() => new SomeTestAction())
             };
 
-            public static bool Enable = false;
-            public IEnumerable<ITypeData> Types { get; private set; }
+            public static bool Enable { get; set; }
+
+            private IEnumerable<ITypeData> _types = new List<ITypeData>();
+            public IEnumerable<ITypeData> Types
+            {
+                get => Enable ? _types : Enumerable.Empty<ITypeData>();
+            }
 
             public void Search()
             {
-                if (Enable)
-                    Types = _types;
-                else
-                    Types = null;
+                _types = hardcodedTypes;
             }
 
             public double Priority => 1;
 
-            public ITypeData GetTypeData(string identifier) => _types.FirstOrDefault(x => x.Name == identifier);
+            public ITypeData GetTypeData(string identifier) => hardcodedTypes.FirstOrDefault(x => x.Name == identifier);
 
             public ITypeData GetTypeData(object obj)
             {
                 if (obj is SomeTestAction)
-                    return _types.Last();
+                    return hardcodedTypes.Last();
                 return null;
             }
         }
@@ -156,6 +159,7 @@ namespace OpenTap.Engine.UnitTests
         public void ITypeDataSearcherTest()
         {
             TypeDataSearcherTestImpl.Enable = true;
+            PluginManager.Search();
             ITypeData baseType = TypeData.FromType(typeof(IResultListener));
             var types = TypeData.GetDerivedTypes(baseType);
             TypeDataSearcherTestImpl.Enable = false;
@@ -183,8 +187,10 @@ namespace OpenTap.Engine.UnitTests
         public void ITypeDataSearcherTest2()
         {
             TypeDataSearcherTestImpl.Enable = true;
+            PluginManager.Search();
             try
             {
+                
                 var actionTypes = TypeData.GetDerivedTypes<ICliAction>();
                 Assert.IsTrue(actionTypes.Any(t => t.Name.EndsWith("UnitTestCliActionType")));
                 SomeTestAction.WasRun = false;
@@ -409,8 +415,34 @@ namespace OpenTap.Engine.UnitTests
             }
 
             var td2 = TypeData.GetTypeData("System.Windows.WindowState");
-
         }
+
+        class NestedClass
+        {
+            public double X { get; set; }
+        }
+        
+        /// <summary>
+        /// This test verifies the reflection behavior of TypeData to ensure it does not change in the future unpurposedly.
+        /// </summary>
+        [Test]
+        public void TypeDataBehaviors()
+        {
+             
+            var obj = new NestedClass();
+            var t = TypeData.GetTypeData(obj);
+            Assert.AreEqual(nameof(NestedClass), t.GetDisplayAttribute().Name);
+            var members = t.GetMembers();
+            Assert.AreEqual(1, members.Count());
+            var x = members.FirstOrDefault();
+            Assert.AreEqual(x, t.GetMember(nameof(NestedClass.X)));
+            Assert.IsTrue(x.Readable);
+            Assert.IsTrue(x.Writable);
+            Assert.AreEqual(t, x.DeclaringType);
+            Assert.AreEqual(TypeData.FromType(typeof(double)), x.TypeDescriptor);
+            Assert.AreEqual(nameof(NestedClass.X), x.GetDisplayAttribute().Name);
+        }
+        
 
         [Test]
         public void MemberDataSerializeTest()
@@ -533,6 +565,76 @@ namespace OpenTap.Engine.UnitTests
             {
                 return X + Y;
             }
+            
+            [Flags]
+            public enum LongEnum: long{
+                Test0 = 1L << 0,
+                Test1 = 1L << 1,
+                Test2 = 1L << 2,
+                Test3 = 1L << 3,
+                Test4 = 1L << 4,
+                Test5 = 1L << 5,
+                Test6 = 1L << 6,
+                Test7 = 1L << 7,
+                Test8 = 1L << 8,
+                Test9 = 1L << 9,
+                Test10 = 1L << 10,
+                Test11 = 1L << 11,
+                Test12 = 1L << 12,
+                Test13 = 1L << 13,
+                Test14 = 1L << 14,
+                Test15 = 1L << 15,
+                Test16 = 1L << 16,
+                Test17 = 1L << 17,
+                Test18 = 1L << 18,
+                Test19 = 1L << 19,
+                Test20 = 1L << 20,
+                Test21 = 1L << 21,
+                Test22 = 1L << 22,
+                Test23 = 1L << 23,
+                Test24 = 1L << 24,
+                Test25 = 1L << 25,
+                Test26 = 1L << 26,
+                Test27 = 1L << 27,
+                Test28 = 1L << 28,
+                Test29 = 1L << 29,
+                Test30 = 1L << 30,
+                Test31 = 1L << 31,
+                Test32 = 1L << 32,
+                Test33 = 1L << 33,
+                Test34 = 1L << 34,
+                Test35 = 1L << 35,
+                Test36 = 1L << 36,
+                Test37 = 1L << 37,
+                Test38 = 1L << 38,
+                Test39 = 1L << 39,
+                Test40 = 1L << 40,
+                Test41 = 1L << 41,
+                Test42 = 1L << 42,
+                Test43 = 1L << 43,
+                Test44 = 1L << 44,
+                Test45 = 1L << 45,
+                Test46 = 1L << 46,
+                Test47 = 1L << 47,
+                Test48 = 1L << 48,
+                Test49 = 1L << 49,
+                Test50 = 1L << 50,
+                Test51 = 1L << 51,
+                Test52 = 1L << 52,
+                Test53 = 1L << 53,
+                Test54 = 1L << 54,
+                Test55 = 1L << 55,
+                Test56 = 1L << 56,
+                Test57 = 1L << 57,
+                Test58 = 1L << 58,
+                Test59 = 1L << 59,
+                Test60 = 1L << 60,
+                Test61 = 1L << 61,
+                Test62 = 1L << 62,
+                Test63 = 1L << 63,
+            }
+            
+            public LongEnum LongEnumValue { get; set; }
 
         }
 
@@ -565,6 +667,14 @@ namespace OpenTap.Engine.UnitTests
                 if (mem.Member.Name == nameof(DataInterfaceTestClass.SelectableValues))
                 {
 
+                }
+                if (mem.Member.Name == nameof(DataInterfaceTestClass.LongEnumValue))
+                {
+                    var proxy = member.Get<IMultiSelectAnnotationProxy>();
+                    var selected = proxy.SelectedValues.ToArray();
+                    Assert.AreEqual(0, selected.Length);
+                    proxy.SelectedValues = member.Get<IAvailableValuesAnnotationProxy>().AvailableValues;
+                    Assert.AreEqual(64, proxy.SelectedValues.Count()); 
                 }
 
                 if (mem.Member.Name == nameof(DataInterfaceTestClass.ButtonExample))
@@ -705,11 +815,11 @@ namespace OpenTap.Engine.UnitTests
                     try
                     {
                         member.Write();
-                        Assert.Fail("This should have thrown an exception");
                     }
                     catch
                     {
-                        // index out of bounds
+                        // See OpenTAP issue #347 -- functionality was added to allow writing to fixed size collections by resizing them
+                        Assert.Fail("This shouldn't throw an exception");
                     }
                     member.Read();
                 }
@@ -1083,8 +1193,10 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void MultiSelectAnnotationsInterfaceTest()
         {
+            var plan = new TestPlan();
             var steps = new List<DialogStep> { new DialogStep { UseTimeout = false }, new DialogStep { UseTimeout = false }, new DialogStep { UseTimeout = true } };
-
+            plan.ChildTestSteps.AddRange(steps);
+            
             var mem = AnnotationCollection.Annotate(steps);
             var val = mem.Get<IMembersAnnotation>();
             Assert.IsNotNull(val);
@@ -1102,6 +1214,94 @@ namespace OpenTap.Engine.UnitTests
                 Assert.IsTrue(string.Compare(theMessage, step.Message) == 0);
                 Assert.IsTrue(step.UseTimeout);
             }
+
+            {
+                // check Break Conditions
+                var cval = BreakConditionProperty.GetBreakCondition(steps[0]);
+                Assert.AreEqual(BreakCondition.Inherit, cval);
+                var bk = mem.GetMember("BreakConditions");
+                var descriptor = bk.GetMember("Value").Get<IValueDescriptionAnnotation>();
+                var description = descriptor.Describe();
+                var tostringer = bk.GetMember("Value").Get<IStringReadOnlyValueAnnotation>();
+                var tostringvalue = tostringer.Value;
+                
+                Assert.AreEqual("Break on Error (inherited from engine settings).", description);
+                Assert.AreEqual("Break on Error", tostringvalue);
+                var enabled = bk.Get<IEnabledValueAnnotation>();
+                Assert.IsNotNull(enabled.Value.Get<IAvailableValuesAnnotationProxy>());
+
+                Assert.IsFalse((bool)(enabled.IsEnabled.Get<IObjectValueAnnotation>().Value));
+                enabled.IsEnabled.Get<IObjectValueAnnotation>().Value = true;
+                mem.Write();
+                mem.Read();
+                
+                cval = BreakConditionProperty.GetBreakCondition(steps[0]);
+                Assert.AreEqual(BreakCondition.BreakOnError, cval);
+                Assert.IsTrue((bool)enabled.IsEnabled.Get<IObjectValueAnnotation>().Value);
+                enabled.IsEnabled.Get<IObjectValueAnnotation>().Value = false;
+                mem.Write();
+                cval = BreakConditionProperty.GetBreakCondition(steps[0]);
+                Assert.AreEqual(BreakCondition.Inherit, cval);
+            }
+        }
+
+        [Test]
+        public void MultiSelectAnnotationsInterfaceTest3()
+        {
+            var plan = new TestPlan();
+            var steps = new List<DialogStep> { new DialogStep { UseTimeout = false }, new DialogStep { UseTimeout = false }, new DialogStep { UseTimeout = true } };
+            BreakConditionProperty.SetBreakCondition(steps[0], BreakCondition.BreakOnError);
+            BreakConditionProperty.SetBreakCondition(steps[1], BreakCondition.BreakOnFail);
+            BreakConditionProperty.SetBreakCondition(steps[2], BreakCondition.BreakOnInconclusive);
+            plan.ChildTestSteps.AddRange(steps);
+
+            var mem = AnnotationCollection.Annotate(steps);
+            var bk = mem.GetMember("BreakConditions");
+            var descriptor = bk.GetMember("Value").Get<IValueDescriptionAnnotation>();
+            var description = descriptor.Describe();
+            var tostringer = bk.GetMember("Value").Get<IStringReadOnlyValueAnnotation>();
+            var tostringvalue = tostringer.Value;
+            StringAssert.Contains("different", description);
+            Assert.AreEqual("", tostringvalue);
+
+            BreakConditionProperty.SetBreakCondition(steps[0], 0);
+            BreakConditionProperty.SetBreakCondition(steps[1], 0);
+            BreakConditionProperty.SetBreakCondition(steps[2], 0);
+            mem.Read();
+            var tostringvalue2 = tostringer.Value;
+            Assert.AreEqual("None", tostringvalue2);
+        }
+
+        [Test]
+        public void MultiSelectAnnotationsInterfaceTest2()
+        {
+            var plan = new TestPlan();
+            var steps = new List<ProcessStep> { new ProcessStep {}, new ProcessStep {}, new ProcessStep {} };
+            plan.ChildTestSteps.AddRange(steps);
+            
+            var mem = AnnotationCollection.Annotate(steps);
+
+            {
+                // check Break Conditions
+                var cval =steps[0].ResultRegularExpressionPattern;
+                Assert.IsFalse(cval.IsEnabled);
+                var bk = mem.GetMember("ResultRegularExpressionPattern");
+                var enabled = bk.Get<IEnabledValueAnnotation>();
+                Assert.IsFalse((bool)(enabled.IsEnabled.Get<IObjectValueAnnotation>().Value));
+                enabled.IsEnabled.Get<IObjectValueAnnotation>().Value = true;
+                mem.Write();
+                mem.Read();
+                
+                cval = steps[0].ResultRegularExpressionPattern;
+                Assert.IsTrue(cval.IsEnabled);
+                Assert.IsTrue((bool)enabled.IsEnabled.Get<IObjectValueAnnotation>().Value);
+                enabled.IsEnabled.Get<IObjectValueAnnotation>().Value = false;
+                mem.Write();
+                cval = steps[0].ResultRegularExpressionPattern;
+                Assert.IsFalse(cval.IsEnabled);
+            }
+
+
         }
 
         [Test]
@@ -1570,6 +1770,55 @@ namespace OpenTap.Engine.UnitTests
             var members2 = members.ToDictionary(x => x.Get<IMemberAnnotation>().Member.Name);
             var v = members2["BreakConditions"];
 
+        }
+        
+        public class EmbedInstrumentStep : TestStep
+        {
+            public InstrumentUsingEmbed Instrument { get; set; }
+            public override void Run() { }
+        }
+
+        public class EmbedSomeSettingsOnInstrument
+        {
+            public double Frequencey { get; set; }
+        }
+
+        public class InstrumentUsingEmbed : Instrument
+        {
+            [EmbedProperties]
+            public EmbedSomeSettingsOnInstrument Settings { get; set; }
+        }
+
+        /// <summary>
+        /// Previously there was an issue where instruments could not be properly
+        /// deserialized if they had embedded properties. This test verifies that it works.
+        /// </summary>
+        [Test]
+        public void EmbedWithInstrumentTest()
+        {
+            var instr = new InstrumentUsingEmbed();
+            var instr2 = new InstrumentUsingEmbed();
+            try
+            {
+                InstrumentSettings.Current.Add(instr);
+                InstrumentSettings.Current.Add(instr2);
+                var step = new EmbedInstrumentStep { Instrument = instr2 };
+                var plan = new TestPlan();
+                plan.ChildTestSteps.Add(step);
+                using (var str = new MemoryStream())
+                {
+                    plan.Save(str);
+                    str.Seek(0, SeekOrigin.Begin);
+                    plan = TestPlan.Load(str, "Embed.TapPlan");
+                }
+                step = (EmbedInstrumentStep)plan.ChildTestSteps[0];
+                Assert.IsTrue(step.Instrument == instr2);
+            }
+            finally
+            {
+                InstrumentSettings.Current.Remove(instr);
+                InstrumentSettings.Current.Remove(instr2);
+            }
         }
     }
 }

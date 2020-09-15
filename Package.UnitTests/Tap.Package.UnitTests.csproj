@@ -1,5 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="../Common.Exe.targets"/>
+  <Import Project="../Common.Exe.targets" />
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <AssemblyName>OpenTap.Package.UnitTests</AssemblyName>
@@ -15,7 +15,7 @@
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="2.10.0" />
     <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
     <PackageReference Include="Nunit" Version="3.11.0" />
-    <PackageReference Include="Nunit.ConsoleRunner" Version="3.9.0"/>
+    <PackageReference Include="Nunit.ConsoleRunner" Version="3.9.0" />
     <PackageReference Include="Nunit3TestAdapter" Version="3.12.0" />
     <PackageReference Include="System.CodeDom" Version="4.5.0" />
 
@@ -89,6 +89,12 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <None Include="TapPackages\MyPlugin3.TapPackage">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="Packages\DependencyTest.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="UnitTesting.snk">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

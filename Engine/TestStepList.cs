@@ -236,7 +236,7 @@ namespace OpenTap
                 if (existingstep != null)
                 {
                     if (existingstep == step)
-                        throw new InvalidOperationException("Step already exists in the plan");
+                        throw new InvalidOperationException("Test step already exists in the test plan");
                     step.Id = Guid.NewGuid();
                 }
             }
@@ -252,9 +252,9 @@ namespace OpenTap
                 if (!AllowChild(parentType, item.GetType()))
                 {
                     if (Parent is TestPlan)
-                        throw new ArgumentException(String.Format("Cannot add Step of type {0} as a root step (must be nested).", item.GetType().Name));
+                        throw new ArgumentException(String.Format("Cannot add test step of type {0} as a root test step (must be nested).", item.GetType().Name));
                     else
-                        throw new ArgumentException(String.Format("Cannot add Step of type {0} to {1}", item.GetType().Name, Parent.GetType().Name));
+                        throw new ArgumentException(String.Format("Cannot add test step of type {0} to {1}", item.GetType().Name, Parent.GetType().Name));
                 }
             }
             

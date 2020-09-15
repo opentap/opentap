@@ -296,21 +296,52 @@ namespace OpenTap.Cli
         public override string ToString()
         {
             StringBuilder output = new StringBuilder();
+
+            // Compute the options' width
+            int width = 0;
+            List<string> optList = new List<string>();
             foreach (var option in this)
             {
                 var opt = option.Value;
+
+                if (opt.IsVisible == false)
+                    continue;
+
                 var arg = "--" + opt.LongName;
                 if (opt.ShortName != default(char))
                 {
                     arg = String.Format("-{0}, {1}", opt.ShortName, arg);
                 }
                 arg = "  " + arg;
-                foreach (var descSplit in opt.Description.Split('\n'))
-                {
-                    arg = arg + new String(' ', 22 - arg.Length) + descSplit;
+
+                optList.Add(arg);
+
+                if (arg.Length > width)
+                    width = arg.Length;
+            }
+
+            width += 3;
+
+            // Do the actual formatting (option + description)
+            int i = 0;
+            foreach (var option in this)
+            {
+                var opt = option.Value;
+
+                if (opt.IsVisible == false)
+                    continue;
+
+                var arg =  optList[i++];
+
+                if (!string.IsNullOrEmpty(opt.Description))
+                    foreach (var descSplit in opt.Description.Split('\n'))
+                    {
+                        arg = arg + new String(' ', width - arg.Length) + descSplit;
+                        output.AppendLine(arg);
+                        arg = "";
+                    }
+                else
                     output.AppendLine(arg);
-                    arg = "";
-                }
             }
             return output.ToString();
         }

@@ -143,17 +143,67 @@ namespace OpenTap
     /// </summary>
     internal static class ResourceManagerUtils
     {
-        /// <summary>
-        /// Gets ResourceNodes for all resources. This includes the ones from <see cref="IResourceManager.EnabledSteps"/> and  <see cref="IResourceManager.StaticResources"/>.
-        /// </summary>
-        public static List<ResourceNode> GetResourceNodes(IEnumerable<object> source)
+        struct EnumerableKey
         {
-            var resources = new ResourceDependencyAnalyzer().GetAllResources(source.ToList(), out bool analysisError);
+            readonly int key;
+            readonly object[] items;
+            public EnumerableKey(object[] items)
+            {
+                this.items = items;
+                key = 3275321;
+                foreach (var item in items)
+                    key = ((item?.GetHashCode() ?? 0) + key) * 3275321;
+            }
+
+            public override int GetHashCode() => key;
+            public override bool Equals(object obj)
+            {
+                if (obj is EnumerableKey other)
+                    return other.key == key && other.items.SequenceEqual(items);
+                return false;
+            }
+        }
+        
+        static List<ResourceNode> GetResourceNodesNoCache(object[] source)
+        {
+            var resources = new ResourceDependencyAnalyzer().GetAllResources(source, out bool analysisError);
             if (analysisError)
             {
                 throw new OperationCanceledException("Error while analyzing dependencies between resources.");
             }
             return resources;
+        }
+
+        class ResourceNodeCache : ICacheOptimizer
+        {
+            public readonly static ThreadField<Dictionary<EnumerableKey, List<ResourceNode>>> Cache = new ThreadField<Dictionary<EnumerableKey, List<ResourceNode>>>();
+            public void LoadCache() => Cache.Value = new Dictionary<EnumerableKey, List<ResourceNode>>();
+
+            public void UnloadCache() => Cache.Value = null;
+        }
+        
+        /// <summary>
+        /// Gets ResourceNodes for all resources. This includes the ones from <see cref="IResourceManager.EnabledSteps"/> and  <see cref="IResourceManager.StaticResources"/>.
+        /// </summary>
+        public static List<ResourceNode> GetResourceNodes(IEnumerable<object> _source)
+        {
+            var source = _source.ToArray();
+            var cache = ResourceNodeCache.Cache.Value;
+            if (cache != null)
+            {
+                var key = new EnumerableKey(source);
+                lock (cache)
+                {
+
+                    if (cache.TryGetValue(key, out List<ResourceNode> result))
+                        return result;
+                    result = GetResourceNodesNoCache(source);
+                    cache[key] = result;
+                    return result;
+                }
+            }
+
+            return GetResourceNodesNoCache(source);
         }
     }
 
@@ -248,7 +298,7 @@ namespace OpenTap
         /// </summary>
         public IEnumerable<IResource> StaticResources { get; set; }
         /// <summary>
-        /// This property should be set to all teststeps that are enabled to be run.
+        /// This property should be set to all test steps that are enabled to be run.
         /// </summary>
         public List<ITestStep> EnabledSteps { get; set; }
 
@@ -268,6 +318,17 @@ namespace OpenTap
                 closeTasks[r.Resource] = new Task(o =>
                 {
                     ResourceNode res = (ResourceNode)o;
+
+                    // Wait for the resource to open to open before closing it.
+                    // in rare cases, another instrument failing open will cause close to be called.
+                    try
+                    {
+                        openTasks[res.Resource].Wait();
+                    }
+                    catch
+                    {
+                        
+                    }
 
                     // wait for resources that depend on this resource (res) to close before closing this
                     Task.WaitAll(dependencies[res.Resource].Select(x => closeTasks[x]).ToArray());
@@ -354,11 +415,16 @@ namespace OpenTap
                         var testplan = item as TestPlan;
                         var resources = ResourceManagerUtils.GetResourceNodes(StaticResources.Cast<object>().Concat(EnabledSteps));
 
-                        testplan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
-
                         // Proceed to open resources in case they have been changed or closed since last opening/executing the testplan.
-                        if (resources.Any(r => openTasks.ContainsKey(r.Resource) == false)) // TODO: this only checks if some have been closed.
+                        // In case any are null, we need to do this before the resource prompt to allow a ILockManager implementation to 
+                        // set the resource first.
+                        if (resources.Any(r => r.Resource == null))
                             beginOpenResoureces(resources, cancellationToken);
+
+                        testplan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
+                        
+                        if (resources.Any(r => openTasks.ContainsKey(r.Resource) == false))
+                            beginOpenResoureces(resources, cancellationToken); 
                     }
                     break;
                 case TestPlanExecutionStage.Open:
@@ -475,11 +541,22 @@ namespace OpenTap
 
                 Stopwatch swatch = Stopwatch.StartNew();
 
-                // start a new thread to do synchronous work
-                await Task.Factory.StartNew(node.Resource.Open);
 
-                var reslog = ResourceTaskManager.GetLogSource(node.Resource);
-                reslog.Info(swatch, "Resource \"{0}\" opened.", node.Resource);
+                try
+                {
+                    // start a new thread to do synchronous work
+                    await Task.Factory.StartNew(node.Resource.Open);
+
+                    var reslog = ResourceTaskManager.GetLogSource(node.Resource);
+                    reslog.Info(swatch, "Resource \"{0}\" opened.", node.Resource);
+
+                }
+                finally
+                {
+                    lock (LockObj)
+                        if (state == ResourceState.Opening)
+                            state = ResourceState.Open;
+                }
 
                 foreach (var dep in node.WeakDependencies)
                 {
@@ -487,9 +564,6 @@ namespace OpenTap
                     await requester.RequestResourceOpen(dep, cancellationToken);
                 }
 
-                lock (LockObj)
-                    if (state == ResourceState.Opening)
-                        state = ResourceState.Open;
 
                 requester.ResourceOpenedCallback(node.Resource);
             }
@@ -531,13 +605,22 @@ namespace OpenTap
                             case ResourceState.Closing:
                                 throw new Exception("Should never happen");
                             case ResourceState.Opening:
-                                return OpenTask.ContinueWith(t => RequestClose(requester).Wait());
                             case ResourceState.Open:
                                 {
                                     state = ResourceState.Closing;
 
                                     return CloseTask = Task.Factory.StartNew(() =>
                                     {
+                                        try
+                                        {
+                                            // wait for the resource to open before close.
+                                            requester.resources[ResourceNode.Resource].OpenTask?.Wait();
+                                        }
+                                        catch
+                                        {
+                                            
+                                        }
+
                                         Task.WaitAll(ResourceNode.WeakDependencies.Select(requester.RequestResourceClose).ToArray());
                                         var reslog = ResourceTaskManager.GetLogSource(ResourceNode.Resource);
                                         Stopwatch timer = Stopwatch.StartNew();

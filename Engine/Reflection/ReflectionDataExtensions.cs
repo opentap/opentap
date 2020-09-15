@@ -1,4 +1,4 @@
-﻿//            Copyright Keysight Technologies 2012-2019
+//            Copyright Keysight Technologies 2012-2019
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
@@ -75,6 +75,7 @@ namespace OpenTap
         {
             if(typeof(T) == typeof(DisplayAttribute) && mem is TypeData td)
             {
+                
                 return (T)((object)td.Display);
             }
             if (mem.Attributes is object[] array)
@@ -120,12 +121,16 @@ namespace OpenTap
         /// <returns></returns>
         public static DisplayAttribute GetDisplayAttribute(this IReflectionData mem)
         {
-            DisplayAttribute attr = null;
+            DisplayAttribute attr;
             if (mem is TypeData td)
                 attr = td.Display;
             else
                 attr = mem.GetAttribute<DisplayAttribute>();
-            return attr ?? new DisplayAttribute(mem.Name, null, Order: -10000, Collapsed: false);
+            if (attr != null) return attr;
+            // auto-generate a display attribute.
+            // mem.Name has to be something fully qualifiable, but the display attribute name should be something more human friendly.
+            var name = mem.Name.Split('.').Last().Split('+').Last();
+            return new DisplayAttribute(name);
         }
 
         /// <summary>Gets the help link of 'member'</summary>

@@ -7,7 +7,7 @@ using OpenTap.Plugins.BasicSteps;
 namespace OpenTap.Engine.UnitTests
 {
     [TestFixture]
-    public class AbortConditionsTest
+    public class BreakConditionsTest
     {
         public class TestStepFailsTimes : TestStep
         {
@@ -77,6 +77,8 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(verdictOutput, run.Verdict);
             Assert.AreEqual(1, l.StepRuns.Count);
             Assert.AreEqual(BreakCondition.Inherit, BreakConditionProperty.GetBreakCondition(verdict2));
+            var log = l.LogString;
+            Assert.IsTrue(log.Contains("Break issued from"));
         }
 
         [TestCase(Verdict.Pass, EngineSettings.AbortTestPlanType.Step_Error, 2)]
@@ -195,7 +197,7 @@ namespace OpenTap.Engine.UnitTests
 
         public class TestStepAbortPlan : TestStep
         {
-            public AbortConditionsTest.TestStepWaitInfinite WaitFor { get; set; }
+            public BreakConditionsTest.TestStepWaitInfinite WaitFor { get; set; }
             public override void Run()
             {
                 WaitFor?.Sem.WaitOne();
@@ -219,5 +221,65 @@ namespace OpenTap.Engine.UnitTests
                 Assert.AreEqual(Verdict.Aborted, step.Verdict);    
             }
         }
+
+        [Test]
+        public void TestPlanBreakConditions()
+        {
+            var plan = new TestPlan();
+            
+            var errorStep = new VerdictStep() {VerdictOutput = Verdict.Error};
+            var failStep = new VerdictStep() {VerdictOutput = Verdict.Fail};
+            var inconclusiveStep = new VerdictStep() {VerdictOutput = Verdict.Inconclusive};
+            var passStep = new VerdictStep() {VerdictOutput = Verdict.Pass};
+            
+            plan.Steps.Add(errorStep);
+            plan.Steps.Add(failStep);
+            plan.Steps.Add(inconclusiveStep);
+            plan.Steps.Add(passStep);
+
+            var defaultValue = BreakConditionProperty.GetBreakCondition(plan);
+            Assert.AreEqual(BreakCondition.Inherit, defaultValue);
+            
+            // break on fail, this means that 'passStep' will not get executed 
+            BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnError);
+            var col = new PlanRunCollectorListener();
+            plan.Execute(new []{col});
+            Assert.AreEqual(1, col.StepRuns.Count);
+            
+            BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnFail);
+            col = new PlanRunCollectorListener();
+            plan.Execute(new []{col});
+            Assert.AreEqual(2, col.StepRuns.Count);
+            
+            BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnInconclusive);
+            col = new PlanRunCollectorListener();
+            plan.Execute(new []{col});
+            Assert.AreEqual(3, col.StepRuns.Count);
+            
+            BreakConditionProperty.SetBreakCondition(plan, 0);
+            col = new PlanRunCollectorListener();
+            plan.Execute(new []{col});
+            Assert.AreEqual(4, col.StepRuns.Count);
+            
+        }
+
+        /// <summary>
+        /// Testing that TestPlan.Locked causes BreakConditions to be locked.
+        /// </summary>
+        [Test]
+        public void TestBreakConditionsLocked()
+        {
+            var plan = new TestPlan();
+            var a = AnnotationCollection.Annotate(plan);
+            var mem = a.GetMember("BreakConditions");
+            Assert.IsFalse(mem.Get<IAccessAnnotation>().IsReadOnly);
+            plan.Locked = true;
+            a.Read();
+            Assert.IsTrue(mem.Get<IAccessAnnotation>().IsReadOnly);
+            plan.Locked = false;
+            a.Read();
+            Assert.IsFalse(mem.Get<IAccessAnnotation>().IsReadOnly);
+        }
+        
     }
 }

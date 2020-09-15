@@ -39,7 +39,10 @@ namespace OpenTap.Engine.UnitTests
             }
             consoleListener = Task.Factory.StartNew(new Action(consoleOutputLoader));
         }
-        public static TapProcessContainer StartFromArgs(string args)
+
+        public static TapProcessContainer StartFromArgs(string args) => StartFromArgs(args, TimeSpan.FromMinutes(2));
+            
+        public static TapProcessContainer StartFromArgs(string args, TimeSpan timeOutAfter)
         {
             Process proc = new Process();
 
@@ -67,6 +70,11 @@ namespace OpenTap.Engine.UnitTests
             proc.StartInfo.UseShellExecute = false;
 
             container.go();
+            TapThread.Start(() =>
+            {
+                TapThread.Sleep(timeOutAfter);
+                proc.Kill();
+            });
             return container;
         }
 

@@ -303,6 +303,8 @@ namespace OpenTap.Package
                 filenameParts.Add("TapPackage");
                 var filename = Path.Combine(destinationDir, String.Join(".", filenameParts));
 
+                TapThread.ThrowIfAborted();
+                
                 try
                 {
                     PackageDef existingPkg = null;

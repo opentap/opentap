@@ -15,17 +15,27 @@ using OpenTap.Cli;
 
 namespace OpenTap.Package
 {
+    /// <summary>
+    /// Base class for ICliActions that makes a copy of the installation to a temp dir before executing. Usefull for making changes to the installation. 
+    /// </summary>
     public abstract class IsolatedPackageAction : LockingPackageAction
     {
+        /// <summary>
+        /// Try to force execution in spite of errors. When true the action will execute even when isolation cannot be achieved.
+        /// </summary>
         [CommandLineArgument("force", Description = "Try to run in spite of errors.", ShortName = "f")]
         public bool Force { get; set; }
 
+        /// <summary>
+        /// Executes this the action. Derived types should override LockedExecute instead of this.
+        /// </summary>
+        /// <returns>Return 0 to indicate success. Otherwise return a custom errorcode that will be set as the exitcode from the CLI.</returns>
         public override int Execute(CancellationToken cancellationToken)
         {
             if (String.IsNullOrEmpty(Target))
                 Target = GetLocalInstallationDir();
             else
-                Target = Path.GetFullPath(Target.Trim());
+                Target = Path.GetFullPath(Target.Trim()); 
             if (!Directory.Exists(Target))
             {
                 log.Error("Destination directory \"{0}\" does not exist.", Target);

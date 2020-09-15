@@ -3,12 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using NUnit.Framework;
-using OpenTap;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using OpenTap.EngineUnitTestUtils;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -303,5 +298,71 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(1, run.StepsWithPrePlanRun.Count);
             Assert.AreEqual(Verdict.Pass, run.Verdict, listener.GetLog());
         }
+        
+		[Test]
+        public void TestMethodResourceSettingNullReference()
+        {
+            TestTraceListener tapTraceListener = new TestTraceListener();
+            DummyDut device = new DummyDut();
+            try
+            {
+                Log.AddListener(tapTraceListener);
+                DutSettings.Current.Add(device);
+
+                // this works
+                var testPlan = new TestPlan();
+                var step = new DummyInstrumentAndDutStep() { Device = device, Instrument = null };
+                testPlan.ChildTestSteps.Add(step);
+                var run = testPlan.Execute();
+                
+                Assert.AreEqual(Verdict.Error, run.Verdict);
+                tapTraceListener.ExpectWarnings("TestPlan aborted.");
+                tapTraceListener.ExpectErrors(
+                    $"Resource setting {nameof(DummyInstrumentAndDutStep.Instrument)} not set on step {nameof(DummyInstrumentAndDutStep)}. Please configure or disable step.");
+            }
+            finally
+            {
+                tapTraceListener.Flush();
+                Log.RemoveListener(tapTraceListener);
+                DutSettings.Current.Remove(device);
+            }
+        }
+        
+        public class DummyInstrumentAndDutStep : TestStep
+        {
+            public DummyDut Device { get; set; }
+            public DummyInstrument Instrument { get; set; }
+
+            public override void Run()
+            {
+            }
+        }
+		
+        public class SelfHiddenCyclicResource : Instrument
+        {
+            public object Self => this;
+        }
+
+        public class SelfHiddenCyclicResourceTestStep : TestStep
+        {
+            public SelfHiddenCyclicResource Resource { get; set; }
+
+            public override void Run()
+            {
+                UpgradeVerdict(Verdict.Pass);
+            }
+        }
+
+        [Test]
+        public void SelfHiddenCyclicResourceTest()
+        {
+            var step = new SelfHiddenCyclicResourceTestStep
+                {Resource = new SelfHiddenCyclicResource()};
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step);
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, run.Verdict);
+        }
+
     }
 }

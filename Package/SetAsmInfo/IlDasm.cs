@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace OpenTap.Package.SetAsmInfo
 {
@@ -132,9 +133,34 @@ namespace OpenTap.Package.SetAsmInfo
             return ec == 0;
         }
 
+        static string replaceBadIl(string text)
+        {
+            var initText = text;
+            text = Regex.Replace(text, "(IL_[0-9abcdef]+:\\s+ldc\\.r8\\s+)(-nan\\(ind\\))(\\s*\n)", "$1(00 00 00 00 00 00 F8 FF)\n");
+            text = Regex.Replace(text, "(IL_[0-9abcdef]+:\\s+ldc\\.r8\\s+)(-inf)(\\s*\n)", "$1(00 00 00 00 00 00 F0 FF)\n");
+            text = Regex.Replace(text, "(IL_[0-9abcdef]+:\\s+ldc\\.r8\\s+)(inf)(\\s*\n)", "$1(00 00 00 00 00 00 F0 7F)\n");
+                
+            text = Regex.Replace(text, "(IL_[0-9abcdef]+:\\s+ldc\\.r4\\s+)(-nan)\\(ind\\)(\\s*\n)", "$1(00 00 F8 FF)\n");
+            text = Regex.Replace(text, "(IL_[0-9abcdef]+:\\s+ldc\\.r4\\s+)(-inf)(\\s*\n)", "$1(00 00 F0 FF)\n");
+            text = Regex.Replace(text, "(IL_[0-9abcdef]+:\\s+ldc\\.r4\\s+)(inf)(\\s*\n)", "$1(00 00 F0 7F)\n");
+
+            if (false == string.Equals(initText, text))
+            {
+                log.Warning("Bad floating point constant expression detected in IL code. Replacing with valid values.");
+            }
+            
+            return text;
+        }
+
         public static bool Disassemble(string filename, string target)
         {
             var ec = RunProgram(ildasm, string.Format("/TEXT /NOBAR /RAWEH /QUOTEALLNAMES /UTF8 /FORWARD /OUT=\"{0}\" /UTF8 \"{1}\"", target, filename));
+            if (ec == 0)
+            { // fix disassembled code
+                var text = File.ReadAllText(target);
+                text = replaceBadIl(text);
+                File.WriteAllText(target, text);
+            }
             return ec == 0;
         }
 

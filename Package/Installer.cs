@@ -110,17 +110,18 @@ namespace OpenTap.Package
 
         internal void UninstallThread()
         {
-            RunCommand("uninstall", false);
+            RunCommand("uninstall", false, true);
         }
         
-        internal bool RunCommand(string command, bool force)
+        internal bool RunCommand(string command, bool force, bool modifiesPackageFiles)
         {
             var verb = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(command.ToLower()) + "ed";
 
             try
             {
-                waitForPackageFilesFree(TapDir, PackagePaths);
-
+                if (modifiesPackageFiles)
+                    waitForPackageFilesFree(TapDir, PackagePaths);
+                
                 if (cancellationToken.IsCancellationRequested)
                 {
                     log.Debug("Received abort while waiting for package files to be unlocked.");
@@ -174,6 +175,9 @@ namespace OpenTap.Package
 
         private void waitForPackageFilesFree(string tapDir, List<string> PackagePaths)
         {
+            // ignore tap.exe as it is not meant to be overwritten.
+            bool exclude(string filename) => filename.ToLower() == "tap" || filename.ToLower() == "tap.exe";
+            
             List<FileInfo> filesInUse = new List<FileInfo>();
 
             foreach (string packageFileName in PackagePaths)
@@ -182,7 +186,7 @@ namespace OpenTap.Package
                 {
                     string fullPath = Path.Combine(tapDir, file);
                     string filename = Path.GetFileName(file);
-                    if (filename == "tap" || filename.ToLower() == "tap.exe") // ignore tap.exe as it is not meant to be overwritten.
+                    if (exclude(filename))
                         continue;
                     if (IsFileLocked(new FileInfo(fullPath)))
                         filesInUse.Add(new FileInfo(fullPath));
@@ -205,7 +209,6 @@ namespace OpenTap.Package
                     var loaded_asm = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(x => x.IsDynamic == false && x.Location == file.FullName);
                     if (loaded_asm != null)
                         throw new InvalidOperationException($"The file '{file.FullName}' is being used by this process.");
-
                 }
 
                 var allProcesses = Process.GetProcesses().Where(p => 
@@ -222,7 +225,7 @@ namespace OpenTap.Package
 
                 log.Warning(Environment.NewLine + "Waiting for files to become unlocked...");
 
-                while (isPackageFilesInUse(tapDir, PackagePaths))
+                while (isPackageFilesInUse(tapDir, PackagePaths, exclude))
                 {
                     if (cancellationToken.IsCancellationRequested) return;
                     if (!isTapRunning())
@@ -241,18 +244,20 @@ namespace OpenTap.Package
                 return true;
         }
 
-        private bool isPackageFilesInUse(string tapDir, List<string> packagePaths)
+        private bool isPackageFilesInUse(string tapDir, List<string> packagePaths, Func<string, bool> exclude = null)
         {
-            foreach (string packageFileName in PackagePaths)
+            foreach (string packageFileName in packagePaths)
             {
                 foreach (string file in PluginInstaller.FilesInPackage(packageFileName))
                 {
                     string fullPath = Path.Combine(tapDir, file);
+                    string filename = Path.GetFileName(file);
+                    if (exclude != null && exclude(filename))
+                        continue;
                     if (IsFileLocked(new FileInfo(fullPath)))
                         return true;
                 }
             }
-
             return false;
         }
 

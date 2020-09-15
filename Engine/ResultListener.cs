@@ -10,7 +10,7 @@ using System.Runtime.Serialization;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.ComponentModel;
-using System.Collections.Immutable;
+using Microsoft.CodeAnalysis;
 
 namespace OpenTap
 {
@@ -89,6 +89,7 @@ namespace OpenTap
     /// Instructs the ResultListener not to save the 
     /// public property value as metadata for TestStep results.
     /// </summary>
+    [Obsolete("This attribute is no longer in use and will be removed in a later version.")]
     [AttributeUsage(AttributeTargets.Property)]
     public class ResultListenerIgnoreAttribute : Attribute
     {
@@ -132,11 +133,19 @@ namespace OpenTap
         string IAttributedObject.ObjectType => "Parameter";
 
         /// <summary> Gets if this result is metadata. </summary>
-        public bool IsMetaData { get; internal set; }
+        public bool IsMetaData { get; }
 
         /// <summary> null or the macro name representation of the ResultParameter. This will make it possible to insert the parameter value into a string. <see cref="MacroString"/></summary>
         public readonly string MacroName;
 
+        /// <summary> Creates a result parameter with default group.</summary>
+        public ResultParameter(string name, IConvertible value)
+        {
+            Name = name;
+            Value = value ?? "NULL";
+            Group = "";
+            MacroName = null;
+        }
         /// <summary>
         /// Initializes a new instance of ResultParameter.
         /// </summary>
@@ -156,6 +165,20 @@ namespace OpenTap
                 MacroName = null;
                 IsMetaData = false;
             }
+        }
+        
+        /// <summary>  Creates a new ResultParameter. </summary>
+        /// <param name="group"></param>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <param name="macroName"></param>
+        public ResultParameter(string group, string name, IConvertible value, string macroName)
+        {
+            Group = group;
+            Name = name;
+            Value = value ?? "NULL";
+            IsMetaData = macroName != null;
+            MacroName = macroName;
         }
 
         /// <summary>
@@ -190,19 +213,116 @@ namespace OpenTap
         }
     }
 
+    // this array can be indexed and resized at the same time.
+    class SafeArray<T> : IEnumerable<T>
+    {
+        T[][] arrays = Array.Empty<T[]>();
+
+        int count;
+        public int Count => count;
+
+        public SafeArray(T[] init)
+        {
+            arrays = new[] {init};
+            count = init.Length;
+        }
+
+        public SafeArray(SafeArray<T> original)
+        {
+            count = original.count;
+            arrays = new []{new T[count]};
+            int offset = 0;
+            foreach (var elems in original.arrays)
+            {
+                elems.CopyTo(arrays[0], offset);
+                offset += elems.Length;
+            }
+        }
+
+        public SafeArray()
+        {
+            
+        }
+
+        object resizeLock = new object(); 
+            
+        public void Resize(int newSize)
+        {
+            if(newSize < count)
+                throw new InvalidOperationException();
+            if (newSize == count) return;
+            lock (resizeLock)
+            {
+                Array.Resize(ref arrays, arrays.Length + 1);
+                arrays[arrays.Length - 1] = new T[newSize - count];
+                count = newSize;
+            }
+        }
+        
+        public T this[int index]
+        {
+            get
+            {
+                for(int i = 0; i < arrays.Length; i++)
+                {
+                    var array = arrays[i];
+                    if (index < array.Length)
+                        return array[index];
+                    index -= array.Length;
+                }
+                throw new IndexOutOfRangeException();
+            }
+            set
+            {
+                for(int i = 0; i < arrays.Length; i++)
+                {
+                    var array = arrays[i];
+                    if (index < array.Length)
+                    {
+                        array[index] = value;
+                        return;
+                    }
+                    index -= array.Length;
+                }
+                throw new IndexOutOfRangeException();
+            }
+        }
+
+        public IEnumerator<T> GetEnumerator() =>  arrays.SelectMany(x => x).GetEnumerator();
+
+        IEnumerator IEnumerable.GetEnumerator() =>  GetEnumerator();
+    }
+    
     /// <summary>
     /// A collection of parameters related to the results.
     /// </summary>
     public class ResultParameters : IReadOnlyList<ResultParameter>
     {
-        object addlock = new object();
-        IReadOnlyList<ResultParameter> data;
+        struct resultParameter
+        {
+            public string Name;
+            public IConvertible Value;
+            public string Group;
+            public string MacroName;
+            public ResultParameter ToResultParameter() => new ResultParameter(Group, Name, Value, MacroName);
+            public static implicit operator resultParameter(ResultParameter v)
+            {
+                return new resultParameter
+                {
+                    Name = v.Name,
+                    Value = v.Value,
+                    Group = v.Group,
+                    MacroName = v.MacroName
+                };
+            }
+        }
+        SafeArray<resultParameter> data = new SafeArray<resultParameter>();
 
         /// <summary>
         /// Gets the parameter with the given index.
         /// </summary>
         /// <param name="index"></param>
-        public ResultParameter this[int index] => data[index];
+        public ResultParameter this[int index] => data[index].ToResultParameter();
 
         /// <summary> Gets a ResultParameter by name. </summary>
         /// <param name="name"></param>
@@ -213,6 +333,13 @@ namespace OpenTap
             if (indexByName.TryGetValue(name, out idx) == false)
                 return null;
             return this[idx];
+        }
+        
+        int FindIndex(string name)
+        {
+            if (indexByName.TryGetValue(name, out var idx))
+                return idx;
+            return -1;
         }
 
         /// <summary>
@@ -225,17 +352,14 @@ namespace OpenTap
             get => Find(key)?.Value;
             set
             {
-                var rp = Find(key);
-                if (rp != null)
-                    Add(new ResultParameter(rp.Group, key, value, null, rp.ParentLevel));
-                else
-                    Add(new ResultParameter("", key, value, null)); //assume parent level 0.
+                int index = -1;
+                SetIndexed(key, ref index, value);
             }
         }
 
         static void getMetadataFromObject(object res, string nestedName, ICollection<ResultParameter> output)
         {
-            GetPropertiesFromObject(res, output, nestedName, typeof(MetaDataAttribute));
+            GetPropertiesFromObject(res, output, nestedName, true);
         }
 
         /// <summary>
@@ -344,7 +468,7 @@ namespace OpenTap
             var parentName = name;
 
             IConvertible val;
-            if (value is IConvertible && !(value is Enum))
+            if (value is IConvertible)
                 val = value as IConvertible;
             else if((val = StringConvertProvider.GetString(value)) == null)
                 val = value.ToString();
@@ -352,97 +476,144 @@ namespace OpenTap
             output.Add( new ResultParameter(group, parentName, val, metadata));
         }
 
-        static ConcurrentDictionary<Type, List<InternalMemberData>> propertieslookup = new ConcurrentDictionary<Type, List<InternalMemberData>>();
+        static ConcurrentDictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
+            metadata)[]> propertiesLookup =
+            new ConcurrentDictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
+                metadata)[]>();
 
-        private static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", params Type[] attributeFilter)
+        static (IMemberData member, string group, string name, MetaDataAttribute metadata)[] GetParametersMap(
+            ITypeData type)
+        {
+            if (propertiesLookup.TryGetValue(type, out var result))
+                return result;
+            var lst = new List<(IMemberData member, string group, string name, MetaDataAttribute metadata)>();
+            foreach (var prop in type.GetMembers())
+            {
+                if (!prop.Readable)
+                    continue;
+                if (prop.HasAttribute<NonMetaDataAttribute>())
+                    continue;
+
+                var metadataAttr = prop.GetAttribute<MetaDataAttribute>();
+                if (metadataAttr == null)
+                {
+                    // if metadataAttr is specified, all we require is that we can read and write it. 
+                    // Otherwise normal rules applies:
+
+                    if (prop.Writable == false)
+                        continue; // Don't add Properties with XmlIgnore attribute
+                    
+                    if (prop.HasAttribute<System.Xml.Serialization.XmlIgnoreAttribute>())
+                        continue;
+
+                    if (!prop.IsBrowsable())
+                        continue;
+                }
+
+                var display = prop.GetDisplayAttribute();
+                var metadata = prop.GetAttribute<MetaDataAttribute>();
+                if (metadata != null && string.IsNullOrWhiteSpace(metadata.MacroName))
+                    metadata = new MetaDataAttribute(metadata.PromptUser, display.Name);
+
+                var name = display.Name.Trim();
+                string group = "";
+
+                if (display.Group.Length == 1) group = display.Group[0].Trim();
+
+                lst.Add((prop, group, name, metadata));
+            }
+
+            result = lst.ToArray();
+            propertiesLookup[type] = result;
+            return result;
+        }
+        
+        private static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", bool metadataOnly = false)
         {
             if (obj == null)
                 return;
-            if (!propertieslookup.ContainsKey(obj.GetType()))
+            var type = TypeData.GetTypeData(obj);
+            foreach (var (prop, group, name, metadata) in GetParametersMap(type))
             {
-                List<InternalMemberData> lst = new List<InternalMemberData>();
-                foreach (var _prop in obj.GetType().GetMemberData())
-                {
-                    var prop = _prop.Property;
-                    if (!prop.CanRead)
-                        continue;
-
-                    var metadataAttr = _prop.GetAttribute<MetaDataAttribute>();
-                    if (metadataAttr == null)
-                    {
-                        // if metadataAttr is specified, all we require is that we can read and write it. 
-                        // Otherwise normal rules applies:
-                        
-                        if ((prop.CanWrite == false || prop.GetSetMethod() == null))
-                            continue; // 
-                                      // Don't add Properties with XmlIgnore attribute
-                        if (_prop.HasAttribute<System.Xml.Serialization.XmlIgnoreAttribute>())
-                            continue;
-
-                        if (!prop.IsBrowsable())
-                            continue;
-                    }
-
-                    if (attributeFilter.Length > 0)
-                    {
-                        // Skip properties that does not have any of the attributes specified in "attributeFilter"
-                        object[] attributes = prop.GetCustomAttributes(false);
-                        if (attributes.Count(att => attributeFilter.Contains(att.GetType())) == 0)
-                            continue;
-                    }
-                    
-                    lst.Add(_prop);
-                }
-                propertieslookup[obj.GetType()] = lst;
-            }
-            foreach (var prop in propertieslookup[obj.GetType()])
-            {
-                var metadata = prop.GetAttribute<MetaDataAttribute>();
-                if (metadata != null && string.IsNullOrWhiteSpace(metadata.MacroName))
-                    metadata = new MetaDataAttribute(metadata.PromptUser, prop.Display.Name);
-                object value = prop.Property.GetValue(obj, null);
+                if (metadataOnly && metadata == null) continue;
+                object value = prop.GetValue(obj);
                 if (value == null)
                     continue;
-
-                var name = prop.Display.Name.Trim();
-                string group = "";
-
-                if (prop.Display.Group.Length == 1) group = prop.Display.Group[0].Trim();
-
                 GetParams(group, namePrefix + name, value, metadata, output);
             }
+        }
+
+        internal static void UpdateParams(ResultParameters parameters, object obj, string namePrefix = "")
+        {
+            if (obj == null)
+                return;
+            var type = TypeData.GetTypeData(obj);
+            var p = GetParametersMap(type);
+            foreach (var (prop, group, _name, metadata) in p)
+            {
+                if (prop.GetAttribute<MetaDataAttribute>()?.Frozen == true) continue; 
+                var name = namePrefix + _name;
+                object value = prop.GetValue(obj);
+                if (value == null)
+                    continue;
+                
+                if (value is IResource)
+                {
+                    string resval = value.ToString();
+                    parameters.Overwrite(name, resval, group, metadata);
+                    UpdateParams(parameters, value, name);
+                    continue;
+                }
+                
+                IConvertible val = value as IConvertible ?? StringConvertProvider.GetString(value) ?? value.ToString();
+                parameters.Overwrite(name, val, group, metadata);
+            }
+        }
+
+        internal void Overwrite(string name, IConvertible value, string group, MetaDataAttribute metadata)
+        {
+           Add(group, name, value, metadata);
+        }
+
+        /// <summary>
+        /// Returns a <see cref="ResultParameters"/> list with one entry for every setting of the inputted 
+        /// TestStep.
+        /// </summary>
+        internal static ResultParameters GetParams(ITestStep step, params string[] extra)
+        {
+            if (step == null)
+                throw new ArgumentNullException(nameof(step));
+            var parameters = new List<ResultParameter>(5);
+            parameters.AddRange(extra.Select(x => new ResultParameter(x, null)));
+            GetPropertiesFromObject(step, parameters);
+            
+            if (parameters.Count == 0)
+                return new ResultParameters();
+            return new ResultParameters(parameters);
         }
         
         /// <summary>
         /// Returns a <see cref="ResultParameters"/> list with one entry for every setting of the inputted 
         /// TestStep.
         /// </summary>
-        public static ResultParameters GetParams(ITestStep step)
-        {
-            if (step == null)
-                throw new ArgumentNullException(nameof(step));
-            var parameters = new List<ResultParameter>();
-            GetPropertiesFromObject(step, parameters);
-            if (parameters.Count == 0)
-                return new ResultParameters();
-            return new ResultParameters(parameters);
-        }
+        public static ResultParameters GetParams(ITestStep step) => GetParams(step, Array.Empty<string>());
 
         /// <summary>
         /// Initializes a new instance of the ResultParameters class.
         /// </summary>
         public ResultParameters()
         {
-            data = Array.Empty<ResultParameter>();
+            indexByName = new Dictionary<string, int>();
         }
 
         /// <summary>
         /// Initializes a new instance of the ResultParameters class.
         /// </summary>
-        public ResultParameters(IEnumerable<ResultParameter> items) : this()
+        public ResultParameters(IEnumerable<ResultParameter> items)
         {
-            AddRange(items);
+            addRangeUnsafe(items, true);
         }
+        
 
         /// <summary>
         /// Returns a dictionary containing all the values in this list indexed by their <see cref="ResultParameter.Name"/>.
@@ -462,7 +633,7 @@ namespace OpenTap
         /// <summary>
         /// Returns the number of result parameters.
         /// </summary>
-        public int Count => data.Count;
+        public int Count => count;
 
         /// <summary>
         /// Adds a new element to the parameters. (synchronized).
@@ -470,11 +641,89 @@ namespace OpenTap
         /// <param name="parameter"></param>
         public void Add(ResultParameter parameter)
         {
-            AddRange(new[] { parameter });
+            AddRange(new[] {parameter});
         }
 
-        Dictionary<string, int> indexByName = new Dictionary<string, int>();
+        int count = 0;
+        
+        void addRangeUnsafe(IEnumerable<ResultParameter> parameters, bool initCollection = false)
+        {
+            
+            if (initCollection)
+            {
+                var capacity = parameters.Count();
+                    
+                data = new SafeArray<resultParameter>(new resultParameter[capacity]);
+                indexByName = new Dictionary<string, int>(capacity);
+                foreach (var par in parameters)
+                {
+                    if (par?.Name == null) continue; 
+                    if (indexByName.TryGetValue(par.Name, out var idx))
+                    {
+                        data[idx] = par;
+                    }
+                    else
+                    {
+                        indexByName[par.Name] = count;
+                        data[count] = par;
+                        count += 1;
+                    }
+                }
+                return;
+            }
+            
+            Dictionary<string, int> newIndexes = null;
+            List<ResultParameter> newParameters = null;
+            
+            foreach (var par in parameters)
+            {
+                if (!indexByName.TryGetValue(par.Name, out var idx))
+                    idx = -1;
 
+                if (idx >= 0)
+                {
+                    data[idx] = par;
+                    continue;
+                }
+
+                if (newIndexes == null)
+                {
+                    newIndexes = new Dictionary<string, int>();
+                    newParameters = new List<ResultParameter>();
+                }
+
+                if (newIndexes.TryGetValue(par.Name, out idx))
+                {
+                    newParameters[idx - count] = par;    
+                }
+                else
+                {
+                    int nidx = count + newParameters.Count;
+                    newParameters.Add(par);
+                    newIndexes[par.Name] = nidx;
+                }   
+            }
+
+            if (newIndexes != null)
+            {
+                var newSize = count + newParameters.Count;
+                if(data.Count < newSize)
+                    data.Resize(newSize);
+                foreach (var elem in newParameters)
+                {
+                    data[count] = elem;
+                    count += 1;
+                }
+
+                foreach (var kv in newIndexes)
+                    indexByName.Add(kv.Key, kv.Value);
+            }
+        }
+
+        Dictionary<string, int> indexByName;
+
+        object addLock = new object();
+        
         /// <summary>
         /// Adds a range of result parameters (synchronized).
         /// </summary>
@@ -483,52 +732,69 @@ namespace OpenTap
         {
             if (parameters == null)
                 throw new ArgumentNullException(nameof(parameters));
-            lock (addlock)
-            {
-                var tmp = data.ToList();
-                Dictionary<string, int> newIndexes = null;
-
-                foreach (var par in parameters)
-                {
-                    var idx = tmp.FindIndex(rp =>
-                        (rp.Name == par.Name) &&
-                        (rp.Group == par.Group) &&
-                        (rp.ParentLevel == par.ParentLevel));
-
-
-                    if (idx >= 0)
-                        tmp[idx] = par;
-                    else
-                    {
-                        int nidx = tmp.Count;
-                        tmp.Add(par);
-                        if (newIndexes == null)
-                            newIndexes = new Dictionary<string, int>(indexByName);
-                        newIndexes[par.Name] = nidx;
-                    }
-                }
-
-                data = tmp;
-                if(newIndexes != null)
-                    indexByName = newIndexes;
-            }
+            lock(addLock)
+                addRangeUnsafe(parameters);
         }
 
-        IEnumerator<ResultParameter> IEnumerable<ResultParameter>.GetEnumerator()
-        {
-            return data.GetEnumerator();
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return data.GetEnumerator();
-        }
+        IEnumerator<ResultParameter> IEnumerable<ResultParameter>.GetEnumerator() => data.Select(x => x.ToResultParameter()).GetEnumerator();
+        IEnumerator IEnumerable.GetEnumerator() => data.Select(x => x.ToResultParameter()).GetEnumerator();
 
         /// <summary> Copies all the data inside a ResultParameters instance. </summary>
         /// <returns></returns>
         internal ResultParameters Clone()
         {
-            return new ResultParameters(this);
+            var r = new ResultParameters
+            {
+                data = new SafeArray<resultParameter>(data),
+                indexByName = new Dictionary<string, int>(indexByName)
+            };
+            
+            return r;
         }
+        
+
+        internal IConvertible GetIndexed(string verdictName, ref int verdictIndex)
+        {
+            if(verdictIndex == -1)
+                verdictIndex = FindIndex(verdictName);
+            return data[verdictIndex].Value;
+        }
+
+        internal void SetIndexed(string name, ref int index, IConvertible value)
+        {
+            if(index == -1)
+                index = FindIndex(name);
+            if (index == -1)
+            {
+                Add(new ResultParameter(name, value));
+            }
+            else
+            {
+                data[index] = new resultParameter{Name = name, Value = value};
+            }
+        }
+
+        
+        internal void IncludeMetadataFromObject(TestPlan obj)
+        {
+            var metadata = GetMetadataFromObject(obj);
+            AddRange(metadata);
+        }
+
+        /// <summary>
+        /// Adds a new result parameter.
+        /// </summary>
+        /// <param name="group"></param>
+        /// <param name="name"></param>
+        /// <param name="value"></param>
+        /// <param name="metaDataAttribute"></param>
+        public void Add(string group, string name, IConvertible value, MetaDataAttribute metaDataAttribute)
+        {
+            Add(new ResultParameter(group, name, value, metaDataAttribute));
+        }
+    }
+    class NonMetaDataAttribute : Attribute
+    {
+        
     }
 }

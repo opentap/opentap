@@ -320,11 +320,12 @@ namespace OpenTap
                 isLoaded = true;
 
                 SessionLogs.Initialize();
+
                 string tapEnginePath = Assembly.GetExecutingAssembly().Location;
                 if(String.IsNullOrEmpty(tapEnginePath))
                 {
                     // if Tap.Engine was loaded from memory/bytes instead of from a file, it does not have a location.
-                    // This is the case if the process was laundhed through tap.exe. 
+                    // This is the case if the process was launched through tap.exe. 
                     // In that case just use the location of tap.exe, it is the same
                     tapEnginePath = Assembly.GetEntryAssembly().Location;
                 }
@@ -451,7 +452,7 @@ namespace OpenTap
         }
 
         #region Version ResultParameters
-        static Memorizer<Assembly, ResultParameter> AssemblyVersions = new Memorizer<Assembly, ResultParameter>(GetVersionResultParameter) { SoftSizeDecayTime = TimeSpan.FromDays(10) };
+        static Memorizer<Assembly, ResultParameter> AssemblyVersions = new Memorizer<Assembly, ResultParameter>(GetVersionResultParameter);
         internal static int ChangeID = 0;
 
         private static ResultParameter GetVersionResultParameter(Assembly assembly)
@@ -565,6 +566,9 @@ namespace OpenTap
                 }
             }
 
+            /// <summary>
+            /// Updates the dll file cache
+            /// </summary>
             private void SyncFiles()
             {
                 lock (syncLock)
@@ -594,7 +598,7 @@ namespace OpenTap
                                 {
                                     if (StrEq(subDir.Name, "obj"))
                                         continue; // skip obj subfolder
-                                    var ignorePluginsInSubDir = StrEq(subDir.Name, "Dependencies");
+                                    var ignorePluginsInSubDir = dir.IgnorePlugins || StrEq(subDir.Name, "Dependencies");
                                     dirToSearch.Enqueue(new SearchDir(subDir, ignorePluginsInSubDir));
                                 }
 
@@ -623,7 +627,7 @@ namespace OpenTap
                     allSearchFiles = searchFiles.ToArray();
                     matching.InvalidateAll();
                     lastSearch = DateTime.Now;
-                    log.Debug(sw, "Found {0}/{1} assembly files.", files.Count, searchFiles.Count);
+                    log.Debug(sw, "Found {0}/{1} assembly files.", searchFiles.Count, files.Count);
                 }
             }
         }
@@ -639,11 +643,15 @@ namespace OpenTap
             {
                 var name = Path.GetFileNameWithoutExtension(asm.Location);
                 asmLookup[name] = asm.Location;
+                if (Utils.IsDebugBuild)
+                    log.Debug("Loaded assembly {0} from {1}", asm.FullName, asm.Location);
+            }
+            else
+            {
+                if (Utils.IsDebugBuild)
+                    log.Debug("Loaded assembly {0}", asm.FullName);
             }
 
-            // This spams the log a bit, and we should only enable this when we have the ability to hide log sources in the GUI (TAP 8.5)
-            //if(!asm.IsDynamic)
-            //    log.Debug("Loaded assembly {0} from {1}", asm.FullName, asm.Location);
             assemblyResolutionMemorizer.Add(new resolveKey { Name = asm.FullName, ReflectionOnly = asm.ReflectionOnly }, asm);
         }
         HashSet<string> lastSearchedDirs = new HashSet<string>();
@@ -675,7 +683,6 @@ namespace OpenTap
             FileFinder.DirectoriesToSearch = directoriesToSearch;
             assemblyResolutionMemorizer = new Memorizer<resolveKey, Assembly>(key => resolveAssembly(key.Name, key.ReflectionOnly))
             {
-                SoftSizeDecayTime = TimeSpan.MaxValue,
                 MaxNumberOfElements = 10000,
                 CylicInvokeResponse = Memorizer.CyclicInvokeMode.ReturnDefaultValue
             };
@@ -695,20 +702,6 @@ namespace OpenTap
 
         Memorizer<resolveKey, Assembly> assemblyResolutionMemorizer;
 
-        static bool assemblyNameEquals(AssemblyName asmname, AssemblyName requestedAsmName)
-        {
-            var prevPublicKeyToken = requestedAsmName.GetPublicKeyToken();
-            if (asmname != null && prevPublicKeyToken != null && prevPublicKeyToken.Length == 8)
-            {
-                // check the strong name.
-                if (prevPublicKeyToken.SequenceEqual(asmname.GetPublicKeyToken()) == false)
-                    return false;
-                if (asmname.Version < requestedAsmName.Version) // don't match version exactly. Do as Dotnet Core
-                    return false;
-            }
-            return true;
-        }
-
         // returns an assembly name or null. (if native asm, etc.)
         static AssemblyName tryGetAssemblyName(string filePath)
         {
@@ -718,7 +711,9 @@ namespace OpenTap
             }
             catch
             {
-                return null;
+                var name = new AssemblyName();
+                name.Name = Path.GetFileNameWithoutExtension(filePath);
+                return name;
             }
         }
 
@@ -753,34 +748,63 @@ namespace OpenTap
                     return loadFrom(filename);
                 }
                 var requestedAsmName = new AssemblyName(name);
+                var requestedStrongNameToken = requestedAsmName.GetPublicKeyToken();
                 var asmName = name.Split(',')[0];
 
                 var asmPaths = FileFinder.FindAssemblies(asmName);
                 
                 if (asmPaths != null && asmPaths.Length > 0)
                 {
-                    var asmNames = asmPaths.Select(tryGetAssemblyName).ToArray();
-
-                    // Figure out which assembly has newest version.
-                    var order = Enumerable.Range(0, asmNames.Length)
-                        .OrderByDescending(x => asmNames[x] == null ? default(Version) : asmNames[x].Version);
-
-                    foreach (var i in order)
+                    Assembly tryLoad(string filePath)
                     {
-                        var f = asmPaths[i];
                         try
                         {
-                            log.Debug("Found match for {0} in {1}", name, Path.GetFullPath(f));
-                            var asm = loadFrom(Path.GetFullPath(f));
-                            if (asm != null && assemblyNameEquals(asm.GetName(), requestedAsmName))
-                            {
-                                return asm;
-                            }
-                        }catch(Exception)
+                            var path = Path.GetFullPath(filePath);
+                            log.Debug("Found match for {0} in {1}", name, path);
+                            return loadFrom(path);
+                        }
+                        catch (Exception)
                         {
                             //It was unable to load that specific assembly,
                             // but there might be another version that we can load.
+                            return null;
                         }
+                    }
+
+                    var candidates = asmPaths.Select(p => new MatchingAssembly{Path = p, Name = tryGetAssemblyName(p)}).ToList();
+                    if (requestedStrongNameToken != null && requestedStrongNameToken.Length == 8)
+                    {
+                        // the requested assembly has a strong name, only consider assemblies that has that
+                        candidates.RemoveAll(c => false == requestedStrongNameToken.SequenceEqual(c.Name.GetPublicKeyToken()));
+                    }
+                    // Try to find/load an exact match to the requested version:
+                    var matchingVersion = candidates.FirstOrDefault(c => c.Name.Version == requestedAsmName.Version);
+                    if (matchingVersion.Path != null)
+                    {
+                        Assembly asm = tryLoad(matchingVersion.Path);
+                        if (asm != null)
+                            return asm;
+                        candidates.Remove(matchingVersion);
+                    }
+                    // Try to find/load a compatible match to the requested version:
+                    if (requestedAsmName.Version != null)
+                    {
+                        var matchingMajorVersion = candidates.Where(c => c.Name.Version.Major == requestedAsmName.Version.Major);
+                        foreach (var compatibleVersion in matchingMajorVersion.OrderBy(c => c.Name.Version))
+                        {
+                            Assembly asm = tryLoad(compatibleVersion.Path);
+                            if (asm != null)
+                                return asm;
+                            candidates.Remove(compatibleVersion);
+                        }
+                    }
+                    // Try to load any remaining candidates:
+                    var ordered = candidates.OrderByDescending(c => c.Name.Version);
+                    foreach (var c in ordered)
+                    {
+                        Assembly asm = tryLoad(c.Path);
+                        if (asm != null)
+                            return asm;
                     }
                 }
                 else
@@ -791,10 +815,13 @@ namespace OpenTap
                         var asm = loadFrom(filename);
                         if (asm != null)
                         {
-                            if (!assemblyNameEquals(asm.GetName(), requestedAsmName))
-                                // The versions are incompatible, but we still dont load
-                                // the other DLL.
-                                log.Warning("Using Assembly '{0}' as '{1}'", name, asm.FullName);
+                            if (requestedStrongNameToken != null && requestedStrongNameToken.Length == 8)
+                            {
+                                if (requestedStrongNameToken.SequenceEqual(asm.GetName().GetPublicKeyToken()) == false)
+                                    log.Warning("Using Assembly '{0}' as '{1}' (strong name mismatch)", name, asm.FullName);
+                                if (asm.GetName().Version < requestedAsmName.Version)
+                                    log.Warning("Using Assembly '{0}' as '{1}' (version mismatch)", name, asm.FullName);
+                            }
                             return asm;
                         }
                     }
@@ -806,6 +833,16 @@ namespace OpenTap
             }
             log.Debug("Unable to find match for {0}", name);
             return null;
+        }
+
+        /// <summary>
+        /// This is used instead of a tuple in the above function. Tuples should _not_ be used in the assembly resolving process
+        /// as it sometimes requires assembly resolving to load System.ValueTyple.dll.
+        /// </summary>
+        struct MatchingAssembly
+        {
+            public string Path;
+            public AssemblyName Name;
         }
     }
 }

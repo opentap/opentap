@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 
+#pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
 namespace OpenTap.Package
 {
 
@@ -58,7 +59,7 @@ namespace OpenTap.Package
                 if (!CheckPackageAndDependencies(installedPackages, installer.PackagePaths))
                     return -3;
 
-            return installer.RunCommand("uninstall", Force) ? 0 : -1;
+            return installer.RunCommand("uninstall", Force, true) ? 0 : -1;
         }
 
         private bool CheckPackageAndDependencies(List<PackageDef> installed, List<string> packagePaths)

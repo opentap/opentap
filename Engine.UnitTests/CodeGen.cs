@@ -5,6 +5,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Reflection;
 namespace OpenTap.Engine.UnitTests
@@ -29,7 +30,7 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
-        public static Result BuildCode(string code, string moduleName){
+        public static Result BuildCode(string code, string moduleName, string strongNameKeyFile = null){
             
             var metadataref = new List<MetadataReference> { };
             // Detect the file location for the library that defines the object type
@@ -99,17 +100,21 @@ namespace OpenTap.Engine.UnitTests
                 metadataref.Add(r);
             }
 
+            var options = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, true, platform: Platform.AnyCpu, assemblyIdentityComparer: DesktopAssemblyIdentityComparer.Default)
+               .WithReportSuppressedDiagnostics(true);
+
+            if (strongNameKeyFile != null)
+            {
+                options = options.WithStrongNameProvider(new DesktopStrongNameProvider(ImmutableArray.Create(Path.GetDirectoryName(Path.GetFullPath(strongNameKeyFile)))))
+                       .WithCryptoKeyFile(Path.GetFileName(strongNameKeyFile));
+            }
+
             CSharpCompilation compilation = CSharpCompilation.Create(moduleName,
                     syntaxTrees: new[] { SF.ParseSyntaxTree(code) },
-
                     references: metadataref,
-                    
-                    
-                options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, true, platform: Platform.AnyCpu, assemblyIdentityComparer: DesktopAssemblyIdentityComparer.Default)
-                .WithReportSuppressedDiagnostics(true)
+                    options: options
                 );
             
-
             using(var ms = new MemoryStream()){
                 var result= compilation.Emit(ms);
                 return new Result{Success = result.Success, Bytes = ms.ToArray(), Log = string.Join("\n", result.Diagnostics)};

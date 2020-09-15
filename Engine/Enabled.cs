@@ -3,6 +3,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections;
+using System.Linq;
+using System.Globalization;
 
 namespace OpenTap
 {
@@ -17,17 +20,29 @@ namespace OpenTap
         bool IsEnabled { get; }
     }
 
+    interface IEnabledValue
+    {
+        bool IsEnabled { get; set; }
+        object Value { get; set; }
+    }
+    
     /// <summary>
     /// A value that can be enabled or disabled.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    public class Enabled<T> : IEnabled, ICloneable
+    public class Enabled<T> : IEnabled, ICloneable, IEnabledValue
     {
         /// <summary>
         /// Value of the member.
         /// </summary>
         public virtual T Value { get; set; }
 
+        object IEnabledValue.Value
+        {
+            get => Value;
+            set => Value = (T) value;
+        }
+        
         /// <summary>
         /// Gets or sets if the member is enabled. 
         /// </summary>
@@ -39,9 +54,16 @@ namespace OpenTap
         /// <returns></returns>
         public override string ToString()
         {
-            if (IsEnabled)
-                return Value == null ? "NULL" : Value.ToString();
-            return string.Format("{0} (disabled)", Value);
+            string valueString = null;
+            if (Value == null)
+                valueString = "NULL";
+            else
+                valueString = StringConvertProvider.GetString(Value);
+
+            if (!IsEnabled)
+                valueString += " (disabled)";
+
+            return valueString;
         }
 
         /// <summary>

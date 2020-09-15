@@ -1,5 +1,5 @@
 <Project>
 	<PropertyGroup>
-		<GitVersion>9.7.0-rc.2</GitVersion>
+		<GitVersion>9.8.0</GitVersion>
 	</PropertyGroup>
 </Project>

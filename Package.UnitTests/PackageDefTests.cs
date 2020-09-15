@@ -98,7 +98,7 @@ namespace OpenTap.Package.UnitTests
         public void GetPluginName_Test()
         {
             string inputFilename = "Packages/test2/package.xml";
-            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename);
+            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename,Directory.GetCurrentDirectory());
             
             Assert.AreEqual("Test Step",pkg.Files?.FirstOrDefault()?.Plugins?.FirstOrDefault(p => p.Type == typeof(IfStep).FullName)?.BaseType);
             Assert.AreEqual(pkg.Files?.FirstOrDefault()?.Plugins.FirstOrDefault(p => p.Type == typeof(GenericScpiInstrument).FullName)?.BaseType, "Instrument");
@@ -109,7 +109,8 @@ namespace OpenTap.Package.UnitTests
         {
             string inputFilename = "Packages/Package/package.xml";
 
-            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename);
+            CliTests.CreateOpenTAPPackage();
+            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
             //Assert.AreEqual(inputFilename, pkg.FileName);
 
             CollectionAssert.IsNotEmpty(pkg.Files);
@@ -130,11 +131,11 @@ namespace OpenTap.Package.UnitTests
         {
             string inputFilename = "Packages/GitversionDependency/package.xml";
             string outputFilename = "GitversionDependency.TapPlugin";
-
             try
             {
-                PackageDef pkg = PackageDefExt.FromInputXml(inputFilename);
-                pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory());
+                DummyPackageGenerator.InstallDummyPackage("DepName", new GitVersionCalulator(Directory.GetCurrentDirectory()).GetVersion().ToString() );
+                PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
+                pkg.CreatePackage(outputFilename);
                 Assert.AreNotSame("$(GitVersion)", pkg.Dependencies.First().Version.ToString());
                 VersionSpecifier versionSpecifier = new VersionSpecifier(pkg.Version, VersionMatchBehavior.Exact);
 
@@ -142,6 +143,7 @@ namespace OpenTap.Package.UnitTests
             }
             finally
             {
+                DummyPackageGenerator.UninstallDummyPackage("DepName");
                 if (File.Exists(outputFilename))
                     File.Delete(outputFilename);
             }
@@ -153,10 +155,11 @@ namespace OpenTap.Package.UnitTests
             string inputFilename = "Packages/package/package.xml";
             string outputFilename = "Test.TapPlugin";
 
-            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename);
+            CliTests.CreateOpenTAPPackage();
+            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
             try
             {
-                pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory());
+                pkg.CreatePackage(outputFilename);
                 Assert.IsTrue(File.Exists(outputFilename));
             }
             finally
@@ -173,10 +176,10 @@ namespace OpenTap.Package.UnitTests
             string inputFilename = "package_NoBinFiles.xml";
             string outputFilename = "Test.TapPackage";
 
-            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename);
+            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
             try
             {
-                pkg.CreatePackage(outputFilename, Directory.GetCurrentDirectory());
+                pkg.CreatePackage(outputFilename);
                 Assert.IsTrue(File.Exists(outputFilename));
             }
             finally
@@ -395,10 +398,11 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void SaveManyTo_Simple()
         {
+            CliTests.CreateOpenTAPPackage();
             string outputFileContent = "";
 
-            PackageDef pkg = PackageDefExt.FromInputXml("Packages/Package/package.xml");
-            PackageDef pkg1 = PackageDefExt.FromInputXml("Packages/test2/package.xml");
+            PackageDef pkg = PackageDefExt.FromInputXml("Packages/Package/package.xml", Directory.GetCurrentDirectory());
+            PackageDef pkg1 = PackageDefExt.FromInputXml("Packages/test2/package.xml", Directory.GetCurrentDirectory());
 
             using (Stream str = new MemoryStream())
             {
@@ -417,10 +421,20 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void SaveTo_FromXmlFile_Dependency()
         {
-            string inputFilename = "Packages/test3/package.xml";
+            string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
+<Package Name='Test3' xmlns ='http://opentap.io/schemas/package'>
+  <Files>
+    <File Path='OpenTap.Package.UnitTests.dll'>
+        <UseVersion/>
+    </File>
+  </Files>
+</Package>
+";
+            string inputFilename = "test3.package.xml";
+            File.WriteAllText(inputFilename,inputXml);
             string outputFileContent = "";
 
-            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename);
+            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
             pkg.Files.First().IgnoredDependencies.AddRange(new[] { "abc", "test" });
 
             using (Stream str = new MemoryStream())
@@ -440,6 +454,105 @@ namespace OpenTap.Package.UnitTests
 
             // check that the dependency to XSeries is not there twice:
             Assert.IsFalse(Regex.IsMatch(outputFileContent, "(Test1).+\n.+(Test1)"));
+        }
+
+        [Test]
+        public void findDependencies_SharedAssemblyReference()
+        {
+            CliTests.CreateOpenTAPPackage();
+            var inst = new Installation(Directory.GetCurrentDirectory());
+            var pkgs = inst.GetPackages();
+            string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
+<Package Name='Test3' xmlns ='http://opentap.io/schemas/package'>
+  <Files>
+    <File Path='OpenTap.Package.UnitTests.dll'/>
+  </Files>
+</Package>
+";
+            string inputFilename = "test3.package.xml";
+            File.WriteAllText(inputFilename, inputXml);
+
+            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
+
+            // This package should depend on the OpenTAP package, since it contains OpenTAP.dll that OpenTap.Package.UnitTests.dll from this package needs
+            CollectionAssert.Contains(pkg.Dependencies.Select(d => d.Name),"OpenTAP");
+        }
+
+        [Test]
+        public void findDependencies_HardcodedDependency()
+        {
+            CliTests.CreateOpenTAPPackage();
+            var inst = new Installation(Directory.GetCurrentDirectory());
+            var pkgs = inst.GetPackages();
+            string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
+<Package Name='Test3' xmlns ='http://opentap.io/schemas/package'>
+  <Dependencies>
+    <PackageDependency Package='OpenTAP' Version='Any'/>
+  </Dependencies>
+  <Files>
+    <File Path='OpenTap.Package.UnitTests.dll'/>
+  </Files>
+</Package>
+";
+            string inputFilename = "test3.package.xml";
+            File.WriteAllText(inputFilename, inputXml);
+
+            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
+
+            // This package should depend on the OpenTAP package only once.
+            Assert.AreEqual(1, pkg.Dependencies.Count(d => d.Name == "OpenTAP"));
+        }
+
+        [Test]
+        public void findDependencies_HardcodedDependencyNotInstalled()
+        {
+            CliTests.CreateOpenTAPPackage();
+            var inst = new Installation(Directory.GetCurrentDirectory());
+            var pkgs = inst.GetPackages();
+            string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
+<Package Name='Test3' xmlns ='http://opentap.io/schemas/package'>
+  <Dependencies>
+    <PackageDependency Package='NotInstalled' Version='Any'/>
+  </Dependencies>
+  <Files>
+    <File Path='OpenTap.Package.UnitTests.dll'/>
+  </Files>
+</Package>
+";
+            string inputFilename = "test3.package.xml";
+            File.WriteAllText(inputFilename, inputXml);
+
+            try
+            {
+                PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
+                Assert.Fail("Missing dependency should have thrown an exception");
+            }
+            catch(Cli.ExitCodeException ex)
+            {
+                Assert.AreEqual((int)PackageCreateAction.ExitCodes.PackageDependencyError, ex.ExitCode);
+            }
+        }
+
+        [Test]
+        public void findDependencies_SharedAssemblyReferenceInDependencies()
+        {
+            CliTests.CreateOpenTAPPackage();
+            var inst = new Installation(Directory.GetCurrentDirectory());
+            var pkgs = inst.GetPackages();
+            string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
+<Package Name='Test3' xmlns ='http://opentap.io/schemas/package'>
+  <Files>
+    <File Path='System.Reflection.Metadata.dll'/>
+  </Files>
+</Package>
+";
+            string inputFilename = "test3.package.xml";
+            File.WriteAllText(inputFilename, inputXml);
+
+            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
+
+            // This package should not depend on the OpenTAP package, event though it contains System.Collections.Immutable.dll that System.Reflection.Metadata.dll from this package needs
+            CollectionAssert.DoesNotContain(pkg.Dependencies.Select(d => d.Name), "OpenTAP");
         }
 
         /// <summary>
@@ -485,7 +598,7 @@ namespace OpenTap.Package.UnitTests
         {
             string inputFilename = "FromXmlFile_NonDllFile.xml";
 
-            PackageDefExt.FromInputXml(inputFilename);
+            PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
             //PackageDependency.CheckDependencies(inputFilename);
         }
 
@@ -560,11 +673,11 @@ namespace OpenTap.Package.UnitTests
                     File.Delete(pkgName);
                 File.WriteAllText(pkgName, pkgContent);
                 CliTests.CreateOpenTAPPackage(); // to get a dependency, OpenTAP first needs to be installed
-                var pkg = PackageDefExt.FromInputXml(pkgName);
+                string installDir = Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location);
+                var pkg = PackageDefExt.FromInputXml(pkgName, installDir);
                 CollectionAssert.IsNotEmpty(pkg.Dependencies,"Package has no dependencies.");
                 //Assert.AreEqual("OpenTAP", pkg.Dependencies.First().Name);
-                string installDir = Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location);
-                pkg.CreatePackage("BasicSteps.TapPackage", installDir);
+                pkg.CreatePackage("BasicSteps.TapPackage");
 
                 List<IPackageRepository> repositories = new List<IPackageRepository>() { new FilePackageRepository(installDir) };
 

@@ -74,7 +74,7 @@ verdict of its child steps. A verdict has one of 6 severities, detailed in the f
 | 3        | Inconclusive | Insufficient information to make a decision either way             |
 | 4        | Fail         | Step or plan failed                                                |
 | 5        | Aborted      | User aborted test plan                                             |
-| 6        | Error        | An error occurred. Check [session logs](#session%20logs) for more information |
+| 6        | Error        | An error occurred. Check [session logs](#session-logs) for more information |
 
 This means that, for a test plan to output a *Pass* verdict, at least one step must set their verdict to *Pass*, and
 the rest must either set their verdict to *Pass* or *NotSet* verdict. This is also the most typical behavior for parent steps
@@ -151,13 +151,11 @@ generated and edited using our test plan editors.
 
 ## Session Logs
 
-OpenTAP keeps extensive session logs for debugging purposes. Session logs are kept from the 10 latest OpenTAP instances
-launched, and are created independently of result listeners. Their content is similar to the logs collected by *Text
-Log*, but also contain diagnostic messages from OpenTAP and any plugin you may have installed. They can be found in
-`<install dir>/SessionLogs`, and are named after the time and date at which they were created. They contain the same
-information you would see in your terminal when running tap with the `--verbose` flag. If you encounter errors, the logs
-may contain useful information for discovering what went wrong. If you think you discovered a bug in OpenTAP, please
-file an issue on [gitlab](https://gitlab.com/OpenTAP/opentap). If applicable, please include instructions on how to
+OpenTAP keeps extensive session logs for debugging purposes. Session logs are kept from the 20 latest OpenTAP instances launched, and are created independently of result listeners. The maximum amount of storage space used for session log files is 2GB, with the largest size of a single file being 100MB. When this limit is reached a new log file is created. There is a maximum number of 20 files kept at any given time. If the number of session log files exceeds 20 or the total file size surpasses 2GB, log files will be removed starting with the oldest first.
+
+The content of the session log files is similar to the logs collected by *Text Log*, but these also contain diagnostic messages from OpenTAP and any plugins you may have installed. They can be found in `<install dir>/SessionLogs`, and are named after the time and date at which they were created.
+
+The session logs contain the same information you would see in your terminal when running tap with the `--verbose` flag. If you encounter errors, the logs may contain useful information for discovering what went wrong. If you think you discovered a bug in OpenTAP, please file an issue on [gitlab](https://gitlab.com/OpenTAP/opentap). If applicable, please include instructions on how to
 replicate the issue, as well as relevant logs.
 
 ## Packages and Plugins
@@ -175,7 +173,7 @@ Some examples are:
 Installing, uninstalling, upgrading, downgrading, and dependencies are all managed by the OpenTAP package manager. A
 package declares its own dependencies and OS / CPU compatibility, and the package manager resolves those dependencies
 with the packages in your current installation, if possible. Usage of the package manager is described in detail in [the
-next section](../cli%20guide/package%manager).
+next section](../CLI%20Usage/#using-the-package-manager).
 
 The below figure shows the relation between plugins and OpenTAP. OpenTAP is at the center, and plugins, providing a
 variety of functionality, can be added and removed painlessly. 

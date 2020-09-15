@@ -3,22 +3,21 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.ComponentModel;
 
 namespace OpenTap.Plugins.BasicSteps
 {
-    [Display("Delay", Group:"Basic Steps", Description: "Delays for a specified amount of time.")]
+    [Display("Delay", Group: "Basic Steps",
+        Description: "Waits a user defined amount of time before continuing.")]
     public class DelayStep : TestStep
     {
-        [Display("Time Delay", Description: "The time to delay in the test step.")]
-        [Unit("s")]
+        [Display("Time Delay", Description: "The amount of time to wait before continuing."), Unit("s")]
         public double DelaySecs {
-            get { return delaySecs; }
+            get => delaySecs;
             set
             {
-                if (value >= 0.0)
-                    delaySecs = value;
-                else throw new ArgumentException("Time Delay must be greater than 0 seconds.");
+                if (value < 0.0)
+                    throw new ArgumentException("Delay must be a positive value.");
+                delaySecs = value;
             }
         }
 

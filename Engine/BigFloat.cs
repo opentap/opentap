@@ -86,13 +86,20 @@ namespace OpenTap
             }
             return '.';
         }
+
         static string fracToString(BigInteger a, BigInteger b, IFormatProvider prov)
+        {
+            var sb = new StringBuilder();
+            fracToString(sb, a, b, prov);
+            return sb.ToString();
+        }
+        
+        static void fracToString(StringBuilder sb, BigInteger a, BigInteger b, IFormatProvider prov)
         {
             if (prov == null)
                 prov = CultureInfo.CurrentCulture.NumberFormat;
             var numinfo = prov as NumberFormatInfo;
             var digits = (int)Math.Ceiling(BigInteger.Log10(a) - BigInteger.Log10(b));
-            StringBuilder sb = new StringBuilder(0);
             
             if (digits < 0)
                 sb.Append("0" + getDigitSeparator(prov));
@@ -136,8 +143,60 @@ namespace OpenTap
 
                 digits--;
             }
+        }
 
-            return sb.ToString();
+        public void AppendTo(StringBuilder sb, IFormatProvider prov)
+        {
+            if (prov == null)
+                prov = CultureInfo.CurrentCulture.NumberFormat;
+
+            var numberFormat = CultureInfo.CurrentCulture.NumberFormat;
+
+            if (prov is CultureInfo) numberFormat = (prov as CultureInfo).NumberFormat;
+            else if (prov is NumberFormatInfo) numberFormat = (prov as NumberFormatInfo);
+            
+            if (Denominator == 0)
+            {
+                if (Numerator == 0){ 
+                    sb.Append(numberFormat.NaNSymbol);
+                    return;
+                }
+                else if (Numerator == 1)
+                {
+                    sb.Append(numberFormat.PositiveInfinitySymbol);
+                    return;
+                }
+                else if (Numerator == -1)
+                {
+                    sb.Append(numberFormat.NegativeInfinitySymbol);
+                    return;
+                }
+            }
+
+            if (Numerator == 0)
+            {
+                sb.Append("0");
+                return;
+            }
+
+            if (Denominator < 0)
+            {
+                Numerator *= -1;
+                Denominator *= -1;
+            }
+
+            var num = Numerator;
+            bool isNegative = false;
+            if (num < 0)
+            {
+                num = -num;
+                isNegative = true;
+            }
+
+            if (isNegative)
+                sb.Append(numberFormat.NegativeSign);
+
+            fracToString(sb, num, Denominator, prov);
         }
 
         public string ToString(IFormatProvider prov)
@@ -565,7 +624,9 @@ namespace OpenTap
         public static BigFloat operator +(BigFloat a, BigFloat b)
         {
             if (a.IsNan || b.IsNan) return NaN;
-
+            if (a.IsZero) return b;
+            if (b.IsZero) return a;
+            
             if (a.Denominator != b.Denominator)
             {
                 var adenum = a.Denominator;
@@ -579,9 +640,13 @@ namespace OpenTap
             return new BigFloat(a.Numerator + b.Numerator, b.Denominator).Normalize();
         }
 
+        public bool IsZero => Numerator.IsZero;
+
         public static BigFloat operator -(BigFloat a, BigFloat b)
         {
             if (a.IsNan || b.IsNan) return NaN;
+            if (b.IsZero) return a;
+            if (a.IsZero) return new BigFloat(-b.Numerator, b.Denominator);
 
             if (a.Denominator != b.Denominator)
             {
@@ -593,6 +658,13 @@ namespace OpenTap
                 b.Denominator *= adenum;
                 b.Numerator *= adenum;
             }
+
+            if (a.Numerator == b.Numerator)
+            {
+                if (a.IsPosInf || b.IsNegInf) return NaN;
+                return Zero;
+            }
+
             return new BigFloat(a.Numerator - b.Numerator, b.Denominator).Normalize();
         }
         public static BigFloat operator /(BigFloat a, BigFloat b)
@@ -608,6 +680,16 @@ namespace OpenTap
                 if (b.IsPosInf || b.IsNegInf) return NaN;
                 else if (b < 0) return NegativeInfinity;
             }
+            else if (b == One) return a;
+            else if (a.IsZero)
+            {
+                if (b.IsZero) return NaN;
+                return Zero;
+            }
+            else if (b.IsZero)
+            {
+                return a.Numerator > 0 ? Infinity : NegativeInfinity;
+            }
 
             return new BigFloat(a.Numerator * b.Denominator, b.Numerator * a.Denominator).Normalize();
         }
@@ -615,6 +697,17 @@ namespace OpenTap
         public static BigFloat operator *(BigFloat a, BigFloat b)
         {
             if (a.IsNan || b.IsNan) return NaN;
+            if (a.IsZero)
+            {
+                if (b.IsPosInf || b.IsNegInf) return NaN;
+                return Zero;
+            }
+
+            if (b.IsZero)
+            {
+                if (a.IsPosInf || a.IsNegInf) return NaN;
+                return Zero;
+            }
 
             return new BigFloat(a.Numerator * b.Numerator, a.Denominator * b.Denominator).Normalize();
         }
@@ -628,6 +721,7 @@ namespace OpenTap
         {
             if (Denominator == 0) return int.MinValue;
             if (Numerator == 0) return 0;
+            if (Denominator == 1) return Numerator;
 
             return Numerator / Denominator;
         }
