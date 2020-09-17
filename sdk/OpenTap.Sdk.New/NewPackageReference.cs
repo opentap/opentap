@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -15,17 +16,18 @@ namespace OpenTap.Sdk.New
         [CommandLineArgument("version", Description = "Version of the package (newest version if not set).")]
         public string Version { get; set; }
         
-        [CommandLineArgument("csproj", Description = "C# project file to add the package reference to.")]
+        [CommandLineArgument("project", Description = "C# project file to add the package reference to. If nothing is selected the csproj of the current directiory (if present) is selected.")]
         public string Project { get; set; }
 
         [CommandLineArgument("repository",
             Description = "The package repository to use (default: packages.opentap.io)")]
         public string PackageRepository { get; set; } = "packages.opentap.io";
+
+        [CommandLineArgument("no-reference",
+            Description = "Specify if the assemblies in the package should not be referenced by the project.")]
+        public bool NoReference { get; set; }
         
-        [CommandLineArgument("additional", Description = "Specify this as an 'additional' package reference, not referencing the DLLs directly.")]
-        public bool Additional { get; set; }
-        
-        [CommandLineArgument("configuration", Description = "In which build configuration this should be used.")]
+        [CommandLineArgument("configuration", Description = "In which build configuration this should be used. The default is all configurations.")]
         public string Configuration { get; set; }
 
         static TraceSource log = Log.CreateSource("sdk");
@@ -50,11 +52,13 @@ namespace OpenTap.Sdk.New
                     Version = pkg.Version.ToString();
                 PackageName = pkg.Name;
             }
-            
-            string referenceType = Additional ? "AdditionalOpenTapPackage" : "OpenTapPackageReference";
+
+            string ifRefStr = "";
+            if (NoReference)
+                ifRefStr = " Reference=\"false\"";
             
             string insert =
-                $"<{referenceType} Include=\"{PackageName}\" Version=\"{Version}\" Repository=\"{PackageRepository}\"/>";
+                $"<OpenTapPackageReference Include=\"{PackageName}\" Version=\"{Version}\" Repository=\"{PackageRepository}\"{ifRefStr}/>";
             
             var csproj = Project ?? get_csproj();
             if (csproj == null)
@@ -83,7 +87,8 @@ namespace OpenTap.Sdk.New
             
             foreach (var grp in itemGroups)
             {
-                var existingElem = grp.Elements(referenceType)
+                var existingElem = grp.Elements("OpenTapPackageReference")
+                    .Where(elem => string.Equals(elem.Attribute("Reference")?.Value ?? "True", (!NoReference).ToString(), StringComparison.InvariantCultureIgnoreCase))
                     .FirstOrDefault(elem => elem.Attribute("Include")?.Value == PackageName);
                 
                 if (existingElem != null)
@@ -94,9 +99,12 @@ namespace OpenTap.Sdk.New
                     {
                         if (version.Value == Version)
                         {
-                            log.Info("Package {0} version {1} already in the csproj", PackageName, Version);
+                            log.Info("Package {0} version {1} already in the csproj.", PackageName, Version);
                             return 0;
                         }
+                        
+                        log.Info("Package {0} version {1} changed to version {2}.", PackageName, version.Value, Version);
+                        
                         version.Value = Version;
                         needsAddNewElem = false;
                         break;
@@ -112,7 +120,7 @@ namespace OpenTap.Sdk.New
                 // Try to find the existing item group used for package references.
                 foreach (var grp in itemGroups)
                 {
-                    if (grp.Elements(referenceType).Any())
+                    if (grp.Elements("OpenTapPackageReference").Any())
                     {
                         itemGroupXml = grp;
                         break;
@@ -139,6 +147,7 @@ namespace OpenTap.Sdk.New
                 itemGroupXml.Add(XElement.Parse(insert));
                 itemGroupXml.Add("\n");
                 itemGroupXml.Add("   ");
+                log.Info("Package {0} version {1} reference added to the project.", PackageName, Version);
             }
 
             document.Save(csproj, SaveOptions.DisableFormatting);
