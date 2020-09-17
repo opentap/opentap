@@ -263,27 +263,6 @@ namespace OpenTap
             this.stepRun = stepRun;
             this.planRun = planRun;
         }
-        /// <summary>
-        /// Waits for all result listeners in the test plan.
-        /// </summary>
-        /// <param name="execStage"></param>
-        void WaitForResultListeners(TestPlanRun execStage)
-        {
-            WaitHandle.WaitAny(new[] { execStage.PromptWaitHandle, TapThread.Current.AbortToken.WaitHandle });
-            
-            foreach (IResultListener r in execStage.ResultListeners)
-            {
-                try //Usercode..
-                {
-                    execStage.ResourceManager.WaitUntilResourcesOpened(TapThread.Current.AbortToken, r);
-                }
-                catch (Exception e)
-                {
-                    log.Warning("Caught exception in result handling task.");
-                    log.Debug(e);
-                }
-            }
-        }
 
         /// <summary>
         /// Waits for the propagation of results from all Proxies to the Listeners. Normally this is not necessary. 

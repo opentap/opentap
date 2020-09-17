@@ -98,7 +98,6 @@ namespace OpenTap
         {
             if (prov == null)
                 prov = CultureInfo.CurrentCulture.NumberFormat;
-            var numinfo = prov as NumberFormatInfo;
             var digits = (int)Math.Ceiling(BigInteger.Log10(a) - BigInteger.Log10(b));
             
             if (digits < 0)
@@ -114,7 +113,7 @@ namespace OpenTap
                 if (a == 0 && digits < 0)
                     break;
                 BigInteger newb = b;
-                BigInteger newa = a;
+                
                 if (digits >= 0)
                 {
                     newb = b * BigInteger.Pow(ten, digits);

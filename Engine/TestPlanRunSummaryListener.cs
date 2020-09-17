@@ -157,7 +157,6 @@ namespace OpenTap
             summaryLog.Info(formatSummaryHeader(String.Format(" Summary of test plan started {0} ", planRun.StartTime), addPadLength));
             if (stepRuns != null)
             {
-                var baseruns = parentLookup[planRun.Id];
                 int idx = 0;
                 foreach (TestStepRun run in parentLookup[planRun.Id])
                     printSummary(run, maxIndent, idx, parentLookup);

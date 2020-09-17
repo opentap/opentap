@@ -66,10 +66,8 @@ namespace OpenTap
     /// It is responsible for making sure that all TestSteps added to the list are supported/allowed 
     /// as children of the TestStep in the TestStepList.Parent field.
     /// </summary>
-    public class TestStepList : ObservableCollection<ITestStep> /*HierarchialList<TestStep,ITestStepParent>*/
+    public class TestStepList : ObservableCollection<ITestStep>
     {
-        private static readonly TraceSource log = Log.CreateSource("TestPlan");
-        
         /// <summary>
         /// When true, the nesting rules defined by <see cref="AllowAsChildInAttribute"/> and 
         /// <see cref="AllowAnyChildAttribute"/> are checked when trying to insert a step into 

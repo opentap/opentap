@@ -16,7 +16,6 @@ namespace OpenTap.Plugins
         public override double Order { get { return 1; } }
 
         Dictionary<Guid, ITestStep> stepLookup = new Dictionary<Guid, ITestStep>();
-        Dictionary<Guid, List<Action<object>>> setters = new Dictionary<Guid, List<Action<object>>>();
         /// <summary>
         /// Guids where duplicate guids should be ignored. Useful when pasting to test plan.
         /// </summary>

@@ -271,9 +271,9 @@ namespace OpenTap
                             else goto start;
                         }
                         str.Value = read;
-                        IEnumerable<string> errors = null;
+                        
                         var err = a.Get<IErrorAnnotation>();
-                        errors = err?.Errors;
+                        IEnumerable<string> errors = err?.Errors;
 
                         _message.Write();
                         if (errors?.Any() == true)

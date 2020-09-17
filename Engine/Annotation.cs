@@ -341,7 +341,7 @@ namespace OpenTap
         public void Read(object source)
         {
             isReadOnly = !EnabledIfAttribute
-            .IsEnabled(mem.Member, source, out IMemberData prop, out IComparable val, out bool hidden);
+            .IsEnabled(mem.Member, source, out IMemberData _, out IComparable __, out bool hidden);
             isVisible = !hidden;
         }
 
@@ -1644,7 +1644,6 @@ namespace OpenTap
                     var seq = annotations.Get<IObjectValueAnnotation>().Value as IEnumerable;
                     var mems = seq?.OfType<IMemberData>();
                     if (!mems.Any()) return "None";
-                    var things2 = mems.ToLookup(x => x.GetDisplayAttribute().Name);
                     return string.Join(", ", mems.Select(x => x.GetDisplayAttribute().Name));
                 }
             }

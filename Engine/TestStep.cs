@@ -795,8 +795,6 @@ namespace OpenTap
                 step.Verdict = newVerdict;
         }
 
-        static TraceSource log = Log.CreateSource("TestPlan"); 
-        
         internal static TestStepRun DoRun(this ITestStep Step, TestPlanRun planRun, TestRun parentRun, IEnumerable<ResultParameter> attachedParameters = null)
         {
             {

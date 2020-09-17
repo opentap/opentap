@@ -482,7 +482,6 @@ namespace OpenTap
     [Display("Short Lived Connections", "Opens resources only right before they are needed (e.g. before an individual test step starts). And closes them again immediately after.", Order: 1)]
     internal class LazyResourceManager : IResourceManager
     {
-        private static readonly TraceSource log = Log.CreateSource("Resources");
         /// <summary> Prints a friendly name. </summary>
         /// <returns></returns>
         public override string ToString() => "Short Lived Connections";
