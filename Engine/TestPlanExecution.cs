@@ -476,11 +476,6 @@ namespace OpenTap
             return run;
         }
 
-        private void ForwardOfferBreak(object sender, BreakOfferedEventArgs e)
-        {
-            OnBreakOffered(e);
-        }
-
         private TestPlanRun DoExecute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride)
         {
             if (resultListeners == null)
