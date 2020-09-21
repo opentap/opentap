@@ -4,12 +4,11 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using DotNet.Globbing;
 using DotNet.Globbing.Token;
 using Microsoft.Build.Framework;
@@ -17,6 +16,13 @@ using Task = Microsoft.Build.Utilities.Task;
 
 namespace Keysight.OpenTap.Sdk.MSBuild
 {
+    internal static class StringExtension
+    {
+        internal static string ExceptLast(this string str)
+        {
+            return str.Substring(0, str.Length - 1);
+        }
+    }
     internal class GlobWrapper : IComparable<GlobWrapper>
     {
         public bool Include { get; }
@@ -64,49 +70,22 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
     internal class GlobTask
     {
-        private List<GlobWrapper> _globs;
+        public List<GlobWrapper> Globs { get; }
 
-        public static List<GlobTask> ParseString(string tasks)
+        public static List<GlobTask> Parse(ITaskItem[] tasks)
         {
             var result = new List<GlobTask>();
-            var groups = tasks.Split(',').Where(x => x.Length > 0);
-            
-            foreach (var group in groups)
+
+            foreach (var task in tasks)
             {
-                string g = group;
-                if (g.StartsWith(";"))
-                    g = string.Concat(g.Skip(1));
+                var includeAssemblies = task.GetMetadata("IncludeAssemblies");
+                var excludeAssemblies = task.GetMetadata("ExcludeAssemblies");
 
-                var groupParts = g.Split(';').ToArray();
-                
-                if (groupParts.Length > 3)
-                    throw new Exception("Semicolons are not valid in IncludeAssemblies/ExcludeAssemblies patterns.");
 
-                if (groupParts.Length != 3)
-                    throw new Exception($"Input '{group}' appears to be invalid.");
+                var includeGlobs = string.IsNullOrWhiteSpace(includeAssemblies) ? new [] {"**"} : includeAssemblies.Split(':', ';');
+                var excludeGlobs = string.IsNullOrWhiteSpace(excludeAssemblies) ? new [] {"Dependencies/**"} : excludeAssemblies.Split(':', ';');
                 
-                // Remove the last character in this string to circumvent disgusting workaround needed in targets file
-                groupParts[1] = groupParts[1].Substring(0, groupParts[1].Length - 1);
-                var packageName = groupParts[0];
-                var includeGlobs = "**";
-                if (groupParts.Length > 1 && string.IsNullOrWhiteSpace(groupParts[1]) == false)
-                {
-                    includeGlobs = groupParts[1].Replace('\\', '/');
-                }
-                
-                // It is not possible to tell the difference between ExcludeAssemblies being unspecified or deliberately set to ""
-                // If all dependencies are included, builds are likely to fail -- assume this is not the intention
-                string excludeGlobs = "Dependencies/**";
-                if (groupParts.Length > 2)
-                {
-                    if (string.IsNullOrEmpty(groupParts[2]) == false)
-                    {
-                        excludeGlobs = groupParts[2].Replace('\\', '/');
-                    }
-                } 
-
-                // If the pattern contained semicolons, they were lost by the split operation above
-                result.Add(new GlobTask(packageName, includeGlobs.Split(':'), excludeGlobs.Split(':')));
+                result.Add(new GlobTask(task.ItemSpec, includeGlobs, excludeGlobs));
             }            
             
             return result;
@@ -118,14 +97,14 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             PackageName = packageName;
             includePatterns = includePatterns.Distinct().Where(x => !string.IsNullOrWhiteSpace(x));
             excludePatterns = excludePatterns.Distinct().Where(x => !string.IsNullOrWhiteSpace(x));
-            _globs = includePatterns.Select(x => new GlobWrapper(x, true)).Concat(
+            Globs = includePatterns.Select(x => new GlobWrapper(x, true)).Concat(
                 excludePatterns.Select(x => new GlobWrapper(x, false))).ToList();
-            _globs.Sort();
+            Globs.Sort();
         }
 
         public bool Includes(string file)
         {
-            foreach (var glob in _globs)
+            foreach (var glob in Globs)
             {
                 if (glob.Globber.IsMatch(file))
                 {
@@ -149,7 +128,6 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         {
             _added = new HashSet<string>();
         }
-        private StreamWriter _writer;
         private HashSet<string> _added;
         private Regex dllRx = new Regex("<File +.*Path=\"(?<name>.+\\.dll)\"");
 
@@ -160,56 +138,80 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         public string PackageInstallDir { get; set; }
 
         public string TargetMsBuildFile { get; set; }
-        public string PackagesAndGlobs { get; set; }
+        private bool Written { get; set; } = false;
+        public Microsoft.Build.Framework.ITaskItem[] OpenTapPackagesToReference { get; set; }
+        
+        private StringBuilder Result { get; } = new StringBuilder();
 
-        private void InitializeWriter()
+        private void Write()
         {
-            if (TargetMsBuildFile == null)
-                throw new Exception("TargetMsBuildFile is null");
-            _writer = File.CreateText(TargetMsBuildFile);
-            _writer.WriteLine("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>");
-            _writer.WriteLine("<Project ToolsVersion=\"14.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">");
-        }
-        private void CloseWriter()
-        {
-            _writer.WriteLine("</Project>");
-            _writer.Close();
+            using (var writer = File.CreateText(TargetMsBuildFile))
+            {
+                writer.WriteLine("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>");
+                writer.WriteLine(
+                    "<Project ToolsVersion=\"14.0\" xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">");
+                writer.Write(Result.ToString());
+                writer.WriteLine("</Project>");
+            }
         }
         
         private void WriteItemGroup(IEnumerable<string> assembliesInPackage)
         {
-            _writer.WriteLine("  <ItemGroup>");
+            Written = true;            
+            Result.AppendLine("  <ItemGroup>");
 
             foreach (var asmPath in assembliesInPackage)
             {
-                _writer.WriteLine($"    <Reference Include=\"{Path.GetFileNameWithoutExtension(asmPath)}\">");
-                _writer.WriteLine($"      <HintPath>$(OutDir)/{asmPath}</HintPath>");
-                _writer.WriteLine("    </Reference>");
+                Result.AppendLine($"    <Reference Include=\"{Path.GetFileNameWithoutExtension(asmPath)}\">");
+                Result.AppendLine($"      <HintPath>$(OutDir)/{asmPath}</HintPath>");
+                Result.AppendLine("    </Reference>");
             }
 
-            _writer.WriteLine("  </ItemGroup>");
+            Result.AppendLine("  </ItemGroup>");
         }
 
         public override bool Execute()
         {
-            if (PackagesAndGlobs == "^;,")
+            if (OpenTapPackagesToReference == null || OpenTapPackagesToReference.Length == 0)
             {   // This happens when a .csproj file does not specify any OpenTapPackageReferences -- simply ignore it
+                
+                Log.LogMessage("Got 0 OpenTapPackageReference targets.");
                 return true;
             }
+            
+            if (TargetMsBuildFile == null)
+                throw new Exception("TargetMsBuildFile is null");
 
             Assemblies = new string[] { };
             try
             {
-                var globTasks = GlobTask.ParseString(PackagesAndGlobs);
-                InitializeWriter();
-                Parallel.ForEach(globTasks, HandlePackage);
-                CloseWriter();
+                var globTasks = GlobTask.Parse(OpenTapPackagesToReference);
+                Log.LogMessage($"Got {globTasks.Count} OpenTapPackageReference targets.");
+                
+                foreach (var task in globTasks)
+                {
+                    var includeGlobs = task.Globs.Where(x => x.Include).Select(x => x.Globber.ToString());
+                    var excludeGlobs = task.Globs.Where(x => x.Include == false).Select(x => x.Globber.ToString());
+                    var includeGlobString = string.Join(",", includeGlobs);
+                    var excludeGlobString = string.Join(",", excludeGlobs);
+
+                    Log.LogMessage($"{task.PackageName} Include=\"{includeGlobString}\" Exclude=\"{excludeGlobString}\"");
+
+                }
+
+                foreach (var globTask in globTasks)
+                {
+                    HandlePackage(globTask);
+                }
+                
+                if (Written)
+                    Write();
             }
             catch (Exception e)
             {
-                Log.LogWarning($"Unexpected error when parsing patterns in '<OpenTapPackageReference>' ('{PackagesAndGlobs}'). If the problem persists, please open an issue and include the build log.");
+                Log.LogWarning($"Unexpected error while parsing patterns in '<OpenTapPackageReference>'. If the problem persists, please open an issue and include the build log.");
                 Log.LogErrorFromException(e);
-                // throw;
+                throw;
             }
 
             return true;
@@ -222,7 +224,10 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             var packageDefPath = Path.Combine(PackageInstallDir, "Packages", globTask.PackageName, "package.xml");
             //  Silently ignore the package if its package.xml does not exist
             if (!File.Exists(packageDefPath))
+            {
+                Log.LogWarning($"No package named {globTask.PackageName}. Does a glob expression contain a semicolon?");
                 return;
+            }
 
             var dllsInPackage = dllRx.Matches(File.ReadAllText(packageDefPath)).Cast<Match>()
                 .Where(match => match.Groups["name"].Success)
@@ -233,14 +238,11 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             foreach (var dllPath in matchedDlls.Distinct())
             {
                 var absolutedllPath = Path.Combine(PackageInstallDir, dllPath);
-
-                lock (_added)
-                {
-                    // Ensure we don't add references twice if they are matched by multiple patterns
-                    if (_added.Contains(absolutedllPath))
-                        continue;
-                    _added.Add(absolutedllPath);
-                }
+                
+                // Ensure we don't add references twice if they are matched by multiple patterns
+                if (_added.Contains(absolutedllPath))
+                    continue;
+                _added.Add(absolutedllPath);
 
                 if (IsDotNetAssembly(absolutedllPath))
                     assembliesInPackage.Add(dllPath);
@@ -255,16 +257,8 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             }
             else
             {
-
-                lock (_writer)
-                {
-                    WriteItemGroup(assembliesInPackage);
-                }
-
-                lock (Assemblies)
-                {
-                    Assemblies = Assemblies.Concat(assembliesInPackage).ToArray();
-                }
+                WriteItemGroup(assembliesInPackage);
+                Assemblies = Assemblies.Concat(assembliesInPackage).ToArray();
             }
         }
 
