@@ -1886,8 +1886,9 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
-        [TestCase("test")]
-        public void DefaultValueTest(string value)
+        [TestCase("test", false)]
+        [TestCase("SomeOtherString", true)]
+        public void DefaultValueTest(string value, bool serialized)
         {
             var logStep = new DefaultValueTestStep();
             var plan = new TestPlan();
@@ -1902,19 +1903,12 @@ namespace OpenTap.Engine.UnitTests
             }
 
             logStep = (DefaultValueTestStep)plan.Steps[0];
-            // Expect property from test step to be empty since it is the same default value as the one from constructor
-            Assert.AreNotEqual(value, logStep.Value);
-
             // Expect value to be equal since it is not the same as default value now
-            logStep.Value = value = "Some other string";
-            using (var mem = new MemoryStream())
-            {
-                plan.Save(mem);
-                mem.Seek(0, SeekOrigin.Begin);
-                plan = TestPlan.Load(mem, "plan");
-            }
-            logStep = (DefaultValueTestStep)plan.Steps[0];
-            Assert.AreEqual(value, logStep.Value);
+            if (serialized)
+                Assert.AreEqual(value, logStep.Value);
+            // Expect property from test step to be empty since it is the same default value as the one from constructor
+            else
+                Assert.AreNotEqual(value, logStep.Value);
         }
 
         // Technically speaking, DefaultValueAttribute is not supported in the sense that properties with default value
