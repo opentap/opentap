@@ -132,6 +132,7 @@ namespace OpenTap
             var name = mem.Name;
             if (name.EndsWith("]]"))
             {
+                // This is probably a generic C# type. These have the format Namespace.TypeName`N[[assemblyQualifiedNameOfFirstGenericArgument][assemblyQualifiedNameOfSecondGenericArgument]...]
                 var idx = name.LastIndexOf("[[");
                 if(idx >= 0)
                     name = name.Substring(0, idx);
