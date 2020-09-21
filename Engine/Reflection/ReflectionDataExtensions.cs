@@ -129,7 +129,16 @@ namespace OpenTap
             if (attr != null) return attr;
             // auto-generate a display attribute.
             // mem.Name has to be something fully qualifiable, but the display attribute name should be something more human friendly.
-            var name = mem.Name.Split('.').Last().Split('+').Last();
+            var name = mem.Name;
+            if (name.EndsWith("]]"))
+            {
+                // This is probably a generic C# type. These have the format Namespace.TypeName`N[[assemblyQualifiedNameOfFirstGenericArgument][assemblyQualifiedNameOfSecondGenericArgument]...]
+                var idx = name.LastIndexOf("[[");
+                if(idx >= 0)
+                    name = name.Substring(0, idx);
+            }
+            name = name.Split('.').Last().Split('+').Last();
+            
             return new DisplayAttribute(name);
         }
 
