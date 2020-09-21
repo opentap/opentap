@@ -1888,6 +1888,8 @@ namespace OpenTap.Engine.UnitTests
 
         [TestCase("test", false)]
         [TestCase("SomeOtherString", true)]
+        [TestCase("", true)]
+        [TestCase(null, true)]
         public void DefaultValueTest(string value, bool serialized)
         {
             var logStep = new DefaultValueTestStep();
