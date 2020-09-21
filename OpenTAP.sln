@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.329
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30413.136
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "nuget", "nuget", "{B2B5AFDA-56F7-49AA-8615-4640581242A3}"
 	ProjectSection(SolutionItems) = preProject
@@ -35,6 +35,10 @@ EndProject
 Global
 	GlobalSection(SharedMSBuildProjectFiles) = preSolution
 		Shared\Tap.Shared.projitems*{11c58bd2-45e5-4a19-ae43-073b689fdb43}*SharedItemsImports = 13
+		Shared\Tap.Shared.projitems*{1856ee05-7d06-4805-a9d6-1dad2dd3034e}*SharedItemsImports = 5
+		Shared\Tap.Shared.projitems*{1eb4d48c-5719-483d-82de-017f6b1634e6}*SharedItemsImports = 5
+		Shared\Tap.Shared.projitems*{57145555-3f78-44c3-ba7f-b5edaa2b573c}*SharedItemsImports = 5
+		Shared\Tap.Shared.projitems*{fc73f73c-bd97-4ddc-ad7b-5a990cb4af6b}*SharedItemsImports = 5
 	EndGlobalSection
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
