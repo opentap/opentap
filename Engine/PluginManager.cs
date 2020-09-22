@@ -777,6 +777,12 @@ namespace OpenTap
                         // the requested assembly has a strong name, only consider assemblies that has that
                         candidates.RemoveAll(c => false == requestedStrongNameToken.SequenceEqual(c.Name.GetPublicKeyToken()));
                     }
+
+                    // The following logic to assembly loading is based on a significant amount of investigation, be careful when altering this.
+                    // The approach is to return exact version if it exists, otherwise return the highest version available.
+                    // This approach is consistent with how .NET Core resolves dependencies, if not exact version exists.
+
+
                     // Try to find/load an exact match to the requested version:
                     var matchingVersion = candidates.FirstOrDefault(c => c.Name.Version == requestedAsmName.Version);
                     if (matchingVersion.Path != null)
@@ -786,19 +792,9 @@ namespace OpenTap
                             return asm;
                         candidates.Remove(matchingVersion);
                     }
-                    // Try to find/load a compatible match to the requested version:
-                    if (requestedAsmName.Version != null)
-                    {
-                        var matchingMajorVersion = candidates.Where(c => c.Name.Version.Major == requestedAsmName.Version.Major);
-                        foreach (var compatibleVersion in matchingMajorVersion.OrderBy(c => c.Name.Version))
-                        {
-                            Assembly asm = tryLoad(compatibleVersion.Path);
-                            if (asm != null)
-                                return asm;
-                            candidates.Remove(compatibleVersion);
-                        }
-                    }
-                    // Try to load any remaining candidates:
+
+
+                    // Try to load any remaining candidates from highest version to lowest:
                     var ordered = candidates.OrderByDescending(c => c.Name.Version);
                     foreach (var c in ordered)
                     {

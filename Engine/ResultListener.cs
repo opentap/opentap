@@ -10,7 +10,6 @@ using System.Runtime.Serialization;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.ComponentModel;
-using Microsoft.CodeAnalysis;
 
 namespace OpenTap
 {
@@ -151,7 +150,7 @@ namespace OpenTap
         /// </summary>
         public ResultParameter(string group, string name, IConvertible value, MetaDataAttribute metadata = null, int parentLevel = 0)
         {
-            Group = group;
+            Group = group ?? "";
             Name = name;
             Value = value ?? "NULL";
             ParentLevel = parentLevel;
@@ -770,7 +769,10 @@ namespace OpenTap
             }
             else
             {
-                data[index] = new resultParameter{Name = name, Value = value};
+                var prev = data[index];
+                prev.Value = value;
+                prev.Name = name;
+                data[index] = prev;
             }
         }
 

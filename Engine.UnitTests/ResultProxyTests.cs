@@ -245,5 +245,60 @@ namespace OpenTap.Engine.UnitTests
                 Assert.AreEqual("c", res.Columns[2].Name);
             }
         }
+
+        public class TestCls<T>
+        {
+            public class TestCls2<T2>
+            {
+                public T X { get; set; }
+                public T2 Y { get; set; }
+            }
+
+            public T X { get; set; }
+        }
+
+        [Test]
+        public void ResultTableName()
+        {
+            var rl = new ResultValidator();
+            TestPlan tp = new TestPlan();
+            tp.ChildTestSteps.Add(new DelegateTestStep
+            {
+                RunAction = (r) =>
+                {
+                    r.Publish(new TestCls<double>{ X = 1.0 });
+                    r.Publish(new TestCls<double>.TestCls2<int> { X = 1.0, Y = 1 });
+                }
+            });
+            var run = tp.Execute(new[] { rl });
+            Assert.AreEqual("TestCls`1", rl.Results.First().Name);
+            Assert.AreEqual("TestCls2`1", rl.Results.Last().Name);
+            bool anyNullGroup = run.Parameters.Any(x => x.Group == null);
+            Assert.IsFalse(anyNullGroup);
+        }
+
+        public class CheckNullGroupStep : TestStep
+        {
+            public override void Run()
+            {
+                bool anyNull = StepRun.Parameters.Any(x => x.Group == null);
+                if (anyNull)
+                    UpgradeVerdict(Verdict.Fail);
+                else
+                    UpgradeVerdict(Verdict.Pass);
+            }
+        }
+
+        [Test]
+        public void NoNullResultGroups()
+        {
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(new CheckNullGroupStep());
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, run.Verdict);
+            Assert.IsTrue(run.Parameters.All(x => x.Group != null));
+        }
+
+
     }
 }
