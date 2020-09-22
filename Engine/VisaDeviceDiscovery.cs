@@ -45,19 +45,38 @@ namespace OpenTap
             return new string[0];
         }
 
+        
+        static bool getAliasesBroken = false;
         static string[] getAliases(int rm, string address)
         {
-            var aliases = new StringBuilder(1024);
-
-            short intfType = 0;
-            short intfNum = 0;
-            if (Visa.viParseRsrcEx(rm, address, ref intfType, ref intfNum, null, null, aliases) == Visa.VI_SUCCESS)
+            if (getAliasesBroken) return Array.Empty<string>();
+            using (var semaphore = new Semaphore(0, 1))
             {
-                if (aliases.Length != 0)
-                    return new[] { aliases.ToString() };
-            }
+                string[] result = Array.Empty<string>();
+                
+                TapThread.Start(() =>
+                {
+                    var aliases = new StringBuilder(1024);
+                    short intfType = 0;
+                    short intfNum = 0;
+                    if (Visa.viParseRsrcEx(rm, address, ref intfType, ref intfNum, null, null, aliases) ==
+                        Visa.VI_SUCCESS)
+                    {
+                        if (aliases.Length != 0)
+                            result = new[] {aliases.ToString()};
+                    }
 
-            return Array.Empty<string>();
+                    semaphore.Release();
+                });
+
+                if (!semaphore.WaitOne(5000))
+                {
+                    getAliasesBroken = true;
+                    log.Warning("VISA timed out when trying to get aliases. Skipping this from now on.");
+                }
+
+                return result;
+            }
         }
 
         /// <summary> Ensures updating device addresses is run from the same thread.</summary>

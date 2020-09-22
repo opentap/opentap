@@ -140,6 +140,7 @@ namespace OpenTap.Package
             {
                 if (inconclusive)
                 {
+                    exitCode = 2;
                     log.Warning("Package '{0}' is missing SHA1 checksum for verification.", pkg.Name);
                     print_issues();
                 }

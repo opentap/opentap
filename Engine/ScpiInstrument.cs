@@ -102,6 +102,29 @@ namespace OpenTap
             return visa_resource;
         }
 
+        static bool checkVisaAddressAsync(string str, int millisecondTimeout)
+        {
+            if (visa_failed) return true;
+            bool ok = true;
+            using (var semaphore = new Semaphore(0, 1))
+            {
+                TapThread.Start(() =>
+                {
+                    try
+                    {
+                        ok = checkVisaAddress(str);
+                    }
+                    finally
+                    {
+                        semaphore.Release();
+                    }
+                });
+                if (!semaphore.WaitOne(millisecondTimeout))
+                    visa_failed = true;
+            }
+            return ok;
+        }
+        
         static bool checkVisaAddress(string str)
         {
             if (visa_failed) return true;
@@ -119,7 +142,7 @@ namespace OpenTap
                 return false;
             }
         }
-        static Memorizer<string, bool> validator = new Memorizer<string, bool>(checkVisaAddress)
+        static Memorizer<string, bool> validator = new Memorizer<string, bool>(s => checkVisaAddressAsync(s, 5000))
         {
             SoftSizeDecayTime = TimeSpan.FromSeconds(10)
         };

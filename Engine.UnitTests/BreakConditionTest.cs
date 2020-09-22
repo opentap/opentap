@@ -77,6 +77,8 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(verdictOutput, run.Verdict);
             Assert.AreEqual(1, l.StepRuns.Count);
             Assert.AreEqual(BreakCondition.Inherit, BreakConditionProperty.GetBreakCondition(verdict2));
+            var log = l.LogString;
+            Assert.IsTrue(log.Contains("Break issued from"));
         }
 
         [TestCase(Verdict.Pass, EngineSettings.AbortTestPlanType.Step_Error, 2)]
@@ -234,6 +236,9 @@ namespace OpenTap.Engine.UnitTests
             plan.Steps.Add(failStep);
             plan.Steps.Add(inconclusiveStep);
             plan.Steps.Add(passStep);
+
+            var defaultValue = BreakConditionProperty.GetBreakCondition(plan);
+            Assert.AreEqual(BreakCondition.Inherit, defaultValue);
             
             // break on fail, this means that 'passStep' will not get executed 
             BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnError);
@@ -256,6 +261,24 @@ namespace OpenTap.Engine.UnitTests
             plan.Execute(new []{col});
             Assert.AreEqual(4, col.StepRuns.Count);
             
+        }
+
+        /// <summary>
+        /// Testing that TestPlan.Locked causes BreakConditions to be locked.
+        /// </summary>
+        [Test]
+        public void TestBreakConditionsLocked()
+        {
+            var plan = new TestPlan();
+            var a = AnnotationCollection.Annotate(plan);
+            var mem = a.GetMember("BreakConditions");
+            Assert.IsFalse(mem.Get<IAccessAnnotation>().IsReadOnly);
+            plan.Locked = true;
+            a.Read();
+            Assert.IsTrue(mem.Get<IAccessAnnotation>().IsReadOnly);
+            plan.Locked = false;
+            a.Read();
+            Assert.IsFalse(mem.Get<IAccessAnnotation>().IsReadOnly);
         }
         
     }

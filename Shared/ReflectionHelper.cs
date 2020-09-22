@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -457,19 +459,6 @@ namespace OpenTap
 
         
 
-        static readonly ConditionalWeakTable<Type, InternalMemberData[]> membersLookup = new ConditionalWeakTable<Type, InternalMemberData[]>();
-        public static InternalMemberData[] GetMemberData(this Type type)
-        {
-            return membersLookup.GetValue(type, InternalMemberData.Get);
-        }
-
-        public static InternalMemberData GetMemberData(this Type type, string name)
-        {
-            var p = type.GetProperty(name);
-            if (p == null) return null;
-            return new InternalMemberData(p);
-        }
-        
         /// <summary> Get the base C# type of a given type. </summary>
         internal static TypeData AsTypeData(this ITypeData type)
         {
@@ -478,60 +467,17 @@ namespace OpenTap
                     return td;
             return null;
         }
+        
+        public static void GetAttributes<T>(this IReflectionData mem, System.Collections.IList outList)
+        {
+            foreach (var item in mem.Attributes)
+            {
+                if (item is T x)
+                    outList.Add(x);
+            }
+        }
     }
     
-    internal class InternalMemberData
-    {
-        public MemberInfo Info;
-        public object[] Attributes;
-
-        DisplayAttribute display;
-
-        public DisplayAttribute Display
-        {
-            get
-            {
-                if (display == null) display = Info.GetDisplayAttribute();
-                return display;
-            }
-            
-        }
-
-        public bool IsProperty => Info is PropertyInfo;
-        public PropertyInfo Property => Info as PropertyInfo;
-        public static InternalMemberData[] Get(Type type)
-        {
-            var properties = type.GetPropertiesTap();
-            var methods = type.GetMethodsTap();
-            return properties.Select(info => new InternalMemberData(info)).OrderBy(x => x.Info.Name).ToArray();
-        }
-        public InternalMemberData(MemberInfo info)
-        {
-            Info = info;
-            Attributes = info.GetAllCustomAttributes();
-        }
-
-        public IEnumerable<T> GetCustomAttributes<T>()
-        {
-            return Attributes.OfType<T>();
-        }
-
-        public bool HasAttribute<T>() where T : Attribute
-        {
-            return GetAttribute<T>() != null;
-        }
-        public T GetAttribute<T>() where T : Attribute
-        {
-            foreach (var attr in Attributes)
-            {
-                if (attr is T a)
-                    return a;
-            }
-            return null;
-        }
-
-        public override string ToString() => $"{Info.DeclaringType}.{Info.Name}";
-    }
 
     static class StreamUtils
     {
@@ -844,6 +790,12 @@ namespace OpenTap
 
     static class Utils
     {
+    #if DEBUG
+        public static readonly bool IsDebugBuild = true;
+    #else
+        public static readonly bool IsDebugBuild = false;
+    #endif
+        
         static public Action ActionDefault = () => { };
 
         public static void Swap<T>(ref T a, ref T b)
@@ -1026,6 +978,17 @@ namespace OpenTap
             else
                 buffer = new List<T>();
             flattenHeirarchy(lst, lookup, buffer, distinct ? new HashSet<T>() : null);
+            return buffer;
+        }
+
+        public static List<T> FlattenHeirarchy<T>(IEnumerable<T> lst, Func<T, T> lookup, bool distinct = false,
+            List<T> buffer = null)
+        {
+            if (buffer != null)
+                buffer.Clear();
+            else
+                buffer = new List<T>();
+            flattenHeirarchy(lst, x => new []{lookup(x)}, buffer, distinct ? new HashSet<T>() : null);
             return buffer;
         }
 
@@ -1347,6 +1310,27 @@ namespace OpenTap
             return typeof(object);
         }
 
+        public static bool IsNumeric(object obj)
+        {
+            switch (obj)
+            {
+                case float i: return true;
+                case double i: return true;
+                case decimal i: return true;
+                case byte i: return true;
+                case char i: return true;
+                case sbyte i: return true;
+                case short i: return true;
+                case ushort i: return true;
+                case int i: return true;
+                case uint i: return true;
+                case long i: return true;
+                case ulong i: return true;
+                default: return false;
+            }
+         
+        }
+
         public static bool IsFinite(double value)
         {
             return false == (double.IsInfinity(value) || double.IsNaN(value));
@@ -1547,6 +1531,169 @@ namespace OpenTap
                 i++;
             }
             return d.OrderBy(kv => kv.Value).Select(kv => kv.Key).ToList();
+        }
+        
+                internal static int ProcessPattern<T1>(IEnumerator objs, Action<T1> f1)
+        {
+            while (objs.MoveNext())
+            {
+                switch (objs.Current)
+                {
+                    case T1 t:
+                        f1(t);
+                        return 1;
+                }
+            }
+            return 0;
+        }
+        
+        internal static int ProcessPattern<T1, T2>(IEnumerator objs, Action<T1> f1, Action<T2> f2 )
+        {
+            while (objs.MoveNext())
+            {
+                switch (objs.Current)
+                {
+                    case T1 t:
+                        f1(t); 
+                        return 1 + ProcessPattern(objs, f2);
+                    case T2 t:
+                        f2(t);
+                        return 1 + ProcessPattern(objs, f1);
+                }
+            }
+            return 0;
+        }
+        
+        internal static int ProcessPattern<T1, T2, T3>(IEnumerator objs, Action<T1> f1, Action<T2> f2, Action<T3> f3 )
+        {
+            while (objs.MoveNext())
+            {
+                switch (objs.Current)
+                {
+                    case T1 t:
+                        f1(t); 
+                        return 1 + ProcessPattern(objs, f2, f3);
+                    case T2 t:
+                        f2(t);
+                        return 1 + ProcessPattern(objs, f1, f3);
+                    case T3 t:
+                        f3(t);
+                        return 1 + ProcessPattern(objs, f1, f2);
+                }
+            }
+            return 0;
+        }
+
+        /// <summary> Adds elements that arent null to the list. </summary>
+        internal static void AddExceptNull<T>(this ICollection<T> list, T x)
+        {
+            if (x != null)
+                list.Add(x);
+        }
+        
+        internal static int ProcessPattern<T1, T2, T3, T4>(IEnumerator objs, Action<T1> f1, Action<T2> f2, Action<T3> f3, Action<T4> f4 )
+        {
+            while (objs.MoveNext())
+            {
+                switch (objs.Current)
+                {
+                    case T1 t:
+                        f1(t); 
+                        return 1 + ProcessPattern(objs, f2, f3, f4);
+                    case T2 t:
+                        f2(t);
+                        return 1 + ProcessPattern(objs, f1, f3, f4);
+                    case T3 t:
+                        f3(t);
+                        return 1 + ProcessPattern(objs, f1, f2, f4);
+                    case T4 t:
+                        f4(t);
+                        return 1 + ProcessPattern(objs, f1, f2, f3);
+                }
+            }
+            return 0;
+        }
+        
+        public static int ProcessPattern<T1, T2, T3, T4, T5>(IEnumerator objs, Action<T1> f1, Action<T2> f2, Action<T3> f3, Action<T4> f4 , Action<T5> f5 )
+        {
+            while (objs.MoveNext())
+            {
+                switch (objs.Current)
+                {
+                    case T1 t:
+                        f1(t); 
+                        return 1 + ProcessPattern(objs, f2, f3, f4, f5);
+                    case T2 t:
+                        f2(t);
+                        return 1 + ProcessPattern(objs, f1, f3, f4, f5);
+                    case T3 t:
+                        f3(t);
+                        return 1 + ProcessPattern(objs, f1, f2, f4, f5);
+                    case T4 t:
+                        f4(t);
+                        return 1 + ProcessPattern(objs, f1, f2, f3, f5);
+                    case T5 t:
+                        f5(t);
+                        return 1 + ProcessPattern(objs, f1, f2, f3, f4);
+                }
+            }
+            return 0;
+        }
+        
+        public static int ProcessPattern<T1, T2, T3, T4, T5, T6>(IEnumerator objs, Action<T1> f1, Action<T2> f2, Action<T3> f3, Action<T4> f4 , Action<T5> f5, Action<T6> f6 )
+        {
+            while (objs.MoveNext())
+            {
+                switch (objs.Current)
+                {
+                    case T1 t:
+                        f1(t); 
+                        return 1 + ProcessPattern(objs, f2, f3, f4, f5, f6);
+                    case T2 t:
+                        f2(t);
+                        return 1 + ProcessPattern(objs, f1, f3, f4, f5, f6);
+                    case T3 t:
+                        f3(t);
+                        return 1 + ProcessPattern(objs, f1, f2, f4, f5,f6);
+                    case T4 t:
+                        f4(t);
+                        return 1 + ProcessPattern(objs, f1, f2, f3, f5,f6);
+                    case T5 t:
+                        f5(t);
+                        return 1 + ProcessPattern(objs, f1, f2, f3, f4,f6);
+                    case T6 t:
+                        f6(t);
+                        return 1 + ProcessPattern(objs, f1, f2, f3, f4, f5);
+                }
+            }
+            return 0;
+        }
+        
+        public static int ProcessPattern<T1, T2>(IEnumerable<object> objs, Action<T1> f1, Action<T2> f2)
+        {
+            using (var e = objs.GetEnumerator())
+                return ProcessPattern(e, f1, f2);
+        }
+        
+        public static int ProcessPattern<T1, T2, T3>(IEnumerable<object> objs, Action<T1> f1, Action<T2> f2, Action<T3> f3)
+        {
+            using (var e = objs.GetEnumerator())
+                return ProcessPattern(e, f1, f2, f3);
+        }
+        public static int ProcessPattern<T1, T2, T3, T4>(IEnumerable<object> objs, Action<T1> f1, Action<T2> f2, Action<T3> f3, Action<T4> f4)
+        {
+            using (var e = objs.GetEnumerator())
+                return ProcessPattern(e, f1, f2, f3, f4);
+        }
+        public static int ProcessPattern<T1, T2, T3, T4, T5>(IEnumerable<object> objs, Action<T1> f1, Action<T2> f2, Action<T3> f3, Action<T4> f4, Action<T5> f5)
+        {
+            using (var e = objs.GetEnumerator())
+                return ProcessPattern(e, f1, f2, f3, f4, f5);
+        }
+        public static int ProcessPattern<T1, T2, T3, T4, T5, T6>(IEnumerable<object> objs, Action<T1> f1, Action<T2> f2, Action<T3> f3, Action<T4> f4, Action<T5> f5, Action<T6> f6)
+        {
+            using (var e = objs.GetEnumerator())
+                return ProcessPattern(e, f1, f2, f3, f4, f5, f6);
         }
     }
 

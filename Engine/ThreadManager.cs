@@ -29,6 +29,60 @@ namespace OpenTap
         Completed
     }
 
+
+    /// <summary> baseclass for ThreadField types. </summary>
+    internal abstract class ThreadField
+    {
+        static int threadFieldIndexer = 0;
+        /// <summary>  Index of this thread field. </summary>
+        protected readonly int Index = GetThreadFieldIndex();   
+        
+        static int GetThreadFieldIndex() => Interlocked.Increment(ref threadFieldIndexer);
+    }
+    
+    /// <summary>
+    /// Thread fields are static objects that manage the value of a thread field.
+    /// </summary>
+    /// <typeparam name="T"></typeparam>
+    internal class ThreadField<T> : ThreadField
+    {
+        /// <summary>
+        /// Gets or sets the value of the thread field. Note that the getter may get a value from a parent thread, while the setter cannot override values from parent fields. 
+        /// </summary>
+        public T Value
+        {
+            get => Get();
+            set => Set(value);
+        }
+        
+        T Get()
+        {
+            var thread = TapThread.Current;
+            while (thread != null)
+            {
+                if (thread.Fields != null && thread.Fields.Length > Index && thread.Fields[Index] != null)
+                    return (T)thread.Fields[Index];
+                thread = thread.Parent;
+            }
+
+            return default;
+        }
+
+        void Set(T value)
+        {
+            var currentThread = TapThread.Current;
+            if (currentThread.Fields == null)
+                currentThread.Fields = new object[Index + 1];
+            else if(currentThread.Fields.Length <= Index)
+            {
+                var newarray = new object[Index + 1];
+                currentThread.Fields.CopyTo(newarray, 0);
+                currentThread.Fields = newarray;
+            }
+            currentThread.Fields[Index] = value;
+        }
+    }
+    
     /// <summary>
     /// Represents a item of work in the <see cref="ThreadManager"/>. Also allows access to the Parent <see cref="TapThread"/> (the thread that initially called<see cref="TapThread.Start"/>)
     /// </summary>
@@ -40,6 +94,7 @@ namespace OpenTap
         readonly CancellationTokenSource abortTokenSource;
         #endregion
 
+        internal object[] Fields = null;
         #region properties
         /// <summary>
         /// The currently running TapThread

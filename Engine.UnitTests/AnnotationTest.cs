@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
@@ -295,6 +296,185 @@ namespace OpenTap.UnitTests
 
         }
 
+        class MenuTestUserInterface : IUserInputInterface, IUserInterface
+        {
+            public bool WasInvoked;
+            public string SelectName { get; set; }
+            public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
+            {
+                var datas = AnnotationCollection.Annotate(dataObject);
+                var selectedName = datas.GetMember("SelectedName");
+                selectedName.Get<IStringValueAnnotation>().Value = SelectName;
+                
+                var scope = datas.GetMember("Scope");
+                var avail = scope.Get<IAvailableValuesAnnotationProxy>();
+                var values = avail.AvailableValues.ToArray();
+                avail.SelectedValue = avail.AvailableValues.First(); // sequence step!
+                Assert.IsTrue(values.Length > 0);
+                datas.Write();
+                
+                WasInvoked = true;
+            }
+
+            public void NotifyChanged(object obj, string property) { }
+        }
+        
+        [Test]
+        public void MenuAnnotationTest()
+        {
+            var currentUserInterface = UserInput.Interface;
+            var menuInterface = new MenuTestUserInterface();
+            UserInput.SetInterface(menuInterface);
+            try
+            {
+                var plan = new TestPlan();
+                var sequenceRoot = new SequenceStep();
+                var sequence = new SequenceStep();
+                var step = new DelayStep();
+                plan.Steps.Add(sequenceRoot);
+                sequenceRoot.ChildTestSteps.Add(sequence);
+                var step2 = new DelayStep();
+                sequenceRoot.ChildTestSteps.Add(step);
+                sequence.ChildTestSteps.Add(step2);
+                
+                { // basic functionalities test 
+                    var member = AnnotationCollection.Annotate(step2).GetMember(nameof(DelayStep.DelaySecs));
+                    var menu = member.Get<MenuAnnotation>();
+                    
+                    var items = menu.MenuItems;
+
+                    var icons = items.ToLookup(item =>
+                        item.Get<IIconAnnotation>()?.IconName ?? "");
+                    var parameterizeOnTestPlan = icons[IconNames.ParameterizeOnTestPlan].First();
+                    Assert.IsNotNull(parameterizeOnTestPlan);
+
+                    // invoking this method should
+                    var method = parameterizeOnTestPlan.Get<IMethodAnnotation>();
+                    method.Invoke();
+                    Assert.IsNotNull(plan.ExternalParameters.Get("Time Delay"));
+
+                    var unparameterize = icons[IconNames.Unparameterize].First();
+                    unparameterize.Get<IMethodAnnotation>().Invoke();
+                    Assert.IsNull(plan.ExternalParameters.Get("Time Delay"));
+
+                    var createOnParent = icons[IconNames.ParameterizeOnParent].First();
+                    Assert.IsNotNull(createOnParent);
+                    createOnParent.Get<IMethodAnnotation>().Invoke();
+                    Assert.IsNotNull(TypeData.GetTypeData(sequence).GetMember("Parameters \\ Time Delay"));
+
+                    unparameterize.Get<IMethodAnnotation>().Invoke();
+                    Assert.IsNull(TypeData.GetTypeData(sequence).GetMember("Parameters \\ Time Delay"));
+
+                    menuInterface.SelectName = "A";
+
+                    var parameterize = icons[IconNames.Parameterize].First();
+                    parameterize.Get<IMethodAnnotation>().Invoke();
+                    Assert.IsTrue(menuInterface.WasInvoked);
+
+                    var newParameter = TypeData.GetTypeData(sequence).GetMember("A");
+                    Assert.IsNotNull(newParameter);
+                    unparameterize.Get<IMethodAnnotation>().Invoke();
+                    Assert.IsNull(TypeData.GetTypeData(sequence).GetMember("A"));
+                    parameterize.Get<IMethodAnnotation>().Invoke();
+
+                    var editParameter = AnnotationCollection.Annotate(sequence).GetMember("A").Get<MenuAnnotation>()
+                        .MenuItems
+                        .FirstOrDefault(x => x.Get<IconAnnotationAttribute>()?.IconName == IconNames.EditParameter);
+
+                    menuInterface.SelectName = "B";
+                    editParameter.Get<IMethodAnnotation>().Invoke();
+
+                    Assert.IsNull(TypeData.GetTypeData(sequence).GetMember("A"));
+                    Assert.IsNotNull(TypeData.GetTypeData(sequence).GetMember("B"));
+                }
+                
+                { // test multi-select
+                    var memberMulti = AnnotationCollection.Annotate(new[] {step, step2})
+                        .GetMember(nameof(DelayStep.DelaySecs));
+                    var menuMulti = memberMulti.Get<MenuAnnotation>();
+                    Assert.IsNotNull(menuMulti);
+
+                    var icons2 = menuMulti.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+                    var parmeterizeOnTestPlanMulti = icons2[IconNames.ParameterizeOnTestPlan].First();
+                    parmeterizeOnTestPlanMulti.Get<IMethodAnnotation>().Invoke();
+                    Assert.AreEqual(2, plan.ExternalParameters.Entries.FirstOrDefault().Properties.Count());
+
+                    var unparmeterizePlanMulti = icons2[IconNames.Unparameterize].First();
+                    unparmeterizePlanMulti.Get<IMethodAnnotation>().Invoke();
+                    Assert.IsNull(plan.ExternalParameters.Entries.FirstOrDefault());
+
+                    var parmeterizeOnParentMulti = icons2[IconNames.ParameterizeOnParent].First();
+                    Assert.IsFalse(parmeterizeOnParentMulti.Get<IEnabledAnnotation>().IsEnabled);
+                }
+
+                { // Test Plan Enabled Items Locked
+                    var annotation = AnnotationCollection.Annotate(step);
+                    var menu = annotation.GetMember(nameof(DelayStep.DelaySecs))
+                        .Get<MenuAnnotation>();
+                    var icons = menu.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+                    icons[IconNames.ParameterizeOnTestPlan].First().Get<IMethodAnnotation>().Invoke();
+                    annotation.Read();
+                    
+                    Assert.IsTrue(icons[IconNames.ParameterizeOnTestPlan].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsTrue(icons[IconNames.Parameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsTrue(icons[IconNames.ParameterizeOnParent].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsTrue(icons[IconNames.Unparameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(icons[IconNames.EditParameter].First().Get<IEnabledAnnotation>().IsEnabled);
+                    
+                    var planAnnotation = AnnotationCollection.Annotate(plan);
+                    var planMenu = planAnnotation.GetMember("Time Delay")
+                        .Get<MenuAnnotation>();
+                    var planIcons = planMenu.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+                    Assert.IsFalse(planIcons[IconNames.ParameterizeOnTestPlan].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(planIcons[IconNames.Parameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsTrue(planIcons[IconNames.EditParameter].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(planIcons[IconNames.ParameterizeOnParent].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(planIcons[IconNames.Unparameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    
+                    plan.Locked = true;
+                    menu = AnnotationCollection.Annotate(step).GetMember(nameof(DelayStep.DelaySecs))
+                        .Get<MenuAnnotation>();
+                    icons = menu.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+                    Assert.IsFalse(icons[IconNames.ParameterizeOnTestPlan].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(icons[IconNames.Parameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(icons[IconNames.ParameterizeOnParent].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(icons[IconNames.Unparameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(icons[IconNames.EditParameter].First().Get<IEnabledAnnotation>().IsEnabled);
+                    planAnnotation = AnnotationCollection.Annotate(plan);
+                    planMenu = planAnnotation.GetMember("Time Delay")
+                        .Get<MenuAnnotation>();
+                    planIcons = planMenu.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+                    Assert.IsFalse(planIcons[IconNames.ParameterizeOnTestPlan].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(planIcons[IconNames.Parameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(planIcons[IconNames.EditParameter].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(planIcons[IconNames.ParameterizeOnParent].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(planIcons[IconNames.Unparameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    
+                }
+            }
+            finally
+            {
+                UserInput.SetInterface(currentUserInterface as IUserInputInterface);
+            }
+
+        }
+
+        [Test]
+        public void EnabledAnnotated()
+        {
+            var step = new ProcessStep();
+            var a = AnnotationCollection.Annotate(step);
+            var x = a.GetMember(nameof(step.RegularExpressionPattern));
+            var str = x.GetMember("Value");
+            var strval =str.Get<IStringValueAnnotation>();
+            var v1 = strval.Value.ToString();
+            Assert.AreEqual("(.*)", v1);
+            step.RegularExpressionPattern.Value = "test";
+            a.Read();
+            var v2 = strval.Value;
+            Assert.AreEqual("test", v2);
+        }
+
         [Test]
         public void TestPlanAnnotated()
         {
@@ -354,10 +534,141 @@ namespace OpenTap.UnitTests
             en.Get<IObjectValueAnnotation>().Value = true;
             en.Write();
             a.Write();
+            
             var descr = AnnotationCollection.Annotate(step).GetMember("BreakConditions").GetMember("Value")
                 .Get<IValueDescriptionAnnotation>().Describe();
             Assert.AreEqual("Break on Error (inherited from test plan).", descr);
 
+            {
+                var stepAnnotation = AnnotationCollection.Annotate(step);
+                var enabled = stepAnnotation.GetMember("BreakConditions").GetMember("IsEnabled").Get<IObjectValueAnnotation>();
+                enabled.Value = true; 
+                //stepAnnotation.Write();
+                var value = stepAnnotation.GetMember("BreakConditions").GetMember("Value").Get<IObjectValueAnnotation>();
+                var thing = stepAnnotation.GetMember("BreakConditions").GetMember("Value");
+                var proxy = thing.Get<IMultiSelectAnnotationProxy>();
+                var sel = proxy.SelectedValues.ToArray();
+                value.Value = BreakCondition.BreakOnInconclusive;
+                stepAnnotation.Write();
+                var descr2 = stepAnnotation.GetMember("BreakConditions").GetMember("Value")
+                    .Get<IValueDescriptionAnnotation>().Describe();
+                
+            }
         }
+
+        class ListOfEnumAnnotationClass
+        {
+            public List<string> Strings { get; set; } = new List<string>{"A", "B", "C"};
+            public List<Verdict> Verdicts { get; set; } = new List<Verdict>{Verdict.Aborted, Verdict.Error};
+            public List<DateTime> Dates { get; set; } = new List<DateTime>{DateTime.Now};
+            public List<TimeSpan> TimeSpans { get; set; } = new List<TimeSpan>{TimeSpan.Zero, TimeSpan.Zero};
+            public List<bool> Bools { get; set; } = new List<bool>() {true, false};
+
+        }
+        
+        [Test]
+        public void ListOfEnumAnnotation()
+        {
+            var obj = new ListOfEnumAnnotationClass();
+            var annotation = AnnotationCollection.Annotate(obj);
+            Assert.AreEqual(5, TypeData.GetTypeData(obj).GetMembers().Count());
+
+            foreach (var member in TypeData.GetTypeData(obj).GetMembers())
+            {
+                int initCount = (member.GetValue(obj) as IList).Count;
+                var memberAnnotation = annotation.GetMember(member.Name);
+                var collection = memberAnnotation.Get<ICollectionAnnotation>();
+                collection.AnnotatedElements = collection.AnnotatedElements.Append(collection.NewElement());
+                annotation.Write();
+                int finalCount = (TypeData.GetTypeData(obj).GetMember(member.Name).GetValue(obj) as IList).Count;
+                Assert.IsTrue(initCount == finalCount - 1);
+                
+            }
+        }
+
+        class ArrayAnnotationClass
+        {
+            public string[] Strings { get; set; } = new string[] {"A", "B", "C"};
+            public Verdict[] Verdicts { get; set; } = new Verdict[] {Verdict.Aborted, Verdict.Error};
+            public DateTime[] Dates { get; set; } = new DateTime[] {DateTime.Now};
+            public TimeSpan[] TimeSpans { get; set; } = new TimeSpan[] {TimeSpan.Zero, TimeSpan.Zero};
+            public bool[] Bools { get; set; } = new bool[] {true, false};
+        }
+
+        [Test]
+        public void AddToFixedSizeAnnotation()
+        {
+            var obj = new ArrayAnnotationClass();
+            var annotation = AnnotationCollection.Annotate(obj);
+            
+            Assert.AreEqual(5, TypeData.GetTypeData(obj).GetMembers().Count());
+
+            foreach (var member in TypeData.GetTypeData(obj).GetMembers())
+            {
+                int initCount = (member.GetValue(obj) as IList).Count;
+                var memberAnnotation = annotation.GetMember(member.Name);
+                var collection = memberAnnotation.Get<ICollectionAnnotation>();
+                
+                collection.AnnotatedElements = collection.AnnotatedElements.Append(collection.NewElement());
+                
+                annotation.Write();
+                int finalCount = (TypeData.GetTypeData(obj).GetMember(member.Name).GetValue(obj) as IList).Count;
+                Assert.IsTrue(initCount == finalCount - 1);
+            }
+            
+        }
+
+        [Test]
+        public void RemoveFromFixedSizeAnnotation()
+        {
+            var obj = new ArrayAnnotationClass();
+            var annotation = AnnotationCollection.Annotate(obj);
+            
+            Assert.AreEqual(5, TypeData.GetTypeData(obj).GetMembers().Count());
+            
+            foreach (var member in TypeData.GetTypeData(obj).GetMembers())
+            {
+                int initCount = (member.GetValue(obj) as IList).Count;
+                var memberAnnotation = annotation.GetMember(member.Name);
+                var collection = memberAnnotation.Get<ICollectionAnnotation>();
+                
+                collection.AnnotatedElements = collection.AnnotatedElements
+                    .Take(collection.AnnotatedElements.Count() - 1).ToList();
+                
+                annotation.Write();
+                int finalCount = (TypeData.GetTypeData(obj).GetMember(member.Name).GetValue(obj) as IList).Count;
+                Assert.IsTrue(initCount == finalCount + 1);
+            }
+            
+        }
+
+        public class MemberWithException
+        {
+            public class SubThing
+            {
+                public double Value => throw new ArgumentNullException();
+            }
+            public SubThing Value
+            {
+                get => throw new ArgumentNullException();
+                set { }    
+            }
+
+            public SubThing Value2
+            {
+                set{}
+            }
+            
+        }
+
+        [Test]
+        public void TestMemberWithExceptionAnnotation()
+        {
+            var annotation = AnnotationCollection.Annotate(new MemberWithException());
+            Assert.AreEqual(1, annotation.Get<IMembersAnnotation>().Members.Count());
+            annotation.Read();
+            Assert.AreEqual(1, annotation.Get<IMembersAnnotation>().Members.Count());
+        } 
+        
     }
 }

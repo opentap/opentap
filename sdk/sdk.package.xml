@@ -10,44 +10,44 @@
     <PackageDependency Package="OpenTAP" Version="^$(GitVersion)" />
       </Dependencies>
   <Files>
-    <File Path="Packages/SDK/Keysight.OpenTap.Sdk.MSBuild.dll">
+    <File Path="Packages/SDK/Keysight.OpenTap.Sdk.MSBuild.dll" SourcePath="Keysight.OpenTap.Sdk.MSBuild.dll">
       <SetAssemblyInfo Attributes="Version"/>
     </File>
-    <File Path="Packages/SDK/OpenTap.Sdk.New.dll">
+    <File Path="Packages/SDK/OpenTap.Sdk.New.dll" SourcePath="OpenTap.Sdk.New.dll">
       <SetAssemblyInfo Attributes="Version"/>
     </File>
     <File Path="OpenTap.xml"/>
     <File Path="OpenTap.Package.xml"/>
     <File Path="Packages/SDK/PackageSchema.xsd"/>
-    <File Path="Packages/SDK/OpenTAP Developer Guide.pdf" SourcePath="../../sdk/Examples/OpenTAP Developer Guide.pdf"/>
+    <File Path="Packages/SDK/OpenTAP Developer Guide.pdf" SourcePath="Packages/SDK/Examples/OpenTAP Developer Guide.pdf"/>
     <File Path="Packages/SDK/Examples/.OpenTapIgnore"/>
     <File Path="Packages/SDK/Examples/Examples.sln"/>
-    <File Path="Packages/SDK/Examples/ExamplePlugin\ExamplePlugin.csproj"/>
-    <File Path="Packages/SDK/Examples/ExamplePlugin\*.cs"/>
-    <File Path="Packages/SDK/Examples/ExamplePlugin\package.xml"/>
-    <File Path="Packages/SDK/Examples/ExamplePlugin\SomeSampleData.txt"/>
-    <File Path="Packages/SDK/Examples/ExamplePlugin\Properties\*"/>
-    <File Path="Packages/SDK/Examples/PluginDevelopment\package.xml"/>
-    <File Path="Packages/SDK/Examples/PluginDevelopment\PluginDevelopment.csproj"/>
-    <File Path="Packages/SDK/Examples/PluginDevelopment\GUI\*.cs"/>
-    <File Path="Packages/SDK/Examples/PluginDevelopment\InstrumentsAndDuts\*.cs"/>
-    <File Path="Packages/SDK/Examples/PluginDevelopment\Properties\*"/>
-    <File Path="Packages/SDK/Examples/PluginDevelopment\ResultListeners\*.cs"/>
-    <File Path="Packages/SDK/Examples/PluginDevelopment\TestSteps\DynamicStep.cs"/>
-    <File Path="Packages/SDK/Examples/PluginDevelopment\TestSteps\Attributes\*.cs"/>
-    <File Path="Packages/SDK/Examples/PluginDevelopment\TestSteps\InputOutput\*.cs"/>
-    <File Path="Packages/SDK/Examples/PluginDevelopment\TestSteps\ParentChild\*.cs"/>
-    <File Path="Packages/SDK/Examples/PluginDevelopment\TestSteps\PublishResults\*.cs"/>
-    <File Path="Packages/SDK/Examples/PluginDevelopment\TestSteps\Step Execution\*.cs"/>
-    <File Path="Packages/SDK/Examples/PluginDevelopment\TestSteps\Step Settings\*.cs"/>
-    <File Path="Packages/SDK/Examples/PluginDevelopment.Gui\PluginDevelopment.Gui.csproj"/>
-    <File Path="Packages/SDK/Examples/PluginDevelopment.Gui\Properties\*"/>
-    <File Path="Packages/SDK/Examples/PluginDevelopment.Gui\GUI\*.cs"/>
-    <File Path="Packages/SDK/Examples/TestPlanExecution\BuildTestPlan.Api\BuildTestPlan.Api.csproj"/>
-    <File Path="Packages/SDK/Examples/TestPlanExecution\BuildTestPlan.Api\Program.cs"/>
-    <File Path="Packages/SDK/Examples/TestPlanExecution\BuildTestPlan.Api\Properties\AssemblyInfo.cs"/>
-    <File Path="Packages/SDK/Examples/TestPlanExecution\RunTestPlan.Api\Program.cs"/>
-    <File Path="Packages/SDK/Examples/TestPlanExecution\RunTestPlan.Api\RunTestPlan.Api.csproj"/>
-    <File Path="Packages/SDK/Examples/TestPlanExecution\RunTestPlan.Api\Properties\AssemblyInfo.cs"/>
+    <File Path="Packages/SDK/Examples/ExamplePlugin/ExamplePlugin.csproj"/>
+    <File Path="Packages/SDK/Examples/ExamplePlugin/*.cs"/>
+    <File Path="Packages/SDK/Examples/ExamplePlugin/package.xml"/>
+    <File Path="Packages/SDK/Examples/ExamplePlugin/SomeSampleData.txt"/>
+    <File Path="Packages/SDK/Examples/ExamplePlugin/Properties/*"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment/package.xml"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment/PluginDevelopment.csproj"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment/GUI/*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment/InstrumentsAndDuts/*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment/Properties/*"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment/ResultListeners/*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment/TestSteps/DynamicStep.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment/TestSteps/Attributes/*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment/TestSteps/InputOutput/*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment/TestSteps/ParentChild/*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment/TestSteps/PublishResults/*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment/TestSteps/Step Execution/*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment/TestSteps/Step Settings/*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment.Gui/PluginDevelopment.Gui.csproj"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment.Gui/Properties/*"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment.Gui/GUI/*.cs"/>
+    <File Path="Packages/SDK/Examples/TestPlanExecution/BuildTestPlan.Api/BuildTestPlan.Api.csproj"/>
+    <File Path="Packages/SDK/Examples/TestPlanExecution/BuildTestPlan.Api/Program.cs"/>
+    <File Path="Packages/SDK/Examples/TestPlanExecution/BuildTestPlan.Api/Properties/AssemblyInfo.cs"/>
+    <File Path="Packages/SDK/Examples/TestPlanExecution/RunTestPlan.Api/Program.cs"/>
+    <File Path="Packages/SDK/Examples/TestPlanExecution/RunTestPlan.Api/RunTestPlan.Api.csproj"/>
+    <File Path="Packages/SDK/Examples/TestPlanExecution/RunTestPlan.Api/Properties/AssemblyInfo.cs"/>
   </Files>
 </Package>

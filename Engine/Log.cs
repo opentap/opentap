@@ -4,13 +4,14 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Diagnostics;
-using System.ComponentModel;
 using System.Reflection;
 using System.Threading;
 using System.IO;
 using OpenTap.Diagnostic;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Text;
 
 namespace OpenTap
 {
@@ -64,6 +65,7 @@ namespace OpenTap
         /// </summary>
         public void TraceEvent(LogEventType te, int id, string message)
         {
+            
             if (message == null)
                 throw new ArgumentNullException("message");
             log.LogEvent((int)te, message);
@@ -291,6 +293,7 @@ namespace OpenTap
             }
         }
 
+        
         /// <summary> Makes a TraceListener start receiving log messages. </summary>
         /// <param name="listener">The TraceListener to add.</param>
         public static void AddListener(ILogListener listener)
@@ -300,6 +303,8 @@ namespace OpenTap
             Log.Flush();
             TapContext.AttachListener(listener);
         }
+        
+        
 
         /// <summary> Stops a specified TraceListener from receiving log messages. </summary>
         /// <param name="listener">The TraceListener to remove.</param>
@@ -311,7 +316,6 @@ namespace OpenTap
             TapContext.DetachListener(listener);
             listener.Flush();
         }
-
         /// <summary>
         /// Gets all added TraceListeners.
         /// </summary>
@@ -320,7 +324,6 @@ namespace OpenTap
         {
             return (TapContext as LogContext)?.GetListeners();
         }
-
         /// <summary> Creates a new log source. </summary>
         /// <param name="name">The name of the Log.</param>
         /// <returns>The created Log.</returns>
@@ -340,7 +343,7 @@ namespace OpenTap
         {
             if (owner == null)
                 throw new ArgumentNullException("owner");
-            var source = new TraceSource(TapContext.CreateLog(name));
+            var source = CreateSource(name);
             source.Owner = owner;
             lock (addlock)
             {
@@ -634,7 +637,23 @@ namespace OpenTap
             exceptionEvent(trace, exception, LogEventType.Error);
         }
 
-        private static void WriteException(TraceSource trace, Exception exception, LogEventType level)
+        static void WriteStackTrace(TraceSource trace, StackTrace stack, LogEventType level)
+        {
+            var lines = stack.GetFrames().Skip(3); // skip the frames from the logging itself
+            
+            foreach (StackFrame line in lines.Where(line => line.HasMethod()))
+            {
+                var fixedLine =  $"at {line.GetMethod()}";
+                if (line.HasSource())
+                {
+                    fixedLine += $" in {line.GetFileName()}:line {line.GetFileLineNumber()}";
+                }
+                
+                trace.TraceEvent(LogEventType.Debug, 2, "    " + fixedLine, false);
+            }
+        }
+
+        private static void WriteException(TraceSource trace, Exception exception, LogEventType level, bool appendStack = true)
         {
             try
             {
@@ -662,7 +681,7 @@ namespace OpenTap
                         ReflectionTypeLoadException reflectionTypeLoadException = (ReflectionTypeLoadException)exception;
                         foreach (Exception ex in reflectionTypeLoadException.LoaderExceptions)
                         {
-                            WriteException(trace, ex, level);
+                            WriteException(trace, ex, level, false);
                         }
                     }
                     exception = exception.InnerException;
@@ -671,6 +690,20 @@ namespace OpenTap
             }catch(Exception)
             {
                 trace.TraceEvent(level, 2, "Error caught while logging an exception.");
+            }
+
+            if (appendStack)
+            {
+                try
+                {
+                    var stackTrace = new StackTrace(true);
+                    trace.TraceEvent(level, 2, "Exception caught at:");
+                    WriteStackTrace(trace, stackTrace, level);
+                }
+                catch
+                {
+                    trace.TraceEvent(level, 2, "Error retrieving current stacktrace.");
+                }
             }
         }
 

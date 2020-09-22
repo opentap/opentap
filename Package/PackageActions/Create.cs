@@ -20,6 +20,17 @@ namespace OpenTap.Package
     [Display("create", Group: "package", Description: "Creates a package based on an XML description file.")]
     public class PackageCreateAction : PackageAction
     {
+        internal enum ExitCodes
+        {
+            // Exit code 1 is used by CliActionExecutor (e.g. for errors parsing command line args)
+            GeneralPackageCreateError = 2,
+            InvalidPackageDefinition = 3,
+            FileSystemError = 4,
+            InvalidPackageName = 5,
+            PackageDependencyError = 6,
+            AssemblyDependencyError = 7,
+        }
+
         /// <summary>
         /// The default file extension for OpenTAP packages.
         /// </summary>
@@ -77,11 +88,7 @@ namespace OpenTap.Package
             if (PackageXmlFile == null)
                 throw new Exception("No packages definition file specified.");
 
-            var result = Process(OutputPaths);
-
-            if (result != 0)
-                return result;
-            return 0;
+            return Process(OutputPaths);
         }
 
         private int Process(string[] OutputPaths)
@@ -92,31 +99,28 @@ namespace OpenTap.Package
                 if (!File.Exists(PackageXmlFile))
                 {
                     log.Error("Cannot locate XML file '{0}'", PackageXmlFile);
-                    return 4;
+                    return (int)ExitCodes.FileSystemError;
                 }
                 if (!Directory.Exists(ProjectDir))
                 {
                     log.Error("Project directory '{0}' does not exist.", ProjectDir);
-                    return 4;
+                    return (int)ExitCodes.FileSystemError;
                 }
                 try
                 {
                     var fullpath = Path.GetFullPath(PackageXmlFile);
-                    pkg = PackageDefExt.FromInputXml(fullpath);
+                    pkg = PackageDefExt.FromInputXml(fullpath,ProjectDir);
 
                     // Check if package name has invalid characters or is not a valid path
                     var illegalCharacter = pkg.Name.IndexOfAny(Path.GetInvalidFileNameChars());
                     if (illegalCharacter >= 0)
                     {
                         log.Error("Package name cannot contain invalid file path characters: '{0}'", pkg.Name[illegalCharacter]);
-                        return 5;
+                        return (int)ExitCodes.InvalidPackageName;
                     }
-
-
                 }
                 catch (AggregateException aex)
                 {
-
                     foreach (var ex in aex.InnerExceptions)
                     {
                         if (ex is FileNotFoundException)
@@ -127,7 +131,6 @@ namespace OpenTap.Package
                         {
                             log.Error(ex.ToString());
                         }
-
                     }
                     log.Error("Caught errors while loading package definition.");
                     return 4;
@@ -139,7 +142,7 @@ namespace OpenTap.Package
                 if(string.IsNullOrEmpty(pkg.RawVersion))
                     log.Warning($"Package version is {pkg.Version} due to blank or missing 'Version' XML attribute in 'Package' element");
 
-                pkg.CreatePackage(tmpFile, ProjectDir);
+                pkg.CreatePackage(tmpFile);
 
                 if (OutputPaths == null || OutputPaths.Length == 0)
                     OutputPaths = new string[1] { "" };
@@ -176,19 +179,13 @@ namespace OpenTap.Package
             catch (ArgumentException ex)
             {
                 Console.Error.WriteLine(ex.Message);
-                return 2;
+                return (int)ExitCodes.GeneralPackageCreateError;
             }
             catch (InvalidDataException ex)
             {
                 log.Error("Caught invalid data exception: {0}", ex.Message);
 
-                return 3;
-            }
-            catch (Exception ex)
-            {
-                log.Error(ex.Message);
-                log.Debug(ex);
-                return 4;
+                return (int)ExitCodes.InvalidPackageDefinition;
             }
             return 0;
         }

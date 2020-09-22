@@ -941,9 +941,48 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(1, TestSubStep.Runs);
             Assert.AreEqual(1, run.StepsWithPrePlanRun.Count);
         }
-        
+
         [Test]
-        public void PromptMetadataTest()
+        public void ComponentSettingMetadataTest()
+        {
+            UserInput.SetInterface(new ComponentSettingPrompt());
+            try
+            {
+                TestComponentSettingList.Current.Clear();
+                TestComponentSettingList.Current.Add(new TestComponentSetting());
+
+                EngineSettings.Current.PromptForMetaData = true;
+
+                {
+                    var plan = new TestPlan();
+                    plan.Steps.Add(new ComponentSettingStep());
+
+                    var run = plan.Execute();
+                    Assert.IsFalse(run.FailedToStart);
+                    Assert.AreEqual(Verdict.Pass, run.Verdict);
+                }
+
+                TestComponentSettingList.Current.OfType<TestComponentSetting>().ForEach(f => f.MetaComment = "Test meta data comment");
+
+                {
+                    var plan = new TestPlan();
+                    plan.Steps.Add(new ComponentSettingStep());
+
+                    {
+                        var run = plan.Execute();
+                        Assert.IsFalse(run.FailedToStart);
+                        Assert.AreEqual(Verdict.Pass, run.Verdict);
+                    }
+                }
+            }
+            finally
+            {
+                UserInput.SetInterface(null);
+            }
+        }
+
+        [Test]
+        public void DutPromptMetadataTest()
         {
             UserInput.SetInterface(new DutInfoPrompt());
 
@@ -1011,7 +1050,7 @@ namespace OpenTap.Engine.UnitTests
             var planrun = plan.Execute(new[] { pl });
 
             var steprun = pl.StepRuns.First();
-            Assert.IsTrue(steprun.Parameters["ArrayValues"].ToString() == new NumberFormatter(System.Globalization.CultureInfo.CurrentCulture).FormatRange(arrayStep.ArrayValues));
+            Assert.IsTrue(steprun.Parameters["ArrayValues"].ToString() == new NumberFormatter(System.Globalization.CultureInfo.CurrentCulture){UseRanges = false}.FormatRange(arrayStep.ArrayValues));
         }
 
         [Test]
@@ -1109,6 +1148,39 @@ namespace OpenTap.Engine.UnitTests
             EngineSettings.Current.AbortTestPlan = prevAbortPlanType;
             Debug.WriteLine("TestPlanDeferError {0}", sw.Elapsed);
             //workhard = false;
+        }
+
+        class ComponentSettingPrompt : IUserInputInterface
+        {
+            public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
+            {
+                var sub = AnnotationCollection.Annotate(dataObject).Get<IForwardedAnnotations>().Forwarded.ToArray();
+                var comment = sub.First(x => x.Get<IMemberAnnotation>().Member.Name == "MetaComment");
+                Assert.IsNotNull(comment != null);
+                comment.Get<IStringValueAnnotation>().Value = "Just another meta comment";
+                comment.Write();
+            }
+        }
+
+        public class TestComponentSettingList : ComponentSettingsList<TestComponentSettingList, TestComponentSetting> { }
+
+        public class TestComponentSetting : ComponentSettings<TestComponentSetting>
+        {
+            [MetaData(true)]
+            [Display("MetaComment", Description: "Some comment for meta data")]
+            public string MetaComment { get; set; }
+
+            public TestComponentSetting() { }
+        }
+
+        public class ComponentSettingStep : TestStep
+        {
+            public override void Run()
+            {
+                if (string.Compare("Just another meta comment", TestComponentSetting.Current.MetaComment, true) != 0)
+                    throw new InvalidOperationException();
+                UpgradeVerdict(Verdict.Pass);
+            }
         }
 
         class DutInfoPrompt : IUserInputInterface
@@ -1660,6 +1732,51 @@ namespace OpenTap.Engine.UnitTests
                 DutSettings.Current.Remove(dut);
             }
         }
+
+        [Test]
+        public void DefaultPlanMetadata()
+        {
+            PlanRunCollectorListener pl1 = new PlanRunCollectorListener();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(new ManySettingsStep());
+            var run = plan.Execute(new[] {pl1});
+            
+            var parameters = run.Parameters;
+            Assert.IsNotNull(parameters.Find("Station"));
+            Assert.IsNull(parameters.Find("Allow Metadata Prompt"));
+            var stepParameters = pl1.StepRuns.FirstOrDefault().Parameters;
+            Assert.IsNotNull(stepParameters.Find("A"));
+            Assert.IsNotNull(stepParameters.Find("Verdict"));
+            Assert.IsNotNull(stepParameters.Find("Duration"));
+            Assert.IsNull(stepParameters.Find(nameof(ManySettingsStep.Id))); // Id is not saved as Parameter
+            Assert.IsNotNull(run.TestPlanXml);
+            Assert.IsNotNull(run.Hash);
+        }
+
+        class CheckTestPlanXmlListener : ResultListener
+        {   
+            public override void OnTestPlanRunStart(TestPlanRun planRun)
+            {
+                base.OnTestPlanRunStart(planRun);
+                if (planRun.TestPlanXml == null)
+                    throw new Exception("Test plan XML is null!!");
+            }
+        }
+
+        [Test]
+        public void TestLoadCacheAndRun([Values(true, false)] bool cacheXml)
+        {
+            // this unit test checks that the TestPlanRun.TestPlanXml is not null
+            // depending on CacheXML=true.
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(new LogStep());
+            var memstr = new MemoryStream();
+            plan.Save(memstr);
+            memstr.Seek(0, SeekOrigin.Begin);
+            plan = TestPlan.Load(memstr, "test", cacheXml);
+            var run = plan.Execute(new []{new CheckTestPlanXmlListener()});
+            Assert.AreEqual(Verdict.NotSet, run.Verdict);
+        }
     }
 
     [TestFixture]
@@ -1842,6 +1959,103 @@ namespace OpenTap.Engine.UnitTests
             {
                 EngineSettings.Current.ResourceManagerType = lastrm;
             }
+        }
+        
+        private class DeferredResultsStep : TestStep
+        {
+            public bool DeferredDone;
+            public bool FailedDeferExecuted;
+            public override void Run()
+            {
+                DeferredDone = false;
+                FailedDeferExecuted = false;
+                var sem = new Semaphore(0, 1);
+                Results.Defer(() =>
+                {
+                    sem.WaitOne();
+                    DeferredDone = true;
+                    Log.Info("Deferred Step also done");
+                });
+
+                TapThread.Start(() =>
+                {
+                    try
+                    {
+                        Results.Defer(() =>
+                        {
+                            // this should fail.
+                            Log.Error("This should never be called!!!");
+                        });
+                        FailedDeferExecuted = false;
+                    }
+                    catch
+                    {
+                        FailedDeferExecuted = true;
+                    }
+
+                    sem.Release();
+                });
+            }
+        }
+
+        [Test]
+        public void TestDeferResultsStepInParallel()
+        {
+            var plan = new TestPlan();
+            var parallel = new ParallelStep();
+            var defer = new DeferredResultsStep();
+            plan.Steps.Add(parallel);
+            parallel.ChildTestSteps.Add(defer);
+            plan.Execute();
+            Assert.IsTrue(defer.DeferredDone);
+            Assert.IsTrue(defer.FailedDeferExecuted);
+        }
+
+        private class DeferredResultsStep2 : TestStep
+        {
+            public ManualResetEvent CompleteDefer = new ManualResetEvent(false);
+            public ManualResetEvent RunCompleted = new ManualResetEvent(false);
+            public override void Run()
+            {
+                Results.Defer(() =>
+                {
+                    CompleteDefer.WaitOne();
+                    Log.Info("Deferred Step also done");
+                });
+                RunCompleted.Set();
+            }
+        }
+
+        [Test]
+        public void TestExecuteWaitForDefer_Simple()
+        {
+            var plan = new TestPlan();
+            var defer = new DeferredResultsStep2();
+            plan.Steps.Add(defer);
+            Task<TestPlanRun> t = Task.Run(() => plan.Execute());
+            defer.RunCompleted.WaitOne();
+            Thread.Sleep(300);
+            Assert.IsFalse(t.IsCompleted);
+            defer.CompleteDefer.Set();
+            Thread.Sleep(100);
+            Assert.IsTrue(t.IsCompleted);
+        }
+
+        [Test]
+        public void TestExecuteWaitForDefer_WithParallel()
+        {
+            var plan = new TestPlan();
+            var parallel = new ParallelStep();
+            var defer = new DeferredResultsStep2();
+            plan.Steps.Add(parallel);
+            parallel.ChildTestSteps.Add(defer);
+            Task<TestPlanRun> t = Task.Run(() => plan.Execute());
+            defer.RunCompleted.WaitOne();
+            Thread.Sleep(300);
+            Assert.IsFalse(t.IsCompleted);
+            defer.CompleteDefer.Set();
+            Thread.Sleep(100);
+            Assert.IsTrue(t.IsCompleted);
         }
     }
 
@@ -2103,6 +2317,30 @@ namespace OpenTap.Engine.UnitTests
             plan.ChildTestSteps.Add(regexStep);
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Pass, run.Verdict);
+        }
+    }
+
+    public class ManySettingsStep : TestStep
+    {
+        public int A { get; set; } = 123;
+        public int[] B { get; set; } = new[] {1, 2, 3};
+        public Instrument[] C { get; set; } = Array.Empty<Instrument>();
+        public Instrument[] D { get; set; }= Array.Empty<Instrument>();
+        public Instrument[] E { get; set; }= Array.Empty<Instrument>();
+        public string F { get; set; } = "Hello world!!";
+        
+        [EnabledIf(nameof(A), 123)]
+        public Enabled<string> G { get; set; } = new Enabled<string>() {Value = "Hello"};
+        [EnabledIf(nameof(A), 123)]
+        public List<string> H { get; set; } = new List<string>{"1 2 3"};
+        [EnabledIf(nameof(A), 123)]
+        public Enabled<double> I { get; set; } = new Enabled<double>();
+        [EnabledIf(nameof(A), 123)]
+        public ITestStep Step { get; set; }
+        
+        public override void Run()
+        {
+            
         }
     }
 

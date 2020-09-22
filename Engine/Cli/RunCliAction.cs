@@ -38,7 +38,7 @@ namespace OpenTap.Cli
         /// <summary>
         /// Add directories to search for plugin dlls.
         /// </summary>
-        [CommandLineArgument("search", Description = "Add directories to search for plugin dlls.")]
+        [CommandLineArgument("search", Description = "Add directories to search for plugin dlls.", Visible = false)]
         public string[] Search { get; set; } = new string[0];
 
         /// <summary>
@@ -117,6 +117,14 @@ namespace OpenTap.Cli
             HandleMetadata(metaData);
 
             string planToLoad = null;
+
+            // If the --search argument is used, add the --ignore-load-errors to fix any load issues.
+            if (Search.Any())
+            {
+                // Warn
+                log.Warning("Argument '--search' is deprecated. The '--ignore-load-errors' argument has been added to avoid potential test plan load issues.");
+                IgnoreLoadErrors = true;
+            }
 
             try
             {
@@ -227,10 +235,10 @@ namespace OpenTap.Cli
 
         private void HandleExternalParametersAndLoadPlan(string planToLoad)
         {
+            
+            List<string> values = new List<string>();
             var serializer = new TapSerializer();
             var extparams = serializer.GetSerializer<Plugins.ExternalParameterSerializer>();
-            List<string> values = new List<string>();
-
             if (External.Length > 0)
                 values.AddRange(External);
             if (TryExternal.Length > 0)
@@ -239,46 +247,53 @@ namespace OpenTap.Cli
             List<string> externalParameterFiles = new List<string>();
             foreach (var externalParam in values)
             {
-                int equalIdx = externalParam.IndexOf("=");
+                int equalIdx = externalParam.IndexOf('=');
                 if (equalIdx == -1)
                 {
-                    //try "Import External Parameters File"
-                    try
-                    {
-                        externalParameterFiles.Add(externalParam);
-                        continue;
-                    }
-                    catch
-                    {
-                        throw new ArgumentException("Unable to read external test plan parameter {0}. Expected '=' or ExternalParameters file.", externalParam);
-                    }
+                    externalParameterFiles.Add(externalParam);
+                    continue;
                 }
                 var name = externalParam.Substring(0, equalIdx);
                 var value = externalParam.Substring(equalIdx + 1);
                 extparams.PreloadedValues[name] = value;
             }
             var log = Log.CreateSource("CLI");
-            Plan = (TestPlan)serializer.DeserializeFromFile(planToLoad, type: TypeData.FromType(typeof(TestPlan)));
 
-            if (!IgnoreLoadErrors && serializer.Errors.Count() != 0)
-                throw new TestPlan.PlanLoadException("Unable to successfully load the test plan. To continue anyway, add the flag '--ignore-load-errors'.");
+            var timer = Stopwatch.StartNew();
+            using (var fs = new FileStream(planToLoad, FileMode.Open, FileAccess.Read))
+            {
+                // only cache the XML if there are no external parameters.
+                bool cacheXml = values.Any() == false && externalParameterFiles.Any() == false;
+                
+                Plan = TestPlan.Load(fs, planToLoad, cacheXml, serializer, IgnoreLoadErrors);
+                log.Info(timer, "Loaded test plan from {0}", planToLoad);
+            }
 
             if (externalParameterFiles.Count > 0)
             {
                 var importers = CreateInstances<IExternalTestPlanParameterImport>();
                 foreach (var file in externalParameterFiles)
                 {
-                    log.Info("Loading external parameters from '{0}'.", file);
-                    var importer = importers.FirstOrDefault(i => i.Extension == Path.GetExtension(file));
-                    importer?.ImportExternalParameters(Plan, file);
+                    var ext = Path.GetExtension(file);
+                    log.Info($"Loading external parameters from '{file}'.");
+                    var importer = importers.FirstOrDefault(i => i.Extension == ext);
+                    if (importer != null)
+                    {
+                        importer.ImportExternalParameters(Plan, file);
+                    }
+                    else
+                    {
+                        log.Error($"No installed plugins provide loading of external parameters from '{ext}' files. No external parameters loaded from '{file}'.");
+                    }
                 }
             }
+
             if (External.Length > 0)
             {   // Print warnings if an --external parameter was not in the test plan. 
 
                 foreach (var externalParam in External)
                 {
-                    var equalIdx = externalParam.IndexOf("=");
+                    var equalIdx = externalParam.IndexOf('=');
                     if (equalIdx == -1) continue;
 
                     var name = externalParam.Substring(0, equalIdx);

@@ -116,31 +116,33 @@ namespace OpenTap.Engine.UnitTests
             }
 
 
-            private static IEnumerable<ITypeData> _types = new List<ITypeData>
+            private static IEnumerable<ITypeData> hardcodedTypes = new List<ITypeData>
             {
                 new TypeDataTestImpl( "UnitTestType", TypeData.FromType(typeof(IResultListener)),null),
                 new TypeDataTestImpl( "UnitTestCliActionType", TypeData.FromType(typeof(ICliAction)),() => new SomeTestAction())
             };
 
-            public static bool Enable = false;
-            public IEnumerable<ITypeData> Types { get; private set; }
+            public static bool Enable { get; set; }
+
+            private IEnumerable<ITypeData> _types = new List<ITypeData>();
+            public IEnumerable<ITypeData> Types
+            {
+                get => Enable ? _types : Enumerable.Empty<ITypeData>();
+            }
 
             public void Search()
             {
-                if (Enable)
-                    Types = _types;
-                else
-                    Types = null;
+                _types = hardcodedTypes;
             }
 
             public double Priority => 1;
 
-            public ITypeData GetTypeData(string identifier) => _types.FirstOrDefault(x => x.Name == identifier);
+            public ITypeData GetTypeData(string identifier) => hardcodedTypes.FirstOrDefault(x => x.Name == identifier);
 
             public ITypeData GetTypeData(object obj)
             {
                 if (obj is SomeTestAction)
-                    return _types.Last();
+                    return hardcodedTypes.Last();
                 return null;
             }
         }
@@ -413,8 +415,34 @@ namespace OpenTap.Engine.UnitTests
             }
 
             var td2 = TypeData.GetTypeData("System.Windows.WindowState");
-
         }
+
+        class NestedClass
+        {
+            public double X { get; set; }
+        }
+        
+        /// <summary>
+        /// This test verifies the reflection behavior of TypeData to ensure it does not change in the future unpurposedly.
+        /// </summary>
+        [Test]
+        public void TypeDataBehaviors()
+        {
+             
+            var obj = new NestedClass();
+            var t = TypeData.GetTypeData(obj);
+            Assert.AreEqual(nameof(NestedClass), t.GetDisplayAttribute().Name);
+            var members = t.GetMembers();
+            Assert.AreEqual(1, members.Count());
+            var x = members.FirstOrDefault();
+            Assert.AreEqual(x, t.GetMember(nameof(NestedClass.X)));
+            Assert.IsTrue(x.Readable);
+            Assert.IsTrue(x.Writable);
+            Assert.AreEqual(t, x.DeclaringType);
+            Assert.AreEqual(TypeData.FromType(typeof(double)), x.TypeDescriptor);
+            Assert.AreEqual(nameof(NestedClass.X), x.GetDisplayAttribute().Name);
+        }
+        
 
         [Test]
         public void MemberDataSerializeTest()
@@ -787,11 +815,11 @@ namespace OpenTap.Engine.UnitTests
                     try
                     {
                         member.Write();
-                        Assert.Fail("This should have thrown an exception");
                     }
                     catch
                     {
-                        // index out of bounds
+                        // See OpenTAP issue #347 -- functionality was added to allow writing to fixed size collections by resizing them
+                        Assert.Fail("This shouldn't throw an exception");
                     }
                     member.Read();
                 }
@@ -1165,8 +1193,10 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void MultiSelectAnnotationsInterfaceTest()
         {
+            var plan = new TestPlan();
             var steps = new List<DialogStep> { new DialogStep { UseTimeout = false }, new DialogStep { UseTimeout = false }, new DialogStep { UseTimeout = true } };
-
+            plan.ChildTestSteps.AddRange(steps);
+            
             var mem = AnnotationCollection.Annotate(steps);
             var val = mem.Get<IMembersAnnotation>();
             Assert.IsNotNull(val);
@@ -1184,6 +1214,94 @@ namespace OpenTap.Engine.UnitTests
                 Assert.IsTrue(string.Compare(theMessage, step.Message) == 0);
                 Assert.IsTrue(step.UseTimeout);
             }
+
+            {
+                // check Break Conditions
+                var cval = BreakConditionProperty.GetBreakCondition(steps[0]);
+                Assert.AreEqual(BreakCondition.Inherit, cval);
+                var bk = mem.GetMember("BreakConditions");
+                var descriptor = bk.GetMember("Value").Get<IValueDescriptionAnnotation>();
+                var description = descriptor.Describe();
+                var tostringer = bk.GetMember("Value").Get<IStringReadOnlyValueAnnotation>();
+                var tostringvalue = tostringer.Value;
+                
+                Assert.AreEqual("Break on Error (inherited from engine settings).", description);
+                Assert.AreEqual("Break on Error", tostringvalue);
+                var enabled = bk.Get<IEnabledValueAnnotation>();
+                Assert.IsNotNull(enabled.Value.Get<IAvailableValuesAnnotationProxy>());
+
+                Assert.IsFalse((bool)(enabled.IsEnabled.Get<IObjectValueAnnotation>().Value));
+                enabled.IsEnabled.Get<IObjectValueAnnotation>().Value = true;
+                mem.Write();
+                mem.Read();
+                
+                cval = BreakConditionProperty.GetBreakCondition(steps[0]);
+                Assert.AreEqual(BreakCondition.BreakOnError, cval);
+                Assert.IsTrue((bool)enabled.IsEnabled.Get<IObjectValueAnnotation>().Value);
+                enabled.IsEnabled.Get<IObjectValueAnnotation>().Value = false;
+                mem.Write();
+                cval = BreakConditionProperty.GetBreakCondition(steps[0]);
+                Assert.AreEqual(BreakCondition.Inherit, cval);
+            }
+        }
+
+        [Test]
+        public void MultiSelectAnnotationsInterfaceTest3()
+        {
+            var plan = new TestPlan();
+            var steps = new List<DialogStep> { new DialogStep { UseTimeout = false }, new DialogStep { UseTimeout = false }, new DialogStep { UseTimeout = true } };
+            BreakConditionProperty.SetBreakCondition(steps[0], BreakCondition.BreakOnError);
+            BreakConditionProperty.SetBreakCondition(steps[1], BreakCondition.BreakOnFail);
+            BreakConditionProperty.SetBreakCondition(steps[2], BreakCondition.BreakOnInconclusive);
+            plan.ChildTestSteps.AddRange(steps);
+
+            var mem = AnnotationCollection.Annotate(steps);
+            var bk = mem.GetMember("BreakConditions");
+            var descriptor = bk.GetMember("Value").Get<IValueDescriptionAnnotation>();
+            var description = descriptor.Describe();
+            var tostringer = bk.GetMember("Value").Get<IStringReadOnlyValueAnnotation>();
+            var tostringvalue = tostringer.Value;
+            StringAssert.Contains("different", description);
+            Assert.AreEqual("", tostringvalue);
+
+            BreakConditionProperty.SetBreakCondition(steps[0], 0);
+            BreakConditionProperty.SetBreakCondition(steps[1], 0);
+            BreakConditionProperty.SetBreakCondition(steps[2], 0);
+            mem.Read();
+            var tostringvalue2 = tostringer.Value;
+            Assert.AreEqual("None", tostringvalue2);
+        }
+
+        [Test]
+        public void MultiSelectAnnotationsInterfaceTest2()
+        {
+            var plan = new TestPlan();
+            var steps = new List<ProcessStep> { new ProcessStep {}, new ProcessStep {}, new ProcessStep {} };
+            plan.ChildTestSteps.AddRange(steps);
+            
+            var mem = AnnotationCollection.Annotate(steps);
+
+            {
+                // check Break Conditions
+                var cval =steps[0].ResultRegularExpressionPattern;
+                Assert.IsFalse(cval.IsEnabled);
+                var bk = mem.GetMember("ResultRegularExpressionPattern");
+                var enabled = bk.Get<IEnabledValueAnnotation>();
+                Assert.IsFalse((bool)(enabled.IsEnabled.Get<IObjectValueAnnotation>().Value));
+                enabled.IsEnabled.Get<IObjectValueAnnotation>().Value = true;
+                mem.Write();
+                mem.Read();
+                
+                cval = steps[0].ResultRegularExpressionPattern;
+                Assert.IsTrue(cval.IsEnabled);
+                Assert.IsTrue((bool)enabled.IsEnabled.Get<IObjectValueAnnotation>().Value);
+                enabled.IsEnabled.Get<IObjectValueAnnotation>().Value = false;
+                mem.Write();
+                cval = steps[0].ResultRegularExpressionPattern;
+                Assert.IsFalse(cval.IsEnabled);
+            }
+
+
         }
 
         [Test]

@@ -5,46 +5,27 @@ using System.Text;
 
 namespace OpenTap
 {
-    
-    class BreakConditionsAnnotation : IMembersAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation
+    /// <summary> 
+    /// Marks a setting that can be enabled/disabled by the user. UIs are expected to render a checkbox in front of the actual value. 
+    /// Settings of type <see cref="Enabled{T}"/> gets annotated with an annotation that implements this.
+    /// </summary>
+    public interface IEnabledValueAnnotation : IAnnotation
     {
-        class PseudoBreakConditions : Enabled<PseudoBreakConditions.Values>
+        /// <summary>
+        /// Indicates whether this setting is enabled.
+        /// </summary>
+        AnnotationCollection IsEnabled { get; }
+
+        /// <summary>
+        /// Annotations describing the actual value.
+        /// </summary>
+        AnnotationCollection Value { get; }
+    }
+
+    internal class BreakConditionsAnnotation : IEnabledValueAnnotation, IOwnedAnnotation, IMembersAnnotation
+    {
+        internal class BreakConditionValueAnnotation : IStringReadOnlyValueAnnotation, IValueDescriptionAnnotation, IAccessAnnotation
         {
-            [Flags]
-            public enum Values
-            {
-                /// <summary> If a step completes with verdict 'Error', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
-                [Display("On Error", "If a step completes with verdict 'Error', stop execution of any subsequent steps at this level, and return control to the parent step.")]
-                BreakOnError = 2,
-                /// <summary> If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
-                [Display("On Fail", "If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step.")]
-                BreakOnFail = 4,
-                /// <summary> If a step completes with verdict 'Inclusive' the step should break execution.</summary>
-                [Display("On Inconclusive", "If a step completes with verdict 'inconclusive', stop execution of any subsequent steps at this level, and return control to the parent step.")]
-                BreakOnInconclusive = 8,
-            }
-            public override bool IsEnabled
-            {
-                get => Conditions.HasFlag(BreakCondition.Inherit) == false;
-                set
-                {
-                    Conditions = Conditions.SetFlag(BreakCondition.Inherit, !value);
-                }
-            }
-
-            public override Values Value
-            {
-                get => (Values)(int)Conditions.SetFlag(BreakCondition.Inherit, false);
-                set => Conditions = (BreakCondition) (int) value | ((!IsEnabled) ? BreakCondition.Inherit : 0);
-            }
-
-            public BreakCondition Conditions;
-        }
-
-
-        class PseudoBreakConditionsString : IStringReadOnlyValueAnnotation, IValueDescriptionAnnotation
-        {       
-            
             static BreakCondition[] conditions = Enum.GetValues(typeof(BreakCondition)).OfType<BreakCondition>().ToArray();
 
             static BreakCondition[] breakConditions =
@@ -56,7 +37,7 @@ namespace OpenTap
                 var breakFlags = breakConditions.Where(x => value.HasFlag(x));
                 if (breakFlags.Any())
                 {
-                    sb.AppendFormat("Break on {0}",breakFlags.First().ToString().Substring("BreakOn".Length));
+                    sb.AppendFormat("Break on {0}", breakFlags.First().ToString().Substring("BreakOn".Length));
                     var breakFlags2 = breakFlags.Skip(1);
                     foreach (var x in breakFlags2)
                     {
@@ -68,11 +49,11 @@ namespace OpenTap
 
             static BreakCondition convertAbortCondition(EngineSettings.AbortTestPlanType abortType)
             {
-                return ((abortType.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail)) ? BreakCondition.BreakOnFail : 0) 
+                return ((abortType.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail)) ? BreakCondition.BreakOnFail : 0)
                        | (abortType.HasFlag(EngineSettings.AbortTestPlanType.Step_Error) ? BreakCondition.BreakOnError : 0);
             }
-            
-            public static (BreakCondition, string) getInheritedVerdict(ITestStepParent _step)
+
+            private static (BreakCondition Condition, string InheritKind, bool MultiselectDifference) getInheritedVerdict(ITestStepParent _step)
             {
                 ITestStepParent src = _step;
                 src = src.Parent;
@@ -81,100 +62,161 @@ namespace OpenTap
                     var cond = BreakConditionProperty.GetBreakCondition(src);
                     if (cond.HasFlag(BreakCondition.Inherit) == false)
                     {
-                        if(src is TestPlan)
-                            return (cond, $"test plan");
-                        return (cond, $"parent step '{((ITestStep)src).GetFormattedName()}'");
+                        if (src is TestPlan)
+                            return (cond, $"test plan", false);
+                        return (cond, $"parent step '{((ITestStep)src).GetFormattedName()}'", false);
                     }
 
                     src = src.Parent;
                 }
 
-                return (convertAbortCondition(EngineSettings.Current.AbortTestPlan), "engine settings");
+                return (convertAbortCondition(EngineSettings.Current.AbortTestPlan), "engine settings", false);
             }
 
-            public (BreakCondition, string) GetCondition()
+            public (BreakCondition Condition, string InheritKind, bool MultiselectDifference) GetCondition()
             {
-                var condition = annotation.condition;
-                if (condition.IsEnabled == false &&  annotation.annotation.Source is ITestStepParent step)
-                    return getInheritedVerdict(step);
-                    
-                var valuemem = (BreakCondition) valueAnnotation.Get<IObjectValueAnnotation>().Value;
-                return (valuemem, null);
+                if (annotation.Conditions.HasFlag(BreakCondition.Inherit))
+                {
+                    if(annotation.annotation.Source is ITestStepParent step)
+                        return getInheritedVerdict(step);
+                    if (annotation.annotation.Source is IEnumerable<ITestStepParent> stepList)
+                    {
+                        return getInheritedVerdict(stepList.First());
+                    }
+                }
+
+                if (valueAnnotation.Get<IObjectValueAnnotation>().Value == null)
+                {
+                    var valuemem = (BreakCondition)0;
+                    return (valuemem, null, true);
+                }
+                else
+                {
+                    var valuemem = (BreakCondition)valueAnnotation.Get<IObjectValueAnnotation>().Value;
+                    return (valuemem, null, false);
+                }
             }
 
             public string Value
             {
                 get
                 {
-                    var (condition, _) = GetCondition();
+                    var (condition, _, multiselectDifference) = GetCondition();
+                    if (multiselectDifference)
+                        return "";
                     return getEnumString(condition);
                 }
             }
-            
-            public BreakConditionsAnnotation annotation;
+
+            public bool IsReadOnly => annotation.Conditions.HasFlag(BreakCondition.Inherit);
+
+            public bool IsVisible => true;
+
+            readonly BreakConditionsAnnotation annotation;
             public AnnotationCollection valueAnnotation;
 
             public string Describe()
             {
-                var (condition, kind) = GetCondition();
+                var (condition, kind, multiselectDifference) = GetCondition();
+                if (multiselectDifference)
+                    return "Selected Test Steps has different values for this setting.";
                 var str = getEnumString(condition);
                 if (kind == null) return str;
                 return $"{str} (inherited from {kind}).";
             }
+
+            public BreakConditionValueAnnotation(BreakConditionsAnnotation annotation)
+            {
+                this.annotation = annotation;
+            }
         }
 
-        PseudoBreakConditionsString str;
-        AnnotationCollection createSubAnnotation()
+        [Flags]
+        public enum Values
         {
-            var sub = annotation.AnnotateSub(TypeData.GetTypeData(condition), condition);
-            var fst = sub.Get<IMembersAnnotation>().Members
-                .FirstOrDefault(x => x.Get<IMemberAnnotation>().Member.Name.Contains("IsEnabled") == false);
-            fst.Add(str = new PseudoBreakConditionsString(){annotation = this, valueAnnotation = fst});
-            if (str != null && condition.IsEnabled == false)
-            {
-                condition.Conditions = str.GetCondition().Item1.SetFlag(BreakCondition.Inherit, true);
-            }
+            /// <summary> If a step completes with verdict 'Error', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
+            [Display("On Error", "If a step completes with verdict 'Error', stop execution of any subsequent steps at this level, and return control to the parent step.")]
+            BreakOnError = 2,
+            /// <summary> If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
+            [Display("On Fail", "If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step.")]
+            BreakOnFail = 4,
+            /// <summary> If a step completes with verdict 'Inclusive' the step should break execution.</summary>
+            [Display("On Inconclusive", "If a step completes with verdict 'inconclusive', stop execution of any subsequent steps at this level, and return control to the parent step.")]
+            BreakOnInconclusive = 8,
+        }
+        
+        AnnotationCollection createEnabledAnnotation()
+        {
+            bool isEnabled = !Conditions.HasFlag(BreakCondition.Inherit);
+            var sub = annotation.AnnotateSub(TypeData.GetTypeData(isEnabled), isEnabled);
+            sub.Add(new AnnotationCollection.MemberAnnotation(TypeData.FromType(typeof(IEnabled)).GetMember(nameof(IEnabledValue.IsEnabled)))); // for compatibility with 9.8 UIs, emulate that this is a IsEnabled member from a Enabled<T> class
             return sub;
         }
+        AnnotationCollection enabledAnnotation;
+        public AnnotationCollection IsEnabled => (enabledAnnotation ?? (enabledAnnotation = createEnabledAnnotation()));
 
+        BreakConditionValueAnnotation str;
+        AnnotationCollection createValueAnnotation()
+        {
+            var _value = (Values)(int)Conditions;
+            var sub = annotation.AnnotateSub(TypeData.GetTypeData(_value), _value);
+            sub.Add(new AnnotationCollection.MemberAnnotation(TypeData.FromType(typeof(Enabled<Values>)).GetMember("Value"))); // for compatibility with 9.8 UIs, emulate that this is a Value member from a Enabled<T> class
+            sub.Add(str = new BreakConditionValueAnnotation(this) { valueAnnotation = sub });
+            return sub;
+        }
         AnnotationCollection subannotations;
-        public IEnumerable<AnnotationCollection> Members => (subannotations ?? (subannotations = createSubAnnotation())).Get<IMembersAnnotation>().Members.Reverse();     
+        public AnnotationCollection Value => (subannotations ?? (subannotations = createValueAnnotation()));
 
-        PseudoBreakConditions condition = new PseudoBreakConditions();
+        internal BreakCondition Conditions
+        {
+            get => (BreakCondition) annotation.Get<IObjectValueAnnotation>().Value;
+            set { annotation.Get<IObjectValueAnnotation>().Value = value; }
+        }
+
+        public IEnumerable<AnnotationCollection> Members => new[] { IsEnabled, Value }; // IMembersAnnotationthis is implemented here for compatablility with 9.8 UIs 
+
         AnnotationCollection annotation;
+        internal BreakConditionsAnnotation(AnnotationCollection annotation)
+        {
+            this.annotation = annotation;
+        }
+
         public void Read(object source)
         {
-            subannotations?.Read();
-            condition.Conditions = ((BreakCondition)(annotation.Get<IObjectValueAnnotation>().Value ?? (BreakCondition) 0));
-            if (str != null && condition.IsEnabled == false)
+            if (subannotations != null)
             {
-                condition.Conditions = str.GetCondition().Item1.SetFlag(BreakCondition.Inherit, true);
+                Value.Get<IObjectValueAnnotation>().Value = (Values)(int)Conditions;
+                Value.Read();
             }
-            
+
+            if (enabledAnnotation != null)
+            {
+                IsEnabled.Get<IObjectValueAnnotation>().Value = false == Conditions.HasFlag(BreakCondition.Inherit);
+                IsEnabled.Read();
+            }
         }
 
         public void Write(object source)
         {
-            subannotations?.Write();
-            if (str != null && condition.IsEnabled == false)
+            if (subannotations == null && enabledAnnotation == null) return;
+            Value?.Write();
+            var cond = (BreakCondition)(int)subannotations.Get<IObjectValueAnnotation>().Value;
+            var dontInherit = (bool)(enabledAnnotation?.Get<IObjectValueAnnotation>().Value ?? false);
+            
+            if (dontInherit && cond.HasFlag(BreakCondition.Inherit))
             {
-                condition.Conditions = str.GetCondition().Item1.SetFlag(BreakCondition.Inherit, true);
+                var cond2 = str.GetCondition();
+                cond = cond2.Condition;
+            } 
+            else if (dontInherit == false)
+            {
+                cond = BreakCondition.Inherit;
             }
             
-            annotation.Get<IObjectValueAnnotation>().Value = condition.Conditions;
-            
-        }
-
-        public BreakConditionsAnnotation(AnnotationCollection annotation) => this.annotation = annotation;
-
-        public string Value
-        {
-            get
-            {
-                if (subannotations == null)
-                    subannotations = createSubAnnotation();
-                return str?.Value;
-            }
+            cond = cond.SetFlag(BreakCondition.Inherit, !dontInherit);
+            Conditions = cond;
+            annotation.Get<IObjectValueAnnotation>().Value = cond;
+            Read(source);
         }
     }
 }

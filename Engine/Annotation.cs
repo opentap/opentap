@@ -103,7 +103,7 @@ namespace OpenTap
     {
         
     }
-
+    
     /// <summary> Defines a read-only string value annotation implementation. </summary>
     public interface IStringReadOnlyValueAnnotation : IAnnotation
     {
@@ -134,7 +134,7 @@ namespace OpenTap
         /// <summary> Gets if the annotation is visible. This state can be temporary or permanent. </summary>
         bool IsVisible { get; }
     }
-
+    
     /// <summary>
     /// Owned annotations interacts directly with the source object. It is updated through the Read operation and changes are written with the Write operation. Specialized knowledge about the object is needed for implementation.
     /// </summary>
@@ -277,6 +277,7 @@ namespace OpenTap
             foreach (var item in members2)
             {
                 if (item.HasAttribute<AnnotationIgnoreAttribute>()) continue;
+                if (item.Readable == false) continue;
                 GetMember(item);
             }
 
@@ -285,8 +286,6 @@ namespace OpenTap
         }
 
         public IEnumerable<AnnotationCollection> Members => getMembers();
-
-
 
         AnnotationCollection fac;
         public MembersAnnotation(AnnotationCollection fac)
@@ -792,6 +791,11 @@ namespace OpenTap
                     }
                     if (mem == null) continue;
                     var newa = parentAnnotation.AnnotateMember(mem, sources[0].ExtraAnnotations.Append(new MergedValueAnnotation(mergething)).ToArray());
+                    if(parentAnnotation.Get<MergedValueAnnotation>()?.Merged.First().Get<BreakConditionsAnnotation>() is BreakConditionsAnnotation br)
+                    {
+                        if(br.Value.Get<IMemberAnnotation>().Member.Name == mem.Name)
+                            newa.Add(new BreakConditionsAnnotation.BreakConditionValueAnnotation(br) { valueAnnotation = newa });
+                    }
 
                     var manyAccess = new ManyAccessAnnotation(mergething.SelectValues(x => x.Get<IAccessAnnotation>()).ToArray());
                     // Enabled if is not supported when multi-selecting.
@@ -801,6 +805,13 @@ namespace OpenTap
                     {
                         newa.Add(new ManyToOneMethodAnnotation(newa));
                         newa.Remove(method);
+                    }
+
+                    var enabledValue = newa.Get<IEnabledValueAnnotation>();
+                    if (enabledValue != null)
+                    {
+                        newa.Add(new ManyIEnabledValueAnnotation(newa));
+                        newa.Remove(enabledValue);
                     }
                     
                     newa.Add(manyAccess);
@@ -831,6 +842,36 @@ namespace OpenTap
                 next_thing:;
                 }
                 return members = CommonAnnotations.ToArray();
+            }
+        }
+
+        class ManyIEnabledValueAnnotation : IEnabledValueAnnotation
+        {
+            AnnotationCollection annotation;
+            public ManyIEnabledValueAnnotation(AnnotationCollection annotation) => this.annotation = annotation;
+
+            public AnnotationCollection IsEnabled
+            {
+                get
+                {
+                    var eMember = annotation.Get<ManyToOneAnnotation>().Members
+                        .FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name == "IsEnabled");
+                    return eMember;
+                }
+            }
+
+            public AnnotationCollection Value
+            {
+                get
+                {
+                    var eMember = annotation.Get<ManyToOneAnnotation>().Members
+                        .FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name != "IsEnabled")?.Clone();
+                    if(annotation.Get<UnitAttribute>() is UnitAttribute attr)
+                        eMember.Add(attr);
+                    if(annotation.Get<IAvailableValuesAnnotation>() is IAvailableValuesAnnotation avail)
+                        eMember.Add(avail);
+                    return eMember;
+                }
             }
         }
 
@@ -989,7 +1030,7 @@ namespace OpenTap
             {
                 currentValue = m.Member.GetValue(annotation.Source);
             }
-            catch (System.Reflection.TargetInvocationException)
+            catch
             {
                 // the member itself threw an exception. 
             }
@@ -1503,30 +1544,18 @@ namespace OpenTap
             {
                 if (source == null)
                     throw new InvalidOperationException("Unable to invoke method");
-                var action_proto = member.GetValue(source);
-                var action = action_proto as Action;
-                if (action != null)
+                if(member.GetValue(source) is Action action)
                     action();
             }
 
-            public MethodAnnotation(IMemberData member)
-            {
-                this.member = member;
-            }
+            public MethodAnnotation(IMemberData member) => this.member = member;
 
             IMemberData member;
-
             object source;
 
-            public void Read(object source)
-            {
-                this.source = source;
-            }
+            public void Read(object source) => this.source = source;
 
-            public void Write(object source)
-            {
-
-            }
+            public void Write(object source) { }
         }
 
         class BasicCollectionAnnotation : IBasicCollectionAnnotation, IOwnedAnnotation, IFixedSizeCollectionAnnotation
@@ -1726,12 +1755,20 @@ namespace OpenTap
                                 // if this is the case, remove it. This handles cases where things has been moved.
                                 if (values[i1] == lst2[i3])
                                 {
-                                    var item = lst2[i3];
                                     lst2.RemoveAt(i3);
                                     break;
                                 }
                             }
-                            lst2.Insert(i2, values[i1]);
+
+                            var val = values[i1];
+                            if (val == null)
+                            {
+                                var typedata = fac.Get<IReflectionAnnotation>().ReflectionInfo.AsTypeData().ElementType;
+                                if (typedata.CanCreateInstance || typedata.IsValueType)
+                                    val = typedata.Type.CreateInstance();
+                            }
+
+                            lst2.Insert(i2, val);
                         }
                         while (lst2.Count > values.Count)
                         {
@@ -1743,6 +1780,29 @@ namespace OpenTap
 
                         if (!rdonly)
                             lst2.Clear();
+
+                        if (lst2.IsFixedSize)
+                        {
+                            var nElements = annotatedElements.Count();
+                            if (nElements != lst2.Count)
+                            {
+                                var typedata = fac.Get<IReflectionAnnotation>().ReflectionInfo.AsTypeData();
+                                if (typedata.DescendsTo(typeof(Array)))
+                                {
+                                    if ((fac.Get<IMemberAnnotation>()?.Member?.Writable) == false)
+                                        throw new Exception($"Cannot add elements to collection because it is not writable.");
+                                        
+                                    lst2 = Array.CreateInstance(typedata.ElementType.Type, nElements);
+                                    objValue.Value = lst2;
+                                    
+                                }
+                                else
+                                {
+                                    throw new Exception("Could not extend container of fixed size.");
+                                }
+                            }
+                        }
+
                         int index = 0;
                         foreach (var elem in annotatedElements)
                         {
@@ -1791,6 +1851,15 @@ namespace OpenTap
                             return fac.AnnotateSub(elem2, "");
                         if (elem2.IsNumeric)
                             return fac.AnnotateSub(elem2, Convert.ChangeType(0, elem2.Type));
+                        if (elem2.IsValueType)
+                        {
+                            if (elem2.DescendsTo(typeof(Enum)))
+                                return fac.AnnotateSub(elem2, Enum.ToObject(elem2.Type, 0));
+                            if(elem2.DescendsTo(typeof(DateTime)))
+                                return fac.AnnotateSub(elem2, DateTime.MinValue);
+                            if(elem2.DescendsTo(typeof(TimeSpan)))
+                                return fac.AnnotateSub(elem2, TimeSpan.MinValue);
+                        }
                         return fac.AnnotateSub(elem2, null);
                     }
                     else
@@ -1908,7 +1977,7 @@ namespace OpenTap
             }
         }
 
-        class EnabledAnnotation : IMembersAnnotation, IOwnedAnnotation
+        class EnabledAnnotation : IEnabledValueAnnotation, IMembersAnnotation, IOwnedAnnotation
         {
             class EnabledAccessAnnotation : IAccessAnnotation
             {
@@ -1922,55 +1991,68 @@ namespace OpenTap
                 public bool IsVisible => true;
             }
 
-            IEnumerable<AnnotationCollection> members;
-            public IEnumerable<AnnotationCollection> Members
+            readonly AnnotationCollection annotations;
+
+            private AnnotationCollection isEnabled;
+            public AnnotationCollection IsEnabled
             {
                 get
                 {
-                    if (this.members != null) return this.members;
-                    var members = annotation.GetAll<IMembersAnnotation>().FirstOrDefault(x => x != this)?.Members;
-
-                    var enabledMember = members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member.Name == nameof(Enabled<int>.IsEnabled));
-
-                    var valueMember = members.FirstOrDefault(x => x != enabledMember);
-
-                    var unit = annotation.Get<UnitAttribute>();
-                    var avail = annotation.Get<IAvailableValuesAnnotation>();
+                    if (isEnabled == null)
+                        isEnabled = annotations.Get<IMembersAnnotation>(from : this).Members
+                                               .FirstOrDefault(x => x.Get<IMemberAnnotation>().Member.Name == nameof(Enabled<int>.IsEnabled));
+                    return isEnabled;
+                }
+            }
+            private AnnotationCollection value;
+            public AnnotationCollection Value
+            {
+                get
+                {
+                    if (value != null) return value;
+                    var unit = annotations.Get<UnitAttribute>();
+                    var avail = annotations.Get<IAvailableValuesAnnotation>();
                     List<IAnnotation> extra = new List<IAnnotation>();
                     if (unit != null) { extra.Add(unit); }
                     if (avail != null) { extra.Add(avail); }
-                    if (annotation.Get<DirectoryPathAttribute>() is DirectoryPathAttribute d)
+                    if (annotations.Get<DirectoryPathAttribute>() is DirectoryPathAttribute d)
                         extra.Add(d);
-                    if (annotation.Get<FilePathAttribute>() is FilePathAttribute f)
+                    if (annotations.Get<FilePathAttribute>() is FilePathAttribute f)
                         extra.Add(f);
-                    if (annotation.Get<ISuggestedValuesAnnotation>() is ISuggestedValuesAnnotation s)
+                    if (annotations.Get<ISuggestedValuesAnnotation>() is ISuggestedValuesAnnotation s)
                         extra.Add(s);
 
-                    extra.Add(new EnabledAccessAnnotation(annotation));
-                    var src = annotation.Get<IObjectValueAnnotation>().Value;
-                    var newValueMember = annotation.AnnotateMember(valueMember.Get<IMemberAnnotation>().Member, src, extra.ToArray());
-
-                    if (src != null)
-                        newValueMember.Read(src);
-                    this.members = new[] { enabledMember, newValueMember };
-                    return this.members;
+                    extra.Add(new EnabledAccessAnnotation(annotations));
+                    var valueMember = annotations.Get<IMembersAnnotation>(from: this).Members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member.Name != nameof(Enabled<int>.IsEnabled));
+                    var src = annotations.Get<IObjectValueAnnotation>().Value as IEnabledValue;
+                    var sub = annotations.AnnotateSub(valueMember.Get<IReflectionAnnotation>().ReflectionInfo, src?.Value, extra.ToArray());
+                    sub.Add(new AnnotationCollection.MemberAnnotation(TypeData.GetTypeData(src).GetMember("Value") ?? TypeData.FromType(typeof(IEnabledValue)).GetMember("Value"))); // for compatibility with 9.8 UIs, emulate that this is a Value member from a Enabled<T> class
+                    value = sub;
+                    return value;
                 }
             }
 
-            AnnotationCollection annotation;
-            public EnabledAnnotation(AnnotationCollection annotation)
+            public IEnumerable<AnnotationCollection> Members => new [] { IsEnabled, Value };
+
+            public EnabledAnnotation(AnnotationCollection annotations)
             {
-                this.annotation = annotation;
+                this.annotations = annotations;
             }
 
             public void Read(object source)
             {
                 if (Members != null)
                 {
-                    var val = annotation.Get<IObjectValueAnnotation>().Value;
+                    var val = annotations.Get<IObjectValueAnnotation>().Value;
                     if (val == null) return;
                     foreach (var member in Members)
                         member.Read(val);
+                }
+
+                if (value != null)
+                {
+                    var val = annotations.Get<IObjectValueAnnotation>().Value as IEnabledValue;
+                    value.Get<ObjectValueAnnotation>().Value = val?.Value;
                 }
             }
 
@@ -1978,16 +2060,21 @@ namespace OpenTap
             {
                 if (Members != null)
                 {
-                    var val = annotation.Get<IObjectValueAnnotation>().Value;
+                    var val = annotations.Get<IObjectValueAnnotation>().Value;
                     foreach (var member in Members)
                         member.Write(val);
                     {
                         // since the Enabled annotation overrides the other IMembersAnnotation
                         // we need to make sure to update that too.
-                        var otherMembers = annotation.Get<IMembersAnnotation>(from: this);
+                        var otherMembers = annotations.Get<IMembersAnnotation>(from: this);
                         foreach (var member in otherMembers.Members)
                             member.Read();
                     }
+                }
+                if (value != null)
+                {
+                    if(annotations.Get<IObjectValueAnnotation>().Value is IEnabledValue en)
+                        en.Value = value.Get<ObjectValueAnnotation>().Value;
                 }
             }
         }
@@ -2331,16 +2418,19 @@ namespace OpenTap
                 if (annotation.Get<IObjectValueAnnotation>() == null)
                     annotation.Add(new MemberValueAnnotation(annotation));
 
-                annotation.Add(mem.Member.GetDisplayAttribute());
-
-                if (mem.Member.GetAttribute<SuggestedValuesAttribute>() is SuggestedValuesAttribute suggested)
-                    annotation.Add(new SuggestedValueAnnotation(annotation, suggested.PropertyName));
-
-                if (mem.Member.GetAttribute<DeviceAddressAttribute>() is DeviceAddressAttribute dev_addr)
-                    annotation.Add(new DeviceAddressAnnotation(annotation));
-
-                if (mem.Member.GetAttribute<PluginTypeSelectorAttribute>() is PluginTypeSelectorAttribute typeSelector)
-                    annotation.Add(new PluginTypeSelectAnnotation(annotation));
+                var attributes = mem.Member.Attributes;
+                bool displayFound = false;
+                Sequence.ProcessPattern(attributes,
+                    (SuggestedValuesAttribute suggested) => annotation.Add(new SuggestedValueAnnotation(annotation, suggested.PropertyName)),
+                    (DeviceAddressAttribute x) => annotation.Add(new DeviceAddressAnnotation(annotation)),
+                    (PluginTypeSelectorAttribute x) => annotation.Add(new PluginTypeSelectAnnotation(annotation)),
+                    (DisplayAttribute x) =>
+                    {
+                        displayFound = true;
+                        annotation.Add(x);
+                    }); 
+                if(!displayFound)
+                    annotation.Add(mem.Member.GetDisplayAttribute());
 
                 var browsable = mem.Member.GetAttribute<BrowsableAttribute>();
                 if(mem.Member.Writable == false || browsable != null)
@@ -2352,17 +2442,15 @@ namespace OpenTap
 
                 if (mem.ReflectionInfo.DescendsTo(typeof(TimeSpan)))
                     annotation.Add(new TimeSpanAnnotation(annotation));
-
-                if (mem.Member.GetAttribute<UnitAttribute>() is UnitAttribute unit)
-                    annotation.Add(unit);
-                if (mem.Member.GetAttribute<HelpLinkAttribute>() is HelpLinkAttribute help)
-                    annotation.Add(help);
-                if (mem.Member.GetAttribute<ColumnDisplayNameAttribute>() is ColumnDisplayNameAttribute col)
-                    annotation.Add(col);
-                if (mem.Member.GetAttribute<FilePathAttribute>() is FilePathAttribute fp)
-                    annotation.Add(fp);
-                if (mem.Member.GetAttribute<DirectoryPathAttribute>() is DirectoryPathAttribute dp)
-                    annotation.Add(dp);
+                
+                Sequence.ProcessPattern(attributes, 
+                    (UnitAttribute x) => annotation.Add(x), 
+                    (HelpLinkAttribute x) => annotation.Add(x),
+                    (ColumnDisplayNameAttribute x) => annotation.Add(x),
+                    (FilePathAttribute x) => annotation.Add(x),
+                    (DirectoryPathAttribute x) => annotation.Add(x),
+                    (IconAnnotationAttribute x) => annotation.Add(x) 
+                    );
             }
 
             var availMem = annotation.Get<AvailableMemberAnnotation>();
@@ -2457,7 +2545,7 @@ namespace OpenTap
                     {
                         if (type == typeof(BreakCondition))
                         {
-                                annotation.Add(new BreakConditionsAnnotation(annotation));
+                            annotation.Add(new BreakConditionsAnnotation(annotation));
                         }
                         else
                         {    
@@ -2507,9 +2595,13 @@ namespace OpenTap
                         annotation.Add(new InputStepAnnotation(annotation, true));
                 }
                 
+                if (mem2.DeclaringType.DescendsTo(typeof(ITestStepParent)))
+                    annotation.Add(new MenuAnnotation(mem2));
+
+                if (mem2.Name == nameof(ParameterManager.NamingQuestion.Settings) && mem2.DeclaringType.DescendsTo(TypeData.FromType(typeof(ParameterManager.NamingQuestion))))
+                    annotation.Add(new ParameterManager.SettingsName(annotation));
             }
             
-
             if (reflect?.ReflectionInfo is ITypeData tp)
             {
                 if (tp.DescendsTo(typeof(ITestStep)))
@@ -2981,7 +3073,7 @@ namespace OpenTap
     /// <summary> A collection of annotations. Used to store high-level information about an object. </summary>
     public class AnnotationCollection : IEnumerable<IAnnotation>
     {
-        class MemberAnnotation : IMemberAnnotation, IReflectionAnnotation
+        internal class MemberAnnotation : IMemberAnnotation, IReflectionAnnotation
         {
             public IMemberData Member { get; private set; }
             public ITypeData ReflectionInfo => Member.TypeDescriptor;
@@ -3141,6 +3233,7 @@ namespace OpenTap
         /// <param name="target"></param>
         public void Write(object target)
         {
+            
             this.source = target;
             for (int i = 0; i < Annotations.Count; i++)
             {

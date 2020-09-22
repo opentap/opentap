@@ -18,21 +18,30 @@ namespace OpenTap
         /// <summary>
         /// The TestStep or other Resource that is using some Resource
         /// </summary>
-        public object Instance { get; private set; }
+        public object Instance { get; }
         /// <summary>
         /// The property on <see cref="Instance"/> that references the Resource
         /// </summary>
-        public PropertyInfo Property { get; private set; }
+        public PropertyInfo Property { get; }
+        
+        /// <summary> The property that references the Resource. </summary>
+        public IMemberData Member { get; }
 
-        /// <summary>
-        /// Creates an immutable instance of this class.
-        /// </summary>
-        /// <param name="obj"></param>
-        /// <param name="prop"></param>
+        /// <summary> Creates an immutable instance of this class. </summary>
         public ResourceReference(object obj, PropertyInfo prop)
         {
             Instance = obj;
             Property = prop;
+            Member = MemberData.Create(prop);
+        }
+        
+        /// <summary> Creates an immutable instance of this class. </summary>
+        public ResourceReference(object obj, IMemberData prop)
+        {
+            Instance = obj;
+            Member = prop;
+            if (prop is MemberData md)
+                Property = md.Member as PropertyInfo;
         }
     }
 

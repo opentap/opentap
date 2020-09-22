@@ -55,6 +55,13 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Log Header", Order: -2.0, Description: "This string is added to the front of the result of the query.")]
         public string LogHeader { get; set; }
 
+        private string prepend;
+
+        [Display("Check Exit Code", "Check the exit code of the application and set verdict to fail if it is non-zero, else pass. 'Wait For End' must be set for this to work.", "Set Verdict", Order: 1.1)]
+        [EnabledIf(nameof(WaitForEnd), true)]
+        public bool CheckExitCode { get; set; }
+        
+
         public ProcessStep()
         {    
             Application = "";
@@ -63,12 +70,13 @@ namespace OpenTap.Plugins.BasicSteps
             WaitForEnd = true;
         }
 
-        private AutoResetEvent outputWaitHandle, errorWaitHandle;
-        private StringBuilder output, error;
+        private ManualResetEvent outputWaitHandle, errorWaitHandle;
+        private StringBuilder output;
 
         public override void Run()
         {
             Int32 timeout = Timeout <= 0 ? Int32.MaxValue : Timeout;
+            prepend = string.IsNullOrEmpty(LogHeader) ? "" : LogHeader + " ";
 
             var process = new Process();
             process.StartInfo.FileName = Application;
@@ -87,10 +95,9 @@ namespace OpenTap.Plugins.BasicSteps
             if (WaitForEnd)
             {
                 output = new StringBuilder();
-                error = new StringBuilder();
-
-                using (outputWaitHandle = new AutoResetEvent(false))
-                using (errorWaitHandle = new AutoResetEvent(false))
+                
+                using (outputWaitHandle = new ManualResetEvent(false))
+                using (errorWaitHandle = new ManualResetEvent(false))
                 using(process)
                 using(abortRegistration)
                 {
@@ -110,13 +117,14 @@ namespace OpenTap.Plugins.BasicSteps
                     {
                         var resultData = output.ToString();
 
-                        if (AddToLog)
-                        {
-                            foreach (var line in resultData.Split(newlineArray, StringSplitOptions.None))
-                                Log.Info("{0} {1}", LogHeader, line);
-                        }
-
                         ProcessOutput(resultData);
+                        if (CheckExitCode)
+                        {
+                            if (process.ExitCode != 0)
+                                UpgradeVerdict(Verdict.Fail);
+                            else
+                                UpgradeVerdict(Verdict.Pass);
+                        }
                     }
                     else
                     {
@@ -128,7 +136,10 @@ namespace OpenTap.Plugins.BasicSteps
                         if (AddToLog)
                         {
                             foreach (var line in resultData.Split(newlineArray, StringSplitOptions.None))
-                                Log.Info("{0} {1}", LogHeader, line);
+                            {
+                                Log.Info("{0}{1}", prepend, line);
+                            }
+
                         }
 
                         ProcessOutput(resultData);
@@ -165,7 +176,10 @@ namespace OpenTap.Plugins.BasicSteps
                 }
                 else
                 {
-                    output.AppendLine(e.Data);
+                    if(AddToLog)
+                        Log.Info("{0}{1}", prepend, e.Data);
+                    lock(output)
+                        output.AppendLine(e.Data);
                 }
             }
             catch (ObjectDisposedException)
@@ -184,7 +198,10 @@ namespace OpenTap.Plugins.BasicSteps
                 }
                 else
                 {
-                    error.AppendLine(e.Data);
+                    if(AddToLog)
+                        Log.Error("{0}{1}", prepend, e.Data);
+                    lock(output)
+                        output.AppendLine(e.Data);
                 }
             }
             catch (ObjectDisposedException)

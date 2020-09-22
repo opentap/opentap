@@ -4,7 +4,7 @@
     Everything goes here <Status> tags </Status>.
   </Description>
   <Dependencies>
-    <Package Name="DepName" Version="4.3.2+depBuild" />
+    <Package Name="OpenTAP" Version="^9" />
   </Dependencies>
   <Files>
     <File Path="OpenTap.dll" >

@@ -2,6 +2,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
+using System;
+using System.Collections.Generic;
 using OpenTap.Plugins.BasicSteps;
 using NUnit.Framework;
 using OpenTap;
@@ -90,6 +92,69 @@ namespace OpenTap.Engine.UnitTests
         public override void Run()
         {
             RunChildSteps();
+        }
+    }
+
+    public class GenerateOutputStep : TestStep
+    {       
+        [Output]
+        public bool[] OutputBoolArray { get; private set; }
+        [Output]
+        public double OutputDouble { get; private set; }
+        [Output]
+        public double[] OutputDoubleArray { get; private set; }
+        [Output]
+        public string OutputString { get; private set; }
+        [Output]
+        public string[] OutputStringArray { get; private set; }
+        [Output]
+        public List<string> OutputStringList { get; private set; }
+
+        public GenerateOutputStep()
+        {
+            OutputBoolArray = new bool[] { false, true };
+            OutputDouble = 1.0;
+            OutputDoubleArray = new double[] { 1.0, 2.2 };
+            OutputString = "Something";
+            OutputStringArray = new string[] { "tom", "dick" };
+            OutputStringList = new List<string> { "One", "Two", "Three" };
+        }
+
+        public override void Run()
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    [Display("Handle Input")]
+    public class HandleInputStep : TestStep
+    {
+        [Display("Input Bool Array")]
+        public Input<bool[]> InputBoolArray { get; set; }
+        [Display("Input Double")]
+        public Input<double> InputDouble { get; set; }
+        [Display("Input Double Array")]
+        public Input<double[]> InputDoubleArray { get; set; }
+        [Display("Input String")]
+        public Input<string> InputString { get; set; }
+        [Display("Input String Array")]
+        public Input<string[]> InputStringArray { get; set; }
+        [Display("Input String List")]
+        public Input<List<string>> InputStringList { get; set; }
+
+        public HandleInputStep()
+        {
+            InputDouble = new Input<double>();
+            InputDoubleArray = new Input<double[]>();
+            InputBoolArray = new Input<bool[]>();
+            InputString = new Input<string>();
+            InputStringArray = new Input<string[]>();
+            InputStringList = new Input<List<string>>();
+        }
+
+        public override void Run()
+        {
+            throw new NotImplementedException();
         }
     }
 }

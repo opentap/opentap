@@ -3,7 +3,7 @@
 
 # This is the version number that will be used. Prerelease numbers are calculated by 
 # counting git commits since the last change in this value.
-version = 9.9.0
+version = 9.9.2
 
 # A version is determined to be a "beta" prerelease if it originates from the default branch
 # The default branch is the first branch that matches the following regular expession.

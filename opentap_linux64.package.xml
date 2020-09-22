@@ -36,8 +36,8 @@
     <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.ubuntu"/>
     <!-- License Texts -->
     <File Path="LICENSE.txt"  SourcePath="LICENSE.txt"/>
-    <File Path="Dependencies\LibGit2Sharp.0.25.0.0\LICENSE.txt" SourcePath="libgit2sharp.license.md"  />
-    <File Path="Dependencies\Mono.Cecil.0.10.1.0\LICENSE.txt" SourcePath="Mono.Cecil.License.txt"  />
+    <File Path="Dependencies/LibGit2Sharp.0.25.0.0/LICENSE.txt" SourcePath="libgit2sharp.license.md"  />
+    <File Path="Dependencies/Mono.Cecil.0.10.1.0/LICENSE.txt" SourcePath="Mono.Cecil.License.txt"  />
     <File Path="Dependencies/netstandard.2.0.0.0/LICENSE.txt"                       SourcePath="dotnet_mit_license.txt"/>
     <File Path="Dependencies/System.Reflection.Metadata.1.4.3.0/LICENSE.txt"        SourcePath="dotnet_mit_license.txt"/>
     <File Path="Dependencies/System.Collections.Immutable.1.2.3.0/LICENSE.txt"      SourcePath="dotnet_mit_license.txt"/>
