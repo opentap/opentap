@@ -1,3 +1,6 @@
+include:
+  - template: Security/License-Scanning.gitlab-ci.yml
+
 variables:
   PACKAGE_REPO_URL: "http://packages.opentap.io"
   DOTNET_CLI_TELEMETRY_OPTOUT: "true"
