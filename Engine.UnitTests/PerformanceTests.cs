@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
@@ -91,6 +90,12 @@ namespace OpenTap.Engine.UnitTests
         [CommandLineArgument("test-plan")]
         public bool ProfileTestPlan { get; set; }
         
+        [CommandLineArgument("search")]
+        public bool ProfileSearch { get; set; }
+
+        [CommandLineArgument("iterations")]
+        public int Iterations { get; set; } = 10;
+        
         public int Execute(CancellationToken cancellationToken)
         {
             if (ProfileTimeSpanToString)
@@ -112,7 +117,16 @@ namespace OpenTap.Engine.UnitTests
             }
             if(ProfileTestPlan)
                 new TestPlanPerformanceTest().GeneralPerformanceTest(10000);
-            
+            if (ProfileSearch)
+            {
+                var sw = Stopwatch.StartNew();
+                for (int i = 0; i < Iterations; i++)
+                {
+                    PluginManager.Search();
+                }
+                Console.WriteLine("Search Took {0}ms in total.", sw.ElapsedMilliseconds);
+            }
+
             return 0;
         }
     }
