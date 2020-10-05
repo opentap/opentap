@@ -410,9 +410,8 @@ namespace OpenTap
             switch (stage)
             {
                 case TestPlanExecutionStage.Execute:
-                    if (item is TestPlan)
+                    if (item is TestPlan testPlan)
                     {
-                        var testplan = item as TestPlan;
                         var resources = ResourceManagerUtils.GetResourceNodes(StaticResources.Cast<object>().Concat(EnabledSteps));
 
                         // Proceed to open resources in case they have been changed or closed since last opening/executing the testplan.
@@ -421,7 +420,7 @@ namespace OpenTap
                         if (resources.Any(r => r.Resource == null))
                             beginOpenResoureces(resources, cancellationToken);
 
-                        testplan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
+                        testPlan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
                         
                         if (resources.Any(r => openTasks.ContainsKey(r.Resource) == false))
                             beginOpenResoureces(resources, cancellationToken); 

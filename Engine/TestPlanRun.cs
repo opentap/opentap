@@ -79,7 +79,6 @@ namespace OpenTap
         internal IResource[] PromptedResources = Array.Empty<IResource>();
 
         internal readonly IResourceManager ResourceManager;
-        internal List<ITestPlanExecutionHook> ExecutionHooks;
 
         internal readonly bool IsCompositeRun;
 

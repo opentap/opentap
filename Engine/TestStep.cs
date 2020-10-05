@@ -839,38 +839,28 @@ namespace OpenTap
             {
                 try
                 {
-                    // Signal step is going to execute
-                    Step.PlanRun.ExecutionHooks.ForEach(eh => eh.BeforeTestStepExecute(Step));
-
+                    // tell result listeners the step started.
+                    Step.PlanRun.ResourceManager.BeginStep(Step.PlanRun, Step, TestPlanExecutionStage.Run,
+                        TapThread.Current.AbortToken);
                     try
                     {
-                        // tell result listeners the step started.
-                        Step.PlanRun.ResourceManager.BeginStep(Step.PlanRun, Step, TestPlanExecutionStage.Run,
-                            TapThread.Current.AbortToken);
-                        try
-                        {
-                            if (Step is TestStep _step)
-                                resultSource = _step.Results = new ResultSource(stepRun, Step.PlanRun);
-                            TestPlan.Log.Info("{0} started.", stepPath);
-                            stepRun.StartStepRun(); // set verdict to running, set Timestamp.
-                            planRun.AddTestStepRunStart(stepRun);
-                            Step.Run();
+                        if (Step is TestStep _step)
+                            resultSource = _step.Results = new ResultSource(stepRun, Step.PlanRun);
+                        TestPlan.Log.Info("{0} started.", stepPath);
+                        stepRun.StartStepRun(); // set verdict to running, set Timestamp.
+                        planRun.AddTestStepRunStart(stepRun);
+                        Step.Run();
 
-                            TapThread.ThrowIfAborted();
-                        }
-                        finally
-                        {
-                            planRun.AddTestStepStateUpdate(stepRun.TestStepId, stepRun, StepState.Deferred);
-                        }
+                        TapThread.ThrowIfAborted();
                     }
                     finally
                     {
-                        planRun.ResourceManager.EndStep(Step, TestPlanExecutionStage.Run);
+                        planRun.AddTestStepStateUpdate(stepRun.TestStepId, stepRun, StepState.Deferred);
                     }
                 }
                 finally
                 {
-                    planRun.ExecutionHooks.ForEach(eh => eh.AfterTestStepExecute(Step));
+                    planRun.ResourceManager.EndStep(Step, TestPlanExecutionStage.Run);
                 }
             }
             catch (TestStepBreakException e)
