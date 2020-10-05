@@ -80,6 +80,9 @@ The **File** element inside the configuration file supports the following attrib
 
 The **File** element can optionally contain custom elements supported by OpenTAP packages. In the above example it includes the `SetAssemblyInfo` element, which is supported by the OpenTAP package. When `SetAssemblyInfo` is set to `Version`, AssemblyVersion, AssemblyFileVersion and AssemblyInformationalVersion attributes of the file are set according to the package's version.
 
+### Hidden Folders and Files
+To make folders and files hidden, add a dot "." in front of their names. In Linux, files and folders starting with "." are implicitly hidden. In Windows, `tap package install` will unpack assemblies to the destination folder, those files and folders starting with "." will have their file attribute set to hidden.
+
 ### Package Icon
 A package can also include a package icon. The **File** element inside the configuration file supports adding a package icon by using the `Path` attribute to point to an image and using the `PackageIcon` element inside the `File` element. See the example above.
 

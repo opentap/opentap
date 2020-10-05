@@ -265,7 +265,6 @@ namespace OpenTap.Package
         internal static List<string> UnpackPackage(string packagePath, string destinationDir)
         {
             List<string> installedParts = new List<string>();
-            
             try
             {
                 using (var packageStream = File.OpenRead(packagePath))
@@ -278,7 +277,6 @@ namespace OpenTap.Package
                         if (string.IsNullOrWhiteSpace(part.Name))
                             continue;
 
-                        
                         string path = Uri.UnescapeDataString(part.FullName).Replace('\\', '/');
                         path = Path.Combine(destinationDir, path).Replace('\\', '/');
                         var sw = Stopwatch.StartNew();
@@ -323,7 +321,35 @@ namespace OpenTap.Package
                 log.Error($"Could not unpackage '{packagePath}'.");
                 throw;
             }
+
+            SetHiddenAttributes(installedParts);
             return installedParts;
+        }
+
+        private static void SetHiddenAttributes(List<string> parts)
+        {
+            if (OperatingSystem.Current == OperatingSystem.Windows)
+            {
+                foreach (var path in parts)
+                {
+                    // Set file hidden attribute
+                    if (Path.GetFileName(path).StartsWith("."))
+                        File.SetAttributes(path, FileAttributes.Hidden);
+
+                    // Set directory hidden attribute
+                    var hiddenIndex = path.IndexOf("/.");
+                    while (hiddenIndex > 0)
+                    {
+                        var hiddenDirLength = path.Substring(++hiddenIndex).IndexOf('/');
+                        if (hiddenDirLength > 0)
+                        {
+                            var tempPath = path.Substring(0, hiddenIndex + hiddenDirLength + 1);
+                            File.SetAttributes(tempPath, FileAttributes.Hidden);
+                        }
+                        hiddenIndex = path.IndexOf("/.", ++hiddenIndex);
+                    }
+                }
+            }
         }
 
         /// <summary>
