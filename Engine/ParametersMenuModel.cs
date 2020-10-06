@@ -78,7 +78,7 @@ namespace OpenTap
         [Display("Unparameterize", "Removes the parameterization of this setting.", Order: 1.0)]
         [IconAnnotation(IconNames.Unparameterize)]
         [Browsable(true)]
-        public void Unparameterize() => ParameterManager.RemoveParameter(this);
+        public void Unparameterize() => ParameterManager.Unparameterize(this);
 
         [Display("Edit Parameter", "Edit an existing parameterization.", Order: 1.0)]
         [Browsable(true)]
@@ -86,6 +86,15 @@ namespace OpenTap
         [IconAnnotation(IconNames.EditParameter)]
         [EnabledIf(nameof(IsParameter), true, HideIfDisabled = true)]
         public void EditParameter() => ParameterManager.EditParameter(this);
+
+        public bool CanRemoveParameter => member is IParameterMemberData && source.All(x => x is TestPlan);
+        
+        [Browsable(true)]
+        [Display("Remove Parameter", "Remove a parameter.", Order: 1.0)]
+        [IconAnnotation(IconNames.RemoveParameter)]
+        [EnabledIf(nameof(CanRemoveParameter), true, HideIfDisabled = true)]
+        [EnabledIf(nameof(TestPlanLocked), false)]
+        public void RemoveParameter() => ParameterManager.RemoveParameter(this);
     }
     
     class TestStepMenuItemsModelFactory : IMenuModelFactory

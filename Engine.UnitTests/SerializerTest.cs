@@ -1607,10 +1607,11 @@ namespace OpenTap.Engine.UnitTests
                 step1.OtherStep = step3;
                 step3.OtherStep = step1;
                 TestPlan plan = new TestPlan();
-                plan.ExternalParameters.Add(step1, someNumberProp, "SomeNumber");
-                plan.ExternalParameters.Add(step1, doublesProp, "Doubles");
                 plan.ChildTestSteps.Add(step1);
                 plan.ChildTestSteps.Add(step3);
+                plan.ExternalParameters.Add(step1, someNumberProp, "SomeNumber");
+                plan.ExternalParameters.Add(step1, doublesProp, "Doubles");
+                
                 TestPlan plan2 = null;
                 using (var memstr = new MemoryStream())
                 {
@@ -1707,12 +1708,14 @@ namespace OpenTap.Engine.UnitTests
                 step1.OtherStep = step3;
                 step3.OtherStep = step1;
                 TestPlan plan = new TestPlan();
-                plan.ExternalParameters.Add(step1, someNumberProp, "SomeNumber");
                 plan.ChildTestSteps.Add(step1);
                 plan.ChildTestSteps.Add(step3);
                 plan.ChildTestSteps.Add(dynstep);
                 plan.ChildTestSteps.Add(dynstep2);
-                TestPlan plan2 = null;
+                // external parameters must be added after the steps has been inserted
+                // into the test plan.
+                plan.ExternalParameters.Add(step1, someNumberProp, "SomeNumber");
+                TestPlan plan2;
                 using (var memstr = new MemoryStream())
                 {
                     var serializer = new TapSerializer();
