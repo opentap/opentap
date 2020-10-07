@@ -48,6 +48,11 @@ namespace OpenTap.Plugins
 
                         elem.Remove();
                     }
+                    else
+                    {
+                        // Remove the default value attribute from the element after verification
+                        elem.SetAttributeValue(ObjectSerializer.DefaultValue, null);
+                    }
                 }
                
                 return ok;

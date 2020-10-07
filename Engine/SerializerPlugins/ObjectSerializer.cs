@@ -761,7 +761,6 @@ namespace OpenTap.Plugins
                             }
                             catch (Exception e)
                             {
-
                                 Log.Warning("Unable to serialize property '{0}'.", subProp.Name);
                                 Log.Debug(e);
                             }
@@ -789,10 +788,7 @@ namespace OpenTap.Plugins
         {
             var attr = subProp.GetAttribute<DefaultValueAttribute>();
             if (attr != null && !(subProp is IParameterMemberData))
-            {
                 elem2.SetAttributeValue(DefaultValue, attr.Value);
-            }
         }
     }
-
 }
