@@ -1886,6 +1886,33 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        [TestCase("test", false)]
+        [TestCase("SomeOtherString", true)]
+        [TestCase("", true)]
+        [TestCase(null, true)]
+        public void DefaultValueTest(string value, bool serialized)
+        {
+            var logStep = new DefaultValueTestStep();
+            var plan = new TestPlan();
+            plan.Steps.Add(logStep);
+            logStep.Value = value;
+
+            using (var mem = new MemoryStream())
+            {
+                plan.Save(mem);
+                mem.Seek(0, SeekOrigin.Begin);
+                plan = TestPlan.Load(mem, "plan");
+            }
+
+            logStep = (DefaultValueTestStep)plan.Steps[0];
+            // Expect value to be equal since it is not the same as default value now
+            if (serialized)
+                Assert.AreEqual(value, logStep.Value);
+            // Expect property from test step to be empty since it is the same default value as the one from constructor
+            else
+                Assert.AreNotEqual(value, logStep.Value);
+        }
+
         // Technically speaking, DefaultValueAttribute is not supported in the sense that properties with default value
         // does not get serialized, except for some special cases.
         // This feature would conflict with External Parameters as it requires there to be an element and also provide strange behaviors if the
