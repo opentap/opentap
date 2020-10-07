@@ -10,6 +10,7 @@ using System.Runtime.Serialization;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.ComponentModel;
+using System.Runtime.CompilerServices;
 
 namespace OpenTap
 {
@@ -475,16 +476,17 @@ namespace OpenTap
             output.Add( new ResultParameter(group, parentName, val, metadata));
         }
 
-        static ConcurrentDictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
+        static ConditionalWeakTable<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
             metadata)[]> propertiesLookup =
-            new ConcurrentDictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
+            new ConditionalWeakTable<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
                 metadata)[]>();
 
         static (IMemberData member, string group, string name, MetaDataAttribute metadata)[] GetParametersMap(
+            ITypeData type) => propertiesLookup.GetValue(type, getParametersMap);
+
+        static (IMemberData member, string group, string name, MetaDataAttribute metadata)[] getParametersMap(
             ITypeData type)
         {
-            if (propertiesLookup.TryGetValue(type, out var result))
-                return result;
             var lst = new List<(IMemberData member, string group, string name, MetaDataAttribute metadata)>();
             foreach (var prop in type.GetMembers())
             {
@@ -522,9 +524,7 @@ namespace OpenTap
                 lst.Add((prop, group, name, metadata));
             }
 
-            result = lst.ToArray();
-            propertiesLookup[type] = result;
-            return result;
+            return lst.ToArray();
         }
         
         private static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", bool metadataOnly = false)

@@ -45,7 +45,7 @@ namespace OpenTap.Plugins.BasicSteps
             return ep.GetValue(tpr.plan);
         }
 
-        public ParameterMemberData ExternalParameter
+        public  ParameterMemberData ExternalParameter
         {
             get
             {
