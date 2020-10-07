@@ -47,7 +47,7 @@ namespace OpenTap
         {
             PropertyName = propertyName;
             if ((propertyValues == null) || (propertyValues.Length <= 0))
-                PropertyValues = new IComparable[1] { true };
+                PropertyValues = new IComparable[] { true };
             else
                 PropertyValues = propertyValues.Cast<IComparable>().ToArray();
         }

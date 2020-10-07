@@ -1314,18 +1314,18 @@ namespace OpenTap
         {
             switch (obj)
             {
-                case float i: return true;
-                case double i: return true;
-                case decimal i: return true;
-                case byte i: return true;
-                case char i: return true;
-                case sbyte i: return true;
-                case short i: return true;
-                case ushort i: return true;
-                case int i: return true;
-                case uint i: return true;
-                case long i: return true;
-                case ulong i: return true;
+                case float _: return true;
+                case double _: return true;
+                case decimal _: return true;
+                case byte _: return true;
+                case char _: return true;
+                case sbyte _: return true;
+                case short _: return true;
+                case ushort _: return true;
+                case int _: return true;
+                case uint _: return true;
+                case long _: return true;
+                case ulong _: return true;
                 default: return false;
             }
          
@@ -1416,7 +1416,6 @@ namespace OpenTap
             if (A == null || B == null) // null -> use string.Compare behavior.
                 return string.Compare(A, B);
 
-            int samelen = Math.Min(A.Length, B.Length);
             int ai = 0, bi = 0;
             for (; ; ai++, bi++)
             {
@@ -1522,7 +1521,6 @@ namespace OpenTap
         /// <returns></returns>
         public static List<T> DistinctLast<T>(this IEnumerable<T> items)
         {
-            List<T> keptItems = new List<T>();
             Dictionary<T, int> d = new Dictionary<T, int>();
             int i = 0;
             foreach (var item in items)
@@ -1858,7 +1856,7 @@ namespace OpenTap
             int length = 0;
             using (var readstream = mappedFile.CreateViewStream(readOffset, 0, MemoryMappedFileAccess.Read))
             {
-                var typecode = readTypeCode(readstream);
+                readTypeCode(readstream); // read type code
                 length = readLen(readstream);
                 offset += readstream.Position;
                 readOffset += readstream.Position + length;

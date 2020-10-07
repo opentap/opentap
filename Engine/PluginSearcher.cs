@@ -400,7 +400,7 @@ namespace OpenTap
                 {
                     try
                     {
-                        var st = PluginFromTypeDefRecursive(typeDefHandle);
+                        PluginFromTypeDefRecursive(typeDefHandle);
                     }
                     catch
                     {
@@ -573,7 +573,6 @@ namespace OpenTap
                 {
                     case "OpenTap.DisplayAttribute":
                     {
-                        var value = CurrentReader.GetBlobBytes(attr.Value);
                         var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
                         string displayName =
                             GetStringIfNotNull(valueString.FixedArguments[0]
@@ -590,7 +589,6 @@ namespace OpenTap
                         break;
                     case "System.ComponentModel.BrowsableAttribute":
                     {
-                        var value = CurrentReader.GetBlobBytes(attr.Value);
                         var valueString = attr.DecodeValue(new CustomAttributeTypeProvider());
                         plugin.IsBrowsable = bool.Parse(valueString.FixedArguments.First().Value.ToString());
                     }
@@ -610,14 +608,13 @@ namespace OpenTap
                     foreach (CustomAttributeHandle attrHandle in CurrentReader.GetAssemblyDefinition().GetCustomAttributes())
                     {
                         CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
-                        string attributeFullName = "";
+                        
                         if (attr.Constructor.Kind == HandleKind.MemberReference)
                         {
                             var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle)attr.Constructor);
-                            attributeFullName = GetFullName(CurrentReader, ctor.Parent);
+                            string attributeFullName = GetFullName(CurrentReader, ctor.Parent);
                             if(attributeFullName == typeof(System.Reflection.AssemblyInformationalVersionAttribute).FullName)
                             {
-                                var value = CurrentReader.GetBlobBytes(attr.Value);
                                 var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
                                 if(SemanticVersion.TryParse(GetStringIfNotNull(valueString.FixedArguments[0].Value), out SemanticVersion infoVer)) // the first argument to the DisplayAttribute constructor is the InformationalVersion string
                                 {

@@ -131,8 +131,8 @@ namespace OpenTap
             // this gets a bit complicated now.
             // we have to ensure that the value is not just same object type, but not the same object
             // in some cases. Hence we need special cloning of the value.
-            bool strConvertSuccess = false;
-            string str = null;
+            bool strConvertSuccess;
+            string str;
             strConvertSuccess = StringConvertProvider.TryGetString(value, out str);
 
             ICloneable cloneable = value as ICloneable;
