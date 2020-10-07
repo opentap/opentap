@@ -257,8 +257,6 @@ namespace OpenTap
                 MacroEnd = macroStop;
             }
             
-            static readonly Regex locateMacroRegex = new Regex(@"\<(.*?)\>");
-
             /// <summary>
             /// Extract macro information from a string.
             /// </summary>

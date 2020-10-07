@@ -382,67 +382,6 @@ namespace OpenTap.Cli
                 throw new ArgumentException();
         }
 
-        private static string AwaitReadline(DateTime TimeOut)
-        {
-            string Result = "";
-
-            while (DateTime.Now <= TimeOut)
-            {
-                if (Console.KeyAvailable)
-                {
-                    ConsoleKeyInfo Key = Console.ReadKey();
-
-                    if (Key.Key == ConsoleKey.Enter)
-                    {
-                        return Result;
-                    }
-                    else
-                    {
-                        Result += Key.KeyChar;
-                    }
-                }
-                else
-                {
-                    TapThread.Sleep(20);
-                }
-            }
-
-            Console.WriteLine();
-            log.Info("Timed out while waiting for user input. Returning default answer.");
-            throw new TimeoutException();
-        }
-
-        private static bool tryParseEnumString(string str, Type type, out Enum result)
-        {
-            try
-            {   // Look for an exact match.
-                result = (Enum)Enum.Parse(type, str);
-                Array values = Enum.GetValues(type);
-                if (Array.IndexOf(values, result) == -1)
-                {
-                    return false;
-                }
-
-                return true;
-            }
-            catch (ArgumentException)
-            {
-                // try a more robust parse method. (tolower, trim, '_'=' ')
-                str = str.Trim().ToLower();
-                string[] fixedNames = Enum.GetNames(type).Select(name => name.Trim().ToLower()).ToArray();
-                for (int i = 0; i < fixedNames.Length; i++)
-                {
-                    if (fixedNames[i] == str || fixedNames[i].Replace('_', ' ') == str)
-                    {
-                        result = (Enum)Enum.GetValues(type).GetValue(i);
-                        return true;
-                    }
-                }
-            }
-            result = null;
-            return false;
-        }
-
         private void HandleSearchDirectories()
         {
             if (Search.Length > 0)

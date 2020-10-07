@@ -888,17 +888,17 @@ namespace OpenTap
                     case TypeCode.Byte:
                         return (T[])ReadIEEEBlock(IEEEBinaryType.BinaryType_UI1);
                     case TypeCode.SByte:
-                        return (T[])(Array)ReadIEEEBlock(IEEEBinaryType.BinaryType_UI1);
+                        return (T[])ReadIEEEBlock(IEEEBinaryType.BinaryType_UI1);
 
                     case TypeCode.Int16:
                         return (T[])ReadIEEEBlock(IEEEBinaryType.BinaryType_I2);
                     case TypeCode.UInt16:
-                        return (T[])(Array)ReadIEEEBlock(IEEEBinaryType.BinaryType_I2);
+                        return (T[])ReadIEEEBlock(IEEEBinaryType.BinaryType_I2);
 
                     case TypeCode.Int32:
                         return (T[])ReadIEEEBlock(IEEEBinaryType.BinaryType_I4);
                     case TypeCode.UInt32:
-                        return (T[])(Array)ReadIEEEBlock(IEEEBinaryType.BinaryType_I4);
+                        return (T[])ReadIEEEBlock(IEEEBinaryType.BinaryType_I4);
 
                     // Do binary conversion for 64 bit integers
                     case TypeCode.Int64:

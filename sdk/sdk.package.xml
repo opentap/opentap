@@ -21,6 +21,9 @@
     <File Path="Packages/SDK/PackageSchema.xsd"/>
     <File Path="Packages/SDK/OpenTAP Developer Guide.pdf" SourcePath="Packages/SDK/Examples/OpenTAP Developer Guide.pdf"/>
     <File Path="Packages/SDK/Examples/.OpenTapIgnore"/>
+    <!--'.' marks hidden files or folders -->
+    <File Path="Packages/SDK/Examples/.HiddenFile.txt"/>
+    <File Path="Packages/SDK/Examples/.HiddenFolder/*"/>
     <File Path="Packages/SDK/Examples/Examples.sln"/>
     <File Path="Packages/SDK/Examples/ExamplePlugin/ExamplePlugin.csproj"/>
     <File Path="Packages/SDK/Examples/ExamplePlugin/*.cs"/>

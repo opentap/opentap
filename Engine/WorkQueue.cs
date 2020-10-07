@@ -12,7 +12,6 @@ namespace OpenTap
 
     class TimeSpanAverager
     {
-        const int averageWeight = 10;
         int averageCnt = 0;
         long[] weights = new long[10];
         int averageIndex = 0;

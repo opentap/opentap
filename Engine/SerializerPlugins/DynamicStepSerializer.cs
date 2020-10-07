@@ -42,7 +42,6 @@ namespace OpenTap.Plugins
             }
         }
 
-        HashSet<XElement> currentNode = new HashSet<XElement>();
         /// <summary> Deserialization implementation. </summary>
         public override bool Deserialize(XElement elem, ITypeData t, Action<object> setter)
         {
@@ -74,7 +73,6 @@ namespace OpenTap.Plugins
             }
         }
         
-        const int testStepSizeThreshCompress = 4096;
         HashSet<XElement> serializing = new HashSet<XElement>();
     }
 

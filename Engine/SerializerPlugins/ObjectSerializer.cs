@@ -108,7 +108,7 @@ namespace OpenTap.Plugins
                     {
                         try
                         {
-                            var ok = readContentInternal(csprop.PropertyType, false, () => attr_value.Value, element, out object value);
+                            readContentInternal(csprop.PropertyType, false, () => attr_value.Value, element, out object value);
                             
                             p.SetValue(newobj, value);
                             
@@ -645,7 +645,7 @@ namespace OpenTap.Plugins
                             return true;
                         }
                     case float f:
-                        elem.Value = ((float)obj).ToString("R", CultureInfo.InvariantCulture);
+                        elem.Value = f.ToString("R", CultureInfo.InvariantCulture);
                         return true;
                     case decimal d:
                         elem.Value = BigFloat.Convert(d).ToString(CultureInfo.InvariantCulture);

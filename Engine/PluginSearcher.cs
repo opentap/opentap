@@ -135,6 +135,9 @@ namespace OpenTap
                 {
                     var count = entry.Count();
                     if (count == 1) continue;
+                    if (entry.Key.EndsWith(".resources") && entry.Key.StartsWith("Microsoft.CodeAnalysis"))
+                        continue; // This improves the performance in debug builds, where lots of locale resource files are present.
+                    
                     var versions = new HashSet<string>();
                     bool allInDependencies = true;
                     foreach (var file in entry)
@@ -373,21 +376,20 @@ namespace OpenTap
                 foreach (CustomAttributeHandle attrHandle in CurrentReader.CustomAttributes)
                 {
                     CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
-                    string attributeFullName = "";
+                    
+                    bool isPluginAssemblyAttribute = false;
                     if (attr.Constructor.Kind == HandleKind.MethodDefinition)
                     {
                         MethodDefinition ctor = CurrentReader.GetMethodDefinition((MethodDefinitionHandle)attr.Constructor);
-                        attributeFullName = GetFullName(CurrentReader, ctor.GetDeclaringType());
-
+                        isPluginAssemblyAttribute = MatchFullName(CurrentReader, ctor.GetDeclaringType(), "OpenTap", nameof(PluginAssemblyAttribute));
                     }
                     else if (attr.Constructor.Kind == HandleKind.MemberReference)
                     {
                         var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle)attr.Constructor);
-                        attributeFullName = GetFullName(CurrentReader, ctor.Parent);
+                        isPluginAssemblyAttribute = MatchFullName(CurrentReader, ctor.Parent, "OpenTap", nameof(PluginAssemblyAttribute));
                     }
-                    if(attributeFullName == typeof(PluginAssemblyAttribute).FullName)
+                    if(isPluginAssemblyAttribute)
                     {
-                        var value = CurrentReader.GetBlobBytes(attr.Value);
                         var valueString = attr.DecodeValue(new CustomAttributeTypeProvider());
                         ReadPrivateTypesInCurrentAsm = bool.Parse(valueString.FixedArguments.First().Value.ToString());
                         break;
@@ -398,7 +400,7 @@ namespace OpenTap
                 {
                     try
                     {
-                        var st = PluginFromTypeDefRecursive(typeDefHandle);
+                        PluginFromTypeDefRecursive(typeDefHandle);
                     }
                     catch
                     {
@@ -459,23 +461,22 @@ namespace OpenTap
 
         private TypeData PluginFromTypeDefRecursive(TypeDefinitionHandle handle)
         {
-            if (TypesInCurrentAsm.ContainsKey(handle))
-            {
-                return TypesInCurrentAsm[handle];
-            }
+            if (TypesInCurrentAsm.TryGetValue(handle, out var result))
+                return result;
             TypeDefinition typeDef = CurrentReader.GetTypeDefinition(handle);
+            var typeAttributes = typeDef.Attributes;
             if (ReadPrivateTypesInCurrentAsm)
             {
-                if ((typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.NotPublic &&
-                    (typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.Public &&
-                    (typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPrivate &&
-                    (typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPublic)
+                if ((typeAttributes & TypeAttributes.VisibilityMask) != TypeAttributes.NotPublic &&
+                    (typeAttributes & TypeAttributes.VisibilityMask) != TypeAttributes.Public &&
+                    (typeAttributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPrivate &&
+                    (typeAttributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPublic)
                     return null;
             }
             else
             {
-                if ((typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.Public &&
-                    (typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPublic)
+                if ((typeAttributes & TypeAttributes.VisibilityMask) != TypeAttributes.Public &&
+                    (typeAttributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPublic)
                     return null;
             }
 
@@ -572,7 +573,6 @@ namespace OpenTap
                 {
                     case "OpenTap.DisplayAttribute":
                     {
-                        var value = CurrentReader.GetBlobBytes(attr.Value);
                         var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
                         string displayName =
                             GetStringIfNotNull(valueString.FixedArguments[0]
@@ -589,7 +589,6 @@ namespace OpenTap
                         break;
                     case "System.ComponentModel.BrowsableAttribute":
                     {
-                        var value = CurrentReader.GetBlobBytes(attr.Value);
                         var valueString = attr.DecodeValue(new CustomAttributeTypeProvider());
                         plugin.IsBrowsable = bool.Parse(valueString.FixedArguments.First().Value.ToString());
                     }
@@ -609,14 +608,13 @@ namespace OpenTap
                     foreach (CustomAttributeHandle attrHandle in CurrentReader.GetAssemblyDefinition().GetCustomAttributes())
                     {
                         CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
-                        string attributeFullName = "";
+                        
                         if (attr.Constructor.Kind == HandleKind.MemberReference)
                         {
                             var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle)attr.Constructor);
-                            attributeFullName = GetFullName(CurrentReader, ctor.Parent);
+                            string attributeFullName = GetFullName(CurrentReader, ctor.Parent);
                             if(attributeFullName == typeof(System.Reflection.AssemblyInformationalVersionAttribute).FullName)
                             {
-                                var value = CurrentReader.GetBlobBytes(attr.Value);
                                 var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
                                 if(SemanticVersion.TryParse(GetStringIfNotNull(valueString.FixedArguments[0].Value), out SemanticVersion infoVer)) // the first argument to the DisplayAttribute constructor is the InformationalVersion string
                                 {
@@ -666,6 +664,22 @@ namespace OpenTap
                     return null;
             }
         }
+
+        bool MatchFullName(MetadataReader metadata, EntityHandle handle, string matchNamespace, string matchName)
+        {
+            switch (handle.Kind)
+            {
+                case HandleKind.TypeDefinition:
+                var def = metadata.GetTypeDefinition((TypeDefinitionHandle)handle);
+                return metadata.GetString(def.Namespace) == matchNamespace && metadata.GetString(def.Name) == matchName;
+                case HandleKind.TypeReference:
+                var r = metadata.GetTypeReference((TypeReferenceHandle)handle);
+                return metadata.GetString(r.Namespace) == matchNamespace && metadata.GetString(r.Name) == matchName;
+                default:
+                    return false;
+            }
+        }
+        
         #region Providers needed by the Metadata API (not really important the way we use the API)
         struct CustomAttributeTypeProvider : ICustomAttributeTypeProvider<TypeData>
         {

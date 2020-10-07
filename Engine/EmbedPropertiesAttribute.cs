@@ -227,7 +227,7 @@ namespace OpenTap
 
             foreach (var member in BaseType.GetMembers())
             {
-                if (member.GetAttribute<EmbedPropertiesAttribute>() is EmbedPropertiesAttribute e)
+                if (member.GetAttribute<EmbedPropertiesAttribute>() is EmbedPropertiesAttribute)
                 {
                     var members = member.TypeDescriptor.GetMembers();
                     foreach(var m in members)

@@ -23,7 +23,6 @@ namespace OpenTap
             var start = Start;
             var stop = Stop;
             var step = Step;
-            var sign = step.Sign();
 
             if (Start == Stop)
             { // A a range of 0 elements will be created otherwise. So return Start.
@@ -690,7 +689,7 @@ namespace OpenTap
 
         }
 
-        void pushSeq(StringBuilder sb, BigFloat val, BigFloat step)
+        void pushSeq(StringBuilder sb, BigFloat val)
         {
             if (sb.Length != 0)
                 sb.Append(separator);
@@ -837,7 +836,7 @@ namespace OpenTap
                         {
                             if (sequence.Count == 2)
                             {
-                                pushSeq(sb, sequence[0], seq_step);
+                                pushSeq(sb, sequence[0]);
                                 sequence.RemoveAt(0);
                             }
                             else
