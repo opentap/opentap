@@ -78,7 +78,7 @@ namespace PluginDevelopment.Advanced_Examples
         public List<int> AvailableInts { get; set; }
 
         NotifyList<ComplexSettingsElement1> elements = new NotifyList<ComplexSettingsElement1>();
-        public IList<ComplexSettingsElement1> Elements
+        public NotifyList<ComplexSettingsElement1> Elements
         {
             get
             {
@@ -104,7 +104,7 @@ namespace PluginDevelopment.Advanced_Examples
     }
 
     /// <summary>  List type that is easily extendible. </summary>
-    class VirtualList<T> : IList<T>, IList
+    public class VirtualList<T> : IList<T>, IList
     {
         List<T> elements = new List<T>();
         public virtual IEnumerator<T> GetEnumerator() => elements.GetEnumerator();
@@ -154,12 +154,17 @@ namespace PluginDevelopment.Advanced_Examples
     }
 
     /// <summary> A type of list that can emit notifications on change.</summary>
-    class NotifyList<T> : VirtualList<T>
+    public class NotifyList<T> : VirtualList<T>
     {
         public NotifyList(IEnumerable<T> initialElements = null)
         {
             foreach (var elem in initialElements ?? Enumerable.Empty<T>())
                 Add(elem);
+        }
+
+        public NotifyList()
+        {
+            
         }
         // Invoked when the list has changed.
         public Action<NotifyList<T>> NotifyChanged { get; set; }
