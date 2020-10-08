@@ -1508,6 +1508,8 @@ namespace OpenTap
         }
 
         public static T DeserializeFromString<T>(string str) => (T) DeserializeFromString(str);
+        
+        public static TypeData AsTypeData(this Type type) => TypeData.FromType(type);
 
     }
 
@@ -1693,6 +1695,15 @@ namespace OpenTap
             using (var e = objs.GetEnumerator())
                 return ProcessPattern(e, f1, f2, f3, f4, f5, f6);
         }
+
+        public static T2 GetOrDefault<T1, T2>(this IDictionary<T1, T2> dict, T1 key)
+        {
+            if (dict.TryGetValue(key, out T2 val))
+                return val;
+            return default;
+        }
+
+        
     }
 
     internal class Time

@@ -1820,6 +1820,42 @@ namespace OpenTap.Engine.UnitTests
                 InstrumentSettings.Current.Remove(instr2);
             }
         }
+
+
+        class SettingsElement
+        {
+            public int X { get; set; }
+            
+        }
+        class AdvancedClassSerialize<T>
+        {
+            public T Element { get; set; }
+        }
+
+        [DeclareType(typeof(AdvancedClassSerialize<SettingsElement>))]
+        [DeclareType(typeof(SettingsElement))]
+
+        class AdvancedClassContainer
+        {
+            public object Elem { get; set; } = new AdvancedClassSerialize<SettingsElement>();
+        }
+
+        [Test]
+        public void LookupComplexType()
+        {
+            var obj0 = new AdvancedClassContainer();
+            Assert.IsNotNull(new TapSerializer().Clone(obj0));
+
+            var name = TypeData.FromType(typeof(SettingsElement)).Name;
+            var test1 = TypeData.GetTypeData(name);
+            Assert.IsNotNull(test1);
+            var obj = new AdvancedClassSerialize<SettingsElement>()
+            {
+                Element = new SettingsElement(){X = 1}
+            };
+            var xml = new TapSerializer().SerializeToString(obj);
+            var obj2 = new TapSerializer().DeserializeFromString(xml);
+            Assert.IsNotNull(obj2);
+        }       
     }
 }
-

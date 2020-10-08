@@ -401,12 +401,12 @@ namespace OpenTap
             {
                 var elemType = LocateType(typeName.Substring(0, typeName.Length - 2));
                 if (elemType != null)
-                    return elemType.MakeArrayType();
-                else return null;
-            }
-            else if (searcher.AllTypes.ContainsKey(typeName))
+                    return elemType.MakeArrayType(); 
+                return null;
+            } 
+            
+            if (searcher.AllTypes.TryGetValue(typeName, out TypeData t))
             {
-                TypeData t = searcher.AllTypes[typeName];
                 var loaded = t.Load();
                 if (loaded != null)
                     return loaded;

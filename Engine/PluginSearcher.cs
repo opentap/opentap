@@ -909,7 +909,7 @@ namespace OpenTap
         /// <summary>
         /// Gets a list of types that has this type as a base type (including interfaces)
         /// </summary>
-        public IEnumerable<TypeData> DerivedTypes => (IEnumerable<TypeData>) _DerivedTypes ?? Array.Empty<TypeData>();
+        public IEnumerable<TypeData> DerivedTypes => _DerivedTypes ?? Array.Empty<TypeData>();
 
         /// <summary>
         /// False if the type has a System.ComponentModel.BrowsableAttribute with Browsable = false.
@@ -966,6 +966,7 @@ namespace OpenTap
                     log.Error("Unable to load type '{0}' from '{1}'. Reason: '{2}'.", Name, Assembly.Location, ex.Message);
                     log.Debug(ex);
                 }
+                registerDeclaredTypes();
             }
             return type;
         }

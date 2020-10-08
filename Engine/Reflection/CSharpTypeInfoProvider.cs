@@ -19,7 +19,7 @@ namespace OpenTap
             {
                 return TypeData.FromType(type);
             }
-            return null;
+            return TypeData.LookupDeclaredType(identifier);
         }
 
         /// <summary> Gets the C# type info for an object. </summary>

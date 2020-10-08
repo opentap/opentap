@@ -22,6 +22,22 @@ namespace OpenTap
         static ConditionalWeakTable<Type, TypeData> dict = new ConditionalWeakTable<Type, TypeData>();
 
         Type type;
+        
+        static readonly ConcurrentDictionary<string, Type> declaredLookup = new ConcurrentDictionary<string, Type>();
+
+        /// <summary> Looks up a type that has been declared with DeclareTypeAttribute. </summary>
+        internal static TypeData LookupDeclaredType(string typeId) =>
+            declaredLookup.GetOrDefault(typeId)?.AsTypeData();
+        
+        void registerDeclaredTypes()
+        {
+            declaredLookup[Name] = type;
+            foreach(var declaredType in this.GetAttributes<DeclareTypeAttribute>())
+            {
+                var decl = declaredType.DeclaredType.AsTypeData();
+                declaredLookup[decl.Name] = declaredType.DeclaredType;
+            }
+        }
 
         /// <summary>
         /// Gets the System.Type that this represents. Same as calling <see cref="Load()"/>.
@@ -94,6 +110,7 @@ namespace OpenTap
                 hasFlags = this.HasAttribute<FlagsAttribute>();
                 isValueType = type.IsValueType;
                 postLoaded = true;
+                registerDeclaredTypes();
             }
         }
 
