@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using System.Reflection;
 
 namespace OpenTap
 {
@@ -251,9 +250,7 @@ namespace OpenTap
                 {
                     if (OverrideDefaultName != null)
                         return OverrideDefaultName;
-                    if(Scope.Object is ITestStep)
-                        return string.Join(" \\ ", defaultGroup.Append(defaultName).Select(x => x.Trim()));
-                    return defaultName;
+                    return string.Join(" \\ ", defaultGroup.Append(defaultName).Select(x => x.Trim()));
                 }
             }
 
@@ -437,6 +434,19 @@ namespace OpenTap
 
         public static void RemoveParameter(ITestStepMenuModel data)
         {
+            if (data.Member is ParameterMemberData member)
+            {
+                foreach (var (obj, mem) in member.ParameterizedMembers.ToArray())
+                    mem.Unparameterize(member, obj);
+            }
+            else
+            {
+                throw new Exception("Invalid parameter");
+            }
+        }
+        
+        public static void Unparameterize(ITestStepMenuModel data)
+        {
             var (scope, member) = ScopeMember.GetScope(data.Source, data.Member);
             IMemberData property = data.Member;
             var items = data.Source;
@@ -456,54 +466,76 @@ namespace OpenTap
             checkParameterSanity(scope as ITestStepParent);
         }
 
-        public static void CheckParameterSanity(ITestStepParent step)
+        /// <summary>
+        /// Verify that source of a declared parameter on a parent also exists in the step heirarchy.  
+        /// </summary>
+        public static bool CheckParameterSanity(ITestStepParent step, IMemberData[] parameters)
         {
-            checkParameterSanity(step);
+            bool isSane = true;
+            foreach (var _item in parameters)
+            {
+                if (_item is ParameterMemberData item)
+                {
+                    foreach (var fwd in item.ParameterizedMembers.ToArray())
+                    {
+                        var src = fwd.Source as ITestStepParent;
+                        if (src == null) continue;
+                        var mem = fwd.Member;
+                        var existing = TypeData.GetTypeData(src).GetMember(mem.Name);
+                        bool isParent = false;
+                        bool unparented = false;
+                        var subparent = src.Parent;
+
+                        // Multiple situations possible.
+                        // 1. the step is no longer a child of the parent to which it has parameterized a setting.
+                        // 2. the member of a parameter no longer exists.
+                        // 3. the child has been deleted from the step heirarchy.
+                        if (subparent != null && subparent.ChildTestSteps.Contains(src) == false)
+                            unparented = true;
+                        if (subparent != step)
+                        {
+                            while (subparent != null)
+                            {
+                                if (subparent.Parent != null &&
+                                    subparent.Parent.ChildTestSteps.Contains(subparent) == false)
+                                    unparented = true;
+                                if (subparent == step)
+                                {
+                                    isParent = true;
+                                    break;
+                                }
+
+                                subparent = subparent.Parent;
+                            }
+                        }
+                        else
+                        {
+                            isParent = true;
+                        }
+
+                        if (existing == null || isParent == false || unparented)
+                        {
+                            mem.Unparameterize(item, src);
+                            if (!isParent || unparented)
+                                log.Warning("Step {0} is no longer a child step of the parameter owner.",
+                                    (src as ITestStep)?.GetFormattedName() ?? src?.ToString());
+                            else
+                                log.Warning("Member {0} no longer exists, unparameterizing member.", mem.Name);
+                            isSane = false;
+                        }
+                    }
+                }
+            }
+
+            return isSane;
         }
         
         static bool checkParameterSanity(ITestStepParent step)
         {
             bool isSane = true;
             if (step == null) return isSane;
-            var forwarded = TypeData.GetTypeData(step).GetMembers().OfType<ParameterMemberData>();
-            foreach (var item in forwarded.ToArray())
-            {
-                foreach (var fwd in item.ParameterizedMembers.ToArray())
-                {
-                    var src = fwd.Source;
-                    var mem = fwd.Member;
-                    var existing = TypeData.GetTypeData(src).GetMember(mem.Name);
-                    bool isParent = false;
-                    bool unparented = false;
-                    var subparent = (src as ITestStep)?.Parent;
-                    
-                    // Multiple situations possible.
-                    // 1. the step is no longer a child of the parent to which it has parameterized a setting.
-                    // 2. the member of a parameter no longer exists.
-                    // 3. the child has been deleted from the step heirarchy.
-                    if (subparent != null && subparent.ChildTestSteps.Contains(src) == false)
-                        unparented = true;
-                    while (subparent != null)
-                    {
-                        if (subparent.Parent != null && subparent.Parent.ChildTestSteps.Contains(subparent) == false)
-                            unparented = true;
-                        if (subparent == step)
-                        {
-                            isParent = true;
-                        }
-                        subparent = subparent.Parent;
-                    }
-                    if (existing == null || isParent == false || unparented)
-                    {
-                        mem.Unparameterize(item, src);
-                        if (!isParent || unparented)
-                            log.Warning("Step {0} is no longer a child step of the parameter owner.", (src as ITestStep)?.GetFormattedName() ?? src?.ToString());
-                        else
-                            log.Warning("Member {0} no longer exists, unparameterizing member.", mem.Name);
-                        isSane = false;
-                    }
-                }
-            }
+            var parameters = TypeData.GetTypeData(step).GetMembers().OfType<ParameterMemberData>().ToArray();
+            isSane = CheckParameterSanity(step, parameters);
             if(step.Parent is ITestStepParent parent)
                 return checkParameterSanity(parent) & isSane;
             return isSane;

@@ -457,17 +457,35 @@ namespace OpenTap
             public IEnumerable<object> Attributes => BaseType.Attributes;
             public string Name => BaseType.Name;
             public ITypeData BaseType { get; }
+
+            IMemberData[] getDynamicMembers()
+            {
+                var dynamicMembers = (IMemberData[])TestStepTypeData.DynamicMembers.GetValue(Target);
+                if (Target is ITestStepParent step)
+                {
+                    // if it is a test step type, check that the parameters declared on a parent step
+                    // actually comes from a child step.
+                    if(!ParameterManager.CheckParameterSanity(step, dynamicMembers))
+                    {
+                        // members modified, reload.
+                        dynamicMembers = (IMemberData[]) TestStepTypeData.DynamicMembers.GetValue(Target);
+                    }
+                }
+                return dynamicMembers ?? Array.Empty<IMemberData>();
+            }
+            
             public IEnumerable<IMemberData> GetMembers()
             {
-                var extra = (IMemberData[])TestStepTypeData.DynamicMembers.GetValue(Target);
-                if (extra != null)
-                    return BaseType.GetMembers().Concat(extra);
-                return BaseType.GetMembers();
+                var dynamicMembers = getDynamicMembers();
+                var members = BaseType.GetMembers();
+                if (dynamicMembers.Length > 0)
+                    members = members.Concat(dynamicMembers);
+                return members;
             }
 
             public IMemberData GetMember(string name)
             {
-                var extra = (IMemberData[])TestStepTypeData.DynamicMembers.GetValue(Target);
+                var extra = getDynamicMembers();
                 return extra.FirstOrDefault(x => x.Name == name) ?? BaseType.GetMember(name);
             }
 
@@ -610,7 +628,7 @@ namespace OpenTap
 
         public ITypeData GetTypeData(object obj, TypeDataProviderStack stack)
         {
-            if (obj is ITestStep || obj is TestPlan)
+            if (obj is ITestStepParent)
             {
                 var subtype = stack.GetTypeData(obj);
                 var result = getStepTypeData(subtype);

@@ -165,5 +165,7 @@ namespace OpenTap
         public const string Unparameterize = Common + nameof(Unparameterize);
         /// <summary> Parameterize command </summary>
         public const string EditParameter = Common + nameof(EditParameter);
+        /// <summary> Remove Parameter Command.</summary>
+        public const string RemoveParameter = Common + nameof(RemoveParameter);
     }
 }
