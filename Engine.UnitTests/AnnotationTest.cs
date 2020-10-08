@@ -304,7 +304,8 @@ namespace OpenTap.UnitTests
                 sequenceRoot.ChildTestSteps.Add(step);
                 sequence.ChildTestSteps.Add(step2);
                 
-                { // basic functionalities test 
+                { // basic functionalities test
+                    
                     var member = AnnotationCollection.Annotate(step2).GetMember(nameof(DelayStep.DelaySecs));
                     var menu = member.Get<MenuAnnotation>();
                     
@@ -430,7 +431,20 @@ namespace OpenTap.UnitTests
                     planAnnotation = AnnotationCollection.Annotate(plan);
                     // after removing there is not Time Delay parameter..
                     Assert.IsNull(planAnnotation.GetMember("Parameters \\ Time Delay"));
-
+                }
+                {// Break Conditions
+                    var member = AnnotationCollection.Annotate(step2).GetMember("BreakConditions");
+                    Assert.NotNull(member);
+                    var menu = member.Get<MenuAnnotation>();
+                    Assert.NotNull(menu);
+                    var parameterize = menu.MenuItems.FirstOrDefault(x =>
+                        x.Get<IIconAnnotation>()?.IconName == IconNames.ParameterizeOnTestPlan);
+                    Assert.IsTrue(parameterize.Get<IAccessAnnotation>().IsVisible);
+                    
+                    Assert.AreEqual(1, TypeData.GetTypeData(plan).GetMembers().Count(x => x.Name.Contains("BreakConditions") || x.Name.Contains("BreakConditions")));
+                    parameterize.Get<IMethodAnnotation>().Invoke();
+                    Assert.AreEqual(2, TypeData.GetTypeData(plan).GetMembers().Count(x => x.Name.Contains("Break Conditions") || x.Name.Contains("BreakConditions")));
+                    
                 }
             }
             finally

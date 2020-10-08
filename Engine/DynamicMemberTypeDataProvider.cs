@@ -507,7 +507,7 @@ namespace OpenTap
                         "Common", 20001.1),
                     new UnsweepableAttribute()
                 },
-                DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
+                DeclaringType = TypeData.FromType(typeof(ITestStep)),
                 Readable = true,
                 Writable = true,
                 TypeDescriptor = TypeData.FromType(typeof(BreakCondition))
@@ -527,7 +527,7 @@ namespace OpenTap
                     new UnsweepableAttribute(),
                     new EnabledIfAttribute("Locked", false), 
                 },
-                DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
+                DeclaringType = TypeData.FromType(typeof(TestPlan)),
                 Readable = true,
                 Writable = true,
                 TypeDescriptor = TypeData.FromType(typeof(BreakCondition))
