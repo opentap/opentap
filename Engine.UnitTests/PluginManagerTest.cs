@@ -202,6 +202,7 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        [Platform(Exclude="Unix,Linux,MacOsX")]
         public void SameAssemblyDifferentVersions2()
         {
             Directory.CreateDirectory("Test1");
