@@ -37,7 +37,11 @@ namespace OpenTap
         // thread static to avoid locking everything and having a HashSet on each ValidationObject
         [ThreadStatic]
         static HashSet<object> traversed = null;
-        string getError(string propertyName = null)
+
+        /// <summary>
+        /// Return the error for a given property
+        /// </summary>
+        protected virtual string GetError(string propertyName = null)
         {
             List<string> errors = null;
             void pushError(string error)
@@ -56,7 +60,7 @@ namespace OpenTap
                     var error = rule.ErrorMessage;
                     if (string.IsNullOrEmpty(error)) continue;
                     pushError(error);
-                }catch(Exception ex)
+                } catch(Exception ex)
                 {
                     pushError(ex.Message);
                 }
@@ -98,14 +102,14 @@ namespace OpenTap
         /// <summary>
         /// Gets the error messages for each invalid rule and joins them with a newline.
         /// </summary>
-        public string Error => getError(null);
+        public string Error => GetError(null);
 
         /// <summary>
         /// Gets the error(s) for a given property as a concatenated string.
         /// </summary>
         /// <param name="propertyName"></param>
         /// <returns>string concatenated errors.</returns>
-        string IDataErrorInfo.this[string propertyName] => getError(propertyName);
+        string IDataErrorInfo.this[string propertyName] => GetError(propertyName);
 
         /// <summary>
         /// Checks all validation rules on this object (<see cref="Rules"/>) and throws an AggregateException on errors.
