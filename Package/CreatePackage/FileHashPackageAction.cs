@@ -71,13 +71,13 @@ namespace OpenTap.Package
     }
 
     /// <summary> CLI Action to verify the installed packages by checking their hashes. </summary>
-    [Display("verify", "Verifies installed packages by checking their hashes.", "package")]
+    [Display("verify", "Verify the integrity of one or all installed packages by checking their fingerprints.", "package")]
     class VerifyPackageHashes : ICliAction
     {
         static TraceSource log = Log.CreateSource("Verify");
 
         /// <summary> Verify a specific package. </summary>
-        [UnnamedCommandLineArgument("Package", Required = false)]
+        [UnnamedCommandLineArgument("package", Required = false)]
         public string Package { get; set; }
 
         int exitCode;

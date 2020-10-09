@@ -9,13 +9,13 @@ using System.Threading;
 namespace OpenTap.Package
 {
 
-    [Display("test", Group: "package", Description: "Runs tests on one or more packages.")]
+    [Display("test", Group: "package", Description: "Run tests on one or more packages.")]
     public class PackageTestAction : PackageAction
     {
-        [UnnamedCommandLineArgument("Package names", Required = true)]
+        [UnnamedCommandLineArgument("package(s)", Required = true)]
         public string[] Packages { get; set; }
 
-        [CommandLineArgument("ignore-missing", Description = "Ignore names of packages that could not be found.", ShortName = "i")]
+        [CommandLineArgument("ignore-missing", Description = "Ignore packages in <package(s)> that are not currently installed.", ShortName = "i")]
         public bool IgnoreMissing { get; set; }
 
         public override int Execute(CancellationToken cancellationToken)
@@ -41,7 +41,7 @@ namespace OpenTap.Package
                     installer.PackagePaths.Add(source.PackageDefFilePath);
                 else if (!IgnoreMissing)
                 {
-                    log.Error("Could not find installed plugin named '{0}'", pack);
+                    log.Error("Package '{0}' is not installed", pack);
                     anyUnrecognizedPlugins = true;
                 }
             }

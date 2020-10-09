@@ -31,9 +31,9 @@ namespace OpenTap.Cli
             var props = td.GetMembers();
 
             ap.AllOptions.Add("help", 'h', false, "Write help information.");
-            ap.AllOptions.Add("verbose", 'v', false, "Show verbose/debug level log messages.");
-            ap.AllOptions.Add("color", 'c', false, "Color messages according to their level.");
-            ap.AllOptions.Add("quiet", 'q', false, "Quiets console logging.");
+            ap.AllOptions.Add("verbose", 'v', false, "Show verbose/debug-level log messages.");
+            ap.AllOptions.Add("color", 'c', false, "Color messages according to their severity.");
+            ap.AllOptions.Add("quiet", 'q', false, "Quiet console logging.");
 
             var argToProp = new Dictionary<string, IMemberData>();
             var unnamedArgToProp = new List<IMemberData>();

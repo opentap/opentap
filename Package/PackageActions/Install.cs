@@ -38,7 +38,7 @@ namespace OpenTap.Package
         /// <summary>
         /// This is used when specifying the install action through the CLI. If you need to specify multiple packages with different version numbers, use <see cref="PackageReferences"/>
         /// </summary>
-        [UnnamedCommandLineArgument("Packages", Required = true)]
+        [UnnamedCommandLineArgument("package(s)", Required = true)]
         public string[] Packages { get; set; }
         
         [CommandLineArgument("check-only", Description = "Checks if the selected package(s) can be installed, but does not install or download them.")]
