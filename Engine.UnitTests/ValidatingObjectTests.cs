@@ -35,6 +35,29 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual("", test.Error);
         }
 
+        private class DerivedValidatingTest : ValidatingObject
+        {
+            public double Freq { get; set; }
+
+            protected override string GetError(string propertyName = null)
+            {
+                return "Derived error";
+            }
+
+            public DerivedValidatingTest()
+            {
+                Rules.Add(() => Freq > 10, "Error", "Freq");
+            }
+        }
+
+        [Test]
+        public void ReturnInheritErrorTest()
+        {
+            DerivedValidatingTest test = new DerivedValidatingTest();
+            test.Freq = 5;
+            Assert.AreEqual("Derived error", test.Error);
+        }
+
         #region CallOrderTest
         private class CallOrderTestObject : ValidatingObject
         {
