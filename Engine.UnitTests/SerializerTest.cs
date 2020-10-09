@@ -2203,4 +2203,34 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(inst.Password.ToString(), inst2.Password.ToString());
         }
     }
+
+    public class XmlTextAttributeTest
+    {
+        public enum Mode
+        {
+            A,
+            B,
+            C
+        }
+
+        public class SimpleXmlTestAttribute
+        {
+            [XmlText(Type = typeof(Mode))]
+            public Mode Value { get; set; }
+        }
+        [Test]
+        public void SimpleXmlTextAttributeTest()
+        {
+            var myGroup1 = new SimpleXmlTestAttribute { Value = Mode.C };
+            var str = new TapSerializer().SerializeToString(myGroup1);
+            var xml = XDocument.Load(new MemoryStream(Encoding.UTF8.GetBytes(str)));
+
+
+            var elem = xml.Element("SimpleXmlTestAttribute");
+            Assert.IsNotNull(elem);
+            Assert.AreEqual(elem.Value, nameof(Mode.C));
+            // Should not have child element Value since it is serialized as XmlText
+            Assert.IsNull(elem.Element("Value"));
+        }
+    }
 }
