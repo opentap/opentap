@@ -71,6 +71,26 @@ namespace OpenTap.Package.UnitTests
     [TestFixture]
     public class CliTests
     {
+        [OneTimeSetUp]
+        public static void CreateOpenTAPPackage()
+        {
+            string installDir = Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location);
+            if (!File.Exists(Path.Combine(installDir, "Packages/OpenTAP/package.xml")))
+            {
+                string opentapPackageXmlPath;
+                if (OperatingSystem.Current == OpenTap.OperatingSystem.Linux)
+                    opentapPackageXmlPath = "../../opentap_linux64.package.xml";
+                else
+                    opentapPackageXmlPath = "../../opentap.x86.package.xml";
+                // Sign package is needed to create opentap
+                string packageXml = CreateOpenTapPackageXmlWithoutSignElement(opentapPackageXmlPath);
+                string createOpenTap = $"create -v {packageXml} --install -o Packages/OpenTAP.TapPackage";
+                string output = RunPackageCliWrapped(createOpenTap, out int exitCode, installDir);
+                Assert.AreEqual(0, exitCode, "Error creating OpenTAP package. Log:\n" + output);
+                File.Delete(packageXml);
+            }
+        }
+
         [Test]
         public void InstallLocalFile()
         {
@@ -281,6 +301,7 @@ namespace OpenTap.Package.UnitTests
             DummyPackageGenerator.InstallDummyPackage(); // We need to have "Dummy" installed before we can create a package that depends on it.
             var depDef = new PackageDef();
             depDef.Name = "Dependency";
+            depDef.OS="Windows,Linux";
             depDef.Version = SemanticVersion.Parse("1.0");
             depDef.AddFile("Dependency.txt");
             depDef.Dependencies.Add(new PackageDependency("Dummy", VersionSpecifier.Parse("1.0")));
@@ -290,6 +311,7 @@ namespace OpenTap.Package.UnitTests
             DummyPackageGenerator.InstallDummyPackage("Dependency");
             var dummyDef = new PackageDef();
             dummyDef.Name = "Dummy";
+            dummyDef.OS="Windows,Linux";
             dummyDef.Version = SemanticVersion.Parse("1.0");
             dummyDef.AddFile("Dummy.txt");
             dummyDef.Dependencies.Add(new PackageDependency("Dependency", VersionSpecifier.Parse("1.0")));
@@ -325,13 +347,13 @@ namespace OpenTap.Package.UnitTests
             try
             {
                 int exitCode;
-                string output = RunPackageCli("install NoDepsPlugin -f -y", out exitCode);
-                Assert.AreEqual(0, exitCode, "Unexpected exit code");
+                string output = RunPackageCli("install NoDepsPlugin -f -y --os Windows", out exitCode);
+                Assert.AreEqual(0, exitCode, "Unexpected installation exit code");
                 StringAssert.Contains("NoDepsPlugin", output);
                 Assert.IsTrue(File.Exists("Packages/NoDepsPlugin/Tap.Plugins.NoDepsPlugin.dll"));
 
                 output = RunPackageCli("uninstall NoDepsPlugin", out exitCode);
-                Assert.AreEqual(0, exitCode, "Unexpected exit code");
+                Assert.AreEqual(0, exitCode, "Unexpected uninstallation exit code");
                 StringAssert.Contains("NoDepsPlugin", output);
                 Assert.IsFalse(File.Exists("Packages/NoDepsPlugin/Tap.Plugins.NoDepsPlugin.dll"));
             }
@@ -376,7 +398,7 @@ namespace OpenTap.Package.UnitTests
             output = RunPackageCli("install " + dep1File, out exitCode);
             Assert.AreEqual(0, exitCode, "Unexpected exit code2: " + output);
 
-            Assert.IsTrue(File.Exists("SubDir\\UninstallText.txt"), "File1 should exist");
+            Assert.IsTrue(File.Exists("SubDir/UninstallText.txt"), "File1 should exist");
             Assert.IsFalse(File.Exists("UninstallText.txt"), "File0 should not exist");
         }
 
@@ -443,6 +465,7 @@ namespace OpenTap.Package.UnitTests
         {
             var def = new PackageDef();
             def.Name = "Dummy2";
+            def.OS = "Windows,Linux";
             def.Version = SemanticVersion.Parse("1.0");
             def.AddFile("Dummy.txt");
             def.Dependencies.Add(new PackageDependency("Missing", VersionSpecifier.Parse("1.0")));
@@ -482,24 +505,8 @@ namespace OpenTap.Package.UnitTests
             Assert.IsFalse(installedAfter.Any(p => p.Name == packageName), "Package '" + packageName + "' was not uninstalled.");
         }
 
-        internal static void CreateOpenTAPPackage()
-        {
-            string installDir = Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location);
-            string opentapPackageXmlPath = "Packages/OpenTap/package.xml";
-            if (!File.Exists(Path.Combine(installDir, opentapPackageXmlPath)))
-            {
-                // Sign package is needed to create opentap
-                string packageXml = CreateOpenTapPackageXmlWithoutSignElement("../../opentap.x86.package.xml");
-                string createOpenTap = $"create -v {packageXml} --install -o Packages/OpenTAP.TapPackage";
-                string output = RunPackageCliWrapped(createOpenTap, out int exitCode, installDir);
-                Assert.AreEqual(0, exitCode, "Error creating OpenTAP package. Log:\n" + output);
-                File.Delete(packageXml);
-            }
-        }
-
         private static string RunPackageCli(string args, out int exitCode, string workingDir = null)
         {
-            CreateOpenTAPPackage();
             return RunPackageCliWrapped(args, out exitCode, workingDir);
         }
 
@@ -524,7 +531,7 @@ namespace OpenTap.Package.UnitTests
 
         private static string RunPackageCliWrapped(string args, out int exitCode, string workingDir, string fileName = null)
         {
-            if (fileName == null) fileName = Path.GetFileName(Path.Combine(Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location), "tap.exe"));
+            if (fileName == null) fileName = Path.GetFileName(Path.Combine(Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location), "tap"));
             var startinfo = new ProcessStartInfo
             {
                 FileName = fileName,

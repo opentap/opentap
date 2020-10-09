@@ -978,6 +978,7 @@ namespace OpenTap.Engine.UnitTests
             finally
             {
                 UserInput.SetInterface(null);
+                EngineSettings.Current.PromptForMetaData = false;
             }
         }
 
@@ -1028,6 +1029,7 @@ namespace OpenTap.Engine.UnitTests
             finally
             {
                 UserInput.SetInterface(null);
+                EngineSettings.Current.PromptForMetaData = false;
             }
         }
 
@@ -1647,29 +1649,25 @@ namespace OpenTap.Engine.UnitTests
             
             Assert.AreEqual(2, plan1.ChildTestSteps.Count);
             Assert.AreEqual(false, tapThread1.AbortToken.IsCancellationRequested);
-            Assert.AreEqual(true, plan1.IsRunning);
+            Assert.AreEqual(true, plan1.IsRunning, "1 Running");
 
             Assert.AreEqual(3, plan2.ChildTestSteps.Count);
             Assert.AreEqual(false, tapThread2.AbortToken.IsCancellationRequested);
-            Assert.AreEqual(true, plan2.IsRunning);
+            Assert.AreEqual(true, plan2.IsRunning, "2 Running");
 
 
             tapThread1.Abort();
-            Assert.AreEqual(true, tapThread1.AbortToken.IsCancellationRequested);
-            Assert.AreEqual(false, tapThread2.AbortToken.IsCancellationRequested);
+            Assert.AreEqual(true, tapThread1.AbortToken.IsCancellationRequested, "Abort 1.1");
+            Assert.AreEqual(false, tapThread2.AbortToken.IsCancellationRequested, "Abort 1.2");
 
             tapThread2.Abort();
-            Assert.AreEqual(true, tapThread1.AbortToken.IsCancellationRequested);
-            Assert.AreEqual(true, tapThread2.AbortToken.IsCancellationRequested);
-
-
-            Assert.AreEqual(true, plan1.IsRunning);
-            Assert.AreEqual(true, plan2.IsRunning);
+            Assert.AreEqual(true, tapThread1.AbortToken.IsCancellationRequested, "Abort 2.1");
+            Assert.AreEqual(true, tapThread2.AbortToken.IsCancellationRequested, "Abort 2.2");
 
             WaitHandle.WaitAll(new WaitHandle[] { ewhPlan1StoppedRunning, ewhPlan2StoppedRunning });
 
-            Assert.AreEqual(false, plan1.IsRunning);
-            Assert.AreEqual(false, plan2.IsRunning);
+            Assert.AreEqual(false, plan1.IsRunning, "1 Running");
+            Assert.AreEqual(false, plan2.IsRunning, "2 Running");
         }
 
         [Test]
@@ -1922,7 +1920,6 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
-        [Repeat(10)]
         public void OpenCloseOrder()
         {
             var instrA = new CrashInstrument() {OpenThrow = true,CloseThrow = true, Name= "A"};
@@ -1946,7 +1943,6 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
-        [Repeat(10)]
         public void OpenCloseOrderLazyRM()
         {
             var lastrm = EngineSettings.Current.ResourceManagerType;

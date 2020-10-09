@@ -188,32 +188,44 @@ TestLinuxPlan:
   script:
         - ln -sf $PWD/bin/Release/publish/tap /bin
         - check_exit_code () { if [ $exit_code -eq $1 ]; then echo "OK"; else echo "FAIL ($exit_code)"; false; fi }
+        - echo "tap run unit test"
         - tap run -v Engine.UnitTests/TestTestPlans/testMultiReferencePlan.TapPlan --ignore-load-errors || exit_code=$?
         - check_exit_code 20
+        - echo "tap sdk gitversion unit tests"
         - tap sdk gitversion -v       # verify that gitversion works.
         - tap sdk gitversion --log 10 # verify that gitversion log works.
+        - echo "tap package create/verify unit tests"
         - tap package verify || exit_code=$?
         - check_exit_code 2
+        - cp *.package.xml bin/ # for Package NUnit tests
         - sed -i "/Sign Certificate/ d" opentap_linux64.package.xml
         - cd bin/Release/publish
         - rm -rf Packages/*
         - tap package create --install ../../../opentap_linux64.package.xml -o OpenTAP.TapPackage
         - tap | grep Interface
-        - mkdir test
-        - tap package install OpenTAP.TapPackage --target test
-        - cd test
+        - mkdir ../test
+        - tap package install OpenTAP.TapPackage --target ../test
+        - cd ../test
         - ./tap | grep Interface
         - ./tap package verify OpenTAP
         - cd -
         - mkdir Packages/SDK
         - touch '../../../sdk/Examples/OpenTAP Developer Guide.pdf'
-        - cp -r ../../../sdk/Examples Packages/SDK
-        - cp    ../../../Package/PackageSchema.xsd Packages/SDK
-        - tap package create -v ../../../sdk/sdk.package.xml -o SDK.TapPackage
-        - tap package install SDK.TapPackage --target test
-        - cd test
+        - ln -s ../../../../../sdk/Examples Packages/SDK
+        - ln -s ../../../../../Package/PackageSchema.xsd Packages/SDK
+        - tap package create ../../../sdk/sdk.package.xml -o SDK.TapPackage
+        - tap package install SDK.TapPackage --target ../test
+        - cd ../test
         - ./tap | grep Interface
         - ./tap package verify SDK
+        - cd -
+        - echo "Engine NUnit tests"
+        - dotnet vstest OpenTap.UnitTests.dll --logger:"console;verbosity=detailed"
+        - echo "Package NUnit tests"
+        - rm -rf Packages
+        - cp -r ../../../Package.UnitTests/Packages .
+        - dotnet vstest OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
+
 
 TestUbuntu:
   stage: test
