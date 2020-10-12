@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Xml.Serialization;
@@ -75,6 +76,7 @@ namespace OpenTap.Package
     class VerifyPackageHashes : ICliAction
     {
         static TraceSource log = Log.CreateSource("Verify");
+        static string Target = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
         /// <summary> Verify a specific package. </summary>
         [UnnamedCommandLineArgument("Package", Required = false)]
@@ -105,19 +107,28 @@ namespace OpenTap.Package
                 }
                 else
                 {
-                    var hash2 = new FileHashPackageAction.Hash(FileHashPackageAction.hashFile(file.FileName));
+                    // Make file.FileName Linux friendly
+                    if(file.FileName.Contains('\\'))
+                    {
+                        string repl = file.FileName.Replace('\\', '/');
+                        log.Debug("Replacing '\\' with '/' in {0}", file.FileName);
+                        file.FileName = repl;
+                    }
+                    string fullpath = Path.Combine(Target, file.FileName);
+                    var hash2 = new FileHashPackageAction.Hash(FileHashPackageAction.hashFile(fullpath));
                     if (false == hash2.Equals(hash))
                     {
-                        if (File.Exists(file.FileName))
+                        if (File.Exists(fullpath))
                         {
                             brokenFiles.Add((file, "has non-matching checksum."));
+                            log.Debug("Hash does not match for '{0}'", file.FileName);
                         }
                         else
                         {
                             brokenFiles.Add((file, "is missing."));
+                            log.Debug("File '{0}' is missing", file.FileName);
                         }
                         ok = false;
-                        log.Debug("Hash does not match for '{0}'", file.FileName);
                     }
                     else
                     {
@@ -128,7 +139,7 @@ namespace OpenTap.Package
             void print_issues()
             {
                 foreach (var x in brokenFiles)
-                    log.Info("The file '{0}' {1}", x.Item1.FileName, x.Item2);
+                    log.Info("File '{0}' {1}", x.Item1.FileName, x.Item2);
             }
             if (!ok)
             {
@@ -153,7 +164,7 @@ namespace OpenTap.Package
 
         int ICliAction.Execute(CancellationToken cancellationToken)
         {
-            var installation = new Installation(Path.GetDirectoryName(typeof(TestPlan).Assembly.Location));
+            var installation = new Installation(Target);
             var packages = installation.GetPackages();
             if (string.IsNullOrEmpty(Package))
             {
@@ -166,7 +177,7 @@ namespace OpenTap.Package
                 if(pkg == null)
                 {
                     log.Error("Unable to locate package '{0}'", Package);
-                    log.Info("Installed packages are: {0}", string.Join(", ", packages.Select(x => x.Name)));
+                    log.Info("Installed packages: {0}", string.Join(", ", packages.Select(x => x.Name)));
                     return 1;
                 }  
                 verifyPackage(pkg);

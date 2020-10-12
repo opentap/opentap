@@ -192,6 +192,8 @@ TestLinuxPlan:
         - tap package verify || exit_code=$?
         - check_exit_code 2
         - sed -i "/Sign Certificate/ d" opentap_linux64.package.xml
+        - sed -i -e '/File Path/ s!Dependencies/!Dependencies\\!' opentap_linux64.package.xml
+        - sed -i -e '/SourcePath/ s!dotnet_library_license.txt!.\\dotnet_library_license.txt!' opentap_linux64.package.xml
         - cd bin/Release/publish
         - rm -rf Packages/*
         - tap package create --install ../../../opentap_linux64.package.xml -o OpenTAP.TapPackage
@@ -200,8 +202,9 @@ TestLinuxPlan:
         - tap package install OpenTAP.TapPackage --target test
         - cd test
         - ./tap | grep Interface
-        - ./tap package verify OpenTAP
+        - sed -i '/File Path/ s!Dependencies/!Dependencies\\!' Packages/OpenTAP/package.xml
         - cd -
+        - test/tap package verify OpenTAP
         - mkdir Packages/SDK
         - touch '../../../sdk/Examples/OpenTAP Developer Guide.pdf'
         - cp -r ../../../sdk/Examples Packages/SDK
