@@ -139,7 +139,7 @@ namespace OpenTap.Package
                     if (File.Exists(fileName) && item.SourcePath == null)
                     {
                         // this is to support building everything to the root folder. This way the developer does not have to specify SourcePath.
-                        log.Info("Specified file '{0}' was not found, using file '{1}' as source instead. Consider setting SourcePath to remove this warning.", item.FileName,fileName);
+                        log.Warning("Specified file '{0}' was not found, using file '{1}' as source instead. Consider setting SourcePath to remove this warning.", item.FileName,fileName);
                         item.SourcePath = fileName;
                     }
                     else
@@ -194,9 +194,21 @@ namespace OpenTap.Package
             List<PackageFile> newEntries = new List<PackageFile>();
             foreach (PackageFile fileEntry in fileEntries)
             {
+                // Make SourcePath and RelativeDestinationPath Linux friendly
+                if(fileEntry.SourcePath != null && fileEntry.SourcePath.Contains('\\'))
+                {
+                    log.Info($"File path ({fileEntry.SourcePath}) in package definition contains `\\`, please consider replacing with `/`.");
+                    fileEntry.SourcePath = fileEntry.SourcePath.Replace('\\', '/');
+                }
+                if(fileEntry.RelativeDestinationPath.Contains('\\'))
+                {
+                    log.Info($"File path ({fileEntry.RelativeDestinationPath}) in package definition contains `\\`, please consider replacing with `/`.");
+                    fileEntry.RelativeDestinationPath = fileEntry.RelativeDestinationPath.Replace('\\', '/');
+                }
+
                 if (fileEntry.FileName.Contains('*') || fileEntry.FileName.Contains('?'))
                 {
-                    string[] segments = fileEntry.FileName.Split('/', '\\');
+                    string[] segments = fileEntry.FileName.Split('/');
                     int fixedSegmentCount = 0;
                     while (fixedSegmentCount < segments.Length)
                     {
@@ -222,7 +234,7 @@ namespace OpenTap.Package
                                 options.Evaluation.CaseInsensitive = false;
                             else
                                 options.Evaluation.CaseInsensitive = true;
-                            var globber = DotNet.Globbing.Glob.Parse(fileEntry.FileName,options);
+                            var globber = DotNet.Globbing.Glob.Parse(fileEntry.FileName, options);
                             List<string> matches = new List<string>();
                             foreach (string file in files)
                             {
@@ -741,7 +753,7 @@ namespace OpenTap.Package
                 foreach (PackageFile file in inputPaths)
                 {
                     var sw = Stopwatch.StartNew();
-                    var relFileName = file.RelativeDestinationPath.Replace('\\', '/'); // Use forward slash as directory separators
+                    var relFileName = file.RelativeDestinationPath;
                     var ZipPart = zip.CreateEntry(relFileName, System.IO.Compression.CompressionLevel.Optimal);
                     
                     using (var instream = File.OpenRead(file.FileName))
