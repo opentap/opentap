@@ -9,6 +9,7 @@ namespace OpenTap.Package.UnitTests
 {
     internal class CsProj
     {
+        private string Filename => "test.csproj";
         public List<string> PropertyGroups { get; set; }
         public List<string> ItemGroups { get; set; }
         public List<string> Imports { get; set; }
@@ -32,51 +33,36 @@ namespace OpenTap.Package.UnitTests
         <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
         <TargetFrameworkVersion></TargetFrameworkVersion>
         <TargetFramework>netstandard2.0</TargetFramework>
+        <OutDir>bin</OutDir>
     </PropertyGroup>"
             };
             ItemGroups = new List<string>();
-            
             Imports = new List<string>()
             {
                 @"
 <Import Project=""..\OpenTap.targets"" />"
             };
         }
-    }
-
-    [TestFixture]
-    public class ProjectBuildTest
-    {
-        // Current directory is assumed to be the OutputFolder containing tap.exe etc.
-        private string WorkingDirectory => Path.Combine(Directory.GetCurrentDirectory(), "buildTestDir");
-
-        private static string FileRepository => Path.Combine(Directory.GetCurrentDirectory(), "TapPackages");
-        private string OutputFile => Path.Combine(WorkingDirectory, "obj", "test.opentap.g.props");
-        private string Filename => Path.Combine(WorkingDirectory, "test.csproj");
-
-        public ProjectBuildTest()
+        
+        public (string Stdout, string Stderr, int ExitCode) Build()
         {
-            if (Directory.EnumerateFiles(Directory.GetCurrentDirectory(), "OpenTap.targets").Any() == false)
-                throw new Exception(
-                    $"OpenTap.targets not found in {Directory.GetCurrentDirectory()}. Tests cannot continue.");
-        }
+            using (var writer = new StreamWriter(Path.Combine(ProjectBuildTest.WorkingDirectory, Filename)))
+                writer.Write(this.ToString());
 
-        private void Cleanup()
-        {
-            if (new DirectoryInfo(WorkingDirectory).Exists)
-                Directory.Delete(WorkingDirectory, true);
-            Directory.CreateDirectory(WorkingDirectory);
-        }
-
-        private (string Stdout, string Stderr, int ExitCode) Build()
-        {
+            if (OperatingSystem.Current != OperatingSystem.Windows)
+            {
+                // // The MSBuild generator is sometimes too eager to skip steps on Linux -- make sure targets are run
+                if (File.Exists(ProjectBuildTest.OutputFile))
+                    File.Delete(ProjectBuildTest.OutputFile);
+            }
+            
             var process = new Process
             {
                 StartInfo =
                 {
                     FileName = "dotnet",
                     Arguments = $"build {Filename} --verbosity normal",
-                    WorkingDirectory = WorkingDirectory,
+                    WorkingDirectory = ProjectBuildTest.WorkingDirectory,
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -85,28 +71,79 @@ namespace OpenTap.Package.UnitTests
             };
 
             process.Start();
-            process.WaitForExit(1000);
+            process.WaitForExit(20000);
 
             return (process.StandardOutput.ReadToEnd(), process.StandardError.ReadToEnd(), process.ExitCode);
         }
-
-        private string GetGeneratedFileContent()
+        
+        public string GetGeneratedFileContent()
         {
-            using (var reader = new StreamReader(OutputFile))
+            using (var reader = new StreamReader(ProjectBuildTest.OutputFile))
             {
                 return reader.ReadToEnd();
             }
         }
+    }
 
+    [TestFixture]
+    public class ProjectBuildTest
+    {
+        // Current directory is assumed to be the OutputFolder containing tap.exe etc.
+        public static string WorkingDirectory => Path.Combine(Directory.GetCurrentDirectory(), "buildTestDir");
+        public static string OutputFile => Path.Combine(WorkingDirectory, "obj", "test.opentap.g.props");
+
+        private static string FileRepository => Path.Combine(Directory.GetCurrentDirectory(), "TapPackages");
+        
+
+        public ProjectBuildTest()
+        {
+            var packages = Directory.EnumerateFiles(FileRepository, "*.TapPackage").ToList();
+            var str = string.Join("\n", packages);
+            
+            StringAssert.Contains("MyPlugin4", str);
+            StringAssert.Contains("MyPlugin5", str);
+            
+            if (Directory.EnumerateFiles(Directory.GetCurrentDirectory(), "OpenTap.targets").Any() == false)
+                throw new Exception(
+                    $"OpenTap.targets not found in {Directory.GetCurrentDirectory()}. Tests cannot continue.");
+
+            var binDir = Path.Combine(WorkingDirectory, "bin");
+
+            if (Directory.Exists(WorkingDirectory) == false)
+                Directory.CreateDirectory(WorkingDirectory);
+            if (Directory.Exists(binDir) == false)
+                Directory.CreateDirectory(binDir);
+
+            // We need to create a new OpenTAP installation because source builds behave a little differently from package installations regarding the package manager.
+            // Since we are manually importing the targets file
+            // '<Import Project=""..\OpenTap.targets"" />'
+            // , which points at the file 'Keysight.OpenTap.Sdk.MSBuild.dll' in the output directory rather than a nuget package, we are still testing the correct files.
+            if (Directory.EnumerateFiles(binDir, "OpenTap.dll").Any() == false)
+                CreateOpenTapInstall(binDir);
+        }
+
+        private void CreateOpenTapInstall(string target)
+        {
+            var process = new Process
+            {
+                StartInfo =
+                {
+                    FileName = "tap",
+                    Arguments = $"package install OpenTAP -f -t {target}",
+                    WorkingDirectory = Directory.GetCurrentDirectory(),
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                }
+            };
+            process.Start();
+            process.WaitForExit();
+        }
         [Test]
         public void NoReferencesTest()
         {
-            Cleanup();
-            var csProj = new CsProj();
-            using (var writer = new StreamWriter(Filename))
-                writer.Write(csProj.ToString());
-
-            var result = Build();
+            var result = new CsProj().Build();
 
             StringAssert.Contains("Got 0 OpenTapPackageReference targets.", result.Stdout);
             Assert.AreEqual(result.ExitCode, 0);
@@ -116,97 +153,92 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void OneReferenceDefaultTest()
         {
-            Cleanup();
             var csProj = new CsProj();
             csProj.ItemGroups.Add($@"
    <ItemGroup>
-	  <OpenTapPackageReference Repository=""{FileRepository}"" Include=""MyPlugin1"" />	  
+	  <OpenTapPackageReference Include=""MyPlugin4"" Repository=""{FileRepository}"" />	  
   </ItemGroup>
 ");
-            using (var writer = new StreamWriter(Filename))
-                writer.Write(csProj.ToString());
-
-            var result = Build();
+            csProj.ItemGroups.Add($@"
+   <ItemGroup>
+	  <OpenTapPackageReference Include=""MyPlugin4"" Repository=""{FileRepository}"" />	  
+  </ItemGroup>
+");
+            var result = csProj.Build();
 
             StringAssert.Contains("Got 1 OpenTapPackageReference targets.", result.Stdout);
-            StringAssert.Contains("MyPlugin1 Include=\"**\" Exclude=\"Dependencies/**\"", result.Stdout);
+            StringAssert.Contains("MyPlugin4 Include=\"**\" Exclude=\"Dependencies/**\"", result.Stdout);
+            StringAssert.Contains("Skipped duplicate entries", result.Stdout);
+            StringAssert.Contains($@"<OpenTapPackageReference Include=""MyPlugin4"" Repository=""{FileRepository}"" />", result.Stdout);
             Assert.AreEqual(result.ExitCode, 0);
-            
+
             Assert.True(File.Exists(OutputFile));
-            var Generated = GetGeneratedFileContent();
-            StringAssert.Contains("MyPlugin1.dll", Generated);
+            var Generated = csProj.GetGeneratedFileContent();
+            StringAssert.Contains("MyPlugin4.dll", Generated);
         }
 
         [Test]
         public void TwoEqualReferencesDefaultTest()
         {
-            Cleanup();
             var csProj = new CsProj();
             csProj.ItemGroups.Add($@"
    <ItemGroup>
-	  <OpenTapPackageReference Repository=""{FileRepository}"" Include=""MyPlugin1"" />	  
+	  <OpenTapPackageReference Repository=""{FileRepository}"" Include=""MyPlugin4"" />	  
   </ItemGroup>
 ");
-            
+
             csProj.ItemGroups.Add($@"
    <ItemGroup>
-	  <OpenTapPackageReference Repository=""{FileRepository}"" Include=""MyPlugin2"" />	  
+	  <OpenTapPackageReference Repository=""{FileRepository}"" Include=""MyPlugin5"" />	  
   </ItemGroup>
 ");
-            
-            using (var writer = new StreamWriter(Filename))
-                writer.Write(csProj.ToString());
 
-            var result = Build();
+            var result = csProj.Build();
 
             StringAssert.Contains("Got 2 OpenTapPackageReference targets.", result.Stdout);
-            StringAssert.Contains("MyPlugin1 Include=\"**\" Exclude=\"Dependencies/**\"", result.Stdout);
-            StringAssert.Contains("MyPlugin2 Include=\"**\" Exclude=\"Dependencies/**\"", result.Stdout);
+            StringAssert.Contains("MyPlugin4 Include=\"**\" Exclude=\"Dependencies/**\"", result.Stdout);
+            StringAssert.Contains("MyPlugin5 Include=\"**\" Exclude=\"Dependencies/**\"", result.Stdout);
             Assert.AreEqual(result.ExitCode, 0);
-            
+
             Assert.True(File.Exists(OutputFile));
-            var Generated = GetGeneratedFileContent();
-            StringAssert.Contains( "MyPlugin1.dll", Generated);
+            var Generated = csProj.GetGeneratedFileContent();
+            StringAssert.Contains("MyPlugin4.dll", Generated);
+            StringAssert.Contains("MyPlugin5.dll", Generated);
         }
 
         [Test]
         public void TwoEqualReferencesSpecifiedTest()
         {
-            Cleanup();
             var csProj = new CsProj();
             csProj.ItemGroups.Add($@"
    <ItemGroup>
-	  <OpenTapPackageReference Repository=""{FileRepository}"" Include=""MyPlugin1"" IncludeAssemblies=""test1;test2"" ExcludeAssemblies=""test3;test4"" />	  
+	  <OpenTapPackageReference Repository=""{FileRepository}"" Include=""MyPlugin4"" IncludeAssemblies=""test1;test2"" ExcludeAssemblies=""test3;test4"" />	  
   </ItemGroup>
 ");
-            
+
             csProj.ItemGroups.Add($@"
    <ItemGroup>
-	  <OpenTapPackageReference Repository=""{FileRepository}"" Include=""MyPlugin2"" IncludeAssemblies=""test1;test2"" ExcludeAssemblies=""test3;test4"" />	  
+	  <OpenTapPackageReference Repository=""{FileRepository}"" Include=""MyPlugin5"" IncludeAssemblies=""test1;test2"" ExcludeAssemblies=""test3;test4"" />	  
   </ItemGroup>
 ");
 
-            using (var writer = new StreamWriter(Filename))
-                writer.Write(csProj.ToString());
-
-            var result = Build();
+            var result = csProj.Build();
 
             StringAssert.Contains("Got 2 OpenTapPackageReference targets.", result.Stdout);
-            StringAssert.Contains("MyPlugin1 Include=\"test1,test2\" Exclude=\"test3,test4\"", result.Stdout);
-            StringAssert.Contains("MyPlugin2 Include=\"test1,test2\" Exclude=\"test3,test4\"", result.Stdout);
+            StringAssert.Contains("MyPlugin4 Include=\"test1,test2\" Exclude=\"test3,test4\"", result.Stdout);
+            StringAssert.Contains("MyPlugin5 Include=\"test1,test2\" Exclude=\"test3,test4\"", result.Stdout);
             Assert.AreEqual(result.ExitCode, 0);
-            
+
             Assert.False(File.Exists(OutputFile));
         }
 
         [Test]
         public void TwoDifferentReferencesSpecifiedTest()
         {
-            Cleanup();
             var csProj = new CsProj();
             csProj.ItemGroups.Add($@"
     <ItemGroup>
-      <OpenTapPackageReference Include=""MyPlugin1"">    
+      <OpenTapPackageReference Include=""MyPlugin4"">    
         <Repository>{FileRepository}</Repository> 
         <IncludeAssemblies>test1;test2</IncludeAssemblies> 
         <ExcludeAssemblies>test3;test4</ExcludeAssemblies>
@@ -215,24 +247,51 @@ namespace OpenTap.Package.UnitTests
 ");
             csProj.ItemGroups.Add($@"
    <ItemGroup>
-	  <OpenTapPackageReference Repository=""{FileRepository}"" Include=""MyPlugin2""> 
+	  <OpenTapPackageReference Repository=""{FileRepository}"" Include=""MyPlugin5""> 
         <IncludeAssemblies>test5;test6</IncludeAssemblies> 
         <ExcludeAssemblies>test7;test8</ExcludeAssemblies>
       </OpenTapPackageReference>
   </ItemGroup>
 ");
 
-            using (var writer = new StreamWriter(Filename))
-                writer.Write(csProj.ToString());
-
-            var result = Build();
+            var result = csProj.Build();
 
             StringAssert.Contains("Got 2 OpenTapPackageReference targets.", result.Stdout);
-            StringAssert.Contains("MyPlugin1 Include=\"test1,test2\" Exclude=\"test3,test4\"", result.Stdout);
-            StringAssert.Contains("MyPlugin2 Include=\"test5,test6\" Exclude=\"test7,test8\"", result.Stdout);
+            StringAssert.Contains("MyPlugin4 Include=\"test1,test2\" Exclude=\"test3,test4\"", result.Stdout);
+            StringAssert.Contains("MyPlugin5 Include=\"test5,test6\" Exclude=\"test7,test8\"", result.Stdout);
             Assert.AreEqual(result.ExitCode, 0);
-            
+
             Assert.False(File.Exists(OutputFile));
+        }
+
+        [Test]
+        public void VSSDKTest()
+        {
+            // Package not available on Linux
+            if (OperatingSystem.Current == OperatingSystem.Linux)
+                return;
+            var csProj = new CsProj();
+            csProj.ItemGroups.Add($@"
+    <ItemGroup>
+<OpenTapPackageReference Include=""Visual Studio SDK"" Repository=""packages.opentap.io"" IncludeAssemblies=""**""  ExcludeAssemblies=""**/*Install**;**stdole**""/> 
+    </ItemGroup>
+            ");
+            var result = csProj.Build();
+
+            StringAssert.Contains("Got 1 OpenTapPackageReference targets.", result.Stdout);
+            StringAssert.Contains(@"Visual Studio SDK Include=""**"" Exclude=""**/*Install**,**stdole**""",
+                result.Stdout);
+
+            Assert.AreEqual(result.ExitCode, 0);
+
+            Assert.True(File.Exists(OutputFile));
+            var Generated = csProj.GetGeneratedFileContent();
+
+            StringAssert.DoesNotContain("OpenTap.VSSdk.Installer.dll", Generated);
+            StringAssert.DoesNotContain("stdole.dll", Generated);
+
+            StringAssert.Contains("OpenTap.VSSdk.Debugger.dll", Generated);
+            StringAssert.Contains("EnvDTE.dll", Generated);
         }
     }
 }

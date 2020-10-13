@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -12,17 +13,11 @@ using System.Text.RegularExpressions;
 using DotNet.Globbing;
 using DotNet.Globbing.Token;
 using Microsoft.Build.Framework;
+using Microsoft.Build.Utilities;
 using Task = Microsoft.Build.Utilities.Task;
 
 namespace Keysight.OpenTap.Sdk.MSBuild
 {
-    internal static class StringExtension
-    {
-        internal static string ExceptLast(this string str)
-        {
-            return str.Substring(0, str.Length - 1);
-        }
-    }
     internal class GlobWrapper : IComparable<GlobWrapper>
     {
         public bool Include { get; }
@@ -35,7 +30,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         public GlobWrapper(string pattern, bool include)
         {
             Include = include;
-            Globber = DotNet.Globbing.Glob.Parse(pattern, _globOptions);
+            Globber = Glob.Parse(pattern, _globOptions);
         }
 
         public int CompareTo(GlobWrapper other)
@@ -102,13 +97,20 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             Globs.Sort();
         }
 
-        public bool Includes(string file)
+        public bool Includes(string file, TaskLoggingHelper log)
         {
             foreach (var glob in Globs)
             {
-                if (glob.Globber.IsMatch(file))
+                try
                 {
-                    return glob.Include;
+                    if (glob.Globber.IsMatch(file))
+                    {
+                        return glob.Include;
+                    }
+                }
+                catch (IndexOutOfRangeException)
+                {
+                    log.LogError($"Error in glob pattern {glob.Globber.ToString()} when testing {file}");
                 }
             }
 
@@ -170,8 +172,34 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             Result.AppendLine("  </ItemGroup>");
         }
 
+        private string ITaskItemString(ITaskItem item)
+        {
+            var include = item.GetMetadata("IncludeAssemblies");
+            var exclude = item.GetMetadata("ExcludeAssemblies");
+            var repo = item.GetMetadata("Repository");
+            var version = item.GetMetadata("Version");
+            
+            var result = $@"<OpenTapPackageReference Include=""{item.ItemSpec}"" ";
+            
+            if (string.IsNullOrWhiteSpace(include) == false)
+                result += $@"IncludeAssemblies=""{include}"" ";
+            if (string.IsNullOrWhiteSpace(exclude) == false)
+                result += $@"ExcludeAssemblies=""{exclude}"" ";
+            if (string.IsNullOrWhiteSpace(repo) == false)
+                result += $@"Repository=""{repo}"" ";
+            if (string.IsNullOrWhiteSpace(version) == false)
+                result += $@"Version=""{version}"" ";
+            
+            result += "/>";
+
+            return result;
+        }
+
         public override bool Execute()
         {
+            if (File.Exists(TargetMsBuildFile))
+                File.Delete(TargetMsBuildFile);
+            
             if (OpenTapPackagesToReference == null || OpenTapPackagesToReference.Length == 0)
             {   // This happens when a .csproj file does not specify any OpenTapPackageReferences -- simply ignore it
                 
@@ -185,7 +213,22 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             Assemblies = new string[] { };
             try
             {
-                var globTasks = GlobTask.Parse(OpenTapPackagesToReference);
+                // Distincting the tasks is not necessary, but it is a much more helpful warning than 
+                // 'No references added from package' which would be given in 'HandlePackage'.
+                var distinctTasks = new List<ITaskItem>(OpenTapPackagesToReference.Length);
+                foreach (var task in OpenTapPackagesToReference)
+                {
+                    if (distinctTasks.Contains(task))
+                        Log.LogWarning($"Duplicate entry '{ITaskItemString(task)}' detected.");
+                    else
+                    {
+                        distinctTasks.Add(task);
+                    }
+                }
+                if (distinctTasks.Count != OpenTapPackagesToReference.Length)
+                    Log.LogWarning("Skipped duplicate entries.");
+                
+                var globTasks = GlobTask.Parse(distinctTasks.ToArray());
                 Log.LogMessage($"Got {globTasks.Count} OpenTapPackageReference targets.");
                 
                 foreach (var task in globTasks)
@@ -233,7 +276,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 .Where(match => match.Groups["name"].Success)
                 .Select(match => match.Groups["name"].Value);
 
-            var matchedDlls = dllsInPackage.Where(globTask.Includes);
+            var matchedDlls = dllsInPackage.Where(x => globTask.Includes(x, Log));
             
             foreach (var dllPath in matchedDlls.Distinct())
             {
@@ -241,11 +284,21 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 
                 // Ensure we don't add references twice if they are matched by multiple patterns
                 if (_added.Contains(absolutedllPath))
+                {
+                    Log.LogMessage($"{absolutedllPath} already added. Not adding again.");
                     continue;
+                }
+
                 _added.Add(absolutedllPath);
 
                 if (IsDotNetAssembly(absolutedllPath))
+                {
                     assembliesInPackage.Add(dllPath);
+                }
+                else
+                {
+                    Log.LogWarning($"{absolutedllPath} not recognized as a DotNet assembly. Reference not added.");
+                }
             }
             
             Log.LogMessage(MessageImportance.Normal,
