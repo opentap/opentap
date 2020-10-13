@@ -164,7 +164,7 @@ namespace OpenTap.Package.UnitTests
                 Directory.GetFiles("TapPackages").ToList().ForEach(f => File.Copy(f, Path.Combine(tempFolder, Path.GetFileName(f)), true));
                 repo.Reset();
                 var anyVersion = new PackageSpecifier(os: "Windows");
-                Assert.AreEqual(7, repo.GetPackages(anyVersion).Count(), "Folder with several packages");
+                Assert.AreEqual(9, repo.GetPackages(anyVersion).Count(), "Folder with several packages");
                 log.Info("Folder with several plugin - SUCCESS");
             }
             finally
