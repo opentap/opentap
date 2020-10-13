@@ -139,7 +139,7 @@ namespace OpenTap.Package
 
         }
 
-        internal static List<PackageDef> GatherPackagesAndDependencyDefs(Installation installation, PackageSpecifier[] pkgRefs, string[] packageNames, string Version, CpuArchitecture arch, string OS, List<IPackageRepository> repositories, bool force, bool includeDependencies, bool askToIncludeDependencies)
+        internal static List<PackageDef> GatherPackagesAndDependencyDefs(Installation installation, PackageSpecifier[] pkgRefs, string[] packageNames, string Version, CpuArchitecture arch, string OS, List<IPackageRepository> repositories, bool force, bool includeDependencies, bool askToIncludeDependencies, bool noDowngrade)
         {
             List<PackageDef> gatheredPackages = new List<PackageDef>();
 
@@ -200,15 +200,38 @@ namespace OpenTap.Package
 
             foreach (var packageReference in packages)
             {
+                var installedPackages = installation.GetPackages();
                 Stopwatch timer = Stopwatch.StartNew();
                 if (File.Exists(packageReference.Name))
                 {
-                    gatheredPackages.Add(PackageDef.FromPackage(packageReference.Name));
+                    var package = PackageDef.FromPackage(packageReference.Name);
+
+                    if (noDowngrade)
+                    {
+                        var installedPackage = installedPackages.FirstOrDefault(p => p.Name == package.Name);
+                        if (installedPackage != null && installedPackage.Version.CompareTo(package.Version) >= 0)
+                        {
+                            log.Info($"The same or a newer version of package '{package.Name}' in already installed.");
+                            continue;
+                        }
+                    }
+                    
+                    gatheredPackages.Add(package);
                     log.Debug(timer, "Found package {0} locally.", packageReference.Name);
                 }
                 else
                 {
                     PackageDef package = PackageActionHelpers.FindPackage(packageReference, force, installation, repositories);
+                    
+                    if (noDowngrade)
+                    {
+                        var installedPackage = installedPackages.FirstOrDefault(p => p.Name == package.Name);
+                        if (installedPackage != null && installedPackage.Version.CompareTo(package.Version) >= 0)
+                        {
+                            log.Info($"The same or a newer version of package '{package.Name}' in already installed.");
+                            continue;
+                        }
+                    }
 
                     if (PackageCacheHelper.PackageIsFromCache(package))
                         log.Debug(timer, "Found package {0} version {1} in local cache", package.Name, package.Version);

@@ -505,6 +505,63 @@ namespace OpenTap.Package.UnitTests
             Assert.IsFalse(installedAfter.Any(p => p.Name == packageName), "Package '" + packageName + "' was not uninstalled.");
         }
 
+        [Test]
+        public void NoDowngradeInstallTest()
+        {
+            var installation = new Installation(Directory.GetCurrentDirectory());
+
+            var package = new PackageDef();
+            package.Name = "NoDowngradeTest";
+            package.Version = SemanticVersion.Parse("1.0.1");
+            var newPath = DummyPackageGenerator.GeneratePackage(package);
+
+            package.Version = SemanticVersion.Parse("1.0.0");
+            var oldPath = DummyPackageGenerator.GeneratePackage(package);
+
+            // Install new version
+            var output = RunPackageCli($"install {newPath}", out int exitCode);
+            Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("installed"), "NoDowngradeTest package was not installed.");
+            var installedVersion = installation.GetPackages()?.FirstOrDefault(p => p.Name == "NoDowngradeTest")?.Version;
+            Assert.IsTrue(installedVersion == SemanticVersion.Parse("1.0.1"), $"NoDowngradeTest installed the wrong version: '{installedVersion}'.");
+            
+            // Install older version with --no-downgrade option. This should not install the old version.
+            output = RunPackageCli($"install --no-downgrade {oldPath}", out exitCode);
+            Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("already installed"), "NoDowngradeTest package was not installed.");
+            installedVersion = installation.GetPackages()?.FirstOrDefault(p => p.Name == "NoDowngradeTest")?.Version;
+            Assert.IsTrue(installedVersion == SemanticVersion.Parse("1.0.1"), $"NoDowngradeTest failed to skip the install: '{installedVersion}'.");
+            
+            // Install older version without --no-downgrade option. This should install the old version.
+            output = RunPackageCli($"install {oldPath}", out exitCode);
+            Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("installed"), "NoDowngradeTest package was not installed.");
+            installedVersion = installation.GetPackages()?.FirstOrDefault(p => p.Name == "NoDowngradeTest")?.Version;
+            Assert.IsTrue(installedVersion == SemanticVersion.Parse("1.0.0"), $"NoDowngradeTest failed to install the old version: '{installedVersion}'.");
+        }
+
+        [Test]
+        public void SkipInstallExactVersionAlreadyInstalledTest()
+        {
+            var package = new PackageDef();
+            package.Name = "ExactVersionTest";
+            package.Version = SemanticVersion.Parse("1.0.1");
+            var path = DummyPackageGenerator.GeneratePackage(package);
+
+            // Install
+            var output = RunPackageCli($"install {path}", out int exitCode);
+            Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("installed"), "ExactVersionTest package was not installed.");
+            
+            // Install the exact same version. This should skip.
+            output = RunPackageCli($"install {package.Name} --version 1.0.1", out exitCode);
+            Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("already installed"), "ExactVersionTest package install was not skipped.");
+            
+            // Install the exact same version with --force. This should not skip.
+            output = RunPackageCli($"install {package.Name} --version 1.0.1 -f", out exitCode);
+            Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("already installed") == false, "ExactVersionTest package install with -f was skipped.");
+            
+            // Install the exact same version from file. This should not skip.
+            output = RunPackageCli($"install {path}", out exitCode);
+            Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("already installed") == false, "ExactVersionTest package install was skipped.");
+        }
+
         private static string RunPackageCli(string args, out int exitCode, string workingDir = null)
         {
             return RunPackageCliWrapped(args, out exitCode, workingDir);

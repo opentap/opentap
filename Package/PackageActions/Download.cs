@@ -84,7 +84,7 @@ namespace OpenTap.Package
             else
                 repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
 
-            List<PackageDef> PackagesToDownload = PackageActionHelpers.GatherPackagesAndDependencyDefs(destinationInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, ForceInstall, InstallDependencies, false);
+            List<PackageDef> PackagesToDownload = PackageActionHelpers.GatherPackagesAndDependencyDefs(destinationInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, ForceInstall, InstallDependencies, false, false);
 
             if (PackagesToDownload == null)
                 return 2;
