@@ -57,6 +57,7 @@ namespace OpenTap
     class LinuxVariant
     {
         public string Name { get; }
+        public static readonly LinuxVariant Debian = new LinuxVariant("debian");
         public static readonly LinuxVariant Ubuntu = new LinuxVariant("ubuntu");
         public static readonly LinuxVariant RedHat = new LinuxVariant("redhat");
         public static readonly LinuxVariant Unknown = new LinuxVariant("linux-x64");
@@ -75,6 +76,11 @@ namespace OpenTap
                         string line;
                         while ((line = str.ReadLine()) != null)
                         {
+                            if(line.Contains("NAME=\"Debian GNU/Linux\""))
+                            {
+                                Current = Debian;
+                                return;
+                            }
                             if(line.Contains("NAME=\"Ubuntu\""))
                             {
                                 Current = Ubuntu;

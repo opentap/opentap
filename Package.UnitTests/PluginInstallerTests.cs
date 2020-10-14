@@ -43,6 +43,7 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
+        [Platform(Exclude="Unix,Linux,MacOsX")] // this test requires super-user rights.
         public void InstallUninstallTestSystemWide()
         {
             var pkg = PluginInstaller.InstallPluginPackage(Directory.GetCurrentDirectory(), "TapPackages/MyPlugin3.TapPackage");  // MyPlugin3.TapPackage is marked as system-wide

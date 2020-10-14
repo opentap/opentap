@@ -296,6 +296,7 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
+        [Platform(Exclude="Unix,Linux,MacOsX")]
         public void CreatePackageDepReuse()
         {
             if (Directory.Exists("Packages2"))

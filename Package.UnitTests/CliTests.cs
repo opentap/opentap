@@ -543,6 +543,7 @@ namespace OpenTap.Package.UnitTests
             var package = new PackageDef();
             package.Name = "ExactVersionTest";
             package.Version = SemanticVersion.Parse("1.0.1");
+            package.OS = "Windows,Linux";
             var path = DummyPackageGenerator.GeneratePackage(package);
 
             // Install
@@ -561,6 +562,7 @@ namespace OpenTap.Package.UnitTests
             output = RunPackageCli($"install {path}", out exitCode);
             Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("already installed") == false, "ExactVersionTest package install was skipped.");
         }
+
 
         private static string RunPackageCli(string args, out int exitCode, string workingDir = null)
         {

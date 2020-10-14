@@ -550,7 +550,7 @@ namespace OpenTap.Package
                                         log.Error($"{Path.GetFileName(depender.FileName)} in this package require assembly {requiredAsm.Name} in version {requiredAsm.Version} while that assembly is already installed through package '{candidatePkg.Name}' in version {candidateAsm.Version}.");
                                     //log.Error($"Please align the version of {requiredAsm.Name} to ensure interoperability with package '{candidate.Key.Name}' or uninstall that package.");
                                     throw new ExitCodeException((int)PackageCreateAction.ExitCodes.AssemblyDependencyError, 
-                                                                $"Please align the version of {requiredAsm.Name} to ensure interoperability with package '{candidatePkg.Name}' or uninstall that package.");
+                                                                $"Please align the version of {requiredAsm.Name} ({candidateAsm.Version} vs {requiredAsm.Version})  to ensure interoperability with package '{candidatePkg.Name}' or uninstall that package.");
                                 }
                             }
                         }

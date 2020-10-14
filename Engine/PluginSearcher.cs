@@ -955,10 +955,7 @@ namespace OpenTap
                 try
                 {
                     type = asm.GetType(this.Name,true);
-                    if (!dict.TryGetValue(type, out _))
-                    {
-                        dict.Add(type, this);
-                    }
+                    dict.GetValue(type, t => this);
                 }
                 catch (Exception ex)
                 {
