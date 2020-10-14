@@ -14,7 +14,7 @@ using OpenTap.Cli;
 
 namespace OpenTap.Sdk.New
 {
-    [Display("vs", "Visual Studio project.", Groups: new[] { "sdk", "new", "integration" })]
+    [Display("vs", "Solution file for Visual Studio projects.", Groups: new[] { "sdk", "new", "integration" })]
     public class GenerateVs : GenerateType
     {
         public override int Execute(CancellationToken cancellationToken)
