@@ -132,8 +132,7 @@ namespace OpenTap
             if (existing != null)
                 return existing;
             if (Name == null)
-                Name = setting.GetDisplayAttribute().Name;
-            
+                Name = setting.GetDisplayAttribute().GetFullName();
             setting.Parameterize(plan, step, Name);
             return Get(Name);
         }
