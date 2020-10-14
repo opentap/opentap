@@ -51,14 +51,6 @@ namespace OpenTap.Package
             
             var compatiblePackages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageReference, compatibleWith);
 
-            // If there were no release version of the package and force is true. Try installing any version.
-            if (force && compatiblePackages.Any() == false && packageReference.Version.PreRelease == null && packageReference.Version.MatchBehavior == VersionMatchBehavior.Exact)
-            {
-                log.Warning($"Could not find a release version of package '{packageReference.Name}'. Trying 'Any' version because --force was specified.");
-                packageReference = new PackageSpecifier(packageReference.Name, VersionSpecifier.Any, packageReference.Architecture, packageReference.OS);
-                compatiblePackages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageReference, compatibleWith);
-            }
-
             // Of the compatible packages, pick the one with the highest version number. If that package is available from several repositories, pick the one with the lowest index in the list in PackageManagerSettings
             PackageDef package = null;
             if (compatiblePackages.Any())
