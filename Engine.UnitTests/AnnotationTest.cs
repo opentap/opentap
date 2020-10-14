@@ -383,9 +383,9 @@ namespace OpenTap.UnitTests
                     icons[IconNames.ParameterizeOnTestPlan].First().Get<IMethodAnnotation>().Invoke();
                     annotation.Read();
                     
-                    Assert.IsTrue(icons[IconNames.ParameterizeOnTestPlan].First().Get<IEnabledAnnotation>().IsEnabled);
-                    Assert.IsTrue(icons[IconNames.Parameterize].First().Get<IEnabledAnnotation>().IsEnabled);
-                    Assert.IsTrue(icons[IconNames.ParameterizeOnParent].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(icons[IconNames.ParameterizeOnTestPlan].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(icons[IconNames.Parameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(icons[IconNames.ParameterizeOnParent].First().Get<IEnabledAnnotation>().IsEnabled);
                     Assert.IsTrue(icons[IconNames.Unparameterize].First().Get<IEnabledAnnotation>().IsEnabled);
                     Assert.IsFalse(icons[IconNames.EditParameter].First().Get<IEnabledAnnotation>().IsEnabled);
                     Assert.IsFalse(icons[IconNames.RemoveParameter].First().Get<IEnabledAnnotation>().IsEnabled);
@@ -451,6 +451,52 @@ namespace OpenTap.UnitTests
             {
                 UserInput.SetInterface(currentUserInterface as IUserInputInterface);
             }
+        }
+        [Test]
+        public void MenuAnnotationTest2()
+        {
+            var currentUserInterface = UserInput.Interface;
+            var menuInterface = new MenuTestUserInterface();
+            UserInput.SetInterface(menuInterface);
+            try
+            {
+                var plan = new TestPlan();
+                var delay = new DelayStep();
+                plan.Steps.Add(delay);
+
+                { // basic functionalities test 
+                    var member = AnnotationCollection.Annotate(delay).GetMember(nameof(DelayStep.DelaySecs));
+                    var menu = member.Get<MenuAnnotation>();
+                    var items = menu.MenuItems;
+
+                    var icons = items.ToLookup(item =>
+                        item.Get<IIconAnnotation>()?.IconName ?? "");
+                    var parameterizeOnTestPlan = icons[IconNames.ParameterizeOnTestPlan].First();
+                    Assert.IsNotNull(parameterizeOnTestPlan);
+
+                    // invoking this method should
+                    var method = parameterizeOnTestPlan.Get<IMethodAnnotation>();
+                    method.Invoke();
+                    Assert.IsNotNull(plan.ExternalParameters.Get("Parameters \\ Time Delay"));
+
+                    member = AnnotationCollection.Annotate(delay).GetMember(nameof(DelayStep.DelaySecs));
+                    menu = member.Get<MenuAnnotation>();
+                    items = menu.MenuItems;
+
+                    icons = items.ToLookup(item =>
+                        item.Get<IIconAnnotation>()?.IconName ?? "");
+                    parameterizeOnTestPlan = icons[IconNames.ParameterizeOnTestPlan].First();
+                    Assert.IsNotNull(parameterizeOnTestPlan);
+                    
+                    // This fails, which it should not.
+                    Assert.IsFalse(parameterizeOnTestPlan.Get<IEnabledAnnotation>().IsEnabled);
+                }
+            }
+            finally
+            {
+                UserInput.SetInterface(currentUserInterface as IUserInputInterface);
+            }
+
         }
 
         /// <summary>
