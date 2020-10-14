@@ -395,6 +395,9 @@ namespace OpenTap
 
         public static bool CanParameter(ITestStepMenuModel menuItemModel) => CanParameter(menuItemModel.Member, menuItemModel.Source);
         
+        static bool isParameterized(ITestStepParent item, IMemberData member) => item.GetParents().Any(parent =>
+            TypeData.GetTypeData(parent).GetMembers().OfType<ParameterMemberData>()
+                .Any(x => x.ParameterizedMembers.Contains((item, Member: member))));
         public static bool CanParameter(IMemberData property, ITestStepParent[] steps )
         {
             if (property != null && property.HasAttribute<System.Xml.Serialization.XmlIgnoreAttribute>())
@@ -409,6 +412,9 @@ namespace OpenTap
             {
                 return false;
             }
+
+            if (steps.Any(step => isParameterized(step, property)))
+                return false;
 
             object converted = null;
             try
