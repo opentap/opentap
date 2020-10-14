@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using NUnit.Framework;
 
 namespace OpenTap.Package.UnitTests
@@ -13,6 +14,7 @@ namespace OpenTap.Package.UnitTests
         public List<string> PropertyGroups { get; set; }
         public List<string> ItemGroups { get; set; }
         public List<string> Imports { get; set; }
+        public ProjectBuildTest ProjectBuildTest { get; set; }
 
         public override string ToString()
         {
@@ -24,8 +26,9 @@ namespace OpenTap.Package.UnitTests
                    "</Project>\n";
         }
 
-        public CsProj()
+        public CsProj(ProjectBuildTest caller)
         {
+            ProjectBuildTest = caller;
             PropertyGroups = new List<string>()
             {
                 @"                   
@@ -39,8 +42,8 @@ namespace OpenTap.Package.UnitTests
             ItemGroups = new List<string>();
             Imports = new List<string>()
             {
-                @"
-<Import Project=""..\OpenTap.targets"" />"
+                $@"
+<Import Project=""{caller.TargetsFile}"" />"
             };
         }
         
@@ -71,7 +74,20 @@ namespace OpenTap.Package.UnitTests
             };
 
             process.Start();
-            process.WaitForExit(20000);
+            var timeLimit = TimeSpan.FromSeconds(60);
+            
+            var stdout = new StringBuilder();
+            var stderr = new StringBuilder();
+
+            // For some reason, the process doesn't exit properly with WaitForExit
+            while (process.HasExited == false)
+            {
+                if (DateTime.Now - process.StartTime > timeLimit)
+                    break;
+                
+                TapThread.Sleep(TimeSpan.FromSeconds(1));
+            }
+            
 
             return (process.StandardOutput.ReadToEnd(), process.StandardError.ReadToEnd(), process.ExitCode);
         }
@@ -85,27 +101,31 @@ namespace OpenTap.Package.UnitTests
         }
     }
 
-    [TestFixture]
+    
     public class ProjectBuildTest
     {
         // Current directory is assumed to be the OutputFolder containing tap.exe etc.
-        public static string WorkingDirectory => Path.Combine(Directory.GetCurrentDirectory(), "buildTestDir");
-        public static string OutputFile => Path.Combine(WorkingDirectory, "obj", "test.opentap.g.props");
+        public string WorkingDirectory { get; }
+        public string OutputFile => Path.Combine(WorkingDirectory, "obj", "test.opentap.g.props");
+        public string TargetsFile { get; }
 
         private static string FileRepository => Path.Combine(Directory.GetCurrentDirectory(), "TapPackages");
         
 
         public ProjectBuildTest()
         {
+            WorkingDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
             var packages = Directory.EnumerateFiles(FileRepository, "*.TapPackage").ToList();
             var str = string.Join("\n", packages);
             
             StringAssert.Contains("MyPlugin4", str);
             StringAssert.Contains("MyPlugin5", str);
             
-            if (Directory.EnumerateFiles(Directory.GetCurrentDirectory(), "OpenTap.targets").Any() == false)
+            var targetsFile = new FileInfo("OpenTap.targets");
+            if (targetsFile.Exists == false)
                 throw new Exception(
                     $"OpenTap.targets not found in {Directory.GetCurrentDirectory()}. Tests cannot continue.");
+            TargetsFile = targetsFile.FullName;
 
             var binDir = Path.Combine(WorkingDirectory, "bin");
 
@@ -143,7 +163,7 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void NoReferencesTest()
         {
-            var result = new CsProj().Build();
+            var result = new CsProj(this).Build();
 
             StringAssert.Contains("Got 0 OpenTapPackageReference targets.", result.Stdout);
             Assert.AreEqual(result.ExitCode, 0);
@@ -153,7 +173,7 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void OneReferenceDefaultTest()
         {
-            var csProj = new CsProj();
+            var csProj = new CsProj(this);
             csProj.ItemGroups.Add($@"
    <ItemGroup>
 	  <OpenTapPackageReference Include=""MyPlugin4"" Repository=""{FileRepository}"" />	  
@@ -180,7 +200,7 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void TwoEqualReferencesDefaultTest()
         {
-            var csProj = new CsProj();
+            var csProj = new CsProj(this);
             csProj.ItemGroups.Add($@"
    <ItemGroup>
 	  <OpenTapPackageReference Repository=""{FileRepository}"" Include=""MyPlugin4"" />	  
@@ -209,7 +229,7 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void TwoEqualReferencesSpecifiedTest()
         {
-            var csProj = new CsProj();
+            var csProj = new CsProj(this);
             csProj.ItemGroups.Add($@"
    <ItemGroup>
 	  <OpenTapPackageReference Repository=""{FileRepository}"" Include=""MyPlugin4"" IncludeAssemblies=""test1;test2"" ExcludeAssemblies=""test3;test4"" />	  
@@ -235,7 +255,7 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void TwoDifferentReferencesSpecifiedTest()
         {
-            var csProj = new CsProj();
+            var csProj = new CsProj(this);
             csProj.ItemGroups.Add($@"
     <ItemGroup>
       <OpenTapPackageReference Include=""MyPlugin4"">    
@@ -270,7 +290,7 @@ namespace OpenTap.Package.UnitTests
             // Package not available on Linux
             if (OperatingSystem.Current == OperatingSystem.Linux)
                 return;
-            var csProj = new CsProj();
+            var csProj = new CsProj(this);
             csProj.ItemGroups.Add($@"
     <ItemGroup>
 <OpenTapPackageReference Include=""Visual Studio SDK"" Repository=""packages.opentap.io"" IncludeAssemblies=""**""  ExcludeAssemblies=""**/*Install**;**stdole**""/> 

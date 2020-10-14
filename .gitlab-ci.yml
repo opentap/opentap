@@ -82,6 +82,14 @@ Build-Linux64:
     paths:
        - bin/Release/publish
 
+QuickTest: # Quick test to fail as early as possible. 
+  stage: build
+  image: microsoft/dotnet:2.1-sdk-stretch
+  tags: [ docker, gce ]
+  script:
+    - dotnet build -c NetCoreDebug
+    - dotnet vstest bin/Debug/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000
+  
 # Builds the Everything.sln solution
 Build-x86:
   stage: build
@@ -338,7 +346,7 @@ Package-Linux:
      - Build-Linux64
   needs:
      - Build-x86
-     - Build-Linux64    
+     - Build-Linux64
   script:
          - if (!$PROTECTED_BRANCH) { Set-Content .\opentap_linux64.package.xml  -Value (get-content .\opentap_linux64.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
          - mv bin\Release\publish bin\linux-x64
