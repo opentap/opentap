@@ -9,7 +9,8 @@ using System.Xml.Linq;
 
 namespace OpenTap.Plugins
 {
-    /// <summary> Serializer implementation for External parameters. </summary>
+    /// <summary> Serializer implementation for parameters. </summary>
+    [Display("Parameter Serializer", "Works with parameters in the test plan.")]
     public class ExternalParameterSerializer : TapSerializerPlugin
     {
         /// <summary>

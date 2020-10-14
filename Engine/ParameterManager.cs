@@ -406,11 +406,12 @@ namespace OpenTap
                 return false;
             }
 
-
-            if (steps.Any(x => ((x is ITestStep step && step.IsReadOnly) && (x is TestPlan == false)) || x is TestPlan || property == null || property.Readable == false ||
-                               property.Writable == false))
+            foreach (var x in steps)
             {
-                return false;
+                if (property == null || property.Readable == false || property.Writable == false) return false;
+                if (x is ITestStep step && step.IsReadOnly)
+                    return false;
+                if (x is TestPlan) return false;
             }
 
             if (steps.Any(step => isParameterized(step, property)))

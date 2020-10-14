@@ -42,6 +42,17 @@ namespace OpenTap
             return false;
         }
 
+        public static TypeData AsTypeData(this ITypeData type)
+        {
+            do
+            {
+                if (type is TypeData td)
+                    return td;
+                type = type?.BaseType;
+            } while (type != null);
+            return null;
+        } 
+
         static Dictionary<MemberInfo, DisplayAttribute> displayLookup = new Dictionary<MemberInfo, DisplayAttribute>(1024);
         static object displayLookupLock = new object();
 
@@ -460,12 +471,12 @@ namespace OpenTap
         
 
         /// <summary> Get the base C# type of a given type. </summary>
-        internal static TypeData AsTypeData(this ITypeData type)
+        internal static T As<T>(this ITypeData type) where T: ITypeData
         {
             for(;type != null; type = type.BaseType)
-                if (type is TypeData td)
+                if (type is T td)
                     return td;
-            return null;
+            return default;
         }
         
         public static void GetAttributes<T>(this IReflectionData mem, System.Collections.IList outList)
@@ -788,8 +799,33 @@ namespace OpenTap
         }
     }
 
+    static class HashCode
+    {
+        private const long Prime1 = 2654435761U;
+        private const long Prime2 = 2246822519U;
+        private const long Prime3 = 3266489917U;
+        private const long Prime4 = 668265263U;
+        private const long Prime5 = 374761393U;
+        
+        public static long Combine(long a, long b) => (a + Prime2) * Prime1 + (b + Prime3) * Prime4;
+        public static long GetHashCodeLong(this object x) => x?.GetHashCode() ?? 0;
+        public static int Combine<T1, T2>(T1 a, T2 b, long seed = 0) => (int)Combine(seed, a.GetHashCodeLong(), b.GetHashCodeLong());
+
+        public static int Combine<T1, T2, T3>(T1 a, T2 b, T3 c) =>
+            Combine(Combine(a, b), c);
+        public static int Combine<T1, T2, T3, T4>(T1 a, T2 b, T3 c, T4 d) =>
+            Combine(Combine(a, b, c), d);
+    }
+    
     static class Utils
     {
+        public static Action Bind<T>(this Action del, Action<T> f, T v)
+        {
+            del += () => f(v); 
+            return del;
+        }
+        
+        
     #if DEBUG
         public static readonly bool IsDebugBuild = true;
     #else
@@ -991,6 +1027,7 @@ namespace OpenTap
             flattenHeirarchy(lst, x => new []{lookup(x)}, buffer, distinct ? new HashSet<T>() : null);
             return buffer;
         }
+
 
         public static void FlattenHeirarchyInto<T>(IEnumerable<T> lst, Func<T, IEnumerable<T>> lookup, ISet<T> set)
         {
@@ -1501,6 +1538,7 @@ namespace OpenTap
                 return Encoding.UTF8.GetString(mem.ToArray());
             }
         }
+        
 
         public static object DeserializeFromString(string str)
         {

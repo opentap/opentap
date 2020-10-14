@@ -36,7 +36,7 @@ namespace OpenTap.Plugins
         /// Gets the member currently being serialized.
         /// </summary>
         public IMemberData CurrentMember { get; private set; }
-
+        public static XName IgnoreMemberXName = "ignore-member";
 
         /// <summary>
         /// Specifies order. Minimum order should  be -1 as this is the most basic serializer.  
@@ -153,6 +153,11 @@ namespace OpenTap.Plugins
                         {
                             var element2 = elements[i];
                             if (visited[i]) continue;
+                            if (element2.Attribute(IgnoreMemberXName) is XAttribute attr && attr.Value == "true")
+                            {
+                                visited[i] = true;
+                                continue;
+                            }
                             IMemberData property = null;
                             var name = XmlConvert.DecodeName(element2.Name.LocalName);
                             var propertyMatches = props[name];

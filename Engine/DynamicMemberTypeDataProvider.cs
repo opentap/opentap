@@ -260,6 +260,28 @@ namespace OpenTap
         }
     }
 
+    class AcceleratedDynamicMember<TAccel> : DynamicMember
+    {
+        
+        public Func<object, object> ValueGetter;
+        public Action<object, object> ValueSetter;
+
+        public override void SetValue(object owner, object value)
+        {
+            if (owner is TAccel)
+                ValueSetter(owner, value);
+            else
+                base.SetValue(owner, value);
+        }
+
+        public override object GetValue(object owner)
+        {
+            if (owner is TAccel)
+                return ValueGetter(owner);
+            return base.GetValue(owner);
+        }
+    }
+    
     class DynamicMember : IMemberData
     {
         public virtual IEnumerable<object> Attributes { get; set; } = Array.Empty<object>();
@@ -286,16 +308,16 @@ namespace OpenTap
         
         public virtual void SetValue(object owner, object value)
         {
-            dict.Remove(owner);
-            if (Equals(value, DefaultValue) == false)
-                dict.Add(owner, value);
+                dict.Remove(owner);
+                if (Equals(value, DefaultValue) == false)
+                    dict.Add(owner, value);
         }
 
         public virtual object GetValue(object owner)
         {
             // TODO: use IDynamicMembersProvider
             if (dict.TryGetValue(owner, out object value))
-                return value;
+                return value ?? DefaultValue;
             return DefaultValue;
         }
 
@@ -561,6 +583,8 @@ namespace OpenTap
                 Readable = true,
                 TypeDescriptor = TypeData.FromType(typeof((Object,IMemberData)[]))
             };
+
+            
 
             static IMemberData[] extraMembers = {BreakConditions, DynamicMembers}; //, DescriptionMember // Future: Include Description Member
             static IMemberData[] extraMembersTestPlan = {TestPlanBreakConditions, DynamicMembers}; //, DescriptionMember // Future: Include Description Member

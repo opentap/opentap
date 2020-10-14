@@ -95,6 +95,37 @@ namespace OpenTap
         [EnabledIf(nameof(CanRemoveParameter), true, HideIfDisabled = true)]
         [EnabledIf(nameof(TestPlanLocked), false)]
         public void RemoveParameter() => ParameterManager.RemoveParameter(this);
+        
+        
+        // Input/Output
+        public bool CanAssignOutput => source.Length > 0 && member.Writable && !CanUnassignOutput;
+        [Display("Assign Output", "Control this setting using an output.", Order: 2.0)]
+        [Browsable(true)]
+        [IconAnnotation(IconNames.AssignOutput)]
+        [EnabledIf(nameof(CanAssignOutput), true, HideIfDisabled = true)]
+        public void ControlUsingOutput()
+        {
+            var question = new AssignOutputDialog(this.member, this.source.FirstOrDefault());
+            UserInput.Request(question);
+            if (question.Response == ParameterManager.OkCancel.Cancel)
+                return;
+            InputOutputRelation.Assign(source.FirstOrDefault(), member, question.Output.Step, question.Output.Member);
+        }
+
+        public bool IsOutput => member.HasAttribute<OutputAttribute>();
+        public bool IsOutputAssigned => IsOutput && InputOutputRelation.IsInput(source.FirstOrDefault(), member);
+        
+        public bool CanUnassignOutput => source.Length > 0 && member.Writable && InputOutputRelation.GetRelations(source.First()).Any(con => con.InputMember == member && con.InputObject == source.First());
+        [Display("Unassign Output", "Unassign the output controlling this property.", Order: 2.0)]
+        [Browsable(true)]
+        [IconAnnotation(IconNames.UnassignOutput)]
+        [EnabledIf(nameof(CanUnassignOutput), true, HideIfDisabled = true)]
+        public void UnassignOutput()
+        {
+            var step = source.First();
+            var con2 = InputOutputRelation.GetRelations(step).First(con => con.InputMember == member && con.InputObject == step);
+            InputOutputRelation.Unassign(con2);
+        }
     }
     
     class TestStepMenuItemsModelFactory : IMenuModelFactory
