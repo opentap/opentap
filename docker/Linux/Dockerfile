@@ -26,6 +26,8 @@ RUN chmod -R +w /opt/tap
 RUN chmod +x /opt/tap/tap
 ENV PATH="/opt/tap:${PATH}"
 ENV TAP_PATH="/opt/tap"
+RUN mkdir /root/.local/share/OpenTAP
+RUN echo 11111111-1111-1111-1111-111111111111 > /root/.local/share/OpenTAP/OpenTapGeneratedId
 
 # Test TAP
 RUN tap -h
