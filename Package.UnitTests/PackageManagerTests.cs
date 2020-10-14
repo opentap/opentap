@@ -57,6 +57,39 @@ namespace OpenTap.Package.UnitTests
             RepositoryManagerReceivePackageList(manager);
             TestDownload(manager);
         }
+
+        [Test]
+        public void TestUserId()
+        {
+            var idPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTAP", "OpenTapGeneratedId");
+            string orgId = null;
+            if (File.Exists(idPath))
+                orgId = File.ReadAllText(idPath);
+
+            try
+            {
+                // Check id are the same
+                var id = HttpPackageRepository.GetUserId();
+                var id2 = HttpPackageRepository.GetUserId();
+                Assert.AreEqual(id, id2, "User id are different between runs.");
+
+                // Remove id file
+                File.Delete(idPath);
+                if (File.Exists(idPath))
+                    Assert.Fail("Id still exists.");
+                Assert.AreNotEqual(HttpPackageRepository.GetUserId(), default(Guid), "Failed to create new user id after deleting file.");
+
+                // Remove directory
+                Directory.Delete(Path.GetDirectoryName(idPath), true);
+                Assert.AreNotEqual(HttpPackageRepository.GetUserId(), default(Guid), "Failed to create new user id after deleting directory.");
+            }
+            finally
+            {
+                // Revert changes
+                if (orgId != null)
+                    File.WriteAllText(idPath, orgId);    
+            }
+        }
         
         public static void RepositoryManagerReceivePackageList(IPackageRepository manager)
         {

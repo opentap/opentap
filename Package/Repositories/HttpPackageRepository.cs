@@ -64,16 +64,38 @@ namespace OpenTap.Package
             this.Url = this.Url.TrimEnd('/');
             defaultUrl = this.Url;
             this.Url = CheckUrlRedirect(this.Url);
+
+            // Get the users Uniquely generated id
+            var id = GetUserId();
             
-            var macAddr = NetworkInterface.GetAllNetworkInterfaces()
-                        .Where(nic => nic.OperationalStatus == OperationalStatus.Up)
-                        .Select(nic => nic.GetPhysicalAddress()).FirstOrDefault();
-            var block = new byte[8];
-            if (macAddr != null)
-                macAddr.GetAddressBytes().CopyTo(block, 0);
-            string mac = BitConverter.ToString(block).Replace("-", string.Empty);
             string installDir = ExecutorClient.ExeDir;
-            UpdateId = String.Format("{0:X8}{1:X8}", MurMurHash3.Hash(mac), MurMurHash3.Hash(installDir));
+            UpdateId = String.Format("{0:X8}{1:X8}", MurMurHash3.Hash(id), MurMurHash3.Hash(installDir));
+        }
+
+        internal static string GetUserId()
+        {
+            var idPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTAP", "OpenTapGeneratedId");
+            string id = default(Guid).ToString(); // 00000000-0000-0000-0000-000000000000
+            
+            try
+            {
+                if (File.Exists(idPath))
+                    id = File.ReadAllText(idPath);
+                else
+                {
+                    id = Guid.NewGuid().ToString();
+                    if (Directory.Exists(Path.GetDirectoryName(idPath)) == false)
+                        Directory.CreateDirectory(Path.GetDirectoryName(idPath));
+                    File.WriteAllText(idPath, id);
+                }
+            }
+            catch (Exception e)
+            {
+                log.Error("Could not read user id.");
+                log.Debug(e);
+            }
+
+            return id;
         }
 
         async Task DoDownloadPackage(PackageDef package, FileStream fileStream, CancellationToken cancellationToken)
