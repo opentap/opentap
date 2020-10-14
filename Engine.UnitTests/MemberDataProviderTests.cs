@@ -1707,6 +1707,8 @@ namespace OpenTap.Engine.UnitTests
         {
             public double[] TestValues => new double[] {1, 2, 3, 4, 5};
             [AvailableValues(nameof(TestValues))]
+            
+            [Display("Test")]
             public double Test { get; set; }
 
             public const string ErrorMessage = "Test must be positive.";
@@ -1719,6 +1721,7 @@ namespace OpenTap.Engine.UnitTests
         public class EmbeddedValidatingObjectTestClass : TestStep
         {
             [EmbedProperties]
+            [Display("Sub")]
             public EmbeddedValidatingObject Embedded { get; set; } = new EmbeddedValidatingObject();
             
             public EmbeddedValidatingObject OtherNonEmbedded { get; set; }
@@ -1751,6 +1754,20 @@ namespace OpenTap.Engine.UnitTests
                 }
             } 
             Assert.IsTrue(errors.ToString().Contains(error));
+        }
+
+        [Test]
+        public void EmbeddedExternalTestPlanParameter()
+        {
+            var plan = new TestPlan();
+            var step = new EmbeddedValidatingObjectTestClass();
+            
+            plan.ChildTestSteps.Add(step);
+            var member = TypeData.GetTypeData(step).GetMember("Embedded.Test");
+            plan.ExternalParameters.Add(step, member);
+            var member2 = TypeData.GetTypeData(plan).GetMember("Sub \\ Test");
+            // for external parameters Display name == property name.
+            Assert.IsNotNull(member2);
         }
 
         class BlankStep : TestStep
