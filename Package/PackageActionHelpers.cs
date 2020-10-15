@@ -51,20 +51,13 @@ namespace OpenTap.Package
             
             var compatiblePackages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageReference, compatibleWith);
 
-            // If there were no release version of the package and force is true. Try installing any version.
-            if (force && compatiblePackages.Any() == false && packageReference.Version.PreRelease == null && packageReference.Version.MatchBehavior == VersionMatchBehavior.Exact)
-            {
-                log.Warning($"Could not find a release version of package '{packageReference.Name}'. Trying 'Any' version because --force was specified.");
-                packageReference = new PackageSpecifier(packageReference.Name, VersionSpecifier.Any, packageReference.Architecture, packageReference.OS);
-                compatiblePackages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageReference, compatibleWith);
-            }
-
             // Of the compatible packages, pick the one with the highest version number. If that package is available from several repositories, pick the one with the lowest index in the list in PackageManagerSettings
             PackageDef package = null;
             if (compatiblePackages.Any())
                 package = compatiblePackages.GroupBy(p => p.Version).OrderByDescending(g => g.Key).FirstOrDefault()
                                             .OrderBy(p => repositories.IndexWhen(e => NormalizeRepoUrl(e.Url) == NormalizeRepoUrl((p.PackageSource as IRepositoryPackageDefSource)?.RepositoryUrl))).FirstOrDefault();
 
+            // If no package was found, try to figure out why
             if (package == null)
             {
                 var compatibleVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageReference.Name, compatibleWith);
@@ -73,7 +66,13 @@ namespace OpenTap.Package
                 // Any packages compatible with opentap and platform
                 var filteredVersions = compatibleVersions.Where(v => v.IsPlatformCompatible(packageReference.Architecture, packageReference.OS)).ToList();
                 if (filteredVersions.Any())
-                    throw new ExitCodeException(1, $"Package '{packageReference.Name}' matching version '{packageReference.Version}' could not be found. Latest compatible version is '{filteredVersions.FirstOrDefault().Version}'.");
+                {
+                    // if the specified version exist, don't say it could not be found. 
+                    if (versions.Any(v => packageReference.Version.IsCompatible(v.Version)))
+                        throw new ExitCodeException(1, $"Package '{packageReference.Name}' matching version '{packageReference.Version}' is not compatible. Latest compatible version is '{filteredVersions.FirstOrDefault().Version}'.");
+                    else
+                        throw new ExitCodeException(1, $"Package '{packageReference.Name}' matching version '{packageReference.Version}' could not be found. Latest compatible version is '{filteredVersions.FirstOrDefault().Version}'.");
+                }
 
                 // Any compatible with platform but not opentap
                 filteredVersions = versions.Where(v => v.IsPlatformCompatible(packageReference.Architecture, packageReference.OS)).ToList();
@@ -132,7 +131,7 @@ namespace OpenTap.Package
 
         }
 
-        internal static List<PackageDef> GatherPackagesAndDependencyDefs(Installation installation, PackageSpecifier[] pkgRefs, string[] packageNames, string Version, CpuArchitecture arch, string OS, List<IPackageRepository> repositories, bool force, bool includeDependencies, bool askToIncludeDependencies)
+        internal static List<PackageDef> GatherPackagesAndDependencyDefs(Installation installation, PackageSpecifier[] pkgRefs, string[] packageNames, string Version, CpuArchitecture arch, string OS, List<IPackageRepository> repositories, bool force, bool includeDependencies, bool askToIncludeDependencies, bool noDowngrade)
         {
             List<PackageDef> gatheredPackages = new List<PackageDef>();
 
@@ -193,15 +192,38 @@ namespace OpenTap.Package
 
             foreach (var packageReference in packages)
             {
+                var installedPackages = installation.GetPackages();
                 Stopwatch timer = Stopwatch.StartNew();
                 if (File.Exists(packageReference.Name))
                 {
-                    gatheredPackages.Add(PackageDef.FromPackage(packageReference.Name));
+                    var package = PackageDef.FromPackage(packageReference.Name);
+
+                    if (noDowngrade)
+                    {
+                        var installedPackage = installedPackages.FirstOrDefault(p => p.Name == package.Name);
+                        if (installedPackage != null && installedPackage.Version.CompareTo(package.Version) >= 0)
+                        {
+                            log.Info($"The same or a newer version of package '{package.Name}' in already installed.");
+                            continue;
+                        }
+                    }
+                    
+                    gatheredPackages.Add(package);
                     log.Debug(timer, "Found package {0} locally.", packageReference.Name);
                 }
                 else
                 {
                     PackageDef package = PackageActionHelpers.FindPackage(packageReference, force, installation, repositories);
+                    
+                    if (noDowngrade)
+                    {
+                        var installedPackage = installedPackages.FirstOrDefault(p => p.Name == package.Name);
+                        if (installedPackage != null && installedPackage.Version.CompareTo(package.Version) >= 0)
+                        {
+                            log.Info($"The same or a newer version of package '{package.Name}' in already installed.");
+                            continue;
+                        }
+                    }
 
                     if (PackageCacheHelper.PackageIsFromCache(package))
                         log.Debug(timer, "Found package {0} version {1} in local cache", package.Name, package.Version);
@@ -287,21 +309,15 @@ namespace OpenTap.Package
             return gatheredPackages;
         }
 
-        internal static List<string> DownloadPackages(string destinationDir, List<PackageDef> PackagesToDownload)
+        internal static List<string> DownloadPackages(string destinationDir, List<PackageDef> PackagesToDownload, List<string> filenames = null)
         {
             List<string> downloadedPackages = new List<string>();
-            foreach (PackageDef pkg in PackagesToDownload)
+            for(int i = 0; i < PackagesToDownload.Count; i++)
             {
                 Stopwatch timer = Stopwatch.StartNew();
-                List<string> filenameParts = new List<string> { pkg.Name };
-                if (pkg.Version != null)
-                    filenameParts.Add(pkg.Version.ToString());
-                if (pkg.Architecture != CpuArchitecture.AnyCPU)
-                    filenameParts.Add(pkg.Architecture.ToString());
-                if (!String.IsNullOrEmpty(pkg.OS) && pkg.OS != "Windows")
-                    filenameParts.Add(pkg.OS);
-                filenameParts.Add("TapPackage");
-                var filename = Path.Combine(destinationDir, String.Join(".", filenameParts));
+                
+                var pkg = PackagesToDownload[i]; 
+                string filename = filenames?.ElementAtOrDefault(i) ?? Path.Combine(destinationDir, GetQualifiedFileName(pkg));
 
                 TapThread.ThrowIfAborted();
                 
@@ -366,6 +382,19 @@ namespace OpenTap.Package
             }
 
             return downloadedPackages;
+        }
+
+        internal static string GetQualifiedFileName(PackageDef pkg)
+        {
+            List<string> filenameParts = new List<string> { pkg.Name };
+            if (pkg.Version != null)
+                filenameParts.Add(pkg.Version.ToString());
+            if (pkg.Architecture != CpuArchitecture.AnyCPU)
+                filenameParts.Add(pkg.Architecture.ToString());
+            if (!String.IsNullOrEmpty(pkg.OS) && pkg.OS != "Windows")
+                filenameParts.Add(pkg.OS);
+            filenameParts.Add("TapPackage");
+            return String.Join(".", filenameParts);
         }
     }
 }

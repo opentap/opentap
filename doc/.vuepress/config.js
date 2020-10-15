@@ -35,7 +35,6 @@ module.exports = {
                   ["User Guide/Introduction/", "Overview"],
                   ["User Guide/CLI Usage/", "CLI Usage"],
                   ["User Guide/Editors/", "Editors"],
-                  ["User Guide/CLI Reference/", "CLI Reference"],
                 ]
               },
             {

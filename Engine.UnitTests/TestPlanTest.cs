@@ -978,6 +978,7 @@ namespace OpenTap.Engine.UnitTests
             finally
             {
                 UserInput.SetInterface(null);
+                EngineSettings.Current.PromptForMetaData = false;
             }
         }
 
@@ -1028,6 +1029,7 @@ namespace OpenTap.Engine.UnitTests
             finally
             {
                 UserInput.SetInterface(null);
+                EngineSettings.Current.PromptForMetaData = false;
             }
         }
 
@@ -1647,29 +1649,25 @@ namespace OpenTap.Engine.UnitTests
             
             Assert.AreEqual(2, plan1.ChildTestSteps.Count);
             Assert.AreEqual(false, tapThread1.AbortToken.IsCancellationRequested);
-            Assert.AreEqual(true, plan1.IsRunning);
+            Assert.AreEqual(true, plan1.IsRunning, "1 Running");
 
             Assert.AreEqual(3, plan2.ChildTestSteps.Count);
             Assert.AreEqual(false, tapThread2.AbortToken.IsCancellationRequested);
-            Assert.AreEqual(true, plan2.IsRunning);
+            Assert.AreEqual(true, plan2.IsRunning, "2 Running");
 
 
             tapThread1.Abort();
-            Assert.AreEqual(true, tapThread1.AbortToken.IsCancellationRequested);
-            Assert.AreEqual(false, tapThread2.AbortToken.IsCancellationRequested);
+            Assert.AreEqual(true, tapThread1.AbortToken.IsCancellationRequested, "Abort 1.1");
+            Assert.AreEqual(false, tapThread2.AbortToken.IsCancellationRequested, "Abort 1.2");
 
             tapThread2.Abort();
-            Assert.AreEqual(true, tapThread1.AbortToken.IsCancellationRequested);
-            Assert.AreEqual(true, tapThread2.AbortToken.IsCancellationRequested);
-
-
-            Assert.AreEqual(true, plan1.IsRunning);
-            Assert.AreEqual(true, plan2.IsRunning);
+            Assert.AreEqual(true, tapThread1.AbortToken.IsCancellationRequested, "Abort 2.1");
+            Assert.AreEqual(true, tapThread2.AbortToken.IsCancellationRequested, "Abort 2.2");
 
             WaitHandle.WaitAll(new WaitHandle[] { ewhPlan1StoppedRunning, ewhPlan2StoppedRunning });
 
-            Assert.AreEqual(false, plan1.IsRunning);
-            Assert.AreEqual(false, plan2.IsRunning);
+            Assert.AreEqual(false, plan1.IsRunning, "1 Running");
+            Assert.AreEqual(false, plan2.IsRunning, "2 Running");
         }
 
         [Test]
@@ -1922,7 +1920,6 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
-        [Repeat(10)]
         public void OpenCloseOrder()
         {
             var instrA = new CrashInstrument() {OpenThrow = true,CloseThrow = true, Name= "A"};
@@ -1946,7 +1943,6 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
-        [Repeat(10)]
         public void OpenCloseOrderLazyRM()
         {
             var lastrm = EngineSettings.Current.ResourceManagerType;
@@ -2344,109 +2340,5 @@ namespace OpenTap.Engine.UnitTests
         }
     }
 
-#if ARBITER_FEATURES
-    [TestFixture]
-    public class ExecutionHookTests
-    {
-        [Test]
-        public void PreHookTest()
-        {
-            TestPlan plan = new TestPlan();
-            plan.ChildTestSteps.Add(new VerdictStep() { VerdictOutput = VerdictOutput.Pass });
-
-            PreHookTester.ReplacementPlan = null;
-            PreHookTester.Active = true;
-            PreHookTester.HookCount = 0;
-
-            try
-            {
-                var tpr = plan.Execute();
-
-                Assert.AreEqual(false, tpr.FailedToStart);
-                Assert.AreEqual(Verdict.Pass, tpr.Verdict);
-                Assert.AreEqual(1, PreHookTester.HookCount, "Hook count");
-
-                Assert.AreEqual(plan, ExecutionHookTester.StartedPlan, "Plan that actually ran.");
-                Assert.AreEqual(plan, ExecutionHookTester.RequestedPlan, "Plan that was requested to execute.");
-            }
-            finally
-            {
-                PreHookTester.Active = false;
-            }
-        }
-
-        [Test]
-        public void PreHookReplacePlan()
-        {
-            TestPlan plan = new TestPlan();
-            plan.ChildTestSteps.Add(new VerdictStep() { VerdictOutput = VerdictOutput.Pass });
-
-            TestPlan plan2 = new TestPlan();
-            plan2.ChildTestSteps.Add(new VerdictStep { VerdictOutput = VerdictOutput.Fail });
-
-            PreHookTester.ReplacementPlan = plan2;
-            PreHookTester.Active = true;
-            PreHookTester.HookCount = 0;
-
-            try
-            {
-                var tpr = plan.Execute();
-
-                Assert.AreEqual(false, tpr.FailedToStart);
-                Assert.AreEqual(Verdict.Fail, tpr.Verdict);
-                Assert.AreEqual(1, PreHookTester.HookCount, "Hook count");
-
-                Assert.AreEqual(plan2, ExecutionHookTester.StartedPlan, "Plan that actually ran.");
-                Assert.AreEqual(plan, ExecutionHookTester.RequestedPlan, "Plan that was requested to execute.");
-            }
-            finally
-            {
-                PreHookTester.Active = false;
-            }
-        }
-    }
-    
-    [Browsable(false)]
-    public class PreHookTester : ComponentSettings, IPreTestPlanExecutionHook
-    {
-        public static bool Active = false;
-        public static int HookCount = 0;
-
-        public static TestPlan ReplacementPlan = null;
-
-        public void BeforeTestPlanExecute(PreExecutionHookArgs hook)
-        {
-            if (!Active) return;
-
-            if (ReplacementPlan != null) hook.TestPlan = ReplacementPlan;
-            HookCount++;
-        }
-    }
-#endif
-
-    [Browsable(false)]
-    public class ExecutionHookTester : ComponentSettings, ITestPlanExecutionHook
-    {
-        public static TestPlan StartedPlan { get; private set; }
-        public static TestPlan RequestedPlan { get; private set; }
-
-        public void AfterTestStepExecute(ITestStep testStep)
-        {
-        }
-
-        public void BeforeTestStepExecute(ITestStep testStep)
-        {
-        }
-
-        public void BeforeTestPlanExecute(TestPlan executingPlan)
-        {
-            StartedPlan = executingPlan;
-        }
-
-        public void AfterTestPlanExecute(TestPlan executedPlan, TestPlan requestedPlan)
-        {
-            RequestedPlan = requestedPlan;
-        }
-    }
 }
 

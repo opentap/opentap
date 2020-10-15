@@ -17,7 +17,7 @@ namespace OpenTap.Package
     /// <summary>
     /// CLI sub command `tap sdk create` that can create a *.TapPackage from a definition in a package.xml file.
     /// </summary>
-    [Display("create", Group: "package", Description: "Creates a package based on an XML description file.")]
+    [Display("create", Group: "package", Description: "Create a package based on an XML description file.")]
     public class PackageCreateAction : PackageAction
     {
         internal enum ExitCodes
@@ -49,21 +49,21 @@ namespace OpenTap.Package
 
         
         /// <summary>
-        /// Represents the --project-directory command line argument which specifies the directory containing the GIT repo used to get values for version/branch macros.
+        /// Represents the --project-directory command line argument, which specifies the directory containing the git repository used to get values for version/branch macros.
         /// </summary>
-        [CommandLineArgument("project-directory", Description = "The directory containing the GIT repo.\nUsed to get values for version/branch macros.")]
+        [CommandLineArgument("project-directory", Description = "The directory containing the git repository.\nUsed to get values for version/branch macros.")]
         public string ProjectDir { get; set; }
 
         /// <summary>
         /// Represents the --install command line argument. When true, this action will also install the created package.
         /// </summary>
-        [CommandLineArgument("install", Description = "Installs the created package. Will not overwrite files \nalready in the target installation (e.g. debug binaries).")]
+        [CommandLineArgument("install", Description = "Install the created package. It will not overwrite the files \nalready in the target installation (e.g., debug binaries).")]
         public bool Install { get; set; } = false;
 
         /// <summary>
         /// Obsolete, use Install property instead.
         /// </summary>
-        [CommandLineArgument("fake-install", Visible = false, Description = "Installs the created package. Will not overwrite files \nalready in the target installation (e.g. debug binaries).")]
+        [CommandLineArgument("fake-install", Visible = false, Description = "Install the created package. It will not overwrite files \nalready in the target installation (e.g. debug binaries).")]
         public bool FakeInstall { get; set; } = false;
 
         /// <summary>

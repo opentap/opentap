@@ -121,6 +121,12 @@ namespace OpenTap.Plugins.BasicSteps
 
             if (string.IsNullOrWhiteSpace(Filepath))
                 throw new OperationCanceledException(string.Format("Execution aborted by {0}. No test plan configured.", Name));
+            
+            // Detect if the plan was not loaded or if the path has been changed since loading it.
+            // Note, there is some funky things related to TestPlanDir that are not checked but 99% of use-cases are.
+            var expandedPath = filepath.Text;
+            if (loadedPlanPath != expandedPath)
+                throw new OperationCanceledException(string.Format("Execution aborted by {0}. Test plan not loaded.", Name));
         }
 
         public override void Run()
@@ -151,6 +157,7 @@ namespace OpenTap.Plugins.BasicSteps
         static XDocument readXmlFile(string path) => dict.Invoke(path);
 
         internal TestPlan plan;
+        string loadedPlanPath;
         
         void UpdateStep()
         {
@@ -208,6 +215,8 @@ namespace OpenTap.Plugins.BasicSteps
                     });
 
                     CurrentMappings = allMapping;
+
+                    loadedPlanPath = filepath.Text;
 
                     TestPlan tp = (TestPlan)newSerializer.Deserialize(readXmlFile(Data), TypeData.FromType(typeof(TestPlan)), true, Data) ;
                     plan = tp;

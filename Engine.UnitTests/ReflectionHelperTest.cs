@@ -77,6 +77,7 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        [Platform(Exclude="Unix,Linux,MacOsX")]
         public void TimeoutOperationTest()
         {
             var sem = new System.Threading.Semaphore(0, 1);

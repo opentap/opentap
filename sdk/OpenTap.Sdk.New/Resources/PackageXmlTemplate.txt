@@ -6,7 +6,7 @@ Version: The version of the package. Must be in a semver 2.0 compatible format. 
 For Version the following macro is available (Only works if the project directory is under Git source control):
 $(GitVersion) - Gets the version from Git in the recommended format Major.Minor.Build-PreRelease+CommitHash.BranchName.
 -->
-<Package Name="{1}" xmlns="http://opentap.io/schemas/package" InfoLink="" Version="0.1.0-alpha">
+<Package Name="{1}" xmlns="http://opentap.io/schemas/package" InfoLink="" Version="0.1.0-alpha" OS="Windows,Linux">
   <Description>This is my OpenTAP plugin package.</Description>
   <Files>
     <File Path="Packages/{1}/{0}.dll" SourcePath="{0}.dll">

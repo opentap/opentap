@@ -79,7 +79,6 @@ namespace OpenTap
         internal IResource[] PromptedResources = Array.Empty<IResource>();
 
         internal readonly IResourceManager ResourceManager;
-        internal List<ITestPlanExecutionHook> ExecutionHooks;
 
         internal readonly bool IsCompositeRun;
 
@@ -201,7 +200,6 @@ namespace OpenTap
 
             foreach (var kw in resultWorkers)
             {
-                var sw = Stopwatch.StartNew();
                 using (TimeoutOperation.Create(() => log.Info("Waiting for result propagation for {0}", kw.Key)))
                 {
                     kw.Value.Wait();

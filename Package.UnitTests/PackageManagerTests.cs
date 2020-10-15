@@ -57,6 +57,39 @@ namespace OpenTap.Package.UnitTests
             RepositoryManagerReceivePackageList(manager);
             TestDownload(manager);
         }
+
+        [Test]
+        public void TestUserId()
+        {
+            var idPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTAP", "OpenTapGeneratedId");
+            string orgId = null;
+            if (File.Exists(idPath))
+                orgId = File.ReadAllText(idPath);
+
+            try
+            {
+                // Check id are the same
+                var id = HttpPackageRepository.GetUserId();
+                var id2 = HttpPackageRepository.GetUserId();
+                Assert.AreEqual(id, id2, "User id are different between runs.");
+
+                // Remove id file
+                File.Delete(idPath);
+                if (File.Exists(idPath))
+                    Assert.Fail("Id still exists.");
+                Assert.AreNotEqual(HttpPackageRepository.GetUserId(), default(Guid), "Failed to create new user id after deleting file.");
+
+                // Remove directory
+                Directory.Delete(Path.GetDirectoryName(idPath), true);
+                Assert.AreNotEqual(HttpPackageRepository.GetUserId(), default(Guid), "Failed to create new user id after deleting directory.");
+            }
+            finally
+            {
+                // Revert changes
+                if (orgId != null)
+                    File.WriteAllText(idPath, orgId);    
+            }
+        }
         
         public static void RepositoryManagerReceivePackageList(IPackageRepository manager)
         {
@@ -64,20 +97,20 @@ namespace OpenTap.Package.UnitTests
             
             // ReceivePackageList.
             var allPackages = manager.GetPackages(new PackageSpecifier(os: "Windows"), tap);
-            Assert.IsTrue(allPackages.Length > 0);
+            Assert.IsTrue(allPackages.Length > 0, "args(7.4)");
             
             #region GetPackages
             log.Info("GetPackages - STARTED");
 
             // Get packages running in developer mode.
             tap.Version = SemanticVersion.Parse("7.3.0-Development");
-            var bag = manager.GetPackages(new PackageSpecifier(), tap);
+            var bag = manager.GetPackages(new PackageSpecifier(os: "Windows"), tap);
             Assert.IsTrue(bag.Length > 0, "args(7.3 Development)");
             log.Info("args(7.3 Development) - SUCCESS");
 
             // Get packages running in release mode without build version.
             tap.Version = PluginManager.GetOpenTapAssembly().SemanticVersion;
-            bag = manager.GetPackages(new PackageSpecifier(), tap);
+            bag = manager.GetPackages(new PackageSpecifier(os: "Windows"), tap);
             Assert.IsTrue(bag.Length > 0, "args(TapEngine)");
             log.Info("args(TapEngine) - SUCCESS");
 
@@ -90,7 +123,8 @@ namespace OpenTap.Package.UnitTests
             var tap = new PackageIdentifier("OpenTAP", SemanticVersion.Parse("7.5.0-Development"), CpuArchitecture.Unspecified, "Windows");
             
             // Download package.
-            var bag = manager.GetPackages(new PackageSpecifier(), tap);
+            var bag = manager.GetPackages(new PackageSpecifier(os: "Windows"), tap);
+            Assert.IsTrue(bag.Length > 0, "args(7.5.0-Development)");
             var package = bag[0];
             var path = Path.Combine(Directory.GetCurrentDirectory(), package.Name + ".TapPackage");
             manager.DownloadPackage(package, path, new System.Threading.CancellationToken());
@@ -108,7 +142,8 @@ namespace OpenTap.Package.UnitTests
 
             // Download when file already exists.
             tap.Version = PluginManager.GetOpenTapAssembly().SemanticVersion;
-            bag = manager.GetPackages(new PackageSpecifier(), tap);
+            bag = manager.GetPackages(new PackageSpecifier(os: "Windows"), tap);
+            Assert.IsTrue(bag.Length > 0, "args(TapEngine)");
             package = bag.ToArray()[0];
             manager.DownloadPackage(package, path, new System.Threading.CancellationToken());
             File.Delete(path);
@@ -155,14 +190,14 @@ namespace OpenTap.Package.UnitTests
                 Directory.CreateDirectory("TapPackage");
                 File.Copy("TapPackages/MyPlugin1.TapPackage", tempFolder + "/MyPlugin1.TapPackage",true);
                 repo.Reset();
-                Assert.IsTrue(repo.GetPackages(new PackageSpecifier()).Count() == 1, "Folder with one package");
+                Assert.IsTrue(repo.GetPackages(new PackageSpecifier(os: "Windows")).Count() == 1, "Folder with one package");
                 log.Info("Folder with one plugin - SUCCESS");
     
                 // Folder with several plugins.
                 Directory.GetFiles("TapPackages").ToList().ForEach(f => File.Copy(f, Path.Combine(tempFolder, Path.GetFileName(f)), true));
                 repo.Reset();
-                var anyVersion = new PackageSpecifier();
-                Assert.AreEqual(7, repo.GetPackages(anyVersion).Count(), "Folder with several packages");
+                var anyVersion = new PackageSpecifier(os: "Windows");
+                Assert.AreEqual(9, repo.GetPackages(anyVersion).Count(), "Folder with several packages");
                 log.Info("Folder with several plugin - SUCCESS");
             }
             finally
@@ -388,7 +423,7 @@ namespace OpenTap.Package.UnitTests
         
         List<PackageDef> get(IPackageIdentifier compatibleWith)
         {
-            var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager).ToList(), new PackageSpecifier(),compatibleWith);
+            var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager).ToList(), new PackageSpecifier(os: "Windows"),compatibleWith);
 
             return packages;
         }

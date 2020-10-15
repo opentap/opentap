@@ -1,8 +1,7 @@
 # Overview
 This section introduces essential OpenTAP terminology, concepts, and tools. It is intended to provide users with an
  understanding of OpenTAP and its ecosystem to get started. For a more technical description, see the [Developer
- Guide](../../Developer%20Guide/Introduction). For a quick reference of CLI options, see the [comprehensive
- reference](../CLI%20Reference).
+ Guide](../../Developer%20Guide/Introduction). For a reference of CLI options, see the [documentation](../CLI%20Usage) on CLI usage.
 
 OpenTAP consists of multiple tools, including:
 -	OpenTAP - core engine
@@ -16,7 +15,7 @@ two tools will be given in the following chapters.
 
 A *test plan* is a sequence of test steps and their associated data. They are stored as XML files, and use the
 ".TapPlan" file extension. Test plans are created with an [editor](../Editors). They can be executed either in an
-editor, or by using the `tap run` [CLI action](../CLI%20Usage). A test step can be a child step, a parent step, or both.
+editor, or by using the `tap run` [CLI action](../CLI%20Usage/#running-test-plans). A test step can be a child step, a parent step, or both.
 Therefore, a test plan is a recursive structure of test steps. This hierarchy is illustrated in the figure below.
 
 ![](./TestPlan.svg)

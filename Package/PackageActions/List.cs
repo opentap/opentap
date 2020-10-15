@@ -9,19 +9,19 @@ using System.Threading;
 namespace OpenTap.Package
 {
 
-    [Display("list", Group: "package", Description: "List installed packages.")]
+    [Display("list", Group: "package", Description: "List locally installed packages and browse the online package repository.")]
     public class PackageListAction : LockingPackageAction
     {
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
-        [CommandLineArgument("all", Description = "List all versions of a package when using the <Name> argument. Lists package compatible with the machine by default.", ShortName = "a")]
+        [CommandLineArgument("all", Description = "List all versions of <package> even if the OS or the CPU architecture\nare not compatible with the current machine.", ShortName = "a")]
         public bool All { get; set; }
 
-        [CommandLineArgument("installed", Description = "Only show packages that are installed.", ShortName = "i")]
+        [CommandLineArgument("installed", Description = "Show only installed packages.", ShortName = "i")]
         public bool Installed { get; set; }
 
-        [UnnamedCommandLineArgument("Name")]
+        [UnnamedCommandLineArgument("package")]
         public string Name { get; set; }
 
         [CommandLineArgument("version", Description = CommandLineArgumentVersionDescription)]

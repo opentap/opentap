@@ -717,7 +717,7 @@ namespace OpenTap
             public object FromString(string stringdata, ITypeData type, object contextObject, CultureInfo culture)
             {
                 if (type.DescendsTo(typeof(IResource)) == false) return null;
-                if (type is TypeData cst)
+                if (type is TypeData)
                     return allResources.FirstOrDefault(x => x.Name == stringdata && TypeData.GetTypeData(x).DescendsTo(type));
                 return null;
             }
@@ -820,7 +820,7 @@ namespace OpenTap
                 Guid id;
                 if (!Guid.TryParse(s[0], out id))
                     return null;
-                var prop = s[1];
+                var property = s[1];
 
                 ITestStepParent plan = contextObject as ITestStepParent;
                 while (plan.Parent != null)
@@ -829,7 +829,7 @@ namespace OpenTap
                 if (step2 == null) return null;
                 var inp = (IInput)type.CreateInstance(Array.Empty<object>());
                 inp.Step = step2;
-                inp.Property = TypeData.GetTypeData(step2).GetMember(s[1]);
+                inp.Property = TypeData.GetTypeData(step2).GetMember(property);
 
                 return inp;
             }

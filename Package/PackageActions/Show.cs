@@ -79,7 +79,7 @@ namespace OpenTap.Package
         [CommandLineArgument("offline", Description = "Don't check http repositories.", ShortName = "o")]
         public bool Offline { get; set; }
         
-        [UnnamedCommandLineArgument("Name", Required = true)] 
+        [UnnamedCommandLineArgument("package", Required = true)]
         public string Name { get; set; }
 
         [CommandLineArgument("version", Description = CommandLineArgumentVersionDescription)]

@@ -131,8 +131,8 @@ namespace OpenTap
             // this gets a bit complicated now.
             // we have to ensure that the value is not just same object type, but not the same object
             // in some cases. Hence we need special cloning of the value.
-            bool strConvertSuccess = false;
-            string str = null;
+            bool strConvertSuccess;
+            string str;
             strConvertSuccess = StringConvertProvider.TryGetString(value, out str);
 
             ICloneable cloneable = value as ICloneable;
@@ -260,6 +260,28 @@ namespace OpenTap
         }
     }
 
+    class AcceleratedDynamicMember<TAccel> : DynamicMember
+    {
+        
+        public Func<object, object> ValueGetter;
+        public Action<object, object> ValueSetter;
+
+        public override void SetValue(object owner, object value)
+        {
+            if (owner is TAccel)
+                ValueSetter(owner, value);
+            else
+                base.SetValue(owner, value);
+        }
+
+        public override object GetValue(object owner)
+        {
+            if (owner is TAccel)
+                return ValueGetter(owner);
+            return base.GetValue(owner);
+        }
+    }
+    
     class DynamicMember : IMemberData
     {
         public virtual IEnumerable<object> Attributes { get; set; } = Array.Empty<object>();
@@ -286,16 +308,16 @@ namespace OpenTap
         
         public virtual void SetValue(object owner, object value)
         {
-            dict.Remove(owner);
-            if (Equals(value, DefaultValue) == false)
-                dict.Add(owner, value);
+                dict.Remove(owner);
+                if (Equals(value, DefaultValue) == false)
+                    dict.Add(owner, value);
         }
 
         public virtual object GetValue(object owner)
         {
             // TODO: use IDynamicMembersProvider
             if (dict.TryGetValue(owner, out object value))
-                return value;
+                return value ?? DefaultValue;
             return DefaultValue;
         }
 
@@ -457,17 +479,35 @@ namespace OpenTap
             public IEnumerable<object> Attributes => BaseType.Attributes;
             public string Name => BaseType.Name;
             public ITypeData BaseType { get; }
+
+            IMemberData[] getDynamicMembers()
+            {
+                var dynamicMembers = (IMemberData[])TestStepTypeData.DynamicMembers.GetValue(Target);
+                if (Target is ITestStepParent step)
+                {
+                    // if it is a test step type, check that the parameters declared on a parent step
+                    // actually comes from a child step.
+                    if(!ParameterManager.CheckParameterSanity(step, dynamicMembers))
+                    {
+                        // members modified, reload.
+                        dynamicMembers = (IMemberData[]) TestStepTypeData.DynamicMembers.GetValue(Target);
+                    }
+                }
+                return dynamicMembers ?? Array.Empty<IMemberData>();
+            }
+            
             public IEnumerable<IMemberData> GetMembers()
             {
-                var extra = (IMemberData[])TestStepTypeData.DynamicMembers.GetValue(Target);
-                if (extra != null)
-                    return BaseType.GetMembers().Concat(extra);
-                return BaseType.GetMembers();
+                var dynamicMembers = getDynamicMembers();
+                var members = BaseType.GetMembers();
+                if (dynamicMembers.Length > 0)
+                    members = members.Concat(dynamicMembers);
+                return members;
             }
 
             public IMemberData GetMember(string name)
             {
-                var extra = (IMemberData[])TestStepTypeData.DynamicMembers.GetValue(Target);
+                var extra = getDynamicMembers();
                 return extra.FirstOrDefault(x => x.Name == name) ?? BaseType.GetMember(name);
             }
 
@@ -489,7 +529,7 @@ namespace OpenTap
                         "Common", 20001.1),
                     new UnsweepableAttribute()
                 },
-                DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
+                DeclaringType = TypeData.FromType(typeof(ITestStep)),
                 Readable = true,
                 Writable = true,
                 TypeDescriptor = TypeData.FromType(typeof(BreakCondition))
@@ -509,7 +549,7 @@ namespace OpenTap
                     new UnsweepableAttribute(),
                     new EnabledIfAttribute("Locked", false), 
                 },
-                DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
+                DeclaringType = TypeData.FromType(typeof(TestPlan)),
                 Readable = true,
                 Writable = true,
                 TypeDescriptor = TypeData.FromType(typeof(BreakCondition))
@@ -543,6 +583,8 @@ namespace OpenTap
                 Readable = true,
                 TypeDescriptor = TypeData.FromType(typeof((Object,IMemberData)[]))
             };
+
+            
 
             static IMemberData[] extraMembers = {BreakConditions, DynamicMembers}; //, DescriptionMember // Future: Include Description Member
             static IMemberData[] extraMembersTestPlan = {TestPlanBreakConditions, DynamicMembers}; //, DescriptionMember // Future: Include Description Member
@@ -610,7 +652,7 @@ namespace OpenTap
 
         public ITypeData GetTypeData(object obj, TypeDataProviderStack stack)
         {
-            if (obj is ITestStep || obj is TestPlan)
+            if (obj is ITestStepParent)
             {
                 var subtype = stack.GetTypeData(obj);
                 var result = getStepTypeData(subtype);

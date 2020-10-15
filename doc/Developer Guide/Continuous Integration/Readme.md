@@ -55,7 +55,7 @@ Sometimes it can be necessary to use Windows build runners. If your project is p
 To use the OpenTAP Windows runners, use these specific tags:
 
 ```yaml
-tags: [ docker, gce ]
+tags: [ docker, windows ]
 ```
 
 If you want to use the shared Windows runners provided by GitLab, use these specific tags:

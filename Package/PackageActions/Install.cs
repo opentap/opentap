@@ -38,7 +38,7 @@ namespace OpenTap.Package
         /// <summary>
         /// This is used when specifying the install action through the CLI. If you need to specify multiple packages with different version numbers, use <see cref="PackageReferences"/>
         /// </summary>
-        [UnnamedCommandLineArgument("Packages", Required = true)]
+        [UnnamedCommandLineArgument("package(s)", Required = true)]
         public string[] Packages { get; set; }
         
         [CommandLineArgument("check-only", Description = "Checks if the selected package(s) can be installed, but does not install or download them.")]
@@ -46,6 +46,9 @@ namespace OpenTap.Package
         
         [CommandLineArgument("interactive", Description = "More user responsive.")]
         public bool Interactive { get; set; }
+        
+        [CommandLineArgument("no-downgrade", Description = "Don't install if the same or a newer version is already installed.")]
+        public bool NoDowngrade { get; set; }
         
         /// <summary>
         /// This is used when specifying multiple packages with different version numbers. In that case <see cref="Packages"/> can be left null.
@@ -90,10 +93,35 @@ namespace OpenTap.Package
             try
             {
                 log.Debug("Fetching package information...");
+
+                // If exact version is specified, check if it's already installed
+                if (Version != null && VersionSpecifier.TryParse(Version, out var vs) && vs.MatchBehavior == VersionMatchBehavior.Exact && Force == false)
+                {
+                    foreach (var pkg in Packages)
+                    {
+                        // We should always install when it's a file, this could be part of development
+                        if (File.Exists(pkg))
+                            break;
+                        
+                        PackageIdentifier pid = new PackageIdentifier(pkg, Version, Architecture, OS);
+                        var installedPackage = targetInstallation.GetPackages().FirstOrDefault(p => p.Name == pid.Name);
+                        if (installedPackage != null && pid.Version.CompareTo(installedPackage.Version) == 0)
+                        {
+                            log.Info($"Package '{pid.Name}' is already installed.");
+                            return 0;
+                        }
+                    }
+                }
+                
                 // Get package information
-                List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force, InstallDependencies, !Force);
+                List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force, InstallDependencies, !Force, NoDowngrade);
                 if (packagesToInstall?.Any() != true)
                 {
+                    if (NoDowngrade)
+                    {
+                        log.Info("No package(s) were upgraded.");
+                        return 0;
+                    }
                     log.Info("Could not find one or more packages.");
                     return 2;
                 }

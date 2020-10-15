@@ -176,7 +176,7 @@ namespace OpenTap.UnitTests
                         var instrument = InstrumentSettings.Current.First();
                         if (step.Property.GetValue(step.Instance) == null)
                         {
-                            step.Property.SetValue(step.Instance, InstrumentSettings.Current.First());
+                            step.Property.SetValue(step.Instance, instrument);
                             r.Resource = instrument;
                         }
                     }
@@ -360,6 +360,7 @@ namespace OpenTap.UnitTests
         public void ResourceSetToNullAfterPlanOpen(Type managerType)
         {
             EngineSettings.Current.ResourceManagerType = (IResourceManager)Activator.CreateInstance(managerType);
+            EngineSettings.Current.PromptForMetaData = true;
             IInstrument instr1 = new InstrumentWithMetadata() { Name = "INSTR1" };
             InstrumentSettings.Current.Add(instr1);
             try
@@ -383,7 +384,9 @@ namespace OpenTap.UnitTests
             }
             finally
             {
+                UserInput.SetInterface(null);
                 InstrumentSettings.Current.Remove(instr1);
+                EngineSettings.Current.PromptForMetaData = false;
             }
         }
     }

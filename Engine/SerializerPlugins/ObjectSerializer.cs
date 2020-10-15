@@ -36,7 +36,7 @@ namespace OpenTap.Plugins
         /// Gets the member currently being serialized.
         /// </summary>
         public IMemberData CurrentMember { get; private set; }
-
+        public static XName IgnoreMemberXName = "ignore-member";
 
         /// <summary>
         /// Specifies order. Minimum order should  be -1 as this is the most basic serializer.  
@@ -108,7 +108,7 @@ namespace OpenTap.Plugins
                     {
                         try
                         {
-                            var ok = readContentInternal(csprop.PropertyType, false, () => attr_value.Value, element, out object value);
+                            readContentInternal(csprop.PropertyType, false, () => attr_value.Value, element, out object value);
                             
                             p.SetValue(newobj, value);
                             
@@ -153,6 +153,11 @@ namespace OpenTap.Plugins
                         {
                             var element2 = elements[i];
                             if (visited[i]) continue;
+                            if (element2.Attribute(IgnoreMemberXName) is XAttribute attr && attr.Value == "true")
+                            {
+                                visited[i] = true;
+                                continue;
+                            }
                             IMemberData property = null;
                             var name = XmlConvert.DecodeName(element2.Name.LocalName);
                             var propertyMatches = props[name];
@@ -318,8 +323,17 @@ namespace OpenTap.Plugins
                                     {
                                         if (visited[j]) continue;
                                         var elem = elements[j];
-                                        var message =$"Unable to read element '{elem.Name.LocalName}'. The property does not exist.";
-                                        Serializer.PushError(elem, message);
+                                        var elementName = elem.Name.LocalName;
+                                        if (elementName.Contains('.') == false)
+                                        {
+                                            // if the element name contains '.' it is usually a special name and hence
+                                            // an error message is not needed. e.g:
+                                            //     Package.Dependencies
+                                            //     TestStep.Inputs
+                                            var message =
+                                                $"Unable to read element '{elem.Name.LocalName}'. The property does not exist.";
+                                            Serializer.PushError(elem, message);
+                                        }
                                     }
                                 }
                                 Serializer.DeferLoad(postDeserialize);
@@ -528,7 +542,9 @@ namespace OpenTap.Plugins
         HashSet<object> cycleDetetionSet = new HashSet<object>();
 
         bool AlwaysG17DoubleFormat = false;
-        
+
+        internal static readonly XName DefaultValue = "DefaultValue";
+
         /// <summary>
         /// Deserializes an object from XML.
         /// </summary>
@@ -645,7 +661,7 @@ namespace OpenTap.Plugins
                             return true;
                         }
                     case float f:
-                        elem.Value = ((float)obj).ToString("R", CultureInfo.InvariantCulture);
+                        elem.Value = f.ToString("R", CultureInfo.InvariantCulture);
                         return true;
                     case decimal d:
                         elem.Value = BigFloat.Convert(d).ToString(CultureInfo.InvariantCulture);
@@ -744,16 +760,17 @@ namespace OpenTap.Plugins
                                     {
                                         string name = attr.ElementName ?? subProp.Name;
                                         XElement elem2 = new XElement(XmlConvert.EncodeLocalName(name));
-                                        Serializer.Serialize(elem2, item,
-                                            TypeData.FromType(cst.Type.GetGenericArguments().First()));
+                                        SetHasDefaultValueAttribute(subProp, item, elem2);
                                         elem.Add(elem2);
+                                        Serializer.Serialize(elem2, item, TypeData.FromType(cst.Type.GetGenericArguments().First()));
                                     }
                                 }
                                 else
                                 {
                                     XElement elem2 = new XElement(XmlConvert.EncodeLocalName(subProp.Name));
-                                    Serializer.Serialize(elem2, val, subProp.TypeDescriptor);
+                                    SetHasDefaultValueAttribute(subProp, val, elem2);
                                     elem.Add(elem2);
+                                    Serializer.Serialize(elem2, val, subProp.TypeDescriptor);
                                 }
                             }
                             catch (Exception e)
@@ -780,6 +797,12 @@ namespace OpenTap.Plugins
                     throw new InvalidOperationException("obj was modified.");
             }
         }
-    }
 
+        private void SetHasDefaultValueAttribute(IMemberData subProp, object val, XElement elem2)
+        {
+            var attr = subProp.GetAttribute<DefaultValueAttribute>();
+            if (attr != null && !(subProp is IParameterMemberData))
+                elem2.SetAttributeValue(DefaultValue, attr.Value);
+        }
+    }
 }

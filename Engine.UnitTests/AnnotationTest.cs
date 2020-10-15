@@ -221,8 +221,10 @@ namespace OpenTap.UnitTests
         public void ListOfStringAnnotation2()
             {
               var obj = new ClassWithListOfString();    
-            var targetObject = new DelayStep();
+            var targetObject = new SequenceStep();
             var obj2 = new ClassWithListOfString();
+            targetObject.ChildTestSteps.Add(obj);
+            targetObject.ChildTestSteps.Add(obj2);
             obj2.List.Add("C");
             var selectedMember = TypeData.GetTypeData(obj).GetMember(nameof(ClassWithListOfString.Selected));
             selectedMember.Parameterize(targetObject, obj, selectedMember.Name);
@@ -302,7 +304,8 @@ namespace OpenTap.UnitTests
                 sequenceRoot.ChildTestSteps.Add(step);
                 sequence.ChildTestSteps.Add(step2);
                 
-                { // basic functionalities test 
+                { // basic functionalities test
+                    
                     var member = AnnotationCollection.Annotate(step2).GetMember(nameof(DelayStep.DelaySecs));
                     var menu = member.Get<MenuAnnotation>();
                     
@@ -316,11 +319,11 @@ namespace OpenTap.UnitTests
                     // invoking this method should
                     var method = parameterizeOnTestPlan.Get<IMethodAnnotation>();
                     method.Invoke();
-                    Assert.IsNotNull(plan.ExternalParameters.Get("Time Delay"));
+                    Assert.IsNotNull(plan.ExternalParameters.Get("Parameters \\ Time Delay"));
 
                     var unparameterize = icons[IconNames.Unparameterize].First();
                     unparameterize.Get<IMethodAnnotation>().Invoke();
-                    Assert.IsNull(plan.ExternalParameters.Get("Time Delay"));
+                    Assert.IsNull(plan.ExternalParameters.Get("Parameters \\ Time Delay"));
 
                     var createOnParent = icons[IconNames.ParameterizeOnParent].First();
                     Assert.IsNotNull(createOnParent);
@@ -380,14 +383,15 @@ namespace OpenTap.UnitTests
                     icons[IconNames.ParameterizeOnTestPlan].First().Get<IMethodAnnotation>().Invoke();
                     annotation.Read();
                     
-                    Assert.IsTrue(icons[IconNames.ParameterizeOnTestPlan].First().Get<IEnabledAnnotation>().IsEnabled);
-                    Assert.IsTrue(icons[IconNames.Parameterize].First().Get<IEnabledAnnotation>().IsEnabled);
-                    Assert.IsTrue(icons[IconNames.ParameterizeOnParent].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(icons[IconNames.ParameterizeOnTestPlan].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(icons[IconNames.Parameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(icons[IconNames.ParameterizeOnParent].First().Get<IEnabledAnnotation>().IsEnabled);
                     Assert.IsTrue(icons[IconNames.Unparameterize].First().Get<IEnabledAnnotation>().IsEnabled);
                     Assert.IsFalse(icons[IconNames.EditParameter].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(icons[IconNames.RemoveParameter].First().Get<IEnabledAnnotation>().IsEnabled);
                     
                     var planAnnotation = AnnotationCollection.Annotate(plan);
-                    var planMenu = planAnnotation.GetMember("Time Delay")
+                    var planMenu = planAnnotation.GetMember("Parameters \\ Time Delay")
                         .Get<MenuAnnotation>();
                     var planIcons = planMenu.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
                     Assert.IsFalse(planIcons[IconNames.ParameterizeOnTestPlan].First().Get<IEnabledAnnotation>().IsEnabled);
@@ -395,6 +399,7 @@ namespace OpenTap.UnitTests
                     Assert.IsTrue(planIcons[IconNames.EditParameter].First().Get<IEnabledAnnotation>().IsEnabled);
                     Assert.IsFalse(planIcons[IconNames.ParameterizeOnParent].First().Get<IEnabledAnnotation>().IsEnabled);
                     Assert.IsFalse(planIcons[IconNames.Unparameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsTrue(planIcons[IconNames.RemoveParameter].First().Get<IEnabledAnnotation>().IsEnabled);
                     
                     plan.Locked = true;
                     menu = AnnotationCollection.Annotate(step).GetMember(nameof(DelayStep.DelaySecs))
@@ -406,7 +411,7 @@ namespace OpenTap.UnitTests
                     Assert.IsFalse(icons[IconNames.Unparameterize].First().Get<IEnabledAnnotation>().IsEnabled);
                     Assert.IsFalse(icons[IconNames.EditParameter].First().Get<IEnabledAnnotation>().IsEnabled);
                     planAnnotation = AnnotationCollection.Annotate(plan);
-                    planMenu = planAnnotation.GetMember("Time Delay")
+                    planMenu = planAnnotation.GetMember("Parameters \\ Time Delay")
                         .Get<MenuAnnotation>();
                     planIcons = planMenu.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
                     Assert.IsFalse(planIcons[IconNames.ParameterizeOnTestPlan].First().Get<IEnabledAnnotation>().IsEnabled);
@@ -414,6 +419,31 @@ namespace OpenTap.UnitTests
                     Assert.IsFalse(planIcons[IconNames.EditParameter].First().Get<IEnabledAnnotation>().IsEnabled);
                     Assert.IsFalse(planIcons[IconNames.ParameterizeOnParent].First().Get<IEnabledAnnotation>().IsEnabled);
                     Assert.IsFalse(planIcons[IconNames.Unparameterize].First().Get<IEnabledAnnotation>().IsEnabled);
+                    Assert.IsFalse(planIcons[IconNames.RemoveParameter].First().Get<IEnabledAnnotation>().IsEnabled);
+                }
+                {
+                    // remove parameter
+                    plan.Locked = false;
+                    var planAnnotation = AnnotationCollection.Annotate(plan);
+                    var menu = planAnnotation.GetMember("Parameters \\ Time Delay").Get<MenuAnnotation>();
+                    var removeItem = menu.MenuItems.First(x => x.Get<IconAnnotationAttribute>()?.IconName == IconNames.RemoveParameter);
+                    removeItem.Get<IMethodAnnotation>().Invoke();
+                    planAnnotation = AnnotationCollection.Annotate(plan);
+                    // after removing there is not Time Delay parameter..
+                    Assert.IsNull(planAnnotation.GetMember("Parameters \\ Time Delay"));
+                }
+                {// Break Conditions
+                    var member = AnnotationCollection.Annotate(step2).GetMember("BreakConditions");
+                    Assert.NotNull(member);
+                    var menu = member.Get<MenuAnnotation>();
+                    Assert.NotNull(menu);
+                    var parameterize = menu.MenuItems.FirstOrDefault(x =>
+                        x.Get<IIconAnnotation>()?.IconName == IconNames.ParameterizeOnTestPlan);
+                    Assert.IsTrue(parameterize.Get<IAccessAnnotation>().IsVisible);
+                    
+                    Assert.AreEqual(1, TypeData.GetTypeData(plan).GetMembers().Count(x => x.Name.Contains("BreakConditions") || x.Name.Contains("BreakConditions")));
+                    parameterize.Get<IMethodAnnotation>().Invoke();
+                    Assert.AreEqual(2, TypeData.GetTypeData(plan).GetMembers().Count(x => x.Name.Contains("Break Conditions") || x.Name.Contains("BreakConditions")));
                     
                 }
             }
@@ -421,7 +451,97 @@ namespace OpenTap.UnitTests
             {
                 UserInput.SetInterface(currentUserInterface as IUserInputInterface);
             }
+        }
+        [Test]
+        public void MenuAnnotationTest2()
+        {
+            var currentUserInterface = UserInput.Interface;
+            var menuInterface = new MenuTestUserInterface();
+            UserInput.SetInterface(menuInterface);
+            try
+            {
+                var plan = new TestPlan();
+                var delay = new DelayStep();
+                plan.Steps.Add(delay);
 
+                { // basic functionalities test 
+                    var member = AnnotationCollection.Annotate(delay).GetMember(nameof(DelayStep.DelaySecs));
+                    var menu = member.Get<MenuAnnotation>();
+                    var items = menu.MenuItems;
+
+                    var icons = items.ToLookup(item =>
+                        item.Get<IIconAnnotation>()?.IconName ?? "");
+                    var parameterizeOnTestPlan = icons[IconNames.ParameterizeOnTestPlan].First();
+                    Assert.IsNotNull(parameterizeOnTestPlan);
+
+                    // invoking this method should
+                    var method = parameterizeOnTestPlan.Get<IMethodAnnotation>();
+                    method.Invoke();
+                    Assert.IsNotNull(plan.ExternalParameters.Get("Parameters \\ Time Delay"));
+
+                    member = AnnotationCollection.Annotate(delay).GetMember(nameof(DelayStep.DelaySecs));
+                    menu = member.Get<MenuAnnotation>();
+                    items = menu.MenuItems;
+
+                    icons = items.ToLookup(item =>
+                        item.Get<IIconAnnotation>()?.IconName ?? "");
+                    parameterizeOnTestPlan = icons[IconNames.ParameterizeOnTestPlan].First();
+                    Assert.IsNotNull(parameterizeOnTestPlan);
+                    
+                    // This fails, which it should not.
+                    Assert.IsFalse(parameterizeOnTestPlan.Get<IEnabledAnnotation>().IsEnabled);
+                }
+            }
+            finally
+            {
+                UserInput.SetInterface(currentUserInterface as IUserInputInterface);
+            }
+
+        }
+
+        /// <summary>
+        /// When the test plan is changed, parameters that becomes invalid needs to be removed.
+        /// This is done by doing some checks in DynamicMemberTypeDataProvider.
+        /// In this test it is verified that that behavior works as expected.
+        /// </summary>
+        [Test]
+        public void AutoRemoveParameters()
+        {
+            var plan = new TestPlan();
+            var step = new DelayStep();
+            plan.ChildTestSteps.Add(step);
+            var member = TypeData.GetTypeData(step).GetMember(nameof(step.DelaySecs));
+            var parameter = member.Parameterize(plan, step, "delay");
+            Assert.IsNotNull(TypeData.GetTypeData(plan).GetMember(parameter.Name));
+            plan.ChildTestSteps.Remove(step);
+            Assert.IsNull(TypeData.GetTypeData(plan).GetMember(parameter.Name));
+            
+            var seq = new SequenceStep();
+            plan.ChildTestSteps.Add(seq);
+            seq.ChildTestSteps.Add(step);
+            parameter = member.Parameterize(seq, step, "delay");
+            Assert.IsNotNull(TypeData.GetTypeData(seq).GetMember(parameter.Name));
+            seq.ChildTestSteps.Remove(step);
+            Assert.IsNull(TypeData.GetTypeData(seq).GetMember(parameter.Name));
+            
+            seq.ChildTestSteps.Add(step);
+            parameter = member.Parameterize(seq, step, "delay");
+            var member2 = TypeData.GetTypeData(seq).GetMember(parameter.Name);
+            Assert.IsNotNull(member2);
+            Assert.AreEqual(member2, parameter);
+            var parameter2 = member2.Parameterize(plan, seq, "delay");
+            Assert.IsNotNull(TypeData.GetTypeData(plan).GetMember(parameter2.Name));
+            plan.ChildTestSteps.Remove(seq);
+            Assert.IsNull(TypeData.GetTypeData(plan).GetMember(parameter2.Name));
+            Assert.IsNotNull(TypeData.GetTypeData(seq).GetMember(parameter.Name));
+            
+            plan.ChildTestSteps.Add(seq);
+            parameter2 = member2.Parameterize(plan, seq, "delay");
+            Assert.IsNotNull(TypeData.GetTypeData(plan).GetMember(parameter2.Name));
+            Assert.IsNotNull(TypeData.GetTypeData(seq).GetMember(parameter.Name));
+            seq.ChildTestSteps.Remove(step);
+            Assert.IsNull(TypeData.GetTypeData(plan).GetMember(parameter2.Name));
+            Assert.IsNull(TypeData.GetTypeData(seq).GetMember(parameter.Name));
         }
 
         [Test]

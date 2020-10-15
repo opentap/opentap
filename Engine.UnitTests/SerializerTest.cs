@@ -1607,10 +1607,11 @@ namespace OpenTap.Engine.UnitTests
                 step1.OtherStep = step3;
                 step3.OtherStep = step1;
                 TestPlan plan = new TestPlan();
-                plan.ExternalParameters.Add(step1, someNumberProp, "SomeNumber");
-                plan.ExternalParameters.Add(step1, doublesProp, "Doubles");
                 plan.ChildTestSteps.Add(step1);
                 plan.ChildTestSteps.Add(step3);
+                plan.ExternalParameters.Add(step1, someNumberProp, "SomeNumber");
+                plan.ExternalParameters.Add(step1, doublesProp, "Doubles");
+                
                 TestPlan plan2 = null;
                 using (var memstr = new MemoryStream())
                 {
@@ -1707,12 +1708,14 @@ namespace OpenTap.Engine.UnitTests
                 step1.OtherStep = step3;
                 step3.OtherStep = step1;
                 TestPlan plan = new TestPlan();
-                plan.ExternalParameters.Add(step1, someNumberProp, "SomeNumber");
                 plan.ChildTestSteps.Add(step1);
                 plan.ChildTestSteps.Add(step3);
                 plan.ChildTestSteps.Add(dynstep);
                 plan.ChildTestSteps.Add(dynstep2);
-                TestPlan plan2 = null;
+                // external parameters must be added after the steps has been inserted
+                // into the test plan.
+                plan.ExternalParameters.Add(step1, someNumberProp, "SomeNumber");
+                TestPlan plan2;
                 using (var memstr = new MemoryStream())
                 {
                     var serializer = new TapSerializer();
@@ -1884,6 +1887,33 @@ namespace OpenTap.Engine.UnitTests
             {    
                 throw new NotImplementedException();
             }
+        }
+
+        [TestCase("test", false)]
+        [TestCase("SomeOtherString", true)]
+        [TestCase("", true)]
+        [TestCase(null, true)]
+        public void DefaultValueTest(string value, bool serialized)
+        {
+            var logStep = new DefaultValueTestStep();
+            var plan = new TestPlan();
+            plan.Steps.Add(logStep);
+            logStep.Value = value;
+
+            using (var mem = new MemoryStream())
+            {
+                plan.Save(mem);
+                mem.Seek(0, SeekOrigin.Begin);
+                plan = TestPlan.Load(mem, "plan");
+            }
+
+            logStep = (DefaultValueTestStep)plan.Steps[0];
+            // Expect value to be equal since it is not the same as default value now
+            if (serialized)
+                Assert.AreEqual(value, logStep.Value);
+            // Expect property from test step to be empty since it is the same default value as the one from constructor
+            else
+                Assert.AreNotEqual(value, logStep.Value);
         }
 
         // Technically speaking, DefaultValueAttribute is not supported in the sense that properties with default value
@@ -2201,6 +2231,36 @@ namespace OpenTap.Engine.UnitTests
             string xml = new TapSerializer().SerializeToString(inst);
             var inst2 = (SomeInstrument)new TapSerializer().DeserializeFromString(xml, TypeData.GetTypeData(inst));
             Assert.AreEqual(inst.Password.ToString(), inst2.Password.ToString());
+        }
+    }
+
+    public class XmlTextAttributeTest
+    {
+        public enum Mode
+        {
+            A,
+            B,
+            C
+        }
+
+        public class SimpleXmlTestAttribute
+        {
+            [XmlText(Type = typeof(Mode))]
+            public Mode Value { get; set; }
+        }
+        [Test]
+        public void SimpleXmlTextAttributeTest()
+        {
+            var myGroup1 = new SimpleXmlTestAttribute { Value = Mode.C };
+            var str = new TapSerializer().SerializeToString(myGroup1);
+            var xml = XDocument.Load(new MemoryStream(Encoding.UTF8.GetBytes(str)));
+
+
+            var elem = xml.Element("SimpleXmlTestAttribute");
+            Assert.IsNotNull(elem);
+            Assert.AreEqual(elem.Value, nameof(Mode.C));
+            // Should not have child element Value since it is serialized as XmlText
+            Assert.IsNull(elem.Element("Value"));
         }
     }
 }

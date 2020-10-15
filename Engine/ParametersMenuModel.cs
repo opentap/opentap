@@ -78,7 +78,7 @@ namespace OpenTap
         [Display("Unparameterize", "Removes the parameterization of this setting.", Order: 1.0)]
         [IconAnnotation(IconNames.Unparameterize)]
         [Browsable(true)]
-        public void Unparameterize() => ParameterManager.RemoveParameter(this);
+        public void Unparameterize() => ParameterManager.Unparameterize(this);
 
         [Display("Edit Parameter", "Edit an existing parameterization.", Order: 1.0)]
         [Browsable(true)]
@@ -86,6 +86,47 @@ namespace OpenTap
         [IconAnnotation(IconNames.EditParameter)]
         [EnabledIf(nameof(IsParameter), true, HideIfDisabled = true)]
         public void EditParameter() => ParameterManager.EditParameter(this);
+
+        public bool CanRemoveParameter => member is IParameterMemberData && source.All(x => x is TestPlan);
+        
+        [Browsable(true)]
+        [Display("Remove Parameter", "Remove a parameter.", Order: 1.0)]
+        [IconAnnotation(IconNames.RemoveParameter)]
+        [EnabledIf(nameof(CanRemoveParameter), true, HideIfDisabled = true)]
+        [EnabledIf(nameof(TestPlanLocked), false)]
+        public void RemoveParameter() => ParameterManager.RemoveParameter(this);
+        
+        
+        // Input/Output
+        public bool CanAssignOutput => TestPlanLocked == false && source.Length > 0 && member.Writable && !CanUnassignOutput;
+        [Display("Assign Output", "Control this setting using an output.", Order: 2.0)]
+        [Browsable(true)]
+        [IconAnnotation(IconNames.AssignOutput)]
+        [EnabledIf(nameof(CanAssignOutput), true, HideIfDisabled = true)]
+        
+        public void ControlUsingOutput()
+        {
+            var question = new AssignOutputDialog(this.member, this.source.FirstOrDefault());
+            UserInput.Request(question);
+            if (question.Response == ParameterManager.OkCancel.Cancel)
+                return;
+            InputOutputRelation.Assign(source.FirstOrDefault(), member, question.Output.Step, question.Output.Member);
+        }
+
+        public bool IsOutput => member.HasAttribute<OutputAttribute>();
+        public bool IsOutputAssigned => IsOutput && InputOutputRelation.IsInput(source.FirstOrDefault(), member);
+        
+        public bool CanUnassignOutput => TestPlanLocked == false && source.Length > 0 && member.Writable && InputOutputRelation.GetRelations(source.First()).Any(con => con.InputMember == member && con.InputObject == source.First());
+        [Display("Unassign Output", "Unassign the output controlling this property.", Order: 2.0)]
+        [Browsable(true)]
+        [IconAnnotation(IconNames.UnassignOutput)]
+        [EnabledIf(nameof(CanUnassignOutput), true, HideIfDisabled = true)]
+        public void UnassignOutput()
+        {
+            var step = source.First();
+            var con2 = InputOutputRelation.GetRelations(step).First(con => con.InputMember == member && con.InputObject == step);
+            InputOutputRelation.Unassign(con2);
+        }
     }
     
     class TestStepMenuItemsModelFactory : IMenuModelFactory

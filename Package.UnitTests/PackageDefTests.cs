@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using OpenTap.Plugins.BasicSteps;
 using System.Reflection;
 using System;
+using OpenTap.Engine.UnitTests.TestTestSteps;
 using static OpenTap.Package.PackageDefExt;
 
 namespace OpenTap.Package.UnitTests
@@ -48,6 +49,12 @@ namespace OpenTap.Package.UnitTests
     [TestFixture]
     public class PackageDefTests
     {
+        [OneTimeSetUp]
+        public void Init()
+        {
+            CliTests.CreateOpenTAPPackage();
+        }
+
         [TestCase("GlobTest/**/*.txt", 4)]
         [TestCase("GlobTest/*/*.txt", 3)]
         [TestCase("GlobTest/dir*/*.txt", 3)]
@@ -109,7 +116,6 @@ namespace OpenTap.Package.UnitTests
         {
             string inputFilename = "Packages/Package/package.xml";
 
-            CliTests.CreateOpenTAPPackage();
             PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
             //Assert.AreEqual(inputFilename, pkg.FileName);
 
@@ -129,7 +135,7 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void GitVersionDependency()
         {
-            string inputFilename = "Packages/GitversionDependency/package.xml";
+            string inputFilename = "Packages/GitVersionDependency/package.xml";
             string outputFilename = "GitversionDependency.TapPlugin";
             try
             {
@@ -152,10 +158,9 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void CreatePackage_NoObfuscation()
         {
-            string inputFilename = "Packages/package/package.xml";
+            string inputFilename = "Packages/Package/package.xml";
             string outputFilename = "Test.TapPlugin";
 
-            CliTests.CreateOpenTAPPackage();
             PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
             try
             {
@@ -172,7 +177,7 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void CreatePackage_NoBinFiles()
         {
-            File.Copy("Packages/package_NoBinFiles/package.xml", "package_NoBinFiles.xml", true);
+            File.Copy("Packages/Package_NoBinFiles/package.xml", "package_NoBinFiles.xml", true);
             string inputFilename = "package_NoBinFiles.xml";
             string outputFilename = "Test.TapPackage";
 
@@ -190,6 +195,7 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
+        [Platform(Exclude="Unix,Linux,MacOsX")]
         public void CreatePackageVersioningMono()
         {
             var tmpFile = Path.GetTempFileName();
@@ -211,6 +217,7 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
+        [Platform(Exclude="Unix,Linux,MacOsX")]
         public void CreatePackageVersioningIlAsm()
         {
             var tmpFile = Path.GetTempFileName();
@@ -290,6 +297,7 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
+        [Platform(Exclude="Unix,Linux,MacOsX")]
         public void CreatePackageDepReuse()
         {
             if (Directory.Exists("Packages2"))
@@ -398,7 +406,6 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void SaveManyTo_Simple()
         {
-            CliTests.CreateOpenTAPPackage();
             string outputFileContent = "";
 
             PackageDef pkg = PackageDefExt.FromInputXml("Packages/Package/package.xml", Directory.GetCurrentDirectory());
@@ -459,7 +466,6 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void findDependencies_SharedAssemblyReference()
         {
-            CliTests.CreateOpenTAPPackage();
             var inst = new Installation(Directory.GetCurrentDirectory());
             var pkgs = inst.GetPackages();
             string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
@@ -481,7 +487,6 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void findDependencies_HardcodedDependency()
         {
-            CliTests.CreateOpenTAPPackage();
             var inst = new Installation(Directory.GetCurrentDirectory());
             var pkgs = inst.GetPackages();
             string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
@@ -506,7 +511,6 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void findDependencies_HardcodedDependencyNotInstalled()
         {
-            CliTests.CreateOpenTAPPackage();
             var inst = new Installation(Directory.GetCurrentDirectory());
             var pkgs = inst.GetPackages();
             string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
@@ -536,7 +540,6 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void findDependencies_SharedAssemblyReferenceInDependencies()
         {
-            CliTests.CreateOpenTAPPackage();
             var inst = new Installation(Directory.GetCurrentDirectory());
             var pkgs = inst.GetPackages();
             string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
@@ -672,7 +675,6 @@ namespace OpenTap.Package.UnitTests
                 if (File.Exists(pkgName))
                     File.Delete(pkgName);
                 File.WriteAllText(pkgName, pkgContent);
-                CliTests.CreateOpenTAPPackage(); // to get a dependency, OpenTAP first needs to be installed
                 string installDir = Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location);
                 var pkg = PackageDefExt.FromInputXml(pkgName, installDir);
                 CollectionAssert.IsNotEmpty(pkg.Dependencies,"Package has no dependencies.");
@@ -705,7 +707,7 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void TestCliPackaging()
         {
-            var p = Process.Start("tap.exe", "package create \"Packages/Package/package.xml\" -v");
+            var p = Process.Start("tap", "package create \"Packages/Package/package.xml\" -v");
             p.WaitForExit();
             Assert.AreEqual(0, p.ExitCode);
             var plugins = Directory.EnumerateFiles(".");
@@ -766,5 +768,24 @@ namespace OpenTap.Package.UnitTests
             Assert.AreEqual(1, pkg.Dependencies.Count);
             Assert.AreEqual("XSeries", pkg.Dependencies.First().PackageName);
         }*/
+
+        [Test]
+        [Platform(Exclude="Unix,Linux,MacOsX")]
+        public void TestSetAssemblyInfo()
+        {
+            File.Copy("Packages/SetAsmInfoTest.dll", "SetAsmInfoTest.dll", true);
+            var fileName = $"SetAsmInfoTest.dll";
+
+            // Check if version is null
+            Assert.IsNull(ReadAssemblyVersionStep.GetVersion(fileName), "Assembly version is not null as expected.");
+
+            // Check if version has been new version inserted
+            SetAsmInfo.SetAsmInfo.SetInfo(fileName, Version.Parse("1.2.3.4"), Version.Parse("2.3.4.5"), SemanticVersion.Parse("2.3.4-test"));
+            Assert.IsTrue(ReadAssemblyVersionStep.GetVersion(fileName)?.Equals(SemanticVersion.Parse("2.3.4-test")), "Assembly version was not inserted correctly.");
+
+            // Check if version has been updated.
+            SetAsmInfo.SetAsmInfo.SetInfo(fileName, Version.Parse("1.2.3.4"), Version.Parse("2.3.4.5"), SemanticVersion.Parse("3.4.5-test"));
+            Assert.IsTrue(ReadAssemblyVersionStep.GetVersion(fileName)?.Equals(SemanticVersion.Parse("3.4.5-test")), "Assembly version was not updated correctly.");
+        }
     }
 }

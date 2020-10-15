@@ -33,8 +33,7 @@ namespace OpenTap.Plugins
                          obj = ComponentSettings.GetCurrent(obj.GetType());
                          var lst = (IList)obj;
                          var dev = element.Element("Device");
-                         int index = -1;
-                         if(dev != null && int.TryParse(dev.Value, out index) && index >= 0 && lst.Count > index)
+                         if(dev != null && int.TryParse(dev.Value, out int index) && index >= 0 && lst.Count > index)
                          {
                              
                              resource = ((IList)obj)[index] as IResource;

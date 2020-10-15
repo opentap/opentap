@@ -1,3 +1,6 @@
+include:
+  - template: Security/License-Scanning.gitlab-ci.yml
+
 variables:
   PACKAGE_REPO_URL: "http://packages.opentap.io"
   DOTNET_CLI_TELEMETRY_OPTOUT: "true"
@@ -79,6 +82,14 @@ Build-Linux64:
     paths:
        - bin/Release/publish
 
+QuickTest: # Quick test to fail as early as possible. 
+  stage: build
+  image: microsoft/dotnet:2.1-sdk-stretch
+  tags: [ docker, gce ]
+  script:
+    - dotnet build -c NetCoreDebug
+    - dotnet vstest bin/Debug/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000
+  
 # Builds the Everything.sln solution
 Build-x86:
   stage: build
@@ -154,12 +165,23 @@ TestPackage:
   script:
          - $ErrorActionPreference = "Stop"
          - copy-item -r "Package.UnitTests/Packages" bin/Release
-         - dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll
+         - dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
   artifacts:
     when: always
     expire_in: 1 week
     paths:
        - "TestResult.xml"
+
+TestWindowsPlan:
+  stage: test
+  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  tags: [ docker, windows ]
+  dependencies:
+    - Build-x86
+  needs:
+    - Build-x86
+  script:
+    - bin/Release/tap.exe run tests/regression.TapPlan --verbose
 
 TestLinuxPlan:
   stage: test
@@ -185,37 +207,59 @@ TestLinuxPlan:
   script:
         - ln -sf $PWD/bin/Release/publish/tap /bin
         - check_exit_code () { if [ $exit_code -eq $1 ]; then echo "OK"; else echo "FAIL ($exit_code)"; false; fi }
+        - echo "tap run unit test"
         - tap run -v Engine.UnitTests/TestTestPlans/testMultiReferencePlan.TapPlan --ignore-load-errors || exit_code=$?
         - check_exit_code 20
+        - echo "tap sdk gitversion unit tests"
         - tap sdk gitversion -v       # verify that gitversion works.
         - tap sdk gitversion --log 10 # verify that gitversion log works.
+        - echo "tap package create/verify unit tests"
         - tap package verify || exit_code=$?
         - check_exit_code 2
+        - cp *.package.xml bin/ # for Package NUnit tests
         - sed -i "/Sign Certificate/ d" opentap_linux64.package.xml
+        - sed -i -e '/File Path/ s!Dependencies/!Dependencies\\!' opentap_linux64.package.xml
+        - sed -i -e '/SourcePath/ s!dotnet_library_license.txt!.\\dotnet_library_license.txt!' opentap_linux64.package.xml
         - cd bin/Release/publish
         - rm -rf Packages/*
         - tap package create --install ../../../opentap_linux64.package.xml -o OpenTAP.TapPackage
         - tap | grep Interface
-        - mkdir test
-        - tap package install OpenTAP.TapPackage --target test
-        - cd test
+        - mkdir ../test
+        - tap package install OpenTAP.TapPackage --target ../test
+        - cd ../test
         - ./tap | grep Interface
-        - ./tap package verify OpenTAP
+        - sed -i '/File Path/ s!Dependencies/!Dependencies\\!' Packages/OpenTAP/package.xml
         - cd -
+        - ../test/tap package verify OpenTAP
         - mkdir Packages/SDK
         - touch '../../../sdk/Examples/OpenTAP Developer Guide.pdf'
-        - cp -r ../../../sdk/Examples Packages/SDK
-        - cp    ../../../Package/PackageSchema.xsd Packages/SDK
-        - tap package create -v ../../../sdk/sdk.package.xml -o SDK.TapPackage
-        - tap package install SDK.TapPackage --target test
-        - cd test
+        - ln -s ../../../../../sdk/Examples Packages/SDK
+        - ln -s ../../../../../Package/PackageSchema.xsd Packages/SDK
+        - tap package create ../../../sdk/sdk.package.xml -o SDK.TapPackage
+        - tap package install SDK.TapPackage --target ../test
+        - cd ../test
         - ./tap | grep Interface
         - ./tap package verify SDK
+        - cd -
+        - echo "Engine NUnit tests"
+        - dotnet vstest OpenTap.UnitTests.dll --logger:"console;verbosity=detailed"
+        - echo "Package NUnit tests"
+        - rm -rf Packages
+        - cp -r ../../../Package.UnitTests/Packages .
+        - dotnet vstest OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
+
 
 TestUbuntu:
   stage: test
   image: mcr.microsoft.com/dotnet/core/sdk:2.1-bionic
   extends: .LinuxScript
+  before_script:
+    - apt update
+    - apt install locales
+    - echo "LC_ALL=en_US.UTF-8" >> /etc/environment
+    - echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+    - echo "LANG=en_US.UTF-8" > /etc/locale.conf
+    - locale-gen en_US.UTF-8
 
 TestCentos7:
   stage: test
@@ -313,7 +357,7 @@ Package-Linux:
      - Build-Linux64
   needs:
      - Build-x86
-     - Build-Linux64    
+     - Build-Linux64
   script:
          - if (!$PROTECTED_BRANCH) { Set-Content .\opentap_linux64.package.xml  -Value (get-content .\opentap_linux64.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
          - mv bin\Release\publish bin\linux-x64
