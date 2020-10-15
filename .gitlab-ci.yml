@@ -96,7 +96,7 @@ Build-x86:
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
   variables:
-      NUGET_PACKAGES: .nuget
+      NUGET_PACKAGES: $CI_PROJECT_DIR/.nuget
   cache:
     paths:
       - .nuget
@@ -116,7 +116,7 @@ Build-x64:
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
   variables:
-      NUGET_PACKAGES: .nuget
+      NUGET_PACKAGES: $CI_PROJECT_DIR/.nuget
   cache:
     paths:
       - .nuget
@@ -136,7 +136,7 @@ WarningTest:
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
   variables:
-      NUGET_PACKAGES: .nuget
+      NUGET_PACKAGES: $CI_PROJECT_DIR/.nuget
   cache:
     paths:
       - .nuget
