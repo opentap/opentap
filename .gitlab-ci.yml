@@ -172,6 +172,17 @@ TestPackage:
     paths:
        - "TestResult.xml"
 
+TestWindowsPlan:
+  stage: test
+  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  tags: [ docker, windows ]
+  dependencies:
+    - Build-x86
+  needs:
+    - Build-x86
+  script:
+    - bin/Release/tap.exe run tests/regression.TapPlan --verbose
+
 TestLinuxPlan:
   stage: test
   tags: [docker, gce]
