@@ -1,5 +1,7 @@
 using System;
+using System.ComponentModel;
 using System.Linq;
+using System.Xml.Serialization;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
 
@@ -209,6 +211,8 @@ namespace OpenTap.UnitTests
             [Output]
             public double X { get; private set; }
             
+            [XmlIgnore]
+            [Browsable(true)]
             public double Y { get; set; }
             public override void Run()
             {
@@ -236,6 +240,23 @@ namespace OpenTap.UnitTests
             b = (ReadOnlyMemberOutput)plan.ChildTestSteps[1];
             Assert.IsTrue(InputOutputRelation.IsOutput(a, readonlyMember));
             Assert.IsTrue(InputOutputRelation.IsInput(b, writableMember));
+        }
+
+        [Test]
+        public void TestMultipleOutputFromTheSameProperty()
+        {
+            var a = new OutputInput();
+            var b = new OutputInput();
+            var inputMember = TypeData.GetTypeData(a).GetMember(nameof(a.Input));
+            var outputMember= TypeData.GetTypeData(b).GetMember(nameof(b.Output));
+            var inputMember2= TypeData.GetTypeData(a).GetMember(nameof(a.ExpectedInput)); 
+            InputOutputRelation.Assign(a, inputMember, b, outputMember);
+            InputOutputRelation.Assign(a, inputMember2, b, outputMember);
+
+            Assert.IsTrue(InputOutputRelation.IsInput(a, inputMember));
+            Assert.IsTrue(InputOutputRelation.IsInput(a, inputMember2));
+            Assert.Throws<ArgumentException>(() => InputOutputRelation.Assign(a, inputMember, b, outputMember));
+            Assert.Throws<ArgumentException>(() => InputOutputRelation.Assign(a, inputMember2, b, outputMember));
         }
     }
 }

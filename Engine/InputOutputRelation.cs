@@ -61,8 +61,7 @@ namespace OpenTap
             if(outputObject == null)
                 throw new ArgumentNullException(nameof(outputObject));
             if(inputMember == outputMember && inputObject == outputObject)
-                throw new InvalidOperationException("An output cannot be connected to itself");
-            
+                throw new ArgumentException("An input/output may not be assigned to itself.");
             if(outputMember.Readable == false)
                 throw new ArgumentException(nameof(outputMember) + " is not readable!", nameof(outputMember));
             if (inputMember.Writable == false)
@@ -70,12 +69,15 @@ namespace OpenTap
             var connTo = getOutputRelations(inputObject).ToList();
             var connFrom = getInputRelations(outputObject).ToList();
             foreach(var connection in connTo)
-                if (connection.OutputObject == outputObject && connection.OutputMember == outputMember)
-                    return;
-            if(IsInput(outputObject, outputMember))
-                throw new Exception("An output cannot also be an input");
+                if (connection.OutputObject == outputObject && connection.OutputMember == outputMember && inputMember == connection.InputMember)
+                    throw new ArgumentException("Input already assigned", nameof(inputMember));
             if(IsInput(inputObject, inputMember))
                 throw new Exception("This input is already in use by another connection.");
+            
+            // these two restrictions might not be necessary, but it might be good to leave it 
+            // in case we want to change the mechanism
+            if(IsInput(outputObject, outputMember))
+                throw new Exception("An output cannot also be an input");
             if(IsOutput(inputObject, inputMember))
                 throw new Exception("An input cannot also be an output");
 
@@ -99,7 +101,7 @@ namespace OpenTap
         public static void Unassign(ITestStepParent target, IMemberData targetMember, ITestStepParent source,
             IMemberData sourceMember)
         {
-            var from = getInputRelations(source).ToList();
+            var from = getInputRelations(source);
             var con = from.FirstOrDefault(i => i.InputObject == target && i.InputMember == targetMember && i.OutputMember == sourceMember);
             if(con != null)
                 Unassign(con);
