@@ -309,21 +309,15 @@ namespace OpenTap.Package
             return gatheredPackages;
         }
 
-        internal static List<string> DownloadPackages(string destinationDir, List<PackageDef> PackagesToDownload)
+        internal static List<string> DownloadPackages(string destinationDir, List<PackageDef> PackagesToDownload, List<string> filenames = null)
         {
             List<string> downloadedPackages = new List<string>();
-            foreach (PackageDef pkg in PackagesToDownload)
+            for(int i = 0; i < PackagesToDownload.Count; i++)
             {
                 Stopwatch timer = Stopwatch.StartNew();
-                List<string> filenameParts = new List<string> { pkg.Name };
-                if (pkg.Version != null)
-                    filenameParts.Add(pkg.Version.ToString());
-                if (pkg.Architecture != CpuArchitecture.AnyCPU)
-                    filenameParts.Add(pkg.Architecture.ToString());
-                if (!String.IsNullOrEmpty(pkg.OS) && pkg.OS != "Windows")
-                    filenameParts.Add(pkg.OS);
-                filenameParts.Add("TapPackage");
-                var filename = Path.Combine(destinationDir, String.Join(".", filenameParts));
+                
+                var pkg = PackagesToDownload[i]; 
+                string filename = filenames?.ElementAtOrDefault(i) ?? Path.Combine(destinationDir, GetQualifiedFileName(pkg));
 
                 TapThread.ThrowIfAborted();
                 
@@ -388,6 +382,19 @@ namespace OpenTap.Package
             }
 
             return downloadedPackages;
+        }
+
+        internal static string GetQualifiedFileName(PackageDef pkg)
+        {
+            List<string> filenameParts = new List<string> { pkg.Name };
+            if (pkg.Version != null)
+                filenameParts.Add(pkg.Version.ToString());
+            if (pkg.Architecture != CpuArchitecture.AnyCPU)
+                filenameParts.Add(pkg.Architecture.ToString());
+            if (!String.IsNullOrEmpty(pkg.OS) && pkg.OS != "Windows")
+                filenameParts.Add(pkg.OS);
+            filenameParts.Add("TapPackage");
+            return String.Join(".", filenameParts);
         }
     }
 }

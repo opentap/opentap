@@ -37,6 +37,12 @@ namespace OpenTap.Package
         [UnnamedCommandLineArgument("package(s)", Required = true)]
         public string[] Packages { get; set; }
 
+        /// <summary>
+        /// Represents the --out command line argument which specifies the path to the output file.
+        /// </summary>
+        [CommandLineArgument("out", Description = "Path to the output files. Can a file or a folder.", ShortName = "o")]
+        public string[] OutputPaths { get; set; } = Array.Empty<string>();
+
         [CommandLineArgument("dry-run", Description = "Initiate the command and check for errors, but don't download any packages.")]
         public bool DryRun { get; set; } = false;
 
@@ -74,6 +80,9 @@ namespace OpenTap.Package
 
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
+            if (OutputPaths.Length > Packages.Length)
+                throw new Exception("More OutputPaths specified than packages. Exiting.");
+            
             string destinationDir = Target ?? Directory.GetCurrentDirectory();
             Installation destinationInstallation = new Installation(destinationDir);
 
@@ -90,7 +99,43 @@ namespace OpenTap.Package
                 return 2;
 
             if (!DryRun)
+            {
+                // If OutputPaths are specified, download the specified packages to those locations before downloading the remaining files
+                // Place the remaining files in the same location as the last named location
+                for (int i = 0; i < OutputPaths.Length; i++)
+                {
+                    var outputPath = OutputPaths[i];
+                    var packageName = Packages[i];
+                    var package = PackagesToDownload.First(p =>
+                        p.Name == packageName || (p.PackageSource is FilePackageDefSource s &&
+                                                  s.PackageFilePath == Path.GetFullPath(packageName)));
+
+                    string filename = null;
+
+                    // Treat path as a directory if it ends with '/'
+                    if (outputPath.EndsWith("/") || outputPath.EndsWith(Path.DirectorySeparatorChar.ToString()))
+                        Directory.CreateDirectory(outputPath);
+                    if (Directory.Exists(outputPath))
+                    {
+                        destinationDir = outputPath;
+                    }
+                    // Otherwise, treat it as a full path
+                    else
+                    {
+                        var file = new FileInfo(outputPath);
+                        destinationDir = file.DirectoryName;
+                        Directory.CreateDirectory(destinationDir);
+                        filename = file.FullName;
+                    }
+
+                    PackageActionHelpers.DownloadPackages(destinationDir, new List<PackageDef>() {package},
+                        new List<string>() {filename});
+                    PackagesToDownload.Remove(package);
+                }
+
+                // Download the remaining packages
                 PackageActionHelpers.DownloadPackages(destinationDir, PackagesToDownload);
+            }
             else
                 log.Info("Dry run completed. Specified packages are available.");
 

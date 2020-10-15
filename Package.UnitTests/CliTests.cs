@@ -91,6 +91,66 @@ namespace OpenTap.Package.UnitTests
             }
         }
 
+
+        [TestCase(true, true, null)]                 // tap package download --out /tmp/Nested/TargetDir/ pkg -r /tmp
+        [TestCase(true, false, null)]                // tap package download --out /tmp/Nested/TargetDir/ /tmp/pkg.TapPackage
+        [TestCase(true, true, "pkg.TapPackage")]     // tap package download --out /tmp/Nested/TargetDir/pkg.TapPackage pkg -r /tmp
+        [TestCase(true, false, "pkg.TapPackage")]     // tap package download --out /tmp/Nested/TargetDir/pkg.TapPackage /tmp/pkg.TapPackage
+        [TestCase(false, false, null)]               // tap package download /tmp/pkg.TapPackage
+        [TestCase(false, true, null)]                // tap package download pkg -r /tmp
+        public void DownloadTest(bool useOut, bool useRepo, string outFileName)
+        {
+            var depDef = new PackageDef {Name = "Pkg1", Version = SemanticVersion.Parse("1.0"), OS = "Windows,Linux"};
+            depDef.AddFile("Dependency.txt");
+            string dep0File = DummyPackageGenerator.GeneratePackage(depDef);
+
+            string tempFn = Path.Combine(Path.GetTempPath(), Path.GetFileName(dep0File));
+
+            if (File.Exists(tempFn))
+                File.Delete(tempFn);
+            File.Move(dep0File, tempFn);
+
+            string outArg = Path.Combine(Path.GetTempPath(), "Nested", "TargetDir" + Path.DirectorySeparatorChar);
+            if (outFileName != null)
+                outArg = Path.Combine(outArg, outFileName);
+
+            string targetFile;
+            // Expected output path differs depending on whether or not we specify --out
+            if (useOut && outFileName == null)
+                targetFile = Path.GetFullPath(Path.Combine(outArg, PackageActionHelpers.GetQualifiedFileName(depDef)));
+            else if (useOut && outFileName != null)
+                targetFile = Path.GetFullPath(outArg);
+            else
+                targetFile = Path.Combine(Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location),
+                    PackageActionHelpers.GetQualifiedFileName(depDef)); 
+            try
+            {
+
+                var args = $"download ";
+                if (useOut)
+                    args += $" --out {outArg} ";
+                
+                if (useRepo)
+                    args += $" {depDef.Name} -r {Path.GetDirectoryName(tempFn)} ";
+                else
+                    args += $" {Path.GetFileName(tempFn)} ";
+
+                string output = RunPackageCli(args, out var exitCode, Path.GetDirectoryName(tempFn));
+                Assert.AreEqual(0, exitCode, "Unexpected exit code");
+                StringAssert.Contains($@"Downloaded '{depDef.Name}' to '{targetFile}'.", output);
+                Assert.IsTrue(File.Exists(targetFile));
+            }
+            finally
+            {
+                File.Delete(dep0File);
+                File.Delete(tempFn);
+                if (useOut && outFileName == null)
+                    Directory.Delete(outArg, true);
+                else
+                    File.Delete(targetFile);
+            }
+        }
+        
         [Test]
         public void InstallLocalFile()
         {
@@ -253,7 +313,6 @@ namespace OpenTap.Package.UnitTests
             }
         }
 
-
         [Test]
         public void InstallFileWithDependenciesTest()
         {
@@ -340,7 +399,7 @@ namespace OpenTap.Package.UnitTests
                 File.Delete(dummyFile);
             }
         }
-
+        
         [Test]
         public void UninstallTest()
         {
