@@ -19,5 +19,10 @@ namespace OpenTap{
   namespace Plugins{
 
   }
+
+  ///<summary> Package name space. </summary>
+  namespace Package{
+
+  }
 }
 
