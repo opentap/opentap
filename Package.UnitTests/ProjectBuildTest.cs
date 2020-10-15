@@ -152,8 +152,8 @@ namespace OpenTap.Package.UnitTests
                     Arguments = $"package install OpenTAP -f -t {target}",
                     WorkingDirectory = Directory.GetCurrentDirectory(),
                     UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
+                    RedirectStandardOutput = false,
+                    RedirectStandardError = false,
                     CreateNoWindow = true
                 }
             };
