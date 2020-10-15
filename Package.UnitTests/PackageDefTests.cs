@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using OpenTap.Plugins.BasicSteps;
 using System.Reflection;
 using System;
+using OpenTap.Engine.UnitTests.TestTestSteps;
 using static OpenTap.Package.PackageDefExt;
 
 namespace OpenTap.Package.UnitTests
@@ -767,5 +768,24 @@ namespace OpenTap.Package.UnitTests
             Assert.AreEqual(1, pkg.Dependencies.Count);
             Assert.AreEqual("XSeries", pkg.Dependencies.First().PackageName);
         }*/
+
+        [Test]
+        [Platform(Exclude="Unix,Linux,MacOsX")]
+        public void TestSetAssemblyInfo()
+        {
+            File.Copy("Packages/SetAsmInfoTest.dll", "SetAsmInfoTest.dll", true);
+            var fileName = $"SetAsmInfoTest.dll";
+
+            // Check if version is null
+            Assert.IsNull(ReadAssemblyVersionStep.GetVersion(fileName), "Assembly version is not null as expected.");
+
+            // Check if version has been new version inserted
+            SetAsmInfo.SetAsmInfo.SetInfo(fileName, Version.Parse("1.2.3.4"), Version.Parse("2.3.4.5"), SemanticVersion.Parse("2.3.4-test"));
+            Assert.IsTrue(ReadAssemblyVersionStep.GetVersion(fileName)?.Equals(SemanticVersion.Parse("2.3.4-test")), "Assembly version was not inserted correctly.");
+
+            // Check if version has been updated.
+            SetAsmInfo.SetAsmInfo.SetInfo(fileName, Version.Parse("1.2.3.4"), Version.Parse("2.3.4.5"), SemanticVersion.Parse("3.4.5-test"));
+            Assert.IsTrue(ReadAssemblyVersionStep.GetVersion(fileName)?.Equals(SemanticVersion.Parse("3.4.5-test")), "Assembly version was not updated correctly.");
+        }
     }
 }

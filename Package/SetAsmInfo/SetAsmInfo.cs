@@ -361,16 +361,19 @@ namespace OpenTap.Package.SetAsmInfo
             return string.Join(" ", ms.ToArray().Select(x => x.ToString("X2")));
         }
 
-        private static string ReplaceAttribute(string data, string attribute, Func<string, string> replace)
+        private static string AddOrReplaceAttribute(string data, string attribute, string replace)
         {
             Regex replaceAttributeRegex = new Regex(@"(?<name>.custom[\s]+instance[\s]+void[\s]+[^=]*" + attribute + @"[^.]*\.ctor\(string\)[^(]*)(?<content>\(((?<data>[^)/]*)?(//[^\n]*\n?)?)*\)[\s]*(//[^\n]*)?)", RegexOptions.Multiline);
-
-            data = replaceAttributeRegex.Replace(data, match =>
+            Regex insertAttributeRegex = new Regex(@"\.assembly\s+(?!extern)(?:.|\n)*?\{");
+            
+            // If the attribute does not exist, we need to add it.
+            if (replaceAttributeRegex.IsMatch(data) == false)
             {
-                var dataBytes = match.Groups["data"].Captures.OfType<Capture>().SelectMany(x => x.Value.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(ParseHex)).ToArray();
-
-                return string.Format("{0} ({1})", match.Groups["name"].Value, EncodeStr(replace(ParseString(dataBytes))));
-            }, 1);
+                data = insertAttributeRegex.Replace(data, m => m.Value + Environment.NewLine + 
+                        $"  .custom instance void ['mscorlib']'System.Reflection'.'{attribute}'::.ctor(string) =  ({EncodeStr(replace)}) // Attribute automatically added by OpenTAP.{Environment.NewLine}");
+            }
+            else // If the attribute exists, just replace it.
+                data = replaceAttributeRegex.Replace(data, match => string.Format("{0} ({1})", match.Groups["name"].Value, EncodeStr(replace)), 1);
 
             return data;
         }
@@ -456,10 +459,10 @@ namespace OpenTap.Package.SetAsmInfo
                 data = ReplaceAssemblyVersion(data, version);
 
                 if (fileVersion != null)
-                    data = ReplaceAttribute(data, "AssemblyFileVersionAttribute", x => fileVersion.ToString());
+                    data = AddOrReplaceAttribute(data, "AssemblyFileVersionAttribute", fileVersion.ToString());
 
                 if (infoVersion != null)
-                    data = ReplaceAttribute(data, "AssemblyInformationalVersionAttribute", attrValue => infoVersion.ToString());
+                    data = AddOrReplaceAttribute(data, "AssemblyInformationalVersionAttribute", infoVersion.ToString());
 
                 File.WriteAllText(tmpIL, data);
 

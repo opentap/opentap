@@ -395,7 +395,7 @@ namespace OpenTap
                         break;
                     }
                 }
-
+                
                 foreach (var typeDefHandle in CurrentReader.TypeDefinitions)
                 {
                     try

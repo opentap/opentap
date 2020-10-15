@@ -1,4 +1,12 @@
 
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
+using System.Text.RegularExpressions;
+
 namespace OpenTap.Engine.UnitTests.TestTestSteps
 {
     [Display("Write File", Description: "Writes a string to a file.", Group: "Tests")]
@@ -54,6 +62,127 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
             else
             {
                 Verdict = Verdict.Fail;
+            }
+        }
+    }
+
+    [Display("Read Assembly Version", Group: "Tests")]
+    public class ReadAssemblyVersionStep : TestStep
+    {
+        [FilePath]
+        public string File { get; set; }
+        
+        public string MatchVersion { get; set; }
+        
+        public override void Run()
+        {
+            var semver = GetVersion(File);
+            if (string.IsNullOrWhiteSpace(MatchVersion) == false)
+            {
+                if (Equals(semver.ToString(), MatchVersion))
+                {
+                    UpgradeVerdict(Verdict.Pass);
+                }
+                else
+                {
+                    UpgradeVerdict(Verdict.Fail);
+                }
+            }
+            Log.Info("Read Version {0}", semver.ToString());
+        }
+
+        public static SemanticVersion GetVersion(string path)
+        {
+            var searcher = new PluginSearcher();
+            searcher.Search(new[] {path});
+
+            var asm = searcher.Assemblies.First();
+            using (FileStream file = new FileStream(asm.Location, FileMode.Open, FileAccess.Read))
+            using (PEReader header = new PEReader(file, PEStreamOptions.LeaveOpen))
+            {
+                var CurrentReader = header.GetMetadataReader();
+
+                foreach (CustomAttributeHandle attrHandle in CurrentReader.GetAssemblyDefinition().GetCustomAttributes())
+                {
+                    CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
+                    if (attr.Constructor.Kind == HandleKind.MemberReference)
+                    {
+                        var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle) attr.Constructor);
+                        string attributeFullName = "";
+                        if (ctor.Parent.Kind == HandleKind.TypeDefinition)
+                        {
+                            var def = CurrentReader.GetTypeDefinition((TypeDefinitionHandle)ctor.Parent);
+                            attributeFullName = string.Format("{0}.{1}", CurrentReader.GetString(def.Namespace), CurrentReader.GetString(def.Name));
+                        }
+                        if (ctor.Parent.Kind == HandleKind.TypeReference)
+                        {
+                            var r = CurrentReader.GetTypeReference((TypeReferenceHandle)ctor.Parent);
+                            attributeFullName = string.Format("{0}.{1}", CurrentReader.GetString(r.Namespace), CurrentReader.GetString(r.Name));
+                        }
+
+                        if (attributeFullName == typeof(System.Reflection.AssemblyInformationalVersionAttribute).FullName)
+                        {
+                            var valueString = attr.DecodeValue(new CustomAttributeTypeProvider());
+                            if (SemanticVersion.TryParse(valueString.FixedArguments[0].Value.ToString(), out SemanticVersion infoVer))
+                                return infoVer;
+                        }
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        struct CustomAttributeTypeProvider : ICustomAttributeTypeProvider<TypeData>
+        {
+            public TypeData GetPrimitiveType(PrimitiveTypeCode typeCode){return null;}
+            public TypeData GetTypeFromDefinition(MetadataReader reader, TypeDefinitionHandle handle, byte rawTypeKind){return null;}
+            public TypeData GetTypeFromReference(MetadataReader reader, TypeReferenceHandle handle, byte rawTypeKind){return null;}
+            public TypeData GetSZArrayType(TypeData elementType){return null;}
+            public TypeData GetSystemType(){return null;}
+            public bool IsSystemType(TypeData type){throw new System.NotImplementedException();}
+            public TypeData GetTypeFromSerializedName(string name){return null;}
+            public PrimitiveTypeCode GetUnderlyingEnumType(TypeData type){throw new System.NotImplementedException();}
+        }
+    }
+
+    [Display("Remove Directory", "Removes a directory.", "Tests")]
+    public class RemoveDirectory : TestStep
+    {
+        [DirectoryPath]
+        public string Path { get; set; }
+        public override void Run()
+        {
+            if (Directory.Exists(Path))
+                Directory.Delete(Path, true);
+        }
+    }
+
+    
+    [AllowAnyChild]
+    [Display("Run On OS", "Runs the child steps on a specific OS.", "Tests")]
+    public class RunOnOs : TestStep
+    {
+
+        public string[] AvailableOperatingSystems => new []{"Linux", "Windows"};
+
+        [AvailableValues(nameof(AvailableOperatingSystems))]
+        public string OperatingSystem { get; set; } = "Windows";
+        
+        public RunOnOs()
+        {
+            this.Name = "Run On {OperatingSystem}";
+        }
+        
+        public override void Run()
+        {
+            if (OpenTap.OperatingSystem.Current.Name == OperatingSystem)
+            {
+                RunChildSteps();
+            }
+            else
+            {
+                Log.Info("Skipping Child Steps On {0}", OpenTap.OperatingSystem.Current);
             }
         }
     }

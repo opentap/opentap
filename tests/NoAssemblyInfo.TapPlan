@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="OpenTap.TestPlan" Locked="false">
+  <Steps>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.RemoveDirectory" Version="0.0.0" Id="45ab17b7-0999-4a4d-8b7a-a6fd7c4cf4dc">
+      <Path>../../NewProj3</Path>
+      <Enabled>true</Enabled>
+      <Name>Remove {Path}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.CreateDirectoryStep" Version="0.0.0" Id="3a8e33d7-d7f9-4d58-868b-c38acbf0c15e">
+      <Directory>../../NewProj3</Directory>
+      <Enabled>true</Enabled>
+      <Name>Create Directory: {Directory}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Version="0.0.0" Id="45f82fc0-8acf-41b2-8472-2c1b9db25f32">
+      <String>
+        <Base64>PFByb2plY3QgU2RrPSJNaWNyb3NvZnQuTkVULlNkayI+DQogIDxQcm9wZXJ0eUdyb3VwPg0KICA8VGFyZ2V0RnJhbWV3b3JrSWRlbnRpZmllcj48L1RhcmdldEZyYW1ld29ya0lkZW50aWZpZXI+DQogICAgPFRhcmdldEZyYW1ld29ya1ZlcnNpb24+PC9UYXJnZXRGcmFtZXdvcmtWZXJzaW9uPg0KICAgIDxUYXJnZXRGcmFtZXdvcms+bmV0c3RhbmRhcmQyLjA8L1RhcmdldEZyYW1ld29yaz4NCiAgICA8QXBwZW5kVGFyZ2V0RnJhbWV3b3JrVG9PdXRwdXRQYXRoPmZhbHNlPC9BcHBlbmRUYXJnZXRGcmFtZXdvcmtUb091dHB1dFBhdGg+DQogICAgPENvcHlMb2NhbExvY2tGaWxlQXNzZW1ibGllcz50cnVlPC9Db3B5TG9jYWxMb2NrRmlsZUFzc2VtYmxpZXM+DQogICA8T3V0cHV0UGF0aD5iaW4vRGVidWc8L091dHB1dFBhdGg+DQogIDwvUHJvcGVydHlHcm91cD4NCiAgPEl0ZW1Hcm91cD4NCiAgICA8UGFja2FnZVJlZmVyZW5jZSBJbmNsdWRlPSJPcGVuVEFQIiBWZXJzaW9uPSI5LjkuMCIgLz4NCiAgPC9JdGVtR3JvdXA+DQo8L1Byb2plY3Q+</Base64>
+      </String>
+      <File>../../NewProj3/NewProj3.csproj</File>
+      <Enabled>true</Enabled>
+      <Name>Write {File}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Version="0.0.0" Id="87ef4ac9-541e-4add-8c40-7303cdccda87">
+      <String>
+        <Base64>PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjxQYWNrYWdlIE5hbWU9Ik5ld1Byb2ozIiB4bWxucz0iaHR0cDovL29wZW50YXAuaW8vc2NoZW1hcy9wYWNrYWdlIiBJbmZvTGluaz0iIiBWZXJzaW9uPSIwLjIuMC1hbHBoYSI+DQogIDxGaWxlcz4NCiAgICA8RmlsZSBQYXRoPSJQYWNrYWdlcy9OZXdQcm9qMy9OZXdQcm9qMy5kbGwiIFNvdXJjZVBhdGg9Ik5ld1Byb2ozLmRsbCI+DQogICAgICAgICAgPFNldEFzc2VtYmx5SW5mbyBBdHRyaWJ1dGVzPSJWZXJzaW9uIi8+DQogICAgPC9GaWxlPg0KICA8L0ZpbGVzPg0KPC9QYWNrYWdlPg0K</Base64>
+      </String>
+      <File>../../NewProj3/package.xml</File>
+      <Enabled>true</Enabled>
+      <Name>Write {File}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="03572f31-123d-40de-b737-74c714b8cd31">
+      <Application>dotnet</Application>
+      <Arguments>build</Arguments>
+      <WorkingDirectory>../../NewProj3</WorkingDirectory>
+      <WaitForEnd>true</WaitForEnd>
+      <Timeout>0</Timeout>
+      <AddToLog>true</AddToLog>
+      <LogHeader />
+      <CheckExitCode>true</CheckExitCode>
+      <RegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </RegularExpressionPattern>
+      <VerdictOnMatch>Pass</VerdictOnMatch>
+      <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+      <ResultRegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </ResultRegularExpressionPattern>
+      <ResultName>Regex Result</ResultName>
+      <Behavior>GroupsAsDimensions</Behavior>
+      <DimensionTitles></DimensionTitles>
+      <Enabled>true</Enabled>
+      <Name>Run: {Application} {Command Line Arguments}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="ef81482d-125b-4f3f-a1d5-eaf212d302fe">
+      <Application>tap</Application>
+      <Arguments>package create ../../package.xml</Arguments>
+      <WorkingDirectory>../../NewProj3/bin/Debug</WorkingDirectory>
+      <WaitForEnd>true</WaitForEnd>
+      <Timeout>0</Timeout>
+      <AddToLog>true</AddToLog>
+      <LogHeader />
+      <CheckExitCode>true</CheckExitCode>
+      <RegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </RegularExpressionPattern>
+      <VerdictOnMatch>Pass</VerdictOnMatch>
+      <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+      <ResultRegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </ResultRegularExpressionPattern>
+      <ResultName>Regex Result</ResultName>
+      <Behavior>GroupsAsDimensions</Behavior>
+      <DimensionTitles></DimensionTitles>
+      <Enabled>true</Enabled>
+      <Name>Run: {Application} {Command Line Arguments}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="708f61c5-dab6-43be-a203-ff2541f43bc5">
+      <Application>../../NewProj3/bin/Debug/tap</Application>
+      <Arguments>package install NewProj3.0.2.0-alpha.TapPackage</Arguments>
+      <WorkingDirectory>../../NewProj3/bin/Debug</WorkingDirectory>
+      <WaitForEnd>true</WaitForEnd>
+      <Timeout>0</Timeout>
+      <AddToLog>true</AddToLog>
+      <LogHeader />
+      <CheckExitCode>true</CheckExitCode>
+      <RegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </RegularExpressionPattern>
+      <VerdictOnMatch>Pass</VerdictOnMatch>
+      <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+      <ResultRegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </ResultRegularExpressionPattern>
+      <ResultName>Regex Result</ResultName>
+      <Behavior>GroupsAsDimensions</Behavior>
+      <DimensionTitles></DimensionTitles>
+      <Enabled>true</Enabled>
+      <Name>Run: {Application} {Command Line Arguments}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ReadAssemblyVersionStep" Version="0.0.0" Id="a3dec63f-d7a9-4dd4-a23c-d56e885c9983">
+      <File>../../NewProj3/bin/Debug/Packages/NewProj3/NewProj3.dll</File>
+      <MatchVersion>0.2.0-alpha</MatchVersion>
+      <Enabled>true</Enabled>
+      <Name>File Version: {MatchVersion} of {File}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+  </Steps>
+  <BreakConditions>BreakOnError, BreakOnFail</BreakConditions>
+</TestPlan>

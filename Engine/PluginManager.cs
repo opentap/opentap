@@ -370,10 +370,10 @@ namespace OpenTap
                     assemblyResolver.AddAssembly(asm.Name, asm.Location);
                     
                     if (asm.Location.Contains(AppDomain.CurrentDomain.BaseDirectory))
-                        log.Debug("Found version {0,-16} of {1}", asm.SemanticVersion, Path.GetFileName(asm.Location));
+                        log.Debug("Found version {0,-16} of {1}", asm.SemanticVersion?.ToString() ?? asm.Version?.ToString(), Path.GetFileName(asm.Location));
                     else
                         // log full path of assembly if it was loaded with --search from another directory.
-                        log.Debug("Found version {0,-16} of {1} from {2}", asm.SemanticVersion, Path.GetFileName(asm.Location), asm.Location);
+                        log.Debug("Found version {0,-16} of {1} from {2}", asm.SemanticVersion?.ToString() ?? asm.Version?.ToString(), Path.GetFileName(asm.Location), asm.Location);
                 }
             }
             catch (Exception ex)
