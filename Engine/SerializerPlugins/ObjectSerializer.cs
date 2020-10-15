@@ -323,8 +323,17 @@ namespace OpenTap.Plugins
                                     {
                                         if (visited[j]) continue;
                                         var elem = elements[j];
-                                        var message =$"Unable to read element '{elem.Name.LocalName}'. The property does not exist.";
-                                        Serializer.PushError(elem, message);
+                                        var elementName = elem.Name.LocalName;
+                                        if (elementName.Contains('.') == false)
+                                        {
+                                            // if the element name contains '.' it is usually a special name and hence
+                                            // an error message is not needed. e.g:
+                                            //     Package.Dependencies
+                                            //     TestStep.Inputs
+                                            var message =
+                                                $"Unable to read element '{elem.Name.LocalName}'. The property does not exist.";
+                                            Serializer.PushError(elem, message);
+                                        }
                                     }
                                 }
                                 Serializer.DeferLoad(postDeserialize);

@@ -98,11 +98,12 @@ namespace OpenTap
         
         
         // Input/Output
-        public bool CanAssignOutput => source.Length > 0 && member.Writable && !CanUnassignOutput;
+        public bool CanAssignOutput => TestPlanLocked == false && source.Length > 0 && member.Writable && !CanUnassignOutput;
         [Display("Assign Output", "Control this setting using an output.", Order: 2.0)]
         [Browsable(true)]
         [IconAnnotation(IconNames.AssignOutput)]
         [EnabledIf(nameof(CanAssignOutput), true, HideIfDisabled = true)]
+        
         public void ControlUsingOutput()
         {
             var question = new AssignOutputDialog(this.member, this.source.FirstOrDefault());
@@ -115,7 +116,7 @@ namespace OpenTap
         public bool IsOutput => member.HasAttribute<OutputAttribute>();
         public bool IsOutputAssigned => IsOutput && InputOutputRelation.IsInput(source.FirstOrDefault(), member);
         
-        public bool CanUnassignOutput => source.Length > 0 && member.Writable && InputOutputRelation.GetRelations(source.First()).Any(con => con.InputMember == member && con.InputObject == source.First());
+        public bool CanUnassignOutput => TestPlanLocked == false && source.Length > 0 && member.Writable && InputOutputRelation.GetRelations(source.First()).Any(con => con.InputMember == member && con.InputObject == source.First());
         [Display("Unassign Output", "Unassign the output controlling this property.", Order: 2.0)]
         [Browsable(true)]
         [IconAnnotation(IconNames.UnassignOutput)]
