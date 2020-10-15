@@ -95,6 +95,11 @@ Build-x86:
   stage: build
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
+  variables:
+      NUGET_PACKAGES: .nuget
+  cache:
+    paths:
+      - .nuget
   script:
          - MSBuild OpenTAP.sln /t:restore /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /m
          - dotnet restore -r win7-x86
@@ -110,6 +115,11 @@ Build-x64:
   stage: build
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
+  variables:
+      NUGET_PACKAGES: .nuget
+  cache:
+    paths:
+      - .nuget
   script: 
          - MSBuild /t:restore OpenTAP.sln /p:Configuration=Release /p:Platform=x64 /target:Rebuild /p:DefineConstants="TRACE" /m
          - dotnet restore -r win7-x64
@@ -125,6 +135,11 @@ WarningTest:
   stage: build
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
+  variables:
+      NUGET_PACKAGES: .nuget
+  cache:
+    paths:
+      - .nuget
   script: 
          - MSBuild OpenTAP.sln /t:restore /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /p:TreatWarningsAsErrors="true" /m
          - MSBuild OpenTAP.sln /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /p:TreatWarningsAsErrors="true" /m
