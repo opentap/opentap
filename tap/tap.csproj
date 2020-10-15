@@ -5,6 +5,7 @@
     <AssemblyName>tap</AssemblyName>
     <RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
     <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
+    <ApplicationIcon>../Installer/Assets/opentap.ico</ApplicationIcon>
   </PropertyGroup>
   
   <ItemGroup>
