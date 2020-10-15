@@ -637,25 +637,24 @@ namespace OpenTap.Engine.UnitTests
                 StringBuilder sb = new StringBuilder("test:");
                 var ser = new TapSerializer();
                 for (int i = 0; i < 512; i++)
-                {
-                    sb[4] = (char)i;
-                    var st = new StringObject() { TheString = sb.ToString() };
-                    var stt = ser.SerializeToString(st);
-                    var rev = (StringObject)ser.DeserializeFromString(stt);
-                    Assert.IsTrue(string.Compare(st.TheString, rev.TheString) == 0);
-                }
+                    sb.Append((char) i);
+
+                var st = new StringObject() {TheString = sb.ToString()};
+                var stt = ser.SerializeToString(st);
+                var rev = (StringObject) ser.DeserializeFromString(stt);
+                Assert.IsTrue(string.Compare(st.TheString, rev.TheString) == 0);
+                
             }
             {
                 StringBuilder sb = new StringBuilder("test::::");
                 var ser = new TapSerializer();
                 for (int i = 0; i < 512; i++)
-                {
-                    sb[4] = (char)i;
-                    var st = new StringObject() { TheString = sb.ToString() };
-                    var stt = ser.SerializeToString(st);
-                    var rev = (StringObject)ser.DeserializeFromString(stt);
-                    Assert.IsTrue(string.Compare(st.TheString, rev.TheString) == 0);
-                }
+                   sb.Append((char) i);
+                var st = new StringObject() { TheString = sb.ToString() };
+                var stt = ser.SerializeToString(st);
+                 var rev = (StringObject)ser.DeserializeFromString(stt);
+                Assert.IsTrue(string.Compare(st.TheString, rev.TheString) == 0);
+                
             }
 
         }
@@ -1295,8 +1294,8 @@ namespace OpenTap.Engine.UnitTests
             {
                 var values = nf.Parse(s).CastTo<double>().ToArray();
                 Assert.AreEqual(cnt, values.Length, "Number of parsed elements");
-
-                var newValues = nf.Parse(nf.FormatRange(values)).CastTo<double>().ToArray();
+                var rng = nf.FormatRange(values);
+                var newValues = nf.Parse(rng).CastTo<double>().ToArray();
                 CollectionAssert.AreEqual(values, newValues, "Array formatting failed");
 
                 var sequence = nf.Parse(s);
@@ -1608,10 +1607,11 @@ namespace OpenTap.Engine.UnitTests
                 step1.OtherStep = step3;
                 step3.OtherStep = step1;
                 TestPlan plan = new TestPlan();
-                plan.ExternalParameters.Add(step1, someNumberProp, "SomeNumber");
-                plan.ExternalParameters.Add(step1, doublesProp, "Doubles");
                 plan.ChildTestSteps.Add(step1);
                 plan.ChildTestSteps.Add(step3);
+                plan.ExternalParameters.Add(step1, someNumberProp, "SomeNumber");
+                plan.ExternalParameters.Add(step1, doublesProp, "Doubles");
+                
                 TestPlan plan2 = null;
                 using (var memstr = new MemoryStream())
                 {
@@ -1708,12 +1708,14 @@ namespace OpenTap.Engine.UnitTests
                 step1.OtherStep = step3;
                 step3.OtherStep = step1;
                 TestPlan plan = new TestPlan();
-                plan.ExternalParameters.Add(step1, someNumberProp, "SomeNumber");
                 plan.ChildTestSteps.Add(step1);
                 plan.ChildTestSteps.Add(step3);
                 plan.ChildTestSteps.Add(dynstep);
                 plan.ChildTestSteps.Add(dynstep2);
-                TestPlan plan2 = null;
+                // external parameters must be added after the steps has been inserted
+                // into the test plan.
+                plan.ExternalParameters.Add(step1, someNumberProp, "SomeNumber");
+                TestPlan plan2;
                 using (var memstr = new MemoryStream())
                 {
                     var serializer = new TapSerializer();
@@ -1885,6 +1887,33 @@ namespace OpenTap.Engine.UnitTests
             {    
                 throw new NotImplementedException();
             }
+        }
+
+        [TestCase("test", false)]
+        [TestCase("SomeOtherString", true)]
+        [TestCase("", true)]
+        [TestCase(null, true)]
+        public void DefaultValueTest(string value, bool serialized)
+        {
+            var logStep = new DefaultValueTestStep();
+            var plan = new TestPlan();
+            plan.Steps.Add(logStep);
+            logStep.Value = value;
+
+            using (var mem = new MemoryStream())
+            {
+                plan.Save(mem);
+                mem.Seek(0, SeekOrigin.Begin);
+                plan = TestPlan.Load(mem, "plan");
+            }
+
+            logStep = (DefaultValueTestStep)plan.Steps[0];
+            // Expect value to be equal since it is not the same as default value now
+            if (serialized)
+                Assert.AreEqual(value, logStep.Value);
+            // Expect property from test step to be empty since it is the same default value as the one from constructor
+            else
+                Assert.AreNotEqual(value, logStep.Value);
         }
 
         // Technically speaking, DefaultValueAttribute is not supported in the sense that properties with default value
@@ -2119,8 +2148,65 @@ namespace OpenTap.Engine.UnitTests
             List<SubObjTest> subObjects = new List<SubObjTest>() {subobj};
             bool passed = StringConvertProvider.TryGetString(subObjects, out string result);
             Assert.IsFalse(passed);
-
         }
+
+        public class AnyObjectClass : TestStep
+        {
+            public object Item { get; set; }
+            public override void Run()
+            {
+                
+            }
+        }
+
+        public struct Vec3d
+        {
+            public double X, Y, Z;
+        }
+
+
+        // To fully support IPaddresses, we also need to be able to serialize/deserialize them.
+        // This plugin class takes care of that.
+        public class Vec3dSerializer : ITapSerializerPlugin
+        {
+            public double Order => 5;
+
+            public bool Deserialize(XElement node, ITypeData t, Action<object> setter)
+            {
+                if(t == TypeData.FromType(typeof(Vec3d)) == false) return false;
+                var values = node.Value.Trim().TrimStart('(').TrimEnd(')')
+                    .Split(new char[] {' '}, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(double.Parse).ToArray();
+                setter(new Vec3d{X = values[0], Y = values[1], Z = values[2]});
+                return true;
+            }
+
+            public bool Serialize(XElement node, object obj, ITypeData expectedType)
+            {
+                if(obj is Vec3d v)
+                {
+                    node.Value = $"({v.X} {v.Y} {v.Z})";
+                    return true;
+                }
+                return false;
+            }
+        }
+
+        [Test]
+        public void AnyObjectSerializeTest()
+        {
+            var obj = new AnyObjectClass() {Item = new Vec3d(){Y = 10}};
+            var plan = new TestPlan();
+            plan.Steps.Add(obj);
+            TypeData.GetTypeData(obj).GetMember("Item").Parameterize(plan, obj, "Item");
+            
+            var str = new TapSerializer().SerializeToString(plan);
+            var obj2 = (TestPlan)new TapSerializer().DeserializeFromString(str);
+            var externalParameter = obj2.ExternalParameters.Get("Item");
+            Assert.IsNotNull(externalParameter);
+            Assert.AreEqual(10.0, ((Vec3d) externalParameter.Value).Y);
+        }
+        
     }
 
     
@@ -2145,6 +2231,36 @@ namespace OpenTap.Engine.UnitTests
             string xml = new TapSerializer().SerializeToString(inst);
             var inst2 = (SomeInstrument)new TapSerializer().DeserializeFromString(xml, TypeData.GetTypeData(inst));
             Assert.AreEqual(inst.Password.ToString(), inst2.Password.ToString());
+        }
+    }
+
+    public class XmlTextAttributeTest
+    {
+        public enum Mode
+        {
+            A,
+            B,
+            C
+        }
+
+        public class SimpleXmlTestAttribute
+        {
+            [XmlText(Type = typeof(Mode))]
+            public Mode Value { get; set; }
+        }
+        [Test]
+        public void SimpleXmlTextAttributeTest()
+        {
+            var myGroup1 = new SimpleXmlTestAttribute { Value = Mode.C };
+            var str = new TapSerializer().SerializeToString(myGroup1);
+            var xml = XDocument.Load(new MemoryStream(Encoding.UTF8.GetBytes(str)));
+
+
+            var elem = xml.Element("SimpleXmlTestAttribute");
+            Assert.IsNotNull(elem);
+            Assert.AreEqual(elem.Value, nameof(Mode.C));
+            // Should not have child element Value since it is serialized as XmlText
+            Assert.IsNull(elem.Element("Value"));
         }
     }
 }

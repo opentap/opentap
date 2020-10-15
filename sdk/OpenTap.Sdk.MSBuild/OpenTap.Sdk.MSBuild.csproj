@@ -14,6 +14,14 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="16.0.461" />
+    <PackageReference Include="DotNet.Glob" Version="3.0.1" />
   </ItemGroup>
+  
+  <ItemGroup>
+    <None Include="..\..\nuget\build\OpenTap.targets">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 
 </Project>

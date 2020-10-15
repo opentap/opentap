@@ -20,61 +20,68 @@ namespace OpenTap.Cli
         TestPlanFail = 30,
         RuntimeError = 50,
         ArgumentError = 60,
+        LoadError = 70,
         PluginError = 80
     }
     /// <summary>
-    /// Test plan run CLI action. Enables running test plans through 'tap.exe run'
+    /// Test plan run CLI action. Execute a test plan with 'tap.exe run test.TapPlan'
     /// </summary>
-    [Display("run", Description: "Runs a Test Plan.")]
+    [Display("run", Description: "Run a test plan.")]
     public class RunCliAction : ICliAction
     {
         /// <summary>
-        /// Specify a bench settings profile from which to load\nsettings. The parameter given here should correspond to the name of a subdirectory of %TAP_PATH%/Settings/Bench. If not specified the settings from OpenTAP GUI are used.
+        /// Specify a bench settings profile from which to load the bench settings. The parameter given here should correspond to the name of a subdirectory of %TAP_PATH%/Settings/Bench. If not specified, %TAP_PATH%/Settings/Bench/Default is used.
         /// </summary>
-        [CommandLineArgument("settings", Description = "Specify a bench settings profile from which to load\nsettings. The parameter given here should correspond\nto the name of a subdirectory of %TAP_PATH%/Settings/Bench.\nIf not specified, %TAP_PATH%/Settings/Bench/CurrentProfile is used.")]
+        [CommandLineArgument("settings", Description = "Specify a bench settings profile from which to load\nthe bench settings. The parameter given here should correspond\nto the name of a subdirectory of <OpenTAP installation dir>/Settings/Bench.\nIf not specified, <OpenTAP installation dir>/Settings/Bench/Default is used.")]
         public string Settings { get; set; } = "";
 
         /// <summary>
-        /// Add directories to search for plugin dlls.
+        /// Additional directories to be searched for plugins. This option may be used multiple times, e.g., --search dir1 --search dir2.
         /// </summary>
-        [CommandLineArgument("search", Description = "Add directories to search for plugin dlls.")]
+        [CommandLineArgument("search", Description = "Additional directories to be searched for plugins.\nThis option may be used multiple times, e.g., --search dir1 --search dir2.", Visible = false)]
         public string[] Search { get; set; } = new string[0];
 
         /// <summary>
-        /// Metadata can be added multiple times. For example the serial number for your DUT (usage: --metadata dut-id=5).
+        /// Set a resource metadata parameter. Use the syntax parameter=value, e.g., --metadata dut-id=5. This option may be used multiple times.
         /// </summary>
-        [CommandLineArgument("metadata", Description = "Metadata can be added multiple times. For example the\nserial number for your DUT (usage: --metadata dut-id=5).")]
+        [CommandLineArgument("metadata", Description = "Set a resource metadata parameter.\nUse the syntax parameter=value, e.g., --metadata dut-id=5.\nThis option may be used multiple times.")]
         public string[] Metadata { get; set; } = new string[0];
 
         /// <summary>
-        /// Never wait for user input.
+        /// Never prompt for user input.
         /// </summary>
-        [CommandLineArgument("non-interactive", Description = "Never wait for user input.")]
+        [CommandLineArgument("non-interactive", Description = "Never prompt for user input.")]
         public bool NonInteractive { get; set; } = false;
 
         /// <summary>
-        /// Sets an external test plan parameter. Can be used multiple times. Use the syntax parameter=value, e.g. \"-e delay=1.0\".
+        /// Set an external test plan parameter. Use the syntax parameter=value, e.g., -e delay=1.0. This option may be used multiple times, or a .csv file containing a \"parameter, value\" pair on each line can be specified as -e file.csv.
         /// </summary>
-        [CommandLineArgument("external", ShortName = "e", Description = "Sets an external test plan parameter. \nUse the syntax parameter=value, e.g. \"-e delay=1.0\". The argument can be used multiple times \nor a .csv file containing sets of parameters can be specified \"-e file.csv\".")]
+        [CommandLineArgument("external", ShortName = "e", Description = "Set an external test plan parameter.\nUse the syntax parameter=value, e.g., -e delay=1.0.\nThis option may be used multiple times, or a .csv file containing a\n\"parameter, value\" pair on each line can be specified as -e file.csv.")]
         public string[] External { get; set; } = new string[0];
 
         /// <summary>
-        /// Try setting an external test plan parameter, ignoring errors if it does not exist in the test plan. Can be used multiple times. Use the syntax parameter=value, e.g. \"-t delay=1.0\".
+        /// Try setting an external test plan parameter, ignoring errors if it does not exist in the test plan. Use the syntax parameter=value, e.g., -t delay=1.0. This option may be used multiple times
         /// </summary>
-        [CommandLineArgument("try-external", ShortName = "t", Description = "Try setting an external test plan parameter,\nignoring errors if it does not exist in the test plan.\nCan be used multiple times. Use the syntax parameter=value,\ne.g. \"-t delay=1.0\".")]
+        [CommandLineArgument("try-external", ShortName = "t", Description = "Try setting an external test plan parameter,\nignoring errors if it does not exist in the test plan.\nUse the syntax parameter=value, e.g., -t delay=1.0.\nThis option may be used multiple times.")]
         public string[] TryExternal { get; set; } = new string[0];
 
         /// <summary>
-        /// Lists the available external test plan parameters.
+        /// List the available external test plan parameters.
         /// </summary>
-        [CommandLineArgument("list-external-parameters", Description = "Lists the available external test plan parameters.")]
+        [CommandLineArgument("list-external-parameters", Description = "List the available external test plan parameters.")]
         public bool ListExternal { get; set; } = false;
 
         /// <summary>
-        /// Sets the enabled result listeners for this test plan execution as a comma separated list. An example could be --results SQLite,CSV. To disable all result listeners use --results \"\".
+        /// Enable a subset of the currently configured result listeners given as a comma-separated list, e.g., --results SQLite,CSV. To disable all result listeners use --results \"\".
         /// </summary>
-        [CommandLineArgument("results", Description = "Sets the enabled result listeners for this test plan execution as a comma separated list. An example could be --results SQLite,CSV. To disable all result listeners use --results \"\".")]
+        [CommandLineArgument("results", Description = "Enable a subset of the currently configured result listeners\ngiven as a comma-separated list, e.g., --results SQLite,CSV.\nTo disable all result listeners use --results \"\".")]
         public string Results { get; set; }
+
+        /// <summary>
+        /// Ignore the errors for deserialization of test plan
+        /// </summary>
+        [CommandLineArgument("ignore-load-errors", Description = "Ignore the errors during loading of test plan.")]
+        public bool IgnoreLoadErrors { get; set; } = false;
 
         /// <summary>
         /// Location of test plan to be executed.
@@ -110,6 +117,14 @@ namespace OpenTap.Cli
             HandleMetadata(metaData);
 
             string planToLoad = null;
+
+            // If the --search argument is used, add the --ignore-load-errors to fix any load issues.
+            if (Search.Any())
+            {
+                // Warn
+                log.Warning("Argument '--search' is deprecated. The '--ignore-load-errors' argument has been added to avoid potential test plan load issues.");
+                IgnoreLoadErrors = true;
+            }
 
             try
             {
@@ -180,6 +195,11 @@ namespace OpenTap.Cli
             {
                 HandleExternalParametersAndLoadPlan(planToLoad);
             }
+            catch (TestPlan.PlanLoadException ex)
+            {
+                log.Error(ex.Message);
+                return Exit(ExitStatus.LoadError);
+            }
             catch (ArgumentException ex)
             {
                 if(!string.IsNullOrWhiteSpace(ex.Message))
@@ -193,21 +213,11 @@ namespace OpenTap.Cli
                 return Exit(ExitStatus.RuntimeError);
             }
 
-            log.Info("TestPlan: {0}", Plan.Name);
+            log.Info("Test Plan: {0}", Plan.Name);
 
             if (ListExternal)
             {
-                log.Info("Listing {0} external test plan parameters.", Plan.ExternalParameters.Entries.Count);
-                int pad = 0;
-                foreach (var entry in Plan.ExternalParameters.Entries)
-                {
-                    pad = Math.Max(pad, entry.Name.Length);
-                }
-                foreach (var entry in Plan.ExternalParameters.Entries)
-                {
-                    log.Info(" {2}{0} = {1}", entry.Name, StringConvertProvider.GetString(entry.Value), new String(' ', pad - entry.Name.Length));
-                }
-                log.Info("");
+                PrintExternalParameters(log);
                 return Exit(ExitStatus.Ok);
             }
 
@@ -225,10 +235,10 @@ namespace OpenTap.Cli
 
         private void HandleExternalParametersAndLoadPlan(string planToLoad)
         {
+            
+            List<string> values = new List<string>();
             var serializer = new TapSerializer();
             var extparams = serializer.GetSerializer<Plugins.ExternalParameterSerializer>();
-            List<string> values = new List<string>();
-
             if (External.Length > 0)
                 values.AddRange(External);
             if (TryExternal.Length > 0)
@@ -237,42 +247,53 @@ namespace OpenTap.Cli
             List<string> externalParameterFiles = new List<string>();
             foreach (var externalParam in values)
             {
-                int equalIdx = externalParam.IndexOf("=");
+                int equalIdx = externalParam.IndexOf('=');
                 if (equalIdx == -1)
                 {
-                    //try "Import External Parameters File"
-                    try
-                    {
-                        externalParameterFiles.Add(externalParam);
-                        continue;
-                    }
-                    catch
-                    {
-                        throw new ArgumentException("Unable to read external test plan parameter {0}. Expected '=' or ExternalParameters file.", externalParam);
-                    }
+                    externalParameterFiles.Add(externalParam);
+                    continue;
                 }
                 var name = externalParam.Substring(0, equalIdx);
                 var value = externalParam.Substring(equalIdx + 1);
                 extparams.PreloadedValues[name] = value;
             }
             var log = Log.CreateSource("CLI");
-            Plan = (TestPlan)serializer.DeserializeFromFile(planToLoad, type: TypeData.FromType(typeof(TestPlan)));
+
+            var timer = Stopwatch.StartNew();
+            using (var fs = new FileStream(planToLoad, FileMode.Open, FileAccess.Read))
+            {
+                // only cache the XML if there are no external parameters.
+                bool cacheXml = values.Any() == false && externalParameterFiles.Any() == false;
+                
+                Plan = TestPlan.Load(fs, planToLoad, cacheXml, serializer, IgnoreLoadErrors);
+                log.Info(timer, "Loaded test plan from {0}", planToLoad);
+            }
+
             if (externalParameterFiles.Count > 0)
             {
                 var importers = CreateInstances<IExternalTestPlanParameterImport>();
                 foreach (var file in externalParameterFiles)
                 {
-                    log.Info("Loading external parameters from '{0}'.", file);
-                    var importer = importers.FirstOrDefault(i => i.Extension == Path.GetExtension(file)); 
-                    importer?.ImportExternalParameters(Plan, file);
+                    var ext = Path.GetExtension(file);
+                    log.Info($"Loading external parameters from '{file}'.");
+                    var importer = importers.FirstOrDefault(i => i.Extension == ext);
+                    if (importer != null)
+                    {
+                        importer.ImportExternalParameters(Plan, file);
+                    }
+                    else
+                    {
+                        log.Error($"No installed plugins provide loading of external parameters from '{ext}' files. No external parameters loaded from '{file}'.");
+                    }
                 }
             }
+
             if (External.Length > 0)
             {   // Print warnings if an --external parameter was not in the test plan. 
 
                 foreach (var externalParam in External)
                 {
-                    var equalIdx = externalParam.IndexOf("=");
+                    var equalIdx = externalParam.IndexOf('=');
                     if (equalIdx == -1) continue;
 
                     var name = externalParam.Substring(0, equalIdx);
@@ -281,6 +302,37 @@ namespace OpenTap.Cli
                     log.Warning("External parameter '{0}' does not exist in the test plan.", name);
                     log.Warning("Statement '{0}' has no effect.", externalParam);
                     throw new ArgumentException("");
+                }
+            }
+        }
+
+        private void PrintExternalParameters(TraceSource log)
+        {
+            var annotation = AnnotationCollection.Annotate(Plan).Get<IMembersAnnotation>();
+            log.Info("Listing {0} External Test Plan Parameters:", Plan.ExternalParameters.Entries.Count);
+            foreach (var member in annotation.Members)
+            {
+                if (member.Get<IMemberAnnotation>()?.Member is ParameterMemberData param)
+                {
+                    var multiValues = member.Get<IMultiSelectAnnotationProxy>()?.SelectedValues;
+                    string printStr = "";
+                    if (multiValues != null)
+                    {
+                        foreach (var val in multiValues)
+                            printStr += string.Format("{0} | ", val.Get<IStringReadOnlyValueAnnotation>()?.Value ?? val.Get<IObjectValueAnnotation>()?.Value.ToString());
+                        printStr = printStr.Remove(printStr.Length - 3);    // Remove trailing delimiter
+                    }
+                    else
+                        printStr = member.Get<IStringReadOnlyValueAnnotation>()?.Value ?? member.Get<IObjectValueAnnotation>()?.Value.ToString();
+
+                    log.Info("  {0} = {1}", param.Name, printStr);
+
+                    if (member.Get<IAvailableValuesAnnotationProxy>() is IAvailableValuesAnnotationProxy avail)
+                    {
+                        log.Info("    Available Values:");
+                        foreach (var val in avail.AvailableValues)
+                            log.Info("      {0}", val.Get<IStringReadOnlyValueAnnotation>()?.Value ?? val.Get<IObjectValueAnnotation>()?.Value.ToString());
+                    }
                 }
             }
         }
@@ -328,67 +380,6 @@ namespace OpenTap.Cli
 
             if (rs.Count > 0)
                 throw new ArgumentException();
-        }
-
-        private static string AwaitReadline(DateTime TimeOut)
-        {
-            string Result = "";
-
-            while (DateTime.Now <= TimeOut)
-            {
-                if (Console.KeyAvailable)
-                {
-                    ConsoleKeyInfo Key = Console.ReadKey();
-
-                    if (Key.Key == ConsoleKey.Enter)
-                    {
-                        return Result;
-                    }
-                    else
-                    {
-                        Result += Key.KeyChar;
-                    }
-                }
-                else
-                {
-                    TapThread.Sleep(20);
-                }
-            }
-
-            Console.WriteLine();
-            log.Info("Timed out while waiting for user input. Returning default answer.");
-            throw new TimeoutException();
-        }
-
-        private static bool tryParseEnumString(string str, Type type, out Enum result)
-        {
-            try
-            {   // Look for an exact match.
-                result = (Enum)Enum.Parse(type, str);
-                Array values = Enum.GetValues(type);
-                if (Array.IndexOf(values, result) == -1)
-                {
-                    return false;
-                }
-
-                return true;
-            }
-            catch (ArgumentException)
-            {
-                // try a more robust parse method. (tolower, trim, '_'=' ')
-                str = str.Trim().ToLower();
-                string[] fixedNames = Enum.GetNames(type).Select(name => name.Trim().ToLower()).ToArray();
-                for (int i = 0; i < fixedNames.Length; i++)
-                {
-                    if (fixedNames[i] == str || fixedNames[i].Replace('_', ' ') == str)
-                    {
-                        result = (Enum)Enum.GetValues(type).GetValue(i);
-                        return true;
-                    }
-                }
-            }
-            result = null;
-            return false;
         }
 
         private void HandleSearchDirectories()

@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 
+#pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
 namespace OpenTap.Package
 {
     
@@ -57,6 +58,9 @@ namespace OpenTap.Package
             {
                 consoleWidth = 120; 
             }
+
+            if (consoleWidth < 10) // assume an error and just use 120 as default.
+                consoleWidth = 120;
             var wrapLength = Math.Min(consoleWidth - justify - 3, 100);
             for (int i = 0; i < keys.Count; i++)
             {
@@ -75,7 +79,7 @@ namespace OpenTap.Package
         [CommandLineArgument("offline", Description = "Don't check http repositories.", ShortName = "o")]
         public bool Offline { get; set; }
         
-        [UnnamedCommandLineArgument("Name", Required = true)] 
+        [UnnamedCommandLineArgument("package", Required = true)]
         public string Name { get; set; }
 
         [CommandLineArgument("version", Description = CommandLineArgumentVersionDescription)]
@@ -228,7 +232,7 @@ namespace OpenTap.Package
             Installation installation)
         {
             var allPackages = installation.GetPackages();
-            var otherVersion = packageVersions.Max(p => p.Version) ?? package.Version; 
+            var latestVersion = packageVersions?.Max(p => p.Version); 
             var packageInstalled = allPackages.Contains(package);
             if (!packageInstalled)
                 allPackages.Add(package);
@@ -250,6 +254,9 @@ namespace OpenTap.Package
             var installedString = installedVersion == null ? "(not installed)" : $"({installedVersion} installed)";
             AddWritePair("Version", $"{package.Version} {installedString}");
             
+            if (latestVersion != null && installedVersion != null && latestVersion != installedVersion)
+                AddWritePair("Newest Version in Repository", $"{latestVersion}");
+            
             AddWritePair("Compatible Architectures", string.Join(Environment.NewLine, similarReleases.Select(x => x.Architecture).Distinct()));
             AddWritePair("Compatible Platforms", string.Join(Environment.NewLine, similarReleases.Select(x => x.OS).Distinct()));
 
@@ -268,6 +275,10 @@ namespace OpenTap.Package
                 AddWritePair("Repository", repoPkg.RepositoryUrl);
             AddWritePair("Package Type", package.FileType);
             AddWritePair("Package Class", package.Class);
+
+            var tags = package.Tags?.Split(new string[]{ " ", "," }, StringSplitOptions.RemoveEmptyEntries);
+            if (tags?.Length > 0)
+                AddWritePair("Package Tags", string.Join(" ", tags));
 
             if (package.Dependencies.Count > 0)
             {

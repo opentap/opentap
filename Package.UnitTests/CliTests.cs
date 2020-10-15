@@ -26,7 +26,7 @@ namespace OpenTap.Package.UnitTests
             using (var stream = File.Create(defFileName))
                 definition.SaveTo(stream);
 
-            var proc = OpenTap.Engine.UnitTests.TapProcessContainer.StartFromArgs("package create " + defFileName); 
+            var proc = OpenTap.Engine.UnitTests.TapProcessContainer.StartFromArgs("package create " + defFileName, TimeSpan.FromMinutes(5)); 
             proc.WaitForEnd();
             string output = proc.ConsoleOutput;
             string outputFile = definition.Name + "." + definition.Version + ".TapPackage";
@@ -40,11 +40,117 @@ namespace OpenTap.Package.UnitTests
         {
             def.Files.Add(new PackageFile { RelativeDestinationPath = filename, Plugins = new List<PluginFile>() });
         }
+
+        internal static void InstallDummyPackage(string packageName = "Dummy", string version = "1.0", string contentFileName = "Dummy")
+        {
+            string installDir = Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location);
+            string packageXmlPath = Path.Combine(installDir, "Packages", packageName, "package.xml");
+            Directory.CreateDirectory(Path.Combine(installDir, "Packages", packageName));
+            File.WriteAllText(packageXmlPath, $@"<?xml version='1.0' encoding='utf-8' ?>
+<Package Name='{packageName}' Version='{version}' xmlns ='http://opentap.io/schemas/package'>
+  <Files>
+    <File Path='Packages/{packageName}/{contentFileName}.txt'/>
+  </Files>
+</Package>");
+            string contentFilePath = Path.Combine(installDir, "Packages", packageName, contentFileName);
+            if (!File.Exists(contentFilePath))
+                File.WriteAllText(contentFilePath, "hello");
+        }
+
+        internal static void UninstallDummyPackage(string packageName = "Dummy")
+        {
+            string installDir = Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location);
+            string packageDir = Path.Combine(installDir, "Packages", packageName);
+            if (Directory.Exists(packageDir))
+            {
+                Directory.Delete(packageDir, true);
+            }
+        }
     }
 
     [TestFixture]
     public class CliTests
     {
+        [OneTimeSetUp]
+        public static void CreateOpenTAPPackage()
+        {
+            string installDir = Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location);
+            if (!File.Exists(Path.Combine(installDir, "Packages/OpenTAP/package.xml")))
+            {
+                string opentapPackageXmlPath;
+                if (OperatingSystem.Current == OpenTap.OperatingSystem.Linux)
+                    opentapPackageXmlPath = "../../opentap_linux64.package.xml";
+                else
+                    opentapPackageXmlPath = "../../opentap.x86.package.xml";
+                // Sign package is needed to create opentap
+                string packageXml = CreateOpenTapPackageXmlWithoutSignElement(opentapPackageXmlPath);
+                string createOpenTap = $"create -v {packageXml} --install -o Packages/OpenTAP.TapPackage";
+                string output = RunPackageCliWrapped(createOpenTap, out int exitCode, installDir);
+                Assert.AreEqual(0, exitCode, "Error creating OpenTAP package. Log:\n" + output);
+                File.Delete(packageXml);
+            }
+        }
+
+
+        [TestCase(true, true, null)]                 // tap package download --out /tmp/Nested/TargetDir/ pkg -r /tmp
+        [TestCase(true, false, null)]                // tap package download --out /tmp/Nested/TargetDir/ /tmp/pkg.TapPackage
+        [TestCase(true, true, "pkg.TapPackage")]     // tap package download --out /tmp/Nested/TargetDir/pkg.TapPackage pkg -r /tmp
+        [TestCase(true, false, "pkg.TapPackage")]     // tap package download --out /tmp/Nested/TargetDir/pkg.TapPackage /tmp/pkg.TapPackage
+        [TestCase(false, false, null)]               // tap package download /tmp/pkg.TapPackage
+        [TestCase(false, true, null)]                // tap package download pkg -r /tmp
+        public void DownloadTest(bool useOut, bool useRepo, string outFileName)
+        {
+            var depDef = new PackageDef {Name = "Pkg1", Version = SemanticVersion.Parse("1.0"), OS = "Windows,Linux"};
+            depDef.AddFile("Dependency.txt");
+            string dep0File = DummyPackageGenerator.GeneratePackage(depDef);
+
+            string tempFn = Path.Combine(Path.GetTempPath(), Path.GetFileName(dep0File));
+
+            if (File.Exists(tempFn))
+                File.Delete(tempFn);
+            File.Move(dep0File, tempFn);
+
+            string outArg = Path.Combine(Path.GetTempPath(), "Nested", "TargetDir" + Path.DirectorySeparatorChar);
+            if (outFileName != null)
+                outArg = Path.Combine(outArg, outFileName);
+
+            string targetFile;
+            // Expected output path differs depending on whether or not we specify --out
+            if (useOut && outFileName == null)
+                targetFile = Path.GetFullPath(Path.Combine(outArg, PackageActionHelpers.GetQualifiedFileName(depDef)));
+            else if (useOut && outFileName != null)
+                targetFile = Path.GetFullPath(outArg);
+            else
+                targetFile = Path.Combine(Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location),
+                    PackageActionHelpers.GetQualifiedFileName(depDef)); 
+            try
+            {
+
+                var args = $"download ";
+                if (useOut)
+                    args += $" --out {outArg} ";
+                
+                if (useRepo)
+                    args += $" {depDef.Name} -r {Path.GetDirectoryName(tempFn)} ";
+                else
+                    args += $" {Path.GetFileName(tempFn)} ";
+
+                string output = RunPackageCli(args, out var exitCode, Path.GetDirectoryName(tempFn));
+                Assert.AreEqual(0, exitCode, "Unexpected exit code");
+                StringAssert.Contains($@"Downloaded '{depDef.Name}' to '{targetFile}'.", output);
+                Assert.IsTrue(File.Exists(targetFile));
+            }
+            finally
+            {
+                File.Delete(dep0File);
+                File.Delete(tempFn);
+                if (useOut && outFileName == null)
+                    Directory.Delete(outArg, true);
+                else
+                    File.Delete(targetFile);
+            }
+        }
+        
         [Test]
         public void InstallLocalFile()
         {
@@ -207,7 +313,6 @@ namespace OpenTap.Package.UnitTests
             }
         }
 
-
         [Test]
         public void InstallFileWithDependenciesTest()
         {
@@ -222,7 +327,9 @@ namespace OpenTap.Package.UnitTests
             dummyDef.Version = SemanticVersion.Parse("1.0");
             dummyDef.AddFile("Dummy.txt");
             dummyDef.Dependencies.Add(new PackageDependency( "Dependency", VersionSpecifier.Parse("1.0")));
+            DummyPackageGenerator.InstallDummyPackage("Dependency"); // We need to have "Dependency" installed before we can create a package that depends on it.
             string dummyFile = DummyPackageGenerator.GeneratePackage(dummyDef);
+            DummyPackageGenerator.UninstallDummyPackage("Dependency");
 
             try
             {
@@ -250,19 +357,25 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void CyclicDependenciesTest()
         {
+            DummyPackageGenerator.InstallDummyPackage(); // We need to have "Dummy" installed before we can create a package that depends on it.
             var depDef = new PackageDef();
             depDef.Name = "Dependency";
+            depDef.OS="Windows,Linux";
             depDef.Version = SemanticVersion.Parse("1.0");
             depDef.AddFile("Dependency.txt");
             depDef.Dependencies.Add(new PackageDependency("Dummy", VersionSpecifier.Parse("1.0")));
             string dep0File = DummyPackageGenerator.GeneratePackage(depDef);
+            DummyPackageGenerator.UninstallDummyPackage();
 
+            DummyPackageGenerator.InstallDummyPackage("Dependency");
             var dummyDef = new PackageDef();
             dummyDef.Name = "Dummy";
+            dummyDef.OS="Windows,Linux";
             dummyDef.Version = SemanticVersion.Parse("1.0");
             dummyDef.AddFile("Dummy.txt");
             dummyDef.Dependencies.Add(new PackageDependency("Dependency", VersionSpecifier.Parse("1.0")));
             string dummyFile = DummyPackageGenerator.GeneratePackage(dummyDef);
+            DummyPackageGenerator.UninstallDummyPackage("Dependency");
 
             try
             {
@@ -286,20 +399,20 @@ namespace OpenTap.Package.UnitTests
                 File.Delete(dummyFile);
             }
         }
-
+        
         [Test]
         public void UninstallTest()
         {
             try
             {
                 int exitCode;
-                string output = RunPackageCli("install NoDepsPlugin -f -y", out exitCode);
-                Assert.AreEqual(0, exitCode, "Unexpected exit code");
+                string output = RunPackageCli("install NoDepsPlugin -f -y --os Windows", out exitCode);
+                Assert.AreEqual(0, exitCode, "Unexpected installation exit code");
                 StringAssert.Contains("NoDepsPlugin", output);
                 Assert.IsTrue(File.Exists("Packages/NoDepsPlugin/Tap.Plugins.NoDepsPlugin.dll"));
 
                 output = RunPackageCli("uninstall NoDepsPlugin", out exitCode);
-                Assert.AreEqual(0, exitCode, "Unexpected exit code");
+                Assert.AreEqual(0, exitCode, "Unexpected uninstallation exit code");
                 StringAssert.Contains("NoDepsPlugin", output);
                 Assert.IsFalse(File.Exists("Packages/NoDepsPlugin/Tap.Plugins.NoDepsPlugin.dll"));
             }
@@ -344,7 +457,7 @@ namespace OpenTap.Package.UnitTests
             output = RunPackageCli("install " + dep1File, out exitCode);
             Assert.AreEqual(0, exitCode, "Unexpected exit code2: " + output);
 
-            Assert.IsTrue(File.Exists("SubDir\\UninstallText.txt"), "File1 should exist");
+            Assert.IsTrue(File.Exists("SubDir/UninstallText.txt"), "File1 should exist");
             Assert.IsFalse(File.Exists("UninstallText.txt"), "File0 should not exist");
         }
 
@@ -368,7 +481,9 @@ namespace OpenTap.Package.UnitTests
             dummyDef.Version = SemanticVersion.Parse("1.0");
             dummyDef.AddFile("Dummy.txt");
             dummyDef.Dependencies.Add(new PackageDependency("Dependency", VersionSpecifier.Parse("1.0")));
+            DummyPackageGenerator.InstallDummyPackage("Dependency");
             string dummyFile = DummyPackageGenerator.GeneratePackage(dummyDef);
+            DummyPackageGenerator.UninstallDummyPackage("Dependency");
 
 
             try
@@ -409,10 +524,13 @@ namespace OpenTap.Package.UnitTests
         {
             var def = new PackageDef();
             def.Name = "Dummy2";
+            def.OS = "Windows,Linux";
             def.Version = SemanticVersion.Parse("1.0");
             def.AddFile("Dummy.txt");
             def.Dependencies.Add(new PackageDependency("Missing", VersionSpecifier.Parse("1.0")));
+            DummyPackageGenerator.InstallDummyPackage("Missing");
             string pkgFile = DummyPackageGenerator.GeneratePackage(def);
+            DummyPackageGenerator.UninstallDummyPackage("Missing");
 
             try
             {
@@ -446,24 +564,67 @@ namespace OpenTap.Package.UnitTests
             Assert.IsFalse(installedAfter.Any(p => p.Name == packageName), "Package '" + packageName + "' was not uninstalled.");
         }
 
-        internal static void CreateOpenTAPPackage()
+        [Test]
+        public void NoDowngradeInstallTest()
         {
-            string installDir = Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location);
-            string opentapPackageXmlPath = "Packages/OpenTap/package.xml";
-            if (!File.Exists(Path.Combine(installDir, opentapPackageXmlPath)))
-            {
-                // Sign package is needed to create opentap
-                string packageXml = CreateOpenTapPackageXmlWithoutSignElement("../../opentap.x86.package.xml");
-                string createOpenTap = $"create -v {packageXml} --install -o Packages/OpenTAP.TapPackage";
-                string output = RunPackageCliWrapped(createOpenTap, out int exitCode, installDir);
-                Assert.AreEqual(0, exitCode, "Error creating OpenTAP package. Log:\n" + output);
-                File.Delete(packageXml);
-            }
+            var installation = new Installation(Directory.GetCurrentDirectory());
+
+            var package = new PackageDef();
+            package.Name = "NoDowngradeTest";
+            package.Version = SemanticVersion.Parse("1.0.1");
+            var newPath = DummyPackageGenerator.GeneratePackage(package);
+
+            package.Version = SemanticVersion.Parse("1.0.0");
+            var oldPath = DummyPackageGenerator.GeneratePackage(package);
+
+            // Install new version
+            var output = RunPackageCli($"install {newPath}", out int exitCode);
+            Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("installed"), "NoDowngradeTest package was not installed.");
+            var installedVersion = installation.GetPackages()?.FirstOrDefault(p => p.Name == "NoDowngradeTest")?.Version;
+            Assert.IsTrue(installedVersion == SemanticVersion.Parse("1.0.1"), $"NoDowngradeTest installed the wrong version: '{installedVersion}'.");
+            
+            // Install older version with --no-downgrade option. This should not install the old version.
+            output = RunPackageCli($"install --no-downgrade {oldPath}", out exitCode);
+            Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("already installed"), "NoDowngradeTest package was not installed.");
+            installedVersion = installation.GetPackages()?.FirstOrDefault(p => p.Name == "NoDowngradeTest")?.Version;
+            Assert.IsTrue(installedVersion == SemanticVersion.Parse("1.0.1"), $"NoDowngradeTest failed to skip the install: '{installedVersion}'.");
+            
+            // Install older version without --no-downgrade option. This should install the old version.
+            output = RunPackageCli($"install {oldPath}", out exitCode);
+            Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("installed"), "NoDowngradeTest package was not installed.");
+            installedVersion = installation.GetPackages()?.FirstOrDefault(p => p.Name == "NoDowngradeTest")?.Version;
+            Assert.IsTrue(installedVersion == SemanticVersion.Parse("1.0.0"), $"NoDowngradeTest failed to install the old version: '{installedVersion}'.");
         }
+
+        [Test]
+        public void SkipInstallExactVersionAlreadyInstalledTest()
+        {
+            var package = new PackageDef();
+            package.Name = "ExactVersionTest";
+            package.Version = SemanticVersion.Parse("1.0.1");
+            package.OS = "Windows,Linux";
+            var path = DummyPackageGenerator.GeneratePackage(package);
+
+            // Install
+            var output = RunPackageCli($"install {path}", out int exitCode);
+            Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("installed"), "ExactVersionTest package was not installed.");
+            
+            // Install the exact same version. This should skip.
+            output = RunPackageCli($"install {package.Name} --version 1.0.1", out exitCode);
+            Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("already installed"), "ExactVersionTest package install was not skipped.");
+            
+            // Install the exact same version with --force. This should not skip.
+            output = RunPackageCli($"install {package.Name} --version 1.0.1 -f", out exitCode);
+            Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("already installed") == false, "ExactVersionTest package install with -f was skipped.");
+            
+            // Install the exact same version from file. This should not skip.
+            output = RunPackageCli($"install {path}", out exitCode);
+            Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("already installed") == false, "ExactVersionTest package install was skipped.");
+        }
+
 
         private static string RunPackageCli(string args, out int exitCode, string workingDir = null)
         {
-            CreateOpenTAPPackage();
             return RunPackageCliWrapped(args, out exitCode, workingDir);
         }
 
@@ -488,7 +649,7 @@ namespace OpenTap.Package.UnitTests
 
         private static string RunPackageCliWrapped(string args, out int exitCode, string workingDir, string fileName = null)
         {
-            if (fileName == null) fileName = Path.GetFileName(Path.Combine(Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location), "tap.exe"));
+            if (fileName == null) fileName = Path.GetFileName(Path.Combine(Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location), "tap"));
             var startinfo = new ProcessStartInfo
             {
                 FileName = fileName,

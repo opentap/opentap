@@ -22,10 +22,10 @@ namespace OpenTap.Plugins.BasicSteps
         Linear = 0,
         /// <summary> Exponential growth function.</summary>
         [Display("Exponential", Description: "Exponential growth function.")]
-        Exponential
+        Exponential = 1
     }
 
-    [Display("Sweep Loop (Range)", Group: "Flow Control", Description: "Loops all of its child steps while sweeping a specified parameter/setting over a range.")]
+    [Display("Sweep Loop (Range)", Groups: new [] { "Flow Control", "Legacy" }, Description: "Loops all of its child steps while sweeping a specified parameter/setting over a range.", Collapsed:true)]
     [AllowAnyChild]
     public class SweepLoopRange : LoopTestStep
     {
@@ -39,7 +39,7 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Start", Order: -2, Description: "The parameter value where the sweep will start.")]
         public decimal SweepStart { get; set; }
 
-        [Display("Stop", Order: -1, Description: "The paramater value where the sweep will stop.")]
+        [Display("Stop", Order: -1, Description: "The parameter value where the sweep will stop.")]
         public decimal SweepStop { get; set; }
 
         [Browsable(false)]
@@ -187,12 +187,6 @@ namespace OpenTap.Plugins.BasicSteps
             ChildTestSteps.ChildStepsChanged += childStepsChanged;
         }
         
-        void SweepLoop_PropertyChanged(object sender, PropertyChangedEventArgs e)
-        {
-            if(e.PropertyName == nameof(ChildTestSteps))
-                ChildTestSteps.ChildStepsChanged += childStepsChanged;
-        }
-
         readonly Dictionary<IMemberData, object> membersCache = new Dictionary<IMemberData, object>();
         void childStepsChanged(TestStepList sender, TestStepList.ChildStepsChangedAction Action, ITestStep Object, int Index)
         {

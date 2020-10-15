@@ -23,6 +23,7 @@ namespace OpenTap
         /// All the validation rules. Add new rules to this in order to get runtime value validation.
         /// </summary>
         [AnnotationIgnore]
+        [SettingsIgnore]
         public ValidationRuleCollection Rules
         {
             get
@@ -36,7 +37,11 @@ namespace OpenTap
         // thread static to avoid locking everything and having a HashSet on each ValidationObject
         [ThreadStatic]
         static HashSet<object> traversed = null;
-        string getError(string propertyName = null)
+
+        /// <summary>
+        /// Return the error for a given property
+        /// </summary>
+        protected virtual string GetError(string propertyName = null)
         {
             List<string> errors = null;
             void pushError(string error)
@@ -55,7 +60,7 @@ namespace OpenTap
                     var error = rule.ErrorMessage;
                     if (string.IsNullOrEmpty(error)) continue;
                     pushError(error);
-                }catch(Exception ex)
+                } catch(Exception ex)
                 {
                     pushError(ex.Message);
                 }
@@ -97,14 +102,14 @@ namespace OpenTap
         /// <summary>
         /// Gets the error messages for each invalid rule and joins them with a newline.
         /// </summary>
-        public string Error => getError(null);
+        public string Error => GetError(null);
 
         /// <summary>
         /// Gets the error(s) for a given property as a concatenated string.
         /// </summary>
         /// <param name="propertyName"></param>
         /// <returns>string concatenated errors.</returns>
-        string IDataErrorInfo.this[string propertyName] => getError(propertyName);
+        string IDataErrorInfo.this[string propertyName] => GetError(propertyName);
 
         /// <summary>
         /// Checks all validation rules on this object (<see cref="Rules"/>) and throws an AggregateException on errors.
@@ -113,8 +118,9 @@ namespace OpenTap
         /// <exception cref="AggregateException">Thrown when any <see cref="Rules"/> on this object are invalid. This exception contains an ArgumentException for each invalid setting.</exception>
         protected void ThrowOnValidationError(bool ignoreDisabledProperties)
         {
-            List<Exception> errors = new List<Exception>();
-            List<string> propertyNames = TestStepExtensions.GetObjectSettings(new object[] { this }, ignoreDisabledProperties, (object o, PropertyInfo pi) => pi.Name);
+            var propertyNames = new HashSet<string>();
+            TestStepExtensions.GetObjectSettings(this, ignoreDisabledProperties, 
+                (object o, IMemberData pi) => pi.Name, propertyNames);
             foreach (ValidationRule rule in Rules)
             {
                 if (!rule.IsValid() && propertyNames.Contains(rule.PropertyName))

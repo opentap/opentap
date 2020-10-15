@@ -21,7 +21,7 @@ namespace OpenTap
 
         UnitKind unit;
 
-        public UnitKind Unit { get { return unit; } }
+        public UnitKind Unit => unit;
 
         public double Value { get; set; }
 
@@ -139,12 +139,19 @@ namespace OpenTap
         /// <param name="output"></param>
         public void ToString(System.Text.StringBuilder output)
         {
+            if (Value < 0.01)
+            {
+                output.Append("0 ns");
+                return;
+            };
             if (Value < 10)
-                output.AppendFormat(CultureInfo.InvariantCulture, "{0:0.00} {1}", Math.Floor(Value * 100) * 0.01, getUnitString(Unit));
+                output.Append((Math.Floor(Value * 100) * 0.01).ToString("0.00", CultureInfo.InvariantCulture));
             else if (Value < 100)
-                output.AppendFormat(CultureInfo.InvariantCulture, "{0:0.0} {1}", Math.Round(Value * 10) * 0.1, getUnitString(Unit));
+                output.Append((Math.Floor(Value * 10) * 0.1).ToString("0.0", CultureInfo.InvariantCulture));
             else
-                output.AppendFormat(CultureInfo.InvariantCulture, "{0} {1}", Math.Floor(Value), getUnitString(Unit));
+                output.Append(Math.Floor(Value).ToString(CultureInfo.InvariantCulture));
+            output.Append(' ');
+            output.Append(getUnitString(Unit));
         }
 
         public (string, string) ToStringParts()

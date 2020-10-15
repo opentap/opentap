@@ -18,12 +18,28 @@ using OpenTap.Cli;
 
 namespace OpenTap.Package
 {
+    /// <summary>
+    /// Base class for ICliActions that use a mutex to lock the Target directory for the duration of the command. 
+    /// </summary>
     public abstract class LockingPackageAction : PackageAction
     {
-        internal const string CommandLineArgumentRepositoryDescription = "Search this repository for packages instead of using\nsettings from 'Package Manager.xml'.";
-        internal const string CommandLineArgumentVersionDescription = "Version of the package. Prepend it with '^' to specify the latest compatible version. E.g. '^9.0.0'. By omitting '^' only the exact version will be matched.";
-        internal const string CommandLineArgumentOsDescription = "Override which OS to target.";
-        internal const string CommandLineArgumentArchitectureDescription = "Override which CPU to target.";
+        internal const string CommandLineArgumentRepositoryDescription =
+            "Override the package repository.\n" +
+            "The default is http://packages.opentap.io.";
+        internal const string CommandLineArgumentVersionDescription =
+            "Semantic version (semver) of the package.\n" +
+            "The default is to select only non pre-release packages for the current OS and CPU architecture.\n" +
+            "'x'     select all (non pre-release) versions >= x.0.0 and < (x+1).0.0,\n" +
+            "'x.y'   select all (non pre-release) versions >= x.y.0 and < x.(y+1).0,\n" +
+            "'^x.y'  select all (non pre-release) versions >= x.y.0 and < (x+1).0.0,\n" +
+            "'x.y.z' only match the exact version.\n" +
+            "Use 'any', 'beta', or 'rc' to match 'any', 'beta', or 'rc' pre-release versions and above.";
+        internal const string CommandLineArgumentOsDescription =
+            "Override the OS (Linux, Windows) to target.\n" +
+            "The default is the current OS.";
+        internal const string CommandLineArgumentArchitectureDescription =
+            "Override the CPU architecture (x86, x64, AnyCPU) to target.\n" +
+            "The default is the current CPU architecture.";
 
         /// <summary>
         /// Unlockes the package action to allow multiple running at the same time.
@@ -33,7 +49,7 @@ namespace OpenTap.Package
         /// <summary>
         /// The location to apply the command to. The default is the location of OpenTap.PackageManager.exe
         /// </summary>
-        [CommandLineArgument("target", Description = "The location where the command is applied. The default is the directory of the application itself.", ShortName = "t")]
+        [CommandLineArgument("target", Description = "Override the location where the command is applied.\nThe default is the OpenTAP installation directory.", ShortName = "t")]
         public string Target { get; set; }
 
 
@@ -58,7 +74,11 @@ namespace OpenTap.Package
 
             return new Mutex(false, "Keysight.Tap.Package InstallLock " + BitConverter.ToString(hash).Replace("-", ""));
         }
-
+        
+        /// <summary>
+        /// Executes this the action. Derived types should override LockedExecute instead of this.
+        /// </summary>
+        /// <returns>Return 0 to indicate success. Otherwise return a custom errorcode that will be set as the exitcode from the CLI.</returns>
         public override int Execute(CancellationToken cancellationToken)
         {
             if (String.IsNullOrEmpty(Target))
@@ -109,8 +129,16 @@ namespace OpenTap.Package
             }
         }
 
+        /// <summary>
+        /// The code to be executed by the action while the Target directory is locked.
+        /// </summary>
+        /// <returns>Return 0 to indicate success. Otherwise return a custom errorcode that will be set as the exitcode from the CLI.</returns>
         protected abstract int LockedExecute(CancellationToken cancellationToken);
 
+        
+        /// <summary>
+        /// Only here for compatibility. Use IsolatedPackageAction instead of calling this.
+        /// </summary>
         [Obsolete("Inherit from IsolatedPackageAction instead.")]
         public static bool RunIsolated(string application = null, string target = null)
         {

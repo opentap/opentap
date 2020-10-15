@@ -314,6 +314,7 @@ namespace OpenTap.Diagnostic
         /// </summary>
         /// <param name="Source">The source identifier of this log source.</param>
         ILog CreateLog(string Source);
+
         /// <summary>
         /// Removes a log source from the context.
         /// </summary>
@@ -324,6 +325,7 @@ namespace OpenTap.Diagnostic
         /// Attaches a log listener.
         /// </summary>
         void AttachListener(ILogListener Listener);
+
         /// <summary>
         /// Detaches a log listener. Automatically flushes the context.
         /// </summary>
@@ -335,6 +337,7 @@ namespace OpenTap.Diagnostic
         /// <param name="TimeoutMS">Max time to wait for messages. If 0 it will wait infinitely.</param>
         /// <returns>True if it waited successfully, or false if a timeout occurred.</returns>
         bool Flush(int TimeoutMS = 0);
+
         /// <summary>
         /// Flush all events received at the time instant this method is called, but only waits a given duration.
         /// </summary>

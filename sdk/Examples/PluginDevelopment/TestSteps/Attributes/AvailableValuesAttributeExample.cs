@@ -36,8 +36,15 @@ namespace OpenTap.Plugins.PluginDevelopment
         }
 
         [Display("Selected Value", "Shows the use of available values attribute.")]
-        [AvailableValues("ListOfAvailableValues")]
-        public string SelectedValue { get; set; }       
+        [AvailableValues(nameof(ListOfAvailableValues))]
+        public string SelectedValue { get; set; }
+        
+        // Using AvailableValues with lists makes it possible to select elements from the available values list
+        // Similar to how FlagsEnumAttribute is used with enums.
+        [AvailableValues(nameof(ListOfAvailableValues))]
+        public List<string> SelectedValues { get; set; } = new List<string>();
+        
+        
         
         // XmlIgnore and Browsable(false) are used to be able to select from resources without opening all of them.
         [XmlIgnore]

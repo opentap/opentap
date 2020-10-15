@@ -69,7 +69,13 @@ namespace OpenTap.UnitTests
         {
 
         }
-        
+
+        public class InstrumentWithMetadata : Instrument
+        {
+            [MetaData(promptUser:true)]
+            public string Data { get; set; }
+        }
+
         [Test]
         public void SimpleTestDefaultManager()
         {
@@ -93,6 +99,7 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(1, UnitTestingLockManager.BeforeOpenArgs.First().First().References.Count(), "ResourceReference has unexpected number of references.");
             Assert.AreEqual(step1, UnitTestingLockManager.BeforeOpenArgs.First().First().References.First().Instance, "ResourceReference references unexpected object.");
             Assert.AreEqual(step1.GetType().GetProperty("Instrument"), UnitTestingLockManager.BeforeOpenArgs.First().First().References.First().Property, "ResourceReference references unexpected property.");
+            Assert.AreEqual(TypeData.GetTypeData(step1).GetMember("Instrument"), UnitTestingLockManager.BeforeOpenArgs.First().First().References.First().Member, "ResourceReference references unexpected property.");
 
             Assert.AreEqual(instr2, UnitTestingLockManager.BeforeOpenArgs.First().Last().Resource, "Resource has unexpected value.");
         }
@@ -143,7 +150,8 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(step1, arg1.First().References.First().Instance, "ResourceReference references unexpected object.");
             Assert.AreEqual(step1, arg1.First().References.Last().Instance, "ResourceReference references unexpected object.");
             Assert.AreEqual(step1.GetType().GetProperty("Instrument1"), arg1.First().References.First().Property, "ResourceReference references unexpected property.");
-            Assert.AreEqual(step1.GetType().GetProperty("Instrument2"), arg1.First().References.Last().Property, "ResourceReference references unexpected property.");
+            Assert.AreEqual(TypeData.GetTypeData(step1).GetMember("Instrument1"), arg1.First().References.First().Member, "ResourceReference references unexpected property.");
+            Assert.AreEqual(TypeData.GetTypeData(step1).GetMember("Instrument2"), arg1.First().References.Last().Member, "ResourceReference references unexpected property.");
 
             IEnumerable<IResourceReferences> arg2 = UnitTestingLockManager.BeforeOpenArgs.Last();
             Assert.AreEqual(2, arg2.Count(), "Resources list contain an unexpected number of items.");
@@ -168,7 +176,7 @@ namespace OpenTap.UnitTests
                         var instrument = InstrumentSettings.Current.First();
                         if (step.Property.GetValue(step.Instance) == null)
                         {
-                            step.Property.SetValue(step.Instance, InstrumentSettings.Current.First());
+                            step.Property.SetValue(step.Instance, instrument);
                             r.Resource = instrument;
                         }
                     }
@@ -331,6 +339,55 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(Verdict.NotSet, run.Verdict);
             Assert.AreEqual(expectedCount, UnitTestingLockManager.BeforeOpenArgs.Count(), "BeforeOpen hook called an unexpected number of times.");
             Assert.AreEqual(expectedCount, UnitTestingLockManager.AfterCloseArgs.Count(), "AfterClose hook called an unexpected number of times.");
+        }
+
+        class UnitTestingPromptHandler : IUserInputInterface
+        {
+            public bool wasCalled = false;
+            public object[] Resources;
+            public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
+            {
+                if (dataObject is MetadataPromptObject prompt)
+                {
+                    Resources = prompt.Resources.ToArray();
+                    wasCalled = true;
+                }
+            }
+        }
+
+        //[TestCase(typeof(LazyResourceManager))]  ResourcePrompt is actually not very well supported with LazyResourceManager
+        [TestCase(typeof(ResourceTaskManager))]
+        public void ResourceSetToNullAfterPlanOpen(Type managerType)
+        {
+            EngineSettings.Current.ResourceManagerType = (IResourceManager)Activator.CreateInstance(managerType);
+            EngineSettings.Current.PromptForMetaData = true;
+            IInstrument instr1 = new InstrumentWithMetadata() { Name = "INSTR1" };
+            InstrumentSettings.Current.Add(instr1);
+            try
+            {
+                var prompt = new UnitTestingPromptHandler();
+                UserInput.SetInterface(prompt);
+                {
+                    TestPlan plan = new TestPlan();
+                    InstrumentTestStep step1 = new InstrumentTestStep() { Instrument = instr1 };
+                    plan.Steps.Add(step1);
+                    plan.Open();
+                    UnitTestingLockManager.Enable();
+                    UnitTestingLockManager.BeforeOpenEffect = SetNullResources;
+                    step1.Instrument = null;
+                    var run = plan.Execute();
+                    UnitTestingLockManager.Disable();
+                    Assert.AreEqual(Verdict.NotSet, run.Verdict);
+                    Assert.AreEqual(1, prompt.Resources.OfType<IResource>().Count(), "The LockManager should have set the null resource to a value before the resource prompt happens.");
+                    Assert.AreEqual(1, UnitTestingLockManager.BeforeOpenArgs.Count(), "BeforeOpen hook called an unexpected number of times.");
+                }
+            }
+            finally
+            {
+                UserInput.SetInterface(null);
+                InstrumentSettings.Current.Remove(instr1);
+                EngineSettings.Current.PromptForMetaData = false;
+            }
         }
     }
 }

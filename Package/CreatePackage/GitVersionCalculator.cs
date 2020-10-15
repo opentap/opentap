@@ -27,7 +27,7 @@ namespace OpenTap.Package
         private class Config
         {
             public SemanticVersion Version => _version;
-            private SemanticVersion _version = new SemanticVersion(0,0,1,null,null);
+            private SemanticVersion _version = new SemanticVersion(0, 0, 1, null, null);
             /// <summary>
             /// Regex that runs against the FriendlyName of a branch to determine if it is a beta branch 
             /// (commits from this branch will get a "beta" prerelease identifier)
@@ -42,7 +42,7 @@ namespace OpenTap.Package
             public List<string> BetaBranchPatterns { get; private set; } = new List<string>
             {
                 "^integration$",
-                "^master$", 
+                "^master$",
                 "^develop$",
                 "^dev$"
             };
@@ -120,10 +120,14 @@ namespace OpenTap.Package
             // so at this moment we need to check which version we are on
             // and move the file to a position that is checked.
             string libgit2name = "libgit2-4aecb64";
+            var requiredFile = Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.so");
+
+            if (File.Exists(requiredFile))
+                return;
+
             string libgitfoldername = "Dependencies/LibGit2Sharp.0.25.0.0/";
             IEnumerable<FileInfo> libgit2files = new[] {"ubuntu", "redhat", "linux-x64"}
                 .Select(x => Path.Combine(PathUtils.OpenTapDir, libgitfoldername, $"{libgit2name}.so.{x}")).Select(x => new FileInfo(x));
-            var requiredFile = Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.so");
 
             var file = libgit2files.FirstOrDefault(x => x.Name.EndsWith(LinuxVariant.Current.Name));
             try
@@ -171,7 +175,7 @@ namespace OpenTap.Package
         private Commit getLatestConfigVersionChange(Commit c)
         {
             if (c.Parents.Any() == false)
-                return null; // 'c' is the first commit in the repo. There was never any change.
+                return c; // 'c' is the first commit in the repo. There was never any change.
             
             // find all changes in the file (for some reason that sometimes returns an empty list)
             //var fileLog = repo.Commits.QueryBy(configFileName, new CommitFilter() { IncludeReachableFrom = c, SortBy = CommitSortStrategies.Topological, FirstParentOnly = false });
@@ -183,7 +187,12 @@ namespace OpenTap.Package
             {
                 Commit parent = c.Parents.FirstOrDefault(); // first parent only, we are only interested in when the file changes on the beta branch
                 if (parent == null)
-                    break;
+                {
+                    // we got to the very first commit in this repo without seeing any changes in the gitversion
+                    // this might be because there is no .gitversion file, or just because the content of the file is the same as the default values.
+                    // in both cases, we should treat this commit (the initial commit) as the LatestConfigVersionChange
+                    return c;
+                }
                 Config parentCfg = ParseConfig(parent);
                 if (currentCfg.Version.CompareTo(parentCfg.Version) > 0)
                 {
@@ -193,9 +202,6 @@ namespace OpenTap.Package
                 c = parent;
                 currentCfg = parentCfg;
             }
-            
-            log.Warning("Did not find any .gitversion file.");
-            return null;
         }
         
         /// <summary>
@@ -213,9 +219,9 @@ namespace OpenTap.Package
         /// </summary>
         public SemanticVersion GetVersion(string sha)
         {
-            Commit commit = repo.Commits.FirstOrDefault(c => c.Sha.StartsWith(sha));
+            Commit commit = repo.Lookup<Commit>(sha);
             if (commit == null)
-                throw new ArgumentException($"Commit with hash {sha} does not exist in repository.");
+                throw new ArgumentException($"The commit with reference {sha} does not exist in the repository.");
             return GetVersion(commit);
         }
 
@@ -224,9 +230,12 @@ namespace OpenTap.Package
         /// </summary>
         public SemanticVersion GetVersion(Commit targetCommit)
         {
-            targetCommit = repo.Commits.FirstOrDefault(c => c.Sha == targetCommit.Sha);
-            if (targetCommit == null)
-                throw new ArgumentException("Commit does not exist in repository.");
+            if (repo.Lookup<Commit>(targetCommit.Sha) == null)
+                throw new ArgumentException($"The commit with hash {targetCommit} does not exist the in repository.");
+            if(!targetCommit.Tree.Any(t => t.Name == configFileName))
+            {
+                log.Warning("Did not find any .gitversion file.");
+            }
             Config cfg = ParseConfig(targetCommit);
 
             Branch defaultBranch = getBetaBranch(cfg);
@@ -255,7 +264,7 @@ namespace OpenTap.Package
             }
             if (!String.IsNullOrEmpty(preRelease))
             {
-                Commit cfgCommit = getLatestConfigVersionChange(targetCommit) ?? targetCommit;
+                Commit cfgCommit = getLatestConfigVersionChange(targetCommit);
                 Commit commonAncestor = findFirstCommonAncestor(defaultBranch, targetCommit);
                 int commitsFromDefaultBranch = countCommitsBetween(commonAncestor, targetCommit, true);
                 log.Debug("Found {0} commits since branchout from beta branch in commit {1}.", commitsFromDefaultBranch, commonAncestor.Sha.Substring(0, 8));
@@ -320,7 +329,7 @@ namespace OpenTap.Package
                     break;
                 }
                 b1Commit = b1Commit.Parents.FirstOrDefault();
-                var releaseCommits = (IQueryableCommitLog)repo.Commits.QueryBy(new CommitFilter() { IncludeReachableFrom = b1Commit });
+                var releaseCommits = (IQueryableCommitLog)repo.Commits.QueryBy(new CommitFilter() { SortBy = CommitSortStrategies.Topological, IncludeReachableFrom = b1Commit });
                 firstCommon = releaseCommits.FirstOrDefault(c => targetHistory.Contains(c));
             }
             return firstCommon;
@@ -472,6 +481,8 @@ namespace OpenTap.Package
                         candidates.Add(branch);
                         break;
                     }
+                    if (!commitOnBranch.Parents.Any())
+                        break;
                     commitOnBranch = commitOnBranch.Parents.First();
                 }
             }
@@ -482,6 +493,9 @@ namespace OpenTap.Package
                 return "ERROR";
             }
             if (candidates.Count == 1)
+                return candidates.First().GetShortName();
+
+            if(candidates.Select(b => b.GetShortName()).Distinct().Count() == 1) // all candicates have the same name (e.g. on is a local branch and one is the remote of that same branch)
                 return candidates.First().GetShortName();
 
             log.Warning("Several possible branch names found. Picking one.");

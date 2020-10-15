@@ -33,6 +33,7 @@ namespace OpenTap.EngineUnitTestUtils
                     Assert.Fail("{0}{1}{1}{2}", ErrorMessage, Environment.NewLine, GetLog());
                 }
             }
+
             foreach (string warning in WarningMessage)
             {
                 if (allowedMessages == null || !allowedMessages.Contains(warning))
@@ -108,6 +109,18 @@ namespace OpenTap.EngineUnitTestUtils
 
         public override void WriteLine(string message)
         {
+        }
+
+        public void ExpectWarnings(params string[] expectedWarnings)
+        {
+            foreach (var warning in expectedWarnings)
+                Assert.IsTrue(WarningMessage.Any(x => x.Contains(warning)), "Expected warning '{0}' should be present", warning);
+        }
+        
+        public void ExpectErrors(params string[] expectedWarnings)
+        {
+            foreach (var warning in expectedWarnings)
+                Assert.IsTrue(ErrorMessage.Any(x => x.Contains(warning)), "Expected error '{0}' should be present", warning);
         }
     }
 }

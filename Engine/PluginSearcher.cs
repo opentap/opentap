@@ -44,6 +44,34 @@ namespace OpenTap
     /// </summary>
     public class PluginSearcher
     {
+        private Options Option { get; set; }
+
+        /// <summary>
+        /// Options for Plugin Searcher.
+        /// </summary>
+        [Flags]
+        public enum Options
+        {
+            /// <summary> No options </summary>
+            None = 0,
+            /// <summary> Allow multiple assemblies with the same name </summary>
+            IncludeSameAssemblies = 1
+        }
+
+        /// <summary>
+        /// Searches assemblies for classes implementing ITapPlugin.
+        /// </summary>
+        public PluginSearcher() { }
+
+        /// <summary>
+        /// Searches assemblies for classes implementing ITapPlugin.
+        /// </summary>
+        /// <param name="opts">Option setting for Plugin Searcher.</param>
+        public PluginSearcher(Options opts = Options.None)
+        {
+            Option = opts;
+        }
+
         private class AssemblyRef
         {
             public string Name;
@@ -74,7 +102,9 @@ namespace OpenTap
         private static readonly TraceSource log = Log.CreateSource("Searcher");
         class AssemblyDependencyGraph
         {
-            public AssemblyDependencyGraph()
+            private Options Option { get; set; }
+
+            public AssemblyDependencyGraph(Options opt)
             {
                 nameToAsmMap = new Dictionary<AssemblyRef, AssemblyData>();
 
@@ -82,6 +112,8 @@ namespace OpenTap
                 asmNameToAsmData = new Dictionary<string, AssemblyData>();
                 Assemblies = new List<AssemblyData>();
                 UnfoundAssemblies = new HashSet<AssemblyRef>();
+
+                Option = opt;
             }
 
             /// <summary>
@@ -103,6 +135,9 @@ namespace OpenTap
                 {
                     var count = entry.Count();
                     if (count == 1) continue;
+                    if (entry.Key.EndsWith(".resources") && entry.Key.StartsWith("Microsoft.CodeAnalysis"))
+                        continue; // This improves the performance in debug builds, where lots of locale resource files are present.
+                    
                     var versions = new HashSet<string>();
                     bool allInDependencies = true;
                     foreach (var file in entry)
@@ -155,7 +190,7 @@ namespace OpenTap
             HashSet<AssemblyRef> UnfoundAssemblies; // for assemblies that are not in the files.
 
             /// <summary> Manually analyze and add an assembly file. </summary>
-            private AssemblyData AddAssemblyInfo(string file)
+            internal AssemblyData AddAssemblyInfo(string file, Assembly loadedAssembly = null)
             {
                 var normalizedFile = PathUtils.NormalizePath(file);
                 if (nameToAsmMap2.TryGetValue(normalizedFile, out AssemblyRef asmRef2))
@@ -164,9 +199,8 @@ namespace OpenTap
                 }
                 try
                 {
-                    AssemblyData thisAssembly = new AssemblyData();
-                    thisAssembly.Location = file;
-
+                    var thisAssembly = new AssemblyData(file, loadedAssembly);
+                    
                     List<AssemblyRef> refNames = new List<AssemblyRef>();
                     using (FileStream str = new FileStream(file, FileMode.Open, FileAccess.Read))
                     {
@@ -182,8 +216,8 @@ namespace OpenTap
 
                             // if we were asked to only prvide distinct assembly names and 
                             // this assembly name has already been encountered, just return that.
-                            var thisAssemblyFullName = def.GetAssemblyName().FullName;
-                            if (asmNameToAsmData.TryGetValue(thisAssemblyFullName, out AssemblyData data))
+                            var fileIdentifer = Option.HasFlag(Options.IncludeSameAssemblies) ? file : def.GetAssemblyName().FullName;
+                            if (asmNameToAsmData.TryGetValue(fileIdentifer, out AssemblyData data))
                                 return data;
 
                             thisAssembly.Name = metadata.GetString(def.Name);
@@ -200,7 +234,7 @@ namespace OpenTap
                                 nameToAsmMap2[PathUtils.NormalizePath(thisAssembly.Location)] = thisRef;
                             }
 
-                            asmNameToAsmData[thisAssemblyFullName] = thisAssembly;
+                            asmNameToAsmData[fileIdentifer] = thisAssembly;
 
                             foreach (var asmRefHandle in metadata.AssemblyReferences)
                             {
@@ -294,6 +328,13 @@ namespace OpenTap
             return Search(files);
         }
 
+        /// <summary> Adds an assembly outside the 'search' context. </summary>
+        internal void AddAssembly(string path, Assembly loadedAssembly)
+        {
+            var asm = graph.AddAssemblyInfo(path, loadedAssembly);
+            PluginsInAssemblyRecursive(asm);
+        }
+
         /// <summary>
         /// Searches assembly files and returns all the plugin types found in those.
         /// The search will also populate a complete list of types searched in the AllTypes property
@@ -304,7 +345,7 @@ namespace OpenTap
         {
             Stopwatch timer = Stopwatch.StartNew();
             if (graph == null)
-                graph = new AssemblyDependencyGraph();
+                graph = new AssemblyDependencyGraph(Option);
             Assemblies = graph.Generate(files);
             log.Debug(timer, "Ordered {0} assemblies according to references.", Assemblies.Count());
 
@@ -335,32 +376,31 @@ namespace OpenTap
                 foreach (CustomAttributeHandle attrHandle in CurrentReader.CustomAttributes)
                 {
                     CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
-                    string attributeFullName = "";
+                    
+                    bool isPluginAssemblyAttribute = false;
                     if (attr.Constructor.Kind == HandleKind.MethodDefinition)
                     {
                         MethodDefinition ctor = CurrentReader.GetMethodDefinition((MethodDefinitionHandle)attr.Constructor);
-                        attributeFullName = GetFullName(CurrentReader, ctor.GetDeclaringType());
-
+                        isPluginAssemblyAttribute = MatchFullName(CurrentReader, ctor.GetDeclaringType(), "OpenTap", nameof(PluginAssemblyAttribute));
                     }
                     else if (attr.Constructor.Kind == HandleKind.MemberReference)
                     {
                         var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle)attr.Constructor);
-                        attributeFullName = GetFullName(CurrentReader, ctor.Parent);
+                        isPluginAssemblyAttribute = MatchFullName(CurrentReader, ctor.Parent, "OpenTap", nameof(PluginAssemblyAttribute));
                     }
-                    if(attributeFullName == typeof(PluginAssemblyAttribute).FullName)
+                    if(isPluginAssemblyAttribute)
                     {
-                        var value = CurrentReader.GetBlobBytes(attr.Value);
                         var valueString = attr.DecodeValue(new CustomAttributeTypeProvider());
                         ReadPrivateTypesInCurrentAsm = bool.Parse(valueString.FixedArguments.First().Value.ToString());
                         break;
                     }
                 }
-
+                
                 foreach (var typeDefHandle in CurrentReader.TypeDefinitions)
                 {
                     try
                     {
-                        var st = PluginFromTypeDefRecursive(typeDefHandle);
+                        PluginFromTypeDefRecursive(typeDefHandle);
                     }
                     catch
                     {
@@ -421,23 +461,22 @@ namespace OpenTap
 
         private TypeData PluginFromTypeDefRecursive(TypeDefinitionHandle handle)
         {
-            if (TypesInCurrentAsm.ContainsKey(handle))
-            {
-                return TypesInCurrentAsm[handle];
-            }
+            if (TypesInCurrentAsm.TryGetValue(handle, out var result))
+                return result;
             TypeDefinition typeDef = CurrentReader.GetTypeDefinition(handle);
+            var typeAttributes = typeDef.Attributes;
             if (ReadPrivateTypesInCurrentAsm)
             {
-                if ((typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.NotPublic &&
-                    (typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.Public &&
-                    (typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPrivate &&
-                    (typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPublic)
+                if ((typeAttributes & TypeAttributes.VisibilityMask) != TypeAttributes.NotPublic &&
+                    (typeAttributes & TypeAttributes.VisibilityMask) != TypeAttributes.Public &&
+                    (typeAttributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPrivate &&
+                    (typeAttributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPublic)
                     return null;
             }
             else
             {
-                if ((typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.Public &&
-                    (typeDef.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPublic)
+                if ((typeAttributes & TypeAttributes.VisibilityMask) != TypeAttributes.Public &&
+                    (typeAttributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPublic)
                     return null;
             }
 
@@ -484,7 +523,6 @@ namespace OpenTap
             }
             plugin.TypeAttributes = typeDef.Attributes;
             plugin.Assembly = CurrentAsm;
-            plugin.Handle = handle;
             TypesInCurrentAsm.Add(handle, plugin);
             AllTypes.Add(plugin.Name, plugin);
             if (!typeDef.BaseType.IsNil)
@@ -512,50 +550,56 @@ namespace OpenTap
                     plugin.AddPluginType(plugin); // this inherits directly from ITapPlugin (otherwise it should have been picked up earlier)
                 }
             }
+            plugin.FinalizeCreation();
+            
+            foreach (CustomAttributeHandle attrHandle in typeDef.GetCustomAttributes())
+            {
+                CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
+                string attributeFullName = "";
+                if (attr.Constructor.Kind == HandleKind.MethodDefinition)
+                {
+                    MethodDefinition ctor =
+                        CurrentReader.GetMethodDefinition((MethodDefinitionHandle) attr.Constructor);
+                    attributeFullName = GetFullName(CurrentReader, ctor.GetDeclaringType());
+
+                }
+                else if (attr.Constructor.Kind == HandleKind.MemberReference)
+                {
+                    var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle) attr.Constructor);
+                    attributeFullName = GetFullName(CurrentReader, ctor.Parent);
+                }
+
+                switch (attributeFullName)
+                {
+                    case "OpenTap.DisplayAttribute":
+                    {
+                        var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
+                        string displayName =
+                            GetStringIfNotNull(valueString.FixedArguments[0]
+                                .Value); // the first argument to the DisplayAttribute constructor is the diaplay name
+                        string displayDescription = GetStringIfNotNull(valueString.FixedArguments[1].Value);
+                        string displayGroup = GetStringIfNotNull(valueString.FixedArguments[2].Value);
+                        double displayOrder = double.Parse(GetStringIfNotNull(valueString.FixedArguments[3].Value));
+                        bool displayCollapsed = bool.Parse(GetStringIfNotNull(valueString.FixedArguments[4].Value));
+                        string[] displayGroups = GetStringArrayIfNotNull(valueString.FixedArguments[5].Value);
+                        DisplayAttribute attrInstance = new DisplayAttribute(displayName, displayDescription,
+                            displayGroup, displayOrder, displayCollapsed, displayGroups);
+                        plugin.Display = attrInstance;
+                    }
+                        break;
+                    case "System.ComponentModel.BrowsableAttribute":
+                    {
+                        var valueString = attr.DecodeValue(new CustomAttributeTypeProvider());
+                        plugin.IsBrowsable = bool.Parse(valueString.FixedArguments.First().Value.ToString());
+                    }
+                        break;
+                    default:
+                        break;
+                }
+            }
+
             if (plugin.PluginTypes != null)
             {
-                foreach (CustomAttributeHandle attrHandle in typeDef.GetCustomAttributes())
-                {
-                    CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
-                    string attributeFullName = "";
-                    if (attr.Constructor.Kind == HandleKind.MethodDefinition)
-                    {
-                        MethodDefinition ctor = CurrentReader.GetMethodDefinition((MethodDefinitionHandle)attr.Constructor);
-                        attributeFullName = GetFullName(CurrentReader, ctor.GetDeclaringType());
-
-                    }
-                    else if(attr.Constructor.Kind == HandleKind.MemberReference)
-                    {
-                        var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle)attr.Constructor);
-                        attributeFullName = GetFullName(CurrentReader, ctor.Parent);
-                    }
-                    switch (attributeFullName)
-                    {
-                        case "OpenTap.DisplayAttribute":
-                            {
-                                var value = CurrentReader.GetBlobBytes(attr.Value);
-                                var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
-                                string displayName = GetStringIfNotNull(valueString.FixedArguments[0].Value); // the first argument to the DisplayAttribute constructor is the diaplay name
-                                string displayDescription = GetStringIfNotNull(valueString.FixedArguments[1].Value);
-                                string displayGroup = GetStringIfNotNull(valueString.FixedArguments[2].Value);
-                                double displayOrder = double.Parse(GetStringIfNotNull(valueString.FixedArguments[3].Value));
-                                bool displayCollapsed = bool.Parse(GetStringIfNotNull(valueString.FixedArguments[4].Value));
-                                string[] displayGroups = GetStringArrayIfNotNull(valueString.FixedArguments[5].Value);
-                                DisplayAttribute attrInstance = new DisplayAttribute(displayName, displayDescription, displayGroup, displayOrder, displayCollapsed, displayGroups);
-                                plugin.Display = attrInstance;
-                            }
-                            break;
-                        case "System.ComponentModel.BrowsableAttribute":
-                            {
-                                var value = CurrentReader.GetBlobBytes(attr.Value);
-                                var valueString = attr.DecodeValue(new CustomAttributeTypeProvider());
-                                plugin.IsBrowsable = bool.Parse(valueString.FixedArguments.First().Value.ToString());
-                            }
-                            break;
-                        default:
-                            break;
-                    }
-                }
                 PluginTypes.Add(plugin);
                 CurrentAsm.AddPluginType(plugin);
 
@@ -564,14 +608,13 @@ namespace OpenTap
                     foreach (CustomAttributeHandle attrHandle in CurrentReader.GetAssemblyDefinition().GetCustomAttributes())
                     {
                         CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
-                        string attributeFullName = "";
+                        
                         if (attr.Constructor.Kind == HandleKind.MemberReference)
                         {
                             var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle)attr.Constructor);
-                            attributeFullName = GetFullName(CurrentReader, ctor.Parent);
+                            string attributeFullName = GetFullName(CurrentReader, ctor.Parent);
                             if(attributeFullName == typeof(System.Reflection.AssemblyInformationalVersionAttribute).FullName)
                             {
-                                var value = CurrentReader.GetBlobBytes(attr.Value);
                                 var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
                                 if(SemanticVersion.TryParse(GetStringIfNotNull(valueString.FixedArguments[0].Value), out SemanticVersion infoVer)) // the first argument to the DisplayAttribute constructor is the InformationalVersion string
                                 {
@@ -621,6 +664,22 @@ namespace OpenTap
                     return null;
             }
         }
+
+        bool MatchFullName(MetadataReader metadata, EntityHandle handle, string matchNamespace, string matchName)
+        {
+            switch (handle.Kind)
+            {
+                case HandleKind.TypeDefinition:
+                var def = metadata.GetTypeDefinition((TypeDefinitionHandle)handle);
+                return metadata.GetString(def.Namespace) == matchNamespace && metadata.GetString(def.Name) == matchName;
+                case HandleKind.TypeReference:
+                var r = metadata.GetTypeReference((TypeReferenceHandle)handle);
+                return metadata.GetString(r.Namespace) == matchNamespace && metadata.GetString(r.Name) == matchName;
+                default:
+                    return false;
+            }
+        }
+        
         #region Providers needed by the Metadata API (not really important the way we use the API)
         struct CustomAttributeTypeProvider : ICustomAttributeTypeProvider<TypeData>
         {
@@ -764,7 +823,6 @@ namespace OpenTap
     [DebuggerDisplay("{Name}")]
     public partial class TypeData
     {
-        internal TypeDefinitionHandle Handle;
         /// <summary>
         /// Gets the fully qualified name of the type, including its namespace but not its assembly.
         /// </summary>
@@ -789,24 +847,33 @@ namespace OpenTap
         {
             get
             {
-                if (display is null && attributes is object)
-                    if (attributes.OfType<DisplayAttribute>().FirstOrDefault() is DisplayAttribute displayAttr)
-                        display = displayAttr;
+                if (display is null && attributes != null)
+                {
+                    foreach (var attr in attributes)
+                    {
+                        if (attr is DisplayAttribute displayAttr)
+                        {
+                            display = displayAttr;
+                            break;
+                        }
+                    }
+                }    
                 return display;
             }
-            internal set
-            {
-                display = value;
-            }
+            internal set => display = value;
         }
 
 
-        private HashSet<TypeData> _BaseTypes;
-        /// <summary>
-        /// Gets a list of base types (including interfaces)
-        /// </summary>
+        ICollection<TypeData> _BaseTypes;
+        
+        /// <summary> Gets a list of base types (including interfaces) </summary>
         internal ICollection<TypeData> BaseTypes => _BaseTypes;
 
+        internal void FinalizeCreation()
+        {
+            _BaseTypes = _BaseTypes?.ToArray();
+            _PluginTypes = _PluginTypes?.ToArray();
+        }
         internal void AddBaseType(TypeData typename)
         {
             if (_BaseTypes == null)
@@ -814,7 +881,7 @@ namespace OpenTap
             _BaseTypes.Add(typename);
         }
 
-        private HashSet<TypeData> _PluginTypes;
+        private ICollection<TypeData> _PluginTypes;
         /// <summary>
         /// Gets a list of plugin types (i.e. types that directly implement ITapPlugin) that this type inherits from/implements
         /// </summary>
@@ -838,7 +905,7 @@ namespace OpenTap
                 _PluginTypes.Add(t);
         }
 
-        private HashSet<TypeData> _DerivedTypes;
+        private ICollection<TypeData> _DerivedTypes;
         /// <summary>
         /// Gets a list of types that has this type as a base type (including interfaces)
         /// </summary>
@@ -888,10 +955,7 @@ namespace OpenTap
                 try
                 {
                     type = asm.GetType(this.Name,true);
-                    if (!dict.TryGetValue(type, out _))
-                    {
-                        dict.Add(type, this);
-                    }
+                    dict.GetValue(type, t => this);
                 }
                 catch (Exception ex)
                 {
@@ -947,7 +1011,7 @@ namespace OpenTap
         /// <summary>
         /// The file from which this assembly can be loaded. The information contained in this AssemblyData object comes from this file.
         /// </summary>
-        public string Location { get; internal set; }
+        public string Location { get; }
 
         /// <summary>
         /// A list of Assemblies that this Assembly references.
@@ -982,11 +1046,14 @@ namespace OpenTap
         /// </summary>
         public SemanticVersion SemanticVersion { get; internal set; }
 
-        internal AssemblyData()
+        internal AssemblyData(string location, Assembly preloadedAssembly = null)
         {
-
+            Location = location;
+            this.preloadedAssembly = preloadedAssembly;
         }
 
+        /// <summary>  Optionally set for preloaded assemblies.  </summary>
+        readonly Assembly preloadedAssembly;
         private Assembly _Assembly;
 
         private bool _FailedLoad;
@@ -1004,17 +1071,30 @@ namespace OpenTap
                 try
                 {
                     var watch = Stopwatch.StartNew();
-
-                    foreach (var asm in AppDomain.CurrentDomain.GetAssemblies().Where(asm => !asm.IsDynamic && !string.IsNullOrWhiteSpace(asm.Location)))
-                        if (PathUtils.AreEqual(asm.Location, this.Location))
-                        {
-                            _Assembly = asm;
-                            break;
-                        }
+                    if (preloadedAssembly != null)
+                        _Assembly = preloadedAssembly;
+                    else
+                    {
+                        var _asm = AppDomain.CurrentDomain.GetAssemblies()
+                            .FirstOrDefault(asm => !asm.IsDynamic && !string.IsNullOrWhiteSpace(asm.Location) && PathUtils.AreEqual(asm.Location, this.Location));
+                        _Assembly = _asm;
+                    }
 
                     if (_Assembly == null)
-                        //_Assembly = System.Runtime.Loader.AssemblyLoadContext.LoadFromAssemblyPath(Path.GetFullPath(this.Location));
-                        _Assembly = Assembly.LoadFrom(Path.GetFullPath(this.Location));
+                    {
+                        if (this.Name == "OpenTap")
+                        {
+                            _Assembly = typeof(PluginSearcher).Assembly;
+                        }
+                        else
+                        {
+                            _Assembly = Assembly.LoadFrom(Path.GetFullPath(this.Location));
+                        }
+                        
+                    }
+                    
+                        
+                        
 
                     log.Debug(watch, "Loaded {0}.", this.Name);
                 }
@@ -1022,18 +1102,21 @@ namespace OpenTap
                 {
                     _FailedLoad = true;
                     StringBuilder sb = new StringBuilder(String.Format("Failed to load plugins from {0}", this.Location));
+                    bool addedZoneInfo = false;
                     try
                     {
                         var zonetype = Type.GetType("System.Security.Policy.Zone");
                         if (zonetype != null)
-                        {
+                        {               
                             // Hack to support .net core without having to build separate assemblies.
                             dynamic zone = zonetype.GetMethod("CreateFromUrl").Invoke(null, new object[] { this.Location });
                             var sec = zone.SecurityZone.ToString();
                             if (sec.Contains("Internet") || sec.Contains("Untrusted"))
+
                             {
                                 // The file is in an NTFS Windows operating system blocked state
                                 sb.Append(" The file came from another computer and might be blocked to help protect this computer. Please unblock the file in Windows.");
+                                addedZoneInfo = true;
                             }
                         }
                     }
@@ -1041,18 +1124,24 @@ namespace OpenTap
                     {
                         log.Error("Failed to check Security policy for file.");
                         log.Debug(e);
+                        addedZoneInfo = true;
                     }
+
+                    if (!addedZoneInfo)
+                        sb.Append(" Error: "  + ex.Message);
                     log.Error(sb.ToString());
                     log.Debug(ex);
                 }
             }
-            AssemblyExtensions.lookup[_Assembly] = this.SemanticVersion;
+            if(_Assembly != null)
+                AssemblyExtensions.lookup[_Assembly] = this.SemanticVersion;
             return _Assembly;
         }
     }
 
     internal static class AssemblyExtensions
     {
+        // TODO: Change this to mapping from Assembly to AssemblyData instead.
         internal static ConcurrentDictionary<Assembly, SemanticVersion> lookup = new ConcurrentDictionary<Assembly, SemanticVersion>();
         internal static SemanticVersion GetSemanticVersion(this Assembly asm)
         {

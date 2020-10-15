@@ -77,6 +77,7 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        [Platform(Exclude="Unix,Linux,MacOsX")]
         public void TimeoutOperationTest()
         {
             var sem = new System.Threading.Semaphore(0, 1);
@@ -274,6 +275,24 @@ namespace OpenTap.Engine.UnitTests
             var files = PathUtils.IterateDirectories(opentapdir, "*.dll", SearchOption.AllDirectories).ToArray();
             var opentapdll = files.FirstOrDefault(x => Path.GetFileName(x) == opentapfile);
             Assert.IsNotNull(opentapdll);
+        }
+
+        [Test]
+        public void MemorizerValidationTest()
+        {
+            int globalData = 1;
+            var mem = new Memorizer<int, string>(i => (i * globalData).ToString())
+            {
+                Validator = x => x + globalData
+            };
+            
+            Assert.AreEqual("4", mem[4]);
+            globalData = 2;
+            Assert.AreEqual("8", mem[4]);
+            globalData = 3;
+            Assert.AreEqual("12", mem[4]);
+            globalData = 4;
+            Assert.AreEqual("16", mem[4]);
         }
 
     }

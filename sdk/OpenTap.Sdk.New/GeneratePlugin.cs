@@ -26,7 +26,7 @@ namespace OpenTap.Sdk.New
                 .GetManifestResourceStream("OpenTap.Sdk.New.Resources.DutTemplate.txt")))
             {
                 var content = ReplaceInTemplate(reader.ReadToEnd(), TryGetNamespace(), Name);
-                WriteFile(output ?? Path.Combine(Directory.GetCurrentDirectory(), Name + ".cs"), content);
+                WriteFile(output ?? Path.Combine(WorkingDirectory, Name + ".cs"), content);
             }
 
             return 0;
@@ -44,7 +44,7 @@ namespace OpenTap.Sdk.New
                 .GetManifestResourceStream("OpenTap.Sdk.New.Resources.InstrumentTemplate.txt")))
             {
                 var content = ReplaceInTemplate(reader.ReadToEnd(), TryGetNamespace(), Name);
-                WriteFile(output ?? Path.Combine(Directory.GetCurrentDirectory(), Name + ".cs"), content);
+                WriteFile(output ?? Path.Combine(WorkingDirectory, Name + ".cs"), content);
             }
 
             return 0;
@@ -62,7 +62,7 @@ namespace OpenTap.Sdk.New
                 .GetManifestResourceStream("OpenTap.Sdk.New.Resources.ResultListenerTemplate.txt")))
             {
                 var content = ReplaceInTemplate(reader.ReadToEnd(), TryGetNamespace(), Name);
-                WriteFile(output ?? Path.Combine(Directory.GetCurrentDirectory(), Name + ".cs"), content);
+                WriteFile(output ?? Path.Combine(WorkingDirectory, Name + ".cs"), content);
             }
 
             return 0;
@@ -80,7 +80,7 @@ namespace OpenTap.Sdk.New
                 .GetManifestResourceStream("OpenTap.Sdk.New.Resources.SettingsTemplate.txt")))
             {
                 var content = ReplaceInTemplate(reader.ReadToEnd(), TryGetNamespace(), Name);
-                WriteFile(output ?? Path.Combine(Directory.GetCurrentDirectory(), Name + ".cs"), content);
+                WriteFile(output ?? Path.Combine(WorkingDirectory, Name + ".cs"), content);
             }
 
             return 0;
@@ -98,7 +98,7 @@ namespace OpenTap.Sdk.New
                 .GetManifestResourceStream("OpenTap.Sdk.New.Resources.TestStepTemplate.txt")))
             {
                 var content = ReplaceInTemplate(reader.ReadToEnd(), TryGetNamespace(), Name);
-                WriteFile(output ?? Path.Combine(Directory.GetCurrentDirectory(), Name + ".cs"), content);
+                WriteFile(output ?? Path.Combine(WorkingDirectory, Name + ".cs"), content);
             }
 
             return 0;
@@ -117,7 +117,7 @@ namespace OpenTap.Sdk.New
             {
                 StringBuilder steps = new StringBuilder("\n");
                 var ns = TryGetNamespace();
-                var csFiles = Directory.GetFiles(Directory.GetCurrentDirectory(), "*.cs", SearchOption.TopDirectoryOnly);
+                var csFiles = Directory.GetFiles(WorkingDirectory, "*.cs", SearchOption.TopDirectoryOnly);
                 foreach (var file in csFiles)
                 {
                     var text = File.ReadAllText(file);
@@ -127,7 +127,7 @@ namespace OpenTap.Sdk.New
                 }
 
                 var content = ReplaceInTemplate(reader.ReadToEnd(), steps.ToString());
-                WriteFile(output ?? Path.Combine(Directory.GetCurrentDirectory(), Name + ".TapPlan"), content);
+                WriteFile(output ?? Path.Combine(WorkingDirectory, Name + ".TapPlan"), content);
             }
 
             return 0;
@@ -145,7 +145,7 @@ namespace OpenTap.Sdk.New
                 .GetManifestResourceStream("OpenTap.Sdk.New.Resources.CliActionTemplate.txt")))
             {
                 var content = ReplaceInTemplate(reader.ReadToEnd(), TryGetNamespace(), Name);
-                WriteFile(output ?? Path.Combine(Directory.GetCurrentDirectory(), Name + ".cs"), content);
+                WriteFile(output ?? Path.Combine(WorkingDirectory, Name + ".cs"), content);
             }
 
             return 0;
@@ -163,7 +163,7 @@ namespace OpenTap.Sdk.New
                 .GetManifestResourceStream("OpenTap.Sdk.New.Resources.PackageXmlTemplate.txt")))
             {
                 var content = ReplaceInTemplate(reader.ReadToEnd(), TryGetNamespace(), Name);
-                WriteFile(output ?? Path.Combine(Directory.GetCurrentDirectory(), "package.xml"), content);
+                WriteFile(output ?? Path.Combine(WorkingDirectory, "package.xml"), content);
             }
 
             return 0;

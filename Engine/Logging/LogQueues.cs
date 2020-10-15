@@ -81,12 +81,11 @@ namespace OpenTap.Diagnostic
                 if (index > (Capacity - 1))
                     return false;
 
-                LogEvents[index].Source = source;
-                LogEvents[index].Message = message;
-                LogEvents[index].Timestamp = time;
-                LogEvents[index].DurationNS = duration;
-                LogEvents[index].EventType = eventType;
-
+                LogEvents[index] = new Event
+                {
+                    Source = source, Message = message, Timestamp = time, DurationNS = duration, EventType = eventType
+                };
+                
                 Written[index] = true;
 
                 return true;

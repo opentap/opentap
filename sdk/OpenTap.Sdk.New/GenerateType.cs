@@ -19,9 +19,22 @@ namespace OpenTap.Sdk.New
         [CommandLineArgument("out", ShortName = "o", Description = "Path to generated file.")]
         public virtual string output { get; set; }
 
+        private string workingDirectory;
+
+        internal string WorkingDirectory
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(workingDirectory))
+                    return Directory.GetCurrentDirectory();
+                return workingDirectory;
+            }
+            set => workingDirectory = value;
+        }
+
         public abstract int Execute(CancellationToken cancellationToken);
 
-        public void WriteFile(string filepath, string content, bool force = false)
+        public bool WriteFile(string filepath, string content, bool force = false)
         {
             if (File.Exists(filepath) && force == false)
             {
@@ -34,7 +47,7 @@ namespace OpenTap.Sdk.New
                 if (request.Override == RequestEnum.No)
                 {
                     log.Info("File was not overridden.");
-                    return;
+                    return false;
                 }
             }
 
@@ -42,18 +55,20 @@ namespace OpenTap.Sdk.New
                 Directory.CreateDirectory(Path.GetDirectoryName(filepath));
 
             File.WriteAllText(filepath, content);
-            log.Info($"Generated file: {filepath}");
+            log.Info($"Generated file: '{filepath}'.");
+
+            return true;
         }
 
         protected string TryGetNamespace()
         {
             string dir = output;
             if (output == null)
-                dir = Directory.GetCurrentDirectory();
+                dir = WorkingDirectory;
             else if (output.EndsWith("/") == false)
                 dir = Path.GetDirectoryName(dir);
 
-            var csprojFiles = Directory.GetFiles(dir, "*.csproj", SearchOption.TopDirectoryOnly);
+            var csprojFiles = Directory.GetFiles(dir, "*.csproj", SearchOption.AllDirectories);
             var csprojPath = csprojFiles.FirstOrDefault();
 
             if (string.IsNullOrWhiteSpace(csprojPath) == false)

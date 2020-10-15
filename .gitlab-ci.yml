@@ -1,3 +1,6 @@
+include:
+  - template: Security/License-Scanning.gitlab-ci.yml
+
 variables:
   PACKAGE_REPO_URL: "http://packages.opentap.io"
   DOTNET_CLI_TELEMETRY_OPTOUT: "true"
@@ -7,6 +10,7 @@ stages:
   - test
   - package
   - installer
+  - testinstaller
   - publish
 
 #############################################
@@ -25,32 +29,20 @@ Build-DevGuide:
     paths:
        - sdk/Examples/OpenTAP Developer Guide.pdf
 
-Doc-API-Prepare:
-  stage: build
-  image: opentapio/opentap:9.5-ubuntu18.04
-  tags: [ docker, gce ]
-  script:
-        - tap sdk gitversion --replace "doc/API Documentation/Doxyfile" --fields 2
-  artifacts:
-    expire_in: 1 week
-    paths:
-       - "doc/API Documentation/Doxyfile"
-
 Doc-API:
-  stage: test
+  stage: build
   image: registry.gitlab.com/opentap/buildrunners/doxygen:latest
   tags: [ docker, gce ]
-  dependencies:
-    - Doc-API-Prepare
   script: 
-         - mkdir Help
-         - mkdir API
+         - mkdir Help API
+         - ver=$(grep ^version .gitversion | sed 's/version[ ]*=[ ]*//' | cut -d. -f 1-2)
+         - sed -i "s/\$(GitVersion)/$ver/" "doc/API Documentation/Doxyfile"
          - rootdir=`pwd`
          - cd "doc/API Documentation"
          - doxygen Doxyfile
-         - cd "apiref/html"
+         - cd apiref/html
          - chmcmd index.hhp
-         - cp OpenTapApiReference.chm $rootdir/Help/
+         - mv OpenTapApiReference.chm $rootdir/Help/
          - cp -r . $rootdir/API/
   artifacts:
     expire_in: 1 week
@@ -64,7 +56,7 @@ pages:
   dependencies:
     - Doc-API
   only:
-    - master
+    - /^release.*$/
   cache:
     paths:
     - doc/node_modules/
@@ -90,6 +82,14 @@ Build-Linux64:
     paths:
        - bin/Release/publish
 
+QuickTest: # Quick test to fail as early as possible. 
+  stage: build
+  image: microsoft/dotnet:2.1-sdk-stretch
+  tags: [ docker, gce ]
+  script:
+    - dotnet build -c NetCoreDebug
+    - dotnet vstest bin/Debug/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000
+  
 # Builds the Everything.sln solution
 Build-x86:
   stage: build
@@ -152,6 +152,7 @@ TestEngine:
     paths:
        - "TestResult.xml"
 
+
 # Can't run on docker, as a unit test is using dotfuscator
 TestPackage:
   stage: test
@@ -164,12 +165,38 @@ TestPackage:
   script:
          - $ErrorActionPreference = "Stop"
          - copy-item -r "Package.UnitTests/Packages" bin/Release
-         - dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll
+         - dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
   artifacts:
     when: always
     expire_in: 1 week
     paths:
        - "TestResult.xml"
+
+TestWindowsPlan:
+  stage: test
+  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  tags: [ docker, windows ]
+  dependencies:
+    - Build-x86
+  needs:
+    - Build-x86
+  script:
+    - bin/Release/tap.exe run tests/regression.TapPlan --verbose
+
+TestLinuxPlan:
+  stage: test
+  tags: [docker, gce]
+  image: mcr.microsoft.com/dotnet/core/sdk:2.1-bionic
+  dependencies:
+    - Build-Linux64
+  needs:
+    - Build-Linux64
+  script:
+    - apt-get update
+    - apt-get install locales
+    - locale-gen en_US.UTF-8
+    - mv bin/Release/publish/* bin/Release
+    - bin/Release/tap run tests/regression.TapPlan --verbose
 
 .LinuxScript:
   tags: [ docker, gce ]
@@ -178,20 +205,61 @@ TestPackage:
   needs:
      - Build-Linux64
   script:
-        - cp -r Engine.UnitTests/TestTestPlans bin/Release/publish
+        - ln -sf $PWD/bin/Release/publish/tap /bin
+        - check_exit_code () { if [ $exit_code -eq $1 ]; then echo "OK"; else echo "FAIL ($exit_code)"; false; fi }
+        - echo "tap run unit test"
+        - tap run -v Engine.UnitTests/TestTestPlans/testMultiReferencePlan.TapPlan --ignore-load-errors || exit_code=$?
+        - check_exit_code 20
+        - echo "tap sdk gitversion unit tests"
+        - tap sdk gitversion -v       # verify that gitversion works.
+        - tap sdk gitversion --log 10 # verify that gitversion log works.
+        - echo "tap package create/verify unit tests"
+        - tap package verify || exit_code=$?
+        - check_exit_code 2
+        - cp *.package.xml bin/ # for Package NUnit tests
+        - sed -i "/Sign Certificate/ d" opentap_linux64.package.xml
+        - sed -i -e '/File Path/ s!Dependencies/!Dependencies\\!' opentap_linux64.package.xml
+        - sed -i -e '/SourcePath/ s!dotnet_library_license.txt!.\\dotnet_library_license.txt!' opentap_linux64.package.xml
         - cd bin/Release/publish
-        - chmod +x tap
-        - echo "./tap run -v TestTestPlans/testMultiReferencePlan.TapPlan; if [ \$? -eq 20 ]; then echo \"OK\"; else false; fi" >./run_ubuntu_test.sh
-        - chmod +x ./run_ubuntu_test.sh
-        - bash run_ubuntu_test.sh
-        - ldconfig -p
-        - cd ..
-        - publish/tap sdk gitversion --verbose # verify that gitversion works.
+        - rm -rf Packages/*
+        - tap package create --install ../../../opentap_linux64.package.xml -o OpenTAP.TapPackage
+        - tap | grep Interface
+        - mkdir ../test
+        - tap package install OpenTAP.TapPackage --target ../test
+        - cd ../test
+        - ./tap | grep Interface
+        - sed -i '/File Path/ s!Dependencies/!Dependencies\\!' Packages/OpenTAP/package.xml
+        - cd -
+        - ../test/tap package verify OpenTAP
+        - mkdir Packages/SDK
+        - touch '../../../sdk/Examples/OpenTAP Developer Guide.pdf'
+        - ln -s ../../../../../sdk/Examples Packages/SDK
+        - ln -s ../../../../../Package/PackageSchema.xsd Packages/SDK
+        - tap package create ../../../sdk/sdk.package.xml -o SDK.TapPackage
+        - tap package install SDK.TapPackage --target ../test
+        - cd ../test
+        - ./tap | grep Interface
+        - ./tap package verify SDK
+        - cd -
+        - echo "Engine NUnit tests"
+        - dotnet vstest OpenTap.UnitTests.dll --logger:"console;verbosity=detailed"
+        - echo "Package NUnit tests"
+        - rm -rf Packages
+        - cp -r ../../../Package.UnitTests/Packages .
+        - dotnet vstest OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
+
 
 TestUbuntu:
   stage: test
   image: mcr.microsoft.com/dotnet/core/sdk:2.1-bionic
   extends: .LinuxScript
+  before_script:
+    - apt update
+    - apt install locales
+    - echo "LC_ALL=en_US.UTF-8" >> /etc/environment
+    - echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
+    - echo "LANG=en_US.UTF-8" > /etc/locale.conf
+    - locale-gen en_US.UTF-8
 
 TestCentos7:
   stage: test
@@ -215,7 +283,7 @@ TestCentos7:
 #      - cp -r opentap/Engine.UnitTests/TestTestPlans $DEST_DIR
 #      - cp bin/linux-x64/publish/OpenTap.UnitTests.dll $DEST_DIR
 #      - cd $DEST_DIR
-#      - echo "./tap run -v TestTestPlans/testMultiReferencePlan.TapPlan
+#      - echo "./tap run -v TestTestPlans/testMultiReferencePlan.TapPlan --ignore-load-errors
 #  if [ \$? -eq 20 ]
 #  then echo \"OK\"
 #  else false
@@ -289,7 +357,7 @@ Package-Linux:
      - Build-Linux64
   needs:
      - Build-x86
-     - Build-Linux64    
+     - Build-Linux64
   script:
          - if (!$PROTECTED_BRANCH) { Set-Content .\opentap_linux64.package.xml  -Value (get-content .\opentap_linux64.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
          - mv bin\Release\publish bin\linux-x64
@@ -330,7 +398,7 @@ Package-SDK:
          - ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/PluginDevelopment.Gui/PluginDevelopment.Gui.csproj"
          - ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/TestPlanExecution/BuildTestPlan.Api/BuildTestPlan.Api.csproj"
          - ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/TestPlanExecution/RunTestPlan.Api/RunTestPlan.Api.csproj"
-         - ./tap package create ../../sdk/sdk.package.xml
+         - ./tap package create -v ../../sdk/sdk.package.xml
          - Move-Item "*.TapPackage" "../.."
   artifacts:
     when: on_success
@@ -351,6 +419,10 @@ Package-NuGet:
     - Build-x64
     - Package-Windows64
     - Build-Linux64
+  needs:
+    - Build-x64
+    - Package-Windows64
+    - Build-Linux64
   script:
     - Move-Item bin/Release/publish/ bin/Linux/
     - dotnet build -c NetCore tap/tap.csproj
@@ -358,8 +430,11 @@ Package-NuGet:
     - cd bin/Release
     - Move-Item "../../OpenTAP.*.Windows.TapPackage" OpenTAP.TapPackage
     - ./tap package install --target "../../nuget/build/payload" OpenTAP.TapPackage -f -v
+    - Move-Item OpenTap.xml ../../nuget/build/payload
+    - Move-Item OpenTap.Package.xml ../../nuget/build/payload
     - ./tap sdk gitversion --replace ../../nuget/OpenTAP.nuspec --fields 4
     - Move-Item Keysight.OpenTap.Sdk.MSBuild.dll ../../nuget/build
+    - Move-Item DotNet.Glob.dll ../../nuget/build
     - cd ../../nuget/
     - Move-Item ../bin/Linux/tap build/payload/
     - Move-Item ../bin/Linux/tap.dll build/payload/
@@ -404,10 +479,6 @@ Installer-Linux:
   stage: installer
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
-  only:
-    - tags
-    - /^release.*$/
-    - master
   dependencies:
      - Package-Linux
   script:
@@ -427,7 +498,6 @@ Installer-Linux:
     expire_in: 1 week
     paths:
        - "OpenTAP.tar"
-
 
 Package-Build-Deb:
   stage: installer
@@ -451,6 +521,25 @@ Package-Build-Deb:
     expire_in: 1 week
     paths: 
       - OpenTAP.deb
+
+#############################################
+# Stage: test installer                     #
+#############################################
+
+Test-Installer-Linux:
+  stage: testinstaller
+  image: mcr.microsoft.com/dotnet/core/runtime:2.1.12-bionic
+  tags: [ docker, gce ]
+  dependencies:
+    - Installer-Linux
+  script:
+    - apt update
+    - apt install unzip -y
+    - tar xf OpenTAP.tar
+    - chmod +x ./INSTALL.sh
+    - echo 'y' | ./INSTALL.sh
+    - $HOME/bin/tap -h
+    - $HOME/bin/tap package list -v
 
 #############################################
 # Stage: publish                            #

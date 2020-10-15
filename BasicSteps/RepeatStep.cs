@@ -26,7 +26,7 @@ namespace OpenTap.Plugins.BasicSteps
         public RepeatStepAction Action { get; set; }
 
         [StepSelector(StepSelectorAttribute.FilterTypes.All)]
-        [EnabledIf("Action", RepeatStepAction.While, RepeatStepAction.Until, HideIfDisabled = true)]
+        [EnabledIf(nameof(Action), RepeatStepAction.While, RepeatStepAction.Until, HideIfDisabled = true)]
         [Display("Verdict Of", Order: 1, Description: "Select the step that you want to validate the verdict of.")]
         public ITestStep TargetStep { get; set; }
         

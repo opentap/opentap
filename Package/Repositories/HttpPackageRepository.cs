@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.NetworkInformation;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -23,8 +24,12 @@ using Tap.Shared;
 
 namespace OpenTap.Package
 {
+    /// <summary>
+    /// Implements a IPackageRepository that queries a server for OpenTAP packages via http/https.
+    /// </summary>
     public class HttpPackageRepository : IPackageRepository
     {
+        #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
         private static TraceSource log = Log.CreateSource("HttpPackageRepository");
         private const string ApiVersion = "3.0";
         private VersionSpecifier MinRepoVersion = new VersionSpecifier(3, 0, 0, "", "", VersionMatchBehavior.AnyPrerelease | VersionMatchBehavior.Compatible);
@@ -55,23 +60,45 @@ namespace OpenTap.Package
             else
                 this.Url = "http://" + url;
 
-            // Trim end to fix redirection. E.g. 'plugins.tap.aalborg.keysight.com:8086/' redirects to 'plugins.tap.aalborg.keysight.com'.
+            // Trim end to fix redirection. E.g. 'packages.opentap.io/' redirects to 'packages.opentap.io'.
             this.Url = this.Url.TrimEnd('/');
             defaultUrl = this.Url;
             this.Url = CheckUrlRedirect(this.Url);
+
+            // Get the users Uniquely generated id
+            var id = GetUserId();
             
-            var macAddr = NetworkInterface.GetAllNetworkInterfaces()
-                        .Where(nic => nic.OperationalStatus == OperationalStatus.Up)
-                        .Select(nic => nic.GetPhysicalAddress()).FirstOrDefault();
-            var block = new byte[8];
-            if (macAddr != null)
-                macAddr.GetAddressBytes().CopyTo(block, 0);
-            string mac = BitConverter.ToString(block).Replace("-", string.Empty);
             string installDir = ExecutorClient.ExeDir;
-            UpdateId = String.Format("{0:X8}{0:X8}", MurMurHash3.Hash(mac), MurMurHash3.Hash(installDir));
+            UpdateId = String.Format("{0:X8}{1:X8}", MurMurHash3.Hash(id), MurMurHash3.Hash(installDir));
         }
 
-        private async Task DoDownloadPackage(PackageDef package, string destination, CancellationToken cancellationToken)
+        internal static string GetUserId()
+        {
+            var idPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTAP", "OpenTapGeneratedId");
+            string id = default(Guid).ToString(); // 00000000-0000-0000-0000-000000000000
+            
+            try
+            {
+                if (File.Exists(idPath))
+                    id = File.ReadAllText(idPath);
+                else
+                {
+                    id = Guid.NewGuid().ToString();
+                    if (Directory.Exists(Path.GetDirectoryName(idPath)) == false)
+                        Directory.CreateDirectory(Path.GetDirectoryName(idPath));
+                    File.WriteAllText(idPath, id);
+                }
+            }
+            catch (Exception e)
+            {
+                log.Error("Could not read user id.");
+                log.Debug(e);
+            }
+
+            return id;
+        }
+
+        async Task DoDownloadPackage(PackageDef package, FileStream fileStream, CancellationToken cancellationToken)
         {
             bool finished = false;
             try
@@ -79,74 +106,99 @@ namespace OpenTap.Package
                 using (HttpClientHandler hch = new HttpClientHandler() { UseProxy = true, Proxy = WebRequest.GetSystemWebProxy() })
                 using (HttpClient hc = new HttpClient(hch) { Timeout = Timeout.InfiniteTimeSpan })
                 {
-
-                    StringContent content = null;
-                    using (Stream stream = new MemoryStream())
-                    using (var reader = new StreamReader(stream))
-                    {
-                        package.SaveTo(stream);
-                        stream.Seek(0, 0);
-                        string cnt = reader.ReadToEnd().Replace("http://opentap.io/schemas/package", "http://keysight.com/schemas/TAP/Package"); // TODO: remove when server is updated (this is only here for support of the TAP 8.x Repository server that does not yet have a parser that can handle the new name)
-                        content = new StringContent(cnt);
-                    }
-
-                    // Download plugin
-                    var message = new HttpRequestMessage();
-                    message.RequestUri = new Uri(Url + "/" + ApiVersion + "/DownloadPackage");
-                    message.Content = content;
-                    message.Method = HttpMethod.Post;
-                    message.Headers.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
+                    HttpResponseMessage response = null;
+                    hc.DefaultRequestHeaders.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
+                    var retries = 60;
+                    var downloadedBytes = 0;
+                    var totalSize = -1L;
                     
-                    HttpResponseMessage response;
-                    if (package.PackageSource is HttpRepositoryPackageDefSource httpSource && string.IsNullOrEmpty(httpSource.DirectUrl) == false)
+                    while (retries > 0)
                     {
-                        log.Info($"Downloading package directly from: '{httpSource.DirectUrl}'.");
+                        if (retries < 60)
+                            log.Debug($"Retrying {61 - retries}/60");
+                        
+                        hc.DefaultRequestHeaders.Range = RangeHeaderValue.Parse($"bytes={downloadedBytes}-");
+
                         try
                         {
-                            response = await hc.GetAsync(httpSource.DirectUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-                            if (response.IsSuccessStatusCode == false)
-                                throw new Exception($"Request to '{httpSource.DirectUrl}' failed with status code: {response.StatusCode}.");
+                            if (package.PackageSource is HttpRepositoryPackageDefSource httpSource && string.IsNullOrEmpty(httpSource.DirectUrl) == false)
+                            {
+                                log.Info($"Downloading package directly from: '{httpSource.DirectUrl}'.");
+                                var message = new HttpRequestMessage(HttpMethod.Get, new Uri(httpSource.DirectUrl));
+                                
+                                try
+                                {
+                                    response = await hc.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                                    if (response.IsSuccessStatusCode == false)
+                                        throw new Exception($"Request to '{httpSource.DirectUrl}' failed with status code: {response.StatusCode}.");
+                                }
+                                catch (Exception e)
+                                {
+                                    log.Warning($"Could not download package directly from: '{httpSource.DirectUrl}'. Downloading package normally.");
+                                    log.Debug(e);
+                                    response = await hc.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                                }
+                            }
+                            else
+                            {
+                                var message = new HttpRequestMessage(HttpMethod.Get, 
+                                    new Uri(Url + "/" + ApiVersion + "/DownloadPackage" +
+                                          $"/{Uri.EscapeDataString(package.Name)}" +
+                                          $"?version={Uri.EscapeDataString(package.Version.ToString())}" +
+                                          $"&os={Uri.EscapeDataString(package.OS)}" +
+                                          $"&architecture={Uri.EscapeDataString(package.Architecture.ToString())}"));
+                                response = await hc.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                            }
+
+                            if (totalSize < 0)
+                                totalSize = response.Content.Headers.ContentLength ?? 1;
+
+                            // Download the package
+                            using (var responseStream = await response.Content.ReadAsStreamAsync())
+                            {
+                                if (response.IsSuccessStatusCode == false)
+                                    throw new HttpRequestException($"The download request failed with {response.StatusCode}.");
+
+                                var buffer = new byte[4096];
+                                int read = 0;
+                                
+                                var task = Task.Run(() => 
+                                {
+                                    do
+                                    {
+                                        read = responseStream.Read(buffer, 0, 4096);
+                                        fileStream.Write(buffer, 0, read);
+                                        downloadedBytes += read;
+                                    } while (read > 0);
+                                    
+                                    finished = true;
+                                }, cancellationToken);
+                                ConsoleUtils.PrintProgressTillEnd(task, "Downloading", () => fileStream.Position, () => totalSize);
+                            }
+                                
+                            if (finished)
+                                break;
                         }
                         catch (Exception e)
                         {
-                            log.Warning($"Could not download package directly from: '{httpSource.DirectUrl}'. Downloading package normally.");
+                            response.Dispose();
+                            retries--;
+                            if (retries <= 0 || cancellationToken.IsCancellationRequested)
+                                throw;
+                            log.Debug("Failed to download package.");
                             log.Debug(e);
-                            response = await hc.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                            Thread.Sleep(TimeSpan.FromSeconds(1));
                         }
                     }
-                    else
-                        response = await hc.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-
-
-                    using (var responseStream = await response.Content.ReadAsStreamAsync())
-                    using (var fileStream = new FileStream(destination, FileMode.Create))
-                    {
-                        if (response.IsSuccessStatusCode == false)
-                            throw new HttpRequestException($"The download request failed with {response.StatusCode}.");
-
-                        var totalSize = response.Content.Headers.ContentLength ?? -1L;
-                        var task = responseStream.CopyToAsync(fileStream, 4096, cancellationToken);
-                        ConsoleUtils.PrintProgressTillEnd(task, "Downloading", () => fileStream.Position, () => totalSize);
-                    }
-                    
-                    response.Dispose();
                 }
-
-                finished = true;
             }
             catch (Exception ex)
             {
-                log.Error(ex);
                 if (!(ex is TaskCanceledException))
                 {
                     throw;
                 }
-            }
-            finally
-            {
-                
-                if ((!finished || cancellationToken.IsCancellationRequested) && File.Exists(destination))
-                    File.Delete(destination);
+                log.Error(ex);
             }
         }
         
@@ -374,12 +426,37 @@ namespace OpenTap.Package
 
         public void DownloadPackage(IPackageIdentifier package, string destination, CancellationToken cancellationToken)
         {
-            if (package is PackageDef)
-                DoDownloadPackage(package as PackageDef, destination, cancellationToken).Wait();
-            else
+            var tmpPath = destination + "." + Guid.NewGuid().ToString();
+            //Use DeleteOnClose to auto-magically remove the file when the stream or application is closed. 
+            using (var tmpFile = new FileStream(tmpPath, FileMode.Create, FileAccess.ReadWrite,
+                FileShare.Delete | FileShare.Read, 4096, FileOptions.DeleteOnClose))
             {
-                var packageDef = new PackageDef() { Name = package.Name, Version = package.Version, Architecture = package.Architecture, OS = package.OS };
-                DoDownloadPackage(packageDef, destination, cancellationToken).Wait();
+
+                try
+                {
+                    var packageDef = package as PackageDef ?? new PackageDef
+                    {
+                        Name = package.Name, Version = package.Version, 
+                        Architecture = package.Architecture, OS = package.OS
+                    };
+                    DoDownloadPackage(packageDef, tmpFile, cancellationToken).Wait(cancellationToken);
+
+                    if (cancellationToken.IsCancellationRequested == false)
+                    {
+                        tmpFile.Flush();
+                        File.Delete(destination);
+                        File.Copy(tmpFile.Name, destination);
+                    }
+                }
+                catch
+                {
+                    log.Warning("Download failed.");
+                    throw;
+                }
+                finally
+                {
+                    File.Delete(tmpFile.Name);
+                }
             }
         }
 

@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Xml.Serialization;
@@ -18,7 +19,7 @@ namespace OpenTap.Package
     {
         static TraceSource log = Log.CreateSource("Verify");
 
-        /// <summary> Returns PacakgeActionStage.Create. </summary>
+        /// <summary> Returns PackageActionStage.Create. </summary>
         public PackageActionStage ActionStage => PackageActionStage.Create;
 
         internal static byte[] hashFile(string file)
@@ -71,13 +72,14 @@ namespace OpenTap.Package
     }
 
     /// <summary> CLI Action to verify the installed packages by checking their hashes. </summary>
-    [Display("verify", "Verifies installed packages by checking their hashes.", "package")]
+    [Display("verify", "Verify the integrity of one or all installed packages by checking their fingerprints.", "package")]
     class VerifyPackageHashes : ICliAction
     {
         static TraceSource log = Log.CreateSource("Verify");
+        static string Target = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
         /// <summary> Verify a specific package. </summary>
-        [UnnamedCommandLineArgument("Package", Required = false)]
+        [UnnamedCommandLineArgument("package", Required = false)]
         public string Package { get; set; }
 
         int exitCode;
@@ -105,19 +107,28 @@ namespace OpenTap.Package
                 }
                 else
                 {
-                    var hash2 = new FileHashPackageAction.Hash(FileHashPackageAction.hashFile(file.FileName));
+                    // Make file.FileName Linux friendly
+                    if(file.FileName.Contains('\\'))
+                    {
+                        string repl = file.FileName.Replace('\\', '/');
+                        log.Debug("Replacing '\\' with '/' in {0}", file.FileName);
+                        file.FileName = repl;
+                    }
+                    string fullpath = Path.Combine(Target, file.FileName);
+                    var hash2 = new FileHashPackageAction.Hash(FileHashPackageAction.hashFile(fullpath));
                     if (false == hash2.Equals(hash))
                     {
-                        if (File.Exists(file.FileName))
+                        if (File.Exists(fullpath))
                         {
                             brokenFiles.Add((file, "has non-matching checksum."));
+                            log.Debug("Hash does not match for '{0}'", file.FileName);
                         }
                         else
                         {
                             brokenFiles.Add((file, "is missing."));
+                            log.Debug("File '{0}' is missing", file.FileName);
                         }
                         ok = false;
-                        log.Debug("Hash does not match for '{0}'", file.FileName);
                     }
                     else
                     {
@@ -128,7 +139,7 @@ namespace OpenTap.Package
             void print_issues()
             {
                 foreach (var x in brokenFiles)
-                    log.Info("The file '{0}' {1}", x.Item1.FileName, x.Item2);
+                    log.Info("File '{0}' {1}", x.Item1.FileName, x.Item2);
             }
             if (!ok)
             {
@@ -140,6 +151,7 @@ namespace OpenTap.Package
             {
                 if (inconclusive)
                 {
+                    exitCode = 2;
                     log.Warning("Package '{0}' is missing SHA1 checksum for verification.", pkg.Name);
                     print_issues();
                 }
@@ -152,7 +164,7 @@ namespace OpenTap.Package
 
         int ICliAction.Execute(CancellationToken cancellationToken)
         {
-            var installation = new Installation(Path.GetDirectoryName(typeof(TestPlan).Assembly.Location));
+            var installation = new Installation(Target);
             var packages = installation.GetPackages();
             if (string.IsNullOrEmpty(Package))
             {
@@ -165,12 +177,56 @@ namespace OpenTap.Package
                 if(pkg == null)
                 {
                     log.Error("Unable to locate package '{0}'", Package);
-                    log.Info("Installed packages are: {0}", string.Join(", ", packages.Select(x => x.Name)));
+                    log.Info("Installed packages: {0}", string.Join(", ", packages.Select(x => x.Name)));
                     return 1;
                 }  
                 verifyPackage(pkg);
             }
             return exitCode;
+        }
+
+        public static List<(PackageDef Package, PackageFile File, PackageDef OffendingPackage)> CalculatePackageInstallConflicts(IEnumerable<PackageDef> installedPackages, IEnumerable<PackageDef> newPackages)
+        {
+            var conflicts = new List<(PackageDef, PackageFile, PackageDef)>();
+            var allFiles = installedPackages.SelectMany(pkg => pkg.Files. Select(file => (pkg, file)))
+                .ToLookup(x => x.file.FileName, StringComparer.CurrentCultureIgnoreCase);
+            
+            foreach (var package in newPackages)
+            {
+                var possibleConflicts=  getConflictedFiles(allFiles, package);
+                conflicts.AddRange(possibleConflicts
+                    // remove conflicts that came from the same package name. These may be overwritten.
+                    .Where(x => x.Item1.Name != package.Name)
+                    // remove conflicts in files that came from Dependencies. 
+                    .Where(x => x.Item2.FileName.StartsWith("Dependencies/", StringComparison.InvariantCultureIgnoreCase) == false)
+                    .Select(x => (x.Item1, x.Item2, package)));
+            }
+
+            return conflicts;
+        }
+        
+        static IEnumerable<(PackageDef, PackageFile)> getConflictedFiles(ILookup<string,(PackageDef, PackageFile)> installedFilesLookup, PackageDef package)
+        {
+            var conflictedFiles = new List<(PackageDef, PackageFile)>();
+            foreach (var file in package.Files)
+            {
+                foreach (var installedFile in installedFilesLookup[file.FileName])
+                {
+                    var hash1 = installedFile.Item2.CustomData.OfType<FileHashPackageAction.Hash>().FirstOrDefault();
+                    // Hash information does not exist. Lets just ignore it then.
+                    if (hash1 == null) continue; 
+                    var hash = file.CustomData.OfType<FileHashPackageAction.Hash>().FirstOrDefault();
+                    // Hash information does not exist. Lets just ignore it then.
+                    // We also cannot compare the binary files, because they might not have been downloaded yet.
+                    if (hash == null) continue;
+                    if (hash1.Equals(hash) == false)
+                    {
+                        // conflict detected!!
+                        conflictedFiles.Add(installedFile);
+                    }
+                }
+            }
+            return conflictedFiles;
         }
     }
 }

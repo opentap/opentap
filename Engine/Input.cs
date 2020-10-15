@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Serialization;
@@ -35,7 +36,7 @@ namespace OpenTap
     /// When used in a TestStep, Input value should always be set in the constructor.
     /// </summary>
     /// <typeparam name="T"> Generic type parameter. </typeparam>
-    public class Input<T> : IInput, IInputTypeRestriction
+    public class Input<T> : IInput, IInputTypeRestriction, ICloneable
     {
         /// <summary> 
         /// Describes the output property on the <see cref="Step"/> to which this Input is connected.  
@@ -179,6 +180,17 @@ namespace OpenTap
         {
             
         }
+
+        /// <summary> Converts the value of this instance to its equivalent string representation. </summary>
+        /// <returns> The string representation of the value of this instance. </returns>
+        public override string ToString()
+        {
+            if (Value == null)
+                return "NULL";
+            else
+                return StringConvertProvider.GetString(Value);
+        }
+
         /// <summary> Compares one Input to another. </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
@@ -195,6 +207,12 @@ namespace OpenTap
         {
             return (Step?.GetHashCode() ?? 0) ^ (Property?.GetHashCode() ?? 0);
         }
+
+        object ICloneable.Clone() => new Input<T>
+        {
+            Step = Step,
+            Property = Property
+        };
 
         /// <summary> Returns true if this input supports the concrete type. </summary>
         /// <param name="concreteType"></param>

@@ -6,17 +6,19 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml.Serialization;
 using Tap.Shared;
 
 namespace OpenTap.Package
 {
+    /// <summary>
+    /// Implements a IPackageRepository that queries a local directory for OpenTAP packages.
+    /// </summary>
     public class FilePackageRepository : IPackageRepository
     {
+        #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
         private static TraceSource log = Log.CreateSource("FilePackageRepository");
         internal const string TapPluginCache = ".PackageCache";
         private static object cacheLock = new object();
@@ -32,6 +34,7 @@ namespace OpenTap.Package
         {
             LoadPath(new CancellationToken());
         }
+
         private void LoadPath(CancellationToken cancellationToken)
         {
             if (File.Exists(Url) || Directory.Exists(Url) == false)
@@ -44,9 +47,8 @@ namespace OpenTap.Package
                 return;
             }
 
-            allFiles = Directory.GetFiles(Url).ToList();
+            allFiles = GetAllFiles(Url, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
-            allFiles.AddRange(GetAllFiles(Url, cancellationToken));
             allPackages = GetAllPackages(allFiles).ToArray();
 
             var caches = PackageManagerSettings.Current.Repositories.Select(p => GetCache(p.Url).CacheFileName);
@@ -303,25 +305,30 @@ namespace OpenTap.Package
         }
         private List<string> GetAllFiles(string path, CancellationToken cancellationToken)
         {
-            List<string> files = new List<string>();
+            var result = new List<string>();
+            var dirs = new Queue<DirectoryInfo>();
+            dirs.Enqueue(new DirectoryInfo(path));
 
-            if (new DirectoryInfo(path).Name.ToLower() == "obj")
-                return files;
-
-            foreach (var directory in Directory.GetDirectories(path))
+            while (dirs.Any() && cancellationToken.IsCancellationRequested == false)
             {
-                var dirFiles = Directory.GetFiles(directory);
-                foreach (var file in dirFiles)
+                var dir = dirs.Dequeue();
+                try
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    files.Add(file);
-                }
+                    var content = dir.EnumerateDirectories();
+                    foreach (var subDir in content)
+                    {
+                        dirs.Enqueue(subDir);
+                    }
 
-                cancellationToken.ThrowIfCancellationRequested();
-                files.AddRange(GetAllFiles(directory, cancellationToken));
+                    result.AddRange(dir.EnumerateFiles().Select(f => f.FullName));
+                }
+                catch (Exception)
+                {
+                    log.Debug($"Access to path {dir.FullName} denied. Ignoring.");
+                }
             }
 
-            return files;
+            return result;
         }
         private PackageDef[] loadPackagesFromFile(IEnumerable<FileInfo> allFiles)
         {
@@ -390,6 +397,7 @@ namespace OpenTap.Package
             
             return allPackages.ToArray();
         }
+
         private List<PackageDef> GetAllPackages(List<string> allFiles)
         {
             // Get cache

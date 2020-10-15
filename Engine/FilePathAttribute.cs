@@ -57,7 +57,7 @@ namespace OpenTap
             if (s.Length % 2 == 1) throw new InvalidFilterSpecification(str);
             for(int i = 0; i < s.Length; i += 2)
             {
-                var name = s[i];
+                //var name = s[i];
                 var value = s[i + 1];
                 if (value.Contains("*.") == false)
                     throw new InvalidFilterSpecification($"'{value}' must start with '*'.");

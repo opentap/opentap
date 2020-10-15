@@ -35,7 +35,6 @@ module.exports = {
                   ["User Guide/Introduction/", "Overview"],
                   ["User Guide/CLI Usage/", "CLI Usage"],
                   ["User Guide/Editors/", "Editors"],
-                  ["User Guide/CLI Reference/", "CLI Reference"],
                 ]
               },
             {
@@ -43,23 +42,18 @@ module.exports = {
                 children: [
                     ["/Developer Guide/Introduction/", "Introduction"],
                     ["/Developer Guide/What is OpenTAP/", "OpenTAP Overview"],
-                    {
-                        title: 'Getting Started',
-                        sidebarDepth: 0,
-                        children: [
-                            "/Developer Guide/Getting Started in Visual Studio/",
-                            "/Developer Guide/Getting Started in Visual Studio/OpenTapNuget.md"
-                        ]
-                    },
-                    ["/Developer Guide/Plugin Development/", "Plugin Development"],
+                    ["/Developer Guide/Getting Started in Visual Studio/", "Getting Started"],
+                    ["/Developer Guide/Development Essentials/", "Development Essentials"],
                     ["/Developer Guide/Test Step/", "Test Step"],
                     ["/Developer Guide/DUT/", "DUT"],
-                    ["/Developer Guide/Instrument Plugin Development/", "Instrument Plugin Development"],
+                    ["/Developer Guide/Instrument/", "Instrument"],
                     ["/Developer Guide/Result Listener/", "Result Listener"],
                     ["/Developer Guide/Component Setting/", "Component Setting"],
+                    ["/Developer Guide/Annotations/", "Annotations"],
                     ["/Developer Guide/Plugin Packaging and Versioning/", "Plugin Packaging and Versioning"],
-                    ["/Developer Guide/Appendix A/", "Appendix A: Attribute Details"],
-                    ["/Developer Guide/Appendix B/", "Appendix B: Macro Strings"]
+                    ["/Developer Guide/Continuous Integration/", "Continuous Integration (CI/CD)"],
+                    ["/Developer Guide/Attributes/", "Attributes"],
+                    ["/Developer Guide/Appendix A/", "Appendix A: Macro Strings"]
                 ]
             },
             [baseurl + "/api", "API Reference"],
@@ -70,7 +64,9 @@ module.exports = {
                     ['/Release Notes/ReleaseNote_OpenTAP9.4.md', "Release Notes - OpenTAP 9.4"],
                     ['/Release Notes/ReleaseNote_OpenTAP9.5.md', "Release Notes - OpenTAP 9.5"],
                     ['/Release Notes/ReleaseNote_OpenTAP9.6.md', "Release Notes - OpenTAP 9.6"],
-                    ['/Release Notes/ReleaseNote_OpenTAP9.7.md', "Release Notes - OpenTAP 9.7"]
+                    ['/Release Notes/ReleaseNote_OpenTAP9.7.md', "Release Notes - OpenTAP 9.7"],
+                    ['/Release Notes/ReleaseNote_OpenTAP9.8.md', "Release Notes - OpenTAP 9.8"],
+                    ['/Release Notes/ReleaseNote_OpenTAP9.9.md', "Release Notes - OpenTAP 9.9"]
                 ]
             },
             "FAQ/"

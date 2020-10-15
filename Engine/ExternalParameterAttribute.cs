@@ -18,7 +18,7 @@ namespace OpenTap
         /// To be used on TestStep properties to indicates that it will be automatically added into External Parameter list when TestStep added into the test plan editor.
         /// </summary>
         /// <param name="Name">The name of the parameter.</param>
-        public ExternalParameterAttribute([CallerMemberName] string Name = null)
+        public ExternalParameterAttribute(string Name = null)
         {
             this.Name = Name;
         }

@@ -66,10 +66,8 @@ namespace OpenTap
     /// It is responsible for making sure that all TestSteps added to the list are supported/allowed 
     /// as children of the TestStep in the TestStepList.Parent field.
     /// </summary>
-    public class TestStepList : ObservableCollection<ITestStep> /*HierarchialList<TestStep,ITestStepParent>*/
+    public class TestStepList : ObservableCollection<ITestStep>
     {
-        private static readonly TraceSource log = Log.CreateSource("TestPlan");
-        
         /// <summary>
         /// When true, the nesting rules defined by <see cref="AllowAsChildInAttribute"/> and 
         /// <see cref="AllowAnyChildAttribute"/> are checked when trying to insert a step into 
@@ -236,7 +234,7 @@ namespace OpenTap
                 if (existingstep != null)
                 {
                     if (existingstep == step)
-                        throw new InvalidOperationException("Step already exists in the plan");
+                        throw new InvalidOperationException("Test step already exists in the test plan");
                     step.Id = Guid.NewGuid();
                 }
             }
@@ -252,9 +250,9 @@ namespace OpenTap
                 if (!AllowChild(parentType, item.GetType()))
                 {
                     if (Parent is TestPlan)
-                        throw new ArgumentException(String.Format("Cannot add Step of type {0} as a root step (must be nested).", item.GetType().Name));
+                        throw new ArgumentException(String.Format("Cannot add test step of type {0} as a root test step (must be nested).", item.GetType().Name));
                     else
-                        throw new ArgumentException(String.Format("Cannot add Step of type {0} to {1}", item.GetType().Name, Parent.GetType().Name));
+                        throw new ArgumentException(String.Format("Cannot add test step of type {0} to {1}", item.GetType().Name, Parent.GetType().Name));
                 }
             }
             

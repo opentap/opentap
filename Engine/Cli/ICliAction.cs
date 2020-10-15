@@ -30,8 +30,6 @@ namespace OpenTap.Cli
     
     internal static class ICliActionExecuteHelper
     {
-        private readonly static TraceSource log = OpenTap.Log.CreateSource("CliAction");
-
         /// <summary>
         /// Logs the assembly name and version then executes the action with the given parameters.
         /// </summary>

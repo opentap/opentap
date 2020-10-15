@@ -52,12 +52,22 @@ Install the downloaded distribution:
 	2. Change the permission of the INSTALL.sh file to be executable: `chmod u+x INSTALL.sh`
 	3. Run the INSTALL.sh script: `./INSTALL.sh`.
 
+### Docker
+We also provide docker images for running OpenTAP. You can find them at
+[hub.docker.com/r/opentapio/opentap](https://hub.docker.com/r/opentapio/opentap).
 
-## Use OpenTAP
-If you are an OpenTAP user, or just want to try it out, have a look at the [User Guide](User%20Guide/Introduction/).
-
-
-## Develop Plugins
-If you are a developer and want to create plugins for OpenTAP, have a look at the [Developer Guide](Developer%20Guide/Introduction/).
+We maintain two images:
 
 
+1. a development image which includes all necessary tools to build OpenTAP projects (~2.5GB)
+2. a production image which includes only dependencies required to run OpenTAP (~330MB)
+
+The development image is widely used for building and packaging plugins in highly reproducible environments, and we use
+it internally for continuous deployment. Have a look at the [Demonstration
+plugin's gitlab CI file](https://gitlab.com/OpenTAP/Plugins/demonstration/-/blob/master/.gitlab-ci.yml) where we build, test, version, and publish the plugin directly in a continuous integration pipeline.
+
+
+### Where to go next
+Are you already an OpenTAP user, or want to try it out? Have a look at the [User Guide](User%20Guide/Introduction/).
+
+Are you a developer and want to create plugins for OpenTAP? Have a look at the [Developer Guide](Developer%20Guide/Introduction/).

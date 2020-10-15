@@ -35,7 +35,8 @@ namespace OpenTap.Package
     /// </summary>
     internal class ActionExecuter
     {
-        static TraceSource log =  OpenTap.Log.CreateSource("Plugin");
+        static TraceSource log = OpenTap.Log.CreateSource("Plugin");
+        private Dictionary<string, TraceSource> LogSources { get; set; }
 
         /// <summary>
         /// The name of this rule.
@@ -71,18 +72,29 @@ namespace OpenTap.Package
 
             foreach (var step in package.PackageActionExtensions)
             {
+                var stepName = $"'{step.ExeFile} {step.Arguments}'";
+                log.Info($"Starting {step.ActionName} step {stepName}");
+                var sw = Stopwatch.StartNew();
                 if (step.ActionName != ActionName)
                     continue;
 
                 string exefile = step.ExeFile;
+                bool isTap = exefile.EndsWith("tap") || exefile.EndsWith("tap.exe");
+
+                if (isTap)
+                {
+                    LogSources = new Dictionary<string, TraceSource>();
+                    // Run verbose in order to inherit log source and log type
+                    step.Arguments += " --verbose ";
+                }
+
+
                 // If path is relative, check if file is in fact in ExecutorClient.ExeDir (isolated mode)
                 if (!Path.IsPathRooted(step.ExeFile) && File.Exists(Path.Combine(ExecutorClient.ExeDir, step.ExeFile)))
                     exefile = Path.Combine(ExecutorClient.ExeDir, step.ExeFile);
 
                 // Upgrade to ok output
                 res = ActionResult.Ok;
-
-                log.Debug($"Running '{exefile}' in '{workingDirectory}' with arguments: '{step.Arguments}'.");
 
                 var pi = new ProcessStartInfo(exefile, step.Arguments);
 
@@ -109,11 +121,23 @@ namespace OpenTap.Package
 
                         p.ErrorDataReceived += (s, e) =>
                         {
-                            if (!string.IsNullOrEmpty(e.Data)) log.Error(e.Data);
+                            if (!string.IsNullOrEmpty(e.Data))
+                            {
+                                if (isTap)
+                                    RedirectTapLog(e.Data, true);
+                                else
+                                    log.Error(e.Data);
+                            }
                         };
                         p.OutputDataReceived += (s, e) =>
                         {
-                            if (!string.IsNullOrEmpty(e.Data)) log.Debug(e.Data);
+                            if (!string.IsNullOrEmpty(e.Data))
+                            {
+                                if (isTap)
+                                    RedirectTapLog(e.Data, false);
+                                else
+                                    log.Debug(e.Data);
+                            }
                         };
 
                         p.BeginErrorReadLine();
@@ -123,18 +147,79 @@ namespace OpenTap.Package
                     p.WaitForExit();
 
                     if (p.ExitCode != 0)
-                        throw new Exception($"Failed to run command. Exitcode: {p.ExitCode}");
+                        throw new Exception($"Failed to run {step.ActionName} step {stepName}. Exitcode: {p.ExitCode}");
+                    log.Info(sw, $"Succesfully ran {step.ActionName} step  {stepName}.");
                 }
                 catch (Exception e)
                 {
-                    log.Error(e.Message);
+                    log.Error(sw, e.Message);
                     log.Debug(e);
-                    
+
                     if (!force)
-                        throw new Exception("Failed to run package action.");
+                        throw new Exception($"Failed to run {step.ActionName} package action.");
                 }
             }
+
             return res;
+        }
+
+
+        private void RedirectTapLog(string lines, bool IsStandardError)
+        {
+
+            foreach (var line in lines.Split('\n'))
+            {
+                var message = line;
+                string split = " : ";
+
+                var logParts = line.Split(new string[] {split}, StringSplitOptions.None);
+
+                if (logParts.Length < 4)
+                {
+                    if (IsStandardError)
+                        log.Error(message);
+                    else
+                        log.Info(message);
+                    continue;
+                }
+
+                var sourceName = logParts[1].Trim();
+                var logType = logParts[2].Trim();
+
+                var idx = 0;
+
+                for (int i = 0; i < 3; i++)
+                {
+                    idx = message.IndexOf(split, idx, StringComparison.Ordinal) + split.Length;
+                }
+
+                message = message.Substring(idx);
+
+                TraceSource source;
+                if (LogSources.ContainsKey(sourceName))
+                    source = LogSources[sourceName];
+                else
+                {
+                    source = OpenTap.Log.CreateSource(sourceName);
+                    LogSources[sourceName] = source;
+                }
+
+                switch (logType)
+                {
+                    case "Information":
+                        source.Info(message);
+                        break;
+                    case "Error":
+                        source.Error(message);
+                        break;
+                    case "Warning":
+                        source.Warning(message);
+                        break;
+                    default:
+                        source.Debug(message);
+                        break;
+                }
+            }
         }
     }
 
@@ -167,7 +252,8 @@ namespace OpenTap.Package
 
             try
             {
-                using (var zip = new ZipArchive(File.OpenRead(packagePath), ZipArchiveMode.Read))
+                using (var fileStream = File.OpenRead(packagePath))
+                using (var zip = new ZipArchive(fileStream, ZipArchiveMode.Read))
                 {
                     foreach (var part in zip.Entries)
                     {
@@ -189,10 +275,8 @@ namespace OpenTap.Package
         }
         
         /// <summary>
-        /// Only public method. Tries to install a plugin from 'path', throws an exception on error.
+        /// Tries to install a plugin from 'path', throws an exception on error.
         /// </summary>
-        /// <param name="path">Absolute or relative path to tap plugin</param>
-        /// <returns>List of installed parts.</returns>
         internal static PackageDef InstallPluginPackage(string target, string path)
         {
             checkExtension(path);
@@ -232,7 +316,6 @@ namespace OpenTap.Package
 
             CustomPackageActionHelper.RunCustomActions(package, PackageActionStage.Install, new CustomPackageActionArgs(null, false));
 
-            
             return package;
         }
 
@@ -267,10 +350,10 @@ namespace OpenTap.Package
         internal static List<string> UnpackPackage(string packagePath, string destinationDir)
         {
             List<string> installedParts = new List<string>();
-            
             try
             {
-                using (var zip = new ZipArchive(File.OpenRead(packagePath), ZipArchiveMode.Read))
+                using (var packageStream = File.OpenRead(packagePath))
+                using (var zip = new ZipArchive(packageStream, ZipArchiveMode.Read))
                 {
                     foreach (var part in zip.Entries)
                     {
@@ -279,7 +362,6 @@ namespace OpenTap.Package
                         if (string.IsNullOrWhiteSpace(part.Name))
                             continue;
 
-                        
                         string path = Uri.UnescapeDataString(part.FullName).Replace('\\', '/');
                         path = Path.Combine(destinationDir, path).Replace('\\', '/');
                         var sw = Stopwatch.StartNew();
@@ -324,7 +406,35 @@ namespace OpenTap.Package
                 log.Error($"Could not unpackage '{packagePath}'.");
                 throw;
             }
+
+            SetHiddenAttributes(installedParts);
             return installedParts;
+        }
+
+        private static void SetHiddenAttributes(List<string> parts)
+        {
+            if (OperatingSystem.Current == OperatingSystem.Windows)
+            {
+                foreach (var path in parts)
+                {
+                    // Set file hidden attribute
+                    if (Path.GetFileName(path).StartsWith("."))
+                        File.SetAttributes(path, FileAttributes.Hidden);
+
+                    // Set directory hidden attribute
+                    var hiddenIndex = path.IndexOf("/.");
+                    while (hiddenIndex > 0)
+                    {
+                        var hiddenDirLength = path.Substring(++hiddenIndex).IndexOf('/');
+                        if (hiddenDirLength > 0)
+                        {
+                            var tempPath = path.Substring(0, hiddenIndex + hiddenDirLength + 1);
+                            File.SetAttributes(tempPath, FileAttributes.Hidden);
+                        }
+                        hiddenIndex = path.IndexOf("/.", ++hiddenIndex);
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -338,7 +448,8 @@ namespace OpenTap.Package
         {
             try
             {
-                using (var zip = new ZipArchive(File.OpenRead(packagePath), ZipArchiveMode.Read))
+                using (var fileStream = File.OpenRead(packagePath))
+                using (var zip = new ZipArchive(fileStream, ZipArchiveMode.Read))
                 {
                     foreach (var part in zip.Entries)
                     {
@@ -365,7 +476,6 @@ namespace OpenTap.Package
         /// <summary>
         /// Uninstalls a package.
         /// </summary>
-        /// <param name="package"></param>
         internal static void Uninstall(PackageDef package, string target)
         {
             var pi = new PluginInstaller();
@@ -478,30 +588,6 @@ namespace OpenTap.Package
             {
                 // Do nothing, it's not a big deal anyway
             }
-        }
-
-        static IMemorizer<string, PackageDef> installedPackageMemorizer = new Memorizer<string, PackageDef, string>(null, loadPackageDef)
-        {
-            Validator = file => new FileInfo(file).LastWriteTimeUtc.Ticks
-        };
-
-        static PackageDef loadPackageDef(string file)
-        {
-            try
-            {
-                using (var f = File.Open(file, FileMode.Open, FileAccess.Read, FileShare.Read))
-                    return PackageDef.FromXml(f);
-            }
-            catch (Exception e)
-            {
-                log.Warning("Unable to read package file '{0}'. Moving it to '.broken'", file);
-                log.Debug(e);
-                var brokenfile = file + ".broken";
-                if (File.Exists(brokenfile))
-                    File.Delete(brokenfile);
-                File.Move(file, brokenfile);
-            }
-            return null;
         }
     }
 }

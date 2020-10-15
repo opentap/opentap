@@ -30,8 +30,6 @@ namespace OpenTap
                     runPre = s.PrePostPlanRunUsed;
                 }
                 planRun.StepsWithPrePlanRun.Add(step);
-
-                string stepPath = step.GetStepPath();
                 try
                 {
                     if (runPre)
@@ -75,8 +73,10 @@ namespace OpenTap
                     if (runPre)
                     {
                         var newelaps = preTimer.Elapsed;
-                        Log.Debug(newelaps - elaps, "{0} PrePlanRun completed.", stepPath);
+
+                        Log.Debug(newelaps - elaps, "{0} PrePlanRun completed.", step.GetStepPath());
                         elaps = newelaps;
+                        
                     }
                 }
             }
@@ -147,7 +147,8 @@ namespace OpenTap
             
             if (resultListenerError)
                 return failState.StartFail;
-            
+
+            var sw = Stopwatch.StartNew();
             try
             {
                 execStage.StepsWithPrePlanRun.Clear();
@@ -162,6 +163,10 @@ namespace OpenTap
                 Log.Debug(e);
                 return failState.StartFail;
             }
+            finally{
+            {
+                Log.Debug(sw, "PrePlanRun Methods completed");
+            }}
             
             Stopwatch planRunOnlyTimer = Stopwatch.StartNew();
             var runs = new List<TestStepRun>();
@@ -175,8 +180,8 @@ namespace OpenTap
                     var run = step.DoRun(execStage, execStage);
                     if (!run.Skipped)
                         runs.Add(run);
-                    if (run.IsBreakCondition())
-                        break;
+                    run.CheckBreakCondition();
+
                     // note: The following is copied inside TestStep.cs
                     if (run.SuggestedNextStep is Guid id)
                     {
@@ -186,7 +191,10 @@ namespace OpenTap
                         // if skip to next step, dont add it to the wait queue.
                     }
                 }
-
+            }
+            catch(TestStepBreakException breakEx)
+            {
+                Log.Info("{0}", breakEx.Message);
             }
             finally
             {
@@ -227,9 +235,10 @@ namespace OpenTap
                         try
                         {
                             ITestStep step = run.StepsWithPrePlanRun[i];
-                            stepPath = step.GetStepPath();
+                            
                             if ((step as TestStep)?.PrePostPlanRunUsed ?? true)
                             {
+                                stepPath = step.GetStepPath();
                                 run.AddTestStepStateUpdate(step.Id, null, StepState.PostPlanRun);
                                 try
                                 {
@@ -304,7 +313,7 @@ namespace OpenTap
                         summaryListener.PrintSummary();
                     }
 
-                     OpenTap.Log.Flush();
+                    OpenTap.Log.Flush();
                     Logger.Flush();
                     logStream.Flush();
 
@@ -332,13 +341,30 @@ namespace OpenTap
         /// <summary>
         /// Calls the PromptForDutMetadata delegate for all referenced DUTs.
         /// </summary>
-        internal void StartResourcePromptAsync(TestPlanRun planRun, IEnumerable<IResource> resources)
+        internal void StartResourcePromptAsync(TestPlanRun planRun, IEnumerable<IResource> _resources)
         {
-            resources = resources.Where(x => x != null).ToArray();
+            var resources = _resources.Where(x => x != null).ToArray();
+            
+            List<Type> componentSettingsWithMetaData = new List<Type>();
+            var componentSettings = PluginManager.GetPlugins<ComponentSettings>();
             bool AnyMetaData = false;
             planRun.PromptWaitHandle.Reset();
+
             try
             {
+                foreach (var setting in componentSettings)
+                {
+                    foreach (var member in setting.GetMembers())
+                    {
+                        var attr = member.GetAttribute<MetaDataAttribute>();
+                        if (attr != null && attr.PromptUser)
+                        {
+                            AnyMetaData = true;
+                            componentSettingsWithMetaData.Add(setting);
+                        }
+                    }
+                }
+
                 foreach (var resource in resources)
                 {
                     var type = TypeData.GetTypeData(resource);
@@ -346,8 +372,8 @@ namespace OpenTap
                     {
                         IMemberData prop = __prop;
                         var attr = prop.GetAttribute<MetaDataAttribute>();
-                        if (attr == null || attr.PromptUser == false) continue;
-                        AnyMetaData = true;
+                        if (attr != null && attr.PromptUser)
+                            AnyMetaData = true;
                     }
                 }
             }
@@ -357,22 +383,26 @@ namespace OpenTap
                 planRun.PromptWaitHandle.Set();
                 throw;
             }
-
+            
             if (AnyMetaData && EngineSettings.Current.PromptForMetaData)
             {
                 TapThread.Start(() =>
                     {
                         try
                         {
-                            planRun.PromptedResources = (IResource[]) resources;
-                            var obj = new MetadataPromptObject { Resources = resources };
+                            List<object> objects = new List<object>();
+                            objects.AddRange(componentSettingsWithMetaData.Select(ComponentSettings.GetCurrent));
+                            objects.AddRange(resources);
+
+                            planRun.PromptedResources = resources;
+                            var obj = new MetadataPromptObject { Resources = objects };
                             UserInput.Request(obj, false);
                             if (obj.Response == MetadataPromptObject.PromptResponse.Abort)
                                 planRun.MainThread.Abort();
                         }
                         catch(Exception e)
                         {
-                             Log.Debug(e);
+                            Log.Debug(e);
                             planRun.MainThread.Abort("Error occured while executing platform requests. Metadata prompt can be disabled from the Engine settings menu.");
                         }
                         finally
@@ -441,102 +471,12 @@ namespace OpenTap
         /// <returns>TestPlanRun results, no StepResults.</returns>
         public TestPlanRun Execute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters = null, HashSet<ITestStep> stepsOverride = null)
         {
-            var preHooks = PluginManager.GetPlugins<IPreTestPlanExecutionHook>()
-                .Select(type => (IPreTestPlanExecutionHook)type.CreateInstance())
-                .OrderBy(type => type.GetType().GetDisplayAttribute().Order)
-                .ToList();
-
-            var executionHooks = PluginManager.GetPlugins<ITestPlanExecutionHook>()
-                .Select(type => (ITestPlanExecutionHook)type.CreateInstance())
-                .OrderBy(type => type.GetType().GetDisplayAttribute().Order)
-                .ToList();
-
-            var tp = this;
-
-            foreach (var hook in preHooks)
-            {
-                PreExecutionHookArgs args = new PreExecutionHookArgs { TestPlan = tp, IsSettingsInvalid = false };
-                hook.BeforeTestPlanExecute(args);
-
-                Stopwatch sw = Stopwatch.StartNew();
-
-                if (IsOpen && ((this != args.TestPlan) || args.IsSettingsInvalid))
-                {
-                    Close();
-
-                    Log.Debug(sw, "The testplan was closed by a pre-execution hook ({0}).", hook.ToString());
-                    sw.Restart();
-
-                    OnPropertyChanged("IsOpen");
-                }
-
-                if (args.IsSettingsInvalid)
-                {
-                    using (var ms = new MemoryStream())
-                    {
-                        args.TestPlan.Save(ms);
-                        ms.Seek(0, 0);
-
-                        ComponentSettings.InvalidateAllSettings();
-
-                        tp = Load(ms, args.TestPlan.Path);
-
-                        Log.Debug(sw, "Reloaded testplan because settings were invalidate by a pre-execution hook ({0}).", hook.ToString());
-                    }
-                }
-                else
-                    tp = args.TestPlan;
-            }
-
-            // Hook up the correct events in case testplan was changed.
-            if (tp != this)
-            {
-                tp.BreakOffered += ForwardOfferBreak;
-            }
-
-            List<ITestPlanExecutionHook> successfulHooks = new List<ITestPlanExecutionHook>();
-            try
-            {
-                // Send event that testplan changed to `tp`
-                // Exceptions before the testplan starts executing are expected to abort, so they will not be caught here
-                executionHooks.ForEach(eh =>
-                {
-                    eh.BeforeTestPlanExecute(tp);
-                    successfulHooks.Add(eh);
-                });
-                TestPlanRun run = null;
-                TapThread.WithNewContext(() => run = tp.DoExecute(resultListeners, metaDataParameters, stepsOverride, executionHooks));
-                return run;
-            }
-            finally
-            {
-                // Send event that testplan changed back to `this`
-                successfulHooks.ForEach(eh =>
-                {
-                    try
-                    {
-                        eh.AfterTestPlanExecute(tp, this);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error("Post execution hook '{0}' failed with error: {1}", eh, ex.Message);
-                        Log.Debug(ex);
-                    }
-                });
-
-                if (tp != this)
-                {
-                    tp.BreakOffered -= ForwardOfferBreak;
-                }
-            }
+            TestPlanRun run = null;
+            TapThread.WithNewContext(() => run = this.DoExecute(resultListeners, metaDataParameters, stepsOverride));
+            return run;
         }
 
-        private void ForwardOfferBreak(object sender, BreakOfferedEventArgs e)
-        {
-            OnBreakOffered(e);
-        }
-
-        private TestPlanRun DoExecute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride, List<ITestPlanExecutionHook> executionHooks)
+        private TestPlanRun DoExecute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride)
         {
             if (resultListeners == null)
                 throw new ArgumentNullException("resultListeners");
@@ -550,7 +490,6 @@ namespace OpenTap
             else
             {
                 // Remove steps that are already included via their parent steps.
-                HashSet<ITestStep> foundSteps = new HashSet<ITestStep>();
                 foreach (var step in stepsOverride)
                 {
                     if (step == null)
@@ -581,11 +520,12 @@ namespace OpenTap
             var allSteps = Utils.FlattenHeirarchy(steps, step => step.ChildTestSteps);
             var allEnabledSteps = Utils.FlattenHeirarchy(steps.Where(x => x.Enabled), step => step.GetEnabledChildSteps());
 
-            var enabledSinks = TestStepExtensions.GetStepSettings<IResultSink>(allEnabledSteps, true).Where(rl => rl != null).ToList();
-            if(enabledSinks.Any())
+            var enabledSinks = new HashSet<IResultSink>();
+            TestStepExtensions.GetObjectSettings<IResultSink, ITestStep, IResultSink>(allEnabledSteps, true, null, enabledSinks);
+            if(enabledSinks.Count > 0)
             {
                 var sinkListener = new ResultSinkListener(enabledSinks);
-                resultListeners = resultListeners.Concat(new IResultListener[] { sinkListener });
+                resultListeners = resultListeners.Append(sinkListener);
             }
 
             Log.Info("Starting TestPlan '{0}' on {1}, {2} of {3} TestSteps enabled.", Name, initTime, allEnabledSteps.Count, allSteps.Count);
@@ -632,7 +572,6 @@ namespace OpenTap
                 };
             }
 
-            execStage.ExecutionHooks = executionHooks;
 
             if (metaDataParameters != null)
                 execStage.Parameters.AddRange(metaDataParameters);
@@ -650,7 +589,8 @@ namespace OpenTap
                 execStage.FailedToStart = true; // Set it here in case OpenInternal throws an exception. Could happen if a step is missing an instrument
 
                 OpenInternal(execStage, continuedExecutionState, currentListeners.Cast<IResource>().ToList(), allEnabledSteps);
-
+                    
+                execStage.WaitForSerialization();
                 execStage.ResourceManager.BeginStep(execStage, this, TestPlanExecutionStage.Execute, TapThread.Current.AbortToken);
 
                 if (continuedExecutionState)
@@ -847,7 +787,7 @@ namespace OpenTap
     {
         public string Name { get; private set; } = "Please enter test plan metadata.";
         [Browsable(false)]
-        public IEnumerable<IResource> Resources { get; set; }
+        public IEnumerable<object> Resources { get; set; }
 
         public enum PromptResponse
         {
