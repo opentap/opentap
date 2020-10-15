@@ -16,6 +16,7 @@
       <DefaultInstallDir>OpenTAP</DefaultInstallDir>
       <Publisher>Keysight Technologies</Publisher>
       <URL>http://opentap.io</URL>
+      <SetupIcon>../../Installer/Assets/opentap.ico</SetupIcon>
 
       <ExeName>tap.exe</ExeName>
       <TopImage>LogoTop.bmp</TopImage>
