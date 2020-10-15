@@ -23,11 +23,10 @@ namespace OpenTap.Plugins
             public string TargetMember { get; set; }
         }
 
-        static readonly XName stepInputsName = "Step.Inputs";
+        static readonly XName stepInputsName = "TestStep.Inputs";
         readonly HashSet<XElement> activeElements = new HashSet<XElement>();
         public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
         {
-            
             if (t.DescendsTo(typeof(ITestStepParent)) == false)
                 return false;
             if (node.Element(stepInputsName) is XElement subelems && activeElements.Contains(node) == false)
