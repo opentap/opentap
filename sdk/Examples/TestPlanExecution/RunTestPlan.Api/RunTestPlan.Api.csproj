@@ -5,21 +5,11 @@
     <!-- We are debugging using NET Framework, but builds to Netstandard in release mode to ensure cross platform compatibility -->
     <!-- If your plugin is Windows only and you use Windows specific API's, feel free to change "netstandard2.0" below to "net462" and everything will work as when you are debugging. In this case, remember to change "OS" in package.xml to only "windows" -->
     <!-- If your plugin should be cross platform but does not build in release mode, please verify that all API's you used are available. You might need references or nuget packages for API's that are available in NET framework, but not in NetStandard -->
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
-    <OutputPath>../../bin/Release</OutputPath>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
-    <!-- We are setting TargetFramework in debug configuration, otherwise Visual Studio tries to attach a .NET Core debugger. That will not work, because the program we open is a .NET Framework executable -->
-    <TargetFramework>net462</TargetFramework>
-    <OutputPath>../../bin/Debug</OutputPath>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="OpenTAP" Version="$(GitVersion)" />
+    <PackageReference Include="OpenTAP" Version="$(OpenTapVersion)" />
   </ItemGroup>
 
 </Project>

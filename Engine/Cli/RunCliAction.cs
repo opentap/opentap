@@ -319,19 +319,19 @@ namespace OpenTap.Cli
                     if (multiValues != null)
                     {
                         foreach (var val in multiValues)
-                            printStr += string.Format("{0} | ", val.Get<IStringReadOnlyValueAnnotation>()?.Value ?? val.Get<IObjectValueAnnotation>()?.Value.ToString());
+                            printStr += string.Format("{0} | ", val.Get<IStringReadOnlyValueAnnotation>()?.Value ?? val.Get<IObjectValueAnnotation>()?.Value?.ToString() ?? "");
                         printStr = printStr.Remove(printStr.Length - 3);    // Remove trailing delimiter
                     }
                     else
-                        printStr = member.Get<IStringReadOnlyValueAnnotation>()?.Value ?? member.Get<IObjectValueAnnotation>()?.Value.ToString();
+                        printStr = member.Get<IStringReadOnlyValueAnnotation>()?.Value ?? member.Get<IObjectValueAnnotation>()?.Value?.ToString();
 
                     log.Info("  {0} = {1}", param.Name, printStr);
 
                     if (member.Get<IAvailableValuesAnnotationProxy>() is IAvailableValuesAnnotationProxy avail)
                     {
                         log.Info("    Available Values:");
-                        foreach (var val in avail.AvailableValues)
-                            log.Info("      {0}", val.Get<IStringReadOnlyValueAnnotation>()?.Value ?? val.Get<IObjectValueAnnotation>()?.Value.ToString());
+                        foreach (var val in avail.AvailableValues ?? new AnnotationCollection[0])
+                            log.Info("      {0}", val.Get<IStringReadOnlyValueAnnotation>()?.Value ?? val.Get<IObjectValueAnnotation>()?.Value?.ToString() ?? "");
                     }
                 }
             }
