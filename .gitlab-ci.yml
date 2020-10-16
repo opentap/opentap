@@ -393,11 +393,15 @@ Package-SDK:
          - .\tap.exe package create ../../opentap.x86.package.xml --install -v
          - Copy-Item "../../sdk/Examples" "Packages/SDK/Examples" -Recurse
          - Copy-Item "../../Package/PackageSchema.xsd" "Packages/SDK/PackageSchema.xsd"
-         - ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/ExamplePlugin/ExamplePlugin.csproj"
-         - ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/PluginDevelopment/PluginDevelopment.csproj"
-         - ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/PluginDevelopment.Gui/PluginDevelopment.Gui.csproj"
-         - ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/TestPlanExecution/BuildTestPlan.Api/BuildTestPlan.Api.csproj"
-         - ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/TestPlanExecution/RunTestPlan.Api/RunTestPlan.Api.csproj"
+         - cd Packages/SDK/Examples
+         - $doc = New-Object System.Xml.XmlDataDocument
+         - $doc.PreserveWhitespace=1
+         - $doc.Load("$pwd/Directory.Build.props")
+         - $ele = $doc.GetElementsByTagName("PropertyGroup") | Where-Object { $_.GetElementsByTagName("GitVersion").Count -gt 0 } 
+         - $doc.FirstChild.RemoveChild($ele) # First Child is the Project element
+         - $doc.Save("$pwd/Directory.Build.props")
+         - cd ../../..
+         - ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/Directory.Build.props"
          - ./tap package create -v ../../sdk/sdk.package.xml
          - Move-Item "*.TapPackage" "../.."
   artifacts:

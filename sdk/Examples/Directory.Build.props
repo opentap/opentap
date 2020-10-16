@@ -1,5 +1,39 @@
 <Project>
+	<PropertyGroup Condition="'$(OS)'=='Windows_NT' AND '$(Configuration)'==''">
+		<Configuration>Debug</Configuration>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(OS)'=='Unix' AND '$(Configuration)'==''">
+		<Configuration>LinuxDebug</Configuration>
+	</PropertyGroup>
+	
 	<PropertyGroup>
+		<!-- This variable is only defined so we can compile locally without replacing GitVersion. 
+		     It will be removed in the build script. -->
 		<GitVersion>9.9.3</GitVersion>
+	</PropertyGroup>	
+	<PropertyGroup>
+		<!-- Ensure that all projects in this solution use the same version of OpenTAP -->		
+		<OpenTapVersion>$(GitVersion)</OpenTapVersion>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<OutputPath>$(MSBuildThisFileDirectory)bin\$(Configuration)\</OutputPath>
+	</PropertyGroup>
+	
+	<!-- To support building on linux, it is needed to disable some things, like installing Developers System. -->
+	<PropertyGroup Condition="'$(OS)'=='Unix'">
+		<IsLinux>True</IsLinux>
+		<IsWindows>False</IsWindows>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(OS)'=='Windows_NT'">
+		<IsLinux>False</IsLinux>
+		<IsWindows>True</IsWindows>
+	</PropertyGroup>
+	
+	<!-- We are setting TargetFramework in debug configuration, otherwise Visual Studio tries to attach a .NET Core debugger. That will not work, because the program we open is a .NET Framework executable -->
+	<PropertyGroup Condition="'$(OS)'=='Windows_NT' AND '$(Configuration)'=='Debug'">
+		<TargetFramework>net462</TargetFramework>
 	</PropertyGroup>
 </Project>
