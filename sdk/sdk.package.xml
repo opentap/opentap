@@ -25,6 +25,7 @@
     <File Path="Packages/SDK/Examples/.HiddenFile.txt"/>
     <File Path="Packages/SDK/Examples/.HiddenFolder/*"/>
     <File Path="Packages/SDK/Examples/Examples.sln"/>
+    <File Path="Packages/SDK/Examples/Directory.Build.props"/>
     <File Path="Packages/SDK/Examples/ExamplePlugin/ExamplePlugin.csproj"/>
     <File Path="Packages/SDK/Examples/ExamplePlugin/*.cs"/>
     <File Path="Packages/SDK/Examples/ExamplePlugin/package.xml"/>
