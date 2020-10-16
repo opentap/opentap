@@ -319,7 +319,7 @@ namespace OpenTap.Cli
                     if (multiValues != null)
                     {
                         foreach (var val in multiValues)
-                            printStr += string.Format("{0} | ", val.Get<IStringReadOnlyValueAnnotation>()?.Value ?? val.Get<IObjectValueAnnotation>()?.Value?.ToString());
+                            printStr += string.Format("{0} | ", val.Get<IStringReadOnlyValueAnnotation>()?.Value ?? val.Get<IObjectValueAnnotation>()?.Value?.ToString() ?? "");
                         printStr = printStr.Remove(printStr.Length - 3);    // Remove trailing delimiter
                     }
                     else
@@ -331,7 +331,7 @@ namespace OpenTap.Cli
                     {
                         log.Info("    Available Values:");
                         foreach (var val in avail.AvailableValues ?? new AnnotationCollection[0])
-                            log.Info("      {0}", val.Get<IStringReadOnlyValueAnnotation>()?.Value ?? val.Get<IObjectValueAnnotation>()?.Value?.ToString());
+                            log.Info("      {0}", val.Get<IStringReadOnlyValueAnnotation>()?.Value ?? val.Get<IObjectValueAnnotation>()?.Value?.ToString() ?? "");
                     }
                 }
             }
