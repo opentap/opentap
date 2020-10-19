@@ -108,7 +108,7 @@ Under Test) are essential for OpenTAP. In the classical case, a DUT is a device 
 an instrument is anything that makes measurements. To integrate resources into test plans, whether to control them or
 read their measurements, they must be connected to test steps that know how to communicate with them. In other words, a
 resource driver is required. Creation of such a driver is described in the [Developer
-Guide](../../Developer%20Guide/Instrument%20Plugin%20Development/#instrument-plugin-development).
+Guide](../../Developer%20Guide/Introduction/).
 
 OpenTAP is quite flexible regarding resources. Typically, they would be local, physical equipment. But they can easily
 be more abstract, such as a virtual resource, or even a remote resource. Depending on your use case, all of the
