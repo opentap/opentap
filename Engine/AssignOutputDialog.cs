@@ -4,6 +4,8 @@ namespace OpenTap
 {
     class AssignOutputDialog : ValidatingObject
     {
+
+        public string Name => "Please select an output.";
         public ITestStepParent[] AvailableScopes => step.GetParents().ToArray();
 
         [AvailableValues(nameof(AvailableScopes))]
@@ -47,20 +49,22 @@ namespace OpenTap
 
             public override int GetHashCode() => HashCode.Combine(Step,  Member, 7730122);
         }
-        
-        public SelectedOutputItem[] GetAvailableOutputs()
+
+        public static SelectedOutputItem[] GetAvailableOutputs(ITestStepParent scope, ITestStepParent step, ITypeData outputType)
         {
-            return Scope.ChildTestSteps
+            return scope.ChildTestSteps
 
                 .SelectMany(childStep =>
                 {
                     return TypeData.GetTypeData(childStep).GetMembers()
-                        .Where(y => y.HasAttribute<OutputAttribute>() && y.TypeDescriptor == inputMember.TypeDescriptor)
+                        .Where(y => y.HasAttribute<OutputAttribute>() && y.TypeDescriptor == outputType)
                         .Select(mem => SelectedOutputItem.Create(childStep, mem));
                 })
                 .Where(item => item.Step != step)
                 .ToArray();
         }
+
+        public SelectedOutputItem[] GetAvailableOutputs() => GetAvailableOutputs(Scope, step, inputMember.TypeDescriptor);
 
         public SelectedOutputItem[] AvailableOutputs => GetAvailableOutputs(); 
 
