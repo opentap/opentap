@@ -71,7 +71,7 @@ namespace OpenTap.Sdk.New
                 if (tapPlans.Count() == 1)
                 {
                     log.Info("Found one TapPlan. Using the plan for debugging.");
-                    content = Regex.Replace(content, "<tap plan>", m => Path.GetFullPath(tapPlans.First()).Substring(Path.GetFullPath(WorkingDirectory).Length + 1));
+                    content = Regex.Replace(content, "<tap plan>", m => Path.GetFullPath(tapPlans.First()).Substring(Path.GetFullPath(WorkingDirectory).Length + 1).Replace("\\", "/"));
                 }
                 else
                     log.Info("Please change <tap plan> in the '.vscode/launch.json' file.");
