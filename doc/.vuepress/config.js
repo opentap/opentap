@@ -60,13 +60,14 @@ module.exports = {
             {
                 title: 'Release Notes',
                 children: [
-                    ['/Release Notes/ReleaseNote_OpenTAP9.3.md', "Release Notes - OpenTAP 9.3"],
-                    ['/Release Notes/ReleaseNote_OpenTAP9.4.md', "Release Notes - OpenTAP 9.4"],
-                    ['/Release Notes/ReleaseNote_OpenTAP9.5.md', "Release Notes - OpenTAP 9.5"],
-                    ['/Release Notes/ReleaseNote_OpenTAP9.6.md', "Release Notes - OpenTAP 9.6"],
-                    ['/Release Notes/ReleaseNote_OpenTAP9.7.md', "Release Notes - OpenTAP 9.7"],
+                    ['/Release Notes/ReleaseNote_OpenTAP9.9.md', "Release Notes - OpenTAP 9.10"],
+                    ['/Release Notes/ReleaseNote_OpenTAP9.9.md', "Release Notes - OpenTAP 9.9"],
                     ['/Release Notes/ReleaseNote_OpenTAP9.8.md', "Release Notes - OpenTAP 9.8"],
-                    ['/Release Notes/ReleaseNote_OpenTAP9.9.md', "Release Notes - OpenTAP 9.9"]
+                    ['/Release Notes/ReleaseNote_OpenTAP9.7.md', "Release Notes - OpenTAP 9.7"],
+                    ['/Release Notes/ReleaseNote_OpenTAP9.6.md', "Release Notes - OpenTAP 9.6"],
+                    ['/Release Notes/ReleaseNote_OpenTAP9.5.md', "Release Notes - OpenTAP 9.5"],
+                    ['/Release Notes/ReleaseNote_OpenTAP9.4.md', "Release Notes - OpenTAP 9.4"],
+                    ['/Release Notes/ReleaseNote_OpenTAP9.3.md', "Release Notes - OpenTAP 9.3"]                                   
                 ]
             },
             "FAQ/"
