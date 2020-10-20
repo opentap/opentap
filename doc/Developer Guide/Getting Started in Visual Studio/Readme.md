@@ -90,12 +90,10 @@ The OpenTAP SDK makes it easy to create plugin templates using the `tap sdk new`
 | Commands                           | Description                                                                                         |
 |------------------------------------|-----------------------------------------------------------------------------------------------------|
 | **tap sdk gitversion** | Calculates a semantic version number for a specific git commit. |
-
 | **tap sdk new cliaction**              | Create a C# template for a CliAction plugin. Requires a project.                                    |
 | **tap sdk new dut**                    | Create a C# template for a DUT plugin. Requires a project.                                          |
 | **tap sdk new instrument**             | Create C# template for an Instrument plugin. Requires a project.                                    |
 | **tap sdk new packagexml**             | Create a package definition file (package.xml).                                                     |
-| **tap sdk new project**                | Create an OpenTAP C# Project (.csproj). Including a new TestStep, TestPlan, Solution, and package.xml.         |
 | **tap sdk new resultlistener**         | Create a C# template for a ResultListener plugin. Requires a project.                               |
 | **tap sdk new settings**               | Create a C# template for a ComponentSetting plugin. Requires a project.                             |
 | **tap sdk new testplan**               | Create a TestPlan (.TapPlan) containing all test step types defined in the given project.           |

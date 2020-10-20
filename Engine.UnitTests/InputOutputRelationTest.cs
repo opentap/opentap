@@ -184,6 +184,17 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
+        public void InputSweepTest()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepLoop();
+            plan.ChildTestSteps.Add(sweep);
+            var menu = AnnotationCollection.Annotate(sweep).GetMember(nameof(SweepLoop.SweepParameters)).Get<MenuAnnotation>();
+            var member = menu.MenuItems.FirstOrDefault(x => x.Get<IconAnnotationAttribute>().IconName == IconNames.AssignOutput);
+            member.Get<IMethodAnnotation>().Invoke(); // this previously failed with an null reference exception.
+        }
+
+        [Test]
         public void TestAutoRemoveInputOutputRelation()
         {
 

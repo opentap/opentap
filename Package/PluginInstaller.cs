@@ -72,11 +72,12 @@ namespace OpenTap.Package
 
             foreach (var step in package.PackageActionExtensions)
             {
+                if (step.ActionName != ActionName)
+                    continue;
+
                 var stepName = $"'{step.ExeFile} {step.Arguments}'";
                 log.Info($"Starting {step.ActionName} step {stepName}");
                 var sw = Stopwatch.StartNew();
-                if (step.ActionName != ActionName)
-                    continue;
 
                 string exefile = step.ExeFile;
                 bool isTap = exefile.EndsWith("tap") || exefile.EndsWith("tap.exe");
@@ -89,9 +90,21 @@ namespace OpenTap.Package
                 }
 
 
-                // If path is relative, check if file is in fact in ExecutorClient.ExeDir (isolated mode)
-                if (!Path.IsPathRooted(step.ExeFile) && File.Exists(Path.Combine(ExecutorClient.ExeDir, step.ExeFile)))
-                    exefile = Path.Combine(ExecutorClient.ExeDir, step.ExeFile);
+                // If path is relative, check if file is in fact in workingDirectory (isolated mode)
+                if (!Path.IsPathRooted(step.ExeFile))
+                {
+                    if (File.Exists(Path.Combine(workingDirectory, step.ExeFile)))
+                    {
+                        exefile = Path.Combine(workingDirectory, step.ExeFile);
+                    }
+
+                    // If you want to run tap as a PackageActionExtension, you would specify "tap" as ExeFile for cross platform compatibility
+                    // in that case the above File.Exists wont be successful on Windows.
+                    if (File.Exists(Path.Combine(workingDirectory, step.ExeFile + ".exe")))
+                    {
+                        exefile = Path.Combine(workingDirectory, step.ExeFile + ".exe");
+                    }
+                }
 
                 // Upgrade to ok output
                 res = ActionResult.Ok;
@@ -153,7 +166,6 @@ namespace OpenTap.Package
                 catch (Exception e)
                 {
                     log.Error(sw, e.Message);
-                    log.Debug(e);
 
                     if (!force)
                         throw new Exception($"Failed to run {step.ActionName} package action.");
@@ -172,7 +184,7 @@ namespace OpenTap.Package
                 var message = line;
                 string split = " : ";
 
-                var logParts = line.Split(new string[] {split}, StringSplitOptions.None);
+                var logParts = line.Split(new string[] { split }, StringSplitOptions.None);
 
                 if (logParts.Length < 4)
                 {
@@ -233,8 +245,8 @@ namespace OpenTap.Package
             new ActionExecuter{ ActionName = "uninstall", Execute = DoUninstall }
         };
 
-        static TraceSource log =  OpenTap.Log.CreateSource("package");
-        
+        static TraceSource log = OpenTap.Log.CreateSource("package");
+
         /// <summary>
         /// Returns the names of the files in a plugin package.
         /// </summary>
@@ -273,7 +285,7 @@ namespace OpenTap.Package
             return files;
 
         }
-        
+
         /// <summary>
         /// Tries to install a plugin from 'path', throws an exception on error.
         /// </summary>
@@ -319,7 +331,7 @@ namespace OpenTap.Package
             return package;
         }
 
-        static void tryUninstall(string path, PackageDef package,string target)
+        static void tryUninstall(string path, PackageDef package, string target)
         {
             log.Info("Uninstalling package '{0}'.", package.Name);
             Uninstall(package, target);
@@ -343,7 +355,7 @@ namespace OpenTap.Package
                 throw new Exception(String.Format("TapPackage does not exist '{0}'.", path));
             }
         }
-        
+
         /// <summary>
         /// Unpacks a *.TapPackages file to the specified directory.
         /// </summary>
@@ -365,9 +377,9 @@ namespace OpenTap.Package
                         string path = Uri.UnescapeDataString(part.FullName).Replace('\\', '/');
                         path = Path.Combine(destinationDir, path).Replace('\\', '/');
                         var sw = Stopwatch.StartNew();
-                        
+
                         int Retries = 0, MaxRetries = 10;
-                        while(true)
+                        while (true)
                         {
                             try
                             {
@@ -376,7 +388,7 @@ namespace OpenTap.Package
                                 using (var fileStream = File.Create(path))
                                 {
                                     var task = deflate_stream.CopyToAsync(fileStream, 4096, TapThread.Current.AbortToken);
-                                    ConsoleUtils.PrintProgressTillEnd(task, "Decompressing", ()=> fileStream.Position, ()=> part.Length);
+                                    ConsoleUtils.PrintProgressTillEnd(task, "Decompressing", () => fileStream.Position, () => part.Length);
                                 }
                                 log.Debug(sw, "Decompressed {0}", path);
                                 installedParts.Add(path);
@@ -387,11 +399,11 @@ namespace OpenTap.Package
                                 throw;
                             }
                             catch
-                            {                            
-                                if(Path.GetFileNameWithoutExtension(path) == "tap")
+                            {
+                                if (Path.GetFileNameWithoutExtension(path) == "tap")
                                     break; // this is ok tap.exe (or just tap on linux) is not designed to be overwritten
 
-                                if(Retries==MaxRetries)
+                                if (Retries == MaxRetries)
                                     throw;
                                 Retries++;
                                 log.Warning("Unable to unpack file {0}. Retry {1} of {2}.", path, Retries, MaxRetries);
@@ -495,10 +507,10 @@ namespace OpenTap.Package
 
         private static ActionResult DoUninstall(PluginInstaller pluginInstaller, ActionExecuter action, PackageDef package, bool force, string target)
         {
-            
+
             var result = ActionResult.Ok;
             var destination = package.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : target;
-          
+
             var filesToRemain = new Installation(destination).GetPackages().Where(p => p.Name != package.Name).SelectMany(p => p.Files).Select(f => f.RelativeDestinationPath).Distinct(StringComparer.InvariantCultureIgnoreCase).ToHashSet(StringComparer.InvariantCultureIgnoreCase);
 
             try
@@ -521,7 +533,7 @@ namespace OpenTap.Package
                 log.Error($"Uninstall package action failed to execute for package '{package.Name}'.");
                 result = ActionResult.Error;
             }
-            
+
             foreach (var file in package.Files)
             {
                 if (file.RelativeDestinationPath == "tap" || file.RelativeDestinationPath.ToLower() == "tap.exe") // ignore tap.exe as it is not meant to be overwritten.
@@ -534,9 +546,9 @@ namespace OpenTap.Package
                 }
                 else
                 {
-                     fullPath = Path.Combine(destination, file.RelativeDestinationPath);
+                    fullPath = Path.Combine(destination, file.RelativeDestinationPath);
                 }
-                
+
                 if (filesToRemain.Contains(file.RelativeDestinationPath))
                 {
                     log.Debug("Skipping deletion of file '{0}' since it is required by another plugin package.", file.RelativeDestinationPath);
@@ -548,21 +560,21 @@ namespace OpenTap.Package
                     log.Debug("Deleting file '{0}'.", file.RelativeDestinationPath);
                     File.Delete(fullPath);
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     log.Debug(e);
                     result = ActionResult.Error;
                 }
-                
+
                 DeleteEmptyDirectory(new FileInfo(fullPath).Directory);
             }
 
             var packageFile = PackageDef.GetDefaultPackageMetadataPath(package, target);
-            
+
             if (!File.Exists(packageFile))
             {
                 // TAP 8.x support:
-                packageFile = $"Package Definitions/{package.Name}.package.xml"; 
+                packageFile = $"Package Definitions/{package.Name}.package.xml";
             }
             if (File.Exists(packageFile))
             {

@@ -17,7 +17,7 @@ namespace OpenTap
 
         IMemberData ITestStepMenuModel.Member => member;
 
-        public bool CanExecuteParameterize => ParameterManager.CanParameter(this);
+        public bool CanExecuteParameterize => ParameterManager.CanParameter(this) && (IsOutputAssigned == false);
         
         [EnabledIf(nameof(CanExecuteParameterize), true, HideIfDisabled = true)]
         [EnabledIf(nameof(TestPlanLocked), false)]
@@ -95,26 +95,37 @@ namespace OpenTap
         [EnabledIf(nameof(CanRemoveParameter), true, HideIfDisabled = true)]
         [EnabledIf(nameof(TestPlanLocked), false)]
         public void RemoveParameter() => ParameterManager.RemoveParameter(this);
-        
+
+        bool CalcAnyAvailableOutputs() => source.FirstOrDefault()?.GetParents()
+            .SelectMany(scope => AssignOutputDialog.GetAvailableOutputs(scope, source.FirstOrDefault(), member.TypeDescriptor))
+            .Any() ?? false;
+
+        bool? anyAvailableOutputs;
+
+        public bool AnyAvailableOutputs => (anyAvailableOutputs ?? (anyAvailableOutputs = CalcAnyAvailableOutputs())) ?? false;
         
         // Input/Output
-        public bool CanAssignOutput => TestPlanLocked == false && source.Length > 0 && member.Writable && !CanUnassignOutput;
+        public bool CanAssignOutput => TestPlanLocked == false && source.Length > 0 && member.Writable && IsSweepable && !CanUnassignOutput && !IsParameterized;
         [Display("Assign Output", "Control this setting using an output.", Order: 2.0)]
         [Browsable(true)]
         [IconAnnotation(IconNames.AssignOutput)]
         [EnabledIf(nameof(CanAssignOutput), true, HideIfDisabled = true)]
-        
+        [EnabledIf(nameof(AnyAvailableOutputs), true)]
         public void ControlUsingOutput()
         {
             var question = new AssignOutputDialog(this.member, this.source.FirstOrDefault());
             UserInput.Request(question);
             if (question.Response == ParameterManager.OkCancel.Cancel)
                 return;
-            InputOutputRelation.Assign(source.FirstOrDefault(), member, question.Output.Step, question.Output.Member);
+            var outputObject = question.Output?.Step;
+            var outputMember = question.Output?.Member;
+            if(outputObject != null && outputMember != null)
+                InputOutputRelation.Assign(source.FirstOrDefault(), member, outputObject, outputMember);
         }
 
         public bool IsOutput => member.HasAttribute<OutputAttribute>();
-        public bool IsOutputAssigned => IsOutput && InputOutputRelation.IsInput(source.FirstOrDefault(), member);
+        public bool IsSweepable => member.HasAttribute<UnsweepableAttribute>() == false;
+        public bool IsOutputAssigned => InputOutputRelation.IsInput(source.FirstOrDefault(), member);
         
         public bool CanUnassignOutput => TestPlanLocked == false && source.Length > 0 && member.Writable && InputOutputRelation.GetRelations(source.First()).Any(con => con.InputMember == member && con.InputObject == source.First());
         [Display("Unassign Output", "Unassign the output controlling this property.", Order: 2.0)]
