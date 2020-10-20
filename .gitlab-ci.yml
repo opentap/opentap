@@ -233,7 +233,6 @@ TestLinuxPlan:
         - echo "tap package create/verify unit tests"
         - tap package verify || exit_code=$?
         - check_exit_code 2
-        - cp *.package.xml bin/ # for Package NUnit tests
         - sed -i "/Sign Certificate/ d" opentap_linux64.package.xml
         - sed -i -e '/File Path/ s!Dependencies/!Dependencies\\!' opentap_linux64.package.xml
         - sed -i -e '/SourcePath/ s!dotnet_library_license.txt!.\\dotnet_library_license.txt!' opentap_linux64.package.xml
