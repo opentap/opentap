@@ -105,7 +105,7 @@ namespace OpenTap
         public bool AnyAvailableOutputs => (anyAvailableOutputs ?? (anyAvailableOutputs = CalcAnyAvailableOutputs())) ?? false;
         
         // Input/Output
-        public bool CanAssignOutput => TestPlanLocked == false && source.Length > 0 && member.Writable && !CanUnassignOutput && !IsParameterized;
+        public bool CanAssignOutput => TestPlanLocked == false && source.Length > 0 && member.Writable && IsSweepable && !CanUnassignOutput && !IsParameterized;
         [Display("Assign Output", "Control this setting using an output.", Order: 2.0)]
         [Browsable(true)]
         [IconAnnotation(IconNames.AssignOutput)]
@@ -117,10 +117,14 @@ namespace OpenTap
             UserInput.Request(question);
             if (question.Response == ParameterManager.OkCancel.Cancel)
                 return;
-            InputOutputRelation.Assign(source.FirstOrDefault(), member, question.Output.Step, question.Output.Member);
+            var outputObject = question.Output?.Step;
+            var outputMember = question.Output?.Member;
+            if(outputObject != null && outputMember != null)
+                InputOutputRelation.Assign(source.FirstOrDefault(), member, outputObject, outputMember);
         }
 
         public bool IsOutput => member.HasAttribute<OutputAttribute>();
+        public bool IsSweepable => member.HasAttribute<UnsweepableAttribute>() == false;
         public bool IsOutputAssigned => InputOutputRelation.IsInput(source.FirstOrDefault(), member);
         
         public bool CanUnassignOutput => TestPlanLocked == false && source.Length > 0 && member.Writable && InputOutputRelation.GetRelations(source.First()).Any(con => con.InputMember == member && con.InputObject == source.First());
