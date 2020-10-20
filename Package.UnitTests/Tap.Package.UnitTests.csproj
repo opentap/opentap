@@ -37,7 +37,7 @@
     <Content Include="Packages\FromXmlFile_NonDllFile\package.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="Packages\GitVersionDependency\package.xml">
+    <Content Include="GitVersionDependency-package.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="Packages\Package\package.xml">

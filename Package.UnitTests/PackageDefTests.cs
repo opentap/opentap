@@ -135,7 +135,7 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void GitVersionDependency()
         {
-            string inputFilename = "Packages/GitVersionDependency/package.xml";
+            string inputFilename = "GitVersionDependency-package.xml";
             string outputFilename = "GitversionDependency.TapPlugin";
             try
             {
