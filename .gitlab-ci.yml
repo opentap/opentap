@@ -270,13 +270,6 @@ TestUbuntu:
   stage: test
   image: mcr.microsoft.com/dotnet/core/sdk:2.1-bionic
   extends: .LinuxScript
-  before_script:
-    - apt update
-    - apt install locales
-    - echo "LC_ALL=en_US.UTF-8" >> /etc/environment
-    - echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
-    - echo "LANG=en_US.UTF-8" > /etc/locale.conf
-    - locale-gen en_US.UTF-8
 
 TestCentos7:
   stage: test
