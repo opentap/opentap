@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace OpenTap.Package
 {
@@ -51,7 +52,15 @@ namespace OpenTap.Package
 
             try
             {
-                waitForPackageFilesFree(TapDir, PackagePaths);
+                try
+                {
+
+                    waitForPackageFilesFree(TapDir, PackagePaths);
+                }
+                catch
+                {
+                    log.Warning("Installation stopped while waiting for package files to become unlocked.");
+                }
 
                 int progressPercent = 10;
                 OnProgressUpdate(progressPercent, "");
@@ -119,15 +128,21 @@ namespace OpenTap.Package
 
             try
             {
-                if (modifiesPackageFiles)
-                    waitForPackageFilesFree(TapDir, PackagePaths);
-                
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    log.Debug("Received abort while waiting for package files to be unlocked.");
-                    return false;
-                }
 
+                if (modifiesPackageFiles)
+                {
+                    try
+                    {
+                        waitForPackageFilesFree(TapDir, PackagePaths);
+                    }
+
+                    catch
+                    {
+                        log.Warning("Uninstall stopped while waiting for package files to become unlocked.");
+                        throw;
+                    }
+                }
+                
                 double progressPercent = 10;
                 OnProgressUpdate((int)progressPercent, "");
 
@@ -225,24 +240,23 @@ namespace OpenTap.Package
 
                 log.Warning(Environment.NewLine + "Waiting for files to become unlocked...");
 
-                while (isPackageFilesInUse(tapDir, PackagePaths, exclude))
+                using (var cancel2 = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
                 {
-                    if (cancellationToken.IsCancellationRequested) return;
-                    if (!isTapRunning())
+                    cancel2.CancelAfter(waitForFilesTimeout); // cancel wait after two minutes.
+                    var cancelToken2 = cancel2.Token;
+                    while (isPackageFilesInUse(tapDir, PackagePaths, exclude))
+                    {
+                        cancelToken2.ThrowIfCancellationRequested();
                         OnError(new IOException("One or more plugin files are in use. View log for more information."));
-                    Thread.Sleep(300);
+                        
+                        // this will throw when it times out.
+                        Task.Delay(300).Wait(cancelToken2);
+                    }
                 }
             }
         }
-
-        private bool isTapRunning()
-        {
-            var pname = Process.GetProcesses().Where(s => s.ProcessName.Contains("Keysight.Tap") && s.ProcessName != Process.GetCurrentProcess().ProcessName);
-            if (pname.Count() == 0)
-                return false;
-            else
-                return true;
-        }
+        
+        static readonly TimeSpan waitForFilesTimeout = TimeSpan.FromMinutes(2);
 
         private bool isPackageFilesInUse(string tapDir, List<string> packagePaths, Func<string, bool> exclude = null)
         {
