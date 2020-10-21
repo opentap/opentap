@@ -41,7 +41,7 @@ namespace OpenTap.Package
         /// Represents the --out command line argument which specifies the path to the output file.
         /// </summary>
         [CommandLineArgument("out", Description = "Path to the output files. Can a file or a folder.", ShortName = "o")]
-        public string[] OutputPaths { get; set; } = Array.Empty<string>();
+        public string OutputPath { get; set; }
 
         [CommandLineArgument("dry-run", Description = "Initiate the command and check for errors, but don't download any packages.")]
         public bool DryRun { get; set; } = false;
@@ -80,9 +80,6 @@ namespace OpenTap.Package
 
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
-            if (Packages != null && OutputPaths.Length > Packages.Length)
-                throw new Exception("More OutputPaths specified than packages. Exiting.");
-            
             string destinationDir = Target ?? Directory.GetCurrentDirectory();
             Installation destinationInstallation = new Installation(destinationDir);
 
@@ -100,37 +97,33 @@ namespace OpenTap.Package
 
             if (!DryRun)
             {
-                // If OutputPaths are specified, download the specified packages to those locations before downloading the remaining files
-                // Place the remaining files in the same location as the last named location
-                for (int i = 0; i < OutputPaths.Length; i++)
+                if (OutputPath != null)
                 {
-                    var outputPath = OutputPaths[i];
-                    var packageName = Packages[i];
-                    var package = PackagesToDownload.First(p =>
-                        p.Name == packageName || (p.PackageSource is FilePackageDefSource s &&
-                                                  s.PackageFilePath == Path.GetFullPath(packageName)));
+                    if (OutputPath.EndsWith("/") || OutputPath.EndsWith(Path.DirectorySeparatorChar.ToString()))
+                        Directory.CreateDirectory(OutputPath);
 
-                    string filename = null;
-
-                    // Treat path as a directory if it ends with '/'
-                    if (outputPath.EndsWith("/") || outputPath.EndsWith(Path.DirectorySeparatorChar.ToString()))
-                        Directory.CreateDirectory(outputPath);
-                    if (Directory.Exists(outputPath))
+                    if (Directory.Exists(OutputPath))
                     {
-                        destinationDir = outputPath;
+                        destinationDir = OutputPath;
                     }
-                    // Otherwise, treat it as a full path
                     else
-                    {
-                        var file = new FileInfo(outputPath);
-                        destinationDir = file.DirectoryName;
+                    {   // If a filename is specified, name the first Package argument 
+                        destinationDir = new FileInfo(OutputPath).DirectoryName;
                         Directory.CreateDirectory(destinationDir);
-                        filename = file.FullName;
-                    }
+                        
+                        var firstPackage = Packages?.FirstOrDefault();
+                        if (firstPackage != null)
+                        {
+                            var package = PackagesToDownload.First(p =>
+                                p.Name == firstPackage || p.PackageSource is FilePackageDefSource s &&
+                                s.PackageFilePath == Path.GetFullPath(firstPackage));
 
-                    PackageActionHelpers.DownloadPackages(destinationDir, new List<PackageDef>() {package},
-                        new List<string>() {filename});
-                    PackagesToDownload.Remove(package);
+
+                            PackageActionHelpers.DownloadPackages(destinationDir, new List<PackageDef>() {package},
+                                new List<string>() {OutputPath});
+                            PackagesToDownload.Remove(package);
+                        }
+                    }                    
                 }
 
                 // Download the remaining packages
