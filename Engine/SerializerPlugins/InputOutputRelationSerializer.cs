@@ -11,7 +11,7 @@ namespace OpenTap.Plugins
     /// This is done because some of the properties might be read-only or XML ignore and in these cases we might still want
     /// to serialize the relation ship between them, even though the values are not themselves serialized.
     /// </summary>
-    class InputOutputRelationSerializer : TapSerializerPlugin
+    public class InputOutputRelationSerializer : TapSerializerPlugin
     {
         class InputOutputMember
         {
@@ -21,10 +21,53 @@ namespace OpenTap.Plugins
             public string Member { get; set; }       
             [XmlAttribute("target-member")]
             public string TargetMember { get; set; }
+
+            public void Bind(TestPlan plan, ITestStepParent step)
+            {
+                if (plan == null) plan = step.GetParent<TestPlan>();
+                ITestStepParent source;
+                if (Id == Guid.Empty)
+                {
+                    source = plan;
+                }
+                else
+                {
+                    source = plan.ChildTestSteps.GetStep(Id);
+                }
+
+                if (source == null) return;
+                var sourceType = TypeData.GetTypeData(source);
+                var targetType = TypeData.GetTypeData(step);
+                var sourceMember = sourceType.GetMember(Member);
+                var targetMember = targetType.GetMember(TargetMember);
+                if(sourceMember != null && targetMember != null)
+                    InputOutputRelation.Assign(step, targetMember, source, sourceMember);
+            } 
         }
 
         static readonly XName stepInputsName = "TestStep.Inputs";
         readonly HashSet<XElement> activeElements = new HashSet<XElement>();
+
+        /// <summary>
+        /// Assigns inputs when the test plan was not available during previous serialization.
+        /// </summary>
+        /// <param name="plan">The new plan that contains the steps.</param>
+        public void PostAssignInputs(TestPlan plan)
+        {
+            foreach (var item in unusedInputs)
+            {
+                var step = item.Key;
+                foreach (var elem in item.Value)
+                {
+                    elem.Bind(plan, step);
+                }
+            }
+
+            unusedInputs.Clear();
+        }
+        readonly Dictionary<ITestStepParent, IEnumerable<InputOutputMember>> unusedInputs = new Dictionary<ITestStepParent, IEnumerable<InputOutputMember>>();
+        
+        /// <summary> Deserialize input/output relations </summary>
         public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
         {
             if (t.DescendsTo(typeof(ITestStepParent)) == false)
@@ -35,9 +78,9 @@ namespace OpenTap.Plugins
                 ITestStepParent step = null;
                 var prevsetter = setter;
                 setter = x => prevsetter(step = x as ITestStepParent);
-                var plan = tps.Plan;
+                var plan = tps?.Plan;
                 InputOutputMember[] items = null;
-                if (tps != null && Serializer.Deserialize(subelems, x => items = (InputOutputMember[]) x, TypeData.FromType(typeof(InputOutputMember[]))))
+                if (Serializer.Deserialize(subelems, x => items = (InputOutputMember[]) x, TypeData.FromType(typeof(InputOutputMember[]))))
                 {
                     bool ok = false;
                     activeElements.Add(node);
@@ -54,23 +97,13 @@ namespace OpenTap.Plugins
                     void connectInputs()
                     {
                         if (step == null) return;
+                        if (plan == null)
+                        {
+                            unusedInputs[step] = items.ToArray();
+                        }
                         foreach (var elem in items)
                         {
-                            ITestStepParent source;
-                            if (elem.Id == Guid.Empty)
-                            {
-                                source = plan;
-                            }
-                            else
-                            {
-                                source = plan.ChildTestSteps.GetStep(elem.Id);
-                            }
-                            var sourceType = TypeData.GetTypeData(source);
-                            var targetType = TypeData.GetTypeData(step);
-                            var sourceMember = sourceType.GetMember(elem.Member);
-                            var targetMember = targetType.GetMember(elem.TargetMember);
-                            if(sourceMember != null && targetMember != null)
-                                 InputOutputRelation.Assign(step, targetMember, source, sourceMember);
+                            elem.Bind(null, step);
                         }
                     }
                     if(ok)
@@ -82,6 +115,7 @@ namespace OpenTap.Plugins
             return false;
         }
 
+        /// <summary> Serialize input/output relations </summary>
         public override bool Serialize(XElement node, object obj, ITypeData expectedType)
         {
             
