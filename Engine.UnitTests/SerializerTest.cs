@@ -7,6 +7,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Configuration;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -17,6 +18,8 @@ using OpenTap.Plugins.BasicSteps;
 using OpenTap;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using System.Xml.Linq;
+using OpenTap.Plugins;
+using OpenTap.UnitTests;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -2206,7 +2209,33 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsNotNull(externalParameter);
             Assert.AreEqual(10.0, ((Vec3d) externalParameter.Value).Y);
         }
-        
+
+        [Test]
+        public void DeserializeLostInputProperty()
+        {
+            var plan1 = new TestPlan();
+            var delay1 = new DelayStep();
+            var delay2 = new DelayStep();
+            plan1.ChildTestSteps.Add(delay1);
+            plan1.ChildTestSteps.Add(delay2);
+            var member = TypeData.GetTypeData(delay1).GetMember(nameof(delay1.DelaySecs));
+            InputOutputRelation.Assign(delay1, member, delay2, member);
+
+            var steps = new ITestStep[] {delay1, delay2};
+            var xml = new TapSerializer().SerializeToString(steps);
+
+            var ser2 = new TapSerializer();
+            
+            var deserialized = (ITestStep[]) ser2.DeserializeFromString(xml);
+            var plan = new TestPlan();
+            plan.Steps.AddRange(deserialized);
+            //ser2.GetSerializer<InputOutputRelationSerializer>().PostAssignInputs(plan);
+
+            var delay3 = deserialized[0];
+            var delay4 = deserialized[1];
+            Assert.IsTrue(InputOutputRelation.IsInput(delay3, member));
+            Assert.IsTrue(InputOutputRelation.IsOutput(delay4, member));
+        }
     }
 
     
