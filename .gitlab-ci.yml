@@ -50,6 +50,23 @@ Doc-API:
        - Help/OpenTapApiReference.chm
        - API
 
+test-pages:
+  stage: test
+  image: node:9.11.1
+  dependencies:
+    - Doc-API
+  except:
+    - /^release.*$/
+    - tags
+  cache:
+    paths:
+    - doc/node_modules/
+  script:
+    - pushd doc
+    - rm 'User Guide/Readme.md' 'Developer Guide/Readme.md'
+    - npm install
+    - npm run build
+
 pages:
   stage: package
   image: node:9.11.1
