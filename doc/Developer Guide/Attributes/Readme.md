@@ -38,6 +38,7 @@ OpenTAP uses the following attributes:
 | **TimeSpanFormat** | Attribute applicable to a property of type 'TimeSpan' to display the property value in a human readable format in the user interface. |
 | **UnnamedCommandLineArgument** | When used on a property in a class that implements the *ICliAction* interface, the property becomes an unnamed parameter to the command line argument. |
 | **Unit**   | Indicates a unit displayed with the setting values. Multiple options exist.   |
+| **UseRanges**   | Indicates an option to change whether the user wants to see expanded or compact representation.    |
 | **VisaAddress**   | Indicates a property that represents a VISA address. The editor will be populated with addresses from all available instruments.   |
 | **XmlIgnore**   | Indicates that a property should not be serialized.  |
 
