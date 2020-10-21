@@ -80,7 +80,7 @@ namespace OpenTap.Package
 
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
-            if (OutputPaths.Length > Packages.Length)
+            if (Packages != null && OutputPaths.Length > Packages.Length)
                 throw new Exception("More OutputPaths specified than packages. Exiting.");
             
             string destinationDir = Target ?? Directory.GetCurrentDirectory();
