@@ -285,6 +285,16 @@ TestCentos7:
     entrypoint: [ "" ]
   extends: .LinuxScript
 
+TestExamples:
+  stage: test
+  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  tags: [ docker, windows ]
+  dependencies: []
+  script:
+    - cd sdk/Examples
+    - dotnet build
+    - dotnet build -c Release
+
 # TestUbuntuPackaged:
 #   image: buildpack-deps:bionic
 #   tags: [docker, ubuntu18.4]
