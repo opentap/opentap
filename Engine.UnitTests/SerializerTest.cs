@@ -2229,8 +2229,7 @@ namespace OpenTap.Engine.UnitTests
             var deserialized = (ITestStep[]) ser2.DeserializeFromString(xml);
             var plan = new TestPlan();
             plan.Steps.AddRange(deserialized);
-            ser2.GetSerializer<InputOutputRelationSerializer>().PostAssignInputs(plan);
-
+            
             var delay3 = deserialized[0];
             var delay4 = deserialized[1];
             Assert.IsTrue(InputOutputRelation.IsInput(delay3, member));
