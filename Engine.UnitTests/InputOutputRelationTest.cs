@@ -182,6 +182,40 @@ namespace OpenTap.UnitTests
                 UserInput.SetInterface(userInput);
             }
         }
+        
+        [Test]
+        public void TestMenuAnnotationForInputOutputRelationsMultiSelect()
+        {
+            var userInput = UserInput.GetInterface();
+            var request = new SelectAssignmentFromAnnotationMenu();
+            UserInput.SetInterface(request);
+            try
+            {
+                var seq1 = new SequenceStep();
+                var seq2 = new SequenceStep();
+                var step1 = new OutputInput {Output = 5, Input = 5, Name = "Step 1"};
+                var step2 = new OutputInput {ExpectedInput = 5, CheckExpectedInput = true, Name = "Step 2"};
+                seq1.ChildTestSteps.Add(step2);
+                var step3 = new OutputInput {ExpectedInput = 5, CheckExpectedInput = true, Name = "Step 3"};
+                seq2.ChildTestSteps.Add(step3);
+                var plan = new TestPlan();
+                plan.ChildTestSteps.AddRange(new ITestStep[] {step1, seq1, seq2});
+
+                var menu = AnnotationCollection.Annotate(new []{step2, step3}).GetMember(nameof(OutputInput.Input))
+                    .Get<MenuAnnotation>();
+                request.SelectName = "Step 1";
+                menu.MenuItems.First(x => x.Get<IconAnnotationAttribute>().IconName == IconNames.AssignOutput).Get<IMethodAnnotation>().Invoke();
+
+                var run = plan.Execute();
+                Assert.AreEqual(Verdict.Pass, run.Verdict);
+                Assert.IsTrue(request.WasInvoked);
+            }
+            finally
+            {
+                UserInput.SetInterface(userInput);
+            }
+        }
+        
 
         [Test]
         public void InputSweepTest()

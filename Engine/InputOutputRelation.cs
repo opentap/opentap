@@ -115,7 +115,7 @@ namespace OpenTap
             
             foreach (var connection in getOutputRelations(target))
             {
-                if (connection.InputObject is ITestStep otherStep)
+                if (connection.OutputObject is ITestStep otherStep)
                 { // steps can only be connected to a step from the same test plan.
                     if (plan.ChildTestSteps.GetStep(otherStep.Id) == null)
                     {
@@ -125,7 +125,7 @@ namespace OpenTap
             }
             foreach (var connection in getInputRelations(target))
             {
-                if(connection.OutputObject is ITestStep otherStep)
+                if(connection.InputObject is ITestStep otherStep)
                 { // steps can only be connected to a step from the same test plan.
                     if (plan.ChildTestSteps.GetStep(otherStep.Id) == null)
                     {
