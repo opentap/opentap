@@ -15,11 +15,19 @@ namespace OpenTap.Plugins
         /// <summary> The order of this serializer. </summary>
         public override double Order { get { return 1; } }
 
-        Dictionary<Guid, ITestStep> stepLookup = new Dictionary<Guid, ITestStep>();
+        readonly Dictionary<Guid, ITestStep> stepLookup = new Dictionary<Guid, ITestStep>();
+
+        /// <summary> Tries to find a step based on ID. </summary>
+        internal ITestStep FindStep(Guid id)
+        {
+            stepLookup.TryGetValue(id, out var step);
+            return step;
+        }
+        
         /// <summary>
         /// Guids where duplicate guids should be ignored. Useful when pasting to test plan.
         /// </summary>
-        HashSet<Guid> ignoredGuids = new HashSet<Guid>();
+        readonly HashSet<Guid> ignoredGuids = new HashSet<Guid>();
 
         /// <summary>
         /// Adds known steps to the list of tests used for finding references in deserialization.
