@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel;
 using System.Linq;
 
@@ -17,14 +18,14 @@ namespace OpenTap
 
         IMemberData ITestStepMenuModel.Member => member;
 
-        public bool CanExecuteParameterize => ParameterManager.CanParameter(this) && (IsOutputAssigned == false);
+        public bool CanExecuteParameterize => ParameterManager.CanParameter(this) && (IsAnyOutputAssigned == false);
         
         [EnabledIf(nameof(CanExecuteParameterize), true, HideIfDisabled = true)]
         [EnabledIf(nameof(TestPlanLocked), false)]
         [Browsable(true)]
         [IconAnnotation(IconNames.Parameterize)]
         [Display("Parameterize...", "Parameterize this setting by creating, or adding to, an existing parameter.", Order: 1.0)]
-        public void Parameterize() => ParameterManager.CreateParameter(this, source.FirstOrDefault()?.Parent, true);
+        public void Parameterize() => ParameterManager.CreateParameter(this, getCommonParent(), true);
 
         public bool HasTestPlanParent => source.FirstOrDefault()?.GetParent<TestPlan>() != null;
 
@@ -98,16 +99,21 @@ namespace OpenTap
         [EnabledIf(nameof(TestPlanLocked), false)]
         public void RemoveParameter() => ParameterManager.RemoveParameter(this);
 
-        bool CalcAnyAvailableOutputs() => source.FirstOrDefault()?.GetParents()
-            .SelectMany(scope => AssignOutputDialog.GetAvailableOutputs(scope, source.FirstOrDefault(), member.TypeDescriptor))
-            .Any() ?? false;
+        bool CalcAnyAvailableOutputs()
+        {
+            var scope = getCommonParent();
+            if(scope == null) return false;
+            return new[] {scope}.Concat(scope.GetParents())
+                .SelectMany(x => AssignOutputDialog.GetAvailableOutputs(x, source, member.TypeDescriptor))
+                .Any();
+        }
 
         bool? anyAvailableOutputs;
 
         public bool AnyAvailableOutputs => (anyAvailableOutputs ?? (anyAvailableOutputs = CalcAnyAvailableOutputs())) ?? false;
         
         // Input/Output
-        public bool CanAssignOutput => TestPlanLocked == false && source.Length > 0 && member.Writable && IsSweepable && !CanUnassignOutput && !IsParameterized;
+        public bool CanAssignOutput => TestPlanLocked == false && source.Length > 0 && member.Writable && IsSweepable && !CanUnassignOutput && !IsParameterized && !IsAnyOutputAssigned;
         [Display("Assign Output", "Control this setting using an output.", Order: 2.0)]
         [Browsable(true)]
         [IconAnnotation(IconNames.AssignOutput)]
@@ -115,30 +121,55 @@ namespace OpenTap
         [EnabledIf(nameof(AnyAvailableOutputs), true)]
         public void ControlUsingOutput()
         {
-            var question = new AssignOutputDialog(this.member, this.source.FirstOrDefault());
+            var commonParent = getCommonParent();
+            var question = new AssignOutputDialog(member, commonParent, source);
             UserInput.Request(question);
             if (question.Response == ParameterManager.OkCancel.Cancel)
                 return;
             var outputObject = question.Output?.Step;
             var outputMember = question.Output?.Member;
-            if(outputObject != null && outputMember != null)
-                InputOutputRelation.Assign(source.FirstOrDefault(), member, outputObject, outputMember);
+            if (outputObject != null && outputMember != null)
+            {
+                foreach(var srcItem in source)
+                    InputOutputRelation.Assign(srcItem, member, outputObject, outputMember);
+            }
         }
 
-        public bool IsOutput => member.HasAttribute<OutputAttribute>();
+        ITestStepParent getCommonParent()
+        {
+            // If the parents are as such:
+            // A B C D [step a]
+            // A B E F [step b]
+            // A B C G H [step c]
+            // A ist the root (Test Plan). The first common parent is then B.
+            // notice the first two parents are the same for all, so the first common
+            // parent is B.
+            // Zip is being used to fetch only the similar ones.
+            
+            var parentlists = source
+                .Select(x => (x?.GetParents() ?? Array.Empty<ITestStepParent>()).Reverse());
+            return parentlists.Aggregate((x, y) => x.Zip(y, (x1,y1) => x1 == y1 ? x1 : null)
+                    .Where(x2 => x2 != null).ToArray())
+                .LastOrDefault();
+        }
         public bool IsSweepable => member.HasAttribute<UnsweepableAttribute>() == false;
-        public bool IsOutputAssigned => InputOutputRelation.IsInput(source.FirstOrDefault(), member);
         
-        public bool CanUnassignOutput => TestPlanLocked == false && source.Length > 0 && member.Writable && InputOutputRelation.GetRelations(source.First()).Any(con => con.InputMember == member && con.InputObject == source.First());
+        public bool IsAnyOutputAssigned => source.Any(x => InputOutputRelation.IsInput(x, member));
+        
+        public bool CanUnassignOutput => TestPlanLocked == false && source.Length > 0 && member.Writable && IsAnyOutputAssigned;
         [Display("Unassign Output", "Unassign the output controlling this property.", Order: 2.0)]
         [Browsable(true)]
         [IconAnnotation(IconNames.UnassignOutput)]
         [EnabledIf(nameof(CanUnassignOutput), true, HideIfDisabled = true)]
         public void UnassignOutput()
         {
-            var step = source.First();
-            var con2 = InputOutputRelation.GetRelations(step).First(con => con.InputMember == member && con.InputObject == step);
-            InputOutputRelation.Unassign(con2);
+            foreach (var step in source)
+            {
+                var con2 = InputOutputRelation.GetRelations(step)
+                    .FirstOrDefault(con => con.InputMember == member && con.InputObject == step);
+                if(con2 != null)
+                    InputOutputRelation.Unassign(con2);
+            }
         }
     }
     

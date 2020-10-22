@@ -454,23 +454,25 @@ namespace OpenTap
         
         public static void Unparameterize(ITestStepMenuModel data)
         {
-            var (scope, member) = ScopeMember.GetScope(data.Source, data.Member);
-            IMemberData property = data.Member;
-            var items = data.Source;
-
-            if (scope is ITestStep)
+            foreach (var src in data.Source)
             {
-                foreach (var item in items)
-                    property.Unparameterize((ParameterMemberData)member, item);
-            }
-            else if (scope is TestPlan plan)
-            {
-                if (property != null)
-                    foreach (var item in items.OfType<ITestStep>())
-                        plan.ExternalParameters.Remove(item, property);
-            }
+                var (scope, member) = ScopeMember.GetScope(new []{src}, data.Member);
+                IMemberData property = data.Member;
+                var items = data.Source;
 
-            checkParameterSanity(scope as ITestStepParent);
+                if (scope is ITestStep)
+                {
+                    foreach (var item in items)
+                        property.Unparameterize((ParameterMemberData) member, item);
+                }
+                else if (scope is TestPlan plan)
+                {
+                    if (property != null)
+                        foreach (var item in items.OfType<ITestStep>())
+                            plan.ExternalParameters.Remove(item, property);
+                }
+                checkParameterSanity(scope as ITestStepParent);
+            }
         }
 
         /// <summary>
