@@ -247,8 +247,9 @@ namespace OpenTap.Package
             [Layout(LayoutMode.FloatBottom)]
             [Submit] public InstallationQuestion Response { get; set; } = InstallationQuestion.Cancel;
         }
-        
-        internal static InstallationQuestion CheckForOverwrittenPackages(IEnumerable<PackageDef> installedPackages, IEnumerable<PackageDef> packagesToInstall, bool force, bool interactive = false)
+
+        internal static InstallationQuestion CheckForOverwrittenPackages(IEnumerable<PackageDef> installedPackages,
+            IEnumerable<PackageDef> packagesToInstall, bool force, bool interactive = false)
         {
             var conflicts = VerifyPackageHashes.CalculatePackageInstallConflicts(installedPackages, packagesToInstall);
 
@@ -263,26 +264,28 @@ namespace OpenTap.Package
                     }
                 }
             }
-            
+
             if (conflicts.Any())
             {
-                buildMessage(line => log.Info(line));
-                if(force)
-                    log.Warning("--force specified. Overwriting files.");
-                else
-                {
-                    if (interactive)
-                    {
-                        StringBuilder message = new StringBuilder();
-                        buildMessage(line => message.AppendLine(line));
-                        var question = new AskAboutInstallingAnyway(message.ToString());
-                        UserInput.Request(question);
-                        return question.Response;
-                    }   
+                if (!force)
                     log.Error(
-                        "Installing these packages will overwrite existing files. Use --force to overwrite existing files, possible breaking installed packages.");
+                        "Installing these packages will overwrite existing files. Use --force to overwrite existing files, possibly breaking installed packages.");
+
+                buildMessage(line => log.Info(line));
+
+                if (interactive)
+                {
+                    StringBuilder message = new StringBuilder();
+                    buildMessage(line => message.AppendLine(line));
+                    var question = new AskAboutInstallingAnyway(message.ToString());
+                    UserInput.Request(question);
+                    return question.Response;
                 }
-                
+
+                if (force)
+                    log.Warning("--force specified. Overwriting files.");
+
+
                 if (!force)
                     return InstallationQuestion.Cancel;
                 return InstallationQuestion.OverwriteFile;
