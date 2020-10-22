@@ -404,5 +404,51 @@ namespace OpenTap.Engine.UnitTests
             }
             Assert.AreEqual(1, newplan.ExternalParameters.Entries.Count);
         }
+
+        [Test]
+        public void MultiSelectEditParametersDisabled()
+        {
+            var plan = new TestPlan();
+
+            var sequence = new SequenceStep();    
+            var delay = new DelayStep();
+            plan.Steps.Add(sequence);
+            sequence.ChildTestSteps.Add(delay);
+
+            var p1 = TypeData.GetTypeData(delay).GetMember(nameof(DelayStep.DelaySecs))
+                .Parameterize(sequence, delay, nameof(DelayStep.DelaySecs));
+
+            var sequence2 = new SequenceStep();    
+            var delay2 = new DelayStep();
+            plan.Steps.Add(sequence2);
+            sequence2.ChildTestSteps.Add(delay2);
+            
+            var p2 = TypeData.GetTypeData(delay2).GetMember(nameof(DelayStep.DelaySecs))
+                .Parameterize(sequence2, delay2, nameof(DelayStep.DelaySecs));
+            
+            
+            Assert.NotNull(p1);
+            Assert.NotNull(p2);
+
+            var models = new ITestStepParent[][]
+            {
+                new ITestStepParent[] {sequence, sequence2},
+                new ITestStepParent[] {sequence},
+                new ITestStepParent[] {sequence2}
+            };
+
+            foreach (var stepModel in models)
+            {
+                var stepsModel = AnnotationCollection.Annotate(stepModel);
+                var delayAnnotation = stepsModel.GetMember(nameof(DelayStep.DelaySecs));
+                var menu = delayAnnotation.Get<MenuAnnotation>();
+                var edit = menu.MenuItems.FirstOrDefault(x =>
+                    x.Get<IconAnnotationAttribute>().IconName == IconNames.EditParameter);
+
+                var access = edit.Get<IAccessAnnotation>();
+                
+                Assert.AreEqual(access.IsVisible, stepModel.Length == 1);
+            }            
+        }
     }
 }
