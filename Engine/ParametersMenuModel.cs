@@ -62,6 +62,7 @@ namespace OpenTap
         bool isParameterized() =>  source.Any(isParameterized);
         public bool IsParameterized => isParameterized();
         public bool IsParameter => member is ParameterMemberData;
+        public bool MultiSelect => source?.Length != 1;
 
         public bool TestPlanLocked
         {
@@ -85,6 +86,7 @@ namespace OpenTap
         [EnabledIf(nameof(TestPlanLocked), false)]
         [IconAnnotation(IconNames.EditParameter)]
         [EnabledIf(nameof(IsParameter), true, HideIfDisabled = true)]
+        [EnabledIf(nameof(MultiSelect), false, HideIfDisabled = true)]
         public void EditParameter() => ParameterManager.EditParameter(this);
 
         public bool CanRemoveParameter => member is IParameterMemberData && source.All(x => x is TestPlan);

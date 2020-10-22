@@ -10,6 +10,7 @@ New Features:
 - Add OpenTapPackage reference from command line [#294](https://gitlab.com/OpenTAP/opentap/issues/294)
 - `--out` argument for `tap package download` [#379](https://gitlab.com/OpenTAP/opentap/issues/379)
 - Option for `tap package install` to only install if a newer version is not already installed [#391](https://gitlab.com/OpenTAP/opentap/issues/391)
+- Package install/uninstall: 2 min timeout for waiting for files to become unlocked [#414](ttps://gitlab.com/OpenTAP/opentap/issues/414)
 
 Usability Improvements:
 -------
@@ -23,6 +24,7 @@ Usability Improvements:
 - Add SDK/Example of OpenTAP Serializer plugin [#360](https://gitlab.com/OpenTAP/opentap/issues/360)
 - Inherit the log source and log type from subprocesses [#371](https://gitlab.com/OpenTAP/opentap/issues/371)
 - `tap package download`/`install` should use the version specified and return error if not found [#380](https://gitlab.com/OpenTAP/opentap/issues/380)
+- NuGet msbuild script should not install TapPackages with `--force` [#405](https://gitlab.com/OpenTAP/opentap/issues/405)
 
 Bug Fixes:
 -------
@@ -39,11 +41,14 @@ Bug Fixes:
 - ExternalParameter attr. applied on parameter in an embedded property does not show Display name on the GUI [#382](https://gitlab.com/OpenTAP/opentap/issues/382)
 - Builds does not pass on Linux (OpenTap.Package.UnitTests testing fails) [#384](https://gitlab.com/OpenTAP/opentap/issues/384)
 - FilePackageRepository fails if it can't access a subdirectory [#390](https://gitlab.com/OpenTAP/opentap/issues/390)
+- Multi-select + EditParameters does not work as expected [#398](https://gitlab.com/OpenTAP/opentap/issues/398)
+- Paths in `<PackageActionExtensions>` should be relative to the `--target` directory, and not the temp install dir [#409](https://gitlab.com/OpenTAP/opentap/issues/409)
 
 Documentation:
 -------
 
 - Document `sdk new` cli commands [#183](https://gitlab.com/OpenTAP/opentap/issues/183)
+- Update docs to cover how resources and test steps interact with Open() and Close() methods [#221](https://gitlab.com/OpenTAP/opentap/issues/221)
 - Document API Reference for OpenTAP.Package.dll on doc.opentap.io [#234](https://gitlab.com/OpenTAP/opentap/issues/234)
 - Create SDK code example of complex settings data scenarios [#239](https://gitlab.com/OpenTAP/opentap/issues/239)
 - Improve the documentation on `tap package` and `tap run` [#278](https://gitlab.com/OpenTAP/opentap/issues/278)
