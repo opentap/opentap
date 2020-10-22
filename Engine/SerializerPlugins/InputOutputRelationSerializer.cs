@@ -21,10 +21,35 @@ namespace OpenTap.Plugins
             public string Member { get; set; }       
             [XmlAttribute("target-member")]
             public string TargetMember { get; set; }
+
+            public void Bind(ITestStepParent step, Func<Guid,ITestStepParent> getStep)
+            {
+                ITestStepParent source;
+                if (Id == Guid.Empty)
+                {
+                    source =  step.GetParent<TestPlan>();
+                }
+                else
+                {
+                    source = getStep(Id);
+                }
+
+                if (source == null) return;
+                var sourceType = TypeData.GetTypeData(source);
+                var targetType = TypeData.GetTypeData(step);
+                var sourceMember = sourceType.GetMember(Member);
+                var targetMember = targetType.GetMember(TargetMember);
+                if(sourceMember != null && targetMember != null)
+                    InputOutputRelation.Assign(step, targetMember, source, sourceMember);
+            } 
         }
 
         static readonly XName stepInputsName = "TestStep.Inputs";
         readonly HashSet<XElement> activeElements = new HashSet<XElement>();
+
+        readonly Dictionary<ITestStepParent, IEnumerable<InputOutputMember>> unusedInputs = new Dictionary<ITestStepParent, IEnumerable<InputOutputMember>>();
+        
+        /// <summary> Deserialize input/output relations </summary>
         public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
         {
             if (t.DescendsTo(typeof(ITestStepParent)) == false)
@@ -35,10 +60,11 @@ namespace OpenTap.Plugins
                 ITestStepParent step = null;
                 var prevsetter = setter;
                 setter = x => prevsetter(step = x as ITestStepParent);
-                var plan = tps.Plan;
+                var plan = tps?.Plan;
                 InputOutputMember[] items = null;
-                if (tps != null && Serializer.Deserialize(subelems, x => items = (InputOutputMember[]) x, TypeData.FromType(typeof(InputOutputMember[]))))
+                if (Serializer.Deserialize(subelems, x => items = (InputOutputMember[]) x, TypeData.FromType(typeof(InputOutputMember[]))))
                 {
+                    
                     bool ok = false;
                     activeElements.Add(node);
                     try
@@ -54,23 +80,15 @@ namespace OpenTap.Plugins
                     void connectInputs()
                     {
                         if (step == null) return;
+                        Func<Guid, ITestStepParent> lookup;
+                        if (plan == null)
+                            lookup = Serializer.GetSerializer<TestStepSerializer>().FindStep;
+                        else
+                            lookup = plan.ChildTestSteps.GetStep;
+                        if (lookup == null) return;
                         foreach (var elem in items)
                         {
-                            ITestStepParent source;
-                            if (elem.Id == Guid.Empty)
-                            {
-                                source = plan;
-                            }
-                            else
-                            {
-                                source = plan.ChildTestSteps.GetStep(elem.Id);
-                            }
-                            var sourceType = TypeData.GetTypeData(source);
-                            var targetType = TypeData.GetTypeData(step);
-                            var sourceMember = sourceType.GetMember(elem.Member);
-                            var targetMember = targetType.GetMember(elem.TargetMember);
-                            if(sourceMember != null && targetMember != null)
-                                 InputOutputRelation.Assign(step, targetMember, source, sourceMember);
+                            elem.Bind(step, lookup);
                         }
                     }
                     if(ok)
@@ -82,6 +100,7 @@ namespace OpenTap.Plugins
             return false;
         }
 
+        /// <summary> Serialize input/output relations </summary>
         public override bool Serialize(XElement node, object obj, ITypeData expectedType)
         {
             
