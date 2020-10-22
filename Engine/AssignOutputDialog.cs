@@ -21,7 +21,7 @@ namespace OpenTap
         public ScopeItem[] AvailableScopes => new[]{initScope}.Concat(initScope.GetParents()).Select(ScopeItem.Create).ToArray();
 
         [AvailableValues(nameof(AvailableScopes))]
-        [Display(nameof(Scope), "The scope at which the output will be selected.")]
+        [Display(nameof(Scope), "The scope at which the output will be selected.", Order: 0)]
         public ScopeItem Scope { get => ScopeItem.Create(scope);
             set
             {
@@ -82,7 +82,7 @@ namespace OpenTap
 
         [AvailableValues(nameof(AvailableOutputs))]
         
-        [Display(nameof(Output), "The output property selected.")]
+        [Display(nameof(Output), "The output property selected." , Order: 1)]
         public SelectedOutputItem Output { get; set; }
         
         [Layout(LayoutMode.FloatBottom | LayoutMode.FullRow)]

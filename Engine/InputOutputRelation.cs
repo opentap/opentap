@@ -111,13 +111,16 @@ namespace OpenTap
         {
             var plan = target.GetParent<TestPlan>();
             if (plan == null) return;
+            bool removeAllRelations = false;
+            if(target is ITestStep step)
+                removeAllRelations = plan.ChildTestSteps.GetStep(step.Id) == null;
             Action defer = () => { }; 
             
             foreach (var connection in getOutputRelations(target))
             {
                 if (connection.OutputObject is ITestStep otherStep)
                 { // steps can only be connected to a step from the same test plan.
-                    if (plan.ChildTestSteps.GetStep(otherStep.Id) == null)
+                    if (removeAllRelations || plan.ChildTestSteps.GetStep(otherStep.Id) == null)
                     {
                         defer = defer.Bind(Unassign, connection);
                     }
@@ -127,7 +130,7 @@ namespace OpenTap
             {
                 if(connection.InputObject is ITestStep otherStep)
                 { // steps can only be connected to a step from the same test plan.
-                    if (plan.ChildTestSteps.GetStep(otherStep.Id) == null)
+                    if (removeAllRelations || plan.ChildTestSteps.GetStep(otherStep.Id) == null)
                     {
                         defer = defer.Bind(Unassign, connection);
                     }
