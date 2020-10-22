@@ -4,16 +4,28 @@ namespace OpenTap
 {
     class AssignOutputDialog : ValidatingObject
     {
+        public struct ScopeItem
+        {
+            public ITestStepParent Scope;
+            public override string ToString()
+            {
+                if (Scope is TestPlan) return "Test Plan";
+                if (Scope is ITestStep step) return step.GetFormattedName();
+                return Scope?.ToString() ?? "";
+            }
+
+            static public ScopeItem Create(ITestStepParent item) => new ScopeItem() {Scope = item};
+        }
 
         public string Name => "Please select an output.";
-        public ITestStepParent[] AvailableScopes => step.GetParents().ToArray();
+        public ScopeItem[] AvailableScopes => new[]{initScope}.Concat(initScope.GetParents()).Select(ScopeItem.Create).ToArray();
 
         [AvailableValues(nameof(AvailableScopes))]
-        [Display(nameof(Scope), "The scope at which the output will be selected.")]
-        public ITestStepParent Scope { get => scope;
+        [Display(nameof(Scope), "The scope at which the output will be selected.", Order: 0)]
+        public ScopeItem Scope { get => ScopeItem.Create(scope);
             set
             {
-                scope = value;
+                scope = value.Scope;
                 if (AvailableOutputs.Contains(Output) == false)
                 {
                     Output = AvailableOutputs.FirstOrDefault() ?? Output;
@@ -50,7 +62,7 @@ namespace OpenTap
             public override int GetHashCode() => HashCode.Combine(Step,  Member, 7730122);
         }
 
-        public static SelectedOutputItem[] GetAvailableOutputs(ITestStepParent scope, ITestStepParent step, ITypeData outputType)
+        public static SelectedOutputItem[] GetAvailableOutputs(ITestStepParent scope, ITestStepParent[] steps, ITypeData outputType)
         {
             return scope.ChildTestSteps
 
@@ -60,30 +72,32 @@ namespace OpenTap
                         .Where(y => y.HasAttribute<OutputAttribute>() && y.TypeDescriptor == outputType)
                         .Select(mem => SelectedOutputItem.Create(childStep, mem));
                 })
-                .Where(item => item.Step != step)
+                .Where(item => steps.Contains(item.Step) == false)
                 .ToArray();
         }
 
-        public SelectedOutputItem[] GetAvailableOutputs() => GetAvailableOutputs(Scope, step, inputMember.TypeDescriptor);
+        public SelectedOutputItem[] GetAvailableOutputs() => GetAvailableOutputs(scope, steps, inputMember.TypeDescriptor);
 
         public SelectedOutputItem[] AvailableOutputs => GetAvailableOutputs(); 
 
         [AvailableValues(nameof(AvailableOutputs))]
         
-        [Display(nameof(Output), "The output property selected.")]
+        [Display(nameof(Output), "The output property selected." , Order: 1)]
         public SelectedOutputItem Output { get; set; }
         
         [Layout(LayoutMode.FloatBottom | LayoutMode.FullRow)]
         [Submit]
         public ParameterManager.OkCancel Response { get; set; }
 
-        ITestStepParent step;
+        ITestStepParent[] steps;
         IMemberData inputMember;
-        public AssignOutputDialog(IMemberData member, ITestStepParent step)
+        ITestStepParent initScope;
+        public AssignOutputDialog(IMemberData member, ITestStepParent initScope, ITestStepParent[] steps)
         {
-            this.step = step;
+            this.steps = steps;
             inputMember = member;
-            Scope = step.Parent ?? step;
+            this.initScope = initScope;
+            scope = initScope;
             
             Output = AvailableOutputs.FirstOrDefault();
         }
