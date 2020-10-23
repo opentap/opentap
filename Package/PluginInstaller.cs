@@ -3,12 +3,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using System.Diagnostics;
 using System.Reflection;
 using System.IO.Compression;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Runtime.InteropServices;
 
@@ -36,7 +38,9 @@ namespace OpenTap.Package
     internal class ActionExecuter
     {
         static TraceSource log = OpenTap.Log.CreateSource("Plugin");
-        private Dictionary<string, TraceSource> LogSources { get; set; }
+
+        private ConcurrentDictionary<string, TraceSource> LogSources { get; } =
+            new ConcurrentDictionary<string, TraceSource>();
 
         /// <summary>
         /// The name of this rule.
@@ -84,7 +88,6 @@ namespace OpenTap.Package
 
                 if (isTap)
                 {
-                    LogSources = new Dictionary<string, TraceSource>();
                     // Run verbose in order to inherit log source and log type
                     step.Arguments += " --verbose ";
                 }
@@ -174,8 +177,7 @@ namespace OpenTap.Package
 
             return res;
         }
-
-
+        
         private void RedirectTapLog(string lines, bool IsStandardError)
         {
 
@@ -207,14 +209,7 @@ namespace OpenTap.Package
 
                 message = message.Substring(idx);
 
-                TraceSource source;
-                if (LogSources.ContainsKey(sourceName))
-                    source = LogSources[sourceName];
-                else
-                {
-                    source = OpenTap.Log.CreateSource(sourceName);
-                    LogSources[sourceName] = source;
-                }
+                var source = LogSources.GetOrAdd(sourceName, Log.CreateSource);
 
                 switch (logType)
                 {
