@@ -179,24 +179,14 @@ namespace OpenTap
             IEnumerable<string> getMessage()
             {
                 var selectedName = SelectedName.Trim();
-                if (Scope.Object is TestPlan plan)
+                
+                if(Scope.Object is ITestStepParent step)
                 {
-                    if (plan.ExternalParameters.Get(SelectedName) != null)
-                    {
-                        yield return $"Merge with an existing external test plan parameter named '{selectedName}'.";
-                    }
-                    else
-                    {
-                        yield return $"Create an external test plan parameter named '{selectedName}'.";
-                    }
-                }
-                if(Scope.Object is ITestStep step)
-                {
-                    var name = step.GetFormattedName();
+                    var name = (step as ITestStep)?.GetFormattedName() ?? step.ToString();
                     if (TypeData.GetTypeData(step).GetMember(selectedName.Trim()) != null && step != originalScope)
-                        yield return $"Merge with an existing parameter on test step '{name}'.";
+                        yield return $"Merge with an existing parameter on  '{name}'.";
                     else if(!isEdit)
-                        yield return $"Create new parameter on test step '{name}'.";
+                        yield return $"Create new parameter on '{name}'.";
 
                     if (isEdit)
                     {
@@ -215,7 +205,7 @@ namespace OpenTap
                                 yield return $"Rename parameter to '{SelectedName}'.";
                         }
                         else
-                            yield return $"Move parameter to '{step.GetFormattedName()}'.";
+                            yield return $"Move parameter to '{name}'.";
                     }
                 }
             }
