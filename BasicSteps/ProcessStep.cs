@@ -3,12 +3,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading;
-using OpenTap;
 
 namespace OpenTap.Plugins.BasicSteps
 {
@@ -78,14 +76,19 @@ namespace OpenTap.Plugins.BasicSteps
             Int32 timeout = Timeout <= 0 ? Int32.MaxValue : Timeout;
             prepend = string.IsNullOrEmpty(LogHeader) ? "" : LogHeader + " ";
 
-            var process = new Process();
-            process.StartInfo.FileName = Application;
-            process.StartInfo.Arguments = Arguments;
-            process.StartInfo.WorkingDirectory = Path.GetFullPath(WorkingDirectory);
-            process.StartInfo.UseShellExecute = false;
-            process.StartInfo.RedirectStandardOutput = true;
-            process.StartInfo.RedirectStandardError = true;
-            process.StartInfo.CreateNoWindow = true;
+            var process = new Process
+            {
+                StartInfo =
+                {
+                    FileName = Application,
+                    Arguments = Arguments,
+                    WorkingDirectory = Path.GetFullPath(WorkingDirectory),
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                }
+            };
             var abortRegistration = TapThread.Current.AbortToken.Register(() =>
             {
                 Log.Debug("Ending process '{0}'.", Application);
@@ -109,8 +112,7 @@ namespace OpenTap.Plugins.BasicSteps
 
                     process.BeginOutputReadLine();
                     process.BeginErrorReadLine();
-                    var newlineArray = new [] {Environment.NewLine};
-
+                    
                     if (process.WaitForExit(timeout) &&
                         outputWaitHandle.WaitOne(timeout) &&
                         errorWaitHandle.WaitOne(timeout))
@@ -132,15 +134,6 @@ namespace OpenTap.Plugins.BasicSteps
                         process.ErrorDataReceived -= ErrorDataRecv;
 
                         var resultData = output.ToString();
-
-                        if (AddToLog)
-                        {
-                            foreach (var line in resultData.Split(newlineArray, StringSplitOptions.None))
-                            {
-                                Log.Info("{0}{1}", prepend, line);
-                            }
-
-                        }
 
                         ProcessOutput(resultData);
 
