@@ -332,17 +332,42 @@ namespace OpenTap
     class EnabledIfAnnotation : IAccessAnnotation, IOwnedAnnotation, IEnabledAnnotation
     {
 
-        public bool IsReadOnly => isReadOnly;
-        public bool IsVisible => isVisible;
+        public bool IsReadOnly
+        {
+            get
+            {
+                doRead();
+                return isReadOnly;
+            }   
+        }
 
-        bool isReadOnly = false;
-        bool isVisible = false;
+        public bool IsVisible
+        {
+            get
+            {
+                doRead();
+                return isVisible;
+            }
+        }
+
+        bool isReadOnly;
+        bool isVisible;
+        object source;
+
+        void doRead()
+        {
+            if (source != null)
+            {
+                isReadOnly = !EnabledIfAttribute
+                    .IsEnabled(mem.Member, source, out IMemberData _, out IComparable __, out bool hidden);
+                isVisible = !hidden;
+                source = null;
+            }
+        }
 
         public void Read(object source)
         {
-            isReadOnly = !EnabledIfAttribute
-            .IsEnabled(mem.Member, source, out IMemberData _, out IComparable __, out bool hidden);
-            isVisible = !hidden;
+            this.source = source;
         }
 
         public void Write(object source)
@@ -2909,7 +2934,6 @@ namespace OpenTap
             public void Read(object source)
             {
                 wasRead = false;
-                doRead();
             }
 
             public void Write(object source)
