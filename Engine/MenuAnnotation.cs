@@ -36,6 +36,7 @@ namespace OpenTap
                         var model = factory.CreateModel(member);
                         if (model == null) continue;
                         model.Source = source;
+                        if (model is IMenuModelState active && active.Enabled == false) continue;
                         models.Add(model);
                     }
                     catch
@@ -141,6 +142,15 @@ namespace OpenTap
         /// <summary> The source for the menu item. This may be more than one element.
         /// It is strongly recommended to explicitly implement this property. </summary>
         object[] Source { get; set; }
+    }
+
+    /// <summary>
+    /// A MenuModel that can signal about it's current state (Enabled/Disabled). This is useful to dynamically disable the menu model.
+    /// </summary>
+    public interface IMenuModelState : IMenuModel
+    {
+        /// <summary> Gets if the menu model is enabled or disabled. </summary>
+        bool Enabled { get; }
     }
 
     internal interface ITestStepMenuModel
