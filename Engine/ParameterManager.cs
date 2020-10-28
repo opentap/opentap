@@ -182,11 +182,15 @@ namespace OpenTap
                 
                 if(Scope.Object is ITestStepParent step)
                 {
-                    var name = (step as ITestStep)?.GetFormattedName() ?? step.ToString();
+                    string name;
+                    if (step is TestPlan plan)
+                        name = $"test plan '{plan.Name}'";
+                    else
+                        name = $"test step '{(step as ITestStep)?.GetFormattedName()}'";
                     if (TypeData.GetTypeData(step).GetMember(selectedName.Trim()) != null && step != originalScope)
-                        yield return $"Merge with an existing parameter on  '{name}'.";
+                        yield return $"Merge with an existing parameter on {name}.";
                     else if(!isEdit)
-                        yield return $"Create new parameter on '{name}'.";
+                        yield return $"Create new parameter on {name}.";
 
                     if (isEdit)
                     {
@@ -205,7 +209,7 @@ namespace OpenTap
                                 yield return $"Rename parameter to '{SelectedName}'.";
                         }
                         else
-                            yield return $"Move parameter to '{name}'.";
+                            yield return $"Move parameter to {name}.";
                     }
                 }
             }
