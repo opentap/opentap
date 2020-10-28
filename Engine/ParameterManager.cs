@@ -345,14 +345,23 @@ namespace OpenTap
             var currentMember = TypeData.GetTypeData(scope).GetMember(parameterUserRequest.SelectedName);
             object currentValue = currentMember?.GetValue(scope);
 
-            foreach (var src in source)
+            parameterSanityCheckDelayed = true;
+            try
             {
-                // Try to fetch the member, multi select might make some members hide each-other non-perfectly.
-                var member = TypeData.GetTypeData(src).GetMember(s.Member.Name) ?? s.Member;
-                var newMember = member.Parameterize(scope, src, parameterUserRequest.SelectedName);
-                if (currentValue != null)
-                    newMember.SetValue(scope, currentValue);
+                foreach (var src in source)
+                {
+                    // Try to fetch the member, multi select might make some members hide each-other non-perfectly.
+                    var member = TypeData.GetTypeData(src).GetMember(s.Member.Name) ?? s.Member;
+                    var newMember = member.Parameterize(scope, src, parameterUserRequest.SelectedName);
+                    if (currentValue != null)
+                        newMember.SetValue(scope, currentValue);
+                }
             }
+            finally
+            {
+                parameterSanityCheckDelayed = false;
+            }
+
         }
         
         public static void EditParameter(ITestStepMenuModel ui)
@@ -449,32 +458,48 @@ namespace OpenTap
         
         public static void Unparameterize(ITestStepMenuModel data)
         {
+            parameterSanityCheckDelayed = true;
+            try
+            {
+                foreach (var src in data.Source)
+                {
+                    var (scope, member) = ScopeMember.GetScope(new[] {src}, data.Member);
+                    IMemberData property = data.Member;
+                    var items = data.Source;
+
+                    if (scope is ITestStep)
+                    {
+                        property.Unparameterize((ParameterMemberData) member, src);
+                    }
+                    else if (scope is TestPlan plan)
+                    {
+                        if (property != null)
+                            plan.ExternalParameters.Remove(src as ITestStep, property);
+                    }
+
+                }
+            }
+            finally
+            {
+                parameterSanityCheckDelayed = false;
+            }
+
             foreach (var src in data.Source)
             {
-                var (scope, member) = ScopeMember.GetScope(new []{src}, data.Member);
-                IMemberData property = data.Member;
-                var items = data.Source;
-
-                if (scope is ITestStep)
-                {
-                    foreach (var item in items)
-                        property.Unparameterize((ParameterMemberData) member, item);
-                }
-                else if (scope is TestPlan plan)
-                {
-                    if (property != null)
-                        foreach (var item in items.OfType<ITestStep>())
-                            plan.ExternalParameters.Remove(item, property);
-                }
-                checkParameterSanity(scope as ITestStepParent);
+                checkParameterSanity(src);
             }
         }
+        
 
+        [ThreadStatic]
+        private static bool parameterSanityCheckDelayed = false;
+        
         /// <summary>
         /// Verify that source of a declared parameter on a parent also exists in the step heirarchy.  
         /// </summary>
         public static bool CheckParameterSanity(ITestStepParent step, IMemberData[] parameters)
         {
+            if (parameterSanityCheckDelayed) return true;
             bool isSane = true;
             foreach (var _item in parameters)
             {
