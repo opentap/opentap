@@ -2,11 +2,13 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Xml.Serialization;
 using NUnit.Framework;
+using OpenTap.Engine.UnitTests;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
@@ -758,8 +760,44 @@ namespace OpenTap.UnitTests
                 annotation.Write();
                 int finalCount = (TypeData.GetTypeData(obj).GetMember(member.Name).GetValue(obj) as IList).Count;
                 Assert.IsTrue(initCount == finalCount - 1);
+            }   
+        }
+
+        [Test]
+        public void MultiSelectParameterize()
+        {
+            var plan = new TestPlan();
+            List<DelayStep> steps = new List<DelayStep>();
+            for (int i = 0; i < 500; i++)
+            {
+                var step = new DelayStep();
+                plan.ChildTestSteps.Add(step);
+                steps.Add(step);
             }
+
+            var a = AnnotationCollection.Annotate(steps.ToArray());
+            var menu = a.GetMember(nameof(DelayStep.DelaySecs)).Get<MenuAnnotation>();
+            var parameterize = menu.MenuItems.FirstOrDefault(x =>
+                x.Get<IconAnnotationAttribute>().IconName == IconNames.ParameterizeOnTestPlan);
+            var unparameterize = menu.MenuItems.FirstOrDefault(x =>
+                x.Get<IconAnnotationAttribute>().IconName == IconNames.Unparameterize);
+
+            var sw = Stopwatch.StartNew();
+            parameterize.Get<IMethodAnnotation>().Invoke();
+            var elapsed = sw.Elapsed;
+
+            Assert.AreEqual(1, TypeData.GetTypeData(plan).GetMembers().Count());
+            var sw2 = Stopwatch.StartNew();
+            unparameterize.Get<IMethodAnnotation>().Invoke();
+            var elapsed2 = sw2.Elapsed;
+
+            Assert.AreEqual(0, TypeData.GetTypeData(plan).GetMembers().Count());
             
+            Assert.IsTrue(elapsed.TotalSeconds < 5);
+            Assert.IsTrue(elapsed2.TotalSeconds < 5);
+
+
+
         }
 
         [Test]
