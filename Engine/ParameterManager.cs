@@ -179,24 +179,18 @@ namespace OpenTap
             IEnumerable<string> getMessage()
             {
                 var selectedName = SelectedName.Trim();
-                if (Scope.Object is TestPlan plan)
+                
+                if(Scope.Object is ITestStepParent step)
                 {
-                    if (plan.ExternalParameters.Get(SelectedName) != null)
-                    {
-                        yield return $"Merge with an existing external test plan parameter named '{selectedName}'.";
-                    }
+                    string name;
+                    if (step is TestPlan plan)
+                        name = $"test plan '{plan.Name}'";
                     else
-                    {
-                        yield return $"Create an external test plan parameter named '{selectedName}'.";
-                    }
-                }
-                if(Scope.Object is ITestStep step)
-                {
-                    var name = step.GetFormattedName();
+                        name = $"test step '{(step as ITestStep)?.GetFormattedName()}'";
                     if (TypeData.GetTypeData(step).GetMember(selectedName.Trim()) != null && step != originalScope)
-                        yield return $"Merge with an existing parameter on test step '{name}'.";
+                        yield return $"Merge with an existing parameter on {name}.";
                     else if(!isEdit)
-                        yield return $"Create new parameter on test step '{name}'.";
+                        yield return $"Create new parameter on {name}.";
 
                     if (isEdit)
                     {
@@ -215,7 +209,7 @@ namespace OpenTap
                                 yield return $"Rename parameter to '{SelectedName}'.";
                         }
                         else
-                            yield return $"Move parameter to '{step.GetFormattedName()}'.";
+                            yield return $"Move parameter to {name}.";
                     }
                 }
             }
@@ -400,6 +394,7 @@ namespace OpenTap
                 .Any(x => x.ParameterizedMembers.Contains((item, Member: member))));
         public static bool CanParameter(IMemberData property, ITestStepParent[] steps )
         {
+            if (steps.Length == 0) return false;
             if (property != null && property.HasAttribute<System.Xml.Serialization.XmlIgnoreAttribute>())
             {
                 // XmlIgnored properties cannot be serialized, so external property does not work for them.

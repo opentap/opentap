@@ -265,20 +265,55 @@ namespace OpenTap.UnitTests
 
         class MenuTestUserInterface : IUserInputInterface, IUserInterface
         {
+            [Flags]
+            public enum Mode
+            {
+                Standard = 1,
+                Rename = 2,
+                Create = 4,
+                TestPlan = 8,
+                Remove = 16
+            }
             public bool WasInvoked;
             public string SelectName { get; set; }
+
+            public Mode SelectedMode;
             public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
             {
                 var datas = AnnotationCollection.Annotate(dataObject);
                 var selectedName = datas.GetMember("SelectedName");
+                var message = datas.GetMember("Message");
                 selectedName.Get<IStringValueAnnotation>().Value = SelectName;
                 
                 var scope = datas.GetMember("Scope");
                 var avail = scope.Get<IAvailableValuesAnnotationProxy>();
                 var values = avail.AvailableValues.ToArray();
+                
                 avail.SelectedValue = avail.AvailableValues.First(); // sequence step!
+                if (SelectedMode.HasFlag(Mode.TestPlan))
+                {
+                    avail.SelectedValue = avail.AvailableValues.Last();
+                }
+
+                if (SelectedMode.HasFlag(Mode.Remove))
+                {
+                    var settings = datas.GetMember("Settings");
+                    settings.Get<IMultiSelectAnnotationProxy>().SelectedValues = Array.Empty<AnnotationCollection>();
+                }
                 Assert.IsTrue(values.Length > 0);
                 datas.Write();
+                
+                if (SelectedMode.HasFlag(Mode.Rename))
+                {
+                    var msg = message.Get<IStringValueAnnotation>().Value;
+                    Assert.IsTrue(msg.Contains("Rename "));
+                }
+
+                if (SelectedMode == (Mode.Create|Mode.TestPlan))
+                {
+                    var msg = message.Get<IStringValueAnnotation>().Value;
+                    Assert.IsTrue(msg.Contains("Create new parameter "));   
+                }
                 
                 WasInvoked = true;
             }
@@ -350,10 +385,34 @@ namespace OpenTap.UnitTests
                         .FirstOrDefault(x => x.Get<IconAnnotationAttribute>()?.IconName == IconNames.EditParameter);
 
                     menuInterface.SelectName = "B";
+                    menuInterface.SelectedMode = MenuTestUserInterface.Mode.Rename;
                     editParameter.Get<IMethodAnnotation>().Invoke();
 
                     Assert.IsNull(TypeData.GetTypeData(sequence).GetMember("A"));
                     Assert.IsNotNull(TypeData.GetTypeData(sequence).GetMember("B"));
+                    unparameterize.Get<IMethodAnnotation>().Invoke();
+                    
+                    Assert.IsNull(TypeData.GetTypeData(sequence).GetMember("B"));
+
+                    menuInterface.SelectedMode = MenuTestUserInterface.Mode.Create | MenuTestUserInterface.Mode.TestPlan;
+                    parameterize.Get<IMethodAnnotation>().Invoke();
+
+                    {
+                        var member2 = AnnotationCollection.Annotate(plan).GetMember("B");
+                        var edit = member2.Get<MenuAnnotation>().MenuItems.FirstOrDefault(x =>
+                            x.Get<IconAnnotationAttribute>()?.IconName == IconNames.EditParameter);
+                        menuInterface.SelectedMode = MenuTestUserInterface.Mode.Rename| MenuTestUserInterface.Mode.TestPlan;
+                        menuInterface.SelectName = "C";
+                        edit.Get<IMethodAnnotation>().Invoke();
+                        
+                        member2 = AnnotationCollection.Annotate(plan).GetMember("C");
+                        edit = member2.Get<MenuAnnotation>().MenuItems.FirstOrDefault(x =>
+                            x.Get<IconAnnotationAttribute>()?.IconName == IconNames.EditParameter);
+                        
+                        menuInterface.SelectedMode = MenuTestUserInterface.Mode.Remove;
+                        edit.Get<IMethodAnnotation>().Invoke();
+                        Assert.IsNull(AnnotationCollection.Annotate(plan).GetMember("C"));
+                    }
                 }
                 
                 { // test multi-select
