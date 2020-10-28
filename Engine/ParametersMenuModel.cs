@@ -5,12 +5,12 @@ using System.Linq;
 namespace OpenTap
 {
     
-    class TestStepMenuModel : IMenuModel, ITestStepMenuModel
+    class TestStepMenuModel : IMenuModel, ITestStepMenuModel, IMenuModelState
     {
         public TestStepMenuModel(IMemberData member) => this.member = member;
         ITestStepParent[] source;
         readonly IMemberData member;
-        object[] IMenuModel.Source { get => source; set => source = value.OfType<ITestStepParent>().ToArray(); }
+        object[] IMenuModel.Source { get => source; set => source = value?.OfType<ITestStepParent>().ToArray() ?? Array.Empty<ITestStepParent>(); }
 
         /// <summary> Multiple item can be selected at once. </summary>
 
@@ -171,6 +171,8 @@ namespace OpenTap
                     InputOutputRelation.Unassign(con2);
             }
         }
+
+        bool IMenuModelState.Enabled => (source?.Length ?? 0) > 0;
     }
     
     class TestStepMenuItemsModelFactory : IMenuModelFactory

@@ -394,6 +394,7 @@ namespace OpenTap
                 .Any(x => x.ParameterizedMembers.Contains((item, Member: member))));
         public static bool CanParameter(IMemberData property, ITestStepParent[] steps )
         {
+            if (steps.Length == 0) return false;
             if (property != null && property.HasAttribute<System.Xml.Serialization.XmlIgnoreAttribute>())
             {
                 // XmlIgnored properties cannot be serialized, so external property does not work for them.
