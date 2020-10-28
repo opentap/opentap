@@ -785,13 +785,34 @@ namespace OpenTap.UnitTests
             var sw = Stopwatch.StartNew();
             parameterize.Get<IMethodAnnotation>().Invoke();
             var elapsed = sw.Elapsed;
+            
+            Assert.AreEqual(1, TypeData.GetTypeData(plan).GetMembers().OfType<ParameterMemberData>().Count());
 
-            Assert.AreEqual(1, TypeData.GetTypeData(plan).GetMembers().Count());
+            var parameter = TypeData.GetTypeData(plan).GetMembers().OfType<ParameterMemberData>().First();
+            
+            var editParameter = AnnotationCollection.Annotate(plan).GetMember(parameter.Name).Get<MenuAnnotation>().MenuItems.First(x =>
+                x.Get<IconAnnotationAttribute>()?.IconName == IconNames.EditParameter);
+            var currentUserInterface = UserInput.Interface;
+            var menuInterface = new MenuTestUserInterface();
+            UserInput.SetInterface(menuInterface);
+            try
+            {
+                menuInterface.SelectName = "B";
+                var sw3 = Stopwatch.StartNew();
+                editParameter.Get<IMethodAnnotation>().Invoke();
+                var elapsed3 = sw3.Elapsed;
+            }
+            finally
+            {
+                UserInput.SetInterface((IUserInputInterface)currentUserInterface);    
+            }
+
+
             var sw2 = Stopwatch.StartNew();
             unparameterize.Get<IMethodAnnotation>().Invoke();
             var elapsed2 = sw2.Elapsed;
 
-            Assert.AreEqual(0, TypeData.GetTypeData(plan).GetMembers().Count());
+            Assert.AreEqual(0, TypeData.GetTypeData(plan).GetMembers().OfType<ParameterMemberData>().Count());
             
             Assert.IsTrue(elapsed.TotalSeconds < 5);
             Assert.IsTrue(elapsed2.TotalSeconds < 5);

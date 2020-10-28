@@ -385,13 +385,22 @@ namespace OpenTap
                 log.Error("{0}", err);
                 return; 
             }
-            
-            foreach (var scopeMember in scopeMembers)
-                scopeMember.Member.Unparameterize((ParameterMemberData)ui.Member, scopeMember.Scope);
-            
-            foreach (var scopemember in parameterUserRequest.Settings)
-                scopemember.Member.Parameterize(parameterUserRequest.Scope.Object, scopemember.Scope, parameterUserRequest.SelectedName);
-            
+
+            parameterSanityCheckDelayed = true;
+            try
+            {
+                foreach (var scopeMember in scopeMembers)
+                    scopeMember.Member.Unparameterize((ParameterMemberData) ui.Member, scopeMember.Scope);
+
+                foreach (var scopemember in parameterUserRequest.Settings)
+                    scopemember.Member.Parameterize(parameterUserRequest.Scope.Object, scopemember.Scope,
+                        parameterUserRequest.SelectedName);
+            }
+            finally
+            {
+                parameterSanityCheckDelayed = false;
+            }
+
             var step = ui.Source.First();
             checkParameterSanity(step);
         }
@@ -519,14 +528,14 @@ namespace OpenTap
                         // 1. the step is no longer a child of the parent to which it has parameterized a setting.
                         // 2. the member of a parameter no longer exists.
                         // 3. the child has been deleted from the step heirarchy.
-                        if (subparent != null && subparent.ChildTestSteps.Contains(src) == false)
+                        if (subparent != null && (src is ITestStep step2 && subparent.ChildTestSteps.GetStep(step2.Id) == null))
                             unparented = true;
                         if (subparent != step)
                         {
                             while (subparent != null)
                             {
                                 if (subparent.Parent != null &&
-                                    subparent.Parent.ChildTestSteps.Contains(subparent) == false)
+                                    subparent.Parent.ChildTestSteps.GetStep((subparent as ITestStep).Id) == null)
                                     unparented = true;
                                 if (subparent == step)
                                 {

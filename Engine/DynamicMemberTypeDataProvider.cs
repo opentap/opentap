@@ -55,7 +55,7 @@ namespace OpenTap
             var parameterMembers = TypeData.GetTypeData(target).GetMembers().OfType<ParameterMemberData>();
             foreach (var fwd in parameterMembers)
             {
-                if (fwd.ParameterizedMembers.Contains((source, parameterizedMember)))
+                if (fwd.ContainsMember((source, parameterizedMember)))
                     return fwd;
             }
             return null;
@@ -120,7 +120,7 @@ namespace OpenTap
         internal object Target { get; }
         object source;
         IMemberData member;
-        List<(object Source, IMemberData Member)> additionalMembers;
+        HashSet<(object Source, IMemberData Member)> additionalMembers;
         
         /// <summary>  Gets the value of this member. </summary>
         public object GetValue(object owner) =>  member.GetValue(source);
@@ -151,48 +151,44 @@ namespace OpenTap
                 }
             }
 
-            int count = 0;
-            if (additionalMembers != null)
-                count = additionalMembers.Count;
-
-            for (int i = -1; i < count; i++)
+            object clone(bool first, object context)
             {
-                var context = i == -1 ? source : additionalMembers[i].Source;
-                var _member = i == -1 ? member : additionalMembers[i].Member;
+                object setVal = value;
                 try
                 {
-                    object setVal = value;
-                    if (i >= 0 || TypeData.GetTypeData(setVal).DescendsTo(TypeDescriptor) == false) // let's just set the value on the first property.
+                    if (first || TypeData.GetTypeData(setVal).DescendsTo(TypeDescriptor) == false)
+                        // let's just set the value on the first property.
                     {
                         if (strConvertSuccess)
                         {
                             if (StringConvertProvider.TryFromString(str, TypeDescriptor, context, out setVal) == false)
-                                setVal = value;
+                                return value;
                         }
                         else if (cloneable != null)
                         {
-                            setVal = cloneable.Clone();
+                            return cloneable.Clone();
                         }
                         else if (serialized != null)
                         {
-                            try
-                            {
-                                setVal = serializer.DeserializeFromString(serialized);
-                            }
-                            catch
-                            {
-                            }
+                            return serializer.DeserializeFromString(serialized);
                         }
                     }
-
-                    _member.SetValue(context, setVal); // This will throw an exception if it is not assignable.
                 }
                 catch
-
                 {
-                    object _value = value;
-                    if (_value != null)
-                        _member.SetValue(context, _value); // This will throw an exception if it is not assignable.
+                }
+
+                return setVal;
+            }
+
+            member.SetValue(source, clone(true, source));
+            if (additionalMembers != null)
+            {
+                foreach (var (ctx, _member) in additionalMembers)
+                {
+                    var cloned = clone(false, ctx);
+                    if(cloned != null)
+                        _member.SetValue(ctx, cloned); // This will throw an exception if it is not assignable.
                 }
             }
         }
@@ -208,6 +204,9 @@ namespace OpenTap
                         yield return item;
             }
         }
+
+        internal bool ContainsMember((object Source, IMemberData Member) memberKey) =>
+            memberKey.Source == source && memberKey.Member == member || (additionalMembers?.Contains(memberKey) == true);
 
         /// <summary> The target object type. </summary>
         public ITypeData DeclaringType { get; }
@@ -227,7 +226,7 @@ namespace OpenTap
         internal void AddAdditionalMember(object newSource, IMemberData newMember)
         {
             if (additionalMembers == null)
-                additionalMembers = new List<(object, IMemberData)>();
+                additionalMembers = new HashSet<(object Source, IMemberData Member)>();
             additionalMembers.Add((newSource, newMember));
         }
 
@@ -248,8 +247,8 @@ namespace OpenTap
                     source = null;
                     return true;
                 }
-                (source, member) = additionalMembers[0];
-                additionalMembers.RemoveAt(0);
+                (source, member) = additionalMembers.FirstOrDefault();
+                additionalMembers.Clear();
             }
             else
             {
