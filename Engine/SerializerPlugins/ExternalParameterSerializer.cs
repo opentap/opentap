@@ -195,20 +195,20 @@ namespace OpenTap.Plugins
             // here I need to check if any of its parent steps are forwarding 
             // its member data.
 
-            ITestStepParent parameterParemt = step.Parent;
+            ITestStepParent parameterParent = step.Parent;
             IMemberData parameterMember = null;
-            while (parameterParemt != null && parameterMember == null)
+            while (parameterParent != null && parameterMember == null)
             {
-                var members = TypeData.GetTypeData(parameterParemt).GetMembers().OfType<IParameterMemberData>();
-                parameterMember = members.FirstOrDefault(x => x.ParameterizedMembers.Any(y => y.Source == step && y.Member == member));
+                var members = TypeData.GetTypeData(parameterParent).GetMembers().OfType<ParameterMemberData>();
+                parameterMember = members.FirstOrDefault(x => x.ContainsMember((step, member)));
                 if (parameterMember == null)
-                    parameterParemt = parameterParemt.Parent;
+                    parameterParent = parameterParent.Parent;
             }
 
             if (parameterMember == null) return false;
 
             elem.SetAttributeValue(Parameter, parameterMember.Name);
-            if (parameterParemt is ITestStep parentStep)
+            if (parameterParent is ITestStep parentStep)
                 elem.SetAttributeValue(Scope, parentStep.Id.ToString());
             // skip
             try

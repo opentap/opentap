@@ -2,11 +2,14 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Xml.Serialization;
 using NUnit.Framework;
+using OpenTap.Engine.UnitTests;
+using OpenTap.Engine.UnitTests.TestTestSteps;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
@@ -758,9 +761,96 @@ namespace OpenTap.UnitTests
                 annotation.Write();
                 int finalCount = (TypeData.GetTypeData(obj).GetMember(member.Name).GetValue(obj) as IList).Count;
                 Assert.IsTrue(initCount == finalCount - 1);
-            }
-            
+            }   
         }
+
+        [Test]
+        public void MultiSelectParameterize()
+        {
+            // Previously some performance issue causes this use-case to take several minutes.
+            // After fixing I added this test that shows that it does not take an extraordinary amount
+            // of time to parameterize a property on many test steps.
+            
+            var plan = new TestPlan();
+            List<DelayStep> steps = new List<DelayStep>();
+            for (int i = 0; i < 500; i++)
+            {
+                var step = new DelayStep();
+                plan.ChildTestSteps.Add(step);
+                steps.Add(step);
+            }
+
+            var a = AnnotationCollection.Annotate(steps.ToArray());
+            var menu = a.GetMember(nameof(DelayStep.DelaySecs)).Get<MenuAnnotation>();
+            var parameterize = menu.MenuItems.FirstOrDefault(x =>
+                x.Get<IconAnnotationAttribute>().IconName == IconNames.ParameterizeOnTestPlan);
+            var unparameterize = menu.MenuItems.FirstOrDefault(x =>
+                x.Get<IconAnnotationAttribute>().IconName == IconNames.Unparameterize);
+
+            var sw = Stopwatch.StartNew();
+            parameterize.Get<IMethodAnnotation>().Invoke();
+            var elapsed = sw.Elapsed;
+            
+            Assert.AreEqual(1, TypeData.GetTypeData(plan).GetMembers().OfType<ParameterMemberData>().Count());
+
+            var parameter = TypeData.GetTypeData(plan).GetMembers().OfType<ParameterMemberData>().First();
+            
+            var editParameter = AnnotationCollection.Annotate(plan).GetMember(parameter.Name).Get<MenuAnnotation>().MenuItems.First(x =>
+                x.Get<IconAnnotationAttribute>()?.IconName == IconNames.EditParameter);
+            var currentUserInterface = UserInput.Interface;
+            var menuInterface = new MenuTestUserInterface();
+            UserInput.SetInterface(menuInterface);
+            TimeSpan elapsed3 = TimeSpan.MaxValue;
+            try
+            {
+                menuInterface.SelectName = "B";
+                var sw3 = Stopwatch.StartNew();
+                editParameter.Get<IMethodAnnotation>().Invoke();
+                elapsed3 = sw3.Elapsed;
+                    
+            }
+            finally
+            {
+                UserInput.SetInterface((IUserInputInterface)currentUserInterface);    
+            }
+
+
+            var sw2 = Stopwatch.StartNew();
+            unparameterize.Get<IMethodAnnotation>().Invoke();
+            var elapsed2 = sw2.Elapsed;
+
+            Assert.AreEqual(0, TypeData.GetTypeData(plan).GetMembers().OfType<ParameterMemberData>().Count());
+            
+            Assert.IsTrue(elapsed.TotalSeconds < 5);
+            Assert.IsTrue(elapsed2.TotalSeconds < 5);
+            Assert.IsTrue(elapsed3.TotalSeconds < 5);
+        }
+
+        [Test]
+        public void ParameterInputsTest()
+        {
+            var plan = new TestPlan();
+            var verdictStep = new VerdictStep();
+            var ifStep1 = new IfStep();
+            var ifStep2 = new IfStep();
+            plan.ChildTestSteps.Add(verdictStep);
+            plan.ChildTestSteps.Add(ifStep1);
+            plan.ChildTestSteps.Add(ifStep2);
+            var member = TypeData.GetTypeData(ifStep1).GetMember(nameof(ifStep1.InputVerdict));
+            Assert.IsTrue(ParameterManager.CanParameter(member, new ITestStepParent[] {ifStep1}));
+            ParameterManager.Parameterize(plan, member, new ITestStepParent[] {ifStep1, ifStep2}, "A");
+
+            var verdictParameter = TypeData.GetTypeData(plan).GetMember("A");
+            
+            var value = (Input<Verdict>)verdictParameter.GetValue(plan);
+            Assert.IsFalse(object.ReferenceEquals(ifStep1.InputVerdict, ifStep2.InputVerdict));
+            verdictParameter.SetValue(plan, value);
+            value.Step = verdictStep;
+            TypeData.GetTypeData(plan).GetMember("A").SetValue(plan, value);
+            Assert.IsFalse(object.ReferenceEquals(ifStep1.InputVerdict, ifStep2.InputVerdict));
+            Assert.IsTrue(object.ReferenceEquals(ifStep1.InputVerdict.Step, ifStep2.InputVerdict.Step));
+
+        } 
 
         [Test]
         public void RemoveFromFixedSizeAnnotation()
