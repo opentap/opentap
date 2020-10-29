@@ -321,6 +321,29 @@ namespace OpenTap
 
         static TraceSource log = Log.CreateSource("Parameter");
 
+        public static void Parameterize(ITestStepParent scope, IMemberData targetMember, ITestStepParent[] source, string selectedName)
+        {
+            var currentMember = TypeData.GetTypeData(scope).GetMember(selectedName);
+            object currentValue = currentMember?.GetValue(scope);
+
+            parameterSanityCheckDelayed = true;
+            try
+            {
+                foreach (var src in source)
+                {
+                    // Try to fetch the member, multi select might make some members hide each-other non-perfectly.
+                    var member = TypeData.GetTypeData(src).GetMember(targetMember.Name) ?? targetMember;
+                    var newMember = member.Parameterize(scope, src, selectedName);
+                    if (currentValue != null)
+                        newMember.SetValue(scope, currentValue);
+                }
+            }
+            finally
+            {
+                parameterSanityCheckDelayed = false;
+            }
+        }
+        
         public static void CreateParameter(ITestStepMenuModel s, ITestStepParent preselectedScope, bool showDialog)
         {
             var source = s.Source;
@@ -342,26 +365,7 @@ namespace OpenTap
             }
 
             var scope = parameterUserRequest.Scope.Object;
-            var currentMember = TypeData.GetTypeData(scope).GetMember(parameterUserRequest.SelectedName);
-            object currentValue = currentMember?.GetValue(scope);
-
-            parameterSanityCheckDelayed = true;
-            try
-            {
-                foreach (var src in source)
-                {
-                    // Try to fetch the member, multi select might make some members hide each-other non-perfectly.
-                    var member = TypeData.GetTypeData(src).GetMember(s.Member.Name) ?? s.Member;
-                    var newMember = member.Parameterize(scope, src, parameterUserRequest.SelectedName);
-                    if (currentValue != null)
-                        newMember.SetValue(scope, currentValue);
-                }
-            }
-            finally
-            {
-                parameterSanityCheckDelayed = false;
-            }
-
+            Parameterize(scope, s.Member, source, parameterUserRequest.SelectedName);
         }
         
         public static void EditParameter(ITestStepMenuModel ui)
@@ -430,22 +434,13 @@ namespace OpenTap
             if (steps.Any(step => isParameterized(step, property)))
                 return false;
 
-            object converted = null;
-            try
-            {
-                var value = property.GetValue(steps.FirstOrDefault());
-                // check that conversion can be done both ways before allowing to add as an external parameter.
-                if (StringConvertProvider.TryGetString(value, out string str))
-                    StringConvertProvider.TryFromString(str, property.TypeDescriptor, steps, out converted);
-            }
-            catch
-            {
-                converted = null;
-            }
+            
+            var value = property.GetValue(steps.FirstOrDefault());
 
-            if (converted == null && property.TypeDescriptor.IsA(typeof(string)) == false)
+            var cloner = new ObjectCloner(value);
+            
+            if (!cloner.CanClone(steps.FirstOrDefault(), property.TypeDescriptor) && property.TypeDescriptor.IsA(typeof(string)) == false)
             {
-                // No StringConvertProvider can handle this type.
                 return false;
             }
 

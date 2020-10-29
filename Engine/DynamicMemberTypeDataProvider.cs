@@ -131,64 +131,17 @@ namespace OpenTap
             // this gets a bit complicated now.
             // we have to ensure that the value is not just same object type, but not the same object
             // in some cases. Hence we need special cloning of the value.
-            bool strConvertSuccess;
-            string str;
-            strConvertSuccess = StringConvertProvider.TryGetString(value, out str);
 
-            ICloneable cloneable = value as ICloneable;
-
-            TapSerializer serializer = null;
-            string serialized = null;
-            if (cloneable == null && !strConvertSuccess && value != null)
-            {
-                serializer = new TapSerializer();
-                try
-                {
-                    serialized = serializer.SerializeToString(value);
-                }
-                catch
-                {
-                }
-            }
-
-            object clone(bool first, object context)
-            {
-                object setVal = value;
-                try
-                {
-                    if (first || TypeData.GetTypeData(setVal).DescendsTo(TypeDescriptor) == false)
-                        // let's just set the value on the first property.
-                    {
-                        if (strConvertSuccess)
-                        {
-                            if (StringConvertProvider.TryFromString(str, TypeDescriptor, context, out setVal) == false)
-                                return value;
-                        }
-                        else if (cloneable != null)
-                        {
-                            return cloneable.Clone();
-                        }
-                        else if (serialized != null)
-                        {
-                            return serializer.DeserializeFromString(serialized);
-                        }
-                    }
-                }
-                catch
-                {
-                }
-
-                return setVal;
-            }
-
-            member.SetValue(source, clone(true, source));
+            var cloner = new ObjectCloner(value);
+            
+            member.SetValue(source, cloner.Clone(true, source, member.TypeDescriptor));
             if (additionalMembers != null)
             {
-                foreach (var (ctx, _member) in additionalMembers)
+                foreach (var (addContext, addMember) in additionalMembers)
                 {
-                    var cloned = clone(false, ctx);
+                    var cloned = cloner.Clone(false, addContext, addMember.TypeDescriptor);
                     if(cloned != null)
-                        _member.SetValue(ctx, cloned); // This will throw an exception if it is not assignable.
+                        addMember.SetValue(addContext, cloned); // This will throw an exception if it is not assignable.
                 }
             }
         }
