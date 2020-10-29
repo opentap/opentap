@@ -379,7 +379,8 @@ namespace OpenTap
             parameterUserRequest.Scope = new NamingQuestion.ScopeItem { Object = ui.Source.First() };
             parameterUserRequest.SelectedName = ui.Member.Name;
             parameterUserRequest.OverrideDefaultName = ui.Member.Name;
-            UserInput.Request(parameterUserRequest);
+            
+            UserInput.Request(parameterUserRequest, true);
             if (parameterUserRequest.Response == OkCancel.Cancel || string.IsNullOrWhiteSpace(parameterUserRequest.Name))
                 return;
 
