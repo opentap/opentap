@@ -88,7 +88,13 @@ namespace OpenTap.Plugins
                 {
 
                 }
-            }    
+            }
+
+            // Update all external parameter values.
+            // This is generally redundant, since they were all serialized with the same values.
+            // but just to be sure.
+            foreach (var extParam in plan.ExternalParameters.Entries)
+                extParam.Value = extParam.Value;
         }
         
         XElement rootNode;
@@ -164,8 +170,6 @@ namespace OpenTap.Plugins
                     if (PreloadedValues.ContainsKey(ext2.Name)) 
                         // If there is a  preloaded value, use that.
                         ext2.Value = PreloadedValues[ext2.Name];
-                    else
-                        ext2.Value = ext2.Value;
                 });
                 if (ext != null && PreloadedValues.ContainsKey(ext.Name)) 
                     // If there is a  preloaded value, use that.

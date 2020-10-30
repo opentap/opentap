@@ -24,8 +24,6 @@ namespace OpenTap
         /// <returns>The parameterization of the member..</returns>
         public static ParameterMemberData Parameterize(this IMemberData member, object target, object source, string name)
         {
-            if (member.GetParameter(target, source) != null)
-                throw new Exception("Member is already parameterized.");
             return DynamicMember.ParameterizeMember(target, member, source, name);
         }
 
@@ -70,7 +68,7 @@ namespace OpenTap
     /// The first member have special meaning since it decides which attributes the parameter will have.
     /// If the member is later removed from the parameter (unparameterized), the first additional member will take its place.
     /// </remarks>
-    public class ParameterMemberData : IParameterMemberData
+    public class ParameterMemberData : IParameterMemberData, IDynamicMemberData
     {
         internal ParameterMemberData(object target, object source, IMemberData member, string name)
         {
@@ -178,9 +176,12 @@ namespace OpenTap
 
         internal void AddAdditionalMember(object newSource, IMemberData newMember)
         {
+            if(source == newSource && newMember == member)
+                throw new Exception("Member is already parameterized.");
             if (additionalMembers == null)
                 additionalMembers = new HashSet<(object Source, IMemberData Member)>();
-            additionalMembers.Add((newSource, newMember));
+            if(!additionalMembers.Add((newSource, newMember)))
+                throw new Exception("Member is already parameterized.");
         }
 
         /// <summary>
@@ -210,6 +211,8 @@ namespace OpenTap
 
             return false;
         }
+
+        bool IDynamicMemberData.IsDisposed => source == null;
     }
 
     class AcceleratedDynamicMember<TAccel> : DynamicMember
@@ -306,8 +309,6 @@ namespace OpenTap
             var targetType = TypeData.GetTypeData(target);
             var existingMember = targetType.GetMember(name);
             
-            
-
             if (existingMember  == null)
             {
                 var newMember = new ParameterMemberData(target, source, member, name);

@@ -153,8 +153,6 @@ namespace OpenTap
         /// <returns> A disposable object removing the cache. </returns>
         internal static IDisposable WithTypeDataCache() =>  new TypeDataCache();
 
-        internal static bool IsCacheInUse => TypeDataCache.Current != null;
-
         /// <summary> Gets the type info from a string. </summary>
         public static  ITypeData GetTypeData(string name) => new TypeDataProviderStack().GetTypeData(name);
 
