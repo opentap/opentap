@@ -275,12 +275,14 @@ namespace OpenTap.UnitTests
                 Rename = 2,
                 Create = 4,
                 TestPlan = 8,
-                Remove = 16
+                Remove = 16,
+                ExpectNoRename = 32
             }
             public bool WasInvoked;
             public string SelectName { get; set; }
 
             public Mode SelectedMode;
+            
             public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
             {
                 var datas = AnnotationCollection.Annotate(dataObject);
@@ -309,7 +311,8 @@ namespace OpenTap.UnitTests
                 if (SelectedMode.HasFlag(Mode.Rename))
                 {
                     var msg = message.Get<IStringValueAnnotation>().Value;
-                    Assert.IsTrue(msg.Contains("Rename "));
+                    
+                    Assert.AreEqual(false == SelectedMode.HasFlag(Mode.ExpectNoRename), msg.Contains("Rename "));
                 }
 
                 if (SelectedMode == (Mode.Create|Mode.TestPlan))
@@ -391,8 +394,18 @@ namespace OpenTap.UnitTests
                     menuInterface.SelectedMode = MenuTestUserInterface.Mode.Rename;
                     editParameter.Get<IMethodAnnotation>().Invoke();
 
+                    var bMember = TypeData.GetTypeData(sequence).GetMember("B");
                     Assert.IsNull(TypeData.GetTypeData(sequence).GetMember("A"));
-                    Assert.IsNotNull(TypeData.GetTypeData(sequence).GetMember("B"));
+                    Assert.IsNotNull(bMember);
+                    menuInterface.SelectedMode |= MenuTestUserInterface.Mode.ExpectNoRename;
+                    editParameter = AnnotationCollection.Annotate(sequence).GetMember("B").Get<MenuAnnotation>()
+                        .MenuItems
+                        .FirstOrDefault(x => x.Get<IconAnnotationAttribute>()?.IconName == IconNames.EditParameter);
+
+                    editParameter.Get<IMethodAnnotation>().Invoke();
+                    Assert.IsTrue(object.ReferenceEquals(bMember, TypeData.GetTypeData(sequence).GetMember("B")));
+
+
                     unparameterize.Get<IMethodAnnotation>().Invoke();
                     
                     Assert.IsNull(TypeData.GetTypeData(sequence).GetMember("B"));
