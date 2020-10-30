@@ -380,6 +380,8 @@ namespace OpenTap
             parameterUserRequest.SelectedName = ui.Member.Name;
             parameterUserRequest.OverrideDefaultName = ui.Member.Name;
             
+            var prevScope = parameterUserRequest.Scope;
+            
             UserInput.Request(parameterUserRequest, true);
             if (parameterUserRequest.Response == OkCancel.Cancel || string.IsNullOrWhiteSpace(parameterUserRequest.Name))
                 return;
@@ -394,12 +396,30 @@ namespace OpenTap
             parameterSanityCheckDelayed = true;
             try
             {
-                foreach (var scopeMember in scopeMembers)
-                    scopeMember.Member.Unparameterize((ParameterMemberData) ui.Member, scopeMember.Scope);
+                foreach (var oldScopeMember in scopeMembers)
+                {
+                    if (parameterUserRequest.SelectedName != member.Name ||
+                        parameterUserRequest.Settings.Contains(oldScopeMember) == false ||
+                        prevScope.Object != parameterUserRequest.Scope.Object)
+                        oldScopeMember.Member.Unparameterize((ParameterMemberData) ui.Member, oldScopeMember.Scope);
+                }
 
-                foreach (var scopemember in parameterUserRequest.Settings)
-                    scopemember.Member.Parameterize(parameterUserRequest.Scope.Object, scopemember.Scope,
-                        parameterUserRequest.SelectedName);
+                foreach (var newScopeMember in parameterUserRequest.Settings)
+                {
+                    if (parameterUserRequest.SelectedName != member.Name ||
+                        scopeMembers.Contains(newScopeMember) == false ||
+                        prevScope.Object != parameterUserRequest.Scope.Object)
+                    {
+                        var param = newScopeMember.Member.Parameterize(parameterUserRequest.Scope.Object,
+                            newScopeMember.Scope,
+                            parameterUserRequest.SelectedName);
+
+                        // Update the value, to make sure all parameterized properties
+                        // has the right value.
+                        param.SetValue(parameterUserRequest.Scope.Object,
+                            param.GetValue(parameterUserRequest.Scope.Object));
+                    }
+                }
             }
             finally
             {
