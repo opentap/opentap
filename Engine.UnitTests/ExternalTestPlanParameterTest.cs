@@ -395,13 +395,9 @@ namespace OpenTap.Engine.UnitTests
             var fwd = newmember.Parameterize(plan, sequence, nameof(DelayStep.DelaySecs));
             
             Assert.AreEqual(1, plan.ExternalParameters.Entries.Count);
-            TestPlan newplan;
-            using (var mem = new MemoryStream())
-            {
-                plan.Save(mem);
-                mem.Seek(0, SeekOrigin.Begin);
-                newplan = TestPlan.Load(mem, "Test.TapPlan");
-            }
+            var xml = plan.SerializeToString();
+            var newplan = Utils.DeserializeFromString<TestPlan>(xml);
+            
             Assert.AreEqual(1, newplan.ExternalParameters.Entries.Count);
         }
 

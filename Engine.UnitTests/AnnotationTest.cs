@@ -231,9 +231,10 @@ namespace OpenTap.UnitTests
             obj2.List.Add("C");
             var selectedMember = TypeData.GetTypeData(obj).GetMember(nameof(ClassWithListOfString.Selected));
             selectedMember.Parameterize(targetObject, obj, selectedMember.Name);
+            Assert.Throws<Exception>(() => selectedMember.Parameterize(targetObject, obj, selectedMember.Name));
             selectedMember.Parameterize(targetObject, obj2, selectedMember.Name);
+            Assert.Throws<Exception>(() => selectedMember.Parameterize(targetObject, obj2, selectedMember.Name));
     
-            // TODO:
             var b = AnnotationCollection.Annotate(targetObject);
             var avail = b.GetMember(selectedMember.Name).Get<IAvailableValuesAnnotation>();
             Assert.AreEqual(2, avail.AvailableValues.Cast<object>().Count());
@@ -786,7 +787,7 @@ namespace OpenTap.UnitTests
             
             var plan = new TestPlan();
             List<DelayStep> steps = new List<DelayStep>();
-            for (int i = 0; i < 500; i++)
+            for (int i = 0; i < 500; i++) // note: Run this at 50000 iterations to determine limits.
             {
                 var step = new DelayStep();
                 plan.ChildTestSteps.Add(step);
@@ -802,7 +803,18 @@ namespace OpenTap.UnitTests
 
             var sw = Stopwatch.StartNew();
             parameterize.Get<IMethodAnnotation>().Invoke();
+            
+            
             var elapsed = sw.Elapsed;
+
+            var sw4 = Stopwatch.StartNew();
+            var xml = plan.SerializeToString();
+            var serializeElapsed = sw4.Elapsed;
+            
+            var sw5= Stopwatch.StartNew();
+            Utils.DeserializeFromString<TestPlan>(xml);
+            var deserializeElapsed = sw5.Elapsed;
+
             
             Assert.AreEqual(1, TypeData.GetTypeData(plan).GetMembers().OfType<ParameterMemberData>().Count());
 
@@ -833,10 +845,14 @@ namespace OpenTap.UnitTests
             var elapsed2 = sw2.Elapsed;
 
             Assert.AreEqual(0, TypeData.GetTypeData(plan).GetMembers().OfType<ParameterMemberData>().Count());
-            
-            Assert.IsTrue(elapsed.TotalSeconds < 5);
-            Assert.IsTrue(elapsed2.TotalSeconds < 5);
-            Assert.IsTrue(elapsed3.TotalSeconds < 5);
+
+            // these limits are found at 50000 entries, so it is assumed that at 500, they will always work
+            // unless some quadratic complexity has been introduced.
+            Assert.IsTrue(serializeElapsed.TotalSeconds < 10);
+            Assert.IsTrue(deserializeElapsed.TotalSeconds < 15);
+            Assert.IsTrue(elapsed.TotalSeconds < 3);
+            Assert.IsTrue(elapsed2.TotalSeconds < 3);
+            Assert.IsTrue(elapsed3.TotalSeconds < 4);
         }
 
         [Test]

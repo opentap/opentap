@@ -98,32 +98,36 @@ namespace OpenTap
             this.ReadPath = path;
             var prevSer = currentSerializer.Value;
             currentSerializer.Value = this;
-            try
+            using (ParameterManager.WithSanityCheckDelayed())
             {
                 try
                 {
-                    Deserialize(node1, x => serialized = x, type);
+                    try
+                    {
+
+                        Deserialize(node1, x => serialized = x, type);
+                    }
+                    finally
+                    {
+                        currentSerializer.Value = prevSer;
+                    }
+
+                    if (autoFlush)
+                        Flush();
                 }
                 finally
                 {
-                    currentSerializer.Value = prevSer;
-                }
-
-                if (autoFlush)
-                    Flush();
-            }
-            finally
-            {
-                if (IgnoreErrors == false)
-                {
-                    foreach (var error in Errors)
-                        log.Error("{0}", error);
-
-                    var rs = GetSerializer<ResourceSerializer>();
-                    if (rs.TestPlanChanged)
+                    if (IgnoreErrors == false)
                     {
-                        log.Warning("Test Plan changed due to resources missing from Bench settings.");
-                        log.Warning("Please review these changes before saving or running the Test Plan.");
+                        foreach (var error in Errors)
+                            log.Error("{0}", error);
+
+                        var rs = GetSerializer<ResourceSerializer>();
+                        if (rs.TestPlanChanged)
+                        {
+                            log.Warning("Test Plan changed due to resources missing from Bench settings.");
+                            log.Warning("Please review these changes before saving or running the Test Plan.");
+                        }
                     }
                 }
             }
@@ -351,6 +355,7 @@ namespace OpenTap
         {
             if (stream == null)
                 throw new ArgumentNullException("stream");
+            
             using (var writer = XmlWriter.Create(stream, DefaultWriterSettings))
                 this.Serialize(writer, obj);
         }
@@ -368,7 +373,9 @@ namespace OpenTap
             XElement elem = new XElement("root");
             if(obj != null)
                 elem.Name = TapSerializer.TypeToXmlString(obj.GetType());
-            Serialize(elem, obj);
+            using(TypeData.WithTypeDataCache())
+            using(ParameterManager.WithSanityCheckDelayed())
+                Serialize(elem, obj);
             doc.Add(elem);
             doc.WriteTo(writer);
         }

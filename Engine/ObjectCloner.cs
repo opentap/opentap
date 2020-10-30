@@ -12,7 +12,9 @@ namespace OpenTap
     class ObjectCloner
     {
         readonly object value;
-        readonly ITypeData valueType;
+        readonly ITypeData typeOfValue;
+
+        readonly bool valueType;
         // the fields below are set up as needed. 
         bool? strConvertSuccess;
         TapSerializer serializer;
@@ -22,17 +24,28 @@ namespace OpenTap
         public ObjectCloner(object value)
         {
             this.value = value;
-            valueType = TypeData.GetTypeData(value);
+            typeOfValue = TypeData.GetTypeData(value);
+            if (typeOfValue.AsTypeData().IsValueType)
+            {
+                valueType = true;
+            }
+                
         }
 
         public bool CanClone(object context, ITypeData targetType = null)
         {
-            return TryClone(context, targetType ?? valueType, false, out object _);
+            return TryClone(context, targetType ?? typeOfValue, false, out object _);
         }
         
         public bool TryClone(object context, ITypeData targetType, bool skipIfPossible, out object clone )
         {
-            if (skipIfPossible == false || valueType.DescendsTo(targetType) == false)
+            if (targetType == typeOfValue && valueType)
+            {
+                clone = value;
+                return true;
+            }
+
+            if (skipIfPossible == false || typeOfValue.DescendsTo(targetType) == false)
                 // let's just set the value on the first property.
             {
                 try
