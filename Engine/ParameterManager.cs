@@ -9,14 +9,6 @@ namespace OpenTap
     {
         public class ScopeMember
         {
-            public static IEnumerable<ScopeMember> GetScopeMembers(IMemberData member)
-            {
-                if (member is ParameterMemberData fwd)
-                    return fwd.ParameterizedMembers
-                        .Select(x => new ScopeMember((ITestStep)x.Source, x.Member));
-                return Enumerable.Empty<ScopeMember>();
-            }
-
             public ITestStepParent Scope { get; }
             public IMemberData Member { get; }
             
@@ -321,6 +313,34 @@ namespace OpenTap
 
         static TraceSource log = Log.CreateSource("Parameter");
 
+        [ThreadStatic]
+        private static bool parameterSanityCheckDelayed;
+        
+        public static IDisposable WithSanityCheckDelayed()
+        {
+            if (parameterSanityCheckDelayed)
+                return Utils.WithDisposable(() => { });
+            parameterSanityCheckDelayed = true;
+            return Utils.WithDisposable(() => parameterSanityCheckDelayed = false);
+        } 
+        
+        public static void Parameterize(ITestStepParent scope, IMemberData targetMember, ITestStepParent[] source, string selectedName)
+        {
+            var currentMember = TypeData.GetTypeData(scope).GetMember(selectedName);
+            object currentValue = currentMember?.GetValue(scope);
+            using (WithSanityCheckDelayed())
+            {
+                foreach (var src in source)
+                {
+                    // Try to fetch the member, multi select might make some members hide each-other non-perfectly.
+                    var member = TypeData.GetTypeData(src).GetMember(targetMember.Name) ?? targetMember;
+                    var newMember = member.Parameterize(scope, src, selectedName);
+                    if (currentValue != null)
+                        newMember.SetValue(scope, currentValue);
+                }
+            }
+        }
+        
         public static void CreateParameter(ITestStepMenuModel s, ITestStepParent preselectedScope, bool showDialog)
         {
             var source = s.Source;
@@ -342,17 +362,7 @@ namespace OpenTap
             }
 
             var scope = parameterUserRequest.Scope.Object;
-            var currentMember = TypeData.GetTypeData(scope).GetMember(parameterUserRequest.SelectedName);
-            object currentValue = currentMember?.GetValue(scope);
-
-            foreach (var src in source)
-            {
-                // Try to fetch the member, multi select might make some members hide each-other non-perfectly.
-                var member = TypeData.GetTypeData(src).GetMember(s.Member.Name) ?? s.Member;
-                var newMember = member.Parameterize(scope, src, parameterUserRequest.SelectedName);
-                if (currentValue != null)
-                    newMember.SetValue(scope, currentValue);
-            }
+            Parameterize(scope, s.Member, source, parameterUserRequest.SelectedName);
         }
         
         public static void EditParameter(ITestStepMenuModel ui)
@@ -366,7 +376,10 @@ namespace OpenTap
             parameterUserRequest.Scope = new NamingQuestion.ScopeItem { Object = ui.Source.First() };
             parameterUserRequest.SelectedName = ui.Member.Name;
             parameterUserRequest.OverrideDefaultName = ui.Member.Name;
-            UserInput.Request(parameterUserRequest);
+            
+            var prevScope = parameterUserRequest.Scope;
+            
+            UserInput.Request(parameterUserRequest, true);
             if (parameterUserRequest.Response == OkCancel.Cancel || string.IsNullOrWhiteSpace(parameterUserRequest.Name))
                 return;
 
@@ -376,13 +389,41 @@ namespace OpenTap
                 log.Error("{0}", err);
                 return; 
             }
-            
-            foreach (var scopeMember in scopeMembers)
-                scopeMember.Member.Unparameterize((ParameterMemberData)ui.Member, scopeMember.Scope);
-            
-            foreach (var scopemember in parameterUserRequest.Settings)
-                scopemember.Member.Parameterize(parameterUserRequest.Scope.Object, scopemember.Scope, parameterUserRequest.SelectedName);
-            
+
+            using (WithSanityCheckDelayed())
+            {
+                foreach (var oldScopeMember in scopeMembers)
+                {
+                    if (parameterUserRequest.SelectedName != member.Name ||
+                        parameterUserRequest.Settings.Contains(oldScopeMember) == false ||
+                        prevScope.Object != parameterUserRequest.Scope.Object)
+                        oldScopeMember.Member.Unparameterize((ParameterMemberData) ui.Member, oldScopeMember.Scope);
+                }
+
+                var target = parameterUserRequest.Scope.Object;
+                var selectedName = parameterUserRequest.SelectedName;
+                bool anyCreated = false;
+                foreach (var newScopeMember in parameterUserRequest.Settings)
+                {
+                    var scope = newScopeMember.Scope;
+                    if (selectedName != member.Name ||
+                        scopeMembers.Contains(newScopeMember) == false ||
+                        prevScope.Object != target)
+                    {
+                        newScopeMember.Member.Parameterize(target, scope, selectedName);
+                        anyCreated = true;
+                    }
+                }
+                
+                if (anyCreated)
+                {
+                    // Update the value, to make sure all parameterized properties
+                    // has the right value.
+                    var param = TypeData.GetTypeData(target).GetMember(selectedName);
+                    param.SetValue(target, param.GetValue(target));
+                }
+            }
+
             var step = ui.Source.First();
             checkParameterSanity(step);
         }
@@ -412,22 +453,13 @@ namespace OpenTap
             if (steps.Any(step => isParameterized(step, property)))
                 return false;
 
-            object converted = null;
-            try
-            {
-                var value = property.GetValue(steps.FirstOrDefault());
-                // check that conversion can be done both ways before allowing to add as an external parameter.
-                if (StringConvertProvider.TryGetString(value, out string str))
-                    StringConvertProvider.TryFromString(str, property.TypeDescriptor, steps, out converted);
-            }
-            catch
-            {
-                converted = null;
-            }
+            
+            var value = property.GetValue(steps.FirstOrDefault());
 
-            if (converted == null && property.TypeDescriptor.IsA(typeof(string)) == false)
+            var cloner = new ObjectCloner(value);
+            
+            if (!cloner.CanClone(steps.FirstOrDefault(), property.TypeDescriptor) && property.TypeDescriptor.IsA(typeof(string)) == false)
             {
-                // No StringConvertProvider can handle this type.
                 return false;
             }
 
@@ -449,32 +481,38 @@ namespace OpenTap
         
         public static void Unparameterize(ITestStepMenuModel data)
         {
+            using (WithSanityCheckDelayed())
+            {
+                foreach (var src in data.Source)
+                {
+                    var (scope, member) = ScopeMember.GetScope(new[] {src}, data.Member);
+                    IMemberData property = data.Member;
+                    var items = data.Source;
+
+                    if (scope is ITestStep)
+                    {
+                        property.Unparameterize((ParameterMemberData) member, src);
+                    }
+                    else if (scope is TestPlan plan)
+                    {
+                        if (property != null)
+                            plan.ExternalParameters.Remove(src as ITestStep, property);
+                    }
+                }
+            }
+
             foreach (var src in data.Source)
             {
-                var (scope, member) = ScopeMember.GetScope(new []{src}, data.Member);
-                IMemberData property = data.Member;
-                var items = data.Source;
-
-                if (scope is ITestStep)
-                {
-                    foreach (var item in items)
-                        property.Unparameterize((ParameterMemberData) member, item);
-                }
-                else if (scope is TestPlan plan)
-                {
-                    if (property != null)
-                        foreach (var item in items.OfType<ITestStep>())
-                            plan.ExternalParameters.Remove(item, property);
-                }
-                checkParameterSanity(scope as ITestStepParent);
+                checkParameterSanity(src);
             }
         }
-
+        
         /// <summary>
         /// Verify that source of a declared parameter on a parent also exists in the step heirarchy.  
         /// </summary>
         public static bool CheckParameterSanity(ITestStepParent step, IMemberData[] parameters)
         {
+            if (parameterSanityCheckDelayed) return true;
             bool isSane = true;
             foreach (var _item in parameters)
             {
@@ -484,8 +522,7 @@ namespace OpenTap
                     {
                         var src = fwd.Source as ITestStepParent;
                         if (src == null) continue;
-                        var mem = fwd.Member;
-                        var existing = TypeData.GetTypeData(src).GetMember(mem.Name);
+                        var member = fwd.Member;
                         bool isParent = false;
                         bool unparented = false;
                         var subparent = src.Parent;
@@ -494,14 +531,14 @@ namespace OpenTap
                         // 1. the step is no longer a child of the parent to which it has parameterized a setting.
                         // 2. the member of a parameter no longer exists.
                         // 3. the child has been deleted from the step heirarchy.
-                        if (subparent != null && subparent.ChildTestSteps.Contains(src) == false)
+                        if (subparent != null && (src is ITestStep step2 && subparent.ChildTestSteps.GetStep(step2.Id) == null))
                             unparented = true;
                         if (subparent != step)
                         {
                             while (subparent != null)
                             {
                                 if (subparent.Parent != null &&
-                                    subparent.Parent.ChildTestSteps.Contains(subparent) == false)
+                                    subparent.Parent.ChildTestSteps.GetStep((subparent as ITestStep).Id) == null)
                                     unparented = true;
                                 if (subparent == step)
                                 {
@@ -516,15 +553,18 @@ namespace OpenTap
                         {
                             isParent = true;
                         }
-
-                        if (existing == null || isParent == false || unparented)
+                        if (member is ParameterMemberData)
+                            CheckParameterSanity(src, new[] {member});
+                        
+                        bool memberDisposed = member is IDynamicMemberData dynamicMember && dynamicMember.IsDisposed;
+                        if (memberDisposed || isParent == false || unparented)
                         {
-                            mem.Unparameterize(item, src);
+                            member.Unparameterize(item, src);
                             if (!isParent || unparented)
                                 log.Warning("Step {0} is no longer a child step of the parameter owner.",
                                     (src as ITestStep)?.GetFormattedName() ?? src?.ToString());
                             else
-                                log.Warning("Member {0} no longer exists, unparameterizing member.", mem.Name);
+                                log.Warning("Member {0} no longer exists, unparameterizing member.", member.Name);
                             isSane = false;
                         }
                     }
@@ -538,7 +578,9 @@ namespace OpenTap
         {
             bool isSane = true;
             if (step == null) return isSane;
-            var parameters = TypeData.GetTypeData(step).GetMembers().OfType<ParameterMemberData>().ToArray();
+            ParameterMemberData[] parameters;
+            using(WithSanityCheckDelayed()) // sanity checks are being done inside check members.
+                parameters = TypeData.GetTypeData(step).GetMembers().OfType<ParameterMemberData>().ToArray();
             isSane = CheckParameterSanity(step, parameters);
             if(step.Parent is ITestStepParent parent)
                 return checkParameterSanity(parent) & isSane;

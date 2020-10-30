@@ -24,8 +24,6 @@ namespace OpenTap
         /// <returns>The parameterization of the member..</returns>
         public static ParameterMemberData Parameterize(this IMemberData member, object target, object source, string name)
         {
-            if (member.GetParameter(target, source) != null)
-                throw new Exception("Member is already parameterized.");
             return DynamicMember.ParameterizeMember(target, member, source, name);
         }
 
@@ -55,7 +53,7 @@ namespace OpenTap
             var parameterMembers = TypeData.GetTypeData(target).GetMembers().OfType<ParameterMemberData>();
             foreach (var fwd in parameterMembers)
             {
-                if (fwd.ParameterizedMembers.Contains((source, parameterizedMember)))
+                if (fwd.ContainsMember((source, parameterizedMember)))
                     return fwd;
             }
             return null;
@@ -70,7 +68,7 @@ namespace OpenTap
     /// The first member have special meaning since it decides which attributes the parameter will have.
     /// If the member is later removed from the parameter (unparameterized), the first additional member will take its place.
     /// </remarks>
-    public class ParameterMemberData : IParameterMemberData
+    public class ParameterMemberData : IParameterMemberData, IDynamicMemberData
     {
         internal ParameterMemberData(object target, object source, IMemberData member, string name)
         {
@@ -120,7 +118,7 @@ namespace OpenTap
         internal object Target { get; }
         object source;
         IMemberData member;
-        List<(object Source, IMemberData Member)> additionalMembers;
+        HashSet<(object Source, IMemberData Member)> additionalMembers;
         
         /// <summary>  Gets the value of this member. </summary>
         public object GetValue(object owner) =>  member.GetValue(source);
@@ -131,68 +129,17 @@ namespace OpenTap
             // this gets a bit complicated now.
             // we have to ensure that the value is not just same object type, but not the same object
             // in some cases. Hence we need special cloning of the value.
-            bool strConvertSuccess;
-            string str;
-            strConvertSuccess = StringConvertProvider.TryGetString(value, out str);
 
-            ICloneable cloneable = value as ICloneable;
-
-            TapSerializer serializer = null;
-            string serialized = null;
-            if (cloneable == null && !strConvertSuccess && value != null)
-            {
-                serializer = new TapSerializer();
-                try
-                {
-                    serialized = serializer.SerializeToString(value);
-                }
-                catch
-                {
-                }
-            }
-
-            int count = 0;
+            var cloner = new ObjectCloner(value);
+            
+            member.SetValue(source, cloner.Clone(true, source, member.TypeDescriptor));
             if (additionalMembers != null)
-                count = additionalMembers.Count;
-
-            for (int i = -1; i < count; i++)
             {
-                var context = i == -1 ? source : additionalMembers[i].Source;
-                var _member = i == -1 ? member : additionalMembers[i].Member;
-                try
+                foreach (var (addContext, addMember) in additionalMembers)
                 {
-                    object setVal = value;
-                    if (i >= 0 || TypeData.GetTypeData(setVal).DescendsTo(TypeDescriptor) == false) // let's just set the value on the first property.
-                    {
-                        if (strConvertSuccess)
-                        {
-                            if (StringConvertProvider.TryFromString(str, TypeDescriptor, context, out setVal) == false)
-                                setVal = value;
-                        }
-                        else if (cloneable != null)
-                        {
-                            setVal = cloneable.Clone();
-                        }
-                        else if (serialized != null)
-                        {
-                            try
-                            {
-                                setVal = serializer.DeserializeFromString(serialized);
-                            }
-                            catch
-                            {
-                            }
-                        }
-                    }
-
-                    _member.SetValue(context, setVal); // This will throw an exception if it is not assignable.
-                }
-                catch
-
-                {
-                    object _value = value;
-                    if (_value != null)
-                        _member.SetValue(context, _value); // This will throw an exception if it is not assignable.
+                    var cloned = cloner.Clone(false, addContext, addMember.TypeDescriptor);
+                    if(cloned != null)
+                        addMember.SetValue(addContext, cloned); // This will throw an exception if it is not assignable.
                 }
             }
         }
@@ -208,6 +155,9 @@ namespace OpenTap
                         yield return item;
             }
         }
+
+        internal bool ContainsMember((object Source, IMemberData Member) memberKey) =>
+            memberKey.Source == source && memberKey.Member == member || (additionalMembers?.Contains(memberKey) == true);
 
         /// <summary> The target object type. </summary>
         public ITypeData DeclaringType { get; }
@@ -226,9 +176,12 @@ namespace OpenTap
 
         internal void AddAdditionalMember(object newSource, IMemberData newMember)
         {
+            if(source == newSource && newMember == member)
+                throw new Exception("Member is already parameterized.");
             if (additionalMembers == null)
-                additionalMembers = new List<(object, IMemberData)>();
-            additionalMembers.Add((newSource, newMember));
+                additionalMembers = new HashSet<(object Source, IMemberData Member)>();
+            if(!additionalMembers.Add((newSource, newMember)))
+                throw new Exception("Member is already parameterized.");
         }
 
         /// <summary>
@@ -248,8 +201,8 @@ namespace OpenTap
                     source = null;
                     return true;
                 }
-                (source, member) = additionalMembers[0];
-                additionalMembers.RemoveAt(0);
+                (source, member) = additionalMembers.FirstOrDefault();
+                additionalMembers.Clear();
             }
             else
             {
@@ -258,6 +211,8 @@ namespace OpenTap
 
             return false;
         }
+
+        bool IDynamicMemberData.IsDisposed => source == null;
     }
 
     class AcceleratedDynamicMember<TAccel> : DynamicMember
@@ -354,8 +309,6 @@ namespace OpenTap
             var targetType = TypeData.GetTypeData(target);
             var existingMember = targetType.GetMember(name);
             
-            
-
             if (existingMember  == null)
             {
                 var newMember = new ParameterMemberData(target, source, member, name);

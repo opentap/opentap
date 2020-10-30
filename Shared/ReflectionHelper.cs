@@ -1547,6 +1547,23 @@ namespace OpenTap
 
         public static T DeserializeFromString<T>(string str) => (T) DeserializeFromString(str);
 
+        class ActionDisposable : IDisposable
+        {
+            Action action;
+            public ActionDisposable(Action action) => this.action = action;
+
+            public void Dispose()
+            {
+                action();
+                action = null;
+            }
+        }
+        
+        public static IDisposable WithDisposable(Action action)
+        {
+            return new ActionDisposable(action);
+        }
+
     }
 
     static internal class Sequence

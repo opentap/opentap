@@ -16,3 +16,6 @@ node_modules/
 
 TestResult.xml
 LinuxInstall/package
+
+#ignore Rider files
+*.idea/ 
