@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -436,7 +437,8 @@ namespace OpenTap
         public static bool CanParameter(IMemberData property, ITestStepParent[] steps )
         {
             if (steps.Length == 0) return false;
-            if (property != null && property.HasAttribute<System.Xml.Serialization.XmlIgnoreAttribute>())
+            if (property == null) return false;
+            if (property.HasAttribute<System.Xml.Serialization.XmlIgnoreAttribute>())
             {
                 // XmlIgnored properties cannot be serialized, so external property does not work for them.
                 return false;
@@ -444,7 +446,7 @@ namespace OpenTap
 
             foreach (var x in steps)
             {
-                if (property == null || property.Readable == false || property.Writable == false) return false;
+                if (property.Readable == false || property.Writable == false) return false;
                 if (x is ITestStep step && step.IsReadOnly)
                     return false;
                 if (x is TestPlan) return false;
@@ -453,7 +455,14 @@ namespace OpenTap
             if (steps.Any(step => isParameterized(step, property)))
                 return false;
 
-            
+            var propertyType = property.TypeDescriptor;
+            // parameterizing IEnumerable is not supported (unless its a string).
+            if (propertyType.DescendsTo(typeof(IEnumerable)))
+            {
+                if (propertyType.IsA(typeof(string)) == false)
+                    return false;
+            }
+
             var value = property.GetValue(steps.FirstOrDefault());
 
             var cloner = new ObjectCloner(value);
