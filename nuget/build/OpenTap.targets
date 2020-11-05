@@ -73,17 +73,25 @@
         Outputs="@(OpenTapPackagesToInstall-> '$(OutDir)Packages/%(Identity)/package.xml')"
         DependsOnTargets="CopyOpenTapPayloadFiles;ProcessOpenTapPackageList"
         BeforeTargets="Build" AfterTargets="CopyOpenTapPayloadFiles">
-    <Exec Command=".\tap package install --dependencies &quot;%(Identity)&quot;"
-          Condition="'%(OpenTapPackagesToInstall.Repository)' == '' AND '%(OpenTapPackagesToInstall.Version)' == ''"
-          LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
-    <Exec Command=".\tap package install --dependencies &quot;%(Identity)&quot; -r &quot;%(OpenTapPackagesToInstall.Repository)&quot;"
-          Condition="'%(OpenTapPackagesToInstall.Repository)' != '' AND '%(OpenTapPackagesToInstall.Version)' == ''"
-          LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
-    <Exec Command=".\tap package install --dependencies &quot;%(Identity)&quot; --version &quot;%(OpenTapPackagesToInstall.Version)&quot;"
-          Condition="'%(OpenTapPackagesToInstall.Repository)' == '' AND '%(OpenTapPackagesToInstall.Version)' != ''"
-          LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
-    <Exec Command=".\tap package install --dependencies &quot;%(Identity)&quot; -r &quot;%(OpenTapPackagesToInstall.Repository)&quot; --version &quot;%(OpenTapPackagesToInstall.Version)&quot;"
-          Condition="'%(OpenTapPackagesToInstall.Repository)' != '' AND '%(OpenTapPackagesToInstall.Version)' != ''"
+
+    <PropertyGroup>
+      <PackageName>&quot;%(OpenTapPackagesToInstall.Identity)&quot;</PackageName>
+      <PackageRepository>%(OpenTapPackagesToInstall.Repository)</PackageRepository>
+      <PackageVersion>%(OpenTapPackagesToInstall.Version)</PackageVersion>
+    </PropertyGroup>        
+    
+    <PropertyGroup Condition="'$(PackageRepository)' != ''">
+      <PackageRepository>-r &quot;$(PackageRepository)&quot;</PackageRepository>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(PackageRepository)' == ''">
+      <PackageRepository>-r http://packages.opentap.io</PackageRepository>
+    </PropertyGroup>
+
+    <PropertyGroup Condition="'$(PackageVersion)' != ''">
+      <PackageVersion>--version &quot;$(PackageVersion)&quot;</PackageVersion>
+    </PropertyGroup>
+    
+    <Exec Command=".\tap package install --dependencies $(PackageName) $(PackageRepository) $(PackageVersion)"          
           LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
   </Target>
 

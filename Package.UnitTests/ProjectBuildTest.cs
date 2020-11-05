@@ -74,7 +74,7 @@ namespace OpenTap.Package.UnitTests
             };
 
             process.Start();
-            var timeLimit = TimeSpan.FromSeconds(60);
+            var timeLimit = TimeSpan.FromSeconds(30);
             
             var stdout = new StringBuilder();
             var stderr = new StringBuilder();
@@ -293,7 +293,7 @@ namespace OpenTap.Package.UnitTests
             var csProj = new CsProj(this);
             csProj.ItemGroups.Add($@"
     <ItemGroup>
-<OpenTapPackageReference Include=""Visual Studio SDK"" Repository=""packages.opentap.io"" IncludeAssemblies=""**""  ExcludeAssemblies=""**/*Install**;**stdole**""/> 
+<OpenTapPackageReference Include=""Visual Studio SDK"" Version=""1.0.12+79946776"" IncludeAssemblies=""**""  ExcludeAssemblies=""**/*Install**;**stdole**""/> 
     </ItemGroup>
             ");
             var result = csProj.Build();
@@ -301,6 +301,7 @@ namespace OpenTap.Package.UnitTests
             StringAssert.Contains("Got 1 OpenTapPackageReference targets.", result.Stdout);
             StringAssert.Contains(@"Visual Studio SDK Include=""**"" Exclude=""**/*Install**,**stdole**""",
                 result.Stdout);
+            StringAssert.Contains("Installed Visual Studio SDK version 1.0.12+79946776", result.Stdout);
 
             Assert.AreEqual(result.ExitCode, 0);
 
