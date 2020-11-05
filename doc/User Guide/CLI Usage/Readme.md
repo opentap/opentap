@@ -182,9 +182,11 @@ Like the above two commands, `uninstall` supports targeting a different director
 
 ### download
 
-Download one or more packages without installing them. The downloaded packages are placed in the OpenTAP installation directory. As with the `install`
-action, dependencies can be automatically added with `--dependencies`, and the os, version, and architecture can all be
-specified:
+Download one or more packages without installing them. Dependencies can be automatically downloaded by including the `--dependencies` flag. 
+All downloaded files are placed in the OpenTAP installation directory. You can specify a different destination using the `--out` parameter.
+If it points to a directory, all downloaded packages are placed in that directory instead.
+If it specifies a filename, this will be the name of the first package specified, and the remaining packages will be placed in the same directory with their default name. 
+Like the install action, the download action also supports specifying the desired os, version, and architecture.
 
 `tap package download Python`.
 
