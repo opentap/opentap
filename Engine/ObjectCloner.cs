@@ -25,7 +25,7 @@ namespace OpenTap
         {
             this.value = value;
             typeOfValue = TypeData.GetTypeData(value);
-            if (typeOfValue.AsTypeData().IsValueType)
+            if (typeOfValue.AsTypeData().IsValueType || value == null || value is string)
             {
                 valueType = true;
             }
@@ -39,7 +39,7 @@ namespace OpenTap
         
         public bool TryClone(object context, ITypeData targetType, bool skipIfPossible, out object clone )
         {
-            if (targetType == typeOfValue && valueType)
+            if (targetType == typeOfValue && valueType || value == null)
             {
                 clone = value;
                 return true;
