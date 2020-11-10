@@ -104,7 +104,8 @@ namespace OpenTap
         /// </summary>
         [ColumnDisplayName("Type", Order : 1)]
         [Browsable(false)]
-        public string TypeName => typeName ?? (typeName = GetType().GetDisplayAttribute().GetFullName());
+        public string TypeName => typeName ?? (typeName = TypeData.GetTypeData(this)
+            .GetDisplayAttribute().GetFullName());
 
         private TestStepList _ChildTestSteps;
         /// <summary>
