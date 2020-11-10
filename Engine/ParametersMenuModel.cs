@@ -113,7 +113,7 @@ namespace OpenTap
         public bool AnyAvailableOutputs => (anyAvailableOutputs ?? (anyAvailableOutputs = CalcAnyAvailableOutputs())) ?? false;
         
         // Input/Output
-        public bool CanAssignOutput => TestPlanLocked == false && source.Length > 0 && member.Writable && IsSweepable && !CanUnassignOutput && !IsParameterized && !IsAnyOutputAssigned;
+        public bool CanAssignOutput => TestPlanLocked == false && source.Length > 0 && IsReadOnly == false && member.Writable && IsSweepable && !CanUnassignOutput && !IsParameterized && !IsAnyOutputAssigned;
         [Display("Assign Output", "Control this setting using an output.", Order: 2.0)]
         [Browsable(true)]
         [IconAnnotation(IconNames.AssignOutput)]
@@ -153,10 +153,12 @@ namespace OpenTap
                 .LastOrDefault();
         }
         public bool IsSweepable => member.HasAttribute<UnsweepableAttribute>() == false;
+
+        public bool IsReadOnly => source.Length > 0 && source?.Any(p => p is TestStep t && t.IsReadOnly) == true;
         
         public bool IsAnyOutputAssigned => source.Any(x => InputOutputRelation.IsInput(x, member));
         
-        public bool CanUnassignOutput => TestPlanLocked == false && source.Length > 0 && member.Writable && IsAnyOutputAssigned;
+        public bool CanUnassignOutput => TestPlanLocked == false && source.Length > 0 && IsReadOnly == false && member.Writable && IsAnyOutputAssigned;
         [Display("Unassign Output", "Unassign the output controlling this property.", Order: 2.0)]
         [Browsable(true)]
         [IconAnnotation(IconNames.UnassignOutput)]

@@ -73,7 +73,27 @@ namespace OpenTap.Package
         internal ActionResult ExecutePackageActionSteps(PackageDef package, bool force, string workingDirectory)
         {
             ActionResult res = ActionResult.NothingToDo;
-
+            
+            // if the package is being installed as a system wide package, we'll  want to look in the system-wide
+            // package folder for the executable. Additionally, the system-wide install directory will also be used as 
+            // the working directory.
+            bool isSystemWide = package.IsSystemWide();
+            string systemWideDir = PackageDef.SystemWideInstallationDirectory;
+            IEnumerable<string> possiblePaths(string file)
+            {
+                // If you want to run tap as a PackageActionExtension, you would specify "tap" as ExeFile for cross platform compatibility.
+                // In that case, File.Exists wont be successful on Windows. That is why .exe is added if needed.
+                if (isSystemWide)
+                {
+                    yield return Path.Combine(systemWideDir, file);
+                    if(!file.EndsWith(".exe", StringComparison.InvariantCultureIgnoreCase))
+                        yield return Path.Combine(systemWideDir,file + ".exe");
+                }
+                yield return Path.Combine(workingDirectory, file);
+                if(!file.EndsWith(".exe", StringComparison.InvariantCultureIgnoreCase))
+                    yield return Path.Combine(workingDirectory, file + ".exe");
+            }
+            
             foreach (var step in package.PackageActionExtensions)
             {
                 if (step.ActionName != ActionName)
@@ -96,17 +116,7 @@ namespace OpenTap.Package
                 // If path is relative, check if file is in fact in workingDirectory (isolated mode)
                 if (!Path.IsPathRooted(step.ExeFile))
                 {
-                    if (File.Exists(Path.Combine(workingDirectory, step.ExeFile)))
-                    {
-                        exefile = Path.Combine(workingDirectory, step.ExeFile);
-                    }
-
-                    // If you want to run tap as a PackageActionExtension, you would specify "tap" as ExeFile for cross platform compatibility
-                    // in that case the above File.Exists wont be successful on Windows.
-                    if (File.Exists(Path.Combine(workingDirectory, step.ExeFile + ".exe")))
-                    {
-                        exefile = Path.Combine(workingDirectory, step.ExeFile + ".exe");
-                    }
+                    exefile = possiblePaths(step.ExeFile).FirstOrDefault(File.Exists) ?? step.ExeFile;
                 }
 
                 // Upgrade to ok output
@@ -115,7 +125,7 @@ namespace OpenTap.Package
                 var pi = new ProcessStartInfo(exefile, step.Arguments);
 
                 pi.CreateNoWindow = step.CreateNoWindow;
-                pi.WorkingDirectory = workingDirectory;
+                pi.WorkingDirectory = isSystemWide ? systemWideDir : workingDirectory;
                 pi.Environment.Remove(ExecutorSubProcess.EnvVarNames.ParentProcessExeDir);
 
                 try

@@ -67,12 +67,12 @@
       </OpenTapPackagesToInstall>
     </ItemGroup>
   </Target>
-  
+
   <Target Name="InstallOpenTapPackages"
-        Inputs="$(MSBuildProjectFullPath)"
-        Outputs="@(OpenTapPackagesToInstall-> '$(OutDir)Packages/%(Identity)/package.xml')"
-        DependsOnTargets="CopyOpenTapPayloadFiles;ProcessOpenTapPackageList"
-        BeforeTargets="Build" AfterTargets="CopyOpenTapPayloadFiles">
+          Inputs="$(MSBuildProjectFullPath)"
+          Outputs="@(OpenTapPackagesToInstall-> '$(OutDir)Packages/%(Identity)/package.xml')"
+          DependsOnTargets="CopyOpenTapPayloadFiles;ProcessOpenTapPackageList"
+          BeforeTargets="Build" AfterTargets="CopyOpenTapPayloadFiles">
     <Exec Command=".\tap package install --dependencies &quot;%(Identity)&quot;"
           Condition="'%(OpenTapPackagesToInstall.Repository)' == '' AND '%(OpenTapPackagesToInstall.Version)' == ''"
           LogStandardErrorAsError="true" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>

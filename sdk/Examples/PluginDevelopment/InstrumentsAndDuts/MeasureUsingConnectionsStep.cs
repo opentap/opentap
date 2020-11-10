@@ -47,7 +47,11 @@ namespace OpenTap.Plugins.PluginDevelopment
                 if (Generator == null || DUT == null)
                     return null;
                 else // Get the available connections between the Generator and the DUT.
-                    return Generator.PortA.GetConnectionsTo(DUT).ToList();
+                {
+                    var portAConnections = Generator.PortA.GetConnectionsTo(DUT);
+                    var portBConnections = Generator.PortB.GetConnectionsTo(DUT);
+                    return portAConnections.Concat(portBConnections).ToList();
+                }
             }
         }
 
