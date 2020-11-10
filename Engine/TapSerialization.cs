@@ -324,7 +324,9 @@ namespace OpenTap
                         return false;
                 }
             }
-            if (t == null) t = TypeData.FromType(typeof(object));
+
+            if (t == null)
+                throw new Exception("Unable to determine type of XML element.");
             foreach (var serializer in serializers)
             {
                 try

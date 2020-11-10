@@ -2273,13 +2273,13 @@ namespace OpenTap.Engine.UnitTests
 
         public class SimpleXmlTestAttribute
         {
-            [XmlText(Type = typeof(Mode))]
-            public Mode Value { get; set; }
+            [XmlText(Type = typeof(Mode))] public Mode Value { get; set; }
         }
+
         [Test]
         public void SimpleXmlTextAttributeTest()
         {
-            var myGroup1 = new SimpleXmlTestAttribute { Value = Mode.C };
+            var myGroup1 = new SimpleXmlTestAttribute {Value = Mode.C};
             var str = new TapSerializer().SerializeToString(myGroup1);
             var xml = XDocument.Load(new MemoryStream(Encoding.UTF8.GetBytes(str)));
 
@@ -2289,6 +2289,13 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(elem.Value, nameof(Mode.C));
             // Should not have child element Value since it is serialized as XmlText
             Assert.IsNull(elem.Element("Value"));
+        }
+
+        [Test]
+        public void NullInstrumentTest()
+        {
+             object outValue = new ObjectCloner(null).Clone(true, null, TypeData.FromType(typeof(ScpiInstrument)));
+             Assert.IsNull(outValue);
         }
     }
 }
