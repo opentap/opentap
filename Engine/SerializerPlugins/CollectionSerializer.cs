@@ -25,7 +25,6 @@ namespace OpenTap.Plugins
             object prevobj = this.Object;
             try
             {
-
                 var t = (_t as TypeData)?.Type;
                 if (t == null || !t.DescendsTo(typeof(IEnumerable)) || t == typeof(string)) return false;
 
