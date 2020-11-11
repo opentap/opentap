@@ -167,7 +167,7 @@ namespace OpenTap.Package.UnitTests
 
             StringAssert.Contains("Got 0 OpenTapPackageReference targets.", result.Stdout);
             Assert.AreEqual(result.ExitCode, 0);
-            Assert.False(File.Exists(OutputFile));
+            Assert.True(File.Exists(OutputFile));
         }
 
         [Test]
@@ -249,7 +249,7 @@ namespace OpenTap.Package.UnitTests
             StringAssert.Contains("MyPlugin5 Include=\"test1,test2\" Exclude=\"test3,test4\"", result.Stdout);
             Assert.AreEqual(result.ExitCode, 0);
 
-            Assert.False(File.Exists(OutputFile));
+            Assert.True(File.Exists(OutputFile));
         }
 
         [Test]
@@ -281,7 +281,7 @@ namespace OpenTap.Package.UnitTests
             StringAssert.Contains("MyPlugin5 Include=\"test5,test6\" Exclude=\"test7,test8\"", result.Stdout);
             Assert.AreEqual(result.ExitCode, 0);
 
-            Assert.False(File.Exists(OutputFile));
+            Assert.True(File.Exists(OutputFile));
         }
 
         [Test]
