@@ -113,7 +113,7 @@ namespace OpenTap.Package
                     log.Warning($"Unable to find a version of '{name}' package compatible with currently installed packages. Some installed packages may be upgraded.");
             }
 
-            return packages.OrderByDescending(pkg => pkg.Version).FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.HostArchitecture));
+            return packages.OrderByDescending(pkg => pkg.Version).FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture));
         }
     }
 }
