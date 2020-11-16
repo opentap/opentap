@@ -101,7 +101,7 @@ namespace OpenTap.Plugins
                     var attr = prop.GetAttribute<XmlAttributeAttribute>();
                     if (attr == null) continue;
                     var name = string.IsNullOrWhiteSpace(attr.AttributeName) ? prop.Name : attr.AttributeName;
-                    var attr_value = element.Attribute(XmlConvert.EncodeLocalName(name));
+                    var attr_value = element.Attribute(Serializer.PropertyXmlName(name));
                     var p = prop as MemberData;
 
                     if (p != null && attr_value != null && p.Member is PropertyInfo csprop)
@@ -719,7 +719,7 @@ namespace OpenTap.Plugins
                         string valStr = Convert.ToString(val, CultureInfo.InvariantCulture);
                         if (val is bool b)
                             valStr = b ? "true" : "false"; // must be lower case for old XmlSerializer to work
-                        elem.SetAttributeValue(XmlConvert.EncodeLocalName(name), valStr);
+                        elem.SetAttributeValue(Serializer.PropertyXmlName(name), valStr);
                     }
                 }
 
@@ -759,7 +759,7 @@ namespace OpenTap.Plugins
                                     foreach (var item in enu)
                                     {
                                         string name = attr.ElementName ?? subProp.Name;
-                                        XElement elem2 = new XElement(XmlConvert.EncodeLocalName(name));
+                                        XElement elem2 = new XElement(Serializer.PropertyXmlName(name));
                                         SetHasDefaultValueAttribute(subProp, item, elem2);
                                         elem.Add(elem2);
                                         Serializer.Serialize(elem2, item, TypeData.FromType(cst.Type.GetGenericArguments().First()));
@@ -767,7 +767,7 @@ namespace OpenTap.Plugins
                                 }
                                 else
                                 {
-                                    XElement elem2 = new XElement(XmlConvert.EncodeLocalName(subProp.Name));
+                                    XElement elem2 = new XElement(Serializer.PropertyXmlName(subProp.Name));
                                     SetHasDefaultValueAttribute(subProp, val, elem2);
                                     elem.Add(elem2);
                                     Serializer.Serialize(elem2, val, subProp.TypeDescriptor);

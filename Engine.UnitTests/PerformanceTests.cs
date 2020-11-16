@@ -93,6 +93,9 @@ namespace OpenTap.Engine.UnitTests
         [CommandLineArgument("search")]
         public bool ProfileSearch { get; set; }
 
+        [CommandLineArgument("run-long-plan")]
+        public bool LongPlan { get; set; }
+
         [CommandLineArgument("iterations")]
         public int Iterations { get; set; } = 10;
         
@@ -125,6 +128,17 @@ namespace OpenTap.Engine.UnitTests
                     PluginManager.Search();
                 }
                 Console.WriteLine("Search Took {0}ms in total.", sw.ElapsedMilliseconds);
+            }
+
+            if (LongPlan)
+            {
+                var testplan = new TestPlan();
+                for(int i = 0 ; i < 1000000; i++)
+                    testplan.Steps.Add(new LogStep());
+                var sw = Stopwatch.StartNew();
+                testplan.Execute();
+                Console.WriteLine("Run long plan took {0}ms in total.", sw.ElapsedMilliseconds);
+
             }
 
             return 0;
