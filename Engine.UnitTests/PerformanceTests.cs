@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -95,6 +96,9 @@ namespace OpenTap.Engine.UnitTests
 
         [CommandLineArgument("run-long-plan")]
         public bool LongPlan { get; set; }
+        
+        [CommandLineArgument("run-long-plan-with-references")]
+        public bool LongPlanWithReferences { get; set; }
 
         [CommandLineArgument("iterations")]
         public int Iterations { get; set; } = 10;
@@ -138,6 +142,52 @@ namespace OpenTap.Engine.UnitTests
                 var sw = Stopwatch.StartNew();
                 testplan.Execute();
                 Console.WriteLine("Run long plan took {0}ms in total.", sw.ElapsedMilliseconds);
+            }
+
+            if (LongPlanWithReferences)
+            {
+                var tmpFile = Guid.NewGuid().ToString() + ".TapPlan";
+                {
+                    var subPlan = new TestPlan();
+
+                    int count = 10000;
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        var logStep = new LogStep();
+                        subPlan.Steps.Add(logStep);
+                    }
+                        
+                    
+                    for (int i = 0; i < count; i++)
+                    {
+                        var logStep = subPlan.Steps[i];
+                        var messageMember = TypeData.GetTypeData(logStep).GetMember(nameof(LogStep.LogMessage));
+                        messageMember.Parameterize(subPlan, logStep, "message");
+                    }
+
+                    subPlan.Save(tmpFile);
+                }
+
+                try
+                {
+                    
+                    var testPlan = new TestPlan();
+                    for (int i = 0; i < 10; i++)
+                    {
+                        var refPlan = new TestPlanReference();
+                        refPlan.Filepath.Text = tmpFile;
+                        testPlan.Steps.Add(refPlan);
+                        refPlan.Filepath= refPlan.Filepath;
+                    }
+
+                    testPlan.Execute();
+                }
+                finally
+                {
+                    File.Delete(tmpFile);
+                }
+
 
             }
 

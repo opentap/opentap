@@ -14,7 +14,7 @@ namespace OpenTap
     /// </summary>
     public class TypeDataProviderStack
     {
-        List<object> providers;
+        object[] providers;
         int offset = 0;
 
         internal TypeDataProviderStack()
@@ -23,7 +23,7 @@ namespace OpenTap
             providers = GetProviders();
         }
 
-        private TypeDataProviderStack(List<object> providers, int providerOffset)
+        private TypeDataProviderStack(object[] providers, int providerOffset)
         {
             this.providers = providers;
             this.offset = providerOffset;
@@ -36,7 +36,7 @@ namespace OpenTap
         {
             if (obj == null)
                 return null;
-            while (offset < providers.Count)
+            while (offset < providers.Length)
             {
                 var provider = providers[offset];
                 offset++;
@@ -76,7 +76,7 @@ namespace OpenTap
         public ITypeData GetTypeData(string identifier)
         {
             if (identifier == null) return null;
-            while (offset < providers.Count)
+            while (offset < providers.Length)
             {
                 var provider = providers[offset];
                 offset++;
@@ -103,17 +103,21 @@ namespace OpenTap
             return null;
         }
 
-        static List<object> providersCache = new List<object>();
+        static object[] providersCache = new object[0];
         static readonly HashSet<ITypeData> badProviders = new HashSet<ITypeData>();
-
-        static List<object> GetProviders()
+        static int lastCount = 0;
+        static object[] GetProviders()
         {
-            var providerTypes = TypeData.FromType(typeof(IStackedTypeDataProvider)).DerivedTypes;
-            providerTypes = providerTypes.Concat(TypeData.FromType(typeof(ITypeDataProvider)).DerivedTypes).Distinct();
-            if (providersCache.Count + badProviders.Count == providerTypes.Count()) return providersCache;
-            Dictionary<object, double> priorities = new Dictionary<object, double>();
+            var providers1 = TypeData.FromType(typeof(IStackedTypeDataProvider)).DerivedTypes;
+            var providers2 = TypeData.FromType(typeof(ITypeDataProvider)).DerivedTypes;
+
+            int l1 = providers1.Count();
+            int l2 = providers2.Count();
             
-            foreach (var providerType in providerTypes)
+            if (lastCount  == l1 + l2) return providersCache;
+            Dictionary<object, double> priorities = new Dictionary<object, double>();
+            lastCount = l1 + l2;
+            foreach (var providerType in providers1.Concat(providers2).Distinct())
             {
                 if (providerType.CanCreateInstance == false) continue;
                 
@@ -153,7 +157,7 @@ namespace OpenTap
                 }
             }
 
-            providersCache = priorities.Keys.OrderByDescending(x => priorities[x]).ToList();
+            providersCache = priorities.Keys.OrderByDescending(x => priorities[x]).ToArray();
             return providersCache;
         }
     }

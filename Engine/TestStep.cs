@@ -985,20 +985,24 @@ namespace OpenTap
                 return value;
             var propertyInfos = sourceType.GetMembers();
 
-            List<(IMemberData, bool)> result = new List<(IMemberData, bool)>();
+            List<(IMemberData, bool)> result = null;
             foreach (var prop in propertyInfos)
             {
                 if (prop.Readable == false) continue;
-                if (prop.HasAttribute<SettingsIgnoreAttribute>()) continue;
                 var td2 = prop.TypeDescriptor.AsTypeData();
                 if (td2.IsValueType && targetType.IsValueType == false) continue;
                 if (td2.IsString && targetType.IsString == false) continue;
                 bool hasEnabled = prop.HasAttribute<EnabledIfAttribute>();
-                if(td2.DescendsTo(typeof(IEnabled)) || td2.DescendsTo(targetType) || td2.ElementType.DescendsTo(targetType))
+                if (td2.DescendsTo(typeof(IEnabled)) || td2.DescendsTo(targetType) ||
+                    td2.ElementType.DescendsTo(targetType))
+                {
+                    if (prop.HasAttribute<SettingsIgnoreAttribute>()) continue;
+                    if(result == null) result =new List<(IMemberData, bool)>();
                     result.Add((prop, hasEnabled));
+                }
             }
 
-             return membersLookup[(targetType, sourceType)] = result.ToArray();
+             return membersLookup[(targetType, sourceType)] = (result?.ToArray() ?? Array.Empty<(IMemberData, bool hasEnabledAttribute)>());
         }
         
         

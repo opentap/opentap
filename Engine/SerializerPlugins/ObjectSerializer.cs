@@ -49,6 +49,8 @@ namespace OpenTap.Plugins
         /// <summary> The currently serializing or deserializing object. </summary>
         public object Object { get; private set; }
 
+        Dictionary<ITypeData, IMemberData[]> serializableMembers = new Dictionary<ITypeData, IMemberData[]>();
+        
         /// <summary>
         /// Tries to deserialize an object from an XElement.
         /// </summary>
@@ -71,7 +73,7 @@ namespace OpenTap.Plugins
                 try
                 {
                     newobj = t.CreateInstance(Array.Empty<object>());
-                    t = TypeData.GetTypeData(newobj);
+                    
                 }
                 catch (TargetInvocationException ex)
                 {
@@ -86,13 +88,15 @@ namespace OpenTap.Plugins
             }
             
             var prevobj = Object;
-            Object = newobj;    
-            var t2 = t;
+            Object = newobj;
+            
             if (newobj == null)
                 throw new ArgumentNullException(nameof(newobj));
-            var properties = t2.GetMembers()
+            t = TypeData.GetTypeData(newobj);
+            var t2 = t;
+            var properties = serializableMembers.GetOrCreateValue(t2, t3 => t3.GetMembers()
                 .Where(x => x.HasAttribute<XmlIgnoreAttribute>() == false)
-                .ToArray();
+                .ToArray());
             try
             {
                 
@@ -177,10 +181,10 @@ namespace OpenTap.Plugins
                                 try
                                 {
 
-                                    if (property == null)
-                                        property = t2.GetMember(name);
-                                    if (property == null)
-                                        property = t2.GetMembers().FirstOrDefault(x => x.Name == name);
+                                    //if (property == null)
+                                    //    property = t2.GetMember(name);
+                                    //if (property == null)
+                                    //    property = t2.GetMembers().FirstOrDefault(x => x.Name == name);
                                 }
                                 catch { }
                                 if (property == null || property.Writable == false)
