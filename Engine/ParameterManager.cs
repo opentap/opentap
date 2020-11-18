@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace OpenTap
 {
@@ -515,6 +516,17 @@ namespace OpenTap
                 checkParameterSanity(src);
             }
         }
+
+        class ChangeId
+        {
+            public int Value { get; set; }
+        }
+        // used to store test plan change ids
+        // if the test plan did not change since last sanity check,
+        // then we can do it a lot faster.
+        static readonly ConditionalWeakTable<ITestStepParent, ChangeId> recordedChangeIds = new ConditionalWeakTable<ITestStepParent, ChangeId>();
+        
+        
         
         /// <summary>
         /// Verify that source of a declared parameter on a parent also exists in the step heirarchy.  
@@ -527,6 +539,11 @@ namespace OpenTap
             {
                 if (_item is ParameterMemberData item)
                 {
+                    var changeid = recordedChangeIds.GetValue(step, x => new ChangeId());
+                    if (changeid.Value == step.ChildTestSteps.ChangeId && item.AnyDynamicMembers == false)
+                    {
+                        continue;
+                    }
                     foreach (var fwd in item.ParameterizedMembers.ToArray())
                     {
                         var src = fwd.Source as ITestStepParent;
@@ -536,33 +553,44 @@ namespace OpenTap
                         bool unparented = false;
                         var subparent = src.Parent;
 
-                        // Multiple situations possible.
-                        // 1. the step is no longer a child of the parent to which it has parameterized a setting.
-                        // 2. the member of a parameter no longer exists.
-                        // 3. the child has been deleted from the step heirarchy.
-                        if (subparent != null && (src is ITestStep step2 && subparent.ChildTestSteps.GetStep(step2.Id) == null))
-                            unparented = true;
-                        if (subparent != step)
+                        if (changeid.Value != step.ChildTestSteps.ChangeId)
                         {
-                            while (subparent != null)
-                            {
-                                if (subparent.Parent != null &&
-                                    subparent.Parent.ChildTestSteps.GetStep((subparent as ITestStep).Id) == null)
-                                    unparented = true;
-                                if (subparent == step)
-                                {
-                                    isParent = true;
-                                    break;
-                                }
+                            changeid.Value = step.ChildTestSteps.ChangeId;
 
-                                subparent = subparent.Parent;
+                            // Multiple situations possible.
+                            // 1. the step is no longer a child of the parent to which it has parameterized a setting.
+                            // 2. the member of a parameter no longer exists.
+                            // 3. the child has been deleted from the step heirarchy.
+                            if (subparent != null && (src is ITestStep step2 &&
+                                                      subparent.ChildTestSteps.GetStep(step2.Id) == null))
+                                unparented = true;
+                            if (subparent != step)
+                            {
+                                while (subparent != null)
+                                {
+                                    if (subparent.Parent != null &&
+                                        subparent.Parent.ChildTestSteps.GetStep((subparent as ITestStep).Id) == null)
+                                        unparented = true;
+                                    if (subparent == step)
+                                    {
+                                        isParent = true;
+                                        break;
+                                    }
+
+                                    subparent = subparent.Parent;
+                                }
+                            }
+                            else
+                            {
+                                isParent = true;
                             }
                         }
                         else
                         {
                             isParent = true;
                         }
-                        if (member is ParameterMemberData)
+
+                        if (member is IParameterMemberData)
                             CheckParameterSanity(src, new[] {member});
                         
                         bool memberDisposed = member is IDynamicMemberData dynamicMember && dynamicMember.IsDisposed;

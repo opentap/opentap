@@ -311,8 +311,11 @@ namespace OpenTap
             ListReplaced
         }
 
+        internal int ChangeId { get; set; }
+        
         void onContentChanged(TestStepList sender, ChildStepsChangedAction Action, ITestStep Object, int Index)
         {
+            ChangeId += 1;
             if (Parent != null && Parent.Parent != null && Parent.Parent.ChildTestSteps != null)
                 Parent.Parent.ChildTestSteps.onContentChanged(sender, Action, Object, Index);
             if (ChildStepsChanged != null)

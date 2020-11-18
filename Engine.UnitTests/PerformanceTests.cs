@@ -99,6 +99,9 @@ namespace OpenTap.Engine.UnitTests
         
         [CommandLineArgument("run-long-plan-with-references")]
         public bool LongPlanWithReferences { get; set; }
+        
+        [CommandLineArgument("parameterize")]
+        public bool Parameterize { get; set; }
 
         [CommandLineArgument("iterations")]
         public int Iterations { get; set; } = 10;
@@ -150,7 +153,7 @@ namespace OpenTap.Engine.UnitTests
                 {
                     var subPlan = new TestPlan();
 
-                    int count = 10000;
+                    int count = 1000;
 
                     for (int i = 0; i < count; i++)
                     {
@@ -173,7 +176,7 @@ namespace OpenTap.Engine.UnitTests
                 {
                     
                     var testPlan = new TestPlan();
-                    for (int i = 0; i < 10; i++)
+                    for (int i = 0; i < 100; i++)
                     {
                         var refPlan = new TestPlanReference();
                         refPlan.Filepath.Text = tmpFile;
@@ -189,6 +192,28 @@ namespace OpenTap.Engine.UnitTests
                 }
 
 
+            }
+            
+            if (Parameterize)
+            {
+                
+                var subPlan = new TestPlan();
+
+                int count = 100000;
+
+                for (int i = 0; i < count; i++)
+                {
+                    var logStep = new LogStep();
+                    subPlan.Steps.Add(logStep);
+                }
+
+                for (int i = 0; i < count; i++)
+                {
+                    var logStep = subPlan.Steps[i];
+                    var messageMember = TypeData.GetTypeData(logStep).GetMember(nameof(LogStep.LogMessage));
+                    messageMember.Parameterize(subPlan, logStep, "message");
+                }
+                
             }
 
             return 0;
