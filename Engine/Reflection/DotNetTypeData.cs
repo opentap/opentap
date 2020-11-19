@@ -222,14 +222,6 @@ namespace OpenTap
                 if(member.Name == name)
                     return member;
             }
-            
-            // In some cases it could be useful to match in display name as well
-            // we should consider removing this behavior for consistency and performance reasons..
-            //foreach(var member in members)
-            //{
-            //    if(member.GetDisplayAttribute().GetFullName() == name)
-            //        return member;
-            //}
             return null;
         }
         

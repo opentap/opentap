@@ -176,22 +176,9 @@ namespace OpenTap.Plugins
                                 }
                             }
 
-                            if (0 == hits)
+                            if (property == null)
                             {
-                                try
-                                {
-
-                                    //if (property == null)
-                                    //    property = t2.GetMember(name);
-                                    //if (property == null)
-                                    //    property = t2.GetMembers().FirstOrDefault(x => x.Name == name);
-                                }
-                                catch { }
-                                if (property == null || property.Writable == false)
-                                {
-                                    continue;
-                                }
-                                hits = 1;
+                                continue; // later we might try this property again.
                             }
                             if (hits > 1)
                                 Log.Warning(element2, "Multiple properties named '{0}' are available to the serializer in '{1}' this might give issues in serialization.", element2.Name.LocalName, t.GetAttribute<DisplayAttribute>().Name);
