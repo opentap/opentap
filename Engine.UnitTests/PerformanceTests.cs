@@ -149,24 +149,39 @@ namespace OpenTap.Engine.UnitTests
 
             if (LongPlanWithReferences)
             {
+                DummyDut dut = new DummyDut();
+                DutSettings.Current.Add(dut);
                 var tmpFile = Guid.NewGuid().ToString() + ".TapPlan";
                 {
                     var subPlan = new TestPlan();
 
-                    int count = 1000;
+                    
+                    int count = 10;
 
                     for (int i = 0; i < count; i++)
                     {
                         var logStep = new LogStep();
                         subPlan.Steps.Add(logStep);
                     }
-                        
-                    
+
                     for (int i = 0; i < count; i++)
                     {
-                        var logStep = subPlan.Steps[i];
-                        var messageMember = TypeData.GetTypeData(logStep).GetMember(nameof(LogStep.LogMessage));
-                        messageMember.Parameterize(subPlan, logStep, "message");
+                        var logStep = new DutStep2() {Dut = dut};
+                        subPlan.Steps.Add(logStep);
+                    }
+                        
+                    
+                    foreach(var step in subPlan.Steps)
+                    {
+                        if (step is LogStep logStep)
+                        {
+                            var messageMember = TypeData.GetTypeData(logStep).GetMember(nameof(LogStep.LogMessage));
+                            messageMember.Parameterize(subPlan, logStep, "message");
+                        }else if (step is DutStep2 dutStep)
+                        {
+                            var messageMember = TypeData.GetTypeData(dutStep).GetMember(nameof(dutStep.Dut));
+                            messageMember.Parameterize(subPlan, dutStep, "dut");
+                        }
                     }
 
                     subPlan.Save(tmpFile);
@@ -176,7 +191,7 @@ namespace OpenTap.Engine.UnitTests
                 {
                     
                     var testPlan = new TestPlan();
-                    for (int i = 0; i < 100; i++)
+                    for (int i = 0; i < 10000; i++)
                     {
                         var refPlan = new TestPlanReference();
                         refPlan.Filepath.Text = tmpFile;
@@ -184,7 +199,8 @@ namespace OpenTap.Engine.UnitTests
                         refPlan.Filepath= refPlan.Filepath;
                     }
 
-                    testPlan.Execute();
+                    var run = testPlan.Execute();
+                    Assert.IsTrue(run.Verdict <= Verdict.Pass);
                 }
                 finally
                 {
@@ -219,4 +235,15 @@ namespace OpenTap.Engine.UnitTests
             return 0;
         }
     }
+
+    public class DutStep2 : TestStep
+    {
+        public Dut Dut { get; set; }
+        public override void Run()
+        {
+            
+        }
+    }
+    
+    
 }
