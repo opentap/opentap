@@ -52,21 +52,18 @@ namespace OpenTap.Plugins.PluginDevelopment.InstrumentsAndDuts
                 {
                     foreach (var connection in connections)
                     {
-                        string connectionName = String.Empty;
+                        string nameOfConnection = String.Empty;
 
-                        if(String.IsNullOrEmpty(connection.Name))
-                        {
-                            connectionName = "Not Specified";
-                        }
+                        nameOfConnection = String.IsNullOrEmpty(connection.Name) ? "Not Specified" : connection.Name;
                         
                         if (connection.Via.Count > 0) // Indirect connection
                         {
                             Log.Info("Name: {0}, Connection: {1} <-> {2} <-> {3}, IsActive: {4}",
-                                connectionName, connection.Port1, FlattenViaPoints(connection.Via), connection.Port2, connection.IsActive);
+                                nameOfConnection, connection.Port1, FlattenViaPoints(connection.Via), connection.Port2, connection.IsActive);
                         }
                         else // Direct connection
                         {
-                            Log.Info("Name: {0}, Connection: {1} <-> {2}", connectionName, connection.Port1, connection.Port2);
+                            Log.Info("Name: {0}, Connection: {1} <-> {2}", nameOfConnection, connection.Port1, connection.Port2);
                         }
                     }
                 }
