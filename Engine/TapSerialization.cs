@@ -70,15 +70,14 @@ namespace OpenTap
         /// <param name="message"></param>
         public void PushError(XElement element, string message)
         {
-            if (element is IXmlLineInfo lineInfo && lineInfo.HasLineInfo())
-            {
-                errors.Add($"XML Line {lineInfo.LineNumber}: {message}");
-            }
-            else
-            {
-                errors.Add(message);
-            }
+            errors.Add(new Error {Element = element, Message = message});
             
+        }
+        
+        /// <summary>  Pushes a message to the list of errors for things that happened during load. Includes optional Exception value. </summary>
+        public void PushError(XElement element, string message, Exception e)
+        {
+            errors.Add(new Error {Element = element, Message = message, Exception = e});
         }
 
         /// <summary>
@@ -274,10 +273,25 @@ namespace OpenTap
             deferredLoads.Enqueue(deferred);
         }
 
-        readonly List<string> errors = new List<string>();
+        struct Error
+        {
+            public XElement Element;
+            public Exception Exception;
+            public string Message;
+
+            public override string ToString()
+            {
+                string message = Message ?? Exception.Message;
+                if (Element is IXmlLineInfo lineInfo && lineInfo.HasLineInfo())
+                    return $"XML Line {lineInfo.LineNumber}: {message}";
+                return message;
+            }
+        }
+        
+        readonly List<Error> errors = new List<Error>();
 
         /// <summary> Get the errors associated with deserialization. </summary>
-        public IEnumerable<string> Errors => errors.Select(x => x);
+        public IEnumerable<string> Errors => errors.Select(x => x.ToString());
 
         static TraceSource log = Log.CreateSource("Serializer");
 
@@ -343,8 +357,6 @@ namespace OpenTap
                     activeSerializers.Pop();
                 }
             }
-
-
             return false;
         }
 

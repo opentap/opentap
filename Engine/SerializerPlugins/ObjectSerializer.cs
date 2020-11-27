@@ -775,8 +775,7 @@ namespace OpenTap.Plugins
                             }
                             catch (Exception e)
                             {
-                                Log.Warning("Unable to serialize property '{0}'.", subProp.Name);
-                                Log.Debug(e);
+                                Serializer.PushError(null, $"Unable to serialize property '{subProp.Name}'.", e);
                             }
                             finally
                             {
