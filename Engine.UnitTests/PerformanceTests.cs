@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -93,6 +94,15 @@ namespace OpenTap.Engine.UnitTests
         [CommandLineArgument("search")]
         public bool ProfileSearch { get; set; }
 
+        [CommandLineArgument("run-long-plan")]
+        public bool LongPlan { get; set; }
+        
+        [CommandLineArgument("run-long-plan-with-references")]
+        public bool LongPlanWithReferences { get; set; }
+        
+        [CommandLineArgument("parameterize")]
+        public bool Parameterize { get; set; }
+
         [CommandLineArgument("iterations")]
         public int Iterations { get; set; } = 10;
         
@@ -127,7 +137,113 @@ namespace OpenTap.Engine.UnitTests
                 Console.WriteLine("Search Took {0}ms in total.", sw.ElapsedMilliseconds);
             }
 
+            if (LongPlan)
+            {
+                var testplan = new TestPlan();
+                for(int i = 0 ; i < 1000000; i++)
+                    testplan.Steps.Add(new LogStep());
+                var sw = Stopwatch.StartNew();
+                testplan.Execute();
+                Console.WriteLine("Run long plan took {0}ms in total.", sw.ElapsedMilliseconds);
+            }
+
+            if (LongPlanWithReferences)
+            {
+                DummyDut dut = new DummyDut();
+                DutSettings.Current.Add(dut);
+                var tmpFile = Guid.NewGuid().ToString() + ".TapPlan";
+                {
+                    var subPlan = new TestPlan();
+
+                    
+                    int count = 10;
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        var logStep = new LogStep();
+                        subPlan.Steps.Add(logStep);
+                    }
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        var logStep = new DutStep2() {Dut = dut};
+                        subPlan.Steps.Add(logStep);
+                    }
+                        
+                    
+                    foreach(var step in subPlan.Steps)
+                    {
+                        if (step is LogStep logStep)
+                        {
+                            var messageMember = TypeData.GetTypeData(logStep).GetMember(nameof(LogStep.LogMessage));
+                            messageMember.Parameterize(subPlan, logStep, "message");
+                        }else if (step is DutStep2 dutStep)
+                        {
+                            var messageMember = TypeData.GetTypeData(dutStep).GetMember(nameof(dutStep.Dut));
+                            messageMember.Parameterize(subPlan, dutStep, "dut");
+                        }
+                    }
+
+                    subPlan.Save(tmpFile);
+                }
+
+                try
+                {
+                    
+                    var testPlan = new TestPlan();
+                    for (int i = 0; i < 10000; i++)
+                    {
+                        var refPlan = new TestPlanReference();
+                        refPlan.Filepath.Text = tmpFile;
+                        testPlan.Steps.Add(refPlan);
+                        refPlan.Filepath= refPlan.Filepath;
+                    }
+
+                    var run = testPlan.Execute();
+                    Assert.IsTrue(run.Verdict <= Verdict.Pass);
+                }
+                finally
+                {
+                    File.Delete(tmpFile);
+                }
+
+
+            }
+            
+            if (Parameterize)
+            {
+                
+                var subPlan = new TestPlan();
+
+                int count = 100000;
+
+                for (int i = 0; i < count; i++)
+                {
+                    var logStep = new LogStep();
+                    subPlan.Steps.Add(logStep);
+                }
+
+                for (int i = 0; i < count; i++)
+                {
+                    var logStep = subPlan.Steps[i];
+                    var messageMember = TypeData.GetTypeData(logStep).GetMember(nameof(LogStep.LogMessage));
+                    messageMember.Parameterize(subPlan, logStep, "message");
+                }
+                
+            }
+
             return 0;
         }
     }
+
+    public class DutStep2 : TestStep
+    {
+        public Dut Dut { get; set; }
+        public override void Run()
+        {
+            
+        }
+    }
+    
+    
 }

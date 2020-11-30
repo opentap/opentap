@@ -93,7 +93,7 @@ namespace OpenTap.UnitTests
             };
             seq.ChildTestSteps.Add(delay);
 
-            var member = TypeData.GetTypeData(delay).GetMember("Time Delay");
+            var member = TypeData.GetTypeData(delay).GetMember("DelaySecs");
 
              member.Parameterize(seq, delay, "something");
             

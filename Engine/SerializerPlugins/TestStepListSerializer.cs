@@ -46,6 +46,7 @@ namespace OpenTap.Plugins
             return true;
         }
 
+        static XName testStepName = "TestStep";
         /// <summary> Serialization implementation. </summary>
         public override bool Serialize( XElement elem, object target, ITypeData expectedType)
         {
@@ -55,7 +56,7 @@ namespace OpenTap.Plugins
                 for(int i = 0; i < list.Count; i++)
                 {
                     var item = list[i];
-                    XElement newelem = new XElement("TestStep");
+                    var newelem = new XElement(testStepName);
                     Serializer.Serialize(newelem, item);
                     elem.Add(newelem);
                 }

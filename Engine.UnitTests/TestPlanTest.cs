@@ -2050,8 +2050,10 @@ namespace OpenTap.Engine.UnitTests
             Thread.Sleep(300);
             Assert.IsFalse(t.IsCompleted);
             defer.CompleteDefer.Set();
-            Thread.Sleep(100);
-            Assert.IsTrue(t.IsCompleted);
+            // this should eventually complete.
+            // previously the wait was 100ms, 
+            // but in some restricted systems this can take longer than that.
+            Assert.IsTrue(t.Wait(1000));
         }
     }
 

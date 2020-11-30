@@ -58,6 +58,18 @@ namespace OpenTap
 
         private struct ResourceDep
         {
+            public override bool Equals(object obj)
+            {
+                if (obj is ResourceDep other)
+                    return other.Behavior == Behavior && other.Resource == Resource &&
+                           other.Depender == Depender;
+                return false;
+            }
+
+            public override int GetHashCode() => Behavior.GetHashCode() * 3120732 + 
+                                                 (Resource?.GetHashCode() ?? 73289132) * 134017414 +
+                                                 (Depender?.GetHashCode() ?? 321312) * 730921632;
+
             public readonly ResourceOpenBehavior Behavior;
             public readonly IResource Resource;
             public readonly IMemberData Depender; // this is important in case the resource is null

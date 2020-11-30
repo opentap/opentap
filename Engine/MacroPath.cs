@@ -200,7 +200,8 @@ namespace OpenTap
                 userString = userString.Insert(mloc.MacroTagBegin - removed, inserted);
                 removed += taglen - inserted.Length;
             }
-            userString = Environment.ExpandEnvironmentVariables(userString);
+            if(userString.Contains('%'))
+                userString = Environment.ExpandEnvironmentVariables(userString);
 
             return userString;
         }

@@ -1564,6 +1564,13 @@ namespace OpenTap
             return new ActionDisposable(action);
         }
 
+        /// <summary> Gets or creates a value based on the key. This is useful for caches. </summary>
+        public static V GetOrCreateValue<K, V>(this Dictionary<K, V> dictionary, K key, Func<K, V> createValue)
+        {
+            if (dictionary.TryGetValue(key, out V value))
+                return value;
+            return dictionary[key] = createValue(key);
+        }
     }
 
     static internal class Sequence

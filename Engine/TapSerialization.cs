@@ -552,6 +552,10 @@ namespace OpenTap
         {
             activeSerializers.Pop();
         }
+
+        readonly Dictionary<string, XName> xmlPropertyNames = new Dictionary<string, XName>();
+        internal XName PropertyXmlName(string subPropName) => xmlPropertyNames.GetOrCreateValue(subPropName, name => XmlConvert.EncodeLocalName(name));
+        
     }
 }
 

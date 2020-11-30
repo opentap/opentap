@@ -21,6 +21,8 @@ namespace OpenTap.Plugins
         /// <summary> The order of this serializer. </summary>
         public override double Order { get { return 1; } }
 
+        static XName sourceName = "Source"; 
+        
         /// <summary> Deserialization implementation. </summary>
         public override bool Deserialize( XElement elem, ITypeData _t, Action<object> setter)
         {
@@ -31,7 +33,7 @@ namespace OpenTap.Plugins
             
             string src = null;
             {
-                var srcAttribute = elem.Attribute("Source"); 
+                var srcAttribute = elem.Attribute(sourceName); 
                 if (srcAttribute != null)
                     src = srcAttribute.Value;
             }
@@ -144,7 +146,7 @@ namespace OpenTap.Plugins
                     {
                         var result = Serializer.Serialize(elem, obj, expectedType);
                         if (result)
-                            elem.SetAttributeValue("Source", ""); // set src to "" to show that it should not be deserialized by reference.
+                            elem.SetAttributeValue(sourceName, ""); // set src to "" to show that it should not be deserialized by reference.
                         return result;
                     }
                     finally
@@ -162,7 +164,7 @@ namespace OpenTap.Plugins
                     else if (obj is IResource res)
                         elem.Value = res.Name ?? index.ToString();
                     
-                    elem.SetAttributeValue("Source", container.GetType().FullName);
+                    elem.SetAttributeValue(sourceName, container.GetType().FullName);
                 }
                 // important to return true, otherwise it will serialize as a new value.
                 return true; 
