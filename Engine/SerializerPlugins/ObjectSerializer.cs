@@ -628,12 +628,11 @@ namespace OpenTap.Plugins
             object prevObj = Object;
             // If cycleDetectorLut already contains an element, we've been here before.
             // Note the cycleDetectorLut adds and removes the obj later if it is not already in it.
-            if (cycleDetetionSet.Contains(obj))
+            if (!cycleDetetionSet.Add(obj))
                 throw new Exception("Cycle detected");
-            object theobj = obj;
+            object obj2 = obj;
             try
             {
-                cycleDetetionSet.Add(obj);
                 Object = obj;
                 switch (obj)
                 {
@@ -641,7 +640,7 @@ namespace OpenTap.Plugins
                         if (AlwaysG17DoubleFormat)
                         {
                             // the fastest and most accurate string representation of a double.
-                            elem.Value = ((double)obj).ToString("G17", CultureInfo.InvariantCulture);
+                            elem.Value = d.ToString("G17", CultureInfo.InvariantCulture);
                             return true;
                         }
                         else
@@ -652,10 +651,11 @@ namespace OpenTap.Plugins
                             // See section "Note to Callers:" at https://msdn.microsoft.com/en-us/library/kfsatb94(v=vs.110).aspx
                             // so here we format and then parse back to see if it can actually roundtrip.
                             // if not, we format with G17.
-                            var d_str = ((double)obj).ToString("R", CultureInfo.InvariantCulture);
+                            var d_str = d.ToString("R", CultureInfo.InvariantCulture);
                             var d_re = double.Parse(d_str, CultureInfo.InvariantCulture);
-                            if (d_re != d)
-                                d_str = ((double)obj).ToString("G17", CultureInfo.InvariantCulture);
+                            if (d_re != d) 
+                                // round trip not possible with R, use G17 instead.
+                                d_str = d.ToString("G17", CultureInfo.InvariantCulture);
                             elem.Value = d_str;
 
                             return true;
@@ -669,8 +669,6 @@ namespace OpenTap.Plugins
                     case char c:
                         // Convert to a string and then handle it later.
                         obj = Convert.ToString(c, CultureInfo.InvariantCulture);
-                        break;
-                    default:
                         break;
                 }
 
@@ -725,9 +723,9 @@ namespace OpenTap.Plugins
 
                 if (xmlTextProp != null)
                 { // XmlTextAttribute support
-                    var textvalue = xmlTextProp.GetValue(obj);
-                    if (textvalue != null)
-                        Serializer.Serialize(elem, textvalue, xmlTextProp.TypeDescriptor);
+                    var text = xmlTextProp.GetValue(obj);
+                    if (text != null)
+                        Serializer.Serialize(elem, text, xmlTextProp.TypeDescriptor);
                 }
                 else
                 {
@@ -792,7 +790,7 @@ namespace OpenTap.Plugins
             finally
             {
                 Object = prevObj;
-                if (!cycleDetetionSet.Remove(theobj))
+                if (!cycleDetetionSet.Remove(obj2))
                     throw new InvalidOperationException("obj was modified.");
             }
         }

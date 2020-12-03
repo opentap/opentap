@@ -80,6 +80,16 @@ namespace OpenTap
             errors.Add(new Error {Element = element, Message = message, Exception = e});
         }
 
+        void logErrors()
+        {
+            foreach (var error in errors)
+            {
+                log.Error("{0}", error);
+                if(error.Exception != null)
+                    log.Debug(error.Exception);
+            }
+        }
+
         /// <summary>
         /// Deserializes an object from a XDocument.
         /// </summary>
@@ -118,8 +128,7 @@ namespace OpenTap
                 {
                     if (IgnoreErrors == false)
                     {
-                        foreach (var error in Errors)
-                            log.Error("{0}", error);
+                        logErrors();
 
                         var rs = GetSerializer<ResourceSerializer>();
                         if (rs.TestPlanChanged)
@@ -392,6 +401,8 @@ namespace OpenTap
                 Serialize(elem, obj);
             doc.Add(elem);
             doc.WriteTo(writer);
+            if (IgnoreErrors == false)
+                logErrors();
         }
 
         /// <summary>
