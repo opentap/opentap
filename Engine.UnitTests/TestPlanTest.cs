@@ -771,6 +771,23 @@ namespace OpenTap.Engine.UnitTests
 
 
         [Test]
+        public void ChildITestStepLazy()
+        {
+            var prevResourceManager = EngineSettings.Current.ResourceManagerType;
+            try
+            {
+                 
+                EngineSettings.Current.ResourceManagerType = new LazyResourceManager();
+                ChildITestStep();
+
+            }
+            finally
+            {
+                EngineSettings.Current.ResourceManagerType = prevResourceManager;
+            }
+        }
+        
+        [Test]
         public void ChildITestStep()
         {
             // Trigger issue when running child steps that is an ITestStep.
@@ -781,12 +798,10 @@ namespace OpenTap.Engine.UnitTests
             
             Verdict checkInstr()
             {
-#if ARBITER_FEATURES
                 if (EngineSettings.Current.ResourceManagerType is LazyResourceManager)
                 {
                     return instr.IsConnected ? Verdict.Fail : Verdict.Pass;
                 }
-#endif
                 return instr.IsConnected ? Verdict.Pass : Verdict.Fail;
             }
 
@@ -796,17 +811,7 @@ namespace OpenTap.Engine.UnitTests
             plan.Steps.Add(seq);
             plan.Steps.Add(new DelegateStep { Action = checkInstr });
             seq.ChildTestSteps.Add(step);
-
-#if ARBITER_FEATURES
-            var oldResourceManager = EngineSettings.Current.ResourceManagerType;
-            EngineSettings.Current.ResourceManagerType = new LazyResourceManager();
-            var runLazy = plan.Execute();
-            Assert.IsTrue(runLazy.Verdict == Verdict.Pass);
-            Assert.IsTrue(step.WasRun);
-            step.WasRun = false;
-#endif
-            EngineSettings.Current.ResourceManagerType = new ResourceTaskManager();
-
+            
             var run = plan.Execute();
             Assert.IsTrue(run.Verdict == Verdict.Pass);
             Assert.IsTrue(step.WasRun);
