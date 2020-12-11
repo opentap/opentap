@@ -184,7 +184,7 @@ namespace OpenTap
             get
             {
                 if (canCreateInstance.HasValue) return canCreateInstance.Value;
-                if (_FailedLoad) return false;
+                if (failedLoad) return false;
                 var type = Load();
                 canCreateInstance = type.IsAbstract == false && type.IsInterface == false && type.ContainsGenericParameters == false && type.GetConstructor(Array.Empty<Type>()) != null;
                 return canCreateInstance.Value;
@@ -196,7 +196,7 @@ namespace OpenTap
         {
             get
             {
-                if (_FailedLoad) return "";
+                if (failedLoad) return "";
                 return assemblyQualifiedName ?? (assemblyQualifiedName = Load().AssemblyQualifiedName);
             }
         }
