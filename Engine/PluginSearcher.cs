@@ -864,52 +864,53 @@ namespace OpenTap
         }
 
 
-        ICollection<TypeData> _BaseTypes;
+        ICollection<TypeData> baseTypes;
         
         /// <summary> Gets a list of base types (including interfaces) </summary>
-        internal ICollection<TypeData> BaseTypes => _BaseTypes;
+        internal ICollection<TypeData> BaseTypes => baseTypes;
 
         internal void FinalizeCreation()
         {
-            _BaseTypes = _BaseTypes?.ToArray();
-            _PluginTypes = _PluginTypes?.ToArray();
+            baseTypes = baseTypes?.ToArray();
+            pluginTypes = pluginTypes?.ToArray();
         }
         internal void AddBaseType(TypeData typename)
         {
-            if (_BaseTypes == null)
-                _BaseTypes = new HashSet<TypeData>();
-            _BaseTypes.Add(typename);
+            if (baseTypes == null)
+                baseTypes = new HashSet<TypeData>();
+            baseTypes.Add(typename);
         }
 
-        private ICollection<TypeData> _PluginTypes;
+        ICollection<TypeData> pluginTypes;
         /// <summary>
         /// Gets a list of plugin types (i.e. types that directly implement ITapPlugin) that this type inherits from/implements
         /// </summary>
-        public IEnumerable<TypeData> PluginTypes => _PluginTypes;
+        public IEnumerable<TypeData> PluginTypes => pluginTypes;
 
         internal void AddPluginType(TypeData typename)
         {
             if (typename == null)
                 return;
-            if (_PluginTypes == null)
-                _PluginTypes = new HashSet<TypeData>();
-            _PluginTypes.Add(typename);
+            if (pluginTypes == null)
+                pluginTypes = new HashSet<TypeData>();
+            pluginTypes.Add(typename);
         }
         internal void AddPluginTypes(IEnumerable<TypeData> types)
         {
             if (types == null)
                 return;
-            if (_PluginTypes == null)
-                _PluginTypes = new HashSet<TypeData>();
+            if (pluginTypes == null)
+                pluginTypes = new HashSet<TypeData>();
             foreach (var t in types)
-                _PluginTypes.Add(t);
+                pluginTypes.Add(t);
         }
 
-        private ICollection<TypeData> _DerivedTypes;
+        ICollection<TypeData> derivedTypes;
+        
         /// <summary>
         /// Gets a list of types that has this type as a base type (including interfaces)
         /// </summary>
-        public IEnumerable<TypeData> DerivedTypes => (IEnumerable<TypeData>) _DerivedTypes ?? Array.Empty<TypeData>();
+        public IEnumerable<TypeData> DerivedTypes => derivedTypes ?? Array.Empty<TypeData>();
 
         /// <summary>
         /// False if the type has a System.ComponentModel.BrowsableAttribute with Browsable = false.
@@ -918,11 +919,11 @@ namespace OpenTap
 
         internal void AddDerivedType(TypeData typename)
         {
-            if (_DerivedTypes == null)
-                _DerivedTypes = new HashSet<TypeData>();
-            else if (_DerivedTypes.Contains(typename))
+            if (derivedTypes == null)
+                derivedTypes = new HashSet<TypeData>();
+            else if (derivedTypes.Contains(typename))
                 return;
-            _DerivedTypes.Add(typename);
+            derivedTypes.Add(typename);
             if (BaseTypes != null)
             {
                 foreach (TypeData b in BaseTypes)
@@ -935,7 +936,7 @@ namespace OpenTap
             IsBrowsable = true;
         }
         
-        private bool _FailedLoad;
+        private bool failedLoad;
 
         /// <summary>
         /// Returns the System.Type corresponding to this. 
@@ -943,13 +944,13 @@ namespace OpenTap
         /// </summary>
         public Type Load()
         {
-            if (_FailedLoad) return null;
+            if (failedLoad) return null;
             if (type == null)
             {
                 var asm = Assembly.Load();
                 if(asm == null)
                 {
-                    _FailedLoad = true;
+                    failedLoad = true;
                     return null;
                 }
                 try
@@ -959,7 +960,7 @@ namespace OpenTap
                 }
                 catch (Exception ex)
                 {
-                    _FailedLoad = true;
+                    failedLoad = true;
                     log.Error("Unable to load type '{0}' from '{1}'. Reason: '{2}'.", Name, Assembly.Location, ex.Message);
                     log.Debug(ex);
                 }
@@ -968,7 +969,7 @@ namespace OpenTap
         }
 
         /// <summary> The loaded state of the type. </summary>
-        internal LoadStatus Status => type != null ? LoadStatus.Loaded : (_FailedLoad ? LoadStatus.FailedToLoad : LoadStatus.NotLoaded);
+        internal LoadStatus Status => type != null ? LoadStatus.Loaded : (failedLoad ? LoadStatus.FailedToLoad : LoadStatus.NotLoaded);
 
         static TraceSource log = Log.CreateSource("PluginManager");
 
@@ -1018,23 +1019,24 @@ namespace OpenTap
         /// </summary>
         public IEnumerable<AssemblyData> References { get; internal set; }
 
-        private List<TypeData> _PluginTypes;
+        List<TypeData> pluginTypes;
+        
         /// <summary>
         /// Gets a list of plugin types that this Assembly defines
         /// </summary>
-        public IEnumerable<TypeData> PluginTypes =>_PluginTypes;
+        public IEnumerable<TypeData> PluginTypes =>pluginTypes;
 
         internal void AddPluginType(TypeData typename)
         {
             if (typename == null)
                 return;
-            if (_PluginTypes == null)
-                _PluginTypes = new List<TypeData>();
-            _PluginTypes.Add(typename);
+            if (pluginTypes == null)
+                pluginTypes = new List<TypeData>();
+            pluginTypes.Add(typename);
         }
 
         /// <summary> The loaded state of the assembly. </summary>
-        internal LoadStatus Status => _Assembly != null ? LoadStatus.Loaded : (_FailedLoad ? LoadStatus.FailedToLoad : LoadStatus.NotLoaded);
+        internal LoadStatus Status => assembly != null ? LoadStatus.Loaded : (failedLoad ? LoadStatus.FailedToLoad : LoadStatus.NotLoaded);
 
         /// <summary>
         /// Gets the version of this Assembly
@@ -1054,9 +1056,9 @@ namespace OpenTap
 
         /// <summary>  Optionally set for preloaded assemblies.  </summary>
         readonly Assembly preloadedAssembly;
-        private Assembly _Assembly;
+        Assembly assembly;
 
-        private bool _FailedLoad;
+        bool failedLoad;
         internal bool IsSemanticVersionSet;
 
         /// <summary>
@@ -1065,30 +1067,30 @@ namespace OpenTap
         /// </summary>
         public Assembly Load()
         {
-            if (_FailedLoad) return null;
-            if (_Assembly == null)
+            if (failedLoad) return null;
+            if (assembly == null)
             {
                 try
                 {
                     var watch = Stopwatch.StartNew();
                     if (preloadedAssembly != null)
-                        _Assembly = preloadedAssembly;
+                        assembly = preloadedAssembly;
                     else
                     {
                         var _asm = AppDomain.CurrentDomain.GetAssemblies()
                             .FirstOrDefault(asm => !asm.IsDynamic && !string.IsNullOrWhiteSpace(asm.Location) && PathUtils.AreEqual(asm.Location, this.Location));
-                        _Assembly = _asm;
+                        assembly = _asm;
                     }
 
-                    if (_Assembly == null)
+                    if (assembly == null)
                     {
                         if (this.Name == "OpenTap")
                         {
-                            _Assembly = typeof(PluginSearcher).Assembly;
+                            assembly = typeof(PluginSearcher).Assembly;
                         }
                         else
                         {
-                            _Assembly = Assembly.LoadFrom(Path.GetFullPath(this.Location));
+                            assembly = Assembly.LoadFrom(Path.GetFullPath(this.Location));
                         }
                         
                     }
@@ -1100,7 +1102,7 @@ namespace OpenTap
                 }
                 catch (SystemException ex)
                 {
-                    _FailedLoad = true;
+                    failedLoad = true;
                     StringBuilder sb = new StringBuilder(String.Format("Failed to load plugins from {0}", this.Location));
                     bool addedZoneInfo = false;
                     try
@@ -1133,9 +1135,9 @@ namespace OpenTap
                     log.Debug(ex);
                 }
             }
-            if(_Assembly != null)
-                AssemblyExtensions.lookup[_Assembly] = this.SemanticVersion;
-            return _Assembly;
+            if(assembly != null)
+                AssemblyExtensions.lookup[assembly] = this.SemanticVersion;
+            return assembly;
         }
     }
 
