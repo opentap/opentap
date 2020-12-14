@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using OpenTap.Plugins.BasicSteps;
 using NUnit.Framework;
 using OpenTap;
@@ -80,6 +81,19 @@ namespace OpenTap.Engine.UnitTests
             b.Step = delay;
             b.Property = prop;
             Assert.IsTrue(a == b);
+        }
+
+        [Test]
+        public void TestSerializeInput()
+        {
+            var step = new HandleInputStep();
+            var plan = new TestPlan();
+            plan.Steps.Add(step);
+            var s = new TapSerializer();
+            var xml = s.SerializeToString(plan);
+            Assert.IsFalse(s.Errors.Any());
+            var deserialized = s.DeserializeFromString(xml);
+            Assert.IsFalse(s.Errors.Any());
         }
     }
 
