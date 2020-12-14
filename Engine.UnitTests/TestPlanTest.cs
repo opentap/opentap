@@ -1409,6 +1409,43 @@ namespace OpenTap.Engine.UnitTests
                 Assert.AreEqual(Verdict.Pass, result.Verdict);
             }
         }
+        
+        class DeferringStep : TestStep
+        {
+            static double result1 = 5;
+            static double result2 = 5;
+            public override void Run()
+            {
+                Results.Defer(() => { });
+            }
+        }
+        
+        [Test]
+        public void RepeatRunDeferPlan()
+        {
+            var seq = new ParallelStep();
+            for (int i = 0; i < 4; i++)
+            {
+                var def = new DeferringStep();
+                seq.ChildTestSteps.Add(def);
+            }
+
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(seq);
+            for (int i = 0; i < 100; i++)
+            {
+                var sem = new Semaphore(0, 1);
+                var trd = TapThread.Start(() => { plan.Execute();
+                    sem.Release();
+                });
+
+                if (!sem.WaitOne(10000))
+                {
+                    trd.Abort();
+                    Assert.Fail("Deadlock occured in test plan");
+                }
+            }
+        }
 
         class PlatformCheckResultListener : ResultListener
         {
