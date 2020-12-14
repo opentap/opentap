@@ -280,6 +280,16 @@ namespace OpenTap.UnitTests
 
             var name = sweep.GetFormattedName();
             Assert.AreEqual("Sweep A, EnabledTest", name);
+
+            { // Testing that sweep parameters are automatically removed after unparameterization.
+                var p = (ParameterMemberData) TypeData.GetTypeData(sweep2).GetMember("Parameters \\ A");
+                p.ParameterizedMembers.First().Member.Unparameterize(p, p.ParameterizedMembers.First().Source);
+                Assert.AreEqual(2, sweep2.SweepValues[0].Values.Count);
+                sweep2.Error.ToString(); // getting the error causes validation to be done.
+                Assert.AreEqual(1, sweep2.SweepValues[0].Values.Count);
+            }
+
+
         }
 
         [Test]
