@@ -8,8 +8,6 @@ using System.ComponentModel;
 using System.Linq;
 using System.IO;
 using System.Xml.Serialization;
-using System.Text.RegularExpressions;
-using System.Runtime.CompilerServices;
 using System.Xml.Linq;
 
 namespace OpenTap.Plugins.BasicSteps
@@ -28,9 +26,10 @@ namespace OpenTap.Plugins.BasicSteps
         }
 
         /// <summary>
-        /// This counter is used to prevent recursive TestPlan references.
+        /// This is the list of path of test plan loaded and used to prevent recursive TestPlan references.
         /// </summary>
-        private static int LevelCounter = 0;
+        [ThreadStatic]
+        static HashSet<string> referencedPlanPaths;
 
         ITestStepParent parent;
         // The PlanDir of 'this' should be ignored when calculating Filepath, so the MacroString context is set to the parent.
@@ -38,7 +37,8 @@ namespace OpenTap.Plugins.BasicSteps
         public override ITestStepParent Parent { get => parent; set { Filepath.Context = value; parent = value; } }
 
         MacroString filepath = new MacroString();
-        string currentlyLoaded = null;
+        string currentlyLoaded;
+        
         [Display("Referenced Plan", Order: 0, Description: "A file path pointing to a test plan which will be loaded as read-only test steps.")]
         [Browsable(true)]
         [FilePath(FilePathAttribute.BehaviorChoice.Open, "TapPlan")]
@@ -111,7 +111,7 @@ namespace OpenTap.Plugins.BasicSteps
         {
             ChildTestSteps.IsReadOnly = true;
             Filepath = new MacroString(this);
-            Rules.Add(() => (string.IsNullOrWhiteSpace(Filepath) || File.Exists(Filepath)), "File does not exist.", "Filepath");
+            Rules.Add(() => (string.IsNullOrWhiteSpace(Filepath) || File.Exists(Filepath)), "File does not exist.", nameof(Filepath));
             StepMapping = new List<GuidMapping>();
         }
 
@@ -138,11 +138,10 @@ namespace OpenTap.Plugins.BasicSteps
         [ThreadStatic]
         static List<GuidMapping> CurrentMappings;
 
-        static Memorizer<string, XDocument> dict = new Memorizer<string, XDocument>(p =>
+        static readonly Memorizer<string, XDocument> dict = new Memorizer<string, XDocument>(p =>
         {
-            using (var fstr = File.OpenRead(p))
-                return XDocument.Load(fstr, LoadOptions.SetLineInfo);
-        }) 
+            return XDocument.Load(p, LoadOptions.SetLineInfo);
+            }) 
             {
                 // Validator is to reload the file if it has been changed.
                 // Assuming it is much faster to check file write time than to read and parse it. Testing has verified this.
@@ -161,7 +160,7 @@ namespace OpenTap.Plugins.BasicSteps
         
         void UpdateStep()
         {
-            if(CurrentMappings == null)
+            if (CurrentMappings == null)
                 CurrentMappings = new List<GuidMapping>();
             // Load GUID mappings which is every two GUIDS between <Guids/> and <Guids/>
             var mapping = new Dictionary<Guid, Guid>();
@@ -188,22 +187,23 @@ namespace OpenTap.Plugins.BasicSteps
             if (currentSerializer != null && currentSerializer.ReadPath != null)
                 testplandir = System.IO.Path.GetDirectoryName(currentSerializer.ReadPath);
             
-            var Data = Filepath.Expand(testPlanDir: testplandir as string);
-            Data = Data.Replace('\\', '/');
-            if (!File.Exists(Data))
+            var refPlanPath = Filepath.Expand(testPlanDir: testplandir as string);
+            refPlanPath = refPlanPath.Replace('\\', '/');
+            if (!File.Exists(refPlanPath))
             {
-                Log.Warning("File does not exist: \"{0}\"", Data);
+                Log.Warning("File does not exist: \"{0}\"", refPlanPath);
                 return;
             }
             ChildTestSteps.Clear();
             var prevc = CurrentMappings;
             try
             {
-                LevelCounter++;
                 try
                 {
-                    if (LevelCounter > 16)
-                        throw new Exception("Test plan reference level is too high. You might be trying to load a recursive test plan.");
+                    if (referencedPlanPaths == null)
+                        referencedPlanPaths = new HashSet<string>();
+                    if (currentSerializer?.ReadPath == refPlanPath || referencedPlanPaths.Add(refPlanPath) == false)
+                        throw new Exception("Test plan reference is trying to load itself leading to recursive loop.");
 
                     var newSerializer = new TapSerializer();
                     if (currentSerializer != null)
@@ -218,7 +218,7 @@ namespace OpenTap.Plugins.BasicSteps
 
                     loadedPlanPath = filepath.Text;
 
-                    TestPlan tp = (TestPlan)newSerializer.Deserialize(readXmlFile(Data), TypeData.FromType(typeof(TestPlan)), true, Data) ;
+                    TestPlan tp = (TestPlan)newSerializer.Deserialize(readXmlFile(refPlanPath), TypeData.FromType(typeof(TestPlan)), true, refPlanPath) ;
                     plan = tp;
 
                     ExternalParameters = TypeData.GetTypeData(tp).GetMembers().OfType<ParameterMemberData>().ToArray();
@@ -244,7 +244,8 @@ namespace OpenTap.Plugins.BasicSteps
                 }
                 finally
                 {
-                    LevelCounter--;
+                    referencedPlanPaths.Remove(refPlanPath);
+                    if (referencedPlanPaths.Count == 0) referencedPlanPaths = null;
                     CurrentMappings = prevc;
                 }
             }

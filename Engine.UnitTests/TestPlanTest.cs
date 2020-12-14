@@ -611,7 +611,23 @@ namespace OpenTap.Engine.UnitTests
                 Assert.Fail("Test plan timed out");
             Assert.IsTrue(isDone);
         }
+        [Test]
+        public void RecursiveTestPlanReferenceTest()
+        {
+            TestPlan plan = new TestPlan();
+            var step = new TestPlanReference();
+            string filePath = "plan.TestPlan";
+            step.Filepath.Text = filePath;
+            plan.Steps.Add(step);
+            plan.Save(filePath);
 
+            TestTraceListener trace = new TestTraceListener();
+            Log.AddListener(trace);
+            var plan2 = TestPlan.Load(filePath);
+            Log.RemoveListener(trace);
+            StringAssert.Contains("Test plan reference is trying to load itself leading to recursive loop.", trace.GetLog());
+            File.Delete(filePath);
+        }
         [Test]
         public void RelativeTestPlanTest()
         {
