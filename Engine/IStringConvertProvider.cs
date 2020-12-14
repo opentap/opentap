@@ -420,12 +420,11 @@ namespace OpenTap
                 if (str.Contains('|'))
                 {
                     var flagStrings = str.Split('|');
-                    int flags = 0;
+                    long flags = 0;
                     foreach (var flagString in flagStrings)
                     {
-                        Enum result2;
-                        if (tryParseEnumString(flagString, type, out result2))
-                            flags |= (int)Convert.ChangeType(result2, typeof(int));
+                        if (tryParseEnumString(flagString, type, out var result2))
+                            flags |= (long)Convert.ChangeType(result2, TypeCode.Int64);
                     }
                     result = (Enum)Enum.ToObject(type, flags);
                     return true;
@@ -466,6 +465,18 @@ namespace OpenTap
                         if (fixedNames[i] == str || fixedNames[i].Replace('_', ' ') == str)
                         {
                             result = (Enum)Enum.GetValues(type).GetValue(i);
+                            return true;
+                        }
+                    }
+                    // Repeat the robust parse for display names
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        var display = type.GetMember(names[i]).Select(x => x.GetDisplayAttribute()).FirstOrDefault();
+                        var name = display.Name.ToLower().Trim();
+                        if (StringComparer.InvariantCultureIgnoreCase.Equals(name, str) || 
+                            StringComparer.InvariantCultureIgnoreCase.Equals(name.Replace('_', ' '), str))
+                        {
+                            result = (Enum) Enum.GetValues(type).GetValue(i);
                             return true;
                         }
                     }

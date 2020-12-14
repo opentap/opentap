@@ -1453,23 +1453,33 @@ namespace OpenTap
                     List<Enum> items = new List<Enum>();
                     if (this.val.Value is Enum value)
                     {
+                        var zeroVal = Enum.ToObject(enumType, 0);
                         foreach (Enum enumValue in Enum.GetValues(enumType))
                         {
                             if (value.HasFlag(enumValue))
-                                items.Add(enumValue);
+                            {
+                                // To remove default value 0 for any value > 0 selected, else just select 0
+                                if (value.Equals(zeroVal) || !enumValue.Equals(zeroVal))
+                                    items.Add(enumValue);
+                            }
                         }
                     }
+                    prevSelected = items;
                     return items;
                 }
                 set
                 {
-                    long bits = 0; 
-                    foreach (Enum item in value)
-                        bits |= Convert.ToInt64(item);
+                    var currSelected = value.Cast<Enum>();
+
+                    // Get prev state
+                    long prevBits = GetBitState(prevSelected);
+
+                    long bits = SetBitState(prevBits, currSelected);
                     val.Value = Enum.ToObject(enumType, bits);
                 }
             }
 
+            IEnumerable<Enum> prevSelected = Enumerable.Empty<Enum>();
             IObjectValueAnnotation val => annotation.Get<IObjectValueAnnotation>();
             Type enumType;
             AnnotationCollection annotation;
@@ -1478,6 +1488,36 @@ namespace OpenTap
             {
                 this.annotation = annotation;
                 this.enumType = enumType;
+            }
+
+            private long GetBitState(IEnumerable state)
+            {
+                long bitValue = 0;
+                foreach (Enum item in state)
+                    bitValue |= Convert.ToInt64(item);
+
+                return bitValue;
+            }
+
+            private long SetBitState(long bits, IEnumerable<Enum> currSelected)
+            {
+                // Get the diff (ie selection or unselection value)
+                IEnumerable<Enum> diff = prevSelected.Except(currSelected);
+                long removedBits = GetBitState(diff);
+                if (diff.Any())
+                    bits ^= removedBits;
+
+                diff = currSelected.Except(prevSelected);
+                long addedBits = GetBitState(diff);
+                if (diff.Count() > 0)
+                {
+                    if (addedBits == 0)
+                        bits = 0;   // Special handling for zero value to unselect all values
+                    else
+                        bits |= addedBits;
+                }
+
+                return bits;
             }
         }
 
