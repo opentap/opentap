@@ -1412,8 +1412,6 @@ namespace OpenTap.Engine.UnitTests
         
         class DeferringStep : TestStep
         {
-            static double result1 = 5;
-            static double result2 = 5;
             public override void Run()
             {
                 Results.Defer(() => { });

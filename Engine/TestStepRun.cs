@@ -169,8 +169,8 @@ namespace OpenTap
         /// </summary>
         internal string TestStepPath;
 
-        ManualResetEventSlim completedEvent = null;//new ManualResetEventSlim(false);
-        readonly object completedEventLock = new object();
+        readonly ManualResetEventSlim completedEvent = new ManualResetEventSlim(false);
+        
         bool completed = false;
         /// <summary>  Waits for the test step run to be entirely done. This includes any deferred processing.</summary>
         public void WaitForCompletion()
@@ -182,12 +182,6 @@ namespace OpenTap
         public void WaitForCompletion(CancellationToken cancellationToken)
         {
             if (completed) return;
-            lock (completedEventLock)
-            {
-                if(completedEvent == null)
-                    completedEvent = new ManualResetEventSlim(false);
-            }
-
             if (completedEvent.IsSet) return;
 
             var currentThread = TapThread.Current;
@@ -233,7 +227,7 @@ namespace OpenTap
             Duration = runDuration; // Requires update after TestStepRunStart and before TestStepRunCompleted
             UpgradeVerdict(step.Verdict);
             completed = true;
-            completedEvent?.Set();
+            completedEvent.Set();
         }
 
         /// <summary>
