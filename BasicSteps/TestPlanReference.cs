@@ -9,6 +9,7 @@ using System.Linq;
 using System.IO;
 using System.Xml.Serialization;
 using System.Xml.Linq;
+using OpenTap.Diagnostic;
 
 namespace OpenTap.Plugins.BasicSteps
 {
@@ -30,6 +31,10 @@ namespace OpenTap.Plugins.BasicSteps
         /// </summary>
         [ThreadStatic]
         static HashSet<string> referencedPlanPaths;
+        
+        /// <summary>  Gets or sets if the loaded test steps should be hidden from the user. </summary>
+        [Display("Hide Steps", Order: 0, Description: "Set if the steps should run hidden (isolated) or if they should be loaded into the test plan.")]
+        public bool HideSteps { get; set; }
 
         ITestStepParent parent;
         // The PlanDir of 'this' should be ignored when calculating Filepath, so the MacroString context is set to the parent.
@@ -125,18 +130,71 @@ namespace OpenTap.Plugins.BasicSteps
             // Detect if the plan was not loaded or if the path has been changed since loading it.
             // Note, there is some funky things related to TestPlanDir that are not checked but 99% of use-cases are.
             var expandedPath = filepath.Text;
+            if (loadedPlanPath != expandedPath && File.Exists(expandedPath) && HideSteps)
+            {
+                LoadTestPlan();
+            }
             if (loadedPlanPath != expandedPath)
                 throw new OperationCanceledException(string.Format("Execution aborted by {0}. Test plan not loaded.", Name));
         }
 
-        public override void Run()
+        class SubPlanResultListener : ResultListener
         {
-            foreach (var run in RunChildSteps())
-                UpgradeVerdict(run.Verdict);
+            readonly ResultSource proxy;
+            public SubPlanResultListener(ResultSource proxy) => this.proxy = proxy;
+
+            public override void OnResultPublished(Guid stepRunId, ResultTable result)
+            {
+                base.OnResultPublished(stepRunId, result);
+                proxy.PublishTable(result);
+            }
         }
 
-        [ThreadStatic]
-        static List<GuidMapping> CurrentMappings;
+        class LogForwardingTraceListener : ILogListener
+        {
+            readonly ILogContext2 forwardTo;
+            public LogForwardingTraceListener(ILogContext2 forwardTo) => this.forwardTo = forwardTo;
+            public void EventsLogged(IEnumerable<Event> Events)
+            {
+                foreach (var evt in Events)
+                {
+                    if (evt.Source == "TestPlan" || evt.Source == "N/A")
+                        if(evt.EventType != (int)LogEventType.Error)
+                        continue;
+                    forwardTo.AddEvent(evt);
+                }
+            }
+
+            public void Flush() { }
+        }
+        public override void Run()
+        {
+            if (HideSteps)
+            {
+                LogForwardingTraceListener forwarder = null;
+                var xml = plan.SerializeToString();
+                if(OpenTap.Log.Context is ILogContext2 ctx2)
+                    forwarder = new LogForwardingTraceListener(ctx2);
+                using (Session.WithSession(SessionFlag.RedirectLogging,
+                    // Component settings flag added.
+                    SessionFlag.OverlayComponentSettings))
+                {   
+                    var plan2 = Utils.DeserializeFromString<TestPlan>(xml);
+                    plan2.PrintTestPlanRunSummary = false;
+                    if(forwarder != null)
+                        OpenTap.Log.AddListener(forwarder);
+                    var subRun = plan2.Execute(new IResultListener[] {new SubPlanResultListener(Results)});
+                    UpgradeVerdict(subRun.Verdict);
+                }
+            }
+            else
+            {
+                foreach (var run in RunChildSteps())
+                    UpgradeVerdict(run.Verdict);
+            }
+        }
+
+        [ThreadStatic] static List<GuidMapping> CurrentMappings;
 
         static readonly Memorizer<string, XDocument> dict = new Memorizer<string, XDocument>(p =>
         {
@@ -165,9 +223,9 @@ namespace OpenTap.Plugins.BasicSteps
             // Load GUID mappings which is every two GUIDS between <Guids/> and <Guids/>
             var mapping = new Dictionary<Guid, Guid>();
             var allMapping = this.mapping.Concat(CurrentMappings).ToList();
-            foreach (var mapitem in allMapping)
+            foreach (var mapItem in allMapping)
             {
-                mapping[mapitem.Guid1] = mapitem.Guid2;
+                mapping[mapItem.Guid1] = mapItem.Guid2;
             }
             ITestStep parent = this;
             while(parent != null)
@@ -233,13 +291,17 @@ namespace OpenTap.Plugins.BasicSteps
                         if (mapping.TryGetValue(step.Id, out id))
                             step.Id = id;
                     }
-                    ChildTestSteps.AddRange(tp.ChildTestSteps);
 
-                    foreach (var step in RecursivelyGetChildSteps(TestStepSearch.All))
+                    if (HideSteps == false)
                     {
-                        step.IsReadOnly = true;
-                        step.ChildTestSteps.IsReadOnly = true;
-                        step.OnPropertyChanged("");
+                        ChildTestSteps.AddRange(tp.ChildTestSteps);
+
+                        foreach (var step in RecursivelyGetChildSteps(TestStepSearch.All))
+                        {
+                            step.IsReadOnly = true;
+                            step.ChildTestSteps.IsReadOnly = true;
+                            step.OnPropertyChanged("");
+                        }
                     }
                 }
                 finally

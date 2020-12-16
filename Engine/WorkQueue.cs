@@ -89,7 +89,7 @@ namespace OpenTap
 
         const int semaphoreMaxCount = 1024 * 1024;
         // the addSemaphore counts the current number of things in the tasklist.
-        SemaphoreSlim addSemaphore = new SemaphoreSlim(0,semaphoreMaxCount); //todo: consider using SemaphoreSlim for better performance
+        SemaphoreSlim addSemaphore = new SemaphoreSlim(0,semaphoreMaxCount); 
 
         int countdown = 0;
         

@@ -5,9 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.IO;
 using System.Xml.Serialization;
-using System.Diagnostics;
 using System.Reflection;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -25,11 +23,11 @@ namespace OpenTap
         /// <summary>
         /// Name of the settings group.
         /// </summary>
-        public string GroupName { get; private set; }
+        public string GroupName { get; }
         /// <summary>
         /// Specifies whether this settings group uses profiles.  
         /// </summary>
-        public bool Profile { get; private set; }
+        public bool Profile { get; }
 
         /// <summary>
         /// Constructor for <see cref="SettingsGroupAttribute"/> 
@@ -58,15 +56,15 @@ namespace OpenTap
     /// </summary>
     public static class ComponentSettingsList
     {
-        static private Dictionary<Type, Type> typehandlers_cache = null;
+        static Dictionary<Type, Type> typeHandlersCache;
 
-        static private Dictionary<Type, Type> typehandlers
+        static Dictionary<Type, Type> typeHandlers
         {
             get
             {
-                if (typehandlers_cache == null)
+                if (typeHandlersCache == null)
                 {
-                    typehandlers_cache = new Dictionary<Type, Type>();
+                    typeHandlersCache = new Dictionary<Type, Type>();
                     foreach (Type settingsType in PluginManager.GetPlugins(typeof(ComponentSettings)))
                     {
                         Type baseType = settingsType;
@@ -78,14 +76,14 @@ namespace OpenTap
                                 Type[] types = settingsType.BaseType.GetGenericArguments();
                                 if (types.Length == 2)
                                 {
-                                    typehandlers_cache[types[1]] = types[0];
+                                    typeHandlersCache[types[1]] = types[0];
                                     break;
                                 }
                             }
                         }
                     }
                 }
-                return typehandlers_cache;
+                return typeHandlersCache;
             }
         }
 
@@ -99,12 +97,12 @@ namespace OpenTap
         {
             if (T == null)
                 throw new ArgumentNullException("T");
-            foreach (Type key in typehandlers.Keys)
+            foreach (Type key in typeHandlers.Keys)
             {
                 if (T.DescendsTo(key))
                 {
 
-                    Type compSetType = typehandlers[key];
+                    Type compSetType = typeHandlers[key];
                     PropertyInfo prop = compSetType.GetProperty("Current", BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy);
                     if (prop != null)
                         return prop;
@@ -168,8 +166,8 @@ namespace OpenTap
     public abstract class ComponentSettingsList<DerivedType, ContainedType> : ComponentSettings<DerivedType>, INotifyCollectionChanged, IList, IList<ContainedType>
         where DerivedType : ComponentSettingsList<DerivedType, ContainedType>
     {
-        ObservableCollection<ContainedType> list { get; set; }
-        IList ilist;
+        readonly ObservableCollection<ContainedType> list;
+        readonly IList ilist;
         /// <summary>
         /// Gets the first or default instance in the component settings list.
         /// </summary>
@@ -184,13 +182,8 @@ namespace OpenTap
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
-        public static T GetDefaultOf<T>() where T : ContainedType
-        {
-            return (T)((ComponentSettingsList<DerivedType, ContainedType>)GetCurrent<DerivedType>())
-                .FirstOrDefault(obj => obj is T);
-        }
+        public static T GetDefaultOf<T>() where T : ContainedType => GetCurrent<DerivedType>().OfType<T>().FirstOrDefault();
         
-
         /// <summary>
         /// Initializes the list.
         /// </summary>
@@ -205,8 +198,8 @@ namespace OpenTap
         {
             if (e.Action == NotifyCollectionChangedAction.Add)
             {
-                IResource newItem = e.NewItems.Cast<ContainedType>().First() as IResource;
-                if (newItem != null)
+                var _newItem = e.NewItems.Cast<ContainedType>().First() ;
+                if (_newItem is IResource newItem)
                 {
                     var sameName = this.FirstOrDefault(itm => (itm as IResource).Name == newItem.Name && (itm as IResource) != newItem);
                     int number = 0;
@@ -221,11 +214,8 @@ namespace OpenTap
                     }
                 }
             }
-            if (CollectionChanged != null)
-            {
-                CollectionChanged.Invoke(sender, e);
-            }
-            OnPropertyChanged("Count");
+            CollectionChanged?.Invoke(sender, e);
+            OnPropertyChanged(nameof(Count));
         }
         /// <summary>
         /// Adds an element to the collection.
@@ -458,25 +448,19 @@ namespace OpenTap
         /// Gets the current setting of a specific type.
         /// </summary>
         /// <returns></returns>
-        internal static T GetCurrent()
-        {
-            return GetCurrent<T>();
-        }
+        internal static T GetCurrent() => GetCurrent<T>();
 
         /// <summary>
         /// Get the currently loaded ComponentSettings instance for this class.
         /// </summary>
-        public static T Current
-        {
-            get { return GetCurrent(); }
-        }
+        public static T Current =>  GetCurrent();
     }
 
     /// <summary>
     /// Specifies the ComponentSettings class to be a OpenTAP plugin.
     /// </summary>
     /// <remarks>
-    /// It is recommended to iherit from <see cref="ComponentSettings{T}"/> when possible.
+    /// It is recommended to inherit from <see cref="ComponentSettings{T}"/> when possible.
     /// </remarks>
     [Display("Component Settings")]
     [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
@@ -490,24 +474,25 @@ namespace OpenTap
     /// This class provides methods to load and save the settings to/from an XML file using TapSerializer.
     /// </summary>
     /// <remarks>
-    /// It is recommended to iherit from <see cref="ComponentSettings{T}"/> when possible.
+    /// It is recommended to inherit from <see cref="ComponentSettings{T}"/> when possible.
     /// </remarks>
     public abstract class ComponentSettings : ValidatingObject, IComponentSettings
     {
-        /// <summary>
-        /// Settings group of this settings class.
-        /// </summary>
+        string groupName;
+        /// <summary> Settings group of this settings class. </summary>
         public string GroupName
         {
             get
             {
+                if (groupName != null) return groupName;
                 var settingsGroup = GetType().GetAttribute<SettingsGroupAttribute>();
-                if (settingsGroup == null) return "";
-                return settingsGroup.GroupName;
+                groupName = settingsGroup == null ? "" : settingsGroup.GroupName;
+
+                return groupName;
             }
         }
 
-        bool profile
+        internal bool profile
         {
             get
             {
@@ -518,15 +503,15 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Invokes when the cache for this settings item is invalidated for this item. The way to handle it is usually to fetch the new instance using ComponentSettings.GetCurrent(sender.GetType()).
+        /// Invokes when the cache for this settings item is invalidated for this item.
+        /// The way to handle it is usually to fetch the new instance using ComponentSettings.GetCurrent(sender.GetType()).
         /// </summary>
-        public event EventHandler CacheInvalidated;
+        public event EventHandler CacheInvalidated
+        {
+            add => context.CacheInvalidated += value;
+            remove => context.CacheInvalidated -= value;
+        }
         
-        /// <summary>
-        /// Directory root for platform settings.
-        /// </summary>
-        static string settingsDirectoryRoot = Path.Combine(ExecutorClient.ExeDir, "Settings");
-
         /// <summary>
         /// Where settings files are located. 
         /// Usually this is at "[Executable location]\Settings", but it can be set to different locations. 
@@ -534,165 +519,70 @@ namespace OpenTap
         /// </summary>
         public static string SettingsDirectoryRoot
         {
-            get { return settingsDirectoryRoot; }
-            set
-            {
-                settingsDirectoryRoot = value;
-                InvalidateAllSettings();
-            }
+            get => context.SettingsDirectoryRoot;
+            set => context.SettingsDirectoryRoot = value;
         }
 
-
-        private static readonly TraceSource log = Log.CreateSource("Settings");
-
-        static Dictionary<string, string> groupDir = new Dictionary<string, string>();
-
-        /// <summary>
-        /// The directory where the settings are loaded from / saved to.
-        /// </summary>
+        /// <summary> The directory where the settings are loaded from / saved to. </summary>
         /// <param name="groupName">Name of the settings group.</param>
         /// <param name="isProfile">If the settings group uses profiles, we load the default profile.</param>
-        /// <returns></returns>
-        public static string GetSettingsDirectory(string groupName, bool isProfile = true)
-        {
-            if (groupName == null)
-                throw new ArgumentNullException("groupName");
-            if (isProfile == false)
-            {
-                return Path.Combine(SettingsDirectoryRoot, groupName);
-            }
-            if (!groupDir.ContainsKey(groupName))
-            {
-                var file = Path.Combine(SettingsDirectoryRoot, groupName, "CurrentProfile");
-
-                if (File.Exists(file))
-                    groupDir[groupName] =  File.ReadAllText(file);
-                else
-                    groupDir[groupName] = "Default";
-            }
-
-            
-            return Path.Combine(SettingsDirectoryRoot, groupName, groupDir[groupName]);
-        }
+        public static string GetSettingsDirectory(string groupName, bool isProfile = true) =>
+            context.GetSettingsDirectory(groupName, isProfile);
 
         /// <summary>
-        /// Ensures that the Settings directory exists and that the specified groupName sub directory exists. This might throw an exception if the settings directory was configured to something invalid. Like 'AUX', 'NUL', ....
+        /// Ensures that the Settings directory exists and that the specified groupName sub directory exists.
+        /// This might throw an exception if the settings directory was configured to something invalid. Like 'AUX', 'NUL', ....
         /// </summary>
         /// <param name="groupName">Name of the settings group.</param>
         /// <param name="isProfile">Determines if the settings group uses profiles.</param>
-        public static void EnsureSettingsDirectoryExists(string groupName, bool isProfile = true)
-        {
-            if (!Directory.Exists(SettingsDirectoryRoot))
-                Directory.CreateDirectory(SettingsDirectoryRoot);
-            if (!Directory.Exists(GetSettingsDirectory(groupName, isProfile)))
-                Directory.CreateDirectory(GetSettingsDirectory(groupName, isProfile));
-        }
-
-        /// <summary> Gets or sets if settings groups should be persisted between OpenTAP processes.</summary>
+        public static void EnsureSettingsDirectoryExists(string groupName, bool isProfile = true) =>
+            context.EnsureSettingsDirectoryExists(groupName, isProfile);
+        /// <summary> Gets or sets if settings groups should be persisted between processes.</summary>
         [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
         public static bool PersistSettingGroups = true;
 
-        /// <summary>
-        /// Sets the directory in which settings groups are loaded from / saved to.
-        /// </summary>
+        /// <summary> Sets the directory in which settings groups are loaded from / saved to. </summary>
         /// <param name="groupName">Name of the settings group.</param>
         /// <param name="profileName">Name of the selected settings profile.</param>
-        public static void SetSettingsProfile(string groupName, string profileName)
-        {
-            if (groupName == null)
-                throw new ArgumentNullException("groupName");
-            if (profileName == null)
-                throw new ArgumentNullException("profileName");
+        public static void SetSettingsProfile(string groupName, string profileName) =>
+            context.SetSettingsProfile(groupName, profileName);
 
-            if (GetSettingsDirectory(groupName) == profileName)
-                return;
+        /// <summary> Invalidates all loaded settings. Next time a ComponentSettings is accessed, it will be read from an XML file. </summary>
+        internal static void InvalidateAllSettings() => context.InvalidateAllSettings();
+        
+        /// <summary> default context object. </summary>
+        static readonly ComponentSettingsContext baseContext = new ComponentSettingsContext();
+
+        static ComponentSettingsContext context => session.Value ?? baseContext;
+        static readonly ThreadField<ComponentSettingsContext> session = new ThreadField<ComponentSettingsContext>(ThreadFieldMode.Cached);
+
+        internal static IDisposable BeginSession()
+        {
+            var currentContext = context;
+            var nextContext = currentContext.Clone();
+            var previousContext = session.GetCached();
+            session.Value = nextContext;
             
-            if (PersistSettingGroups)
-            {
-                try
-                {
-                    EnsureSettingsDirectoryExists(groupName);
-                }
-                catch
-                {
-
-                }
-                var currentSettingsFile = Path.Combine(SettingsDirectoryRoot, groupName, "CurrentProfile");
-                if (File.Exists(currentSettingsFile))
-                    File.SetAttributes(currentSettingsFile, FileAttributes.Normal);
-                File.WriteAllText(currentSettingsFile, FileSystemHelper.GetRelativePath(Path.GetFullPath(Path.Combine(SettingsDirectoryRoot, groupName)), Path.GetFullPath(profileName)));
-                File.SetAttributes(currentSettingsFile, FileAttributes.Hidden);
-
-            }
-            groupDir[groupName] = profileName;
-            InvalidateAllSettings();
+            return Utils.WithDisposable(() => session.Value = previousContext);
         }
-
-        /// <summary>
-        /// Invalidates all loaded settings. Next time a ComponentSettings is accessed, it will be read from an XML file.
-        /// </summary>
-        internal static void InvalidateAllSettings()
-        {
-            var cachedComponentSettings = loadedComponentSettingsMemorizer.GetResults().Where(x => x != null);
-
-            // Settings can be co-dependent. Example: Connections and Instruments.
-            // So we need to invalidate all the settings and then invoke the event.
-            foreach (var componentSetting in cachedComponentSettings)
-                loadedComponentSettingsMemorizer.Invalidate(componentSetting.GetType());
-            foreach (var componentSetting in cachedComponentSettings)
-                if (componentSetting.CacheInvalidated != null)
-                    componentSetting.CacheInvalidated(componentSetting, new EventArgs());
-        }
-
-        readonly static Memorizer<Type, ComponentSettings> loadedComponentSettingsMemorizer = new Memorizer<Type, ComponentSettings>(type => Load(type));
-
-
+        
         /// <summary>
         /// Saves the settings held by this class to an XML file in the <see cref="ComponentSettings.SetSettingsProfile(string, string)"/>.
         /// </summary>
-        public void Save()
-        {
-            EnsureSettingsDirectoryExists(GroupName, profile);
+        public void Save() => context.Save(this);
 
-            string path = GetSaveFilePath(GetType());
-            string dir = Path.GetDirectoryName(path);
-            if (dir != "" && !Directory.Exists(dir))
-                Directory.CreateDirectory(dir);
-            var sw = Stopwatch.StartNew();
-
-            using (var str = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite))
-            {
-                using (var xmlWriter = System.Xml.XmlWriter.Create(str, new System.Xml.XmlWriterSettings { Indent = true }))
-                    new TapSerializer().Serialize(xmlWriter, this);
-            }
-            log.Debug(sw, "Saved {0} to {1}", this.GetType().Name, path);
-        }
-
-        /// <summary>
-        /// Saves all ComponentSettings objects that have been loaded using <see cref="ComponentSettings.Load(Type)"/> or <see cref="ComponentSettings.GetCurrent(Type)"/>.
-        /// </summary>
-        public static void SaveAllCurrentSettings()
-        {
-            foreach (var comp in loadedComponentSettingsMemorizer.GetResults())
-                if(comp != null) comp.Save();
-        }
+        /// <summary> Saves all ComponentSettings objects that have been loaded. </summary>
+        public static void SaveAllCurrentSettings() => context.SaveAllCurrentSettings();
 
         /// <summary>
         /// Invalidates the cache of this type of component setting.
         /// </summary>
-        public void Invalidate()
-        {
-            loadedComponentSettingsMemorizer.Invalidate(GetType());
-        }
+        public void Invalidate() => context.Invalidate(GetType());
 
         /// <summary>
         /// Forces the reload of this type of component setting from the XML file the next time the setting is used.
         /// </summary>
-        public void Reload()
-        {
-            if (CacheInvalidated != null)
-                CacheInvalidated(this, new EventArgs());
-        }
+        public void Reload() => context.Reload();
 
         /// <summary>
         /// Called if a new ComponentSettings is instantiated and there are no corresponding settings XML.
@@ -705,128 +595,37 @@ namespace OpenTap
         /// <summary> Gets the current file location where a ComponentSettings type is saved. </summary>
         /// <param name="type"> Must be a ComponentSettings sub-class. </param>
         /// <returns></returns>
-        static public string GetSaveFilePath(Type type)
-        {
-            if (type == null)
-                throw new ArgumentNullException(nameof(type));
-            if (type.DescendsTo(typeof(ComponentSettings)) == false)
-                throw new ArgumentException("Type must inherit from ComponentSettings, otherwise it does not have a settings file.", nameof(type));
-            var settingsGroup = type.GetAttribute<SettingsGroupAttribute>();
-
-            bool isProfile = settingsGroup == null ? false : settingsGroup.Profile;
-            string groupName = settingsGroup == null ? "" : settingsGroup.GroupName;
-
-            return Path.Combine(GetSettingsDirectory(groupName, isProfile), type.GetDisplayAttribute().GetFullName() + ".xml");
-        }
-        static Queue<TapSerializer> flushers = new Queue<TapSerializer>();
-        /// <summary>
-        /// Loads a new instance of the settings for a given component.
-        /// </summary>
-        /// <param name="settingsType">The type of the component settings to load (this type must be a descendant of <see cref="ComponentSettings"/>).</param>
-        /// <returns>Returns the settings.</returns>
-        static ComponentSettings Load(Type settingsType)
-        {
-
-            string path = GetSaveFilePath(settingsType);
-            Stopwatch timer = Stopwatch.StartNew();
-
-            ComponentSettings settings = null;
-            if (File.Exists(path))
-            {
-                try
-                {
-                    using (var str = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                    {
-                        var xdocserializer = new TapSerializer();
-                        lock(flushers)
-                            flushers.Enqueue(xdocserializer);
-                        settings = (ComponentSettings)xdocserializer.Deserialize(str, false, TypeData.FromType(settingsType));
-                        
-                    }
-                }
-                catch (Exception ex) when(ex.InnerException is System.ComponentModel.LicenseException lex){
-                    log.Warning("Unable to load '{0}'. {1}", settingsType.GetDisplayAttribute().GetFullName(), lex.Message);
-                }
-                catch (Exception ex)
-                {
-                    if (ex.InnerException != null)
-                    {
-                        if (ex.InnerException.Message.StartsWith("The specified type was not recognized"))
-                            log.Warning("Error loading settings file for {0}. {1}.", settingsType.Name, ex.InnerException.Message);
-                        else
-                            log.Warning("Error loading settings file for {0}. Is it an old version? A new file will be created with default values.", settingsType.Name);
-                    }
-                    log.Debug(ex);
-
-                }
-                
-                log.Debug(timer, "{0} loaded from {1}", settingsType.Name, path);
-            }
-
-            if (settings == null)
-            {
-                try
-                {
-                    settings = (ComponentSettings)Activator.CreateInstance(settingsType);
-                }
-                catch (TargetInvocationException ex)
-                {
-                    log.Error("Could not create '{0}': {1}", settingsType.GetDisplayAttribute().Name, ex.InnerException.Message);
-                    log.Debug(ex);
-                    return null;
-                }
-                catch (Exception e)
-                {
-                    log.Error("Caught exception while creating instance of '{0}'", settingsType.FullName);
-                    log.Debug(e);
-                    return null;
-                }
-                settings.Initialize();
-
-                log.Debug(timer, "No settings file exists for {0}. A new instance with default values has been created.", settingsType.Name);
-            }
-
-            return settings;
-        }
+        public static string GetSaveFilePath(Type type) =>  context.GetSaveFilePath(type);
 
         /// <summary>
         /// Gets current settings for a specified component. This is either an instance of the settings class previously loaded, or a new instance loaded from the associated file. 
         /// </summary>
         /// <typeparam name="T">The type of the component settings requested (this type must be a descendant of <see cref="ComponentSettings"/>).</typeparam>
         /// <returns>Returns the loaded components settings. Null if it was not able to load the settings type.</returns>
-        internal static T GetCurrent<T>() where T : ComponentSettings
-        {
-            return (T)GetCurrent(typeof(T));
-        }
+        internal static T GetCurrent<T>() where T : ComponentSettings => (T)GetCurrent(typeof(T));
 
         /// <summary>
         /// Gets current settings for a specified component. This is either an instance of the settings class previously loaded, or a new instance loaded from the associated file.
         /// </summary>
         /// <param name="settingsType">The type of the component settings requested (this type must be a descendant of <see cref="ComponentSettings"/>).</param>
         /// <returns>Returns the loaded components settings. Null if it was not able to load the settings type.</returns>
-        public static ComponentSettings GetCurrent(Type settingsType)
-        {
-            lock (flushers)
-            {
-                if (flushers.Count == 0)
-                {
-                    var result = loadedComponentSettingsMemorizer.Invoke(settingsType);
-                    while (flushers.Count > 0)
-                        flushers.Dequeue().Flush();
-                    return result;
-                }
-            }
-            return loadedComponentSettingsMemorizer.Invoke(settingsType);
-        }
+        public static ComponentSettings GetCurrent(Type settingsType) =>
+            context.GetCurrent(settingsType);
+        
+        /// <summary>
+        /// Gets current settings for a specified component. This is either an instance of the settings class previously loaded, or a new instance loaded from the associated file.
+        /// </summary>
+        /// <param name="settingsType">The type of the component settings requested (this type must be a descendant of <see cref="ComponentSettings"/>).</param>
+        /// <returns>Returns the loaded components settings. Null if it was not able to load the settings type.</returns>
+        public static ComponentSettings GetCurrent(ITypeData settingsType) =>
+            context.GetCurrent(settingsType.AsTypeData().Type);
 
         /// <summary>
         /// Gets current settings for a specified component from cache.
         /// </summary>
         /// <param name="settingsType">The type of the component settings requested (this type must be a descendant of <see cref="ComponentSettings"/>).</param>
         /// <returns>Returns the loaded components settings. Null if it was not able to load the settings type or if it was not cached.</returns>
-        public static ComponentSettings GetCurrentFromCache(Type settingsType)
-        {
-            return loadedComponentSettingsMemorizer.GetCached(settingsType);
-        }
+        public static ComponentSettings GetCurrentFromCache(Type settingsType) =>
+            context.GetCurrentFromCache(settingsType);
     }
 }

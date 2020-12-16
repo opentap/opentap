@@ -91,10 +91,10 @@ namespace OpenTap.Engine.UnitTests
         [CommandLineArgument("time-span")]
         public bool ProfileTimeSpanToString { get; set; }
         
-        [CommandLineArgument("test-plan")]
+        [CommandLineArgument("test-plan", Description = "Expected time ~50s")]
         public bool ProfileTestPlan { get; set; }
         
-        [CommandLineArgument("short-test-plan")]
+        [CommandLineArgument("short-test-plan", Description = "Expected time ~7s")]
         public bool ProfileShortTestPlan { get; set; }
         
         [CommandLineArgument("run-async")]
@@ -103,11 +103,15 @@ namespace OpenTap.Engine.UnitTests
         [CommandLineArgument("search")]
         public bool ProfileSearch { get; set; }
 
-        [CommandLineArgument("run-long-plan")]
+        [CommandLineArgument("run-long-plan", Description = "Expected time ~1m20s")]
         public bool LongPlan { get; set; }
         
-        [CommandLineArgument("run-long-plan-with-references")]
+        [CommandLineArgument("run-long-plan-with-references", Description = "Expected time ~32s")]
         public bool LongPlanWithReferences { get; set; }
+        
+        [CommandLineArgument("hide-steps")]
+        public bool HideSteps { get; set; }
+        
         
         [CommandLineArgument("parameterize")]
         public bool Parameterize { get; set; }
@@ -222,12 +226,14 @@ namespace OpenTap.Engine.UnitTests
 
                 try
                 {
-                    
                     var testPlan = new TestPlan();
                     var iterations = Iterations == -1 ? 10000 : Iterations;
                     for (int i = 0; i < iterations; i++)
                     {
-                        var refPlan = new TestPlanReference();
+                        var refPlan = new TestPlanReference
+                        {
+                            HideSteps = HideSteps
+                        };
                         refPlan.Filepath.Text = tmpFile;
                         testPlan.Steps.Add(refPlan);
                         refPlan.Filepath= refPlan.Filepath;

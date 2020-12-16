@@ -33,11 +33,22 @@ namespace OpenTap
     /// <summary> baseclass for ThreadField types. </summary>
     internal abstract class ThreadField
     {
+        protected static readonly object DefaultCacheMarker = new object();
         static int threadFieldIndexer = 0;
         /// <summary>  Index of this thread field. </summary>
         protected readonly int Index = GetThreadFieldIndex();   
         
         static int GetThreadFieldIndex() => Interlocked.Increment(ref threadFieldIndexer);
+    }
+    
+    [Flags]
+    internal enum ThreadFieldMode
+    {
+        None = 0,
+        /// <summary>  Cached-mode ThreadFields are a bit faster as they dont need to iterate for finding commonly used values.
+        /// A value found in the parent thread is upgraded to local cache. Changes in parent thread thread-field values has no effect after it has
+        /// been cached the first time.</summary>
+        Cached = 1
     }
     
     /// <summary>
@@ -46,6 +57,12 @@ namespace OpenTap
     /// <typeparam name="T"></typeparam>
     internal class ThreadField<T> : ThreadField
     {
+        readonly int mode; 
+         
+        bool isCached => (mode & (int) ThreadFieldMode.Cached) > 0;
+
+        public ThreadField(ThreadFieldMode threadFieldMode = ThreadFieldMode.None) =>  mode = (int)threadFieldMode;
+        
         /// <summary>
         /// Gets or sets the value of the thread field. Note that the getter may get a value from a parent thread, while the setter cannot override values from parent fields. 
         /// </summary>
@@ -54,33 +71,62 @@ namespace OpenTap
             get => Get();
             set => Set(value);
         }
+
+        /// <summary> Gets the current value for things thread, if any.</summary>
+        public T GetCached()
+        {
+            var thread = TapThread.Current;
+            if (thread.Fields != null && thread.Fields.Length > Index && thread.Fields[Index] is T x)
+                return x;
+            return default;
+        } 
         
         T Get()
         {
             var thread = TapThread.Current;
+            bool isParent = false;
+            
+            // iterate through parent threads.
             while (thread != null)
             {
-                if (thread.Fields != null && thread.Fields.Length > Index && thread.Fields[Index] != null)
-                    return (T)thread.Fields[Index];
+                object found;
+                if (thread.Fields != null && thread.Fields.Length > Index && (found = thread.Fields[Index]) != null)
+                {
+                    if (isCached)
+                    {
+                        if (isParent)
+                            set(found); // set the value on the current thread (not on parent).
+                        if (ReferenceEquals(found, DefaultCacheMarker))
+                            return default;
+                    }
+                    return (T)found;
+                }
+
                 thread = thread.Parent;
+                isParent = true;
             }
+
+            if (isCached)
+                set(DefaultCacheMarker);
 
             return default;
         }
 
-        void Set(T value)
+        void set(object value)
         {
             var currentThread = TapThread.Current;
             if (currentThread.Fields == null)
                 currentThread.Fields = new object[Index + 1];
             else if(currentThread.Fields.Length <= Index)
             {
-                var newarray = new object[Index + 1];
-                currentThread.Fields.CopyTo(newarray, 0);
-                currentThread.Fields = newarray;
+                var newArray = new object[Index + 1];
+                currentThread.Fields.CopyTo(newArray, 0);
+                currentThread.Fields = newArray;
             }
             currentThread.Fields[Index] = value;
         }
+
+        void Set(T value) => set(value);
     }
     
     /// <summary>
@@ -89,7 +135,7 @@ namespace OpenTap
     public class TapThread
     {
         #region fields
-        static ThreadManager manager = new ThreadManager();
+        static readonly ThreadManager manager = new ThreadManager();
         Action action;
         readonly CancellationTokenSource abortTokenSource;
         #endregion
@@ -130,6 +176,24 @@ namespace OpenTap
                 ThreadManager.ThreadKey = currentThread;
             }
         }
+
+        /// <summary> This should be used through Session. </summary>
+        internal static IDisposable UsingThreadContext(TapThread parent)
+        {
+            var currentThread = Current;
+            ThreadManager.ThreadKey = new TapThread(parent, () => { }, currentThread.Name)
+            {
+                Status = TapThreadStatus.Running
+            };
+
+            return Utils.WithDisposable(() =>
+            {
+                ThreadManager.ThreadKey = currentThread;
+            });
+        }
+
+        /// <summary> This should be used through Session. </summary>
+        internal static IDisposable UsingThreadContext() => UsingThreadContext(TapThread.Current);
 
         /// <summary> Pretends that the current thread is a different thread while evaluating 'action'. 
         /// This affects the functionality of ThreadHeirachyLocals and TapThread.Current. </summary>

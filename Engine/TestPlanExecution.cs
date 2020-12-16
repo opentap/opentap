@@ -444,28 +444,21 @@ namespace OpenTap
         /// <returns>TestPlanRun results, no StepResults.</returns>
         public Task<TestPlanRun> ExecuteAsync(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride, CancellationToken cancellationToken)
         {
-            Task<TestPlanRun> result = Task.Run(() =>
+            var tcs = new TaskCompletionSource<TestPlanRun>();
+            TapThread.Start(() =>
             {
-                var sem = new SemaphoreSlim(0);
-                TestPlanRun testPlanRun = null;
-                TapThread.Start(() =>
+                try
                 {
-                    try
-                    {
-                        cancellationToken.Register(TapThread.Current.Abort);
-                        testPlanRun = Execute(resultListeners, metaDataParameters, stepsOverride);
-                    }
-                    finally
-                    {
-                        sem.Release();
-                    }
-                }, "Plan Thread");
-                sem.Wait();
-                
-                return testPlanRun;
-            });
-            
-            return result;
+                    cancellationToken.Register(TapThread.Current.Abort);
+                    var testPlanRun = Execute(resultListeners, metaDataParameters, stepsOverride);
+                    tcs.SetResult(testPlanRun);
+                }
+                catch (Exception e)
+                {
+                    tcs.SetException(e);
+                }
+            }, "Plan Thread");
+            return tcs.Task;
         }
 
         internal static ThreadHierarchyLocal<TestPlanRun> executingPlanRun = new ThreadHierarchyLocal<TestPlanRun>();
@@ -479,10 +472,22 @@ namespace OpenTap
         /// <returns>TestPlanRun results, no StepResults.</returns>
         public TestPlanRun Execute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters = null, HashSet<ITestStep> stepsOverride = null)
         {
-            TestPlanRun run = null;
-            TapThread.WithNewContext(() => run = this.DoExecute(resultListeners, metaDataParameters, stepsOverride));
-            return run;
+            return executeInContext( resultListeners, metaDataParameters, stepsOverride);
         }
+
+        TestPlanRun executeInContext(IEnumerable<IResultListener> resultListeners,
+            IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride)
+        {
+            using(Session.WithSession(SessionFlag.InheritThreadContext))
+                return execute(resultListeners, metaDataParameters, stepsOverride);
+        }
+
+        TestPlanRun execute(IEnumerable<IResultListener> resultListeners,
+            IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride)
+        {
+            return DoExecute(resultListeners, metaDataParameters, stepsOverride);
+        }
+
 
         private TestPlanRun DoExecute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride)
         {
@@ -566,12 +571,12 @@ namespace OpenTap
             if (currentExecutionState != null)
             {
                 execStage = new TestPlanRun(currentExecutionState, initTime, initTimeStamp);
-
                 continuedExecutionState = true;
             }
             else
             {
                 execStage = new TestPlanRun(this, resultListeners.ToList(), initTime, initTimeStamp);
+                execStage.Start();
 
                 execStage.Parameters.AddRange(PluginManager.GetPluginVersions(allEnabledSteps));
                 execStage.ResourceManager.ResourceOpened += r =>
@@ -702,7 +707,7 @@ namespace OpenTap
         public void Open(IEnumerable<IResultListener> listeners)
         {
             if (listeners == null)
-                throw new ArgumentNullException("listeners");
+                throw new ArgumentNullException(nameof(listeners));
             if (PrintTestPlanRunSummary)
                 listeners = listeners.Concat(new IResultListener[] { summaryListener });
 
@@ -717,6 +722,7 @@ namespace OpenTap
 
                 Stopwatch timer = Stopwatch.StartNew();
                 currentExecutionState = new TestPlanRun(this, listeners.ToList(), DateTime.Now, Stopwatch.GetTimestamp(), true);
+                currentExecutionState.Start();
                 OpenInternal(currentExecutionState, false, listeners.Cast<IResource>().ToList(), allSteps);
                 try
                 {
