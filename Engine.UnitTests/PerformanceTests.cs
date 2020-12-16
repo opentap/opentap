@@ -42,7 +42,7 @@ namespace OpenTap.Engine.UnitTests
         }
         
         
-        public void GeneralPerformanceTest(int count)
+        public void GeneralPerformanceTest(int count, bool async, bool shortPlan = false)
         {
             void buildSequence(ITestStepParent parent, int levels)
             {
@@ -57,7 +57,7 @@ namespace OpenTap.Engine.UnitTests
                 }
             }
             var plan = new TestPlan {CacheXml = true};
-            buildSequence(plan, 6);
+            buildSequence(plan, shortPlan ? 1 : 6);
             var total = Utils.FlattenHeirarchy(plan.ChildTestSteps, x => x.ChildTestSteps).Count();
 
             plan.Execute(); // warm up
@@ -68,7 +68,10 @@ namespace OpenTap.Engine.UnitTests
                 {
                     using (TypeData.WithTypeDataCache())
                     {
-                        timeSpent += plan.Execute().Duration;
+                        if(async)
+                            timeSpent += plan.ExecuteAsync().Result.Duration;
+                        else
+                            timeSpent += plan.Execute().Duration;
                     }
                 }
             
@@ -91,6 +94,12 @@ namespace OpenTap.Engine.UnitTests
         [CommandLineArgument("test-plan")]
         public bool ProfileTestPlan { get; set; }
         
+        [CommandLineArgument("short-test-plan")]
+        public bool ProfileShortTestPlan { get; set; }
+        
+        [CommandLineArgument("run-async")]
+        public bool AsyncTestPlan { get; set; }
+        
         [CommandLineArgument("search")]
         public bool ProfileSearch { get; set; }
 
@@ -104,7 +113,10 @@ namespace OpenTap.Engine.UnitTests
         public bool Parameterize { get; set; }
 
         [CommandLineArgument("iterations")]
-        public int Iterations { get; set; } = 10;
+        public int Iterations { get; set; } = -1;
+        
+        [CommandLineArgument("logging")]
+        public bool Logging { get; set; }
         
         public int Execute(CancellationToken cancellationToken)
         {
@@ -113,9 +125,9 @@ namespace OpenTap.Engine.UnitTests
                 StringBuilder sb =new StringBuilder();
                 ShortTimeSpan.FromSeconds(0.01 ).ToString(sb);
                 var sw = Stopwatch.StartNew();
+                var iterations = Iterations == -1 ? 1000000 : Iterations;
                 
-                
-                for (int i = 0; i < 1000000; i++)
+                for (int i = 0; i < iterations; i++)
                 {
                     //ShortTimeSpan.FromSeconds(0.01 * i).ToString(sb);
                     ShortTimeSpan.FromSeconds(0.01 * i).ToString(sb);
@@ -125,12 +137,30 @@ namespace OpenTap.Engine.UnitTests
 
                 Console.WriteLine("TimeSpan: {0}ms", sw.ElapsedMilliseconds);
             }
+
+            if (Logging)
+            {
+                var iterations = Iterations == -1 ? 1000000 : Iterations;
+                Log.Flush();
+                var sw = Stopwatch.StartNew();
+                var profileLogger = Log.CreateSource("Profile");
+                for (int i = 0; i < iterations; i++)
+                {
+                    profileLogger.Debug("Iteration");
+                }
+
+                Log.Flush();
+            }
+            
             if(ProfileTestPlan)
-                new TestPlanPerformanceTest().GeneralPerformanceTest(10000);
+                new TestPlanPerformanceTest().GeneralPerformanceTest(Iterations == -1 ? 10000 : Iterations, AsyncTestPlan);
+            if(ProfileShortTestPlan)
+                new TestPlanPerformanceTest().GeneralPerformanceTest(Iterations == -1 ? 10000 : Iterations, AsyncTestPlan, true);
             if (ProfileSearch)
             {
+                var iterations = Iterations == -1 ? 10 : Iterations;
                 var sw = Stopwatch.StartNew();
-                for (int i = 0; i < Iterations; i++)
+                for (int i = 0; i < iterations; i++)
                 {
                     PluginManager.Search();
                 }
@@ -143,7 +173,10 @@ namespace OpenTap.Engine.UnitTests
                 for(int i = 0 ; i < 1000000; i++)
                     testplan.Steps.Add(new LogStep());
                 var sw = Stopwatch.StartNew();
-                testplan.Execute();
+                
+                var iterations = Iterations == -1 ? 1 : Iterations;
+                for(int i = 0; i < iterations; i++)
+                    testplan.Execute();
                 Console.WriteLine("Run long plan took {0}ms in total.", sw.ElapsedMilliseconds);
             }
 
@@ -191,7 +224,8 @@ namespace OpenTap.Engine.UnitTests
                 {
                     
                     var testPlan = new TestPlan();
-                    for (int i = 0; i < 10000; i++)
+                    var iterations = Iterations == -1 ? 10000 : Iterations;
+                    for (int i = 0; i < iterations; i++)
                     {
                         var refPlan = new TestPlanReference();
                         refPlan.Filepath.Text = tmpFile;

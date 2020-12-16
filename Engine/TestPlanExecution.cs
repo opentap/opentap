@@ -425,7 +425,15 @@ namespace OpenTap
         {
             return Execute(ResultSettings.Current, null);
         }
-        TestPlanRunSummaryListener summaryListener = new TestPlanRunSummaryListener();
+
+        /// <summary> </summary>
+        /// <returns></returns>
+        public Task<TestPlanRun> ExecuteAsync()
+        {
+            return ExecuteAsync(ResultSettings.Current, null,null, TapThread.Current.AbortToken);
+        }
+        
+        readonly TestPlanRunSummaryListener summaryListener = new TestPlanRunSummaryListener();
         /// <summary>
         /// Execute the TestPlan as specified.
         /// </summary>
