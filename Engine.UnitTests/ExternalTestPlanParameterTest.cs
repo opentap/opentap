@@ -195,7 +195,7 @@ namespace OpenTap.Engine.UnitTests
                 // This is how to get access to a TestPlanReference loaded test plan's children's external paramters:
                 ITypeData ti = TypeData.GetTypeData(tpr);
                 // IMemberInfo mi = ti.GetMember(externalParameterName); <- not possible to get property by its name in case the property name contains characters not valid of a C# property name
-                IMemberData mi = ti.GetMembers().FirstOrDefault(m => m.Attributes.Any(xa => (xa as DisplayAttribute)?.Name == externalParameterName)); // <- the right approach              
+                IMemberData mi = ti.GetMembers().FirstOrDefault(m => m.Attributes.Any(xa => (xa as IDisplayAnnotation)?.Name == externalParameterName)); // <- the right approach              
                 // ----------------------------------------------------------------------------------------------------
 
                 Assert.IsNotNull(mi);
@@ -296,15 +296,15 @@ namespace OpenTap.Engine.UnitTests
                     ITypeData ti = TypeData.GetTypeData(tpr);
 
                     // ensure there is a property "External Delay"
-                    IMemberData mi = ti.GetMembers().FirstOrDefault(m => m.Attributes.Any(xa => (xa as DisplayAttribute)?.Name == externalParameterName));
+                    IMemberData mi = ti.GetMembers().FirstOrDefault(m => m.Attributes.Any(xa => (xa as IDisplayAnnotation)?.Name == externalParameterName));
                     Assert.IsNotNull(mi);
                     Assert.AreEqual(defaultValue, mi.GetValue(tpr));
 
                     // ensure there is no property "External_x0020_Delay"
-                    Assert.IsNull(ti.GetMembers().FirstOrDefault(m => m.Attributes.Any(xa => (xa as DisplayAttribute)?.Name == externalParamaterNameEncoded)));
+                    Assert.IsNull(ti.GetMembers().FirstOrDefault(m => m.Attributes.Any(xa => (xa as IDisplayAnnotation)?.Name == externalParamaterNameEncoded)));
                     
                     // ensure there is no property "prop0"
-                    Assert.IsNull(ti.GetMembers().FirstOrDefault(m => m.Attributes.Any(xa => (xa as DisplayAttribute)?.Name == externalParamaterNameLegacy)));
+                    Assert.IsNull(ti.GetMembers().FirstOrDefault(m => m.Attributes.Any(xa => (xa as IDisplayAnnotation)?.Name == externalParamaterNameLegacy)));
                 }
 
                 // Scope for separating the test Deserialization legacy (Load) from Serialization (Save)
@@ -354,15 +354,15 @@ namespace OpenTap.Engine.UnitTests
                     ITypeData ti = TypeData.GetTypeData(tpr);
 
                     // ensure there is a property "External Delay"
-                    IMemberData mi = ti.GetMembers().FirstOrDefault(m => m.Attributes.Any(xa => (xa as DisplayAttribute)?.Name == externalParameterName));
+                    IMemberData mi = ti.GetMembers().FirstOrDefault(m => m.Attributes.Any(xa => (xa as IDisplayAnnotation)?.Name == externalParameterName));
                     Assert.IsNotNull(mi);
                     Assert.AreEqual(defaultValue, mi.GetValue(tpr));
 
                     // ensure there is no property "External_x0020_Delay"
-                    Assert.IsNull(ti.GetMembers().FirstOrDefault(m => m.Attributes.Any(xa => (xa as DisplayAttribute)?.Name == externalParamaterNameEncoded)));
+                    Assert.IsNull(ti.GetMembers().FirstOrDefault(m => m.Attributes.Any(xa => (xa as IDisplayAnnotation)?.Name == externalParamaterNameEncoded)));
 
                     // ensure there is no property "prop0"
-                    Assert.IsNull(ti.GetMembers().FirstOrDefault(m => m.Attributes.Any(xa => (xa as DisplayAttribute)?.Name == externalParamaterNameLegacy)));
+                    Assert.IsNull(ti.GetMembers().FirstOrDefault(m => m.Attributes.Any(xa => (xa as IDisplayAnnotation)?.Name == externalParamaterNameLegacy)));
                 }
             }
             finally

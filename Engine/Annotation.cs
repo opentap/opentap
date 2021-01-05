@@ -26,6 +26,24 @@ namespace OpenTap
     /// </summary>
     public interface IAnnotation { }
 
+    /// <summary> Specifies how a display is implemented and presented to user </summary>
+    public interface IDisplayAnnotation : IAnnotation
+    {
+        /// <summary> Optional text that provides a description of the item. </summary>
+        string Description { get; }
+        /// <summary> Optional text used to group displayed items. </summary>
+        string[] Group { get; }
+        /// <summary> Name displayed by the UI. </summary>
+        string Name { get; }
+        /// <summary> Optional integer that ranks items and groups in ascending order relative to other items/groups. 
+        /// Default is -10000. For a group, the order is the average order of the elements inside the group. 
+        /// Any double value is allowed. Items with same order are ranked alphabetically.
+        /// </summary>
+        double Order { get; }
+        /// <summary> Boolean setting that indicates whether a group's default appearance is collapsed. </summary>
+        bool Collapsed { get; }
+    }
+
     /// <summary> Gets or sets the value of a thing. </summary>
     public interface IObjectValueAnnotation : IAnnotation
     {
@@ -2452,11 +2470,16 @@ namespace OpenTap
             var reflect = annotation.Get<IReflectionAnnotation>();
             var mem = annotation.Get<IMemberAnnotation>();
             if (mem == null && reflect != null)
-                annotation.Add(reflect.ReflectionInfo.GetDisplayAttribute());
+            {
+                if (reflect.ReflectionInfo.DescendsTo(typeof(IDisplayAnnotation)))
+                    annotation.Add(new DisplayAnnotationWrapper());
+                else
+                    annotation.Add(reflect.ReflectionInfo.GetDisplayAttribute());
+            }
+
             bool rd_only = annotation.Get<ReadOnlyMemberAnnotation>() != null;
             if (reflect != null)
             {
-
                 var help = reflect.ReflectionInfo.GetHelpLink();
                 if (help != null)
                     annotation.Add(help);
@@ -2692,6 +2715,35 @@ namespace OpenTap
         }
     }
 
+    internal class DisplayAnnotationWrapper : IAnnotation, IDisplayAnnotation, IOwnedAnnotation
+    {
+        public string Description { get; private set; }
+
+        public string[] Group { get; private set; }
+
+        public string Name { get; private set; }
+
+        public double Order { get; private set; }
+
+        public bool Collapsed { get; private set; }
+
+        public void Read(object source)
+        {
+            if (source is IDisplayAnnotation src)
+            {
+                Name = src.Name;
+                Description = src.Description;
+                Group = src.Group;
+                Order = src.Order;
+                Collapsed = src.Collapsed;
+            }
+        }
+
+        public void Write(object source)
+        {
+           
+        }
+    }
 
 
     /// <summary> Proxy annotation for wrapping simpler annotation types. For example IAvailableValuesAnnotation is wrapped in a IAvailableValuesAnnotationProxy.</summary>

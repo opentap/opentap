@@ -30,7 +30,8 @@ The following are the most commonly implemented types of annotations:
 | ISuggestedValuesAnnotation | Suggested Values Annotation | Used along with the IStringValueAnnotation. Allows the user to select from a list of suggested values as well as inserting a custom value. |  
 | IMultiSelect | Multi Select Annotation | Usage is very similar to Available values annotation, but multiple values can be selected simultaneously. This annotation must also appear with an Available Values Annotation as it only specfies how to select multiple items and not how to list them. |
 | IMemberAnnotation | Member Annotation | Provides reflection information for a given member this is often used by the code annotating properties, but not implemented directly. |
-| DisplayAttribute | Display Attribute Annotation| Attribute used to describe classes and properties. This is commonly used in plugin code and is also an IAnnotation. | 
+| IDisplayAnnotation | Display Annotation| Attribute used to describe user input properties and generic classes and properties. This is commonly used for describing user input interfaces and classes and is also an IAnnotation. | 
+| DisplayAttribute | Display Attribute Annotation| Attribute used to describe classes and properties. This is commonly used in plugin code and is also an IDisplayAnnotation. | 
 | HelpLinkAttribute | Help Link Attribute Annotation| Provides a help link for a given class or property. |
 | **Less Used Annotations** |||
 | IStringExampleValueAnnotation| String Example Value Annotation | Used to provide extra information about a string. This is often used along with macros to provide the expanded macro string to the user.|
