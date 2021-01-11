@@ -70,7 +70,15 @@ namespace OpenTap
         [DataMember]
         [MetaData(macroName: "Date")]
         public DateTime StartTime {
-            get => (DateTime)Parameters[nameof(StartTime)];
+            get
+            {
+                var param = Parameters[nameof(StartTime)];
+                if (param is DateTime startTime)
+                {
+                    return startTime;
+                }
+                return new DateTime();
+            }
             set => Parameters[nameof(StartTime)] = value;
         }
         /// <summary>
