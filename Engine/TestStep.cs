@@ -817,13 +817,13 @@ namespace OpenTap
                 throw new Exception("Test step not enabled."); // Do not run step if it has been disabled
             planRun.ThrottleResultPropagation();
             
+            InputOutputRelation.UpdateInputs(Step);
             var stepRun = Step.StepRun = new TestStepRun(Step, parentRun,
                 attachedParameters)
             {
                 TestStepPath = Step.GetStepPath(),
             };
 
-            InputOutputRelation.UpdateInputs(Step);
             var stepPath = stepRun.TestStepPath;
             //Raise an event prior to starting the actual run of the TestStep. 
             Step.OfferBreak(stepRun, true);

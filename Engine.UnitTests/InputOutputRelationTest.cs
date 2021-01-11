@@ -3,6 +3,8 @@ using System.ComponentModel;
 using System.Linq;
 using System.Xml.Serialization;
 using NUnit.Framework;
+using OpenTap.Engine.UnitTests;
+using OpenTap.EngineUnitTestUtils;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
@@ -302,6 +304,33 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(InputOutputRelation.IsInput(a, inputMember2));
             Assert.Throws<ArgumentException>(() => InputOutputRelation.Assign(a, inputMember, b, outputMember));
             Assert.Throws<ArgumentException>(() => InputOutputRelation.Assign(a, inputMember2, b, outputMember));
+        }
+
+        [Test]
+        public void LogPrintOutputOrderTest()
+        {
+            // previously, the value of the {Log Message} in GetFormattedName
+            // would be based on the previous value of the input, not the current.
+            // It should be based on the current value. E.g the order of the messages should be correct.
+            var plan = new TestPlan();
+            var repeat = new RepeatStep {Count = 3, Action =  RepeatStep.RepeatStepAction.Fixed_Count};
+            var logOutput = new LogStep{Name = "Log Step {Log Message}"};
+            var x = logOutput.GetFormattedName();
+            plan.ChildTestSteps.Add(repeat);
+            repeat.ChildTestSteps.Add(logOutput);
+            InputOutputRelation.Assign(logOutput, TypeData.GetTypeData(logOutput).GetMember(nameof(logOutput.LogMessage)),
+                repeat, TypeData.GetTypeData(repeat).GetMember(nameof(repeat.IterationInfo))
+            );
+
+            var rl = new PlanRunCollectorListener();
+            plan.Execute(new IResultListener[] {}); // create the initial condition that repeat.IterationInfo is "3 of 3".
+            plan.Execute(new IResultListener[] {rl});
+            int i1 = rl.LogString.IndexOf("Log Step 1 of 3\" started");
+            int i2 = rl.LogString.IndexOf("Log Step 2 of 3\" started");
+            int i3 = rl.LogString.IndexOf("Log Step 3 of 3\" started");
+            Assert.IsTrue(i1 < i2);
+            Assert.IsTrue(i2 < i3);
+
         }
     }
 }
