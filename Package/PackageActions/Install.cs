@@ -114,7 +114,9 @@ namespace OpenTap.Package
                 }
                 
                 // Get package information
-                List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force, InstallDependencies, !Force, NoDowngrade);
+                List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
+                    targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
+                    InstallDependencies, Interactive, NoDowngrade);
                 if (packagesToInstall?.Any() != true)
                 {
                     if (NoDowngrade)
