@@ -880,6 +880,9 @@ namespace OpenTap
                             newa.Insert(idx + 1, new ManyToOneStringValueAnnotation(merged));
                         }
                     }
+
+                    IconAnnotationHelper.AddParameter(newa, mem, newa.Source);
+                    
                     CommonAnnotations.Add(newa);
 
                 next_thing:;
@@ -2538,6 +2541,9 @@ namespace OpenTap
                     (DirectoryPathAttribute x) => annotation.Add(x),
                     (IconAnnotationAttribute x) => annotation.Add(x) 
                     );
+
+                IconAnnotationHelper.AddParameter(annotation, mem.Member, annotation.Source);
+                
             }
 
             var availMem = annotation.Get<AvailableMemberAnnotation>();

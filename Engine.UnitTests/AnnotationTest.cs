@@ -380,6 +380,15 @@ namespace OpenTap.UnitTests
                     var parameterize = icons[IconNames.Parameterize].First();
                     parameterize.Get<IMethodAnnotation>().Invoke();
                     Assert.IsTrue(menuInterface.WasInvoked);
+                    
+                    {
+                        // verify that the right icon annotation now appears.
+                        var member2 = AnnotationCollection.Annotate(step2).GetMember(nameof(DelayStep.DelaySecs));
+                        var parameterized = member2.Get<ParameterizedIconAnnotation>();
+                        Assert.IsNotNull(parameterized);
+                        var disabled = member2.GetAll<IEnabledAnnotation>().Any(x => x.IsEnabled == false);
+                        Assert.IsTrue(disabled);
+                    }
 
                     var newParameter = TypeData.GetTypeData(sequence).GetMember("A");
                     Assert.IsNotNull(newParameter);
@@ -416,6 +425,14 @@ namespace OpenTap.UnitTests
 
                     {
                         var member2 = AnnotationCollection.Annotate(plan).GetMember("B");
+                        
+                        {
+                            // verify that the right icon annotation now appears.
+                            var parameter = member2.GetAll<IInteractiveIconAnnotation>()
+                                .First(x => x.IconName == IconNames.EditParameter);
+                            Assert.IsNotNull(parameter.Action.Get<IMethodAnnotation>());
+                        }
+                        
                         var edit = member2.Get<MenuAnnotation>().MenuItems.FirstOrDefault(x =>
                             x.Get<IconAnnotationAttribute>()?.IconName == IconNames.EditParameter);
                         menuInterface.SelectedMode = MenuTestUserInterface.Mode.Rename| MenuTestUserInterface.Mode.TestPlan;
@@ -442,7 +459,14 @@ namespace OpenTap.UnitTests
                     var parmeterizeOnTestPlanMulti = icons2[IconNames.ParameterizeOnTestPlan].First();
                     parmeterizeOnTestPlanMulti.Get<IMethodAnnotation>().Invoke();
                     Assert.AreEqual(2, plan.ExternalParameters.Entries.FirstOrDefault().Properties.Count());
-
+                    {
+                        // check that the right icon appeared.
+                        var memberMulti2 = AnnotationCollection.Annotate(new[] {step, step2})
+                            .GetMember(nameof(DelayStep.DelaySecs));
+                        bool parameterizedIcon = memberMulti2.GetAll<IIconAnnotation>().Any(x => x.IconName == IconNames.Parameterized);
+                        Assert.IsTrue(parameterizedIcon);
+                    }
+                    
                     var unparmeterizePlanMulti = icons2[IconNames.Unparameterize].First();
                     unparmeterizePlanMulti.Get<IMethodAnnotation>().Invoke();
                     Assert.IsNull(plan.ExternalParameters.Entries.FirstOrDefault());

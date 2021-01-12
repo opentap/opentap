@@ -1,13 +1,30 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 
 namespace OpenTap
 {
-    
     class TestStepMenuModel : IMenuModel, ITestStepMenuModel, IMenuModelState
     {
+
+        public static TestStepMenuModel FromSource(IMemberData member, object source)
+        {
+            if (source is ITestStepParent step)
+                return new TestStepMenuModel(member, new [] {step});
+            if (source is IEnumerable<object> array)
+                return new TestStepMenuModel(member, array.OfType<ITestStepParent>().ToArray());
+            return null;
+            
+        } 
+        
         public TestStepMenuModel(IMemberData member) => this.member = member;
+
+        public TestStepMenuModel(IMemberData member, ITestStepParent[] source)
+        {
+            this.member = member;
+            this.source = source;
+        }
         ITestStepParent[] source;
         readonly IMemberData member;
         object[] IMenuModel.Source { get => source; set => source = value?.OfType<ITestStepParent>().ToArray() ?? Array.Empty<ITestStepParent>(); }
@@ -162,6 +179,10 @@ namespace OpenTap
         public bool IsReadOnly => source.Length > 0 && source?.Any(p => p is TestStep t && t.IsReadOnly) == true;
         
         public bool IsAnyOutputAssigned => source.Any(x => InputOutputRelation.IsInput(x, member));
+        
+        public bool IsAnyInputAssigned => source.Any(x => InputOutputRelation.IsOutput(x, member));
+
+        public bool IsOutput => member.HasAttribute<OutputAttribute>();
         
         public bool CanUnassignOutput => TestPlanLocked == false && source.Length > 0 && IsReadOnly == false && member.Writable && IsAnyOutputAssigned;
         [Display("Unassign Output", "Unassign the output controlling this property.", Order: 2.0)]
