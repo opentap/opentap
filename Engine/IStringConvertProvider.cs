@@ -580,36 +580,42 @@ namespace OpenTap
                     // unescape nested strings and put them into 'parsedStrings'.
                     // after this they will be handled individually.
                     List<string> parsedStrings = new List<string>();
-                    StringBuilder buffer = new StringBuilder();
-                    for (int i = 0; i < stringdata.Length; i++)
+                    if (stringdata.Length > 0)
                     {
-                        var chr = stringdata[i];
-                        if (chr == ',')
+                        StringBuilder buffer = new StringBuilder();
+                        for (int i = 0; i < stringdata.Length; i++)
                         {
-                            parsedStrings.Add(buffer.ToString());
-                            buffer.Clear();
-                            continue;
-                        }
-                        if (chr == '"')
-                        {
-                            for (i += 1; i < stringdata.Length; i++)
+                            var chr = stringdata[i];
+                            if (chr == ',')
                             {
-                                chr = stringdata[i];
-                                if (chr == '"')
+                                parsedStrings.Add(buffer.ToString());
+                                buffer.Clear();
+                                continue;
+                            }
+
+                            if (chr == '"')
+                            {
+                                for (i += 1; i < stringdata.Length; i++)
                                 {
-                                    if (stringdata.Length > i + 1 && stringdata[i + 1] == '"')
-                                        i += 1; // skip escaped quotes and remove extra \".
-                                    else break;
+                                    chr = stringdata[i];
+                                    if (chr == '"')
+                                    {
+                                        if (stringdata.Length > i + 1 && stringdata[i + 1] == '"')
+                                            i += 1; // skip escaped quotes and remove extra \".
+                                        else break;
+                                    }
+
+                                    buffer.Append(chr);
                                 }
+                            }
+                            else
+                            {
                                 buffer.Append(chr);
                             }
                         }
-                        else
-                        {
-                            buffer.Append(chr);
-                        }
+
+                        parsedStrings.Add(buffer.ToString());
                     }
-                    parsedStrings.Add(buffer.ToString());
 
                     var values = new List<object>();
                     foreach (var str in parsedStrings)
@@ -620,7 +626,7 @@ namespace OpenTap
                         }
                         else
                         {
-                            // cannot handle elment -> give up.
+                            // cannot handle element -> give up.
                             return null;
                         }
                     }

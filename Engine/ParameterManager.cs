@@ -145,7 +145,7 @@ namespace OpenTap
             IEnumerable<string> getMemberNames()
             {
                 if (Scope.Object == null) return Enumerable.Empty<string>();
-                return TypeData.GetTypeData(Scope.Object).GetMembers()//.Where(GenericGui.FilterDefault2)
+                return TypeData.GetTypeData(Scope.Object).GetMembers()
                     .OfType<IParameterMemberData>()
                     .Select(x => x.Name);
             }
@@ -170,9 +170,9 @@ namespace OpenTap
 
             ScopeItem scope;
 
-            IEnumerable<string> getMessage()
+            IEnumerable<(string message, string error)> getMessage()
             {
-                var selectedName = SelectedName.Trim();
+                var selectedName = SelectedName?.Trim() ?? "";
                 
                 if(Scope.Object is ITestStepParent step)
                 {
@@ -181,29 +181,43 @@ namespace OpenTap
                         name = $"test plan '{plan.Name}'";
                     else
                         name = $"test step '{(step as ITestStep)?.GetFormattedName()}'";
-                    if (TypeData.GetTypeData(step).GetMember(selectedName.Trim()) != null && step != originalScope)
-                        yield return $"Merge with an existing parameter on {name}.";
+                    var existing = TypeData.GetTypeData(step).GetMember(selectedName.Trim());
+                    var originalExisting = TypeData.GetTypeData(step).GetMember(defaultFullName);
+
+                    if (existing != null && (step != originalScope || originalExisting != existing))
+                    {
+                        if (UnmergableListType(existing))
+                        {
+                            var error = "Cannot merge list-type parameters, except for lists of numbers.";
+                            yield return (error, error);
+                            yield break;
+                        }
+                        else
+                        {
+                            yield return ($"Merge with an existing parameter on {name}.", null);
+                        }
+                    }
                     else if(!isEdit)
-                        yield return $"Create new parameter on {name}.";
+                        yield return ($"Create new parameter on {name}.", null);
 
                     if (isEdit)
                     {
                         var availSettingsCount = AvailableSettings.Count();
                         if (Settings.Count == 0)
                         {
-                            yield return "Remove the parameter.";
+                            yield return ("Remove the parameter.", null);
                             yield break;
                         } 
                         if (Settings.Count < availSettingsCount)
-                            yield return "Remove settings from being controlled by the parameter.";
+                            yield return ("Remove settings from being controlled by the parameter.", null);
                         
                         if (step == originalScope)
                         {
                             if (Equals(defaultFullName, selectedName) == false)
-                                yield return $"Rename parameter to '{SelectedName}'.";
+                                yield return ($"Rename parameter to '{SelectedName}'.", null);
                         }
                         else
-                            yield return $"Move parameter to {name}.";
+                            yield return ($"Move parameter to {name}.", null);
                     }
                 }
             }
@@ -211,7 +225,7 @@ namespace OpenTap
             [Display("Message", Order: 1)]
             [Layout(LayoutMode.FullRow, 3)]
             [Browsable(true)]
-            public string Message => string.Join("\n", getMessage());
+            public string Message => string.Join("\n", getMessage().Select(x => x.message));
 
             public IEnumerable<object> AvailableSettings => scopeMembers;
 
@@ -277,11 +291,14 @@ namespace OpenTap
 
             ScopeMember[] scopeMembers;
 
+            public string GetError() => getMessage().FirstOrDefault(x => x.error != null).error;
+            
             bool isEdit => scopeMembers != null;
             object originalScope;
             public NamingQuestion(ITestStepParent[] source, IMemberData member, ScopeMember[] scopeMembers = null, object originalScope = null)
             {
                 Rules.Add(() => validateName() == null, validateName, nameof(SelectedName));
+                Rules.Add(() => GetError() == null, () => getMessage().FirstOrDefault(x => x.error != null).error, nameof(Message));
                 memberType = member.TypeDescriptor;
                 this.source = source;
                 this.scopeMembers = scopeMembers;
@@ -356,6 +373,7 @@ namespace OpenTap
             parameterUserRequest.SelectedName = parameterUserRequest.SelectedName.Trim();
             if (parameterUserRequest.Response == OkCancel.Cancel)
                 return;
+            
             var err = parameterUserRequest.Error;
             if (string.IsNullOrWhiteSpace(err) == false)
             {
@@ -366,7 +384,24 @@ namespace OpenTap
             var scope = parameterUserRequest.Scope.Object;
             Parameterize(scope, s.Member, source, parameterUserRequest.SelectedName);
         }
-        
+
+        public static bool UnmergableListType(IMemberData property)
+        {
+            var propertyType = property.TypeDescriptor;
+            // merging IEnumerable is not supported (unless its a string).
+            if (propertyType.DescendsTo(typeof(IEnumerable)))
+            {
+                if (propertyType.IsA(typeof(string)) == false)
+                {
+                    var elementType = propertyType.AsTypeData()?.ElementType;
+                    if (elementType == null || elementType.IsNumeric == false)
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
         public static void EditParameter(ITestStepMenuModel ui)
         {
             var member = (ParameterMemberData)ui.Member; 
@@ -435,7 +470,7 @@ namespace OpenTap
         static bool isParameterized(ITestStepParent item, IMemberData member) => item.GetParents().Any(parent =>
             TypeData.GetTypeData(parent).GetMembers().OfType<ParameterMemberData>()
                 .Any(x => x.ParameterizedMembers.Contains((item, Member: member))));
-        public static bool CanParameter(IMemberData property, ITestStepParent[] steps )
+        public static bool CanParameter(IMemberData property, ITestStepParent[] steps)
         {
             if (steps.Length == 0) return false;
             if (property == null) return false;
@@ -456,13 +491,7 @@ namespace OpenTap
             if (steps.Any(step => isParameterized(step, property)))
                 return false;
 
-            var propertyType = property.TypeDescriptor;
-            // parameterizing IEnumerable is not supported (unless its a string).
-            if (propertyType.DescendsTo(typeof(IEnumerable)))
-            {
-                if (propertyType.IsA(typeof(string)) == false)
-                    return false;
-            }
+ 
 
             var value = property.GetValue(steps.FirstOrDefault());
 
@@ -472,7 +501,21 @@ namespace OpenTap
             {
                 return false;
             }
+            
+            return true;
+        }
+        
+        public static bool CanAutoParameterize(IMemberData property, ITestStepParent[] steps )
+        {
+            if (steps.Length == 0) return false;
+            if (property == null) return false;
 
+            var parameterUserRequest = new NamingQuestion(steps, property);
+
+            var err = parameterUserRequest.Error;
+            if (string.IsNullOrWhiteSpace(err) == false)
+                return false;
+            
             return true;
         }
 
@@ -497,8 +540,7 @@ namespace OpenTap
                 {
                     var (scope, member) = ScopeMember.GetScope(new[] {src}, data.Member);
                     IMemberData property = data.Member;
-                    var items = data.Source;
-
+                    
                     if (scope is ITestStep)
                     {
                         property.Unparameterize((ParameterMemberData) member, src);

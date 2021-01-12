@@ -3488,5 +3488,32 @@ namespace OpenTap
             var sub = col.Get<IMembersAnnotation>().Members.FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name == name2);
             return sub;
         }
+
+        /// <summary>  helper method to get the icon annotation collection. Will return null if the item could not be found. </summary>
+        public static AnnotationCollection GetIcon(this AnnotationCollection col, string iconName)
+        {
+            return col.Get<MenuAnnotation>()?.MenuItems
+                .FirstOrDefault(c => c.Get<IIconAnnotation>()?.IconName == iconName);
+        }
+        public static void ExecuteIcon(this AnnotationCollection col, string iconName)
+        {
+            var icon = col.GetIcon(iconName);
+            if (!icon.Get<IEnabledAnnotation>().IsEnabled == true)
+                throw new Exception("Icon action is not enabled");
+            icon.Get<IMethodAnnotation>().Invoke();
+        }
+
+        public static void SetValue(this AnnotationCollection col, object value)
+        {
+            // this function could be extended to support more types if needed.
+            var strVal = col.Get<IStringValueAnnotation>();
+            if (strVal != null)
+            {
+                strVal.Value = StringConvertProvider.GetString(value);
+                col.Write();
+            }
+            else throw new Exception("SetValue failed.");
+
+        }
     }
 }

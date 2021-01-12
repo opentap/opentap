@@ -905,6 +905,71 @@ namespace OpenTap.UnitTests
             
         }
 
+        public class TestStepWithLists : TestStep
+        {
+            public List<double> DoubleValues { get; set; } = new List<double>();
+
+            public class Item
+            {
+                public double X { get; set; }
+            }
+            
+            public List<Item> Items { get; set; } = new List<Item>();
+            public override void Run()
+            {
+                
+            }
+        }
+
+        [Test]
+        public void ParameteriseLists()
+        {
+            var obj1 = new TestStepWithLists();
+            var obj2 = new TestStepWithLists();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(obj1);
+            plan.ChildTestSteps.Add(obj2);
+
+            void doTest(string name, TestStepWithLists obj, bool canAnnotate)
+            {
+                var a1 = AnnotationCollection.Annotate(obj).GetMember(name);
+                var p = a1.GetIcon(IconNames.ParameterizeOnTestPlan);
+                if (canAnnotate)
+                {
+                    Assert.IsTrue(p.Get<IEnabledAnnotation>().IsEnabled);
+                    p.Get<IMethodAnnotation>().Invoke();
+                    p.Read();
+                    Assert.IsFalse(p.Get<IEnabledAnnotation>().IsEnabled);
+                }
+                else
+                {
+                    Assert.IsFalse(p.Get<IEnabledAnnotation>().IsEnabled);
+                }
+            }
+
+            doTest(nameof(obj1.DoubleValues), obj1, true);
+            doTest(nameof(obj2.DoubleValues), obj2, true);
+            doTest(nameof(obj1.Items), obj1, true);
+            doTest(nameof(obj2.Items), obj2, false);
+        }
+
+        [Test]
+        public void AddExternalParameterWarning()
+        {
+            var obj1 = new TestStepWithLists();
+            var obj2 = new TestStepWithLists();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(obj1);
+            plan.ChildTestSteps.Add(obj2);
+            var member= TypeData.GetTypeData(obj1).GetMember(nameof(obj1.Items));
+            plan.ExternalParameters.Add(obj1, member, "items");
+            
+            // produces warning, does not add since the item type is not compatible.
+            var ext = plan.ExternalParameters.Add(obj2, member, "items");
+            Assert.AreEqual(1, ext.Properties.Count());
+
+        }
+
         public class MemberWithException
         {
             public class SubThing
@@ -931,7 +996,49 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(1, annotation.Get<IMembersAnnotation>().Members.Count());
             annotation.Read();
             Assert.AreEqual(1, annotation.Get<IMembersAnnotation>().Members.Count());
-        } 
+        }
+
+        [Test]
+        public void SweepParametersAnnotation()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepParameterStep();
+            var log = new LogStep() { };
+            log.LogMessage = "msg0";
+            plan.Steps.Add(sweep);
+            sweep.ChildTestSteps.Add(log);
+            AnnotationCollection.Annotate(log)
+                .GetMember(nameof(log.LogMessage))
+                .ExecuteIcon(IconNames.ParameterizeOnParent);
+            
+            AnnotationCollection.Annotate(sweep)
+                .GetMember(nameof(sweep.SweepValues))
+                .ExecuteIcon(IconNames.ParameterizeOnTestPlan);
+
+            var sweepValues = AnnotationCollection.Annotate(plan).GetMember("Parameters \\ Sweep \\ Sweep Values");
+            Assert.IsNotNull(sweepValues);
+            var collection = sweepValues.Get<ICollectionAnnotation>();
+            for (int i = 0; i < 5; i++)
+            {
+                collection.AnnotatedElements = collection.AnnotatedElements.Append(collection.NewElement());
+                sweepValues.Write();
+                sweepValues.Read();
+                Assert.IsTrue(collection.AnnotatedElements.Count() == i + 1);
+                var row1 = collection.AnnotatedElements.Last();
+                var enabledMember = row1.GetMember("Enabled");
+                var valueMember = row1.GetMember("Parameters \\ Log Message");
+                valueMember.SetValue("msg" + i);
+                Assert.IsNotNull(enabledMember);
+                Assert.IsNotNull(valueMember);
+            }
+
+            sweepValues.Write();
+            for (int i = 0; i < 5; i++)
+            {
+                Assert.AreEqual("msg" + i, sweep.SweepValues[i].Values["Parameters \\ Log Message"]);
+            }
+
+        }
         
     }
 }
