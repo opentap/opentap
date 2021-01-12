@@ -2093,7 +2093,7 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(t.IsCompleted);
         }
 
-        [Test]
+        [Test, Retry(3)]
         public void TestExecuteWaitForDefer_WithParallel()
         {
             var plan = new TestPlan();
