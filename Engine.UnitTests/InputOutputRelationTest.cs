@@ -175,6 +175,15 @@ namespace OpenTap.UnitTests
                     .Get<MenuAnnotation>();
                 menu.MenuItems.First(x => x.Get<IconAnnotationAttribute>().IconName == IconNames.AssignOutput).Get<IMethodAnnotation>().Invoke();
 
+                var input1 = AnnotationCollection.Annotate(step3).GetMember(nameof(OutputInput.Input)).GetAll<IIconAnnotation>()
+                    .FirstOrDefault(x => x.IconName == IconNames.Input);
+                
+                var input2 = AnnotationCollection.Annotate(step2).GetMember(nameof(OutputInput.Input)).GetAll<IIconAnnotation>()
+                    .FirstOrDefault(x => x.IconName == IconNames.Input);
+
+                Assert.IsNotNull(input1);
+                Assert.IsNotNull(input2);
+                
                 var run = plan.Execute();
                 Assert.AreEqual(Verdict.Pass, run.Verdict);
                 Assert.IsTrue(request.WasInvoked);
@@ -208,9 +217,28 @@ namespace OpenTap.UnitTests
                 request.SelectName = "Step 1";
                 menu.MenuItems.First(x => x.Get<IconAnnotationAttribute>().IconName == IconNames.AssignOutput).Get<IMethodAnnotation>().Invoke();
 
+                var input1 = AnnotationCollection.Annotate(step3).GetMember(nameof(OutputInput.Input)).GetAll<IIconAnnotation>()
+                    .FirstOrDefault(x => x.IconName == IconNames.Input);
+                Assert.IsNotNull(input1);
+
+                step2.Input = 0;
+                step3.Input = 0;
                 var run = plan.Execute();
                 Assert.AreEqual(Verdict.Pass, run.Verdict);
                 Assert.IsTrue(request.WasInvoked);
+                
+                menu = AnnotationCollection.Annotate(new []{step2, step3}).GetMember(nameof(OutputInput.Input))
+                    .Get<MenuAnnotation>();
+                menu.MenuItems.First(x => x.Get<IconAnnotationAttribute>().IconName == IconNames.UnassignOutput).Get<IMethodAnnotation>().Invoke();
+                var input2 = AnnotationCollection.Annotate(step3).GetMember(nameof(OutputInput.Input)).GetAll<IIconAnnotation>()
+                    .FirstOrDefault(x => x.IconName == IconNames.Input);
+                Assert.IsNull(input2);
+                step2.Input = 0;
+                step3.Input = 0;
+                run = plan.Execute();
+                Assert.AreEqual(Verdict.Error, run.Verdict);
+                
+                
             }
             finally
             {
