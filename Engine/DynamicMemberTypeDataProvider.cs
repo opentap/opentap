@@ -318,7 +318,7 @@ namespace OpenTap
             {
                 var sourceType = TypeData.GetTypeData(source);
                 if (!sourceType.GetMembers().Contains(member))
-                    throw new ArgumentException("The does not belong to the source object type");
+                    throw new ArgumentException("The member does not belong to the source object type");
             }
             var targetType = TypeData.GetTypeData(target);
             var existingMember = targetType.GetMember(name);

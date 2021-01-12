@@ -315,24 +315,26 @@ namespace OpenTap
             //Add users of resources
             foreach (var r in references)
             {
-                TestStepExtensions.GetObjectSettings<IResource, object, ResourceNode>( r, true, (res, prop) =>
-                   {
-                       var nodes = tree.Where(n => n.Resource == res);
-                       if(nodes.Count() > 1)
-                       {
-                           // Normally we would expect that the tree only contains one node representing each resource. 
-                           // In case of null resources however, we want one node per property, such that ILockManager.BeforeOpen()
-                           // has a chance to set each property to a different resource instance.
-                           if (res != null)
-                               throw new Exception($"Duplicate entry for Resource '{res.Name}' in tree.");
-                           nodes = nodes.Where(n => n.Depender == prop);
-                       }
-                       var nodeRepresentingResource = nodes.FirstOrDefault();
-                       if (nodeRepresentingResource != null)
-                           nodeRepresentingResource.References.Add(new ResourceReference(r, prop));
-                       return nodeRepresentingResource;
-                   }, new HashSet<ResourceNode>());
+                TestStepExtensions.GetObjectSettings<IResource, object, ResourceNode>(r, true, (res, prop) =>
+                {
+                    var nodes = tree.Where(n => n.Resource == res);
+                    if (nodes.Count() > 1)
+                    {
+                        // Normally we would expect that the tree only contains one node representing each resource. 
+                        // In case of null resources however, we want one node per property, such that ILockManager.BeforeOpen()
+                        // has a chance to set each property to a different resource instance.
+                        if (res != null)
+                            throw new Exception($"Duplicate entry for Resource '{res.Name}' in tree.");
+                        nodes = nodes.Where(n => n.Depender == prop);
+                    }
+
+                    var nodeRepresentingResource = nodes.FirstOrDefault();
+                    if (nodeRepresentingResource != null)
+                        nodeRepresentingResource.References.Add(new ResourceReference(r, prop));
+                    return nodeRepresentingResource;
+                }, new HashSet<ResourceNode>());
             }
+
             return tree;
         }
     }
