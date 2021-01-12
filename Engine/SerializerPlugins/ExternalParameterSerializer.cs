@@ -66,11 +66,22 @@ namespace OpenTap.Plugins
                         break;
                     subparent = subparent.Parent as ITestStep;
                 }
+
                 parent = subparent;
             }
 
             if (parent == null) return false;
-            member.Parameterize(parent, step, parameter);
+            var newParameter = member.Parameterize(parent, step, parameter);
+            if (newParameter.ParameterizedMembers.Skip(1).Any())
+            {
+                // merge occured. See similar code in ExternalParameters.
+                if (ParameterManager.UnmergableListType(newParameter))
+                {
+                    member.Unparameterize(newParameter, step);
+                    Log.Warning("Unable merge parameters {0}, since their types do not support it.", parameter);
+                }
+            }
+
             return true;
         }
 

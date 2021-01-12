@@ -2114,6 +2114,7 @@ namespace OpenTap.Engine.UnitTests
                 testStringConvert(instr2);
                 testStringConvert(dut1);
                 testStringConvert(new List<IResource> { instr1, instr2, dut1 });
+                testStringConvert(new List<IResource> { });
             }
             finally
             {
@@ -2126,10 +2127,12 @@ namespace OpenTap.Engine.UnitTests
             testStringConvert(new Verdict[] { Verdict.Pass, Verdict.Fail, Verdict.Aborted });
             testStringConvert(new LogSeverity[] { LogSeverity.Debug, LogSeverity.Error, LogSeverity.Warning });
             testStringConvert(new EngineSettings.AbortTestPlanType[] { EngineSettings.AbortTestPlanType.Step_Error, EngineSettings.AbortTestPlanType.Step_Error | EngineSettings.AbortTestPlanType.Step_Fail });
+            testStringConvert(new double[] { });
             testStringConvert(new double[] { 1, 2, 3, 4, 7, 8, 9, 0 });
             testStringConvert(new List<int> { 1, 2, 3, 4, 7, 8, 9, 0 });
             testStringConvert(new List<string> { "A A\"\" A A,", "B \" B B,", "C,D", "" });
             testStringConvert(new List<Verdict> { Verdict.Pass, Verdict.Fail,Verdict.Pass,Verdict.Aborted });
+            testStringConvert(new List<Verdict> { });
             testStringConvert(new List<EngineSettings.AbortTestPlanType> { EngineSettings.AbortTestPlanType.Step_Error | EngineSettings.AbortTestPlanType.Step_Fail, EngineSettings.AbortTestPlanType.Step_Error });
 
             var reparse = (Verdict)StringConvertProvider.FromString("pass", TypeData.FromType(typeof(Verdict)), null);

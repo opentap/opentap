@@ -28,10 +28,12 @@ namespace OpenTap
         public void Parameterize() => ParameterManager.CreateParameter(this, getCommonParent(), true);
 
         public bool HasTestPlanParent => source.FirstOrDefault()?.GetParent<TestPlan>() != null;
+        public bool CanAutoParameterize => ParameterManager.CanAutoParameterize(this.member, this.source);
 
         [EnabledIf(nameof(CanExecuteParameterize), true, HideIfDisabled = true)]
         [EnabledIf(nameof(HasTestPlanParent), true, HideIfDisabled = true)]
         [EnabledIf(nameof(TestPlanLocked), false)]
+        [EnabledIf(nameof(CanAutoParameterize), true)]
         [Browsable(true)]
         [IconAnnotation(IconNames.ParameterizeOnTestPlan)]
         [Display("Parameterize On Test Plan", "Parameterize this setting by creating, or adding to, an existing external test plan parameter.", Order: 1.0)]
@@ -42,10 +44,13 @@ namespace OpenTap
             ParameterManager.CreateParameter(this, plan, false);
         }
         
+        // note: ParameterizeOnParent only works for things that does not have the test plan as a parent.
+        // for steps with the test plan as a parent, ParameterizeOnTestPlan should be used.
         public bool HasSameParents => source.Select(x => x.Parent).OfType<ITestStep>().Distinct().Take(2).Count() == 1;
         public bool CanExecutedParameterizeOnParent => CanExecuteParameterize && HasSameParents; 
         [EnabledIf(nameof(CanExecutedParameterizeOnParent), true, HideIfDisabled = true)]
         [EnabledIf(nameof(TestPlanLocked), false)]
+        [EnabledIf(nameof(CanAutoParameterize), true)]
         [Browsable(true)]
         [IconAnnotation(IconNames.ParameterizeOnParent)]
         [Display("Parameterize On Parent", "Parameterize this setting by creating, or adding to, an existing parameter.", Order: 1.0)]
