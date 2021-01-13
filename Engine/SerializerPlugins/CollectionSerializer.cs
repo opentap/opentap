@@ -25,7 +25,6 @@ namespace OpenTap.Plugins
             object prevobj = this.Object;
             try
             {
-
                 var t = (_t as TypeData)?.Type;
                 if (t == null || !t.DescendsTo(typeof(IEnumerable)) || t == typeof(string)) return false;
 
@@ -147,7 +146,9 @@ namespace OpenTap.Plugins
                 }
                 else if (t.DescendsTo(typeof(System.Collections.ObjectModel.ReadOnlyCollection<>)))
                 {
-                    var lst = Activator.CreateInstance(typeof(List<>).MakeGenericType(genericType), finalValues);
+                    var lst = (IList) Activator.CreateInstance(typeof(List<>).MakeGenericType(genericType));
+                    foreach (var item in finalValues)
+                        lst.Add(item);
                     values = (IList) Activator.CreateInstance(t, lst);
                 }
                 else if (t.HasInterface<IList>())

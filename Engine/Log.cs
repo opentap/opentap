@@ -67,8 +67,14 @@ namespace OpenTap
         {
             
             if (message == null)
-                throw new ArgumentNullException("message");
+                throw new ArgumentNullException(nameof(message));
             log.LogEvent((int)te, message);
+        }
+
+        /// <summary> Register a single event with formatting and duration. </summary>
+        public void TraceEvent(long durationNs, LogEventType te, int id, string message, params object[] args)
+        {
+            log.LogEvent((int)te, durationNs, message, args);
         }
 
         /// <summary>
@@ -77,9 +83,9 @@ namespace OpenTap
         public void TraceEvent(LogEventType te, int id, string message, params object[] args)
         {
             if (message == null)
-                throw new ArgumentNullException("message");
+                throw new ArgumentNullException(nameof(message));
             if (args == null)
-                throw new ArgumentNullException("args");
+                throw new ArgumentNullException(nameof(args));
             log.LogEvent((int)te, message, args);
         }
     }
@@ -392,7 +398,7 @@ namespace OpenTap
 
         // Performance: Reuse the string build each time to avoid generating GC pressure.
         [ThreadStatic]
-        static System.Text.StringBuilder sb;
+        static StringBuilder sb;
 
         /// <summary>
         /// like traceEvent except it uses a stopwatch 'timer' to write formatted time after the message [{1:0}ms].
@@ -410,7 +416,7 @@ namespace OpenTap
             var timespan = ShortTimeSpan.FromSeconds(elapsed.TotalSeconds);
 
             if (sb == null)
-                sb = new System.Text.StringBuilder();
+                sb = new StringBuilder();
             sb.Clear();
             if (args.Length == 0)
             {
@@ -423,9 +429,15 @@ namespace OpenTap
             sb.Append(" [");
             timespan.ToString(sb);
             sb.Append("]");
-            trace.TraceEvent(eventType, 0, sb.ToString());
-
+            // * 1_000_000 steals about 20 bits of precision
+            // so ticks can be about 2^43 before overflowing (signed int)
+            // 
+            long durationNs = elapsed.Ticks * NanoSecondsPerTick;
+            trace.TraceEvent(durationNs, eventType, 0, sb.ToString());
         }
+
+        // this should always be exactly 100.
+        const long NanoSecondsPerTick = 1_000_000_000 / TimeSpan.TicksPerSecond;
 
         /// <summary>
         /// Write a message to the log with a given trace level.

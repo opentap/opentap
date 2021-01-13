@@ -66,11 +66,22 @@ namespace OpenTap.Plugins
                         break;
                     subparent = subparent.Parent as ITestStep;
                 }
+
                 parent = subparent;
             }
 
             if (parent == null) return false;
-            member.Parameterize(parent, step, parameter);
+            var newParameter = member.Parameterize(parent, step, parameter);
+            if (newParameter.ParameterizedMembers.Skip(1).Any())
+            {
+                // merge occured. See similar code in ExternalParameters.
+                if (ParameterManager.UnmergableListType(newParameter))
+                {
+                    member.Unparameterize(newParameter, step);
+                    Log.Warning("Unable merge parameters {0}, since their types do not support it.", parameter);
+                }
+            }
+
             return true;
         }
 
@@ -181,6 +192,14 @@ namespace OpenTap.Plugins
                 currentNode.Remove(elem);
             }
         }
+        
+        /// <summary>
+        /// This dictionary is used to cache which parent steps point to which child test steps via a parameter.
+        /// Hence it maps (step,member) to (parent, member).
+        /// </summary>
+        Dictionary<(object step, IMemberData member), (object parent, ParameterMemberData parentMember)> parameterReverseLookup = 
+        new Dictionary<(object step, IMemberData member), (object parent, ParameterMemberData parentMember)>();
+        HashSet<ITestStepParent> reversedParents = new HashSet<ITestStepParent>();
 
         /// <summary> Serialization implementation. </summary>
         public override bool Serialize( XElement elem, object obj, ITypeData expectedType)
@@ -199,20 +218,36 @@ namespace OpenTap.Plugins
             // here I need to check if any of its parent steps are forwarding 
             // its member data.
 
-            ITestStepParent parameterParent = step.Parent;
-            IMemberData parameterMember = null;
-            while (parameterParent != null && parameterMember == null)
             {
-                var members = TypeData.GetTypeData(parameterParent).GetMembers().OfType<ParameterMemberData>();
-                parameterMember = members.FirstOrDefault(x => x.ContainsMember((step, member)));
-                if (parameterMember == null)
-                    parameterParent = parameterParent.Parent;
+                // update reverse lookup.
+                ITestStepParent parameterParent = step.Parent;
+                while (parameterParent != null)
+                {
+                    if (reversedParents.Add(parameterParent))
+                    {
+                        var parameters = TypeData.GetTypeData(parameterParent)
+                            .GetMembers()
+                            .OfType<ParameterMemberData>();
+
+                        foreach (var parameter in parameters)
+                        {
+                            foreach (var set in parameter.ParameterizedMembers)
+                                parameterReverseLookup.Add(set, (parameterParent, parameter));
+                        }
+
+                        parameterParent = parameterParent.Parent;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
             }
 
-            if (parameterMember == null) return false;
+            if (parameterReverseLookup.TryGetValue(((object)step, member), out (object parameterParent, ParameterMemberData parameterMember) parentMember) == false) return false;
 
-            elem.SetAttributeValue(Parameter, parameterMember.Name);
-            if (parameterParent is ITestStep parentStep)
+            elem.SetAttributeValue(Parameter, parentMember.parameterMember.Name);
+            if (parentMember.parameterParent is ITestStep parentStep)
                 elem.SetAttributeValue(Scope, parentStep.Id.ToString());
             // skip
             try

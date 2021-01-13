@@ -182,6 +182,8 @@ namespace OpenTap
                 additionalMembers = new HashSet<(object Source, IMemberData Member)>();
             if(!additionalMembers.Add((newSource, newMember)))
                 throw new Exception("Member is already parameterized.");
+            if (newMember is IDynamicMemberData)
+                dynamicMembers += 1;
         }
 
         /// <summary>
@@ -196,6 +198,8 @@ namespace OpenTap
         {
             if (delSource == source && Equals(delMember, member))
             {
+                if (delMember is IDynamicMemberData)
+                    dynamicMembers -= 1;
                 if (additionalMembers == null || additionalMembers.Count == 0)
                 {
                     source = null;
@@ -206,13 +210,23 @@ namespace OpenTap
             }
             else
             {
-                additionalMembers?.Remove((delSource, delMember));
+                if (additionalMembers?.Remove((delSource, delMember)) ?? false)
+                {
+                    if (delMember is IDynamicMemberData)
+                        dynamicMembers -= 1;
+                }
             }
 
             return false;
         }
 
         bool IDynamicMemberData.IsDisposed => source == null;
+
+        int dynamicMembers = 0;
+        
+        // it can be useful to know if there are any dynamic members because it
+        // can make the sanity checks a lot faster. 
+        internal bool AnyDynamicMembers => dynamicMembers > 0;
     }
 
     class AcceleratedDynamicMember<TAccel> : DynamicMember
@@ -304,7 +318,7 @@ namespace OpenTap
             {
                 var sourceType = TypeData.GetTypeData(source);
                 if (!sourceType.GetMembers().Contains(member))
-                    throw new ArgumentException("The does not belong to the source object type");
+                    throw new ArgumentException("The member does not belong to the source object type");
             }
             var targetType = TypeData.GetTypeData(target);
             var existingMember = targetType.GetMember(name);

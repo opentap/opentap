@@ -117,7 +117,8 @@ namespace OpenTap
         {
             this.plan = plan;
         }
-        
+
+        static TraceSource log = Log.CreateSource("External Parameters"); 
         /// <summary> Adds a step property to the external test plan parameters. </summary>
         /// <param name="step"></param>
         /// <param name="setting"></param>
@@ -133,7 +134,18 @@ namespace OpenTap
                 return existing;
             if (Name == null)
                 Name = setting.GetDisplayAttribute().GetFullName();
-            setting.Parameterize(plan, step, Name);
+            var newParameter = setting.Parameterize(plan, step, Name);
+            if (newParameter.ParameterizedMembers.Skip(1).Any())
+            {
+                // merge occured.
+                // See similar code in ExternalParameterSerializer.
+                if (ParameterManager.UnmergableListType(newParameter))
+                {
+                    setting.Unparameterize(newParameter, step);
+                    log.Warning("Unable merge parameters {0}, since their types do not support it.", Name);
+                }
+            }
+        
             return Get(Name);
         }
 

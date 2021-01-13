@@ -68,23 +68,14 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="InstallOpenTapPackages"
-          Inputs="$(MSBuildProjectFullPath)"
+  <UsingTask TaskName="Keysight.OpenTap.Sdk.MSBuild.InstallOpenTapPackages" AssemblyFile="$(MSBuildThisFileDirectory)\Keysight.OpenTap.Sdk.MSBuild.dll"/>
+  <Target Name="InstallOpenTapPackages"          
           Outputs="@(OpenTapPackagesToInstall-> '$(OutDir)Packages/%(Identity)/package.xml')"
           DependsOnTargets="CopyOpenTapPayloadFiles;ProcessOpenTapPackageList"
+          
           BeforeTargets="Build" AfterTargets="CopyOpenTapPayloadFiles">
-    <Exec Command=".\tap package install --dependencies &quot;%(Identity)&quot;"
-          Condition="'%(OpenTapPackagesToInstall.Repository)' == '' AND '%(OpenTapPackagesToInstall.Version)' == ''"
-          LogStandardErrorAsError="false" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
-    <Exec Command=".\tap package install --dependencies &quot;%(Identity)&quot; -r &quot;%(OpenTapPackagesToInstall.Repository)&quot;"
-          Condition="'%(OpenTapPackagesToInstall.Repository)' != '' AND '%(OpenTapPackagesToInstall.Version)' == ''"
-          LogStandardErrorAsError="false" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
-    <Exec Command=".\tap package install --dependencies &quot;%(Identity)&quot; --version &quot;%(OpenTapPackagesToInstall.Version)&quot;"
-          Condition="'%(OpenTapPackagesToInstall.Repository)' == '' AND '%(OpenTapPackagesToInstall.Version)' != ''"
-          LogStandardErrorAsError="false" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
-    <Exec Command=".\tap package install --dependencies &quot;%(Identity)&quot; -r &quot;%(OpenTapPackagesToInstall.Repository)&quot; --version &quot;%(OpenTapPackagesToInstall.Version)&quot;"
-          Condition="'%(OpenTapPackagesToInstall.Repository)' != '' AND '%(OpenTapPackagesToInstall.Version)' != ''"
-          LogStandardErrorAsError="false" EnvironmentVariables="OPENTAP_DEBUG_INSTALL=true" WorkingDirectory="$(OutDir)"/>
+
+    <InstallOpenTapPackages TapDir="$(OutDir)" PackagesToInstall="@(OpenTapPackagesToInstall)"/>    
   </Target>
 
   <UsingTask TaskName="Keysight.OpenTap.Sdk.MSBuild.AddAssemblyReferencesFromPackage" AssemblyFile="$(MSBuildThisFileDirectory)\Keysight.OpenTap.Sdk.MSBuild.dll"/>  

@@ -34,14 +34,15 @@ namespace OpenTap.Plugins.BasicSteps
     }
 
     [Obfuscation(Exclude = true, ApplyToMembers = true)]
-    class DialogRequest
+    class DialogRequest : IDisplayAnnotation
     {
         public DialogRequest(string Title, string Message)
         {
             this.Name = Title;
             this.Message = Message;
         }
-        [Browsable(false)]
+
+        // implementing Name of IDisplayAnnotation explicitly.
         public string Name { get;}
 
         [Layout(LayoutMode.FullRow, rowHeight: 2)]
@@ -60,6 +61,17 @@ namespace OpenTap.Plugins.BasicSteps
         [EnabledIf("Buttons", InputButtons.OkCancel, HideIfDisabled = true)]
         [Submit]
         public WaitForInputResult2 Input2 { get; set; } = WaitForInputResult2.Ok;
+
+        // the rest of IDisplayAnntation can be implemented implicitly
+        // as these properties are not really needed for user input requests.
+
+        string IDisplayAnnotation.Description => string.Empty;
+
+        string[] IDisplayAnnotation.Group => Array.Empty<string>();
+        
+        double IDisplayAnnotation.Order => DisplayAttribute.DefaultOrder;
+
+        bool IDisplayAnnotation.Collapsed => false;
     }
 
     [Display("Dialog", Group: "Basic Steps", Description: "Shows a message to the user and waits for a response. " +

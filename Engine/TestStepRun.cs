@@ -70,7 +70,15 @@ namespace OpenTap
         [DataMember]
         [MetaData(macroName: "Date")]
         public DateTime StartTime {
-            get => (DateTime)Parameters[nameof(StartTime)];
+            get
+            {
+                var param = Parameters[nameof(StartTime)];
+                if (param is DateTime startTime)
+                {
+                    return startTime;
+                }
+                return new DateTime();
+            }
             set => Parameters[nameof(StartTime)] = value;
         }
         /// <summary>
@@ -169,8 +177,8 @@ namespace OpenTap
         /// </summary>
         internal string TestStepPath;
 
-        ManualResetEventSlim completedEvent = null;//new ManualResetEventSlim(false);
-        readonly object completedEventLock = new object();
+        readonly ManualResetEventSlim completedEvent = new ManualResetEventSlim(false);
+        
         bool completed = false;
         /// <summary>  Waits for the test step run to be entirely done. This includes any deferred processing.</summary>
         public void WaitForCompletion()
@@ -182,12 +190,6 @@ namespace OpenTap
         public void WaitForCompletion(CancellationToken cancellationToken)
         {
             if (completed) return;
-            lock (completedEventLock)
-            {
-                if(completedEvent == null)
-                    completedEvent = new ManualResetEventSlim(false);
-            }
-
             if (completedEvent.IsSet) return;
 
             var currentThread = TapThread.Current;
@@ -233,7 +235,7 @@ namespace OpenTap
             Duration = runDuration; // Requires update after TestStepRunStart and before TestStepRunCompleted
             UpgradeVerdict(step.Verdict);
             completed = true;
-            completedEvent?.Set();
+            completedEvent.Set();
         }
 
         /// <summary>

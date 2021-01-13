@@ -15,6 +15,7 @@ namespace OpenTap.Package.UnitTests
         public List<string> ItemGroups { get; set; }
         public List<string> Imports { get; set; }
         public ProjectBuildTest ProjectBuildTest { get; set; }
+        string OutDir => Path.Combine(ProjectBuildTest.WorkingDirectory, "bin");
 
         public override string ToString()
         {
@@ -24,19 +25,19 @@ namespace OpenTap.Package.UnitTests
                    string.Join("\n", ItemGroups) + '\n' +
                    string.Join("\n", Imports) + '\n' +
                    "</Project>\n";
-        }
+        }        
 
         public CsProj(ProjectBuildTest caller)
         {
             ProjectBuildTest = caller;
             PropertyGroups = new List<string>()
             {
-                $@"
+                $@"                   
     <PropertyGroup>
         <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
         <TargetFrameworkVersion></TargetFrameworkVersion>
         <TargetFramework>netstandard2.0</TargetFramework>
-        <OutputPath>{Directory.GetCurrentDirectory()}</OutputPath>
+        <OutDir>{OutDir}</OutDir>
     </PropertyGroup>"
             };
             ItemGroups = new List<string>();
@@ -50,7 +51,7 @@ namespace OpenTap.Package.UnitTests
         public (string Stdout, string Stderr, int ExitCode) Build()
         {
             using (var writer = new StreamWriter(Path.Combine(ProjectBuildTest.WorkingDirectory, Filename)))
-                writer.Write(this.ToString());
+                writer.Write(this.ToString());            
 
             if (OperatingSystem.Current != OperatingSystem.Windows)
             {
@@ -76,9 +77,6 @@ namespace OpenTap.Package.UnitTests
             process.Start();
             var timeLimit = TimeSpan.FromSeconds(30);
             
-            var stdout = new StringBuilder();
-            var stderr = new StringBuilder();
-
             // For some reason, the process doesn't exit properly with WaitForExit
             while (process.HasExited == false)
             {
@@ -138,7 +136,7 @@ namespace OpenTap.Package.UnitTests
 
             StringAssert.Contains("Got 0 OpenTapPackageReference targets.", result.Stdout);
             Assert.AreEqual(result.ExitCode, 0);
-            Assert.False(File.Exists(OutputFile));
+            Assert.True(File.Exists(OutputFile));
         }
 
         [Test]
@@ -156,7 +154,8 @@ namespace OpenTap.Package.UnitTests
   </ItemGroup>
 ");
             var result = csProj.Build();
-
+            
+            StringAssert.Contains(@"package install --dependencies ""MyPlugin4""", result.Stdout);
             StringAssert.Contains("Got 1 OpenTapPackageReference targets.", result.Stdout);
             StringAssert.Contains("MyPlugin4 Include=\"**\" Exclude=\"Dependencies/**\"", result.Stdout);
             StringAssert.Contains("Skipped duplicate entries", result.Stdout);
@@ -185,7 +184,9 @@ namespace OpenTap.Package.UnitTests
 ");
 
             var result = csProj.Build();
-
+            
+            StringAssert.Contains(@"package install --dependencies ""MyPlugin4""", result.Stdout);
+            StringAssert.Contains(@"package install --dependencies ""MyPlugin5""", result.Stdout);
             StringAssert.Contains("Got 2 OpenTapPackageReference targets.", result.Stdout);
             StringAssert.Contains("MyPlugin4 Include=\"**\" Exclude=\"Dependencies/**\"", result.Stdout);
             StringAssert.Contains("MyPlugin5 Include=\"**\" Exclude=\"Dependencies/**\"", result.Stdout);
@@ -214,19 +215,29 @@ namespace OpenTap.Package.UnitTests
 ");
 
             var result = csProj.Build();
-
+            
+            StringAssert.Contains(@"package install --dependencies ""MyPlugin4""", result.Stdout);
+            StringAssert.Contains(@"package install --dependencies ""MyPlugin5""", result.Stdout);
             StringAssert.Contains("Got 2 OpenTapPackageReference targets.", result.Stdout);
             StringAssert.Contains("MyPlugin4 Include=\"test1,test2\" Exclude=\"test3,test4\"", result.Stdout);
             StringAssert.Contains("MyPlugin5 Include=\"test1,test2\" Exclude=\"test3,test4\"", result.Stdout);
             Assert.AreEqual(result.ExitCode, 0);
 
-            Assert.False(File.Exists(OutputFile));
+            Assert.True(File.Exists(OutputFile));
         }
 
         [Test]
         public void TwoDifferentReferencesSpecifiedTest()
         {
             var csProj = new CsProj(this);
+            csProj.ItemGroups.Add($@"
+   <ItemGroup>
+	  <OpenTapPackageReference Repository=""{FileRepository}"" Include=""MyPlugin5""> 
+        <IncludeAssemblies>test5;test6</IncludeAssemblies> 
+        <ExcludeAssemblies>test7;test8</ExcludeAssemblies>
+      </OpenTapPackageReference>
+  </ItemGroup>
+");
             csProj.ItemGroups.Add($@"
     <ItemGroup>
       <OpenTapPackageReference Include=""MyPlugin4"">    
@@ -236,23 +247,17 @@ namespace OpenTap.Package.UnitTests
       </OpenTapPackageReference>
     </ItemGroup>
 ");
-            csProj.ItemGroups.Add($@"
-   <ItemGroup>
-	  <OpenTapPackageReference Repository=""{FileRepository}"" Include=""MyPlugin5""> 
-        <IncludeAssemblies>test5;test6</IncludeAssemblies> 
-        <ExcludeAssemblies>test7;test8</ExcludeAssemblies>
-      </OpenTapPackageReference>
-  </ItemGroup>
-");
 
             var result = csProj.Build();
-
+            
+            StringAssert.Contains(@"package install --dependencies ""MyPlugin4""", result.Stdout);
+            StringAssert.Contains(@"package install --dependencies ""MyPlugin5""", result.Stdout);
             StringAssert.Contains("Got 2 OpenTapPackageReference targets.", result.Stdout);
             StringAssert.Contains("MyPlugin4 Include=\"test1,test2\" Exclude=\"test3,test4\"", result.Stdout);
             StringAssert.Contains("MyPlugin5 Include=\"test5,test6\" Exclude=\"test7,test8\"", result.Stdout);
             Assert.AreEqual(result.ExitCode, 0);
 
-            Assert.False(File.Exists(OutputFile));
+            Assert.True(File.Exists(OutputFile));
         }
 
         [Test]
@@ -267,7 +272,8 @@ namespace OpenTap.Package.UnitTests
     </ItemGroup>
             ");
             var result = csProj.Build();
-
+            
+            StringAssert.Contains(@"package install --dependencies ""Visual Studio SDK""", result.Stdout);
             StringAssert.Contains("Got 1 OpenTapPackageReference targets.", result.Stdout);
             StringAssert.Contains(@"Visual Studio SDK Include=""**"" Exclude=""**/*Install**,**stdole**""",
                 result.Stdout);
@@ -283,6 +289,24 @@ namespace OpenTap.Package.UnitTests
 
             StringAssert.Contains("OpenTap.VSSdk.Debugger.dll", Generated);
             StringAssert.Contains("EnvDTE.dll", Generated);
+        }
+        [Test]
+        public void OSIntegration()
+        {
+            // Package not available on Linux
+            if (OperatingSystem.Current == OperatingSystem.Linux)
+                return;
+            var csProj = new CsProj(this);
+            csProj.ItemGroups.Add($@"
+    <ItemGroup>
+<OpenTapPackageReference Include=""OSIntegration"" /> 
+    </ItemGroup>
+            ");
+            var result = csProj.Build();
+            
+            StringAssert.Contains("Skipping OS Integration (OPENTAP_DEBUG_INSTALL environment variable is set).", result.Stdout);
+            Assert.AreEqual(result.ExitCode, 0);
+            Assert.True(File.Exists(OutputFile));
         }
     }
 }

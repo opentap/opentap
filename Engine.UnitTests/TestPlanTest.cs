@@ -611,7 +611,23 @@ namespace OpenTap.Engine.UnitTests
                 Assert.Fail("Test plan timed out");
             Assert.IsTrue(isDone);
         }
+        [Test]
+        public void RecursiveTestPlanReferenceTest()
+        {
+            TestPlan plan = new TestPlan();
+            var step = new TestPlanReference();
+            string filePath = "plan.TestPlan";
+            step.Filepath.Text = filePath;
+            plan.Steps.Add(step);
+            plan.Save(filePath);
 
+            TestTraceListener trace = new TestTraceListener();
+            Log.AddListener(trace);
+            var plan2 = TestPlan.Load(filePath);
+            Log.RemoveListener(trace);
+            StringAssert.Contains("Test plan reference is trying to load itself leading to recursive loop.", trace.GetLog());
+            File.Delete(filePath);
+        }
         [Test]
         public void RelativeTestPlanTest()
         {
@@ -771,6 +787,23 @@ namespace OpenTap.Engine.UnitTests
 
 
         [Test]
+        public void ChildITestStepLazy()
+        {
+            var prevResourceManager = EngineSettings.Current.ResourceManagerType;
+            try
+            {
+                 
+                EngineSettings.Current.ResourceManagerType = new LazyResourceManager();
+                ChildITestStep();
+
+            }
+            finally
+            {
+                EngineSettings.Current.ResourceManagerType = prevResourceManager;
+            }
+        }
+        
+        [Test]
         public void ChildITestStep()
         {
             // Trigger issue when running child steps that is an ITestStep.
@@ -781,12 +814,10 @@ namespace OpenTap.Engine.UnitTests
             
             Verdict checkInstr()
             {
-#if ARBITER_FEATURES
                 if (EngineSettings.Current.ResourceManagerType is LazyResourceManager)
                 {
                     return instr.IsConnected ? Verdict.Fail : Verdict.Pass;
                 }
-#endif
                 return instr.IsConnected ? Verdict.Pass : Verdict.Fail;
             }
 
@@ -796,17 +827,7 @@ namespace OpenTap.Engine.UnitTests
             plan.Steps.Add(seq);
             plan.Steps.Add(new DelegateStep { Action = checkInstr });
             seq.ChildTestSteps.Add(step);
-
-#if ARBITER_FEATURES
-            var oldResourceManager = EngineSettings.Current.ResourceManagerType;
-            EngineSettings.Current.ResourceManagerType = new LazyResourceManager();
-            var runLazy = plan.Execute();
-            Assert.IsTrue(runLazy.Verdict == Verdict.Pass);
-            Assert.IsTrue(step.WasRun);
-            step.WasRun = false;
-#endif
-            EngineSettings.Current.ResourceManagerType = new ResourceTaskManager();
-
+            
             var run = plan.Execute();
             Assert.IsTrue(run.Verdict == Verdict.Pass);
             Assert.IsTrue(step.WasRun);
@@ -1386,6 +1407,41 @@ namespace OpenTap.Engine.UnitTests
                 Assert.IsNull(rl.Exception);
                 log.Debug(result.Duration, "Massively Parallel Plan");
                 Assert.AreEqual(Verdict.Pass, result.Verdict);
+            }
+        }
+        
+        class DeferringStep : TestStep
+        {
+            public override void Run()
+            {
+                Results.Defer(() => { });
+            }
+        }
+        
+        [Test]
+        public void RepeatRunDeferPlan()
+        {
+            var seq = new ParallelStep();
+            for (int i = 0; i < 4; i++)
+            {
+                var def = new DeferringStep();
+                seq.ChildTestSteps.Add(def);
+            }
+
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(seq);
+            for (int i = 0; i < 100; i++)
+            {
+                var sem = new Semaphore(0, 1);
+                var trd = TapThread.Start(() => { plan.Execute();
+                    sem.Release();
+                });
+
+                if (!sem.WaitOne(10000))
+                {
+                    trd.Abort();
+                    Assert.Fail("Deadlock occured in test plan");
+                }
             }
         }
 
@@ -2037,7 +2093,7 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(t.IsCompleted);
         }
 
-        [Test]
+        [Test, Retry(3)]
         public void TestExecuteWaitForDefer_WithParallel()
         {
             var plan = new TestPlan();
@@ -2050,8 +2106,10 @@ namespace OpenTap.Engine.UnitTests
             Thread.Sleep(300);
             Assert.IsFalse(t.IsCompleted);
             defer.CompleteDefer.Set();
-            Thread.Sleep(100);
-            Assert.IsTrue(t.IsCompleted);
+            // this should eventually complete.
+            // previously the wait was 100ms, 
+            // but in some restricted systems this can take longer than that.
+            Assert.IsTrue(t.Wait(1000));
         }
     }
 

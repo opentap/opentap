@@ -21,59 +21,81 @@ namespace OpenTap.Plugins
         /// <summary> The order of this serializer. </summary>
         public override double Order { get { return 1; } }
 
+        static XName sourceName = "Source"; 
+        
         /// <summary> Deserialization implementation. </summary>
         public override bool Deserialize( XElement elem, ITypeData _t, Action<object> setter)
         {
+            // fastest and most obvious checks first.
+            if (elem.HasElements) return false;
             var t = _t.AsTypeData()?.Type;
-            if (t != null && t.DescendsTo(typeof(IResource)) && ComponentSettingsList.HasContainer(t))
+            if (t == null) return false;
+            
+            string src = null;
             {
-                var srcattr = elem.Attribute("Source");
-                string src = null;
-                if(srcattr != null)
-                    src = srcattr.Value;
+                var srcAttribute = elem.Attribute(sourceName); 
+                if (srcAttribute != null)
+                    src = srcAttribute.Value;
+            }
 
-                if (elem.HasElements || src == "")
-                {
-                    return false;
-                }
-                else
-                {
-                    var content = elem.Value.Trim();
+            // null and white-space has different meaning here.
+            // "" means explicitly no source collection, while null means no known source.
+            if (src == "")  
+                return false;
 
-                    Serializer.DeferLoad(() =>
+            if (t.DescendsTo(typeof(IResource)) ||
+                t.DescendsTo(typeof(Connection)) && ComponentSettingsList.HasContainer(t))
+            {
+                var content = elem.Value.Trim();
+
+                Serializer.DeferLoad(() =>
+                {
+                    // we need to load this asynchronously to avoid recursively 
+                    // serializing another ComponentSettings.
+                    if (string.IsNullOrWhiteSpace(content))
                     {
-                        // we need to load this asynchronously to avoid recursively 
-                        // serializing another ComponentSettings.
-                        if(string.IsNullOrWhiteSpace(content))
-                        {
-                            setter(null);
-                            return;
-                        }
-                        var obj = fetchObject(t, (o, i) => (o as IResource).Name.Trim() == content, src);
-                        if (obj != null)
-                        {
-                            if (obj is IResource resource && resource.Name != content && !string.IsNullOrWhiteSpace(content))
-                            {
-                                TestPlanChanged = true;
-                                var msg = $"Missing '{content}'. Using '{resource.Name}' instead.";
-                                if (elem.Parent.Element("Name") != null)
-                                    msg = $"Missing '{content}' used by '{elem.Parent.Element("Name").Value}.{elem.Name.ToString()}. Using '{resource.Name}' instead.'";
-                                Serializer.PushError(elem, msg);
-                            }
-                            setter(obj);
-                        }
-                        else
+                        setter(null);
+                        return;
+                    }
+
+                    string getName(object o)
+                    {
+                        if (o is Connection con)
+                            return con.Name;
+                        if (o is IResource res)
+                            return res.Name;
+                        return "";
+                    }
+
+                    var obj = fetchObject(t, (o, i) => getName(o).Trim() == content, src);
+                    if (obj != null)
+                    {
+                        var name = getName(obj);
+                        if (name != content && !string.IsNullOrWhiteSpace(content))
                         {
                             TestPlanChanged = true;
-                            var msg = $"Missing '{content}'.";
+                            var msg = $"Missing '{content}'. Using '{name}' instead.";
                             if (elem.Parent.Element("Name") != null)
-                                msg = $"Missing '{content}' used by '{elem.Parent.Element("Name").Value}.{elem.Name.ToString()}'";
+                                msg =
+                                    $"Missing '{content}' used by '{elem.Parent.Element("Name").Value}.{elem.Name}. Using '{name}' instead.'";
                             Serializer.PushError(elem, msg);
                         }
-                    });
-                    return true;
-                }
+
+                        setter(obj);
+                    }
+                    else
+                    {
+                        TestPlanChanged = true;
+                        var msg = $"Missing '{content}'.";
+                        if (elem.Parent.Element("Name") != null)
+                            msg =
+                                $"Missing '{content}' used by '{elem.Parent.Element("Name").Value}.{elem.Name}'";
+                        Serializer.PushError(elem, msg);
+                    }
+                });
+                return true;
             }
+
             return false;
         }
 
@@ -107,7 +129,7 @@ namespace OpenTap.Plugins
             if (obj == null) return false;
             
             Type type = obj.GetType();
-            if(obj is IResource && ComponentSettingsList.HasContainer(type))
+            if((obj is IResource && ComponentSettingsList.HasContainer(type)) || obj is Connection)
             {
                 // source was set by something else. Assume it can deserialize as well.
                 if (false == string.IsNullOrEmpty(elem.Attribute("Source")?.Value as string)) return false;
@@ -124,7 +146,7 @@ namespace OpenTap.Plugins
                     {
                         var result = Serializer.Serialize(elem, obj, expectedType);
                         if (result)
-                            elem.SetAttributeValue("Source", ""); // set src to "" to show that it should not be deserialized by reference.
+                            elem.SetAttributeValue(sourceName, ""); // set src to "" to show that it should not be deserialized by reference.
                         return result;
                     }
                     finally
@@ -137,8 +159,12 @@ namespace OpenTap.Plugins
                 var index = container.IndexOf(obj);
                 if (index != -1)
                 {
-                    elem.Value = (obj as IResource).Name ?? index.ToString();
-                    elem.SetAttributeValue("Source", container.GetType().FullName);
+                    if (obj is Connection con)
+                        elem.Value = con.Name ?? index.ToString();
+                    else if (obj is IResource res)
+                        elem.Value = res.Name ?? index.ToString();
+                    
+                    elem.SetAttributeValue(sourceName, container.GetType().FullName);
                 }
                 // important to return true, otherwise it will serialize as a new value.
                 return true; 

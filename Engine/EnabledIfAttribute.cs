@@ -132,38 +132,40 @@ namespace OpenTap
             }
             
             return false;
-        }
+        }        
 
-
-            /// <summary>
-            /// Checks whether a given property is enabled according to the <see cref="EnabledIfAttribute"/>.
-            /// </summary>
-            /// <param name="at">The attribute enabling this property.</param>
-            /// <param name="instance">Instance of the object that has 'property'.</param>
-            /// <returns>true if property dependent property has the correct value.</returns>
-            internal static bool IsEnabled(EnabledIfAttribute at, object instance)
+        /// <summary>
+        /// Checks whether a given property is enabled according to the <see cref="EnabledIfAttribute"/>.
+        /// </summary>
+        /// <param name="at">The attribute enabling this property.</param>
+        /// <param name="instance">Instance of the object that has 'property'.</param>
+        /// <returns>true if property dependent property has the correct value.</returns>
+        internal static bool IsEnabled(EnabledIfAttribute at, object instance)
         {
-            IMemberData depedentProp = TypeData.GetTypeData(instance).GetMember(at.PropertyName);
-            if (depedentProp == null)
+            IMemberData dependentProp = TypeData.GetTypeData(instance).GetMember(at.PropertyName);
+            if (dependentProp == null)
             {
                 // We cannot be sure that the step developer has used this attribute correctly
                 // (could just be a typo in the (weakly typed) property name), thus we need to 
                 // provide a good error message that leads the developer to where the error is.
-                log.Warning("Could not find property '{0}' on '{1}'. EnabledIfAttribute can only refer to properties of the same class as the property it is decorating.", at.PropertyName, instance.GetType().Name);
+                log.Warning(
+                    $"Could not find property '{at.PropertyName}' on '{instance.GetType().Name}'. " +
+                    $"EnabledIfAttribute can only refer to properties of the same class as the property it is decorating.");
                 return false;
             }
 
-            var depValue = depedentProp.GetValue(instance);
+            var depValue = dependentProp.GetValue(instance);
             try
             {
                 return calcEnabled(at, depValue);
             }
-            catch(ArgumentException)
+            catch (ArgumentException)
             {
                 // CompareTo throws ArgumentException when obj is not the same type as this instance.
                 return false;
             }
         }
+
 
         /// <summary>
         /// Checks whether a given property is enabled according to the <see cref="EnabledIfAttribute"/>.

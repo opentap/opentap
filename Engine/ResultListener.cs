@@ -492,9 +492,7 @@ namespace OpenTap
             {
                 if (!prop.Readable)
                     continue;
-                if (prop.HasAttribute<NonMetaDataAttribute>())
-                    continue;
-
+                
                 var metadataAttr = prop.GetAttribute<MetaDataAttribute>();
                 if (metadataAttr == null)
                 {
@@ -510,18 +508,21 @@ namespace OpenTap
                     if (!prop.IsBrowsable())
                         continue;
                 }
+                
+                if (prop.HasAttribute<NonMetaDataAttribute>())
+                    continue; // pretty rare case, best to check this after other things for performance.
 
                 var display = prop.GetDisplayAttribute();
-                var metadata = prop.GetAttribute<MetaDataAttribute>();
-                if (metadata != null && string.IsNullOrWhiteSpace(metadata.MacroName))
-                    metadata = new MetaDataAttribute(metadata.PromptUser, display.Name);
+                
+                if (metadataAttr != null && string.IsNullOrWhiteSpace(metadataAttr.MacroName))
+                    metadataAttr = new MetaDataAttribute(metadataAttr.PromptUser, display.Name);
 
                 var name = display.Name.Trim();
                 string group = "";
 
                 if (display.Group.Length == 1) group = display.Group[0].Trim();
 
-                lst.Add((prop, group, name, metadata));
+                lst.Add((prop, group, name, metadataAttr));
             }
 
             return lst.ToArray();

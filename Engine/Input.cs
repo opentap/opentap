@@ -196,7 +196,7 @@ namespace OpenTap
         /// <returns></returns>
         public override bool Equals(object obj)
         {
-            if(obj is IInput other)
+            if(obj is Input<T> other)
                 return other.Step == Step && other.Property == Property;
             return false;
         }

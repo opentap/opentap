@@ -114,7 +114,9 @@ namespace OpenTap.Package
                 }
                 
                 // Get package information
-                List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force, InstallDependencies, !Force, NoDowngrade);
+                List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
+                    targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
+                    InstallDependencies, Interactive, NoDowngrade);
                 if (packagesToInstall?.Any() != true)
                 {
                     if (NoDowngrade)
@@ -267,12 +269,6 @@ namespace OpenTap.Package
 
             if (conflicts.Any())
             {
-                if (!force)
-                    log.Error(
-                        "Installing these packages will overwrite existing files. Use --force to overwrite existing files, possibly breaking installed packages.");
-
-                buildMessage(line => log.Info(line));
-
                 if (interactive)
                 {
                     StringBuilder message = new StringBuilder();
@@ -282,13 +278,18 @@ namespace OpenTap.Package
                     return question.Response;
                 }
 
+                buildMessage(line => log.Info(line));
+
                 if (force)
+                {
                     log.Warning("--force specified. Overwriting files.");
+                    return InstallationQuestion.OverwriteFile;
+                }
 
-
-                if (!force)
-                    return InstallationQuestion.Cancel;
-                return InstallationQuestion.OverwriteFile;
+                log.Error(
+                    "Installing these packages will overwrite existing files. " +
+                    "Use --force to overwrite existing files, possibly breaking installed packages.");
+                return InstallationQuestion.Cancel;
             }
 
             return InstallationQuestion.Success;

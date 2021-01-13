@@ -165,7 +165,11 @@ namespace OpenTap
 
                 if (mems == null) return;
                 mems = mems.Concat(a.Get<IForwardedAnnotations>()?.Forwarded ?? Array.Empty<AnnotationCollection>());
-                var title = TypeData.GetTypeData(dataObject)?.GetMember("Name")?.GetValue(dataObject) as string;
+                
+                var title = a.Get<IDisplayAnnotation>()?.Name;
+                if (string.IsNullOrWhiteSpace(title))
+                    // fallback magic
+                    title = TypeData.GetTypeData(dataObject)?.GetMember("Name")?.GetValue(dataObject) as string;
                 if (string.IsNullOrWhiteSpace(title) == false)
                 {
                     Console.WriteLine(title);

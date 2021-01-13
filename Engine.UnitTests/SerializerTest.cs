@@ -2114,6 +2114,7 @@ namespace OpenTap.Engine.UnitTests
                 testStringConvert(instr2);
                 testStringConvert(dut1);
                 testStringConvert(new List<IResource> { instr1, instr2, dut1 });
+                testStringConvert(new List<IResource> { });
             }
             finally
             {
@@ -2126,10 +2127,12 @@ namespace OpenTap.Engine.UnitTests
             testStringConvert(new Verdict[] { Verdict.Pass, Verdict.Fail, Verdict.Aborted });
             testStringConvert(new LogSeverity[] { LogSeverity.Debug, LogSeverity.Error, LogSeverity.Warning });
             testStringConvert(new EngineSettings.AbortTestPlanType[] { EngineSettings.AbortTestPlanType.Step_Error, EngineSettings.AbortTestPlanType.Step_Error | EngineSettings.AbortTestPlanType.Step_Fail });
+            testStringConvert(new double[] { });
             testStringConvert(new double[] { 1, 2, 3, 4, 7, 8, 9, 0 });
             testStringConvert(new List<int> { 1, 2, 3, 4, 7, 8, 9, 0 });
             testStringConvert(new List<string> { "A A\"\" A A,", "B \" B B,", "C,D", "" });
             testStringConvert(new List<Verdict> { Verdict.Pass, Verdict.Fail,Verdict.Pass,Verdict.Aborted });
+            testStringConvert(new List<Verdict> { });
             testStringConvert(new List<EngineSettings.AbortTestPlanType> { EngineSettings.AbortTestPlanType.Step_Error | EngineSettings.AbortTestPlanType.Step_Fail, EngineSettings.AbortTestPlanType.Step_Error });
 
             var reparse = (Verdict)StringConvertProvider.FromString("pass", TypeData.FromType(typeof(Verdict)), null);
@@ -2273,13 +2276,13 @@ namespace OpenTap.Engine.UnitTests
 
         public class SimpleXmlTestAttribute
         {
-            [XmlText(Type = typeof(Mode))]
-            public Mode Value { get; set; }
+            [XmlText(Type = typeof(Mode))] public Mode Value { get; set; }
         }
+
         [Test]
         public void SimpleXmlTextAttributeTest()
         {
-            var myGroup1 = new SimpleXmlTestAttribute { Value = Mode.C };
+            var myGroup1 = new SimpleXmlTestAttribute {Value = Mode.C};
             var str = new TapSerializer().SerializeToString(myGroup1);
             var xml = XDocument.Load(new MemoryStream(Encoding.UTF8.GetBytes(str)));
 
@@ -2289,6 +2292,87 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(elem.Value, nameof(Mode.C));
             // Should not have child element Value since it is serialized as XmlText
             Assert.IsNull(elem.Element("Value"));
+        }
+
+        public class SerializeConnectionTestStep : TestStep
+        {
+            [AvailableValues(nameof(availableInstruments))]
+            public Instrument myInstrument_withAvailableValues { get; set; }
+
+            [AvailableValues(nameof(availableConnections))]
+            public Connection myConnection_withAvailableValues { get; set; }
+
+            public List<Connection> availableConnections
+            {
+                get { return ConnectionSettings.Current.Select(x => x as Connection).Where(c => c != null).ToList(); }
+            }
+
+            public List<Instrument> availableInstruments
+            {
+                get { return InstrumentSettings.Current.Select(x => x as Instrument).Where(c => c != null).ToList(); }
+            }
+
+            public override void Run() => throw new NotImplementedException();
+        }
+
+        [Test]
+        public void SerializeComponentSettingsTest()
+        {
+
+            try
+            {
+
+                ConnectionSettings.Current.Add(new RfConnection());
+                InstrumentSettings.Current.Add(new GenericScpiInstrument { VisaAddress = "1234" });
+                
+                var testPlan = new TestPlan();
+                var step = new SerializeConnectionTestStep();
+                testPlan.ChildTestSteps.Add(step);
+
+                var conn = step.availableConnections.First();
+                var instr = step.availableInstruments.First();
+
+                Assert.NotNull(conn);
+                Assert.NotNull(instr);
+
+                step.myConnection_withAvailableValues = conn;
+                step.myInstrument_withAvailableValues = instr;
+
+                Assert.AreSame(step.myConnection_withAvailableValues, conn);
+                Assert.AreSame(step.myInstrument_withAvailableValues, instr);
+
+                byte[] planData;
+
+                using (MemoryStream ms = new MemoryStream(20000))
+                {
+                    testPlan.Save(ms);
+                    planData = ms.ToArray();
+                }
+
+                using (MemoryStream ms = new MemoryStream(planData))
+                    testPlan = testPlan.Reload(ms);
+
+                var newStep = testPlan.ChildTestSteps.First() as SerializeConnectionTestStep;
+
+                Assert.NotNull(newStep);
+                Assert.NotNull(newStep.myConnection_withAvailableValues);
+                Assert.NotNull(newStep.myInstrument_withAvailableValues);
+                Assert.AreSame(newStep.myInstrument_withAvailableValues, instr);
+                Assert.AreSame(newStep.myConnection_withAvailableValues, conn);
+            }
+            finally
+            {
+                ConnectionSettings.Current.Clear();
+                InstrumentSettings.Current.Clear();
+            }
+
+        }
+
+        [Test]
+        public void NullInstrumentTest()
+        {
+             object outValue = new ObjectCloner(null).Clone(true, null, TypeData.FromType(typeof(ScpiInstrument)));
+             Assert.IsNull(outValue);
         }
     }
 }

@@ -49,6 +49,8 @@ namespace OpenTap.Plugins
         /// <summary> The currently serializing or deserializing object. </summary>
         public object Object { get; private set; }
 
+        Dictionary<ITypeData, IMemberData[]> serializableMembers = new Dictionary<ITypeData, IMemberData[]>();
+        
         /// <summary>
         /// Tries to deserialize an object from an XElement.
         /// </summary>
@@ -71,7 +73,7 @@ namespace OpenTap.Plugins
                 try
                 {
                     newobj = t.CreateInstance(Array.Empty<object>());
-                    t = TypeData.GetTypeData(newobj);
+                    
                 }
                 catch (TargetInvocationException ex)
                 {
@@ -86,13 +88,15 @@ namespace OpenTap.Plugins
             }
             
             var prevobj = Object;
-            Object = newobj;    
-            var t2 = t;
+            Object = newobj;
+            
             if (newobj == null)
                 throw new ArgumentNullException(nameof(newobj));
-            var properties = t2.GetMembers()
+            t = TypeData.GetTypeData(newobj);
+            var t2 = t;
+            var properties = serializableMembers.GetOrCreateValue(t2, t3 => t3.GetMembers()
                 .Where(x => x.HasAttribute<XmlIgnoreAttribute>() == false)
-                .ToArray();
+                .ToArray());
             try
             {
                 
@@ -101,7 +105,7 @@ namespace OpenTap.Plugins
                     var attr = prop.GetAttribute<XmlAttributeAttribute>();
                     if (attr == null) continue;
                     var name = string.IsNullOrWhiteSpace(attr.AttributeName) ? prop.Name : attr.AttributeName;
-                    var attr_value = element.Attribute(XmlConvert.EncodeLocalName(name));
+                    var attr_value = element.Attribute(Serializer.PropertyXmlName(name));
                     var p = prop as MemberData;
 
                     if (p != null && attr_value != null && p.Member is PropertyInfo csprop)
@@ -172,22 +176,9 @@ namespace OpenTap.Plugins
                                 }
                             }
 
-                            if (0 == hits)
+                            if (property == null)
                             {
-                                try
-                                {
-
-                                    if (property == null)
-                                        property = t2.GetMember(name);
-                                    if (property == null)
-                                        property = t2.GetMembers().FirstOrDefault(x => x.Name == name);
-                                }
-                                catch { }
-                                if (property == null || property.Writable == false)
-                                {
-                                    continue;
-                                }
-                                hits = 1;
+                                continue; // later we might try this property again.
                             }
                             if (hits > 1)
                                 Log.Warning(element2, "Multiple properties named '{0}' are available to the serializer in '{1}' this might give issues in serialization.", element2.Name.LocalName, t.GetAttribute<DisplayAttribute>().Name);
@@ -628,12 +619,11 @@ namespace OpenTap.Plugins
             object prevObj = Object;
             // If cycleDetectorLut already contains an element, we've been here before.
             // Note the cycleDetectorLut adds and removes the obj later if it is not already in it.
-            if (cycleDetetionSet.Contains(obj))
+            if (!cycleDetetionSet.Add(obj))
                 throw new Exception("Cycle detected");
-            object theobj = obj;
+            object obj2 = obj;
             try
             {
-                cycleDetetionSet.Add(obj);
                 Object = obj;
                 switch (obj)
                 {
@@ -641,7 +631,7 @@ namespace OpenTap.Plugins
                         if (AlwaysG17DoubleFormat)
                         {
                             // the fastest and most accurate string representation of a double.
-                            elem.Value = ((double)obj).ToString("G17", CultureInfo.InvariantCulture);
+                            elem.Value = d.ToString("G17", CultureInfo.InvariantCulture);
                             return true;
                         }
                         else
@@ -652,10 +642,11 @@ namespace OpenTap.Plugins
                             // See section "Note to Callers:" at https://msdn.microsoft.com/en-us/library/kfsatb94(v=vs.110).aspx
                             // so here we format and then parse back to see if it can actually roundtrip.
                             // if not, we format with G17.
-                            var d_str = ((double)obj).ToString("R", CultureInfo.InvariantCulture);
+                            var d_str = d.ToString("R", CultureInfo.InvariantCulture);
                             var d_re = double.Parse(d_str, CultureInfo.InvariantCulture);
-                            if (d_re != d)
-                                d_str = ((double)obj).ToString("G17", CultureInfo.InvariantCulture);
+                            if (d_re != d) 
+                                // round trip not possible with R, use G17 instead.
+                                d_str = d.ToString("G17", CultureInfo.InvariantCulture);
                             elem.Value = d_str;
 
                             return true;
@@ -669,8 +660,6 @@ namespace OpenTap.Plugins
                     case char c:
                         // Convert to a string and then handle it later.
                         obj = Convert.ToString(c, CultureInfo.InvariantCulture);
-                        break;
-                    default:
                         break;
                 }
 
@@ -719,15 +708,15 @@ namespace OpenTap.Plugins
                         string valStr = Convert.ToString(val, CultureInfo.InvariantCulture);
                         if (val is bool b)
                             valStr = b ? "true" : "false"; // must be lower case for old XmlSerializer to work
-                        elem.SetAttributeValue(XmlConvert.EncodeLocalName(name), valStr);
+                        elem.SetAttributeValue(Serializer.PropertyXmlName(name), valStr);
                     }
                 }
 
                 if (xmlTextProp != null)
                 { // XmlTextAttribute support
-                    var textvalue = xmlTextProp.GetValue(obj);
-                    if (textvalue != null)
-                        Serializer.Serialize(elem, textvalue, xmlTextProp.TypeDescriptor);
+                    var text = xmlTextProp.GetValue(obj);
+                    if (text != null)
+                        Serializer.Serialize(elem, text, xmlTextProp.TypeDescriptor);
                 }
                 else
                 {
@@ -759,7 +748,7 @@ namespace OpenTap.Plugins
                                     foreach (var item in enu)
                                     {
                                         string name = attr.ElementName ?? subProp.Name;
-                                        XElement elem2 = new XElement(XmlConvert.EncodeLocalName(name));
+                                        XElement elem2 = new XElement(Serializer.PropertyXmlName(name));
                                         SetHasDefaultValueAttribute(subProp, item, elem2);
                                         elem.Add(elem2);
                                         Serializer.Serialize(elem2, item, TypeData.FromType(cst.Type.GetGenericArguments().First()));
@@ -767,7 +756,7 @@ namespace OpenTap.Plugins
                                 }
                                 else
                                 {
-                                    XElement elem2 = new XElement(XmlConvert.EncodeLocalName(subProp.Name));
+                                    XElement elem2 = new XElement(Serializer.PropertyXmlName(subProp.Name));
                                     SetHasDefaultValueAttribute(subProp, val, elem2);
                                     elem.Add(elem2);
                                     Serializer.Serialize(elem2, val, subProp.TypeDescriptor);
@@ -775,8 +764,7 @@ namespace OpenTap.Plugins
                             }
                             catch (Exception e)
                             {
-                                Log.Warning("Unable to serialize property '{0}'.", subProp.Name);
-                                Log.Debug(e);
+                                Serializer.PushError(null, $"Unable to serialize property '{subProp.Name}'.", e);
                             }
                             finally
                             {
@@ -793,7 +781,7 @@ namespace OpenTap.Plugins
             finally
             {
                 Object = prevObj;
-                if (!cycleDetetionSet.Remove(theobj))
+                if (!cycleDetetionSet.Remove(obj2))
                     throw new InvalidOperationException("obj was modified.");
             }
         }

@@ -25,11 +25,18 @@ namespace OpenTap.Plugins.PluginDevelopment
         public enum FixturePositions
         {
             // Display names can be added to individual enum values.
+            None = 0,
             [Display("My Fixture Position A")]
             A = 1,
             B = 2,
+            [Display("A and B", "Shortcut for selecting A and B")]
+            AB = A|B,
             C = 4,
+            [Display("A and C", "Shortcut for selecting A and C")]
+            AC = A|C,
             D = 8,
+            [Display("B and D", "Shortcut for selecting B and D")]
+            BD = B|D,
             [Display("My Fixture Position E")]
             E = 16,
             F = 32,

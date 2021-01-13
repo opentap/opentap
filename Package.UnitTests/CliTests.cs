@@ -313,7 +313,7 @@ namespace OpenTap.Package.UnitTests
             }
         }
 
-        [Test]
+        [Test, Retry(3)]
         public void InstallFileWithDependenciesTest()
         {
             var depDef = new PackageDef();

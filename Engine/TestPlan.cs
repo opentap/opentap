@@ -201,7 +201,7 @@ namespace OpenTap
             }
             
             if (stream == null)
-                throw new ArgumentNullException("stream");
+                throw new ArgumentNullException(nameof(stream));
             var ser = new TapSerializer();
             if (CacheXml)
             {
@@ -222,7 +222,7 @@ namespace OpenTap
         public void Save(string filePath)
         {
             if (filePath == null)
-                throw new ArgumentNullException("filePath");
+                throw new ArgumentNullException(nameof(filePath));
             using (StreamWriter file = new StreamWriter(filePath))
             {
                 Save(file.BaseStream);

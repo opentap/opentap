@@ -4,7 +4,6 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -140,7 +139,6 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         public string PackageInstallDir { get; set; }
 
         public string TargetMsBuildFile { get; set; }
-        private bool Written { get; set; } = false;
         public Microsoft.Build.Framework.ITaskItem[] OpenTapPackagesToReference { get; set; }
         
         private StringBuilder Result { get; } = new StringBuilder();
@@ -159,7 +157,6 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         
         private void WriteItemGroup(IEnumerable<string> assembliesInPackage)
         {
-            Written = true;            
             Result.AppendLine("  <ItemGroup>");
 
             foreach (var asmPath in assembliesInPackage)
@@ -197,12 +194,9 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
         public override bool Execute()
         {
-            if (File.Exists(TargetMsBuildFile))
-                File.Delete(TargetMsBuildFile);
-            
             if (OpenTapPackagesToReference == null || OpenTapPackagesToReference.Length == 0)
             {   // This happens when a .csproj file does not specify any OpenTapPackageReferences -- simply ignore it
-                
+                Write(); // write an "empty" file in this case, so msbuild does not think that the task failed, and re runs it endlessly
                 Log.LogMessage("Got 0 OpenTapPackageReference targets.");
                 return true;
             }
@@ -225,12 +219,13 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                         distinctTasks.Add(task);
                     }
                 }
+
                 if (distinctTasks.Count != OpenTapPackagesToReference.Length)
                     Log.LogWarning("Skipped duplicate entries.");
-                
+
                 var globTasks = GlobTask.Parse(distinctTasks.ToArray());
                 Log.LogMessage($"Got {globTasks.Count} OpenTapPackageReference targets.");
-                
+
                 foreach (var task in globTasks)
                 {
                     var includeGlobs = task.Globs.Where(x => x.Include).Select(x => x.Globber.ToString());
@@ -246,15 +241,16 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 {
                     HandlePackage(globTask);
                 }
-                
-                if (Written)
-                    Write();
             }
             catch (Exception e)
             {
                 Log.LogWarning($"Unexpected error while parsing patterns in '<OpenTapPackageReference>'. If the problem persists, please open an issue and include the build log.");
                 Log.LogErrorFromException(e);
                 throw;
+            }
+            finally
+            {
+                Write(); // Ensure we always write an output file. MSBuild may get confused otherwise.
             }
 
             return true;

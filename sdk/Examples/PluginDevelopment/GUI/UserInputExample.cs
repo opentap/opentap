@@ -23,10 +23,16 @@ namespace OpenTap.Plugins.PluginDevelopment.GUI
     }
 
     // This describes a dialog that asks the user to reset the DUT.
-    class ResetDutDialog
+    class ResetDutDialog: IDisplayAnnotation
     {
+        public ResetDutDialog(Dut dutObj)
+        {
+            Dut = dutObj;
+        }
+
+        private Dut Dut { get; set; }
         // Name is handled specially to create the title of the dialog window.
-        public string Name { get { return "DUT Reset"; } }
+        public string Name { get { return "Reset " + Dut.Name; } }
 
         [Layout(LayoutMode.FullRow)] // Set the layout of the property to fill the entire row.
         [Browsable(true)] // Show it event though it is read-only.
@@ -35,18 +41,23 @@ namespace OpenTap.Plugins.PluginDevelopment.GUI
         [Layout(LayoutMode.FloatBottom | LayoutMode.FullRow)] // Show the button selection at the bottom of the window.
         [Submit] // When the button is clicked the result is 'submitted', so the dialog is closed.
         public WaitForInputResult Response { get; set; }
+
+        string IDisplayAnnotation.Description => string.Empty;
+
+        string[] IDisplayAnnotation.Group => Array.Empty<string>();
+
+        double IDisplayAnnotation.Order => -10000;
+
+        bool IDisplayAnnotation.Collapsed => false;
     }
 
     // This describes a dialog that asks the user to enter the serial number.
+    [Display("Please enter serial number")]
     class EnterSNDialog
     {
-        // Name is handled specially to create the title of the dialog window.
-        public string Name { get { return "Please enter serialnumber"; } }
-        
         // Serial number to be entered by the user.
         [Display("Serial Number")]
         public string SerialNumber { get; set; }
-
     }
 
     // This example shows how to use UserInput to get user input. 
@@ -78,7 +89,8 @@ namespace OpenTap.Plugins.PluginDevelopment.GUI
 
                 // Dialog/prompt where user has option to select "OK" or "Cancel".
                 // The message/query is set by the Message property. Selection options are defined by WaitForInputResult.
-                var dialog = new ResetDutDialog();
+                var dut = new SimpleDut() { Name = "My Simple DUT" };
+                var dialog = new ResetDutDialog(dut);
                 UserInput.Request(dialog, timeout);
 
                 // Response from the user.
@@ -90,7 +102,7 @@ namespace OpenTap.Plugins.PluginDevelopment.GUI
                 Log.Info("User clicked OK. Now we prompt for DUT S/N.");
 
                 var snDialog = new EnterSNDialog();
-                // Dialog/prmpt where user has option to enter a string as DUT S/N
+                // Dialog/prompt where user has option to enter a string as DUT S/N
                 UserInput.Request(snDialog, timeout);
                 
                 Log.Info("DUT S/N: {0}", snDialog.SerialNumber);

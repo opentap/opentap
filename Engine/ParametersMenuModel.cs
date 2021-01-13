@@ -1,13 +1,30 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 
 namespace OpenTap
 {
-    
     class TestStepMenuModel : IMenuModel, ITestStepMenuModel, IMenuModelState
     {
+
+        public static TestStepMenuModel FromSource(IMemberData member, object source)
+        {
+            if (source is ITestStepParent step)
+                return new TestStepMenuModel(member, new [] {step});
+            if (source is IEnumerable<object> array)
+                return new TestStepMenuModel(member, array.OfType<ITestStepParent>().ToArray());
+            return null;
+            
+        } 
+        
         public TestStepMenuModel(IMemberData member) => this.member = member;
+
+        public TestStepMenuModel(IMemberData member, ITestStepParent[] source)
+        {
+            this.member = member;
+            this.source = source;
+        }
         ITestStepParent[] source;
         readonly IMemberData member;
         object[] IMenuModel.Source { get => source; set => source = value?.OfType<ITestStepParent>().ToArray() ?? Array.Empty<ITestStepParent>(); }
@@ -28,10 +45,12 @@ namespace OpenTap
         public void Parameterize() => ParameterManager.CreateParameter(this, getCommonParent(), true);
 
         public bool HasTestPlanParent => source.FirstOrDefault()?.GetParent<TestPlan>() != null;
+        public bool CanAutoParameterize => ParameterManager.CanAutoParameterize(this.member, this.source);
 
         [EnabledIf(nameof(CanExecuteParameterize), true, HideIfDisabled = true)]
         [EnabledIf(nameof(HasTestPlanParent), true, HideIfDisabled = true)]
         [EnabledIf(nameof(TestPlanLocked), false)]
+        [EnabledIf(nameof(CanAutoParameterize), true)]
         [Browsable(true)]
         [IconAnnotation(IconNames.ParameterizeOnTestPlan)]
         [Display("Parameterize On Test Plan", "Parameterize this setting by creating, or adding to, an existing external test plan parameter.", Order: 1.0)]
@@ -42,10 +61,13 @@ namespace OpenTap
             ParameterManager.CreateParameter(this, plan, false);
         }
         
+        // note: ParameterizeOnParent only works for things that does not have the test plan as a parent.
+        // for steps with the test plan as a parent, ParameterizeOnTestPlan should be used.
         public bool HasSameParents => source.Select(x => x.Parent).OfType<ITestStep>().Distinct().Take(2).Count() == 1;
         public bool CanExecutedParameterizeOnParent => CanExecuteParameterize && HasSameParents; 
         [EnabledIf(nameof(CanExecutedParameterizeOnParent), true, HideIfDisabled = true)]
         [EnabledIf(nameof(TestPlanLocked), false)]
+        [EnabledIf(nameof(CanAutoParameterize), true)]
         [Browsable(true)]
         [IconAnnotation(IconNames.ParameterizeOnParent)]
         [Display("Parameterize On Parent", "Parameterize this setting by creating, or adding to, an existing parameter.", Order: 1.0)]
@@ -113,7 +135,7 @@ namespace OpenTap
         public bool AnyAvailableOutputs => (anyAvailableOutputs ?? (anyAvailableOutputs = CalcAnyAvailableOutputs())) ?? false;
         
         // Input/Output
-        public bool CanAssignOutput => TestPlanLocked == false && source.Length > 0 && member.Writable && IsSweepable && !CanUnassignOutput && !IsParameterized && !IsAnyOutputAssigned;
+        public bool CanAssignOutput => TestPlanLocked == false && source.Length > 0 && IsReadOnly == false && member.Writable && IsSweepable && !CanUnassignOutput && !IsParameterized && !IsAnyOutputAssigned;
         [Display("Assign Output", "Control this setting using an output.", Order: 2.0)]
         [Browsable(true)]
         [IconAnnotation(IconNames.AssignOutput)]
@@ -153,10 +175,16 @@ namespace OpenTap
                 .LastOrDefault();
         }
         public bool IsSweepable => member.HasAttribute<UnsweepableAttribute>() == false;
+
+        public bool IsReadOnly => source.Length > 0 && source?.Any(p => p is TestStep t && t.IsReadOnly) == true;
         
         public bool IsAnyOutputAssigned => source.Any(x => InputOutputRelation.IsInput(x, member));
         
-        public bool CanUnassignOutput => TestPlanLocked == false && source.Length > 0 && member.Writable && IsAnyOutputAssigned;
+        public bool IsAnyInputAssigned => source.Any(x => InputOutputRelation.IsOutput(x, member));
+
+        public bool IsOutput => member.HasAttribute<OutputAttribute>();
+        
+        public bool CanUnassignOutput => TestPlanLocked == false && source.Length > 0 && IsReadOnly == false && member.Writable && IsAnyOutputAssigned;
         [Display("Unassign Output", "Unassign the output controlling this property.", Order: 2.0)]
         [Browsable(true)]
         [IconAnnotation(IconNames.UnassignOutput)]

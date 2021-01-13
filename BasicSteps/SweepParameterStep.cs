@@ -42,6 +42,19 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 SweepValues = new SweepRowCollection();
             }
+
+            {   // Remove sweep values not in the selected parameters. This can be needed when the user has removed some.
+                
+                var rows = SweepValues.Select(x => x.Values);
+                var selectedNames = SelectedParameters.Select(x => x.Name);
+                var namesToRemove = rows.SelectMany(x => x.Keys).ToHashSet();
+                namesToRemove.ExceptWith(selectedNames);
+
+                foreach (var removeName in namesToRemove)
+                foreach (var row in rows)
+                    row.Remove(removeName);
+            }
+
             return "";
         }
 
@@ -105,8 +118,8 @@ namespace OpenTap.Plugins.BasicSteps
                 iteration += 1;
                 // Notify that values might have changes
                 OnPropertyChanged("");
-                
-                 Log.Info("Running child steps with {0}", Value.GetIterationString());
+
+                Log.Info("Running child steps with {0}", Value.GetIterationString());
 
                 var runs = RunChildSteps(AdditionalParams, BreakLoopRequested).ToList();
                 if (BreakLoopRequested.IsCancellationRequested) break;
