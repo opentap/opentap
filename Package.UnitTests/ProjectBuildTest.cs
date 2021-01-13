@@ -37,7 +37,7 @@ namespace OpenTap.Package.UnitTests
         <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
         <TargetFrameworkVersion></TargetFrameworkVersion>
         <TargetFramework>netstandard2.0</TargetFramework>
-        <OutDir>{OutDir}</OutDir>
+        <OutputPath>{Directory.GetCurrentDirectory()}</OutputPath>
     </PropertyGroup>"
             };
             ItemGroups = new List<string>();
