@@ -79,9 +79,9 @@ namespace OpenTap.Package.UnitTests
             {
                 string opentapPackageXmlPath;
                 if (OperatingSystem.Current == OpenTap.OperatingSystem.Linux)
-                    opentapPackageXmlPath = "../../opentap_linux64.package.xml";
+                    opentapPackageXmlPath = "opentap_linux64.package.xml";
                 else
-                    opentapPackageXmlPath = "../../opentap.x86.package.xml";
+                    opentapPackageXmlPath = "opentap.x86.package.xml";
                 // Sign package is needed to create opentap
                 string packageXml = CreateOpenTapPackageXmlWithoutSignElement(opentapPackageXmlPath);
                 string createOpenTap = $"create -v {packageXml} --install -o Packages/OpenTAP.TapPackage";

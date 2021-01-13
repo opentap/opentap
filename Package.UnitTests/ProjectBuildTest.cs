@@ -37,7 +37,7 @@ namespace OpenTap.Package.UnitTests
         <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
         <TargetFrameworkVersion></TargetFrameworkVersion>
         <TargetFramework>netstandard2.0</TargetFramework>
-        <OutDir>{OutDir}</OutDir>
+        <OutputPath>{Directory.GetCurrentDirectory()}</OutputPath>
     </PropertyGroup>"
             };
             ItemGroups = new List<string>();
@@ -112,7 +112,7 @@ namespace OpenTap.Package.UnitTests
 
         public ProjectBuildTest()
         {
-            WorkingDirectory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+            WorkingDirectory = Path.Combine(Directory.GetCurrentDirectory(), "buildTestDir");
             var packages = Directory.EnumerateFiles(FileRepository, "*.TapPackage").ToList();
             var str = string.Join("\n", packages);
             
@@ -125,39 +125,10 @@ namespace OpenTap.Package.UnitTests
                     $"OpenTap.targets not found in {Directory.GetCurrentDirectory()}. Tests cannot continue.");
             TargetsFile = targetsFile.FullName;
 
-            var binDir = Path.Combine(WorkingDirectory, "bin");
-
             if (Directory.Exists(WorkingDirectory) == false)
                 Directory.CreateDirectory(WorkingDirectory);
-            if (Directory.Exists(binDir) == false)
-                Directory.CreateDirectory(binDir);
-
-            // We need to create a new OpenTAP installation because source builds behave a little differently from package installations regarding the package manager.
-            // Since we are manually importing the targets file
-            // '<Import Project=""..\OpenTap.targets"" />'
-            // , which points at the file 'Keysight.OpenTap.Sdk.MSBuild.dll' in the output directory rather than a nuget package, we are still testing the correct files.
-            if (Directory.EnumerateFiles(binDir, "OpenTap.dll").Any() == false)
-                CreateOpenTapInstall(binDir);
         }
 
-        private void CreateOpenTapInstall(string target)
-        {
-            var process = new Process
-            {
-                StartInfo =
-                {
-                    FileName = "tap",
-                    Arguments = $"package install OpenTAP -f -t {target}",
-                    WorkingDirectory = Directory.GetCurrentDirectory(),
-                    UseShellExecute = false,
-                    RedirectStandardOutput = false,
-                    RedirectStandardError = false,
-                    CreateNoWindow = true
-                }
-            };
-            process.Start();
-            process.WaitForExit();
-        }
         [Test]
         public void NoReferencesTest()
         {
@@ -290,11 +261,10 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
+        // Package not available on Linux
+        [Platform(Exclude="Unix,Linux,MacOsX")]
         public void VSSDKTest()
         {
-            // Package not available on Linux
-            if (OperatingSystem.Current == OperatingSystem.Linux)
-                return;
             var csProj = new CsProj(this);
             csProj.ItemGroups.Add($@"
     <ItemGroup>
@@ -321,11 +291,10 @@ namespace OpenTap.Package.UnitTests
             StringAssert.Contains("EnvDTE.dll", Generated);
         }
         [Test]
+        // Package not available on Linux
+        [Platform(Exclude="Unix,Linux,MacOsX")]
         public void OSIntegration()
         {
-            // Package not available on Linux
-            if (OperatingSystem.Current == OperatingSystem.Linux)
-                return;
             var csProj = new CsProj(this);
             csProj.ItemGroups.Add($@"
     <ItemGroup>

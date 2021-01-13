@@ -49,10 +49,10 @@
           AfterTargets="Build">
     <Exec Command=".\tap package create &quot;$(ProjectDir)\$(OpenTapPackageDefinitionPath)&quot;"
           Condition="'$(InstallCreatedOpenTapPackage)' != 'true'"
-          WorkingDirectory="$(OutDir)" LogStandardErrorAsError="true" />
+          WorkingDirectory="$(OutDir)" LogStandardErrorAsError="'$(OS)' != 'Unix'" />
     <Exec Command=".\tap package create &quot;$(ProjectDir)\$(OpenTapPackageDefinitionPath)&quot; --install"
           Condition="'$(InstallCreatedOpenTapPackage)' == 'true'"
-          WorkingDirectory="$(OutDir)" LogStandardErrorAsError="true" />
+          WorkingDirectory="$(OutDir)" LogStandardErrorAsError="'$(OS)' != 'Unix'" />
   </Target>
 
   <Target Name="ProcessOpenTapPackageList">

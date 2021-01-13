@@ -233,7 +233,6 @@ TestLinuxPlan:
         - echo "tap package create/verify unit tests"
         - tap package verify || exit_code=$?
         - check_exit_code 2
-        - cp *.package.xml bin/ # for Package NUnit tests
         - sed -i "/Sign Certificate/ d" opentap_linux64.package.xml
         - sed -i -e '/File Path/ s!Dependencies/!Dependencies\\!' opentap_linux64.package.xml
         - sed -i -e '/SourcePath/ s!dotnet_library_license.txt!.\\dotnet_library_license.txt!' opentap_linux64.package.xml
@@ -270,13 +269,6 @@ TestUbuntu:
   stage: test
   image: mcr.microsoft.com/dotnet/core/sdk:2.1-bionic
   extends: .LinuxScript
-  before_script:
-    - apt update
-    - apt install locales
-    - echo "LC_ALL=en_US.UTF-8" >> /etc/environment
-    - echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
-    - echo "LANG=en_US.UTF-8" > /etc/locale.conf
-    - locale-gen en_US.UTF-8
 
 TestCentos7:
   stage: test
