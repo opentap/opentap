@@ -291,11 +291,10 @@ namespace OpenTap.Package.UnitTests
             StringAssert.Contains("EnvDTE.dll", Generated);
         }
         [Test]
+        // Package not available on Linux
+        [Platform(Exclude="Unix,Linux,MacOsX")]
         public void OSIntegration()
         {
-            // Package not available on Linux
-            if (OperatingSystem.Current == OperatingSystem.Linux)
-                return;
             var csProj = new CsProj(this);
             csProj.ItemGroups.Add($@"
     <ItemGroup>
