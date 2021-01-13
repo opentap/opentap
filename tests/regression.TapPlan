@@ -16,7 +16,7 @@
           <Filepath>../../tests/package-create-error.TapPlan</Filepath>
           <StepMapping />
           <Enabled>true</Enabled>
-          <Name>Test Plan: {Referenced Plan} (1)</Name>
+          <Name>Test Plan: {Referenced Plan}</Name>
           <BreakConditions>Inherit</BreakConditions>
         </TestStep>
         <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="321543e3-31fc-4923-ae06-674cc13bc232">
@@ -48,7 +48,7 @@
             </GuidMapping>
           </StepMapping>
           <Enabled>true</Enabled>
-          <Name>Test Plan: {Referenced Plan} (2)</Name>
+          <Name>Test Plan: {Referenced Plan}</Name>
           <BreakConditions>Inherit</BreakConditions>
         </TestStep>
         <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.RunOnOs" Version="0.0.0" Id="a1a83800-0036-49ad-a461-d2aa1daac281">
@@ -85,6 +85,13 @@
               <BreakConditions>Inherit</BreakConditions>
             </TestStep>
           </ChildTestSteps>
+          <BreakConditions>Inherit</BreakConditions>
+        </TestStep>
+        <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="e7497477-b937-460b-9d8a-fdcc8c1a8d0a">
+          <Filepath>../../tests/package-create-out-of-installation.TapPlan</Filepath>
+          <StepMapping />
+          <Enabled>true</Enabled>
+          <Name>Test Plan: {Referenced Plan}</Name>
           <BreakConditions>Inherit</BreakConditions>
         </TestStep>
       </ChildTestSteps>

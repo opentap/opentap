@@ -381,7 +381,7 @@ namespace OpenTap.Package
                 }
         }
 
-        internal static IEnumerable<AssemblyData> AssembliesOfferedBy(List<PackageDef> packages, IEnumerable<PackageDependency> refs, bool recursive, Memorizer<PackageDef, List<AssemblyData>> offeredFiles)
+        internal static IEnumerable<AssemblyData> AssembliesOfferedBy(List<PackageDef> packages, IEnumerable<PackageDependency> refs, bool recursive, PackageAssemblyCache offeredFiles)
         {
             var files = new HashSet<AssemblyData>();
             var referenced = new HashSet<PackageDependency>();
@@ -400,7 +400,7 @@ namespace OpenTap.Package
                         if (recursive)
                             pkg.Dependencies.ForEach(toLookat.Push);
 
-                        offeredFiles[pkg].ToList().ForEach(f => files.Add(f));
+                        offeredFiles.GetPackageAssemblies(pkg).ToList().ForEach(f => files.Add(f));
                     }
                 }
             }
@@ -416,18 +416,19 @@ namespace OpenTap.Package
             }
         }
 
-        internal static void findDependencies(this PackageDef pkg, List<string> excludeAdd, List<AssemblyData> searchedFiles)
+        internal class PackageAssemblyCache
         {
-            bool foundNew = false;
+            readonly List<string> brokenPackageNames = new List<string>();
+            readonly List<AssemblyData> searchedFiles;
+            readonly Memorizer<PackageDef, List<AssemblyData>> packageAssemblies;
+            public PackageAssemblyCache(List<AssemblyData> searchedFiles)
+            {
+                this.searchedFiles = searchedFiles;
+                packageAssemblies = new Memorizer<PackageDef, List<AssemblyData>>(getPackageAssemblies);
+            }
 
-            var notFound = new HashSet<string>();
-
-            // First update the pre-entered dependencies
-            var installed = new Installation(Directory.GetCurrentDirectory()).GetPackages().Where(p => p.Name != pkg.Name).ToList();
-            
-            List<string> brokenPackageNames = new List<string>();
-
-            List<AssemblyData> getPackageAssemblues(PackageDef pkgDef)
+            public IEnumerable<AssemblyData> GetPackageAssemblies(PackageDef pkgDef) => packageAssemblies[pkgDef];
+            List<AssemblyData> getPackageAssemblies(PackageDef pkgDef)
             {
                 List<AssemblyData> output = new List<AssemblyData>();
                 foreach(var f in pkgDef.Files)
@@ -457,10 +458,25 @@ namespace OpenTap.Package
                     output.AddRange(asms);
                 }
                 return output;
-            };
+            }
 
-            var packageAssemblies = new Memorizer<PackageDef, List<AssemblyData>>(getPackageAssemblues);
+            public void Clear(PackageDef pkg) => packageAssemblies.Invalidate(pkg);
+        }
+        
+        internal static void findDependencies(this PackageDef pkg, List<string> excludeAdd, List<AssemblyData> searchedFiles)
+        {
+            var searcher = new PackageAssemblyCache(searchedFiles);
+            
+            // First update the pre-entered dependencies            
+            bool foundNew = false;
+            var notFound = new HashSet<string>();
+           
+            // find the current installation
+            var currentInstallation = new Installation(Directory.GetCurrentDirectory());
+            if (!currentInstallation.IsInstallationFolder) // if there is no installation in the current folder look where tap is executed from
+                currentInstallation = new Installation(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
 
+            var installed = currentInstallation.GetPackages().Where(p => p.Name != pkg.Name).ToList();
             // check versions of any hardcoded dependencies against what is currently installed
             foreach(PackageDependency dep in pkg.Dependencies)
             {
@@ -491,8 +507,8 @@ namespace OpenTap.Package
                 foundNew = false;
 
                 // Find everything we already know about
-                var offeredByDependencies = AssembliesOfferedBy(installed, pkg.Dependencies, false, packageAssemblies).ToList();
-                var offeredByThis = packageAssemblies[pkg]
+                var offeredByDependencies = AssembliesOfferedBy(installed, pkg.Dependencies, false, searcher).ToList();
+                var offeredByThis = searcher.GetPackageAssemblies(pkg)
                     .Where(f => f != null)
                     .ToList();
 
@@ -512,7 +528,8 @@ namespace OpenTap.Package
                     var packageCandidates = new Dictionary<PackageDef, int>();
                     foreach (var f in installed)
                     {
-                        var candidateAsms = packageAssemblies[f].Where(asm => dependentAssemblyNames.Any(dep => (dep.Name == asm.Name))).ToList();
+                        var candidateAsms = searcher.GetPackageAssemblies(f)
+                            .Where(asm => dependentAssemblyNames.Any(dep => (dep.Name == asm.Name))).ToList();
 
                         // Don't consider a package that only matches assemblies in the Dependencies subfolder
                         candidateAsms.RemoveAll(asm => asm.Location.Contains("Dependencies")); // TODO: less lazy check for Dependencies subfolder would be good.
@@ -526,7 +543,7 @@ namespace OpenTap.Package
 
                     if (candidatePkg != null)
                     {
-                        foreach(AssemblyData candidateAsm in packageAssemblies[candidatePkg])
+                        foreach(AssemblyData candidateAsm in searcher.GetPackageAssemblies(candidatePkg))
                         {
                             var requiredAsm = dependentAssemblyNames.FirstOrDefault(dep => dep.Name == candidateAsm.Name);
                             if (requiredAsm != null)
@@ -574,7 +591,7 @@ namespace OpenTap.Package
                             if (foundAsm != null)
                             {
                                 AddFileDependencies(pkg, unknown, foundAsm);
-                                packageAssemblies.Invalidate(pkg);
+                                searcher.Clear(pkg);
                                 foundNew = true;
                             }
                             else if (!notFound.Contains(unknown.Name))
