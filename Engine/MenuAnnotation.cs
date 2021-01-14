@@ -175,11 +175,20 @@ namespace OpenTap
         public const string Unparameterize = Common + nameof(Unparameterize);
         /// <summary> Parameterize command </summary>
         public const string EditParameter = Common + nameof(EditParameter);
+        
+        /// <summary> Parameterized icon name.</summary>
+        public const string Parameterized = Common + nameof(Parameterized);
         /// <summary> Remove Parameter Command.</summary>
         public const string RemoveParameter = Common + nameof(RemoveParameter);
         /// <summary> Command to assign an output. </summary>
         public const string AssignOutput = Common + nameof(AssignOutput);
         /// <summary> Command to unassign an output. </summary>
         public const string UnassignOutput = Common + nameof(UnassignOutput);
+        /// <summary> This is an output.</summary>
+        public const string Output = Common + nameof(Output);
+        /// <summary> This is an output.</summary>
+        public const string OutputAssigned = Common + nameof(OutputAssigned);
+        /// <summary> This is an input</summary>
+        public const string Input = Common + nameof(Input);
     }
 }

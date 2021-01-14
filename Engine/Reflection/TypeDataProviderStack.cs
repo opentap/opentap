@@ -14,7 +14,7 @@ namespace OpenTap
     /// </summary>
     public class TypeDataProviderStack
     {
-        List<object> providers;
+        object[] providers;
         int offset = 0;
 
         internal TypeDataProviderStack()
@@ -23,7 +23,7 @@ namespace OpenTap
             providers = GetProviders();
         }
 
-        private TypeDataProviderStack(List<object> providers, int providerOffset)
+        private TypeDataProviderStack(object[] providers, int providerOffset)
         {
             this.providers = providers;
             this.offset = providerOffset;
@@ -36,7 +36,7 @@ namespace OpenTap
         {
             if (obj == null)
                 return null;
-            while (offset < providers.Count)
+            while (offset < providers.Length)
             {
                 var provider = providers[offset];
                 offset++;
@@ -60,8 +60,17 @@ namespace OpenTap
                 }
             }
 
+            if (!failedGetWarnHit)
+            {
+                // Todo: Change this method to never return null and throw in this case. Just added this warning for now, to see if this ever happens
+                log.Warning("Could not get TypeData for {0}", obj.GetType().FullName);
+                failedGetWarnHit = true;
+            }
             return null;
         }
+
+        static bool failedGetWarnHit = false;
+        static TraceSource log = Log.CreateSource("TypeDataProvider");
 
         static void logProviderError(object provider, Exception error)
         {
@@ -76,7 +85,7 @@ namespace OpenTap
         public ITypeData GetTypeData(string identifier)
         {
             if (identifier == null) return null;
-            while (offset < providers.Count)
+            while (offset < providers.Length)
             {
                 var provider = providers[offset];
                 offset++;
@@ -103,57 +112,67 @@ namespace OpenTap
             return null;
         }
 
-        static List<object> providersCache = new List<object>();
+        static object providersCacheLockObj = new object();
+        static object[] providersCache = new object[0];
         static readonly HashSet<ITypeData> badProviders = new HashSet<ITypeData>();
-
-        static List<object> GetProviders()
+        static int lastCount = 0;
+        static object[] GetProviders()
         {
-            var providerTypes = TypeData.FromType(typeof(IStackedTypeDataProvider)).DerivedTypes;
-            providerTypes = providerTypes.Concat(TypeData.FromType(typeof(ITypeDataProvider)).DerivedTypes).Distinct();
-            if (providersCache.Count + badProviders.Count == providerTypes.Count()) return providersCache;
-            Dictionary<object, double> priorities = new Dictionary<object, double>();
-            
-            foreach (var providerType in providerTypes)
+            var providers1 = TypeData.FromType(typeof(IStackedTypeDataProvider)).DerivedTypes;
+            var providers2 = TypeData.FromType(typeof(ITypeDataProvider)).DerivedTypes;
+
+            int l1 = providers1.Count();
+            int l2 = providers2.Count();
+
+            if (lastCount == l1 + l2) return providersCache;
+
+            lock (providersCacheLockObj)
             {
-                if (providerType.CanCreateInstance == false) continue;
-                
-                try
+                if (lastCount == l1 + l2) return providersCache;
+                Dictionary<object, double> priorities = new Dictionary<object, double>();
+                foreach (var providerType in providers1.Concat(providers2).Distinct())
                 {
-                    var provider = providerType.CreateInstance();
-                    double priority;
+                    if (providerType.CanCreateInstance == false) continue;
 
-                    if (provider is IStackedTypeDataProvider p)
-                        priority = p.Priority;
-                    else if (provider is ITypeDataProvider p2)
-                        priority = p2.Priority;
-                    else
+                    try
                     {
-                        lock (badProviders)
+                        var provider = providerType.CreateInstance();
+                        double priority;
+
+                        if (provider is IStackedTypeDataProvider p)
+                            priority = p.Priority;
+                        else if (provider is ITypeDataProvider p2)
+                            priority = p2.Priority;
+                        else
                         {
-                            if (badProviders.Contains(providerType))
-                                continue; // error was printed first time, so just continue.
+                            lock (badProviders)
+                            {
+                                if (badProviders.Contains(providerType))
+                                    continue; // error was printed first time, so just continue.
+                            }
+
+                            throw new InvalidOperationException("Unreachable code path executed.");
                         }
-
-                        throw new InvalidOperationException("Unreachable code path executed.");
+                        priorities.Add(provider, priority);
                     }
-                    priorities.Add(provider, priority);
-                }
-                catch(Exception e)
-                {
-                    bool isNewError = false;
-                    lock(badProviders)
-                        isNewError = badProviders.Add(providerType);
-                    if (isNewError)
+                    catch (Exception e)
                     {
-                        var log = Log.CreateSource("TypeDataProvider");
-                        log.Error("Unable to use TypeDataProvider of type '{0}' due to errors.", providerType.Name);
-                        log.Debug("The error was '{0}'", e.Message);
-                        log.Debug(e);
+                        bool isNewError = false;
+                        lock (badProviders)
+                            isNewError = badProviders.Add(providerType);
+                        if (isNewError)
+                        {
+                            var log = Log.CreateSource("TypeDataProvider");
+                            log.Error("Unable to use TypeDataProvider of type '{0}' due to errors.", providerType.Name);
+                            log.Debug("The error was '{0}'", e.Message);
+                            log.Debug(e);
+                        }
                     }
                 }
-            }
 
-            providersCache = priorities.Keys.OrderByDescending(x => priorities[x]).ToList();
+                providersCache = priorities.Keys.OrderByDescending(x => priorities[x]).ToArray();
+                lastCount = l1 + l2;
+            }
             return providersCache;
         }
     }

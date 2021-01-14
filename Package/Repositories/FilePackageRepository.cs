@@ -22,6 +22,7 @@ namespace OpenTap.Package
         private static TraceSource log = Log.CreateSource("FilePackageRepository");
         internal const string TapPluginCache = ".PackageCache";
         private static object cacheLock = new object();
+        private static object loadLock = new object();
 
         private List<string> allFiles = new List<string>();
         private PackageDef[] allPackages;
@@ -32,11 +33,15 @@ namespace OpenTap.Package
         }
         public void Reset()
         {
+            allPackages = null;
             LoadPath(new CancellationToken());
         }
 
         private void LoadPath(CancellationToken cancellationToken)
         {
+            if (allPackages != null)
+                return;
+            
             if (File.Exists(Url) || Directory.Exists(Url) == false)
             {
                 allPackages = new PackageDef[0];
@@ -47,21 +52,27 @@ namespace OpenTap.Package
                 return;
             }
 
-            allFiles = GetAllFiles(Url, cancellationToken);
-            cancellationToken.ThrowIfCancellationRequested();
-            allPackages = GetAllPackages(allFiles).ToArray();
-
-            var caches = PackageManagerSettings.Current.Repositories.Select(p => GetCache(p.Url).CacheFileName);
-            foreach (var file in allFiles)
+            lock (loadLock)
             {
-                var filename = Path.GetFileName(file);
-                if (filename.StartsWith(TapPluginCache) == false) continue;
-                if (caches.Any(r => r == filename)) continue;
-                try
+                if (allPackages != null)
+                    return;
+                
+                allFiles = GetAllFiles(Url, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                allPackages = GetAllPackages(allFiles).ToArray();
+
+                var caches = PackageManagerSettings.Current.Repositories.Select(p => GetCache(p.Url).CacheFileName);
+                foreach (var file in allFiles)
                 {
-                    File.Delete(file);
+                    var filename = Path.GetFileName(file);
+                    if (filename.StartsWith(TapPluginCache) == false) continue;
+                    if (caches.Any(r => r == filename)) continue;
+                    try
+                    {
+                        File.Delete(file);
+                    }
+                    catch { }
                 }
-                catch { }
             }
         }
 
@@ -77,7 +88,7 @@ namespace OpenTap.Package
                 log.Debug("Downloading file without searching repository.");
                 packageDef = def;
             }
-            else if (allPackages == null)
+            else
                 LoadPath(cancellationToken);
 
             if (packageDef == null)
@@ -146,8 +157,7 @@ namespace OpenTap.Package
         }
         public string[] GetPackageNames(CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
-            if (allPackages == null)
-                LoadPath(cancellationToken);
+            LoadPath(cancellationToken);
             
             if (this.allPackages == null || this.allFiles == null) return null;
             var packages = this.allPackages.ToList();
@@ -164,8 +174,7 @@ namespace OpenTap.Package
         }
         public string[] GetPackageNames(string @class, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
-            if (allPackages == null)
-                LoadPath(cancellationToken);
+            LoadPath(cancellationToken);
 
             if (this.allPackages == null || this.allFiles == null) return null;
             var packages = this.allPackages.Where(p => p.Class == @class).ToList();
@@ -182,8 +191,7 @@ namespace OpenTap.Package
         }
         public PackageVersion[] GetPackageVersions(string packageName, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
-            if (allPackages == null)
-                LoadPath(cancellationToken);
+            LoadPath(cancellationToken);
             
             if (this.allPackages == null || this.allFiles == null) return null;
             var packages = this.allPackages.ToList();
@@ -202,8 +210,7 @@ namespace OpenTap.Package
         }
         public PackageDef[] GetPackages(PackageSpecifier pid, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
-            if (allPackages == null)
-                LoadPath(cancellationToken);
+            LoadPath(cancellationToken);
             
             if (this.allPackages == null || this.allFiles == null) return null;
             
@@ -250,8 +257,7 @@ namespace OpenTap.Package
         }
         public  PackageDef[] CheckForUpdates(IPackageIdentifier[] packages, CancellationToken cancellationToken)
         {
-            if (allPackages == null)
-                LoadPath(cancellationToken);
+            LoadPath(cancellationToken);
             
             if (allPackages == null || allFiles == null) return null;
             
@@ -344,8 +350,10 @@ namespace OpenTap.Package
                     packages = PackageDef.FromPackages(packagesFile.FullName);
                     if (packages == null) return;
                 }
-                catch
+                catch (Exception e)
                 {
+                    log.Error($"Could not unpackage '{packagesFile.FullName}'");
+                    log.Debug(e);
                     return;
                 }
 

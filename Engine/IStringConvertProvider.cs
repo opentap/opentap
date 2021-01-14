@@ -420,12 +420,11 @@ namespace OpenTap
                 if (str.Contains('|'))
                 {
                     var flagStrings = str.Split('|');
-                    int flags = 0;
+                    long flags = 0;
                     foreach (var flagString in flagStrings)
                     {
-                        Enum result2;
-                        if (tryParseEnumString(flagString, type, out result2))
-                            flags |= (int)Convert.ChangeType(result2, typeof(int));
+                        if (tryParseEnumString(flagString, type, out var result2))
+                            flags |= (long)Convert.ChangeType(result2, TypeCode.Int64);
                     }
                     result = (Enum)Enum.ToObject(type, flags);
                     return true;
@@ -466,6 +465,18 @@ namespace OpenTap
                         if (fixedNames[i] == str || fixedNames[i].Replace('_', ' ') == str)
                         {
                             result = (Enum)Enum.GetValues(type).GetValue(i);
+                            return true;
+                        }
+                    }
+                    // Repeat the robust parse for display names
+                    for (int i = 0; i < names.Length; i++)
+                    {
+                        var display = type.GetMember(names[i]).Select(x => x.GetDisplayAttribute()).FirstOrDefault();
+                        var name = display.Name.ToLower().Trim();
+                        if (StringComparer.InvariantCultureIgnoreCase.Equals(name, str) || 
+                            StringComparer.InvariantCultureIgnoreCase.Equals(name.Replace('_', ' '), str))
+                        {
+                            result = (Enum) Enum.GetValues(type).GetValue(i);
                             return true;
                         }
                     }
@@ -569,36 +580,42 @@ namespace OpenTap
                     // unescape nested strings and put them into 'parsedStrings'.
                     // after this they will be handled individually.
                     List<string> parsedStrings = new List<string>();
-                    StringBuilder buffer = new StringBuilder();
-                    for (int i = 0; i < stringdata.Length; i++)
+                    if (stringdata.Length > 0)
                     {
-                        var chr = stringdata[i];
-                        if (chr == ',')
+                        StringBuilder buffer = new StringBuilder();
+                        for (int i = 0; i < stringdata.Length; i++)
                         {
-                            parsedStrings.Add(buffer.ToString());
-                            buffer.Clear();
-                            continue;
-                        }
-                        if (chr == '"')
-                        {
-                            for (i += 1; i < stringdata.Length; i++)
+                            var chr = stringdata[i];
+                            if (chr == ',')
                             {
-                                chr = stringdata[i];
-                                if (chr == '"')
+                                parsedStrings.Add(buffer.ToString());
+                                buffer.Clear();
+                                continue;
+                            }
+
+                            if (chr == '"')
+                            {
+                                for (i += 1; i < stringdata.Length; i++)
                                 {
-                                    if (stringdata.Length > i + 1 && stringdata[i + 1] == '"')
-                                        i += 1; // skip escaped quotes and remove extra \".
-                                    else break;
+                                    chr = stringdata[i];
+                                    if (chr == '"')
+                                    {
+                                        if (stringdata.Length > i + 1 && stringdata[i + 1] == '"')
+                                            i += 1; // skip escaped quotes and remove extra \".
+                                        else break;
+                                    }
+
+                                    buffer.Append(chr);
                                 }
+                            }
+                            else
+                            {
                                 buffer.Append(chr);
                             }
                         }
-                        else
-                        {
-                            buffer.Append(chr);
-                        }
+
+                        parsedStrings.Add(buffer.ToString());
                     }
-                    parsedStrings.Add(buffer.ToString());
 
                     var values = new List<object>();
                     foreach (var str in parsedStrings)
@@ -609,7 +626,7 @@ namespace OpenTap
                         }
                         else
                         {
-                            // cannot handle elment -> give up.
+                            // cannot handle element -> give up.
                             return null;
                         }
                     }

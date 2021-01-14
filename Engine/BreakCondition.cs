@@ -6,7 +6,7 @@ namespace OpenTap
     /// Test step break conditions. Can be used to define when a test step should issue a break due to it's own verdict.
     /// </summary>
     [Flags]
-    internal enum BreakCondition
+    public enum BreakCondition
     {
         /// <summary> Inherit behavior from parent or engine settings. </summary>
         [Display("Inherit", "Inherit behavior from the parent step. If no parent step exist or specify a behavior, the Engine setting 'Stop Test Plan Run If' is used.")]
@@ -17,6 +17,7 @@ namespace OpenTap
         /// <summary> If a step completes with verdict 'Fail', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
         [Display("Break on Fail", "If a step completes with verdict 'Fail', skip execution of subsequent steps and return control to the parent step.")]
         BreakOnFail = 4,
+        /// <summary> If a step completes with verdict 'Inconclusive', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
         [Display("Break on Inconclusive", "If a step completes with verdict 'inconclusive', skip execution of subsequent steps and return control to the parent step.")]
         BreakOnInconclusive = 8,
     }
@@ -24,7 +25,7 @@ namespace OpenTap
     /// <summary>
     /// Break condition is an 'attached property' that can be attached to any implementor of ITestStep. This ensures that the API for ITestStep does not need to be modified to support the BreakConditions feature.
     /// </summary>
-    internal static class BreakConditionProperty
+    public static class BreakConditionProperty
     {
         /// <summary> Sets the break condition for a test step. </summary>
         /// <param name="step"> Which step to set it on.</param>

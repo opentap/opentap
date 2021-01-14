@@ -1,12 +1,15 @@
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using OpenTap.Cli;
 using OpenTap.Plugins.BasicSteps;
+using OpenTap.UnitTests;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -89,9 +92,20 @@ namespace OpenTap.Engine.UnitTests
         
         [CommandLineArgument("test-plan")]
         public bool ProfileTestPlan { get; set; }
+        [CommandLineArgument("enabled-if")]
+        public bool EnabledIfPerformanceTest { get; set; }
         
         [CommandLineArgument("search")]
         public bool ProfileSearch { get; set; }
+
+        [CommandLineArgument("run-long-plan")]
+        public bool LongPlan { get; set; }
+        
+        [CommandLineArgument("run-long-plan-with-references")]
+        public bool LongPlanWithReferences { get; set; }
+        
+        [CommandLineArgument("parameterize")]
+        public bool Parameterize { get; set; }
 
         [CommandLineArgument("iterations")]
         public int Iterations { get; set; } = 10;
@@ -127,7 +141,211 @@ namespace OpenTap.Engine.UnitTests
                 Console.WriteLine("Search Took {0}ms in total.", sw.ElapsedMilliseconds);
             }
 
+            if (LongPlan)
+            {
+                var testplan = new TestPlan();
+                for(int i = 0 ; i < 1000000; i++)
+                    testplan.Steps.Add(new LogStep());
+                var sw = Stopwatch.StartNew();
+                testplan.Execute();
+                Console.WriteLine("Run long plan took {0}ms in total.", sw.ElapsedMilliseconds);
+            }
+
+            if (LongPlanWithReferences)
+            {
+                DummyDut dut = new DummyDut();
+                DutSettings.Current.Add(dut);
+                var tmpFile = Guid.NewGuid().ToString() + ".TapPlan";
+                {
+                    var subPlan = new TestPlan();
+
+                    
+                    int count = 10;
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        var logStep = new LogStep();
+                        subPlan.Steps.Add(logStep);
+                    }
+
+                    for (int i = 0; i < count; i++)
+                    {
+                        var logStep = new DutStep2() {Dut = dut};
+                        subPlan.Steps.Add(logStep);
+                    }
+                        
+                    
+                    foreach(var step in subPlan.Steps)
+                    {
+                        if (step is LogStep logStep)
+                        {
+                            var messageMember = TypeData.GetTypeData(logStep).GetMember(nameof(LogStep.LogMessage));
+                            messageMember.Parameterize(subPlan, logStep, "message");
+                        }else if (step is DutStep2 dutStep)
+                        {
+                            var messageMember = TypeData.GetTypeData(dutStep).GetMember(nameof(dutStep.Dut));
+                            messageMember.Parameterize(subPlan, dutStep, "dut");
+                        }
+                    }
+
+                    subPlan.Save(tmpFile);
+                }
+
+                try
+                {
+                    
+                    var testPlan = new TestPlan();
+                    for (int i = 0; i < 10000; i++)
+                    {
+                        var refPlan = new TestPlanReference();
+                        refPlan.Filepath.Text = tmpFile;
+                        testPlan.Steps.Add(refPlan);
+                        refPlan.Filepath= refPlan.Filepath;
+                    }
+
+                    var run = testPlan.Execute();
+                    Assert.IsTrue(run.Verdict <= Verdict.Pass);
+                }
+                finally
+                {
+                    File.Delete(tmpFile);
+                }
+
+
+            }
+            
+            if (Parameterize)
+            {
+                
+                var subPlan = new TestPlan();
+
+                int count = 100000;
+
+                for (int i = 0; i < count; i++)
+                {
+                    var logStep = new LogStep();
+                    subPlan.Steps.Add(logStep);
+                }
+
+                for (int i = 0; i < count; i++)
+                {
+                    var logStep = subPlan.Steps[i];
+                    var messageMember = TypeData.GetTypeData(logStep).GetMember(nameof(LogStep.LogMessage));
+                    messageMember.Parameterize(subPlan, logStep, "message");
+                }
+                
+            }
+
+            if (EnabledIfPerformanceTest)
+            {
+                bool EnabledIfPerformanceTest()
+                {
+                    try
+                    {
+                        var myInstrument = new TestResource() {HasBeenOpened = false};
+                        InstrumentSettings.Current.Clear();
+                        InstrumentSettings.Current.Add(myInstrument);
+
+                        var magnitude = 10; // magnitude^3 + magnitude^2 + magnitude steps
+                        var timeLimit = TimeSpan.FromSeconds(10);
+
+                        var sw = Stopwatch.StartNew();
+
+                        var testPlan = new TestPlan();
+
+                        // Build a triple nested test plan which forwards parameters upwards
+                        using (ParameterManager.WithSanityCheckDelayed())
+                        {
+                            for (int i = 0; i < magnitude; i++)
+                            {
+                                var outerSequence = new SequenceStep() {Name = "outerSequence"};
+                                testPlan.ChildTestSteps.Add(outerSequence);
+
+                                for (int j = 0; j < magnitude; j++)
+                                {
+                                    var innerSequence = new SequenceStep() {Name = "innerSequence"};
+                                    outerSequence.ChildTestSteps.Add(innerSequence);
+                                    for (int k = 0; k < magnitude; k++)
+                                    {
+                                        var step = new ResourceTest.ResourceTestStep()
+                                            {ResourceEnabled = true, MyTestResource = myInstrument};
+                                        innerSequence.ChildTestSteps.Add(step);
+
+                                        // Parameterize the member on the parent sequence
+                                        var stepMember = TypeData.GetTypeData(step)
+                                            .GetMember(nameof(ResourceTest.ResourceTestStep.MyTestResource));
+                                        stepMember.Parameterize(innerSequence, step,
+                                            nameof(ResourceTest.ResourceTestStep.MyTestResource));
+                                    }
+
+                                    // Forward the parameterized instrument to the outer sequence
+                                    var innerSequenceMember = TypeData.GetTypeData(innerSequence)
+                                        .GetMember(nameof(ResourceTest.ResourceTestStep.MyTestResource));
+                                    innerSequenceMember.Parameterize(outerSequence, innerSequence,
+                                        nameof(ResourceTest.ResourceTestStep.MyTestResource));
+                                }
+
+                                // Forward the forwarded instrument to the test plan
+                                var outerSequenceMember = TypeData.GetTypeData(outerSequence)
+                                    .GetMember(nameof(ResourceTest.ResourceTestStep.MyTestResource));
+                                outerSequenceMember.Parameterize(testPlan, outerSequence,
+                                    nameof(ResourceTest.ResourceTestStep.MyTestResource));
+                            }
+                        }
+
+                        Assert.Less(sw.Elapsed, timeLimit);
+
+                        // IsEnabled is potentially a bottleneck in large test plans
+                        // Ensure it runs in a reasonable amount of time
+                        sw = Stopwatch.StartNew();
+                        
+                        var cts = new CancellationTokenSource();
+                        var t = Task.Run(() => testPlan.Execute(), cts.Token);
+                        t.Wait(timeLimit);
+                        if (t.IsCompleted == false)
+                        {
+                            cts.Cancel();
+                            return false;
+                        }
+
+                        var run = t.Result;
+                        Assert.IsFalse(run.FailedToStart);
+                        Assert.AreEqual(Verdict.NotSet, run.Verdict);
+                        Assert.Less(sw.Elapsed, timeLimit);
+                        return true;
+                    }
+                    finally
+                    {
+                        InstrumentSettings.Current.Clear();
+                    }
+                }
+
+                var timer = Stopwatch.StartNew();
+                var success = EnabledIfPerformanceTest();
+                if (success)
+                {
+                    Console.WriteLine($"Enabled-if performance test took {timer.ElapsedMilliseconds}ms in total.");
+                    return 0;
+                }
+                else
+                {
+                    Console.WriteLine($"Enabled-if performance test failed after {timer.ElapsedMilliseconds}ms.");
+                    return 1;
+                }
+            }
+
             return 0;
         }
     }
+
+    public class DutStep2 : TestStep
+    {
+        public Dut Dut { get; set; }
+        public override void Run()
+        {
+            
+        }
+    }
+    
+    
 }

@@ -133,11 +133,15 @@ When **Radio Standard** is set to GSM in the step settings, both **Override Band
 For an example, see `TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\Attributes\EnabledIfAttributeExample.cs`.
 
 ### Flags Attribute
-The **Flags** attribute is a C# attribute used with enumerations. This attribute indicates that an enumeration can be treated as a *bit field* (meaning, elements can be combined by bitwise OR operation). The enumeration constants must be defined in powers of two (for example 1, 2, 4, …).
+The **Flags** attribute is a C# attribute used with enumerations. This attribute indicates that an enumeration can be treated as a *bit field* (meaning, elements can be combined by bitwise OR operation). The enumeration constants can be defined in powers of two (for example 1, 2, 4, …).
 
 Using the Flags attribute results in a multiple select in the Editor, as shown below:
+These enumeration constants are defined in ascending values from zero.
 
 ![](./appendix_img3.png)
+
+Enumeration constant with value zero is handled specially by unselecting all enumeration constants except that with zero. 
+Enumeration constant with value not of powers of two will be selected accordingly to its bitmask representative. (eg. enumeration constant with value 3 will be selected togther with value 1 and 2).
 
 ### FilePath and DirectoryPath Attributes 
 The FilePath and DirectoryPath attributes can be used on a string-type property to indicate the string is a file or a folder system path. When this attribute is present, the Editor displays a browse button allowing the user to choose a file or folder. These attributes can be used as follows:

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="OpenTap.TestPlan" Locked="false">
+  <Steps>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.CreateDirectoryStep" Version="0.0.0" Id="7c5a306e-f441-49ad-9d81-0a0492735eb4">
+      <Directory>../../PackageTest/</Directory>
+      <Enabled>true</Enabled>
+      <Name>Create Directory</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.CreateDirectoryStep" Version="0.0.0" Id="0213e0ab-fc95-46da-87fb-4a442f998580">
+      <Directory>Packages/OpenTAP/</Directory>
+      <Enabled>true</Enabled>
+      <Name>Create Directory (1)</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Version="0.0.0" Id="ece0998b-58f3-49e5-bd58-66c7cb5b6454">
+      <String>
+        <Base64>PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjxQYWNrYWdlIE5hbWU9Ik9wZW5UQVAiIHhtbG5zPSJodHRwOi8vb3BlbnRhcC5pby9zY2hlbWFzL3BhY2thZ2UiIEluZm9MaW5rPSJodHRwOi8vd3d3LmtleXNpZ2h0LmNvbS9maW5kL1RBUCIgVmVyc2lvbj0iOS4xMS4wIj4NCg0KPC9QYWNrYWdlPg0K</Base64>
+      </String>
+      <File>Packages/OpenTAP/package.xml</File>
+      <Enabled>true</Enabled>
+      <Name>Write File (2)</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Version="0.0.0" Id="165be373-d86f-498f-bbd3-17272c4cdc45">
+      <String>
+        <Base64>PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjxQYWNrYWdlIE5hbWU9IlRlc3RQYWNrYWdlIiB4bWxucz0iaHR0cDovL29wZW50YXAuaW8vc2NoZW1hcy9wYWNrYWdlIiBJbmZvTGluaz0iaHR0cDovL3d3dy5rZXlzaWdodC5jb20vZmluZC9UQVAiIFZlcnNpb249IjEuMC4wIj4NCiAgPERlcGVuZGVuY2llcz4NCiAgICA8UGFja2FnZURlcGVuZGVuY3kgUGFja2FnZT0iT3BlblRBUCIvPg0KIDwvRGVwZW5kZW5jaWVzPg0KICAgIDxGaWxlcz4NCiAgICAgICAgPEZpbGUgUGF0aD0idGVzdC5tZCI+DQogICAgICAgIDwvRmlsZT4NCiAgICA8L0ZpbGVzPg0KPC9QYWNrYWdlPg0K</Base64>
+      </String>
+      <File>../../PackageTest/test.package.xml</File>
+      <Enabled>true</Enabled>
+      <Name>Write File</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Version="0.0.0" Id="5190c044-9033-4bce-b39f-16d758ddc21e">
+      <String>
+        <Base64>SGVsbG8gd29ybGQNCg==</Base64>
+      </String>
+      <File>../../PackageTest/test.md</File>
+      <Enabled>true</Enabled>
+      <Name>Write File (1)</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="6a441d97-cdbe-4bdf-8c3d-43ecdcc1c742">
+      <Application>tap</Application>
+      <Arguments>package create test.package.xml</Arguments>
+      <WorkingDirectory>../../PackageTest/</WorkingDirectory>
+      <WaitForEnd>true</WaitForEnd>
+      <Timeout>0</Timeout>
+      <AddToLog>true</AddToLog>
+      <LogHeader />
+      <CheckExitCode>true</CheckExitCode>
+      <RegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </RegularExpressionPattern>
+      <VerdictOnMatch>Pass</VerdictOnMatch>
+      <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+      <ResultRegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </ResultRegularExpressionPattern>
+      <ResultName>Regex Result</ResultName>
+      <Behavior>GroupsAsDimensions</Behavior>
+      <DimensionTitles></DimensionTitles>
+      <Enabled>true</Enabled>
+      <Name>Run Program</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+  </Steps>
+  <BreakConditions>Inherit</BreakConditions>
+</TestPlan>

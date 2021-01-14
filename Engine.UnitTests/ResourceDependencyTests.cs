@@ -245,6 +245,8 @@ namespace OpenTap.Engine.UnitTests
 
             Assert.AreEqual(1, run.StepsWithPrePlanRun.Count);
             Assert.IsFalse(run.FailedToStart);
+            InstrumentSettings.Current.Clear();
+            ResultSettings.Current.Clear();
         }
 
         [Test]

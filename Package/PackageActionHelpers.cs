@@ -273,12 +273,11 @@ namespace OpenTap.Package
                     log.Info("A required dependency is currently not installed{0}.", dependencyArgsHint);
 
 
-                if (includeDependencies)
+                if (includeDependencies && (askToIncludeDependencies == false))
                 {
-                    //log.Debug($"Currently set to download dependencies quietly.");
                     foreach (var package in resolver.MissingDependencies)
                     {
-                        log.Debug("Adding dependency {0} {1}", package.Name, package.Version);
+                        log.Debug($"Adding dependency {package.Name} {package.Version}");
                         gatheredPackages.Insert(0, package);
                     }
                 }

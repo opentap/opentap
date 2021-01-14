@@ -18,16 +18,21 @@ namespace OpenTap.Package
     public class Installation
     {
         static TraceSource log = Log.CreateSource("Installation");
-        string TapPath { get; }
+        string directory { get; }
 
         /// <summary>
         /// Initialize an instance of a OpenTAP installation.
         /// </summary>
-        /// <param name="TapPath"></param>
-        public Installation(string TapPath)
+        /// <param name="directory"></param>
+        public Installation(string directory)
         {
-            this.TapPath = TapPath ?? throw new ArgumentNullException(nameof(TapPath));
+            this.directory = directory ?? throw new ArgumentNullException(nameof(directory));
         }
+
+        /// <summary>
+        /// Check if it is an installation folder that contains packages other than system-wide packages
+        /// </summary>
+        public bool IsInstallationFolder => GetPackages().Any(x => x.IsSystemWide() == false);
 
         /// <summary>
         /// Returns package definition list of installed packages in the TAP installation defined in the constructor, and system-wide packages.
@@ -40,7 +45,7 @@ namespace OpenTap.Package
 
 
             // Add normal package from OpenTAP folder
-            package_files.AddRange(PackageDef.GetPackageMetadataFilesInTapInstallation(TapPath));
+            package_files.AddRange(PackageDef.GetPackageMetadataFilesInTapInstallation(directory));
 
             // Add system wide packages
             package_files.AddRange(PackageDef.GetSystemWidePackages());
@@ -73,7 +78,7 @@ namespace OpenTap.Package
         {
             var opentap = GetPackages()?.FirstOrDefault(p => p.Name == "OpenTAP");
             if (opentap == null)
-                log.Warning($"Could not find OpenTAP in {TapPath}.");
+                log.Warning($"Could not find OpenTAP in {directory}.");
 
             return opentap;
         }
@@ -142,7 +147,7 @@ namespace OpenTap.Package
 
         internal void AnnouncePackageChange()
         {
-            using (var changeId = new ChangeId(this.TapPath))
+            using (var changeId = new ChangeId(this.directory))
                 changeId.SetChangeId(changeId.GetChangeId() + 1);
         }
 

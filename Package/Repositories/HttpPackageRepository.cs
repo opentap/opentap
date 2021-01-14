@@ -602,6 +602,16 @@ namespace OpenTap.Package
 
         public string UpdateId;
 
+        private string PackageNameHash(string packageName)
+        {
+            using (System.Security.Cryptography.SHA256 algo = System.Security.Cryptography.SHA256.Create())
+            {
+                byte[] hash = algo.ComputeHash(Encoding.UTF8.GetBytes(packageName));
+                return BitConverter.ToString(hash).Replace("-", "");
+                
+            }
+        }
+
         public PackageDef[] CheckForUpdates(IPackageIdentifier[] packages, CancellationToken cancellationToken)
         {
             List<PackageDef> latestPackages = new List<PackageDef>();
@@ -616,14 +626,14 @@ namespace OpenTap.Package
                 {
                     PackageDef.SaveManyTo(stream, packages.Select(p => new PackageDef()
                     {
-                        Name = p.Name,
+                        Name = PackageNameHash(p.Name),
                         Version = p.Version,
                         Architecture = p.Architecture,
                         OS = p.OS
                     }));
+
                     stream.Seek(0, 0);
                     string data = new StreamReader(stream).ReadToEnd();
-                    
 
                     string arg = string.Format("/{0}/CheckForUpdates?name={1}", ApiVersion, UpdateId);
                     response = downloadPackagesString(arg, data);

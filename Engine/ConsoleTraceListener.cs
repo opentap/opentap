@@ -86,7 +86,7 @@ namespace OpenTap
             if (eventType == LogEventType.Information && IsQuiet)
                 return;
 
-            ConsoleColor color = IsColor ? GetColorForTraceLevel(eventType) : ConsoleColor.Gray;
+            
             string formattedLine = message;
             if (IsVerbose)
             {
@@ -96,12 +96,24 @@ namespace OpenTap
                 else
                     formattedLine = String.Format("{3:hh\\:mm\\:ss\\.fff} : {0,-13} : {1,-11} : {2}", source, eventType, message, time);
             }
-            Console.ForegroundColor = color;
+
+            if (IsColor)
+            {
+                ConsoleColor color = GetColorForTraceLevel(eventType);
+                if (color != currentColor)
+                {
+                    currentColor = color;
+                    Console.ForegroundColor = color;
+                }
+            }
+
             if (eventType == LogEventType.Error)
                 Console.Error.WriteLine(formattedLine);
             else
                 Console.WriteLine(formattedLine);
         }
+
+        ConsoleColor currentColor = ConsoleColor.Gray; 
 
         /// <summary>
         /// Prints all log messages to the console.
@@ -109,7 +121,6 @@ namespace OpenTap
         /// <param name="events"></param>
         public override void TraceEvents(IEnumerable<Event> events)
         {
-            var fg = Console.ForegroundColor;
             try
             {
                 foreach (var evt in events)
@@ -117,7 +128,11 @@ namespace OpenTap
             }
             finally
             {
-                Console.ForegroundColor = fg;
+                if (currentColor != ConsoleColor.Gray)
+                {
+                    currentColor = ConsoleColor.Gray;
+                    Console.ForegroundColor = currentColor;
+                }
             }
         }
     }

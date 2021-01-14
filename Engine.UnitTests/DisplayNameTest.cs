@@ -19,8 +19,8 @@ namespace OpenTap.UnitTests
             var aType = TypeData.FromType(typeof(WrongAName));
             var bType = TypeData.FromType(typeof(WrongBName));
 
-            var displayDataA = aType.GetAttribute<DisplayAttribute>();
-            var displayDataB = bType.GetAttribute<DisplayAttribute>();
+            var displayDataA = aType.GetAttribute<IDisplayAnnotation>();
+            var displayDataB = bType.GetAttribute<IDisplayAnnotation>();
 
             Assert.IsTrue(displayDataA.Name.Equals("Real A Name"));
             Assert.IsTrue(displayDataB.Name.Equals("Real B Name"));

@@ -1099,7 +1099,7 @@ namespace OpenTap.Engine.UnitTests
             IObjectValueAnnotation val = annotation.Get<IObjectValueAnnotation>();
             val.Value = prov.AvailableValues.Cast<object>().FirstOrDefault();
 
-            var display = annotation.Get<DisplayAttribute>();
+            var display = annotation.Get<IDisplayAnnotation>();
             var unit = annotation.Get<UnitAttribute>();
 
             var mem2 = desc.GetMember("SimpleNumber");
@@ -1242,6 +1242,74 @@ namespace OpenTap.Engine.UnitTests
                 mem.Write();
                 cval = BreakConditionProperty.GetBreakCondition(steps[0]);
                 Assert.AreEqual(BreakCondition.Inherit, cval);
+            }
+        }
+
+        // Class to assert title of dialog user interface
+        class DialogTestUserInterface : IUserInputInterface
+        {
+            public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
+            {
+                var a = AnnotationCollection.Annotate(dataObject);
+                var display = a.Get<IDisplayAnnotation>();
+                Assert.AreEqual(1, a.GetAll<IDisplayAnnotation>().Count());
+                Assert.AreEqual("Title", display.Name);
+            }
+        }
+        [Test]
+        public void TestDisplayAnnotationForDialogStep()
+        {
+            var currentUserInterface = UserInput.Interface;
+            var menuInterface = new DialogTestUserInterface();
+            UserInput.SetInterface(menuInterface);
+            try
+            {
+                var plan = new TestPlan();
+                var step = new DialogStep { UseTimeout = false };
+                plan.Steps.Add(step);
+                plan.Execute();
+            }
+            finally
+            {
+               UserInput.SetInterface((IUserInputInterface) currentUserInterface);
+            }
+        }
+
+        [Display("Title")]
+        class DialogDisplay
+        {
+            [Display("Serial Number")]
+            public string SerialNumber { get; set; }
+        }
+
+        class DisplayDialogStep : TestStep
+        {
+            public DisplayDialogStep() { }
+
+            public override void Run()
+            {
+                var req = new DialogDisplay();
+                UserInput.Request(req, TimeSpan.FromSeconds(1000), false);
+            }
+        }
+
+        [Test]
+        public void TestDisplayDialog()
+        {
+            var currentUserInterface = UserInput.Interface;
+            var menuInterface = new DialogTestUserInterface();
+            UserInput.SetInterface(menuInterface);
+            try
+            {
+                var plan = new TestPlan();
+                var step = new DisplayDialogStep();
+
+                plan.Steps.Add(step);
+                plan.Execute();
+            }
+            finally
+            {
+                UserInput.SetInterface((IUserInputInterface)currentUserInterface);
             }
         }
 

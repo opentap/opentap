@@ -135,7 +135,7 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void GitVersionDependency()
         {
-            string inputFilename = "Packages/GitVersionDependency/package.xml";
+            string inputFilename = "GitVersionDependency-package.xml";
             string outputFilename = "GitversionDependency.TapPlugin";
             try
             {
@@ -466,7 +466,17 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void findDependencies_SharedAssemblyReference()
         {
+            // tap package create X --package-dir C:\MyPackages
+            
+            string PackageInstallDir = "C:\\MyPackages\\";
             var inst = new Installation(Directory.GetCurrentDirectory());
+
+            if (PackageInstallDir != null)
+                inst = new Installation(PackageInstallDir);
+            if (inst.GetPackages().Count() == 0)
+                inst = new Installation(System.IO.Path.GetDirectoryName(typeof(TestPlan).Assembly.Location));    
+            
+            
             var pkgs = inst.GetPackages();
             string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
 <Package Name='Test3' xmlns ='http://opentap.io/schemas/package'>

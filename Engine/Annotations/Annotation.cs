@@ -26,6 +26,24 @@ namespace OpenTap
     /// </summary>
     public interface IAnnotation { }
 
+    /// <summary> Specifies how a display is implemented and presented to user </summary>
+    public interface IDisplayAnnotation : IAnnotation
+    {
+        /// <summary> Optional text that provides a description of the item. </summary>
+        string Description { get; }
+        /// <summary> Optional text used to group displayed items. </summary>
+        string[] Group { get; }
+        /// <summary> Name displayed by the UI. </summary>
+        string Name { get; }
+        /// <summary> Optional integer that ranks items and groups in ascending order relative to other items/groups. 
+        /// Default is -10000. For a group, the order is the average order of the elements inside the group. 
+        /// Any double value is allowed. Items with same order are ranked alphabetically.
+        /// </summary>
+        double Order { get; }
+        /// <summary> Boolean setting that indicates whether a group's default appearance is collapsed. </summary>
+        bool Collapsed { get; }
+    }
+
     /// <summary> Gets or sets the value of a thing. </summary>
     public interface IObjectValueAnnotation : IAnnotation
     {
@@ -862,6 +880,9 @@ namespace OpenTap
                             newa.Insert(idx + 1, new ManyToOneStringValueAnnotation(merged));
                         }
                     }
+
+                    IconAnnotationHelper.AddParameter(newa, mem, newa.Source);
+                    
                     CommonAnnotations.Add(newa);
 
                 next_thing:;
@@ -1453,23 +1474,33 @@ namespace OpenTap
                     List<Enum> items = new List<Enum>();
                     if (this.val.Value is Enum value)
                     {
+                        var zeroVal = Enum.ToObject(enumType, 0);
                         foreach (Enum enumValue in Enum.GetValues(enumType))
                         {
                             if (value.HasFlag(enumValue))
-                                items.Add(enumValue);
+                            {
+                                // To remove default value 0 for any value > 0 selected, else just select 0
+                                if (value.Equals(zeroVal) || !enumValue.Equals(zeroVal))
+                                    items.Add(enumValue);
+                            }
                         }
                     }
+                    prevSelected = items;
                     return items;
                 }
                 set
                 {
-                    long bits = 0; 
-                    foreach (Enum item in value)
-                        bits |= Convert.ToInt64(item);
+                    var currSelected = value.Cast<Enum>();
+
+                    // Get prev state
+                    long prevBits = GetBitState(prevSelected);
+
+                    long bits = SetBitState(prevBits, currSelected);
                     val.Value = Enum.ToObject(enumType, bits);
                 }
             }
 
+            IEnumerable<Enum> prevSelected = Enumerable.Empty<Enum>();
             IObjectValueAnnotation val => annotation.Get<IObjectValueAnnotation>();
             Type enumType;
             AnnotationCollection annotation;
@@ -1478,6 +1509,36 @@ namespace OpenTap
             {
                 this.annotation = annotation;
                 this.enumType = enumType;
+            }
+
+            private long GetBitState(IEnumerable state)
+            {
+                long bitValue = 0;
+                foreach (Enum item in state)
+                    bitValue |= Convert.ToInt64(item);
+
+                return bitValue;
+            }
+
+            private long SetBitState(long bits, IEnumerable<Enum> currSelected)
+            {
+                // Get the diff (ie selection or unselection value)
+                IEnumerable<Enum> diff = prevSelected.Except(currSelected);
+                long removedBits = GetBitState(diff);
+                if (diff.Any())
+                    bits ^= removedBits;
+
+                diff = currSelected.Except(prevSelected);
+                long addedBits = GetBitState(diff);
+                if (diff.Count() > 0)
+                {
+                    if (addedBits == 0)
+                        bits = 0;   // Special handling for zero value to unselect all values
+                    else
+                        bits |= addedBits;
+                }
+
+                return bits;
             }
         }
 
@@ -2412,11 +2473,16 @@ namespace OpenTap
             var reflect = annotation.Get<IReflectionAnnotation>();
             var mem = annotation.Get<IMemberAnnotation>();
             if (mem == null && reflect != null)
-                annotation.Add(reflect.ReflectionInfo.GetDisplayAttribute());
+            {
+                if (reflect.ReflectionInfo.DescendsTo(typeof(IDisplayAnnotation)))
+                    annotation.Add(new DisplayAnnotationWrapper());
+                else
+                    annotation.Add(reflect.ReflectionInfo.GetDisplayAttribute());
+            }
+
             bool rd_only = annotation.Get<ReadOnlyMemberAnnotation>() != null;
             if (reflect != null)
             {
-
                 var help = reflect.ReflectionInfo.GetHelpLink();
                 if (help != null)
                     annotation.Add(help);
@@ -2475,6 +2541,9 @@ namespace OpenTap
                     (DirectoryPathAttribute x) => annotation.Add(x),
                     (IconAnnotationAttribute x) => annotation.Add(x) 
                     );
+
+                IconAnnotationHelper.AddParameter(annotation, mem.Member, annotation.Source);
+                
             }
 
             var availMem = annotation.Get<AvailableMemberAnnotation>();
@@ -2652,6 +2721,35 @@ namespace OpenTap
         }
     }
 
+    internal class DisplayAnnotationWrapper : IAnnotation, IDisplayAnnotation, IOwnedAnnotation
+    {
+        public string Description { get; private set; }
+
+        public string[] Group { get; private set; }
+
+        public string Name { get; private set; }
+
+        public double Order { get; private set; }
+
+        public bool Collapsed { get; private set; }
+
+        public void Read(object source)
+        {
+            if (source is IDisplayAnnotation src)
+            {
+                Name = src.Name;
+                Description = src.Description;
+                Group = src.Group;
+                Order = src.Order;
+                Collapsed = src.Collapsed;
+            }
+        }
+
+        public void Write(object source)
+        {
+           
+        }
+    }
 
 
     /// <summary> Proxy annotation for wrapping simpler annotation types. For example IAvailableValuesAnnotation is wrapped in a IAvailableValuesAnnotationProxy.</summary>
@@ -3395,6 +3493,33 @@ namespace OpenTap
             var name2 = name;
             var sub = col.Get<IMembersAnnotation>().Members.FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name == name2);
             return sub;
+        }
+
+        /// <summary>  helper method to get the icon annotation collection. Will return null if the item could not be found. </summary>
+        public static AnnotationCollection GetIcon(this AnnotationCollection col, string iconName)
+        {
+            return col.Get<MenuAnnotation>()?.MenuItems
+                .FirstOrDefault(c => c.Get<IIconAnnotation>()?.IconName == iconName);
+        }
+        public static void ExecuteIcon(this AnnotationCollection col, string iconName)
+        {
+            var icon = col.GetIcon(iconName);
+            if (!icon.Get<IEnabledAnnotation>().IsEnabled == true)
+                throw new Exception("Icon action is not enabled");
+            icon.Get<IMethodAnnotation>().Invoke();
+        }
+
+        public static void SetValue(this AnnotationCollection col, object value)
+        {
+            // this function could be extended to support more types if needed.
+            var strVal = col.Get<IStringValueAnnotation>();
+            if (strVal != null)
+            {
+                strVal.Value = StringConvertProvider.GetString(value);
+                col.Write();
+            }
+            else throw new Exception("SetValue failed.");
+
         }
     }
 }

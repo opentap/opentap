@@ -215,7 +215,7 @@ namespace OpenTap.Engine.UnitTests
         {
             base.Open();
             Serial = SerialNumber;
-        } 
+        }
         public override void Close()
         {
             base.Close();
@@ -228,9 +228,9 @@ namespace OpenTap.Engine.UnitTests
 
     public class DummyInstrument : Instrument
     {
-        
+
     }
-    
+
     [DisplayName("Test\\UnitTest resultListener2")]
     public class resultListener2 : ResultListener
     {
@@ -390,6 +390,55 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(dict.ContainsKey("sub/Index"));
             Assert.IsTrue(dict.ContainsKey("sub/Index2") == false);
             Console.WriteLine(param);
+        }
+    }
+
+    public class ReadOnlyTests
+    {
+        public class ReadOnlyParams
+        {
+            [Browsable(true)] public int X => GetHashCode();
+            public string Message => X + " example"; // immutable value.
+
+            public int Value { get; set; } // this value is mutable.
+        }
+
+        public class ReadOnlyListTest : TestStep
+        {
+            List<ReadOnlyParams> elements = new List<ReadOnlyParams>
+            {
+                new ReadOnlyParams(), new ReadOnlyParams(), new ReadOnlyParams(),
+            };
+            public IReadOnlyList<ReadOnlyParams> Elements
+            {
+                get => elements.AsReadOnly();
+                set { elements = value.ToList(); }
+            }
+            public override void Run() { }
+        }
+
+        [Test]
+        public void TestReadOnlyList()
+        {
+            var plan = new TestPlan();
+            var step1 = new ReadOnlyListTest();
+            step1.Elements = Enumerable.Range(0, 5).Select(i => new ReadOnlyParams() {Value = i}).ToList();
+            Assert.AreEqual(5, step1.Elements.Count);
+            plan.Steps.Add(step1);
+
+            var listener = new TestTraceListener();
+            Log.AddListener(listener);
+            var xml = plan.SerializeToString();
+            var plan2 = Utils.DeserializeFromString<TestPlan>(xml);
+            Log.RemoveListener(listener);
+            listener.AssertErrors(new List<string>());
+                
+            var step2 = (ReadOnlyListTest) plan2.Steps[0];
+            Assert.AreEqual(step1.Elements.Count, step2.Elements.Count);
+            bool allEqualValues = step1.Elements
+                .Zip(step2.Elements, (x, y) => x.Value == y.Value)
+                .All(x => x);
+            Assert.IsTrue(allEqualValues);
         }
     }
 

@@ -79,9 +79,9 @@ namespace OpenTap.Package.UnitTests
             {
                 string opentapPackageXmlPath;
                 if (OperatingSystem.Current == OpenTap.OperatingSystem.Linux)
-                    opentapPackageXmlPath = "../../opentap_linux64.package.xml";
+                    opentapPackageXmlPath = "opentap_linux64.package.xml";
                 else
-                    opentapPackageXmlPath = "../../opentap.x86.package.xml";
+                    opentapPackageXmlPath = "opentap.x86.package.xml";
                 // Sign package is needed to create opentap
                 string packageXml = CreateOpenTapPackageXmlWithoutSignElement(opentapPackageXmlPath);
                 string createOpenTap = $"create -v {packageXml} --install -o Packages/OpenTAP.TapPackage";
@@ -313,7 +313,7 @@ namespace OpenTap.Package.UnitTests
             }
         }
 
-        [Test]
+        [Test, Retry(3)]
         public void InstallFileWithDependenciesTest()
         {
             var depDef = new PackageDef();
@@ -553,9 +553,12 @@ namespace OpenTap.Package.UnitTests
             
             int exitCode;
 
-            string output = RunPackageCli("install -f \"" + packageName + "\" --version \"1.1.180-" + prerelease + "\" -y", out exitCode);
+            string output = RunPackageCli("install -v -f \"" + packageName + "\" --version \"1.1.180-" + prerelease + "\" -y", out exitCode);
             var installedAfter = installation.GetPackages();
 
+            if (installedAfter.Any(p => p.Name == packageName) == false)
+                Console.WriteLine(output);
+            
             Assert.IsTrue(installedAfter.Any(p => p.Name == packageName), "Package '" + packageName + "' was not installed.");
             Assert.IsTrue(installedAfter.Any(p => p.Name == packageName && p.Version.PreRelease == prerelease), "Package '" + packageName + "' was not installed with '--version'.");
             

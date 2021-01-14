@@ -21,6 +21,9 @@
 
   </ItemGroup>
   <ItemGroup>
+    <None Include="../opentap*package.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="TapPackages\MyPlugin1.TapPackage">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -34,7 +37,7 @@
     <Content Include="Packages\FromXmlFile_NonDllFile\package.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="Packages\GitVersionDependency\package.xml">
+    <Content Include="GitVersionDependency-package.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="Packages\Package\package.xml">

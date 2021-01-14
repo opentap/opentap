@@ -28,12 +28,15 @@ namespace OpenTap.Cli
         {
             ArgumentsParser ap = new ArgumentsParser();
             var td = TypeData.GetTypeData(action);
+            if (td == null)
+                throw new Exception("Type data is null for action: " + action.GetType().Name);
             var props = td.GetMembers();
 
             ap.AllOptions.Add("help", 'h', false, "Write help information.");
             ap.AllOptions.Add("verbose", 'v', false, "Show verbose/debug-level log messages.");
             ap.AllOptions.Add("color", 'c', false, "Color messages according to their severity.");
             ap.AllOptions.Add("quiet", 'q', false, "Quiet console logging.");
+            ap.AllOptions.Add("log", description: "Specify log file location. Default is ./SessionLogs.");
 
             var argToProp = new Dictionary<string, IMemberData>();
             var unnamedArgToProp = new List<IMemberData>();
@@ -81,6 +84,11 @@ namespace OpenTap.Cli
             {
                 printOptions(action.GetType().GetAttribute<DisplayAttribute>().Name, ap.AllOptions, unnamedArgToProp);
                 return 0;
+            }
+
+            if (args.Contains("log"))
+            {
+                SessionLogs.Rename(args.Argument("log"));
             }
 
             foreach (var opts in args)

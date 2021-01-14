@@ -1500,25 +1500,21 @@ namespace OpenTap
             if (mem != null) return mem.GetDisplayAttribute().Name;
             if (false == enumType.HasAttribute<FlagsAttribute>())
                 return value.ToString();
-            
-            // Normally happens when 'value' is a combination of multiple flags.
-            var flags = Enum.GetValues(enumType);
-            var sb = new StringBuilder();
 
-            bool first = true;
-            foreach (Enum flag in flags)
+            var flags = Enum.GetValues(enumType).OfType<Enum>().ToArray();
+            var zeroVal = flags.FirstOrDefault();
+            
+            var activeFlags = flags.Where(value.HasFlag).Except(f => f.Equals(zeroVal)).ToArray();
+
+            if (activeFlags.Any() == false)
             {
-                if (value.HasFlag(flag))
-                {
-                    if (!first)
-                        sb.Append(" | ");
-                    else
-                        first = false;
-                    sb.Append(EnumToReadableString(flag));
-                }
+                var val = (long) Convert.ChangeType(value, TypeCode.Int64);
+                if (val == 0)
+                    return EnumToReadableString(zeroVal);
+                return val.ToString();
             }
 
-            return sb.ToString();
+            return string.Join(" | ", activeFlags.Select(EnumToReadableString));
         }
 
         public static string EnumToDescription(Enum value)
@@ -1564,6 +1560,13 @@ namespace OpenTap
             return new ActionDisposable(action);
         }
 
+        /// <summary> Gets or creates a value based on the key. This is useful for caches. </summary>
+        public static V GetOrCreateValue<K, V>(this Dictionary<K, V> dictionary, K key, Func<K, V> createValue)
+        {
+            if (dictionary.TryGetValue(key, out V value))
+                return value;
+            return dictionary[key] = createValue(key);
+        }
     }
 
     static internal class Sequence

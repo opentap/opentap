@@ -26,8 +26,12 @@ namespace OpenTap.Package
 
         private class Config
         {
-            public SemanticVersion Version => _version;
+            public SemanticVersion Version { get => _version; set => _version = value; }
             private SemanticVersion _version = new SemanticVersion(0, 0, 1, null, null);
+
+            /// <summary> version before it got parsed to a SemanticVersion. Possibly not valid.</summary>
+            public string RawVersion { get; set; }
+            
             /// <summary>
             /// Regex that runs against the FriendlyName of a branch to determine if it is a beta branch 
             /// (commits from this branch will get a "beta" prerelease identifier)
@@ -104,6 +108,7 @@ namespace OpenTap.Package
                                     int.TryParse(val, out cfg._maxBranchChars);
                                     break;
                                 case "version":
+                                    cfg.RawVersion = val;
                                     SemanticVersion.TryParse(val, out cfg._version);
                                     break;
                             }
@@ -166,10 +171,40 @@ namespace OpenTap.Package
                 repo.Dispose();
         }
 
-        private Config ParseConfig(Commit c)
+        /// <summary> Keeps iterating until a valid version is read.</summary>
+        SemanticVersion getLatestReadableVersion(Commit c)
+        {
+            while (c != null)
+            {
+                var cfg = readConfig(c);
+                if (cfg.Version != null) return cfg.Version;
+                c = getLatestConfigVersionChange(c.Parents.FirstOrDefault());
+            }
+            // no version was found.
+            return null;
+        }
+        
+        Config readConfig(Commit c)
         {
             Blob configBlob = c?.Tree.FirstOrDefault(t => t.Name == configFileName)?.Target as Blob;
             return Config.ParseConfig(configBlob?.GetContentStream());
+        }
+
+        Config ParseConfig(Commit c)
+        {
+            var cfg = readConfig(c);
+            if (cfg.Version == null)
+            {
+                log.Error("Unable to parse version specification {0}. It is not a valid semantic version.", cfg.RawVersion);
+                var ver = getLatestReadableVersion(c.Parents.FirstOrDefault());
+                if (ver != null)
+                {
+                    log.Warning("Using previous {0} as version instead.", ver);
+                    cfg.Version = ver;
+                }
+            }
+             
+            return cfg;
         }
 
         private Commit getLatestConfigVersionChange(Commit c)
@@ -182,7 +217,7 @@ namespace OpenTap.Package
             //... go on to iterate through filelog...
 
             // Instead, just walk all commits comparing the version in the .gitversion file to the one in the previous commit
-            Config currentCfg = ParseConfig(c);
+            Config currentCfg = readConfig(c);
             while (true)
             {
                 Commit parent = c.Parents.FirstOrDefault(); // first parent only, we are only interested in when the file changes on the beta branch
@@ -193,8 +228,8 @@ namespace OpenTap.Package
                     // in both cases, we should treat this commit (the initial commit) as the LatestConfigVersionChange
                     return c;
                 }
-                Config parentCfg = ParseConfig(parent);
-                if (currentCfg.Version.CompareTo(parentCfg.Version) > 0)
+                Config parentCfg = readConfig(parent);                
+                if (currentCfg.Version != null && (parentCfg.Version == null || currentCfg.Version.CompareTo(parentCfg.Version) > 0))
                 {
                     // the version number was bumped
                     return c;
@@ -284,6 +319,8 @@ namespace OpenTap.Package
                     preRelease += "." + alphaVersion;
                 }
             }
+
+            if (cfg.Version == null) return new SemanticVersion(0, 0, 0, preRelease, metadata);
             return new SemanticVersion(cfg.Version.Major,cfg.Version.Minor,cfg.Version.Patch,preRelease,metadata);
         }
         

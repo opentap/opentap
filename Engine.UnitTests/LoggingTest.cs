@@ -192,9 +192,52 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void ExceptionDebugLog()
         {
-            
             Log.CreateSource("ExceptionTest").Debug(new ExceptionTest());
-            
+        }
+
+
+        class LogEventDurationListener : ILogListener
+        {
+            public string Id = Guid.NewGuid().ToString();
+
+            public long duration = - 1;
+
+            public void ResetDuration() => duration = -1;
+            public void EventsLogged(IEnumerable<Event> Events)
+            {
+                foreach (var evt in Events)
+                {
+                    if (evt.Message.Contains(Id))
+                        duration = evt.DurationNS;
+                }
+            }
+
+            public void Flush()
+            {
+                
+            }
+        }
+        [Test]
+        public void LogEventDuration()
+        {
+            var listener = new LogEventDurationListener();
+            Log.AddListener(listener);
+            try
+            {
+                var source = Log.CreateSource("test");
+
+                source.Debug(TimeSpan.FromSeconds(1), "{0}", listener.Id);
+                source.Flush();
+                Assert.AreEqual(listener.duration, 1_000_000_000);
+
+                source.Debug(TimeSpan.FromSeconds(0), "{0}", listener.Id);
+                source.Flush();
+                Assert.AreEqual(listener.duration, 0);
+            }
+            finally
+            {
+                Log.RemoveListener(listener);
+            }
         }
     }
 }

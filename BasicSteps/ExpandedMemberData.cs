@@ -18,10 +18,7 @@ namespace OpenTap.Plugins.BasicSteps
             return false;
         }
 
-        public override int GetHashCode()
-        {
-            return DeclaringType.GetHashCode() ^ Name.GetHashCode();
-        }
+        public override int GetHashCode() =>  DeclaringType.GetHashCode() * 12389321 + Name.GetHashCode() * 7310632;
 
         public ITypeData DeclaringType { get; set; }
 
