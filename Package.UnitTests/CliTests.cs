@@ -553,9 +553,12 @@ namespace OpenTap.Package.UnitTests
             
             int exitCode;
 
-            string output = RunPackageCli("install -f \"" + packageName + "\" --version \"1.1.180-" + prerelease + "\" -y", out exitCode);
+            string output = RunPackageCli("install -v -f \"" + packageName + "\" --version \"1.1.180-" + prerelease + "\" -y", out exitCode);
             var installedAfter = installation.GetPackages();
 
+            if (installedAfter.Any(p => p.Name == packageName) == false)
+                Console.WriteLine(output);
+            
             Assert.IsTrue(installedAfter.Any(p => p.Name == packageName), "Package '" + packageName + "' was not installed.");
             Assert.IsTrue(installedAfter.Any(p => p.Name == packageName && p.Version.PreRelease == prerelease), "Package '" + packageName + "' was not installed with '--version'.");
             

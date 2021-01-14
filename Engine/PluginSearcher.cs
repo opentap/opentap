@@ -579,7 +579,7 @@ namespace OpenTap
                                 .Value); // the first argument to the DisplayAttribute constructor is the diaplay name
                         string displayDescription = GetStringIfNotNull(valueString.FixedArguments[1].Value);
                         string displayGroup = GetStringIfNotNull(valueString.FixedArguments[2].Value);
-                        double displayOrder = double.Parse(GetStringIfNotNull(valueString.FixedArguments[3].Value));
+                        double displayOrder = (double)valueString.FixedArguments[3].Value;
                         bool displayCollapsed = bool.Parse(GetStringIfNotNull(valueString.FixedArguments[4].Value));
                         string[] displayGroups = GetStringArrayIfNotNull(valueString.FixedArguments[5].Value);
                         DisplayAttribute attrInstance = new DisplayAttribute(displayName, displayDescription,
@@ -906,7 +906,7 @@ namespace OpenTap
         }
 
         ICollection<TypeData> derivedTypes;
-        
+
         /// <summary>
         /// Gets a list of types that has this type as a base type (including interfaces)
         /// </summary>

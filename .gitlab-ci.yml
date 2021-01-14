@@ -231,7 +231,7 @@ TestLinuxPlan:
         - tap sdk gitversion -v       # verify that gitversion works.
         - tap sdk gitversion --log 10 # verify that gitversion log works.
         - echo "tap package create/verify unit tests"
-        - tap package verify || exit_code=$?
+        - tap package verify -v || exit_code=$?
         - check_exit_code 2
         - sed -i "/Sign Certificate/ d" opentap_linux64.package.xml
         - sed -i -e '/File Path/ s!Dependencies/!Dependencies\\!' opentap_linux64.package.xml
@@ -246,7 +246,7 @@ TestLinuxPlan:
         - ./tap | grep Interface
         - sed -i '/File Path/ s!Dependencies/!Dependencies\\!' Packages/OpenTAP/package.xml
         - cd -
-        - ../test/tap package verify OpenTAP
+        - ../test/tap package verify -v OpenTAP
         - mkdir Packages/SDK
         - touch '../../../sdk/Examples/OpenTAP Developer Guide.pdf'
         - ln -s ../../../../../sdk/Examples Packages/SDK
@@ -255,7 +255,7 @@ TestLinuxPlan:
         - tap package install SDK.TapPackage --target ../test
         - cd ../test
         - ./tap | grep Interface
-        - ./tap package verify SDK
+        - ./tap package verify -v SDK
         - cd -
         - echo "Engine NUnit tests"
         - dotnet vstest OpenTap.UnitTests.dll --logger:"console;verbosity=detailed"

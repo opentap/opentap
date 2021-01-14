@@ -10,6 +10,7 @@ using System.Linq;
 using System.IO;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace OpenTap.Cli
 {
@@ -221,6 +222,24 @@ namespace OpenTap.Cli
             var selectedcmd = actionTree.GetSubCommand(args);
             if (selectedcmd?.Type != null && selectedcmd?.SubCommands.Any() != true)
                 selectedCommand = selectedcmd.Type;
+
+            // Run check for update
+            TapThread.Start(() =>
+            {
+                TapThread.Sleep(1000); // don't spend time on update checking for very short running actions (e.g. 'tap package list -i')
+                try
+                {
+                    var checkUpdatesCommands = actionTree.GetSubCommand(new[] {"package", "check-updates"});
+                    var checkUpdateAction = checkUpdatesCommands?.Type?.CreateInstance() as ICliAction;
+                    if (selectedCommand != checkUpdatesCommands?.Type)
+                        checkUpdateAction?.PerformExecute(new []{ "--startup" });
+                }
+                catch (Exception e)
+                {
+                    log.Error(e);
+                }
+            });
+
             void print_command(CliActionTree cmd, int level, int descriptionStart)
             {
                 if (cmd.IsBrowsable)
@@ -323,7 +342,7 @@ namespace OpenTap.Cli
             }
             catch (Exception ex)
             {
-                log.Error(ex.Message);
+                log.Error("A CliAction has thrown an exception: " + ex.Message);
                 log.Debug(ex);
                 return -1;
             }
