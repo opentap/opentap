@@ -28,6 +28,8 @@ namespace OpenTap.Cli
         {
             ArgumentsParser ap = new ArgumentsParser();
             var td = TypeData.GetTypeData(action);
+            if (td == null)
+                throw new Exception("Type data is null for action: " + action.GetType().Name);
             var props = td.GetMembers();
 
             ap.AllOptions.Add("help", 'h', false, "Write help information.");

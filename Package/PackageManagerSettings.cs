@@ -39,6 +39,12 @@ namespace OpenTap.Package
         public bool ShowIncompatiblePackages { get; set; }
 
         /// <summary>
+        /// Determines whether tap.exe will run an update check against configured repositories at startup.
+        /// </summary>
+        [Display("Check for Updates at Startup", Group: "General", Description: "Checks for updates against enabled package repositories. The update check sends annymized package idenfiers to the enabled repositories.")]
+        public bool CheckForUpdates { get; set; } = true;
+
+        /// <summary>
         /// Specifies how a UI should order a list of different version of the same package name. Can be either by version or build date.
         /// </summary>
         [System.Xml.Serialization.XmlIgnore]
