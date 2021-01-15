@@ -73,12 +73,12 @@ namespace OpenTap
         /// <param name="Groups"> Optional array of text strings to specify multiple levels of grouping. Use 'Group' if only one level of grouping is needed. </param>
         public DisplayAttribute(string Name, string Description = null, string Group = null, double Order = DefaultOrder, bool Collapsed = false, string[] Groups = null)
         {
-            this.Name = Name ?? throw new ArgumentNullException("Name");
+            this.Name = Name ?? throw new ArgumentNullException(nameof(Name));
             this.Description = Description;
             if (Groups != null)
                 this.Group = Groups;
             else if (Group != null)
-                this.Group = new string[] { Group };
+                this.Group = new [] { Group };
             else this.Group = Array.Empty<string>();
             this.Order = Order;
             this.Collapsed = Collapsed;
