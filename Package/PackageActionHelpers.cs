@@ -264,14 +264,13 @@ namespace OpenTap.Package
             }
             else if (resolver.MissingDependencies.Any())
             {
-                string dependencyArgsHint = "";
-                if (!includeDependencies)
-                    dependencyArgsHint = $" (use --dependencies to also get these)";
-                if (resolver.MissingDependencies.Count > 1)
-                    log.Info("{0} required dependencies are currently not installed{1}.", resolver.MissingDependencies.Count, dependencyArgsHint);
-                else
-                    log.Info("A required dependency is currently not installed{0}.", dependencyArgsHint);
-
+                if (includeDependencies == false)
+                {
+                    var dependencies = string.Join(", ",
+                        resolver.MissingDependencies.Select(d => $"{d.Name} {d.Version}"));
+                    log.Info(
+                        $"Use '--dependencies' to include {dependencies}.");
+                }
 
                 if (includeDependencies && (askToIncludeDependencies == false))
                 {
