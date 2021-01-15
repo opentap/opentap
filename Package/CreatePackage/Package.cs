@@ -628,7 +628,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Creates a *.TapPackage file from the definition in this PackageDef.
         /// </summary>
-        static public void CreatePackage(this PackageDef pkg, string path)
+        static public void CreatePackage(this PackageDef pkg, string path, bool ignoreMissingPlugins)
         {
             foreach (PackageFile file in pkg.Files)
             {
@@ -654,12 +654,13 @@ namespace OpenTap.Package
                         else
                         {
                             resolved = false;
-                            log.Error($"Missing plugin to handle XML Element '{missingPackageData.XmlElement.Name.LocalName}' on file {file.FileName}. (Line {missingPackageData.GetLine()})");
+                            var severity = ignoreMissingPlugins ? LogEventType.Warning : LogEventType.Error;
+                            log.TraceEvent(severity, 0,$"Missing plugin to handle XML Element '{missingPackageData.XmlElement.Name.LocalName}' on file {file.FileName}. (Line {missingPackageData.GetLine()})");
                         }
                         file.CustomData.Remove(missingPackageData);
                     }
                 }
-                if (!resolved)
+                if (!resolved && !ignoreMissingPlugins)
                     throw new ArgumentException("Missing plugins to handle XML elements specified in input package.xml...");
             }
 

@@ -73,6 +73,12 @@ namespace OpenTap.Package
         public string[] OutputPaths { get; set; }
 
         /// <summary>
+        /// Ignore missing plugins to handle custom XML elements.
+        /// </summary>
+        [CommandLineArgument("ignore-missing-plugins", Description = "Ignore missing plugins to handle custom XML elements.")]
+        public bool IgnoreMissingPlugins { get; set; }
+
+        /// <summary>
         /// Constructs new action with default values for arguments.
         /// </summary>
         public PackageCreateAction()
@@ -142,7 +148,7 @@ namespace OpenTap.Package
                 if(string.IsNullOrEmpty(pkg.RawVersion))
                     log.Warning($"Package version is {pkg.Version} due to blank or missing 'Version' XML attribute in 'Package' element");
 
-                pkg.CreatePackage(tmpFile);
+                pkg.CreatePackage(tmpFile, IgnoreMissingPlugins);
 
                 if (OutputPaths == null || OutputPaths.Length == 0)
                     OutputPaths = new string[1] { "" };

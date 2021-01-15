@@ -19,3 +19,6 @@ LinuxInstall/package
 
 #ignore Rider files
 *.idea/ 
+
+# Ignore generated help files
+/Help/*.chm

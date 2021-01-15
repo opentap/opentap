@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="..\opentap.x64.package.xml" Link="opentap.x64.package.xml" />
+    <Content Include="..\opentap.x86.package.xml" Link="opentap.x86.package.xml" />
+    <Content Include="..\opentap_linux64.package.xml" Link="opentap_linux64.package.xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BasicSteps\Tap.Plugins.BasicSteps.csproj" />
+    <ProjectReference Include="..\Cli\Tap.Cli.csproj" />
+    <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
+    <ProjectReference Include="..\Package\Tap.Package.csproj" />
+    <ProjectReference Include="..\tap\tap.csproj" />
+  </ItemGroup>
+
+  <Target Name="CreatePackage" AfterTargets="Build" Condition="$(IsDebug)" Inputs="../../opentap.x64.package.xml" Outputs="Packages/OpenTap/package.xml">
+    <Touch Files="$(OutDir)/../../Help/OpenTapApiReference.chm" />
+    <Exec Command="tap package create ../../opentap.x64.package.xml --verbose --install --ignore-missing-plugins" WorkingDirectory="$(OutDir)" CustomErrorRegularExpression=".*: Error       :.*" />
+  </Target>
+
+</Project>

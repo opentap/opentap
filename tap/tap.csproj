@@ -26,4 +26,5 @@
   <Target Name="RemoveDepsJson" AfterTargets="Publish">
     <Exec Command="rm $(PublishDir)tap.deps.json" />
   </Target>
+  
 </Project>
