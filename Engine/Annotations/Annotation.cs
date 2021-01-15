@@ -1442,29 +1442,6 @@ namespace OpenTap
             }
         }
 
-        class MultiSelectable
-        {
-            public string FriendlyName { get; set; }
-            public object Value { get; set; }
-
-            public override string ToString()
-            {
-                return FriendlyName;
-            }
-            public override bool Equals(object obj)
-            {
-                if (obj is MultiSelectable ms)
-                {
-                    return object.Equals(ms.Value, Value);
-                }
-                return base.Equals(obj);
-            }
-            public override int GetHashCode()
-            {
-                return Value.GetHashCode() ^ typeof(MultiSelectable).GetHashCode();
-            }
-        }
-
         class FlagEnumAnnotation : IMultiSelect
         {
             public IEnumerable Selected

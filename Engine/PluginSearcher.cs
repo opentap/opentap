@@ -838,8 +838,10 @@ namespace OpenTap
         /// </summary>
         public AssemblyData Assembly { get; internal set; }
 
-
-        private DisplayAttribute display = null;
+        // Used to mark when no display attribute is present.
+        static readonly DisplayAttribute noDisplayAttribute = new DisplayAttribute("<<Null>>");
+        
+        DisplayAttribute display;
         /// <summary>
         /// Gets.the DisplayAttribute for this type. Null if the type does not have a DisplayAttribute
         /// </summary>
@@ -849,6 +851,7 @@ namespace OpenTap
             {
                 if (display is null && attributes != null)
                 {
+                    display = noDisplayAttribute;
                     foreach (var attr in attributes)
                     {
                         if (attr is DisplayAttribute displayAttr)
@@ -857,7 +860,11 @@ namespace OpenTap
                             break;
                         }
                     }
-                }    
+                    
+                }
+
+                if (ReferenceEquals(display, noDisplayAttribute)) 
+                    return null;
                 return display;
             }
             internal set => display = value;
@@ -995,7 +1002,7 @@ namespace OpenTap
         /// <summary> It failed to load. </summary>
         FailedToLoad = 3
     }
-
+    
 
     /// <summary>
     /// Representation of an assembly including its dependencies. Part of the object model used in the PluginManager
