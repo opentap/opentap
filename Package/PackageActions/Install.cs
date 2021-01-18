@@ -26,6 +26,9 @@ namespace OpenTap.Package
         [CommandLineArgument("no-dependencies", Description = "Don't install dependencies. This is implied when using --force.")]
         public bool IgnoreDependencies { get; set; }
 
+        [CommandLineArgument("overwrite", Description = "Overwrite files that already exist without asking. This is implied when using --force.")]
+        public bool Overwrite { get; set; }
+
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
@@ -143,9 +146,11 @@ namespace OpenTap.Package
 
                 var installationPackages = targetInstallation.GetPackages();
 
-                var overWriteCheckExitCode = CheckForOverwrittenPackages(installationPackages, packagesToInstall, Force, !NonInteractive);
+                var overWriteCheckExitCode = CheckForOverwrittenPackages(installationPackages, packagesToInstall, Force || Overwrite, !(NonInteractive || Overwrite));
                 if (overWriteCheckExitCode == InstallationQuestion.Cancel)
                     return 2;
+                if (overWriteCheckExitCode == InstallationQuestion.OverwriteFile)
+                    log.Warning("Overwriting files. (--{0} option specified).", Overwrite ? "overwrite" : "force");
 
                 // Check dependencies
                 bool dependenciesRequired = (!askToInstallDependencies && !IgnoreDependencies && !Force) || CheckOnly;
@@ -294,13 +299,12 @@ namespace OpenTap.Package
 
                 if (force)
                 {
-                    log.Warning("--force specified. Overwriting files.");
                     return InstallationQuestion.OverwriteFile;
                 }
 
                 log.Error(
                     "Installing these packages will overwrite existing files. " +
-                    "Use --force to overwrite existing files, possibly breaking installed packages.");
+                    "Use --overwrite to overwrite existing files, possibly breaking installed packages.");
                 return InstallationQuestion.Cancel;
             }
 
