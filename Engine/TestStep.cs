@@ -512,7 +512,6 @@ namespace OpenTap
         InputOutputRelation[] IInputOutputRelations.Outputs { get; set; }
     }
 
-
     /// <summary>
     /// An extension class for the ITestStep interface.
     /// </summary>
@@ -523,14 +522,14 @@ namespace OpenTap
         /// </summary>
         /// <typeparam name="T">The type of TestStep to get.</typeparam>
         /// <returns>The closest TestStep of the requested type in the hierarchy.</returns>
-        public static T GetParent<T>(this ITestStep step) where T : ITestStepParent =>  GetParent<T>(step as ITestStepParent);
+        public static T GetParent<T>(this ITestStep step) => GetParent<T>((ITestStepParent)step);
         
         /// <summary>
         /// Searches up through the Parent steps and returns the first step of the requested type that it finds.  
         /// </summary>
         /// <typeparam name="T">The type of TestStep to get.</typeparam>
         /// <returns>The closest TestStep of the requested type in the hierarchy.</returns>
-        public static T GetParent<T>(this ITestStepParent item) where T : ITestStepParent
+        public static T GetParent<T>(this ITestStepParent item)
         {
             item = item.Parent;
             while (item != null)
