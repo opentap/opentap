@@ -320,6 +320,9 @@ namespace OpenTap
                 if (!sourceType.GetMembers().Contains(member))
                     throw new ArgumentException("The member does not belong to the source object type");
             }
+            if (member.HasAttribute<UnparameterizableAttribute>())
+                throw new ArgumentException("Member cannot be parameterized", nameof(member));
+            
             var targetType = TypeData.GetTypeData(target);
             var existingMember = targetType.GetMember(name);
             

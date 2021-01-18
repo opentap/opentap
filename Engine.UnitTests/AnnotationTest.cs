@@ -1061,8 +1061,24 @@ namespace OpenTap.UnitTests
             {
                 Assert.AreEqual("msg" + i, sweep.SweepValues[i].Values["Parameters \\ Log Message"]);
             }
-
         }
-        
+
+        [Test]
+        public void SweepLoopUnparameterizable()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepLoop();
+            var delay = new DelayStep();
+            plan.ChildTestSteps.Add(sweep);
+            sweep.ChildTestSteps.Add(delay);
+            var members = new List<IMemberData>()
+                {TypeData.GetTypeData(delay).GetMember(nameof(delay.DelaySecs))};
+            sweep.SweepParameters.Add(new SweepParam(members));
+
+            var sweepParametersAnnotation = AnnotationCollection.Annotate(sweep).GetMember(nameof(sweep.SweepParameters));
+            Assert.IsFalse(sweepParametersAnnotation.GetIcon(IconNames.ParameterizeOnTestPlan).Get<IEnabledAnnotation>().IsEnabled);
+            var nameAnnotation = AnnotationCollection.Annotate(sweep).GetMember(nameof(sweep.Name));
+            Assert.IsTrue(nameAnnotation.GetIcon(IconNames.ParameterizeOnTestPlan).Get<IEnabledAnnotation>().IsEnabled);
+        }
     }
 }
