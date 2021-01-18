@@ -131,7 +131,8 @@ namespace OpenTap.Package
 
         }
 
-        internal static List<PackageDef> GatherPackagesAndDependencyDefs(Installation installation, PackageSpecifier[] pkgRefs, string[] packageNames, string Version, CpuArchitecture arch, string OS, List<IPackageRepository> repositories, bool force, bool includeDependencies, bool askToIncludeDependencies, bool noDowngrade)
+        internal static List<PackageDef> GatherPackagesAndDependencyDefs(Installation installation, PackageSpecifier[] pkgRefs, string[] packageNames, string Version, CpuArchitecture arch, string OS, List<IPackageRepository> repositories, 
+            bool force, bool includeDependencies, bool ignoreDependencies, bool askToIncludeDependencies, bool noDowngrade)
         {
             List<PackageDef> gatheredPackages = new List<PackageDef>();
 
@@ -242,7 +243,18 @@ namespace OpenTap.Package
             
             log.Debug("Resolving dependencies.");
             var resolver = new DependencyResolver(installation, gatheredPackages, repositories);
-            if (resolver.UnknownDependencies.Any())
+            if(ignoreDependencies)
+            {
+                if(resolver.UnknownDependencies.Any() || resolver.MissingDependencies.Any())
+                    log.Info($"Ignoring depencencies (--no-dependencies option specified).");
+            }
+            if (force)
+            {
+                // this it for compatibility with old 9.11 behavior (--force means don't ask for dependencies).
+                if (resolver.UnknownDependencies.Any() || resolver.MissingDependencies.Any())
+                    log.Info($"Ignoring depencencies (--force option specified).");
+            }
+            else if (resolver.UnknownDependencies.Any())
             {
                 foreach (var dep in resolver.UnknownDependencies)
                 {
@@ -264,16 +276,14 @@ namespace OpenTap.Package
             }
             else if (resolver.MissingDependencies.Any())
             {
-                string dependencyArgsHint = "";
-                if (!includeDependencies)
-                    dependencyArgsHint = $" (use --dependencies to also get these)";
-                if (resolver.MissingDependencies.Count > 1)
-                    log.Info("{0} required dependencies are currently not installed{1}.", resolver.MissingDependencies.Count, dependencyArgsHint);
-                else
-                    log.Info("A required dependency is currently not installed{0}.", dependencyArgsHint);
+                if (includeDependencies == false)
+                {
+                    var dependencies = string.Join(", ",
+                        resolver.MissingDependencies.Select(d => $"{d.Name} {d.Version}"));
+                    log.Info($"Use '--dependencies' to include {dependencies}.");
+                }
 
-
-                if (includeDependencies && (askToIncludeDependencies == false))
+                if (includeDependencies)
                 {
                     foreach (var package in resolver.MissingDependencies)
                     {
@@ -301,6 +311,8 @@ namespace OpenTap.Package
                         {
                             gatheredPackages.Insert(0, pkg);
                         }
+                        else
+                            log.Debug("Ignoring dependent package {0} at users request.", pkg.Name);
                     }
                 }
             }

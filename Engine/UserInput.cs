@@ -123,9 +123,9 @@ namespace OpenTap
     /// <summary> Standard implementation of UserInputInterface for Command Line interfaces</summary>
     public class CliUserInputInterface : IUserInputInterface
     {
-        Mutex platforDialogMutex = new Mutex();
-        object readerLock = new object();
-        void IUserInputInterface.RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
+        readonly Mutex userInputMutex = new Mutex();
+        readonly object readerLock = new object();
+        void IUserInputInterface.RequestUserInput(object dataObject, TimeSpan timeout, bool modal)
         {
             if(readerThread == null)
             {
@@ -141,19 +141,19 @@ namespace OpenTap
                     }
                 }
             }
-            DateTime TimeoutTime;
-            if (Timeout == TimeSpan.MaxValue)
-                TimeoutTime = DateTime.MaxValue;
+            DateTime timeoutAt;
+            if (timeout == TimeSpan.MaxValue)
+                timeoutAt = DateTime.MaxValue;
             else
-                TimeoutTime = DateTime.Now + Timeout;
+                timeoutAt = DateTime.Now + timeout;
 
-            if (Timeout >= new TimeSpan(0, 0, 0, 0, int.MaxValue))
-                Timeout = new TimeSpan(0, 0, 0, 0, -1);
+            if (timeout >= new TimeSpan(0, 0, 0, 0, int.MaxValue))
+                timeout = new TimeSpan(0, 0, 0, 0, -1);
             do
             {
-                if (platforDialogMutex.WaitOne(Timeout))
+                if (userInputMutex.WaitOne(timeout))
                     break;
-                if (DateTime.Now >= TimeoutTime)
+                if (DateTime.Now >= timeoutAt)
                     throw new TimeoutException("Request User Input timed out");
             } while (true);
 
@@ -161,12 +161,16 @@ namespace OpenTap
             {
                 Log.Flush();
                 var a = AnnotationCollection.Annotate(dataObject);
-                var mems = a.Get<IMembersAnnotation>()?.Members;
+                var members = a.Get<IMembersAnnotation>()?.Members;
 
-                if (mems == null) return;
-                mems = mems.Concat(a.Get<IForwardedAnnotations>()?.Forwarded ?? Array.Empty<AnnotationCollection>());
+                if (members == null) return;
+                members = members.Concat(a.Get<IForwardedAnnotations>()?.Forwarded ?? Array.Empty<AnnotationCollection>());
+                var display = a.Get<IDisplayAnnotation>();
+
+                string title = null;
+                if (display is DefaultDisplayAttribute == false)
+                    title = display.Name;
                 
-                var title = a.Get<IDisplayAnnotation>()?.Name;
                 if (string.IsNullOrWhiteSpace(title))
                     // fallback magic
                     title = TypeData.GetTypeData(dataObject)?.GetMember("Name")?.GetValue(dataObject) as string;
@@ -191,7 +195,7 @@ namespace OpenTap
                     }
                     return false;
                 }
-                foreach (var _message in mems)
+                foreach (var _message in members)
                 {
                     var mem = _message.Get<IMemberAnnotation>()?.Member;
                     if (mem != null)
@@ -259,7 +263,7 @@ namespace OpenTap
                         Console.Write($"({str.Value}): ");
 
 
-                    var read = (awaitReadLine(TimeoutTime) ?? "").Trim();
+                    var read = (awaitReadLine(timeoutAt) ?? "").Trim();
                     if (read == "")
                     {
                         // accept the default value.
@@ -297,7 +301,7 @@ namespace OpenTap
             }
             finally
             {
-                platforDialogMutex.ReleaseMutex();
+                userInputMutex.ReleaseMutex();
             }
         }
 

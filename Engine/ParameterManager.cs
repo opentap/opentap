@@ -480,6 +480,9 @@ namespace OpenTap
                 return false;
             }
 
+            if (property.HasAttribute<UnparameterizableAttribute>())
+                return false;
+
             foreach (var x in steps)
             {
                 if (property.Readable == false || property.Writable == false) return false;

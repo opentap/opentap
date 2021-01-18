@@ -57,6 +57,7 @@ namespace OpenTap.Plugins.BasicSteps
         public bool SweepParametersEnabled => sweepParameters.Count > 0;
 
         List<SweepParam> sweepParameters = new List<SweepParam>();
+        [Unparameterizable]
         [Unsweepable]
         [Display("Sweep Values", Order: 2, Description: "Select the ranges of values to sweep.")]
         [EnabledIf(nameof(SweepParametersEnabled), true)]
