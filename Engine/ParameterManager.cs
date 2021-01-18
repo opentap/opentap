@@ -306,12 +306,8 @@ namespace OpenTap
                 Settings = scopeMembers?.ToList();
                 var display = member.GetDisplayAttribute();
                 Name = "Parameterize '" + display.Name + "'";
-                
-                if (display.Group.FirstOrDefault() == "Parameters")
-                    defaultGroup = display.Group;
-                else
-                    defaultGroup = new[] {"Parameters"}.Concat(display.Group).ToArray();
 
+                defaultGroup = display.Group;
                 defaultName = display.Name;
                 
                 Scope = AvailableScopes.FirstOrDefault();
