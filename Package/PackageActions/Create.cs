@@ -3,13 +3,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
+using System.ComponentModel;
 using System.IO;
-using System.Linq;
 using OpenTap.Cli;
-using OpenTap.Package;
-using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace OpenTap.Package
@@ -77,6 +73,10 @@ namespace OpenTap.Package
         /// </summary>
         [CommandLineArgument("ignore-missing-plugins", Description = "Ignore missing plugins to handle custom XML elements.")]
         public bool IgnoreMissingPlugins { get; set; }
+        
+        [Browsable(false)] // Let's not advertise this option.
+        [CommandLineArgument("ignore-missing-files", Description = "Ignore missing files even though they are specified in the xml.")]
+        public bool IgnoreMissingFiles { get; set; }
 
         /// <summary>
         /// Constructs new action with default values for arguments.
@@ -115,7 +115,7 @@ namespace OpenTap.Package
                 try
                 {
                     var fullpath = Path.GetFullPath(PackageXmlFile);
-                    pkg = PackageDefExt.FromInputXml(fullpath,ProjectDir);
+                    pkg = PackageDefExt.FromInputXml(fullpath, ProjectDir, IgnoreMissingFiles);
 
                     // Check if package name has invalid characters or is not a valid path
                     var illegalCharacter = pkg.Name.IndexOfAny(Path.GetInvalidFileNameChars());
@@ -148,7 +148,7 @@ namespace OpenTap.Package
                 if(string.IsNullOrEmpty(pkg.RawVersion))
                     log.Warning($"Package version is {pkg.Version} due to blank or missing 'Version' XML attribute in 'Package' element");
 
-                pkg.CreatePackage(tmpFile, IgnoreMissingPlugins);
+                pkg.CreatePackage(tmpFile, IgnoreMissingPlugins, IgnoreMissingFiles);
 
                 if (OutputPaths == null || OutputPaths.Length == 0)
                     OutputPaths = new string[1] { "" };
@@ -190,6 +190,7 @@ namespace OpenTap.Package
             catch (InvalidDataException ex)
             {
                 log.Error("Caught invalid data exception: {0}", ex.Message);
+                log.Debug(ex);
 
                 return (int)ExitCodes.InvalidPackageDefinition;
             }

@@ -15,12 +15,11 @@
     <ProjectReference Include="..\Cli\Tap.Cli.csproj" />
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
     <ProjectReference Include="..\Package\Tap.Package.csproj" />
-    <ProjectReference Include="..\tap\tap.csproj" />
+    <ProjectReference Include="..\tap\tap.csproj" Condition="'$(IsNetStandard)'=='false'" />
   </ItemGroup>
-
-  <Target Name="CreatePackage" AfterTargets="Build" Condition="$(IsDebug)" Inputs="../../opentap.x64.package.xml" Outputs="Packages/OpenTap/package.xml">
-    <Touch Files="$(OutDir)/../../Help/OpenTapApiReference.chm" />
-    <Exec Command="tap package create ../../opentap.x64.package.xml --verbose --install --ignore-missing-plugins" WorkingDirectory="$(OutDir)" CustomErrorRegularExpression=".*: Error       :.*" />
+  
+  <Target Name="CreatePackage" AfterTargets="Build" Condition="'$(IsNetStandard)|$(IsDebug)'=='false|true'" Inputs="../../opentap.x64.package.xml" Outputs="Packages/OpenTap/package.xml">
+    <!-- this is currently disabled for net core builds -->
+    <Exec Command="tap package create ../../opentap.x64.package.xml --verbose --install --ignore-missing-plugins --ignore-missing-files" WorkingDirectory="$(OutDir)" CustomErrorRegularExpression=".*: Error       :.*" />
   </Target>
-
 </Project>

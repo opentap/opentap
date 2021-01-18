@@ -118,7 +118,7 @@ namespace OpenTap.Package
         /// <param name="xmlFilePath">The Package Definition xml file. Usually named package.xml</param>
         /// <param name="projectDir">Directory used byt GitVersionCalculator to expand any $(GitVersion) macros in the XML file.</param>
         /// <returns></returns>
-        public static PackageDef FromInputXml(string xmlFilePath, string projectDir)
+        public static PackageDef FromInputXml(string xmlFilePath, string projectDir, bool ignoreMissingFiles = false)
         {
             PackageDef.ValidateXml(xmlFilePath);
             var pkgDef = PackageDef.FromXml(xmlFilePath);
@@ -142,7 +142,7 @@ namespace OpenTap.Package
                         log.Warning("Specified file '{0}' was not found, using file '{1}' as source instead. Consider setting SourcePath to remove this warning.", item.FileName,fileName);
                         item.SourcePath = fileName;
                     }
-                    else
+                    else if(!ignoreMissingFiles)
                         exceptions.Add(new FileNotFoundException("Missing file for package.", fullPath));
                 }
             }
@@ -628,12 +628,19 @@ namespace OpenTap.Package
         /// <summary>
         /// Creates a *.TapPackage file from the definition in this PackageDef.
         /// </summary>
-        static public void CreatePackage(this PackageDef pkg, string path, bool ignoreMissingPlugins)
+        public static void CreatePackage(this PackageDef pkg, string path, bool ignoreMissingPlugins= true, bool ignoreMissingFiles=false)
         {
-            foreach (PackageFile file in pkg.Files)
+            foreach (PackageFile file in pkg.Files.ToArray())
             {
                 if (!File.Exists(file.FileName))
                 {
+                    if (ignoreMissingFiles)
+                    {
+                        pkg.Files.Remove(file);
+                        log.Info("Ignoring missing file: {0}", file.FileName);
+                        continue;
+                    }
+
                     log.Error("{0}: File '{1}' not found", pkg.Name, file.FileName);
                     throw new InvalidDataException();
                 }
