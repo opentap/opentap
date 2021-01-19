@@ -94,7 +94,8 @@ namespace OpenTap.Plugins
                             }
                             else
                             {
-                                Log.Warning("Unable to find referenced step {0}", stepGuid);
+                                if(Serializer.IgnoreErrors == false)
+                                    Log.Warning("Unable to find referenced step {0}", stepGuid);
                             }
                                 
                         });
