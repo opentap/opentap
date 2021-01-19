@@ -168,7 +168,7 @@ namespace OpenTap
                 var display = a.Get<IDisplayAnnotation>();
 
                 string title = null;
-                if (display is DefaultDisplayAttribute == false)
+                if (display is DisplayAttribute attr && attr.IsDefaultAttribute() == false)
                     title = display.Name;
                 
                 if (string.IsNullOrWhiteSpace(title))
