@@ -277,7 +277,8 @@ namespace OpenTap.UnitTests
                 Create = 4,
                 TestPlan = 8,
                 Remove = 16,
-                ExpectNoRename = 32
+                ExpectNoRename = 32,
+                RenameBlank = 64
             }
             public bool WasInvoked;
             public string SelectName { get; set; }
@@ -314,6 +315,12 @@ namespace OpenTap.UnitTests
                     var msg = message.Get<IStringValueAnnotation>().Value;
                     
                     Assert.AreEqual(false == SelectedMode.HasFlag(Mode.ExpectNoRename), msg.Contains("Rename "));
+                }
+
+                if (SelectedMode.HasFlag(Mode.RenameBlank))
+                {
+                    var error = selectedName.Get<IErrorAnnotation>().Errors.First();
+                    Assert.AreEqual("Name cannot be left empty.", error);
                 }
 
                 if (SelectedMode == (Mode.Create|Mode.TestPlan))
@@ -400,6 +407,13 @@ namespace OpenTap.UnitTests
                         .MenuItems
                         .FirstOrDefault(x => x.Get<IconAnnotationAttribute>()?.IconName == IconNames.EditParameter);
 
+                    menuInterface.SelectName = " ";
+                    menuInterface.SelectedMode = MenuTestUserInterface.Mode.RenameBlank;
+                    editParameter.Get<IMethodAnnotation>().Invoke();
+                    Assert.IsNotNull(TypeData.GetTypeData(sequence).GetMember("A"));
+                    Assert.IsNull(TypeData.GetTypeData(sequence).GetMember(""));
+
+                    
                     menuInterface.SelectName = "B";
                     menuInterface.SelectedMode = MenuTestUserInterface.Mode.Rename;
                     editParameter.Get<IMethodAnnotation>().Invoke();

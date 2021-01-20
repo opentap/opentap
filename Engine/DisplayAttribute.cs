@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Linq;
 
 namespace OpenTap
 {
@@ -16,15 +17,15 @@ namespace OpenTap
         /// <summary> Optional text that provides a description of the item. 
         /// Consider using HelpLinkAttribute if a link to documentation is needed. 
         /// </summary>
-        public string Description { get; private set; }
+        public string Description { get; }
 
         /// <summary> Optional text used to group displayed items. 
         /// Use 'Groups' if more than one level of grouping is needed.
         /// </summary>
-        public string[] Group { get; private set; }
+        public string[] Group { get; }
 
         /// <summary> Name displayed by the UI.</summary>
-        public string Name { get; private set; }
+        public string Name { get; }
 
         /// <summary> Optional integer that ranks items and groups in ascending order relative to other items/groups. 
         /// Default is -10000. For a group, the order is the average order of the elements inside the group. 
@@ -33,12 +34,12 @@ namespace OpenTap
         /// <remarks>
         /// This applies only to properties.  Classes will ignore this setting and be ordered alphabetically.
         /// </remarks>
-        public double Order { get; private set; }
+        public double Order { get; }
 
         /// <summary> Boolean setting that indicates whether a group's default appearance is collapsed. 
         /// Default is 'false' (group is expanded).
         /// </summary>
-        public bool Collapsed { get; private set; }
+        public bool Collapsed { get; }
 
         string fullName = null;
         /// <summary> Gets the Group (or Groups) and Name concatenated with a backslash (\).</summary>
@@ -82,6 +83,24 @@ namespace OpenTap
             else this.Group = Array.Empty<string>();
             this.Order = Order;
             this.Collapsed = Collapsed;
+        }
+
+        /// <summary> Overriding Equals to fix strange equality issues between instances of DisplayAttribute. </summary>
+        public override bool Equals(object obj)
+        {
+            if(object.ReferenceEquals(this, obj)) return true;
+            if (obj is DisplayAttribute other)
+                return other.Name == Name && Group.SequenceEqual(other.Group) && other.Description == Description && other.Order == Order;
+            return false;
+        }
+
+        /// <summary> Generates a hash code based on the display attribute values.</summary> 
+        public override int GetHashCode()
+        {
+            int h = Name.GetHashCode();
+            foreach (var elem in Group)
+                h = h * 31241231 + elem.GetHashCode();
+            return h;
         }
     }
 }
