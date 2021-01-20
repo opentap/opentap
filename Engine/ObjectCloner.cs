@@ -65,7 +65,7 @@ namespace OpenTap
                     }
 
                     if (serializer == null)
-                        serializer = new TapSerializer();
+                        serializer = new TapSerializer {IgnoreErrors = true}; // dont emit errors.
 
                     if (xmlString == null)
                         xmlString = serializer.SerializeToString(value);
