@@ -473,6 +473,9 @@ Installer-Windows:
   dependencies:
      - Build-x64
      - Package-Windows64
+  needs:
+     - Build-x64
+     - Package-Windows64
   script:
          - pushd bin\Release
          - $version = ./tap.exe sdk gitversion
@@ -493,6 +496,8 @@ Installer-Linux:
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
   dependencies:
+     - Package-Linux
+  needs:
      - Package-Linux
   script:
          - Invoke-WebRequest https://netcologne.dl.sourceforge.net/project/gnuwin32/tar/1.13-1/tar-1.13-1-bin.exe -Outfile tarsetup.exe
@@ -544,6 +549,8 @@ Test-Installer-Linux:
   image: mcr.microsoft.com/dotnet/core/runtime:2.1.12-bionic
   tags: [ docker, gce ]
   dependencies:
+    - Installer-Linux
+  needs:
     - Installer-Linux
   script:
     - apt update
