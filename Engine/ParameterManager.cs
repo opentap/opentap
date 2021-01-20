@@ -258,6 +258,8 @@ namespace OpenTap
 
             string validateName()
             {
+                if (string.IsNullOrWhiteSpace(SelectedName))
+                    return "Name cannot be left empty.";
                 var selectedName = SelectedName.Trim();
                 if (Scope.Object is TestPlan plan)
                 {
