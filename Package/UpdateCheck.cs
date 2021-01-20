@@ -24,7 +24,10 @@ namespace OpenTap.Package
         public bool Startup { get; set; }
         private void CheckForUpdatesAsync(CancellationToken cancellationToken)
         {
-            if (Startup && PackageManagerSettings.Current.CheckForUpdates == false)
+            string noUpdateCheckEnv = Environment.GetEnvironmentVariable("OPENTAP_NO_UPDATE_CHECK");
+            bool noUpdateCheck = noUpdateCheckEnv == "true" || noUpdateCheckEnv == "1";
+            
+            if (Startup && (PackageManagerSettings.Current.CheckForUpdates == false || noUpdateCheck))
                 return;
             
             var timer = Stopwatch.StartNew();
