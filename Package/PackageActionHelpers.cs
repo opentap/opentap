@@ -35,32 +35,22 @@ namespace OpenTap.Package
             public DepResponse Response { get; set; } = DepResponse.Add;
         }
 
-        internal static PackageDef FindPackage(PackageSpecifier packageReference, bool force, Installation installation, List<IPackageRepository> repositories)
+        internal static PackageDef FindPackage(PackageSpecifier packageReference, IEnumerable<IPackageIdentifier> compatibleWith, List<IPackageRepository> repositories)
         {
-            IPackageIdentifier[] compatibleWith;
-            if (!force)
-			{
-                var tapPackage = installation.GetOpenTapPackage();
-                if(tapPackage != null)
-                    compatibleWith = new[] { installation.GetOpenTapPackage() };
-                else
-                    compatibleWith = new[] { new PackageIdentifier("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString(), CpuArchitecture.Unspecified, "") };
-            }
-            else
-                compatibleWith = Array.Empty<IPackageIdentifier>();
-            
-            var compatiblePackages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageReference, compatibleWith);
+            var compatiblePackages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageReference, compatibleWith.ToArray());
 
             // Of the compatible packages, pick the one with the highest version number. If that package is available from several repositories, pick the one with the lowest index in the list in PackageManagerSettings
             PackageDef package = null;
             if (compatiblePackages.Any())
                 package = compatiblePackages.GroupBy(p => p.Version).OrderByDescending(g => g.Key).FirstOrDefault()
-                                            .OrderBy(p => repositories.IndexWhen(e => NormalizeRepoUrl(e.Url) == NormalizeRepoUrl((p.PackageSource as IRepositoryPackageDefSource)?.RepositoryUrl))).FirstOrDefault();
+                                            .OrderBy(p => repositories.IndexWhen(e => NormalizeRepoUrl(e.Url) == NormalizeRepoUrl((p.PackageSource as IRepositoryPackageDefSource)?.RepositoryUrl)))
+                                            .OrderBy(p => OrderArchitecture(p.Architecture))
+                                            .FirstOrDefault();
 
             // If no package was found, try to figure out why
             if (package == null)
             {
-                var compatibleVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageReference.Name, compatibleWith);
+                var compatibleVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageReference.Name, compatibleWith.ToArray());
                 var versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageReference.Name);
 
                 // Any packages compatible with opentap and platform
@@ -110,6 +100,29 @@ namespace OpenTap.Package
                 throw new ExitCodeException(1, $"Package '{packageReference.Name}' could not be found in any repository.");
             }
             return package;
+        }
+
+        private static int OrderArchitecture(CpuArchitecture architecture)
+        {
+            if (architecture == ArchitectureHelper.GuessBaseArchitecture)
+                return 0;
+            switch (architecture)
+            {
+                case CpuArchitecture.Unspecified:
+                    return 10;
+                case CpuArchitecture.AnyCPU:
+                    return 1;
+                case CpuArchitecture.x86:
+                    return 3;
+                case CpuArchitecture.x64:
+                    return 2;
+                case CpuArchitecture.arm:
+                    return 5;
+                case CpuArchitecture.arm64:
+                    return 4;
+                default:
+                    return 10;
+            }
         }
 
         internal static string NormalizeRepoUrl(string path)
@@ -214,7 +227,8 @@ namespace OpenTap.Package
                 }
                 else
                 {
-                    PackageDef package = PackageActionHelpers.FindPackage(packageReference, force, installation, repositories);
+                    var compatibleWith = force ? new List<PackageDef>() : gatheredPackages.Concat(installedPackages);
+                    PackageDef package = FindPackage(packageReference, compatibleWith, repositories);
                     
                     if (noDowngrade)
                     {
