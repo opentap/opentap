@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using NUnit.Framework;
@@ -165,7 +166,45 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(listener.Events[1].Message == msg2);
             Assert.IsTrue(listener.Events[2].Message == msg3);
         }
-        
+
+        [Test]
+        public void RedirectedLogTest2()
+        {
+            var listener = new MemoryTraceListener();
+            var listener1 = new MemoryTraceListener();
+            var listener2 = new MemoryTraceListener();
+            var log = Log.CreateSource("Redirect?");
+            string msg1 = "This is redirected";
+            string msg2 = "This is redirected and from another thread";
+
+            Log.AddListener(listener);
+            log.Debug("This is not redirected0");
+
+            var sem = new Semaphore(0, 1);
+            using (Session.WithSession(SessionFlag.RedirectLogging, SessionFlag.InheritThreadContext))
+            {
+                Log.AddListener(listener1);
+                log.Debug(msg1);
+                TapThread.Start(() =>
+                {
+                    Log.AddListener(listener2);
+                    Thread.Sleep(50);
+                    // messages from a different thread should also be redirected.
+                    log.Info(msg2);
+                    sem.Release();
+                });
+            }
+            log.Debug("This is not redirected1");
+            sem.WaitOne();
+            log.Debug("This is not redirected2");
+            log.Flush();
+            Assert.AreEqual(3, listener.Events.Count);
+
+            Assert.IsTrue(listener1.Events[0].Message == msg1);
+            Assert.IsTrue(listener1.Events[1].Message == msg2);
+            Assert.IsTrue(listener2.Events[0].Message == msg2);
+        }
+
         [Test]
         public void ComponentSettingSession()
         {
@@ -218,10 +257,10 @@ namespace OpenTap.UnitTests
         public void TestPlanReferenceSubPlanTest()
         {
             int parallelism = 10;
-            var planName = Guid.NewGuid() + ".TapPlan";
+            var planName = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".TapPlan");
             string knownLogMessage = "Hello";
             using (Session.WithSession(SessionFlag.OverlayComponentSettings, SessionFlag.RedirectLogging))
-            using (Utils.WithTemporaryFile(planName))
+            try
             {
                 var dut = new SubDut();
                 DutSettings.Current.Add(dut);
@@ -251,7 +290,10 @@ namespace OpenTap.UnitTests
                 var run = plan.Execute();    
                 var log = testListener.GetLog();
                 Assert.AreEqual(Verdict.Pass, run.Verdict, log);
-                
+            }
+            finally
+            {
+                File.Delete(planName);
             }
         }
     }

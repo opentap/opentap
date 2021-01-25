@@ -17,13 +17,14 @@ namespace OpenTap
     {
         /// <summary> Redirect logging. When this flag is enabled, existing log listeners can be overwritten with new ones. </summary>
         public static SessionFlag RedirectLogging = new SessionFlag(nameof(RedirectLogging));
-        /// <summary> Overlay logging: Extra listeners can be added.</summary>
-        public static SessionFlag OverlayLogging = new SessionFlag(nameof(OverlayLogging));
+        ///// <summary> Overlay logging: Extra listeners can be added.</summary>
+        //public static SessionFlag OverlayLogging = new SessionFlag(nameof(OverlayLogging));
         
         /// <summary> Inherit Thread Context. A flag specifying that the thread context will be inherited from the previous one. This is the default behavior</summary>
         internal static SessionFlag InheritThreadContext = new SessionFlag(nameof(InheritThreadContext));
-        /// <summary> A flag specifying that the new session will have it's own thread context.</summary>
-        public static SessionFlag NewThreadContext = new SessionFlag(nameof(NewThreadContext));
+        
+        ///// <summary> A flag specifying that the new session will have it's own thread context.</summary>
+        //public static SessionFlag NewThreadContext = new SessionFlag(nameof(NewThreadContext));
         
         /// <summary>
         /// Component settings are cloned for the sake of this component settings. Instrument, DUT etc instances are cloned.
@@ -42,8 +43,8 @@ namespace OpenTap
         {
             if (this == InheritThreadContext)
                 return TapThread.UsingThreadContext();
-            if (this == NewThreadContext)
-                return TapThread.UsingThreadContext(null);
+            //if (this == NewThreadContext)
+            //    return TapThread.UsingThreadContext(null);
             if(this == OverlayComponentSettings)
                 return ComponentSettings.BeginSession();
             if (this == RedirectLogging)
@@ -61,6 +62,24 @@ namespace OpenTap
     /// </summary>
     public class Session : IDisposable
     {
+        static ThreadField<Session> Sessions = new ThreadField<Session>(ThreadFieldMode.Cached);
+        static Session RootSession = new Session();
+        
+        /// <summary>
+        /// Gets the currently active session.
+        /// </summary>
+        public static Session Current => Sessions.Value ?? RootSession;
+
+        /// <summary>
+        /// Gets the session ID for this session.
+        /// </summary>
+        public Guid Id { get; } = Guid.NewGuid();
+        
+        /// <summary>
+        /// Gets the flags used by this session.
+        /// </summary>
+        public IEnumerable<ISessionFlag> Flags => flags;
+
         readonly ImmutableHashSet<ISessionFlag> flags;
 
         Session(params ISessionFlag[] flags)
@@ -88,6 +107,7 @@ namespace OpenTap
                     exceptions.Add(e);
                 }
             }
+            Sessions.Value = null;
 
             foreach (var ex in exceptions)
             {
@@ -103,6 +123,7 @@ namespace OpenTap
         {
             var session = new Session(flags);
             session.Activate();
+            Sessions.Value = session;
             return session;
         }
         
@@ -119,9 +140,9 @@ namespace OpenTap
             try
             {
                 // the order of the default flags are important.
-                if(!flags.Contains(SessionFlag.NewThreadContext))
+                //if(!flags.Contains(SessionFlag.NewThreadContext))
                     activeSessionFlag(SessionFlag.InheritThreadContext);
-                activeSessionFlag(SessionFlag.NewThreadContext);
+                //activeSessionFlag(SessionFlag.NewThreadContext);
                 activeSessionFlag(SessionFlag.OverlayComponentSettings);
                 activeSessionFlag(SessionFlag.RedirectLogging);
 

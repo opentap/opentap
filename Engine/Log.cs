@@ -316,9 +316,9 @@ namespace OpenTap
             
             return Utils.WithDisposable(() =>
             {
-                ctx.Flush();
-                logField.Value = null;
-                logContextField.Value = null;
+                //ctx.Flush();
+                //logField.Value = null;
+                //logContextField.Value = null;
             });
         }
 

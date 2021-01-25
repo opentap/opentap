@@ -1567,9 +1567,6 @@ namespace OpenTap
                 return value;
             return dictionary[key] = createValue(key);
         }
-
-        public static IDisposable WithTemporaryFile(string planName) =>
-            new ActionDisposable(() => File.Delete(planName));
     }
 
     static internal class Sequence

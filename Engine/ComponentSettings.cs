@@ -560,6 +560,7 @@ namespace OpenTap
         {
             var currentContext = context;
             var nextContext = currentContext.Clone();
+            nextContext.readOnlyContext = true;
             var previousContext = session.GetCached();
             session.Value = nextContext;
             
