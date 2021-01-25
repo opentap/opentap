@@ -168,11 +168,6 @@ namespace OpenTap.Package
                 }
             }
 
-            if (!string.IsNullOrWhiteSpace(Version))
-            {
-                log.Warning($"{Name} version {Version} not found.");
-            }
-
             if (Offline == false && string.IsNullOrWhiteSpace(Version))
             {
                 // a prerelease from repositories
@@ -204,9 +199,12 @@ namespace OpenTap.Package
             {
                 PackageDef package = GetPackageDef(targetInstallation);
                 if (package == null)
+                {
+                    var versionString = string.IsNullOrWhiteSpace(Version) ? "" : $" version '{Version}'";
                     throw new Exception(
-                        $"Package {Name} version {Version} not found in specified repositories or local install.");
-                
+                        $"Package '{Name}'{versionString} not found in specified repositories or local install.");
+                }
+
                 var ct = new CancellationTokenSource();
 
                 var packageVersions = Offline
@@ -263,7 +261,7 @@ namespace OpenTap.Package
             if (packageInstalled == false)
             {
                 AddWritePair("Compatibility Issues", issues.Any()
-                    ? $"{(string.Join(Environment.NewLine, issues.Select(x => $"{x.PackageName} - {x.IssueType.ToString()}")))}"
+                    ? $"{(string.Join(Environment.NewLine, issues.Select(x => $"{x.PackageName} - {Utils.EnumToReadableString(x.IssueType)}")))}"
                     : "none");
             }
 
