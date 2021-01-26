@@ -491,8 +491,8 @@ namespace OpenTap.Package.UnitTests
                 int exitCode;
                 string output = RunPackageCli("install " + dep0File + " --force", out exitCode);
                 Assert.AreEqual(0, exitCode, "Unexpected exit code");
-
-                output = RunPackageCli("install Dummy -y", out exitCode);
+                
+                output = RunPackageCli("install Dummy -y -f", out exitCode);
                 Assert.AreEqual(0, exitCode, "Unexpected exit code");
                 //StringAssert.Contains("upgrading", output);
                 Assert.IsTrue(File.Exists("Dependency1.txt"));
