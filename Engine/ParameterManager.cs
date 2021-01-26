@@ -572,21 +572,30 @@ namespace OpenTap
         // if the test plan did not change since last sanity check,
         // then we can do it a lot faster.
         static readonly ConditionalWeakTable<ITestStepParent, ChangeId> recordedChangeIds = new ConditionalWeakTable<ITestStepParent, ChangeId>();
-        
-        
-        
-        /// <summary>
-        /// Verify that source of a declared parameter on a parent also exists in the step heirarchy.  
-        /// </summary>
+
         public static bool CheckParameterSanity(ITestStepParent step, IMemberData[] parameters)
         {
             if (parameterSanityCheckDelayed) return true;
+            foreach (var elem in parameters)
+            {
+                if (elem is ParameterMemberData)
+                    return checkParameterSanity(step, parameters);
+            }
+            return false;
+        }
+        
+        /// <summary>
+        /// Verify that source of a declared parameter on a parent also exists in the step hierarchy.
+        /// </summary>
+        public static bool checkParameterSanity(ITestStepParent step, IMemberData[] parameters)
+        {
             bool isSane = true;
+            var changeid = recordedChangeIds.GetValue(step, x => new ChangeId());
             foreach (var _item in parameters)
             {
                 if (_item is ParameterMemberData item)
                 {
-                    var changeid = recordedChangeIds.GetValue(step, x => new ChangeId());
+                    
                     if (changeid.Value == step.ChildTestSteps.ChangeId && item.AnyDynamicMembers == false)
                     {
                         continue;
@@ -601,9 +610,7 @@ namespace OpenTap
                         var subparent = src.Parent;
 
                         if (changeid.Value != step.ChildTestSteps.ChangeId)
-                        {
-                            changeid.Value = step.ChildTestSteps.ChangeId;
-
+                        {                            
                             // Multiple situations possible.
                             // 1. the step is no longer a child of the parent to which it has parameterized a setting.
                             // 2. the member of a parameter no longer exists.
@@ -645,8 +652,8 @@ namespace OpenTap
                         {
                             member.Unparameterize(item, src);
                             if (!isParent || unparented)
-                                log.Warning("Step {0} is no longer a child step of the parameter owner.",
-                                    (src as ITestStep)?.GetFormattedName() ?? src?.ToString());
+                                log.Warning("Step {0} is no longer a child step of the parameter owner. Removing from {1}.",
+                                    (src as ITestStep)?.GetFormattedName() ?? src?.ToString(), item.Name);
                             else
                                 log.Warning("Member {0} no longer exists, unparameterizing member.", member.Name);
                             isSane = false;
@@ -654,6 +661,8 @@ namespace OpenTap
                     }
                 }
             }
+            // only update the change id for this step if sanity check passed.
+            changeid.Value = step.ChildTestSteps.ChangeId;
 
             return isSane;
         }
