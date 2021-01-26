@@ -613,6 +613,16 @@ namespace OpenTap.UnitTests
 
         }
 
+        public class TwoDelayStep : TestStep
+        {
+            public double DelaySecs { get; set; }
+            public double DelaySecs2 { get; set; }
+            public override void Run()
+            {
+                
+            }
+        }
+        
         /// <summary>
         /// When the test plan is changed, parameters that becomes invalid needs to be removed.
         /// This is done by doing some checks in DynamicMemberTypeDataProvider.
@@ -622,7 +632,7 @@ namespace OpenTap.UnitTests
         public void AutoRemoveParameters()
         {
             var plan = new TestPlan();
-            var step = new DelayStep();
+            var step = new TwoDelayStep();
             plan.ChildTestSteps.Add(step);
             var member = TypeData.GetTypeData(step).GetMember(nameof(step.DelaySecs));
             var parameter = member.Parameterize(plan, step, "delay");
@@ -651,10 +661,14 @@ namespace OpenTap.UnitTests
             
             plan.ChildTestSteps.Add(seq);
             parameter2 = member2.Parameterize(plan, seq, "delay");
+            var member3 = TypeData.GetTypeData(step).GetMember(nameof(TwoDelayStep.DelaySecs2));
+            var parameter3 = member3.Parameterize(plan, step, "delay2");
             Assert.IsNotNull(TypeData.GetTypeData(plan).GetMember(parameter2.Name));
+            Assert.IsNotNull(TypeData.GetTypeData(plan).GetMember(parameter3.Name));
             Assert.IsNotNull(TypeData.GetTypeData(seq).GetMember(parameter.Name));
             seq.ChildTestSteps.Remove(step);
             Assert.IsNull(TypeData.GetTypeData(plan).GetMember(parameter2.Name));
+            Assert.IsNull(TypeData.GetTypeData(plan).GetMember(parameter3.Name));
             Assert.IsNull(TypeData.GetTypeData(seq).GetMember(parameter.Name));
         }
 
