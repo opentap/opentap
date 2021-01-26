@@ -95,6 +95,14 @@ namespace OpenTap.Engine.UnitTests
             var deserialized = s.DeserializeFromString(xml);
             Assert.IsFalse(s.Errors.Any());
         }
+
+        [Test]
+        public void UnconfiguredInputToStringTest()
+        {
+            var x = new Input<string>();
+            Assert.DoesNotThrow(() => x.ToString());
+            Assert.AreEqual("", x.ToString());
+        }
     }
 
     [AllowAnyChild]
