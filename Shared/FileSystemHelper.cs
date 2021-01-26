@@ -79,9 +79,9 @@ namespace OpenTap
             return path;
         }
 
-        public static string CreateTempFile()
+        public static string CreateTempFile(string extension)
         {
-            return Path.Combine(System.IO.Path.GetTempPath(), Path.GetRandomFileName());
+            return Path.Combine(System.IO.Path.GetTempPath(), Path.GetRandomFileName()) + extension;
         }
 
         public static string GetCurrentInstallationDirectory()
@@ -130,76 +130,6 @@ namespace OpenTap
             FileVersionInfo info = FileVersionInfo.GetVersionInfo(assemblyPath);
             return info.ProductVersion;
         }
-
-        private class LineModifier
-        {
-            readonly string tempFile;
-            readonly Stream outFile;
-            readonly Stream infile;
-            readonly StreamReader @in;
-            readonly StreamWriter @out;
-
-            public void Close()
-            {
-                @out.Flush();
-                
-                infile.Flush();
-                infile.Seek(0, SeekOrigin.Begin);
-                infile.SetLength(outFile.Length);
-
-                outFile.Seek(0, SeekOrigin.Begin);
-                outFile.CopyTo(infile, 1024 * 8);
-                outFile.Close();
-                File.Delete(tempFile);
-            }
-
-
-            public string ReadLine() => @in.ReadLine();
-            public void WriteLine(string line) => @out.WriteLine(line);
-            
-            public LineModifier(Stream file, Encoding encoding)
-            {
-                tempFile = FileSystemHelper.CreateTempFile();
-
-                outFile = File.Open(tempFile, FileMode.Create);
-                infile = file;
-                @in = new StreamReader(file, encoding, false, 1024 * 8);
-                @out = new StreamWriter(outFile, encoding, 1024 * 8);
-            }
-        }
-
-        /// <summary> 
-        /// Modifies each line in a file by using the modify function.
-        /// It does so in-place and out of memory, so large files can be modified.
-        /// </summary>
-        /// <param name="stream"> The file that should be modified.</param>
-        /// <param name="pushBom">Whether a BOM should be prepended to the file.</param>
-        /// <param name="modify">The function that can modify each line.</param>
-        public static void ModifyLines(Stream stream, bool pushBom, Func<string, int, string> modify)
-        {
-            var lm = new LineModifier(stream, new UTF8Encoding(pushBom));
-            
-            try
-            {
-                int lineCount = 0;
-
-                while (true)
-                {
-                    var line = lm.ReadLine();
-                    if (line == null)
-                        break;
-
-                    line = modify(line, lineCount++) ?? line;
-
-                    lm.WriteLine(line);
-                }
-            }
-            finally
-            {
-                lm.Close();
-            }
-        }
-        
 
         internal static byte[] ByteOrderMark = new byte[] { 0xEF, 0xBB, 0xBF };
         public static string EscapeBadPathChars(string path)
