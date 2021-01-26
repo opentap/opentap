@@ -76,6 +76,15 @@ namespace OpenTap
         {
             log.LogEvent((int)te, durationNs, message, args);
         }
+        
+        /// <summary> Register a single event without formatting and duration. </summary>
+        public void TraceEvent(long durationNs, LogEventType te, int id, string message)
+        {
+            // this overload is important since otherwise the logging system will use 
+            // the overload with [args] even though there are none. And that can give
+            // problems if the message itself contains formatting demarcations e.g '{0}'
+            log.LogEvent((int)te, durationNs, message);
+        }
 
         /// <summary>
         /// Register a single event with formatting

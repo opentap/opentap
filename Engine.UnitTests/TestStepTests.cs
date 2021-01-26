@@ -27,5 +27,19 @@ namespace OpenTap.Engine.UnitTests
             var formattedName2 = annotation.GetMember(nameof(TestStep.Name)).Get<IStringReadOnlyValueAnnotation>().Value;
             Assert.AreEqual("Delay: 0.1 s", formattedName2);
         }
+
+        [Test]
+        public void FormattedNameIssue()
+        {
+            var logStep = new LogStep() {};
+            logStep.Name = "Log: {0}"; // At one point this caused a bug, but it was not because of GetFormattedName.
+            var formattedName = logStep.GetFormattedName();
+            Assert.AreEqual("Log: {0}", formattedName);
+
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(logStep);
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.NotSet, run.Verdict);
+        }
     }
 }
