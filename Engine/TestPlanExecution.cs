@@ -511,8 +511,8 @@ namespace OpenTap
 
             Log.Info("-----------------------------------------------------------------");
 
-            var fileStreamFile = FileSystemHelper.CreateTempFile();
-            var logStream = new HybridStream(fileStreamFile, 1024 * 1024);
+            
+            var logStream = new HybridStream();
 
             var planRunLog = new FileTraceListener(logStream) { IsRelative = true };
             OpenTap.Log.AddListener(planRunLog);
@@ -650,7 +650,6 @@ namespace OpenTap
                 planRunLog.Dispose();
 
                 logStream.Dispose();
-                File.Delete(fileStreamFile);
 
                 // Clean all test steps StepRun, otherwise the next test plan execution will be stuck at TestStep.DoRun at steps that does not have a cleared StepRun.
                 foreach (var step in allSteps)
