@@ -628,7 +628,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Creates a *.TapPackage file from the definition in this PackageDef.
         /// </summary>
-        static public void CreatePackage(this PackageDef pkg, string path)
+        static public void CreatePackage(this PackageDef pkg, FileStream str)
         {
             foreach (PackageFile file in pkg.Files)
             {
@@ -684,7 +684,7 @@ namespace OpenTap.Package
                 }
                 
                 log.Info("Creating OpenTAP package.");
-                pkg.Compress(path, pkg.Files);
+                pkg.Compress(str, pkg.Files);
             }
             finally
             {
@@ -758,14 +758,9 @@ namespace OpenTap.Package
         /// <summary>
         /// Compresses the files to a zip package.
         /// </summary>
-        static private void Compress(this PackageDef pkg, string outputPath, IEnumerable<PackageFile> inputPaths)
+        static private void Compress(this PackageDef pkg, FileStream outStream, IEnumerable<PackageFile> inputPaths)
         {
-            var dir = Path.GetDirectoryName(outputPath);
-            if (String.IsNullOrWhiteSpace(dir) == false)
-            {
-                Directory.CreateDirectory(dir);
-            }
-            using (var zip = new System.IO.Compression.ZipArchive(File.Open(outputPath, FileMode.Create), System.IO.Compression.ZipArchiveMode.Create))
+            using (var zip = new System.IO.Compression.ZipArchive(outStream, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
             {
                 foreach (PackageFile file in inputPaths)
                 {
@@ -790,6 +785,7 @@ namespace OpenTap.Package
                 using(var str = metaPart.Open())
                     pkg.SaveTo(str);
             }
+            outStream.Flush();
         }
     }
 }

@@ -141,7 +141,8 @@ namespace OpenTap.Package.UnitTests
             {
                 DummyPackageGenerator.InstallDummyPackage("DepName", new GitVersionCalulator(Directory.GetCurrentDirectory()).GetVersion().ToString() );
                 PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
-                pkg.CreatePackage(outputFilename);
+                using (var file = File.Create(outputFilename))
+                    pkg.CreatePackage(file);
                 Assert.AreNotSame("$(GitVersion)", pkg.Dependencies.First().Version.ToString());
                 VersionSpecifier versionSpecifier = new VersionSpecifier(pkg.Version, VersionMatchBehavior.Exact);
 
@@ -164,7 +165,8 @@ namespace OpenTap.Package.UnitTests
             PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
             try
             {
-                pkg.CreatePackage(outputFilename);
+                using(var file = File.Create(outputFilename))
+                    pkg.CreatePackage(file);
                 Assert.IsTrue(File.Exists(outputFilename));
             }
             finally
@@ -184,7 +186,8 @@ namespace OpenTap.Package.UnitTests
             PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
             try
             {
-                pkg.CreatePackage(outputFilename);
+                using(var file = File.Create(outputFilename))
+                    pkg.CreatePackage(file);
                 Assert.IsTrue(File.Exists(outputFilename));
             }
             finally
@@ -689,7 +692,8 @@ namespace OpenTap.Package.UnitTests
                 var pkg = PackageDefExt.FromInputXml(pkgName, installDir);
                 CollectionAssert.IsNotEmpty(pkg.Dependencies,"Package has no dependencies.");
                 //Assert.AreEqual("OpenTAP", pkg.Dependencies.First().Name);
-                pkg.CreatePackage("BasicSteps.TapPackage");
+                using(var file = File.Create("BasicSteps.TapPackage"))
+                    pkg.CreatePackage(file);
 
                 List<IPackageRepository> repositories = new List<IPackageRepository>() { new FilePackageRepository(installDir) };
 

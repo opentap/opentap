@@ -125,5 +125,11 @@ namespace Tap.Shared
         public static string OpenTapDir =>
             openTapLocation ?? (openTapLocation = Path.GetDirectoryName(typeof(TestPlan).Assembly.Location));
 
+        public static string GetTempFileName(string extension)
+        {
+            if (!extension.StartsWith(".")) extension = "." + extension;
+            //use instead of Path.GetTempFileName()
+            return Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + extension);
+        }
     }
 }
