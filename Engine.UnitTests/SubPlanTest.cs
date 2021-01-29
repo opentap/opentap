@@ -49,9 +49,7 @@ namespace OpenTap.UnitTests
             public override void Run()
             {
                 var planXml = Plan.SerializeToString();
-                using (Session.WithSession(SessionFlag.InheritThreadContext,
-                    // Component settings flag added.
-                    SessionFlag.OverlayComponentSettings))
+                using (Session.Create(SessionOptions.OverlayComponentSettings))
                 {
 
                     var plan = Utils.DeserializeFromString<TestPlan>(planXml);
@@ -73,7 +71,7 @@ namespace OpenTap.UnitTests
         [Test]
         public void TestRunningSubPlan()
         {
-            using (Session.WithSession(SessionFlag.RedirectLogging, SessionFlag.OverlayComponentSettings))
+            using (Session.Create())
             {
                 string knownLogMessage = "asdasdasd";
                 var dut = new SubDut();
@@ -86,7 +84,7 @@ namespace OpenTap.UnitTests
                 var plan = new TestPlan();
                 plan.Steps.Add(new SubPlanStep {Plan = subPlan, Dut = dut});
                 var listener = new MemoryTraceListener();
-                using (Session.WithSession(SessionFlag.RedirectLogging))
+                using (Session.Create(SessionOptions.RedirectLogging))
                 {
                     Log.AddListener(listener);
                     var run = plan.Execute();
@@ -138,7 +136,7 @@ namespace OpenTap.UnitTests
                 }
             });
 
-            using (Session.WithSession(SessionFlag.RedirectLogging, SessionFlag.InheritThreadContext))
+            using (Session.Create(SessionOptions.RedirectLogging))
             {
                 Log.AddListener(listener);
                 var sem = new Semaphore(0, 1);
@@ -153,7 +151,7 @@ namespace OpenTap.UnitTests
             }
 
             log.Debug("This is also not redirected");
-            using (Session.WithSession(SessionFlag.RedirectLogging, SessionFlag.InheritThreadContext))
+            using (Session.Create(SessionOptions.RedirectLogging))
             {
                 Log.AddListener(listener);
                 log.Debug(msg3);
@@ -181,7 +179,7 @@ namespace OpenTap.UnitTests
             log.Debug("This is not redirected0");
 
             var sem = new Semaphore(0, 1);
-            using (Session.WithSession(SessionFlag.RedirectLogging, SessionFlag.InheritThreadContext))
+            using (Session.Create(SessionOptions.RedirectLogging))
             {
                 Log.AddListener(listener1);
                 log.Debug(msg1);
@@ -215,7 +213,7 @@ namespace OpenTap.UnitTests
                 
                 DutSettings.Current.Add(dut1);
                 var profile1 = EngineSettings.Current.OperatorName;
-                using (Session.WithSession(SessionFlag.OverlayComponentSettings))
+                using (Session.Create(SessionOptions.OverlayComponentSettings))
                 {
                     var profile2 = "profile2";
                     EngineSettings.Current.OperatorName = profile2;
@@ -223,7 +221,7 @@ namespace OpenTap.UnitTests
                     var dut2 = new SubDut();
                     DutSettings.Current.Add(dut2);
                     Assert.AreEqual(2, DutSettings.Current.Count);
-                    using (Session.WithSession(SessionFlag.OverlayComponentSettings))
+                    using (Session.Create(SessionOptions.OverlayComponentSettings))
                     {
                         var profile3 = "profile3";
                         var dut3 = new SubDut();
@@ -233,7 +231,7 @@ namespace OpenTap.UnitTests
                         EngineSettings.Current.OperatorName = profile3;
                     }
 
-                    using (Session.WithSession(SessionFlag.OverlayComponentSettings))
+                    using (Session.Create(SessionOptions.OverlayComponentSettings))
                     {
                         Assert.AreEqual(profile2, EngineSettings.Current.OperatorName);
                     }
@@ -259,7 +257,7 @@ namespace OpenTap.UnitTests
             int parallelism = 10;
             var planName = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".TapPlan");
             string knownLogMessage = "Hello";
-            using (Session.WithSession(SessionFlag.OverlayComponentSettings, SessionFlag.RedirectLogging))
+            using (Session.Create())
             try
             {
                 var dut = new SubDut();

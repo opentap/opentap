@@ -296,36 +296,29 @@ namespace OpenTap
     /// </summary>
     public static class Log
     {
-        static readonly LogContext logContext = (LogContext)LogFactory.CreateContext();
+        static readonly LogContext rootLogContext = (LogContext)LogFactory.CreateContext();
 
         internal static ILogTimestampProvider Timestamper
         {
-            get => logContext.Timestamper;
-            set => logContext.Timestamper = value;
+            get => rootLogContext.Timestamper;
+            set => rootLogContext.Timestamper = value;
         }
 
-        static readonly ThreadField<LogContext.LogInjector> logField = new ThreadField<LogContext.LogInjector>(ThreadFieldMode.Cached);
-        static readonly ThreadField<LogContext> logContextField = new ThreadField<LogContext>(ThreadFieldMode.Cached);
+        static readonly SessionStatic<LogContext.LogInjector> logField = new SessionStatic<LogContext.LogInjector>(null);
+        static readonly SessionStatic<LogContext> sessionLogContext = new SessionStatic<LogContext>(rootLogContext);
 
-        internal static IDisposable WithNewContext()
+        internal static void WithNewContext()
         {
             var ctx = new LogContext();
             
             logField.Value = new LogContext.LogInjector(ctx);
-            logContextField.Value = ctx;
-            
-            return Utils.WithDisposable(() =>
-            {
-                //ctx.Flush();
-                //logField.Value = null;
-                //logContextField.Value = null;
-            });
+            sessionLogContext.Value = ctx;
         }
 
         internal static LogContext.LogInjector RedirectedLog => logField.Value;
 
         /// <summary> The current log context. </summary>
-        public static ILogContext Context => logContextField.Value ?? logContext;
+        public static ILogContext Context => sessionLogContext.Value;
 
         /// <summary> Makes a TraceListener start receiving log messages. </summary>
         /// <param name="listener">The TraceListener to add.</param>
@@ -333,7 +326,7 @@ namespace OpenTap
         {
             if (listener == null)
                 throw new ArgumentNullException(nameof(listener));
-            var ctx = logContextField.Value ?? logContext;
+            var ctx = Context;
             ctx.Flush();
             ctx.AttachListener(listener);
         }
@@ -344,7 +337,7 @@ namespace OpenTap
         {
             if (listener == null)
                 throw new ArgumentNullException(nameof(listener));
-            var ctx = logContextField.Value ?? logContext;
+            var ctx = Context;
             listener.Flush();
             ctx.DetachListener(listener);
             listener.Flush();
@@ -355,14 +348,14 @@ namespace OpenTap
         /// <returns>A readonly collection of TraceListeners.</returns>
         public static ReadOnlyCollection<ILogListener> GetListeners()
         {
-            return (logContextField.Value ?? logContext)?.GetListeners();
+            return sessionLogContext.Value?.GetListeners();
         }
         /// <summary> Creates a new log source. </summary>
         /// <param name="name">The name of the Log.</param>
         /// <returns>The created Log.</returns>
         public static TraceSource CreateSource(string name)
         {
-            return new TraceSource(logContext.CreateLog(name));
+            return new TraceSource(rootLogContext.CreateLog(name));
         }
 
         // ConditionalWeakTable keys does not count as a reference and are automatically removed on GC. This way we avoid leak. CWT's are thread safe.
@@ -408,7 +401,7 @@ namespace OpenTap
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
-            logContext.RemoveLog(source.log);
+            rootLogContext.RemoveLog(source.log);
         }
 
         static Log()
@@ -420,8 +413,8 @@ namespace OpenTap
             // prevent a deadlock when using the Log Breaking feature in the GUI.
             Trace.UseGlobalLock = false;
 
-            logContext.Async = true;
-            logContext.MessageBufferSize = 8 * 1024 * 1024;
+            rootLogContext.Async = true;
+            rootLogContext.MessageBufferSize = 8 * 1024 * 1024;
         }
 
         // Performance: Reuse the string build each time to avoid generating GC pressure.
@@ -752,7 +745,7 @@ namespace OpenTap
         /// </summary>
         public static void Flush()
         {
-            logContext.Flush();
+            rootLogContext.Flush();
         }
 
         /// <summary>
@@ -762,7 +755,7 @@ namespace OpenTap
         public static void StartSync()
         {
             Flush();
-            logContext.Async = false;
+            rootLogContext.Async = false;
         }
 
         /// <summary>
@@ -770,7 +763,7 @@ namespace OpenTap
         /// </summary>
         public static void StopSync()
         {
-            logContext.Async = true;
+            rootLogContext.Async = true;
             Flush();
         }
     }

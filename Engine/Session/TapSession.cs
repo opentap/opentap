@@ -1,58 +1,77 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Threading;
 
 namespace OpenTap
 {
-
-    /// <summary> Specifies how a session flag interacts with the session.</summary>
-    public interface ISessionFlag
+    /// <summary>
+    /// Options used to define the behavior of a <see cref="OpenTap.Session"/>
+    /// </summary>
+    [Flags]
+    public enum SessionOptions
     {
-        /// <summary> When this flag is activated, the Activate method should return an IDisposable, that on dispose clears the session.</summary>
-        IDisposable Activate();
-    }
-    
-    /// <summary> Default flags for customizing a session. Others can be added by implementing the ISessionFlag interface. </summary>
-    public sealed class SessionFlag : ISessionFlag
-    {
-        /// <summary> Redirect logging. When this flag is enabled, existing log listeners can be overwritten with new ones. </summary>
-        public static SessionFlag RedirectLogging = new SessionFlag(nameof(RedirectLogging));
-        ///// <summary> Overlay logging: Extra listeners can be added.</summary>
-        //public static SessionFlag OverlayLogging = new SessionFlag(nameof(OverlayLogging));
-        
-        /// <summary> Inherit Thread Context. A flag specifying that the thread context will be inherited from the previous one. This is the default behavior</summary>
-        internal static SessionFlag InheritThreadContext = new SessionFlag(nameof(InheritThreadContext));
-        
-        ///// <summary> A flag specifying that the new session will have it's own thread context.</summary>
-        //public static SessionFlag NewThreadContext = new SessionFlag(nameof(NewThreadContext));
-        
         /// <summary>
-        /// Component settings are cloned for the sake of this component settings. Instrument, DUT etc instances are cloned.
+        /// No special behavior is applied. Starting a session like this, is the same as just starting a TapThread.
+        /// </summary>
+        None = 0,
+        /// <summary>
+        /// Component settings are cloned for the sake of this session. Instrument, DUT etc instances are cloned.
         /// When this is used, test plans should be reloaded in the new context.  
         /// </summary>
-        public static SessionFlag OverlayComponentSettings = new SessionFlag(nameof(OverlayComponentSettings));
-        
-        readonly string flagName;
-        SessionFlag(string flagName) => this.flagName = flagName;
-        
-        /// <summary> Gets the the flag name string. </summary>
-        public override string ToString() => $"{nameof(SessionFlag)}.{flagName}";
-        
-        // the default implementation of the Activate method.
-        IDisposable ISessionFlag.Activate()
+        OverlayComponentSettings = 1,
+        /// <summary> Redirect logging. When this flag is enabled, existing log listeners can be overwritten with new ones. </summary>
+        RedirectLogging = 2,
+        /// <summary>
+        /// When this option is specified, the thread context will not be a child of the calling context. 
+        /// Instead the session will be the root of a new separate context.
+        /// This will affect the behavior of e.g. <see cref="TapThread.Abort()"/> and <see cref="ThreadHierarchyLocal{T}"/>.
+        /// </summary>
+        ThreadHeirarchyRoot = 4,
+    }
+
+    internal interface ISessionStatic
+    {
+        bool AutoDispose { get; set; }
+    }
+
+    /// <summary>
+    /// Used to hold a value that is specific to a session.
+    /// </summary>
+    public class SessionStatic<T> : ISessionStatic
+    {
+        /// <summary>
+        /// Automatically dispose the value when all threads in the session has completed.
+        /// Only has any effect if T is IDisposable
+        /// </summary>
+        public bool AutoDispose { get; set; }
+
+        /// <summary>
+        /// Session specifc value.
+        /// </summary>
+        public T Value
         {
-            if (this == InheritThreadContext)
-                return TapThread.UsingThreadContext();
-            //if (this == NewThreadContext)
-            //    return TapThread.UsingThreadContext(null);
-            if(this == OverlayComponentSettings)
-                return ComponentSettings.BeginSession();
-            if (this == RedirectLogging)
-                return Log.WithNewContext();
-            return null;
+            get
+            {
+                if (Session.Current.StaticVars.TryGetValue(this, out object val))
+                    return (T)val;
+                return defaultValue;
+            }
+            set => Session.Current.StaticVars[this] = value;
+        }
+
+        readonly T defaultValue;
+
+        /// <summary>
+        /// Used to hold a value that is specific to a session.
+        /// </summary>
+        /// <param name="defaultValue">Default value used if there is no session, or if the value has not been set for the session.</param>
+        public SessionStatic(T defaultValue)
+        {
+            this.defaultValue = defaultValue;
         }
     }
-    
+
     /// <summary> A session represents a collection of data associated with running and configuring test plans:
     /// - Logging
     /// - Settings
@@ -63,8 +82,24 @@ namespace OpenTap
     public class Session : IDisposable
     {
         static ThreadField<Session> Sessions = new ThreadField<Session>(ThreadFieldMode.Cached);
-        static Session RootSession = new Session();
-        
+        static Dictionary<Guid, Session> RunningSessions = new Dictionary<Guid, Session>();
+        internal static readonly Session RootSession = new Session(SessionOptions.None);
+
+        readonly TapThread ThreadContext = TapThread.Current;
+        internal Dictionary<ISessionStatic, object> StaticVars = new Dictionary<ISessionStatic, object>();
+
+        internal void DisposeStaticVars(TapThread lastThread)
+        {
+            foreach (var item in StaticVars)
+            {
+                if(item.Key.AutoDispose && item.Value is IDisposable disp)
+                {
+                    disp.Dispose();
+                    StaticVars[item.Key] = null;
+                }
+            }
+        }
+
         /// <summary>
         /// Gets the currently active session.
         /// </summary>
@@ -74,17 +109,18 @@ namespace OpenTap
         /// Gets the session ID for this session.
         /// </summary>
         public Guid Id { get; } = Guid.NewGuid();
-        
+
         /// <summary>
-        /// Gets the flags used by this session.
+        /// Gets the flags used to create/start this session.
         /// </summary>
-        public IEnumerable<ISessionFlag> Flags => flags;
+        public SessionOptions Options => options;
 
-        readonly ImmutableHashSet<ISessionFlag> flags;
+        readonly SessionOptions options;
 
-        Session(params ISessionFlag[] flags)
+        Session(SessionOptions options)
         {
-            this.flags = flags.Append(SessionFlag.InheritThreadContext).ToImmutableHashSet();   
+            this.options = options;
+            RunningSessions.Add(Id, this);
         } 
 
         static readonly TraceSource log = Log.CreateSource(nameof(Session));
@@ -107,7 +143,7 @@ namespace OpenTap
                     exceptions.Add(e);
                 }
             }
-            Sessions.Value = null;
+            RunningSessions.Remove(Id);
 
             foreach (var ex in exceptions)
             {
@@ -116,41 +152,79 @@ namespace OpenTap
             }
         }
 
-        /// <summary> Creates a new session. </summary>
-        /// <param name="flags">Flags selected from the SessionFlags class.</param>
+        /// <summary> Creates a new session in the current <see cref="TapThread"/> context. The session lasts until the TapTread ends, or Dispose is called on the returned Session object.</summary>
+        /// <param name="options">Flags selected from the SessionOptions enum to customize the behavior of the session.</param>
         /// <returns> A disposable Session object. </returns>
-        public static Session WithSession(params ISessionFlag[] flags)
+        public static Session Create(SessionOptions options = SessionOptions.OverlayComponentSettings | SessionOptions.RedirectLogging)
         {
-            var session = new Session(flags);
+            var session = new Session(options);
+            session.disposables.Push(TapThread.UsingThreadContext(session.DisposeStaticVars));
             session.Activate();
-            Sessions.Value = session;
             return session;
         }
-        
-        void activeSessionFlag(ISessionFlag flag)
+
+        /// <summary>
+        /// Creates a new session, and runs the specified action in the context of that session. When the acion completes, the session is Disposed automatically.
+        /// </summary>
+        public static void Start(Action action, SessionOptions options = SessionOptions.OverlayComponentSettings | SessionOptions.RedirectLogging)
         {
-            if (!flags.Contains(flag)) return;
-            var disposable = flag.Activate();
-            if (disposable != null)
-                disposables.Push(disposable);
+            var session = new Session(options);
+            TapThread.Start(() =>
+            {
+                try
+                {
+                    session.Activate();
+                    Sessions.Value = session;
+                    action();
+                }
+                finally
+                {
+                    session.Dispose();
+                }
+            }, session.DisposeStaticVars, $"SessionRootThread-{session.Id}");
+        }
+
+        /// <summary>
+        /// Synchroniously runs the specified ation in the context of the given session
+        /// </summary>
+        /// <param name="sessionId">ID of the session.</param>
+        /// <param name="action">The action to run.</param>
+        /// <returns>The session in which the action is run</returns>
+        public static Session RunInSession(Guid sessionId, Action action)
+        {
+            if (RunningSessions.ContainsKey(sessionId))
+            {
+                var session = RunningSessions[sessionId];
+                session.RunInSession(action);
+                return session;
+            }
+            else
+                throw new ArgumentOutOfRangeException($"Session with ID {sessionId} does not exist.");
+        }
+
+        /// <summary>
+        /// Synchroniously runs the specified ation in the context of the given session
+        /// </summary>
+        /// <param name="action">The action to run.</param>
+        /// <returns>The session in which the action is run</returns>
+        public void RunInSession(Action action)
+        {
+            TapThread.WithNewContext(action, this.ThreadContext);
         }
 
         void Activate()
         {
             try
             {
-                // the order of the default flags are important.
-                //if(!flags.Contains(SessionFlag.NewThreadContext))
-                    activeSessionFlag(SessionFlag.InheritThreadContext);
-                //activeSessionFlag(SessionFlag.NewThreadContext);
-                activeSessionFlag(SessionFlag.OverlayComponentSettings);
-                activeSessionFlag(SessionFlag.RedirectLogging);
-
-                foreach (var flag in flags)
+                foreach (var item in Current.StaticVars)
                 {
-                    if (flag is SessionFlag) continue;
-                    activeSessionFlag(flag);
+                    StaticVars.Add(item.Key, item.Value);
                 }
+                Sessions.Value = this;
+                if (Options.HasFlag(SessionOptions.OverlayComponentSettings))
+                    ComponentSettings.BeginSession();
+                if (Options.HasFlag(SessionOptions.RedirectLogging))
+                    Log.WithNewContext();
             }
             catch
             {

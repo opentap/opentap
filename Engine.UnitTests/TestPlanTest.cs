@@ -1265,13 +1265,13 @@ namespace OpenTap.Engine.UnitTests
                 int counter = 0;
                 for (int i = 0; i < finalCount; i++)
                 {
-                    tm.Enqueue(() =>
+                    tm.Enqueue(new TapThread(TapThread.Current,() =>
                     {
 
                         //Thread.Sleep(10);
                         Interlocked.Increment(ref counter);
                         sem.Release();
-                    });
+                    }));
                 }
                 for (int i = 0; i < finalCount; i++)
                 {

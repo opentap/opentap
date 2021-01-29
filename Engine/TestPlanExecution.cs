@@ -478,16 +478,11 @@ namespace OpenTap
         TestPlanRun executeInContext(IEnumerable<IResultListener> resultListeners,
             IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride)
         {
-            using(Session.WithSession(SessionFlag.InheritThreadContext))
-                return execute(resultListeners, metaDataParameters, stepsOverride);
+            using (TapThread.UsingThreadContext())
+            {
+                return DoExecute(resultListeners, metaDataParameters, stepsOverride);
+            }
         }
-
-        TestPlanRun execute(IEnumerable<IResultListener> resultListeners,
-            IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride)
-        {
-            return DoExecute(resultListeners, metaDataParameters, stepsOverride);
-        }
-
 
         private TestPlanRun DoExecute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride)
         {

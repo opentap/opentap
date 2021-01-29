@@ -39,7 +39,7 @@ namespace OpenTap.Diagnostic
         }
     }
 
-    internal class LogContext : ILogContext, ILogContext2
+    internal class LogContext : ILogContext, ILogContext2, IDisposable
     {
         
         readonly LogQueue LogQueue = new LogQueue();
@@ -55,11 +55,12 @@ namespace OpenTap.Diagnostic
         
         readonly AutoResetEvent flushBarrier = new AutoResetEvent(false);
 
+        readonly Thread processor;
         public LogContext(bool startProcessor = true)
         {
             if (startProcessor)
             {
-                var processor = new Thread(ProcessLog) { IsBackground = true, Name = "Log processing" };
+                processor = new Thread(ProcessLog) { IsBackground = true, Name = "Log processing" };
                 processor.Start();
             }
         }
@@ -178,6 +179,12 @@ namespace OpenTap.Diagnostic
         public bool Flush(TimeSpan timeout)
         {
             return Flush((int)timeout.TotalMilliseconds);
+        }
+
+        public void Dispose()
+        {
+            Flush();
+            processor.Abort();
         }
 
         public bool Async { get; set; }

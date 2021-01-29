@@ -175,9 +175,7 @@ namespace OpenTap.Plugins.BasicSteps
                 var xml = plan.SerializeToString();
                 if(OpenTap.Log.Context is ILogContext2 ctx2)
                     forwarder = new LogForwardingTraceListener(ctx2);
-                using (Session.WithSession(SessionFlag.RedirectLogging,
-                    // Component settings flag added.
-                    SessionFlag.OverlayComponentSettings))
+                using (Session.Create())
                 {   
                     var plan2 = Utils.DeserializeFromString<TestPlan>(xml);
                     plan2.PrintTestPlanRunSummary = false;

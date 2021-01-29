@@ -550,21 +550,16 @@ namespace OpenTap
         /// <summary> Invalidates all loaded settings. Next time a ComponentSettings is accessed, it will be read from an XML file. </summary>
         internal static void InvalidateAllSettings() => context.InvalidateAllSettings();
         
-        /// <summary> default context object. </summary>
-        static readonly ComponentSettingsContext baseContext = new ComponentSettingsContext();
+        
+        static ComponentSettingsContext context => sessionContext.Value;
+        static readonly SessionStatic<ComponentSettingsContext> sessionContext = new SessionStatic<ComponentSettingsContext>(new ComponentSettingsContext());
 
-        static ComponentSettingsContext context => session.Value ?? baseContext;
-        static readonly ThreadField<ComponentSettingsContext> session = new ThreadField<ComponentSettingsContext>(ThreadFieldMode.Cached);
-
-        internal static IDisposable BeginSession()
+        internal static void BeginSession()
         {
             var currentContext = context;
             var nextContext = currentContext.Clone();
             nextContext.readOnlyContext = true;
-            var previousContext = session.GetCached();
-            session.Value = nextContext;
-            
-            return Utils.WithDisposable(() => session.Value = previousContext);
+            sessionContext.Value = nextContext;
         }
         
         /// <summary>

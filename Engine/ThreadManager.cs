@@ -26,7 +26,11 @@ namespace OpenTap
         /// <summary>
         /// Work has completed.
         /// </summary>
-        Completed
+        Completed,
+        /// <summary>
+        /// This and all child threads have completed.
+        /// </summary>
+        HierarchyCompleted,
     }
 
 
@@ -128,9 +132,9 @@ namespace OpenTap
 
         void Set(T value) => set(value);
     }
-    
+
     /// <summary>
-    /// Represents a item of work in the <see cref="ThreadManager"/>. Also allows access to the Parent <see cref="TapThread"/> (the thread that initially called<see cref="TapThread.Start"/>)
+    /// Represents a item of work in the <see cref="ThreadManager"/>. Also allows access to the Parent <see cref="TapThread"/> (the thread that initially called<see cref="TapThread.Start(Action, string)"/>)
     /// </summary>
     public class TapThread
     {
@@ -151,7 +155,7 @@ namespace OpenTap
             {
                 if (ThreadManager.ThreadKey == null)
                 {
-                    ThreadManager.ThreadKey = new TapThread(null, null);
+                    ThreadManager.ThreadKey = new TapThread(null, null, null);
                 }
                 return ThreadManager.ThreadKey;
             }
@@ -163,7 +167,7 @@ namespace OpenTap
         public static void WithNewContext(Action action, TapThread parent)
         {
             var currentThread = Current;
-            ThreadManager.ThreadKey = new TapThread(parent, action, currentThread.Name)
+            ThreadManager.ThreadKey = new TapThread(parent, action, null, currentThread.Name)
             {
                 Status = TapThreadStatus.Running
             };
@@ -178,10 +182,10 @@ namespace OpenTap
         }
 
         /// <summary> This should be used through Session. </summary>
-        internal static IDisposable UsingThreadContext(TapThread parent)
+        internal static IDisposable UsingThreadContext(TapThread parent, Action<TapThread> onHierarchyCompleted = null)
         {
             var currentThread = Current;
-            ThreadManager.ThreadKey = new TapThread(parent, () => { }, currentThread.Name)
+            ThreadManager.ThreadKey = new TapThread(parent, () => { }, onHierarchyCompleted, currentThread.Name)
             {
                 Status = TapThreadStatus.Running
             };
@@ -193,7 +197,7 @@ namespace OpenTap
         }
 
         /// <summary> This should be used through Session. </summary>
-        internal static IDisposable UsingThreadContext() => UsingThreadContext(TapThread.Current);
+        internal static IDisposable UsingThreadContext(Action<TapThread> onHierarchyCompleted = null) => UsingThreadContext(TapThread.Current, onHierarchyCompleted);
 
         /// <summary> Pretends that the current thread is a different thread while evaluating 'action'. 
         /// This affects the functionality of ThreadHeirachyLocals and TapThread.Current. </summary>
@@ -223,11 +227,16 @@ namespace OpenTap
         #endregion
 
         #region ctor
-        internal TapThread(TapThread parent, Action action, string name = "")
+        internal TapThread(TapThread parent, Action action, Action<TapThread> onHierarchyCompleted = null, string name = "")
         {
             Name = name;
             this.action = action;
             Parent = parent;
+            if (Parent != null && onHierarchyCompleted != null)
+            {
+                Interlocked.Increment(ref Parent.ThreadHierarchyCount); // add a "reference count" for this new child TapThread
+                ThreadHierarchyCompleted = onHierarchyCompleted;
+            }
             Status = TapThreadStatus.Queued;
             if (parent is TapThread parentThread)
             {
@@ -288,9 +297,16 @@ namespace OpenTap
         /// <param name="name">The (optional) name of the OpenTAP thread. </param>
         public static TapThread Start(Action action, string name = "")
         {
+            return Start(action, null, name);
+        }
+
+        internal static TapThread Start(Action action, Action<TapThread> onHierarchyCompleted, string name = "")
+        {
             if (action == null)
                 throw new ArgumentNullException(nameof(action), "Action to be executed cannot be null.");
-            return manager.Enqueue(action, name ?? "");
+            var newThread = new TapThread(Current, action, onHierarchyCompleted, name);
+            manager.Enqueue(newThread);
+            return newThread;
         }
 
         /// <summary>
@@ -344,6 +360,21 @@ namespace OpenTap
             }
         }
 
+        //internal int ThreadRefCount = 0;
+        //private void incrementThreadReference()
+        //{
+        //    var thread = this;
+        //    while (thread != null)
+        //    {
+        //        Interlocked.Increment(ref ThreadRefCount);
+        //        thread = thread.Parent;
+        //    }
+        //}
+
+        // Reference conter for all threads in this hierarchy
+        private int ThreadHierarchyCount = 1;
+        internal Action<TapThread> ThreadHierarchyCompleted;
+
         internal void Process()
         {
             if (action == null) throw new InvalidOperationException("TapThread cannot be executed twice.");
@@ -357,7 +388,22 @@ namespace OpenTap
                 Status = TapThreadStatus.Completed;
                 // set action to null to signal that it has been processed.
                 // also to allow GC to clean up closures.
-                action = null; 
+                action = null;
+
+                if (Interlocked.Decrement(ref ThreadHierarchyCount) == 0)
+                {
+                    Status = TapThreadStatus.HierarchyCompleted;
+                    if (ThreadHierarchyCompleted != null)
+                        ThreadHierarchyCompleted(this);
+                }
+
+                // when we created this TapThread we incremented this on the parent, now that we are done, decrement again.
+                if (Parent != null && Interlocked.Decrement(ref Parent.ThreadHierarchyCount) == 0)
+                {
+                    Parent.Status = TapThreadStatus.HierarchyCompleted;
+                    if (ThreadHierarchyCompleted != null)
+                        Parent.ThreadHierarchyCompleted(Parent);
+                }
             }
         }
 
@@ -395,15 +441,12 @@ namespace OpenTap
         /// <summary> Current number of threads. </summary>
         public uint ThreadCount => (uint)threads;
         /// <summary> Enqueue an action to be executed in the future. </summary>
-        /// <param name="action">The work to be processed.</param>
-        /// <param name="name">The (Optional) name of the new OpenTAP thread. </param>
-        public TapThread Enqueue(Action action, string name = "")
+        /// <param name="work">The work to be processed.</param>
+        public void Enqueue(TapThread work)
         {
             if(cancelSrc.IsCancellationRequested) throw new Exception("ThreadManager has been disposed.");
-            var newThread = new TapThread(TapThread.Current, action, name);
-            workQueue.Enqueue(newThread);
+            workQueue.Enqueue(work);
             freeWorkSemaphore.Release();
-            return newThread;
         }
         
         /// <summary> Creates a new ThreadManager. </summary>
@@ -542,14 +585,14 @@ namespace OpenTap
 
     /// <summary>
     /// Has a separate value for each hierarchy of Threads that it is set on.
-    /// If a thread sets this to a value, that value will be visible only to that thread and its child threads (as started using <see cref="TapThread.Start"/>)
+    /// If a thread sets this to a value, that value will be visible only to that thread and its child threads (as started using <see cref="TapThread.Start(Action, string)"/>)
     /// </summary>
     class ThreadHierarchyLocal<T> where T : class
     {
         ConditionalWeakTable<TapThread, T> threadObjects = new ConditionalWeakTable<TapThread, T>();
         /// <summary>
         /// Has a separate value for each hierarchy of Threads that it is set on.
-        /// If a thread sets this to a value, that value will be visible only to that thread and its child threads (as started using <see cref="TapThread.Start"/>)
+        /// If a thread sets this to a value, that value will be visible only to that thread and its child threads (as started using <see cref="TapThread.Start(Action, string)"/>)
         /// </summary>
         public T LocalValue
         {
