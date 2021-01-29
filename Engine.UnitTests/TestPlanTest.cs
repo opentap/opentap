@@ -1916,7 +1916,7 @@ namespace OpenTap.Engine.UnitTests
                     if (item is TestPlan testplan)
                     {
                         var resources = ResourceManagerUtils.GetResourceNodes(StaticResources.Cast<object>().Concat(EnabledSteps));
-                        testplan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
+                        TestPlanExecutonHelpers.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
                     }
                 }
             }

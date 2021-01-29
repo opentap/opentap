@@ -420,7 +420,7 @@ namespace OpenTap
                         if (resources.Any(r => r.Resource == null))
                             beginOpenResoureces(resources, cancellationToken);
 
-                        testPlan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
+                        TestPlanExecutonHelpers.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
                         
                         if (resources.Any(r => openTasks.ContainsKey(r.Resource) == false))
                             beginOpenResoureces(resources, cancellationToken); 
@@ -440,7 +440,7 @@ namespace OpenTap
                         if (!openCompletedWithSuccess)
                         {   // open did not complete or threw an exception.
 
-                            using (TimeoutOperation.Create(() => TestPlan.PrintWaitingMessage(Resources)))
+                            using (TimeoutOperation.Create(() => TestPlanExecutonHelpers.PrintWaitingMessage(Resources)))
                                 WaitUntilAllResourcesOpened(cancellationToken);
                         }
                         break;
@@ -744,7 +744,7 @@ namespace OpenTap
                         {
                             // Prompt for metadata for all resources, not only static ones.
                             var testPlanResources = ResourceManagerUtils.GetResourceNodes(EnabledSteps);
-                            plan.StartResourcePromptAsync(planRun, resources.Concat(testPlanResources).Select(res => res.Resource));
+                            TestPlanExecutonHelpers.StartResourcePromptAsync(planRun, resources.Concat(testPlanResources).Select(res => res.Resource));
                         }
 
                         if (resources.All(r => r.Resource?.IsConnected ?? false))

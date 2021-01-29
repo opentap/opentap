@@ -22,7 +22,6 @@ namespace OpenTap
     {
         internal static readonly TraceSource Log = OpenTap.Log.CreateSource(nameof(TestPlan));        
         private TestStepList _Steps;
-        private ITestPlanRunMonitor[] monitors; // For locking/unlocking or generally monitoring test plan start/stop.
         
         /// <summary>
         /// Field for external test plan parameters.
@@ -152,26 +151,13 @@ namespace OpenTap
             }
         }
 
-        TestPlanRun _currentRun;
-        TestPlanRun CurrentRun
-        {
-            set
-            {
-                _currentRun = value;
-                OnPropertyChanged(nameof(IsRunning));
-            }
-            get => _currentRun;
-        }
-
-        /// <summary> True if this TestPlan is currently running. </summary>
-        public bool IsRunning => CurrentRun != null;
-
         /// <summary> </summary>
         public TestPlan()
         {
             _Steps = new TestStepList();
             _Steps.Parent = this;
             ExternalParameters = new ExternalParameters(this);
+            executor = new TestPlanExecutor(this);
         }
         
         /// <summary>  Gets or sets if the test plan XML for this test plan should be cached. </summary>
@@ -351,7 +337,7 @@ namespace OpenTap
                 throw new InvalidOperationException("Cannot reload while running.");
             var serializer = new TapSerializer();
             var plan = (TestPlan)serializer.Deserialize(filestream, type: TypeData.FromType(typeof(TestPlan)), path: Path);
-            plan.currentExecutionState = this.currentExecutionState;
+            plan.executor.State = this.executor.State;
             plan.Path = this.Path;
             return plan;
         }
