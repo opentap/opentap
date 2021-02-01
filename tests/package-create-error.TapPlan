@@ -100,7 +100,7 @@
       </ChildTestSteps>
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
-    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ReplaceInFileStep" Version="0.0.0" Id="409f4045-0fc2-4b4b-a09c-c270de9b227b">
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ReplaceInFileStep">
       <File>../../NewProj/NewProj.csproj</File>
       <Search>2020.0.0-beta1</Search>
       <Replace>2016.0.0</Replace>
@@ -166,6 +166,30 @@
           <Enabled>true</Enabled>
           <Name>Run: {Application} {Command Line Arguments}</Name>
           <ChildTestSteps />
+          <BreakConditions>Inherit</BreakConditions>
+        </TestStep>
+      </ChildTestSteps>
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.RunOnOs">
+      <OperatingSystem>Windows</OperatingSystem>
+      <Enabled>true</Enabled>
+      <Name>Run On {OperatingSystem}</Name>
+      <ChildTestSteps>
+        <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep">
+          <ExpectedVerdict>Fail</ExpectedVerdict>
+          <Enabled>true</Enabled>
+          <Name>Expect {ExpectedVerdict} (1)</Name>
+          <ChildTestSteps>
+            <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.FindFileStep">
+              <SearchDir>%TMP%</SearchDir>
+              <Regex>.*opentap_package_tmp.zip</Regex>
+              <Enabled>true</Enabled>
+              <Name>Locate File '{Regex}' in {SearchDir}</Name>
+              <ChildTestSteps />
+              <BreakConditions>Inherit</BreakConditions>
+            </TestStep>
+          </ChildTestSteps>
           <BreakConditions>Inherit</BreakConditions>
         </TestStep>
       </ChildTestSteps>

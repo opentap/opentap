@@ -168,7 +168,7 @@ namespace OpenTap
         {
             lock (lockObject)
             {
-                var fileStream = File.Create(Filename,  1024 * 16, FileOptions.DeleteOnClose | FileOptions.SequentialScan);
+                var fileStream = new FileStream(Filename, FileMode.Create, FileAccess.Write, FileShare.ReadWrite,   1024 * 16, FileOptions.DeleteOnClose);
                 fileStream.Write(((MemoryStream)stream).GetBuffer(), 0, (int)stream.Length);
                 stream.Dispose();
                 stream = fileStream;
@@ -180,9 +180,8 @@ namespace OpenTap
             lock (lockObject)
             {
                 if (stream is FileStream)
-                    return new FileStream(Filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                else
-                    return new MemViewStream(((MemoryStream)stream).GetBuffer(), stream.Length);
+                    return new FileStream(Filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                return new MemViewStream(((MemoryStream)stream).GetBuffer(), stream.Length);
             }
         }
 

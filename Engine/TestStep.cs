@@ -396,7 +396,7 @@ namespace OpenTap
         /// </summary>
         /// <typeparam name="T">The type of TestStep to get.</typeparam>
         /// <returns>The closest TestStep of the requested type in the hierarchy.</returns>
-        protected T GetParent<T>() where T : ITestStepParent
+        protected T GetParent<T>()
         {
             return (this as ITestStep).GetParent<T>();
         }

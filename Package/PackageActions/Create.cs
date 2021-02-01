@@ -3,14 +3,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using OpenTap.Cli;
-using OpenTap.Package;
-using System.Text.RegularExpressions;
 using System.Threading;
+using Tap.Shared;
 
 namespace OpenTap.Package
 {
@@ -136,28 +132,30 @@ namespace OpenTap.Package
                     return 4;
                 }
 
-                var tmpFile = Path.GetTempFileName();
+                var tmpFile = PathUtils.GetTempFileName(".opentap_package_tmp.zip"); ;
 
                 // If user omitted the Version XML attribute or put Version="", lets inform.
                 if(string.IsNullOrEmpty(pkg.RawVersion))
                     log.Warning($"Package version is {pkg.Version} due to blank or missing 'Version' XML attribute in 'Package' element");
 
-                pkg.CreatePackage(tmpFile);
-
-                if (OutputPaths == null || OutputPaths.Length == 0)
-                    OutputPaths = new string[1] { "" };
-
-                foreach (var outputPath in OutputPaths)
+                using (var str = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, FileOptions.DeleteOnClose))
                 {
-                    var path = outputPath;
+                    pkg.CreatePackage(str);
+                    if (OutputPaths == null || OutputPaths.Length == 0)
+                        OutputPaths = new string[1] {""};
 
-                    if (String.IsNullOrEmpty(path))
-                        path = GetRealFilePathFromName(pkg.Name, pkg.Version.ToString(), DefaultEnding);
+                    foreach (var outputPath in OutputPaths)
+                    {
+                        var path = outputPath;
 
-                    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)));
+                        if (String.IsNullOrEmpty(path))
+                            path = GetRealFilePathFromName(pkg.Name, pkg.Version.ToString(), DefaultEnding);
 
-                    ProgramHelper.FileCopy(tmpFile, path);
-                    log.Info("OpenTAP plugin package '{0}' containing '{1}' successfully created.", path, pkg.Name);
+                        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)));
+
+                        ProgramHelper.FileCopy(tmpFile, path);
+                        log.Info("OpenTAP plugin package '{0}' containing '{1}' successfully created.", path, pkg.Name);
+                    }
                 }
 
                 if (FakeInstall)

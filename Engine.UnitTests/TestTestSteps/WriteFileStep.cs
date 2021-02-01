@@ -76,6 +76,8 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
         
         public override void Run()
         {
+            if (false == System.IO.File.Exists(File))
+                throw new FileNotFoundException("File does not exist", File);
             var semver = GetVersion(File);
             if (string.IsNullOrWhiteSpace(MatchVersion) == false)
             {
@@ -184,6 +186,31 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
             {
                 Log.Info("Skipping Child Steps On {0}", OpenTap.OperatingSystem.Current);
             }
+        }
+    }
+
+    [Display("Find File Step", "Finds a file in a dir. Pass when found, fail if not.", "Tests")]
+    public class FindFileStep : TestStep
+    {
+        [DirectoryPath] public MacroString SearchDir { get; set; } = new MacroString {Text = "."};
+
+        public string Regex { get; set; } = "\\.zip";
+
+        public override void Run()
+        {
+            var dir = SearchDir.Expand(this.PlanRun);
+            var regex = new Regex(Regex);
+            foreach(var file in Directory.GetFiles(dir))
+            {
+                
+                if (regex.IsMatch(file))
+                {
+                    Log.Debug("Matched file: {0}", file);
+                    UpgradeVerdict(Verdict.Pass);
+                    return;
+                }
+            }
+            UpgradeVerdict(Verdict.Fail);
         }
     }
     
