@@ -12,7 +12,20 @@ using System.Threading;
 
 namespace OpenTap
 {
-    class TestPlanExecutor
+    interface ITestPlanExecutor
+    {
+        TestPlanRun CurrentRun { get; }
+        bool PrintTestPlanRunSummary { get; set; }
+        TestPlanRun State { get; set; }
+
+        TestPlanRun Execute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride);
+
+        void Open(IEnumerable<IResultListener> listeners);
+
+        void Close();
+    }
+
+    class TestPlanExecutor : ITestPlanExecutor
     {
         #region Nested Types
         enum failState
@@ -127,7 +140,7 @@ namespace OpenTap
 
         failState execTestPlan(TestPlanRun execStage, IList<ITestStep> steps)
         {
-            WaitHandle.WaitAny(new[] { execStage.PromptWaitHandle, TapThread.Current.AbortToken.WaitHandle });
+            //WaitHandle.WaitAny(new[] { execStage.PromptWaitHandle, TapThread.Current.AbortToken.WaitHandle });
             bool resultListenerError = false;
             execStage.ScheduleInResultProcessingThread<IResultListener>(resultListener =>
             {
@@ -357,6 +370,13 @@ namespace OpenTap
             }
         }
 
+        /// <summary>
+        /// Execute the TestPlan as specified. Blocking.
+        /// </summary>
+        /// <param name="resultListeners">ResultListeners for result outputs.</param>
+        /// <param name="metaDataParameters">Optional metadata parameters.</param>
+        /// <param name="stepsOverride">Sub-section of test plan to be executed. Note this might include child steps of disabled parent steps.</param>
+        /// <returns>TestPlanRun results, no StepResults.</returns>
         private TestPlanRun DoExecute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride)
         {
             if (resultListeners == null)
@@ -545,13 +565,10 @@ namespace OpenTap
 
         public TestPlanRun Execute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride)
         {
-            using (TapThread.UsingThreadContext())
-            {
-                return DoExecute(resultListeners, metaDataParameters, stepsOverride);
-            }
+            return DoExecute(resultListeners, metaDataParameters, stepsOverride);
         }
 
-        internal void Close()
+        public void Close()
         {
             if (IsRunning)
                 throw new InvalidOperationException("Cannot close TestPlan while it is running.");
@@ -569,7 +586,7 @@ namespace OpenTap
             Log.Debug(timer, "TestPlan closed.");
         }
 
-        internal void Open(IEnumerable<IResultListener> listeners)
+        public void Open(IEnumerable<IResultListener> listeners)
         {
             if (listeners == null)
                 throw new ArgumentNullException(nameof(listeners));

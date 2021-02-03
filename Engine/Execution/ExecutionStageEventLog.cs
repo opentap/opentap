@@ -49,7 +49,8 @@ namespace OpenTap
             lock (addLock)
             {
                 EventLog.Add(e);
-                EventLogged(e);
+                if(EventLogged != null)
+                    EventLogged(e);
             }
         }
 

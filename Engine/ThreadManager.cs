@@ -182,10 +182,10 @@ namespace OpenTap
         }
 
         /// <summary> This should be used through Session. </summary>
-        internal static IDisposable UsingThreadContext(TapThread parent, Action<TapThread> onHierarchyCompleted = null)
+        internal static IDisposable UsingThreadContext(TapThread parent, string name, Action<TapThread> onHierarchyCompleted = null)
         {
             var currentThread = Current;
-            ThreadManager.ThreadKey = new TapThread(parent, () => { }, onHierarchyCompleted, currentThread.Name)
+            ThreadManager.ThreadKey = new TapThread(parent, () => { }, onHierarchyCompleted, name)
             {
                 Status = TapThreadStatus.Running
             };
@@ -197,7 +197,7 @@ namespace OpenTap
         }
 
         /// <summary> This should be used through Session. </summary>
-        internal static IDisposable UsingThreadContext(Action<TapThread> onHierarchyCompleted = null) => UsingThreadContext(TapThread.Current, onHierarchyCompleted);
+        internal static IDisposable UsingThreadContext(string name, Action<TapThread> onHierarchyCompleted = null) => UsingThreadContext(TapThread.Current, name, onHierarchyCompleted);
 
         /// <summary> Pretends that the current thread is a different thread while evaluating 'action'. 
         /// This affects the functionality of ThreadHeirachyLocals and TapThread.Current. </summary>
@@ -372,7 +372,7 @@ namespace OpenTap
         //}
 
         // Reference conter for all threads in this hierarchy
-        private int ThreadHierarchyCount = 1;
+        private int ThreadHierarchyCount = 1; 
         internal Action<TapThread> ThreadHierarchyCompleted;
 
         internal void Process()
@@ -398,7 +398,7 @@ namespace OpenTap
                 }
 
                 // when we created this TapThread we incremented this on the parent, now that we are done, decrement again.
-                if (Parent != null && Interlocked.Decrement(ref Parent.ThreadHierarchyCount) == 0)
+                if (Parent != null && Interlocked.Decrement(ref Parent.ThreadHierarchyCount) == 0)  //TODO: Also decrement grand-parents
                 {
                     Parent.Status = TapThreadStatus.HierarchyCompleted;
                     if (ThreadHierarchyCompleted != null)

@@ -67,7 +67,7 @@ namespace OpenTap
         public bool FailedToStart { get; set; }
 
         /// <summary> The thread that started the test plan. Use this to abort the plan thread. </summary>
-        public TapThread MainThread { get;  }
+        public TapThread MainThread { get; internal set; }
         
         #region Internal Members used by the TestPlan
 

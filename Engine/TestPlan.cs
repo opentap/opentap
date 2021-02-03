@@ -157,7 +157,8 @@ namespace OpenTap
             _Steps = new TestStepList();
             _Steps.Parent = this;
             ExternalParameters = new ExternalParameters(this);
-            executor = new TestPlanExecutor(this);
+            //executor = new TestPlanExecutor(this);
+            executor = new TestPlanStagedExecutor(this);
         }
         
         /// <summary>  Gets or sets if the test plan XML for this test plan should be cached. </summary>

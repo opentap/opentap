@@ -420,7 +420,7 @@ namespace OpenTap
                         if (resources.Any(r => r.Resource == null))
                             beginOpenResoureces(resources, cancellationToken);
 
-                        TestPlanExecutonHelpers.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
+                        //TestPlanExecutonHelpers.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
                         
                         if (resources.Any(r => openTasks.ContainsKey(r.Resource) == false))
                             beginOpenResoureces(resources, cancellationToken); 
@@ -744,7 +744,7 @@ namespace OpenTap
                         {
                             // Prompt for metadata for all resources, not only static ones.
                             var testPlanResources = ResourceManagerUtils.GetResourceNodes(EnabledSteps);
-                            TestPlanExecutonHelpers.StartResourcePromptAsync(planRun, resources.Concat(testPlanResources).Select(res => res.Resource));
+                            //TestPlanExecutonHelpers.StartResourcePromptAsync(planRun, resources.Concat(testPlanResources).Select(res => res.Resource));
                         }
 
                         if (resources.All(r => r.Resource?.IsConnected ?? false))

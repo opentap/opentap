@@ -158,7 +158,7 @@ namespace OpenTap
         public static Session Create(SessionOptions options = SessionOptions.OverlayComponentSettings | SessionOptions.RedirectLogging)
         {
             var session = new Session(options);
-            session.disposables.Push(TapThread.UsingThreadContext(session.DisposeStaticVars));
+            session.disposables.Push(TapThread.UsingThreadContext($"SessionRootContext-{session.Id}", session.DisposeStaticVars));
             session.Activate();
             return session;
         }

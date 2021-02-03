@@ -17,7 +17,7 @@ namespace OpenTap
     // This part of the TestPlan class holds the public API for running a testplan.
     partial class TestPlan
     {
-        private TestPlanExecutor executor;
+        internal ITestPlanExecutor executor;
 
 
         /// <summary>
@@ -65,14 +65,14 @@ namespace OpenTap
                 try
                 {
                     cancellationToken.Register(TapThread.Current.Abort);
-                    var testPlanRun = Execute(resultListeners, metaDataParameters, stepsOverride);
+                    var testPlanRun = executor.Execute(resultListeners, metaDataParameters, stepsOverride);
                     tcs.SetResult(testPlanRun);
                 }
                 catch (Exception e)
                 {
                     tcs.SetException(e);
                 }
-            }, "Plan Thread");
+            }, "Execute Thread");
             return tcs.Task;
         }
 
@@ -85,7 +85,8 @@ namespace OpenTap
         /// <returns>TestPlanRun results, no StepResults.</returns>
         public TestPlanRun Execute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters = null, HashSet<ITestStep> stepsOverride = null)
         {
-            return executor.Execute( resultListeners, metaDataParameters, stepsOverride);
+            using(TapThread.UsingThreadContext("Execute Context"))
+                return executor.Execute( resultListeners, metaDataParameters, stepsOverride);
         }
 
 
