@@ -227,9 +227,8 @@ namespace OpenTap.Package
                 }
                 else
                 {
-                    var compatibleWith = force ? new List<PackageDef>() : gatheredPackages.Concat(installedPackages);
-                    PackageDef package = FindPackage(packageReference, compatibleWith, repositories);
-                    
+                    PackageDef package = FindPackage(packageReference, new List<PackageDef>(), repositories);
+
                     if (noDowngrade)
                     {
                         var installedPackage = installedPackages.FirstOrDefault(p => p.Name == package.Name);
