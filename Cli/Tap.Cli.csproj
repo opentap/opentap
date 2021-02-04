@@ -3,6 +3,7 @@
     <OutputType>Library</OutputType>
     <AssemblyName>OpenTap.Cli</AssemblyName>
     <RootNamespace>OpenTap.Cli</RootNamespace>
+    <TargetFramework>netstandard2.0</TargetFramework>
   </PropertyGroup>
   
   <ItemGroup>
