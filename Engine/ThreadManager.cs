@@ -232,10 +232,13 @@ namespace OpenTap
             Name = name;
             this.action = action;
             Parent = parent;
-            if (Parent != null && onHierarchyCompleted != null)
+            ThreadHierarchyCompleted = onHierarchyCompleted;
+            if (onHierarchyCompleted != null)
+                ThreadHierarchyCount = 1;
+            if (onHierarchyCompletedUsed(Parent))
             {
+                ThreadHierarchyCount = 1;
                 Interlocked.Increment(ref Parent.ThreadHierarchyCount); // add a "reference count" for this new child TapThread
-                ThreadHierarchyCompleted = onHierarchyCompleted;
             }
             Status = TapThreadStatus.Queued;
             if (parent is TapThread parentThread)
@@ -360,19 +363,8 @@ namespace OpenTap
             }
         }
 
-        //internal int ThreadRefCount = 0;
-        //private void incrementThreadReference()
-        //{
-        //    var thread = this;
-        //    while (thread != null)
-        //    {
-        //        Interlocked.Increment(ref ThreadRefCount);
-        //        thread = thread.Parent;
-        //    }
-        //}
-
         // Reference conter for all threads in this hierarchy
-        private int ThreadHierarchyCount = 1;
+        private int ThreadHierarchyCount = -1;
         internal Action<TapThread> ThreadHierarchyCompleted;
 
         internal void Process()
@@ -390,19 +382,32 @@ namespace OpenTap
                 // also to allow GC to clean up closures.
                 action = null;
 
-                if (Interlocked.Decrement(ref ThreadHierarchyCount) == 0)
-                {
-                    Status = TapThreadStatus.HierarchyCompleted;
-                    if (ThreadHierarchyCompleted != null)
-                        ThreadHierarchyCompleted(this);
-                }
+                decrementThreadHierarchyCount(this);
+            }
+        }
 
-                // when we created this TapThread we incremented this on the parent, now that we are done, decrement again.
-                if (Parent != null && Interlocked.Decrement(ref Parent.ThreadHierarchyCount) == 0)
+        private static bool onHierarchyCompletedUsed(TapThread t)
+        {
+            if (t == null)
+                return false;
+            return t.ThreadHierarchyCount >= 0;
+        }
+
+        static void decrementThreadHierarchyCount(TapThread t)
+        {
+            if (onHierarchyCompletedUsed(t))
+            {
+                if (Interlocked.Decrement(ref t.ThreadHierarchyCount) == 0)
                 {
-                    Parent.Status = TapThreadStatus.HierarchyCompleted;
-                    if (ThreadHierarchyCompleted != null)
-                        Parent.ThreadHierarchyCompleted(Parent);
+                    t.Status = TapThreadStatus.HierarchyCompleted;
+                    if (t.ThreadHierarchyCompleted != null)
+                        t.ThreadHierarchyCompleted(t);
+
+                    // when we created this TapThread we incremented this on the parent, now that we are done, decrement again.
+                    if (t.Parent != null)
+                    {
+                        decrementThreadHierarchyCount(t.Parent);
+                    }
                 }
             }
         }
