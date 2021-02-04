@@ -304,8 +304,8 @@ namespace OpenTap
             set => rootLogContext.Timestamper = value;
         }
 
-        static readonly SessionStatic<LogContext.LogInjector> logField = new SessionStatic<LogContext.LogInjector>(null);
-        static readonly SessionStatic<LogContext> sessionLogContext = new SessionStatic<LogContext>(rootLogContext);
+        static readonly SessionLocal<LogContext.LogInjector> logField = new SessionLocal<LogContext.LogInjector>(null);
+        static readonly SessionLocal<LogContext> sessionLogContext = new SessionLocal<LogContext>(rootLogContext);
 
         internal static void WithNewContext()
         {

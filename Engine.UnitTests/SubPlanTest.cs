@@ -112,12 +112,15 @@ namespace OpenTap.UnitTests
         [Test]
         public void RedirectedLogTest()
         {
-            var listener = new MemoryTraceListener();
+            var rootListener = new MemoryTraceListener();
+            var sessionListener = new MemoryTraceListener();
             var log = Log.CreateSource("Redirect?");
             string msg1 = "This is redirected";
             string msg2 = "This is redirected and from another thread";
             string msg3 = "This is also redirected";
-            
+
+            Log.AddListener(rootListener);
+
             log.Debug("This is not redirected");
 
             var trd = TapThread.Start(() =>
@@ -138,7 +141,7 @@ namespace OpenTap.UnitTests
 
             using (Session.Create(SessionOptions.RedirectLogging))
             {
-                Log.AddListener(listener);
+                Log.AddListener(sessionListener);
                 var sem = new Semaphore(0, 1);
                 log.Debug(msg1);
                 TapThread.Start(() =>
@@ -153,16 +156,18 @@ namespace OpenTap.UnitTests
             log.Debug("This is also not redirected");
             using (Session.Create(SessionOptions.RedirectLogging))
             {
-                Log.AddListener(listener);
+                Log.AddListener(sessionListener);
                 log.Debug(msg3);
             }
 
             trd.Abort();
             
-            Assert.AreEqual(3, listener.Events.Count);
-            Assert.IsTrue(listener.Events[0].Message == msg1);
-            Assert.IsTrue(listener.Events[1].Message == msg2);
-            Assert.IsTrue(listener.Events[2].Message == msg3);
+            Assert.AreEqual(3, sessionListener.Events.Count);
+            Assert.IsTrue(sessionListener.Events[0].Message == msg1);
+            Assert.IsTrue(sessionListener.Events[1].Message == msg2);
+            Assert.IsTrue(sessionListener.Events[2].Message == msg3);
+
+            Assert.IsFalse(rootListener.Events.Any(e => e.Message == msg1));
         }
 
         [Test]

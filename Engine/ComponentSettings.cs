@@ -552,7 +552,7 @@ namespace OpenTap
         
         
         static ComponentSettingsContext context => sessionContext.Value;
-        static readonly SessionStatic<ComponentSettingsContext> sessionContext = new SessionStatic<ComponentSettingsContext>(new ComponentSettingsContext());
+        static readonly SessionLocal<ComponentSettingsContext> sessionContext = new SessionLocal<ComponentSettingsContext>(new ComponentSettingsContext());
 
         internal static void BeginSession()
         {

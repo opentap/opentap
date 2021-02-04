@@ -20,31 +20,31 @@ namespace OpenTap
         /// When this is used, test plans should be reloaded in the new context.  
         /// </summary>
         OverlayComponentSettings = 1,
-        /// <summary> Redirect logging. When this flag is enabled, existing log listeners can be overwritten with new ones. </summary>
+        /// <summary> Log messages written in Sessions that redirect logging only go to LogListeners that are added in that session. </summary>
         RedirectLogging = 2,
-        /// <summary>
-        /// When this option is specified, the thread context will not be a child of the calling context. 
-        /// Instead the session will be the root of a new separate context.
-        /// This will affect the behavior of e.g. <see cref="TapThread.Abort()"/> and <see cref="ThreadHierarchyLocal{T}"/>.
-        /// </summary>
-        ThreadHeirarchyRoot = 4,
+        ///// <summary>
+        ///// When this option is specified, the thread context will not be a child of the calling context. 
+        ///// Instead the session will be the root of a new separate context.
+        ///// This will affect the behavior of e.g. <see cref="TapThread.Abort()"/> and <see cref="ThreadHierarchyLocal{T}"/>.
+        ///// </summary>
+        //ThreadHeirarchyRoot = 4,
     }
 
-    internal interface ISessionStatic
+    internal interface ISessionLocal
     {
-        bool AutoDispose { get; set; }
+        bool AutoDispose { get; }
     }
 
     /// <summary>
     /// Used to hold a value that is specific to a session.
     /// </summary>
-    public class SessionStatic<T> : ISessionStatic
+    public class SessionLocal<T> : ISessionLocal
     {
         /// <summary>
         /// Automatically dispose the value when all threads in the session has completed.
         /// Only has any effect if T is IDisposable
         /// </summary>
-        public bool AutoDispose { get; set; }
+        public bool AutoDispose { get; private set; }
 
         /// <summary>
         /// Session specifc value.
@@ -53,11 +53,11 @@ namespace OpenTap
         {
             get
             {
-                if (Session.Current.StaticVars.TryGetValue(this, out object val))
+                if (Session.Current.sessionLocals.TryGetValue(this, out object val))
                     return (T)val;
                 return defaultValue;
             }
-            set => Session.Current.StaticVars[this] = value;
+            set => Session.Current.sessionLocals[this] = value;
         }
 
         readonly T defaultValue;
@@ -66,9 +66,11 @@ namespace OpenTap
         /// Used to hold a value that is specific to a session.
         /// </summary>
         /// <param name="defaultValue">Default value used if there is no session, or if the value has not been set for the session.</param>
-        public SessionStatic(T defaultValue)
+        /// <param name="autoDispose">True to automatically dispose the value when all threads in the session has completed. Only has any effect if T is IDisposable.</param>
+        public SessionLocal(T defaultValue, bool autoDispose = true)
         {
             this.defaultValue = defaultValue;
+            AutoDispose = autoDispose;
         }
     }
 
@@ -81,21 +83,20 @@ namespace OpenTap
     /// </summary>
     public class Session : IDisposable
     {
-        static ThreadField<Session> Sessions = new ThreadField<Session>(ThreadFieldMode.Cached);
-        static Dictionary<Guid, Session> RunningSessions = new Dictionary<Guid, Session>();
+        static ThreadField<Session> session = new ThreadField<Session>(ThreadFieldMode.Cached);
         internal static readonly Session RootSession = new Session(SessionOptions.None);
 
         readonly TapThread ThreadContext = TapThread.Current;
-        internal Dictionary<ISessionStatic, object> StaticVars = new Dictionary<ISessionStatic, object>();
+        internal Dictionary<ISessionLocal, object> sessionLocals = new Dictionary<ISessionLocal, object>();
 
-        internal void DisposeStaticVars(TapThread lastThread)
+        internal void DisposeSessionLocals(TapThread lastThread)
         {
-            foreach (var item in StaticVars)
+            foreach (var item in sessionLocals)
             {
                 if(item.Key.AutoDispose && item.Value is IDisposable disp)
                 {
                     disp.Dispose();
-                    StaticVars[item.Key] = null;
+                    sessionLocals[item.Key] = null;
                 }
             }
         }
@@ -103,7 +104,7 @@ namespace OpenTap
         /// <summary>
         /// Gets the currently active session.
         /// </summary>
-        public static Session Current => Sessions.Value ?? RootSession;
+        public static Session Current => session.Value ?? RootSession;
 
         /// <summary>
         /// Gets the session ID for this session.
@@ -120,7 +121,6 @@ namespace OpenTap
         Session(SessionOptions options)
         {
             this.options = options;
-            RunningSessions.Add(Id, this);
         } 
 
         static readonly TraceSource log = Log.CreateSource(nameof(Session));
@@ -143,8 +143,7 @@ namespace OpenTap
                     exceptions.Add(e);
                 }
             }
-            RunningSessions.Remove(Id);
-
+            
             foreach (var ex in exceptions)
             {
                 log.Error("Caught error while disposing session: {0}", ex.Message);
@@ -158,7 +157,7 @@ namespace OpenTap
         public static Session Create(SessionOptions options = SessionOptions.OverlayComponentSettings | SessionOptions.RedirectLogging)
         {
             var session = new Session(options);
-            session.disposables.Push(TapThread.UsingThreadContext(session.DisposeStaticVars));
+            session.disposables.Push(TapThread.UsingThreadContext(session.DisposeSessionLocals));
             session.Activate();
             return session;
         }
@@ -174,32 +173,14 @@ namespace OpenTap
                 try
                 {
                     session.Activate();
-                    Sessions.Value = session;
+                    Session.session.Value = session;
                     action();
                 }
                 finally
                 {
                     session.Dispose();
                 }
-            }, session.DisposeStaticVars, $"SessionRootThread-{session.Id}");
-        }
-
-        /// <summary>
-        /// Synchroniously runs the specified ation in the context of the given session
-        /// </summary>
-        /// <param name="sessionId">ID of the session.</param>
-        /// <param name="action">The action to run.</param>
-        /// <returns>The session in which the action is run</returns>
-        public static Session RunInSession(Guid sessionId, Action action)
-        {
-            if (RunningSessions.ContainsKey(sessionId))
-            {
-                var session = RunningSessions[sessionId];
-                session.RunInSession(action);
-                return session;
-            }
-            else
-                throw new ArgumentOutOfRangeException($"Session with ID {sessionId} does not exist.");
+            }, session.DisposeSessionLocals, $"SessionRootThread-{session.Id}");
         }
 
         /// <summary>
@@ -216,11 +197,11 @@ namespace OpenTap
         {
             try
             {
-                foreach (var item in Current.StaticVars)
+                foreach (var item in Current.sessionLocals)
                 {
-                    StaticVars.Add(item.Key, item.Value);
+                    sessionLocals.Add(item.Key, item.Value);
                 }
-                Sessions.Value = this;
+                session.Value = this;
                 if (Options.HasFlag(SessionOptions.OverlayComponentSettings))
                     ComponentSettings.BeginSession();
                 if (Options.HasFlag(SessionOptions.RedirectLogging))
