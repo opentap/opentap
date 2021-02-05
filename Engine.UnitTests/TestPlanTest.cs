@@ -2111,6 +2111,17 @@ namespace OpenTap.Engine.UnitTests
             // but in some restricted systems this can take longer than that.
             Assert.IsTrue(t.Wait(1000));
         }
+        
+        [Test]
+        public void TestBreakOnPlanCompleted()
+        {
+            var rl = new resultListenerCrash() {CrashResultPhase = resultListenerCrash.ResultPhase.PlanRunCompleted};
+            var plan = new TestPlan();
+            var step = new SequenceStep();
+            plan.ChildTestSteps.Add(step);
+            var run = plan.Execute(new IResultListener[] {rl});
+            Assert.AreEqual(Verdict.Error, run.Verdict);
+        }
     }
 
     public class TestITestStep : ValidatingObject, ITestStep
