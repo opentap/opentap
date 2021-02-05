@@ -183,6 +183,7 @@ namespace OpenTap
                     {
                         reslog.Error("Error in OnTestPlanRunCompleted for '{0}': '{1}'", r, ex.Message);
                         reslog.Debug(ex);
+                        UpgradeVerdict(Verdict.Error);
                     }
                 }
                 else
