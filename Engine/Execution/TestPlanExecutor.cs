@@ -162,7 +162,7 @@ namespace OpenTap
 
                     }
 
-                    execStage.WaitForSerialization();
+                    //execStage.WaitForSerialization();
                     foreach (var res in execStage.PromptedResources)
                         execStage.Parameters.AddRange(ResultParameters.GetMetadataFromObject(res));
                     resultListener.OnTestPlanRunStart(execStage);
@@ -491,7 +491,7 @@ namespace OpenTap
 
                 OpenInternal(execStage, continuedExecutionState, currentListeners.Cast<IResource>().ToList(), allEnabledSteps);
 
-                execStage.WaitForSerialization();
+                //execStage.WaitForSerialization();
                 execStage.ResourceManager.BeginStep(execStage, plan, TestPlanExecutionStage.Execute, TapThread.Current.AbortToken);
 
                 if (continuedExecutionState)

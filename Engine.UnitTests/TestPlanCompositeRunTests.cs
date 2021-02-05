@@ -131,32 +131,37 @@ namespace OpenTap.Engine.UnitTests
         public void RunCompositeFollowedByRun()
         {
             TestPlan target = getTestTestPlan();
-            
+
+            //TestTraceListener trace1 = new TestTraceListener();
+            //Log.AddListener(trace1);
             target.Open();
             target.Execute();
             target.Close();
             Log.Flush();
+            //Log.RemoveListener(trace1);
             TestTraceListener trace2 = new TestTraceListener();
             Log.AddListener(trace2);
             target.Open();
             target.Execute();
             target.Close();
+            Log.Flush();
             Log.RemoveListener(trace2);
-            TestTraceListener trace1 = new TestTraceListener();
-            Log.AddListener(trace1);
+            TestTraceListener trace3 = new TestTraceListener();
+            Log.AddListener(trace3);
             target.Execute();
-            Log.RemoveListener(trace1);
+            Log.Flush();
+            Log.RemoveListener(trace3);
 
-            string allLog1 = trace1.allLog.ToString();
+            string allLog3 = trace3.allLog.ToString();
             string allLog2 = trace2.allLog.ToString();
-            string[] log1Lines = filterLog(allLog1);
+            string[] log3Lines = filterLog(allLog3);
             string[] log2Lines = filterLog(allLog2);
 
 
-            Assert.AreEqual(log1Lines.Count() + 2, log2Lines.Count(), allLog2);
-            for (int i = 0; i < log1Lines.Length; i++)
+            Assert.AreEqual(log3Lines.Count() + 2, log2Lines.Count(), allLog2);
+            for (int i = 0; i < log3Lines.Length; i++)
             {
-                CollectionAssert.Contains(log2Lines, log1Lines[i]);
+                CollectionAssert.Contains(log2Lines, log3Lines[i]);
             }
         }
 

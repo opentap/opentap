@@ -36,19 +36,13 @@ namespace OpenTap
         {
             get
             {
-                if (planXml != null)
-                    return planXml;
-                WaitForSerialization();
                 return planXml;
             }
-            private set
+            internal set
             {
                 planXml = value;
             }
         }
-
-        /// <summary> Waits for the test plan to be serialized. </summary>
-        internal void WaitForSerialization() => serializePlanTask?.Wait(TapThread.Current.AbortToken);
 
         /// <summary> The SHA1 hash of XML of the test plan.</summary>
         public string Hash => Parameters[nameof(Hash)]?.ToString();
@@ -154,14 +148,6 @@ namespace OpenTap
         /// </summary>
         internal List<ITestStep> StepsWithPrePlanRun = new List<ITestStep>();
 
-        private string GetHash(byte[] testPlanXml)
-        {
-            using (var algo = System.Security.Cryptography.SHA1.Create())
-                return BitConverter.ToString(algo.ComputeHash(testPlanXml),0,8).Replace("-",string.Empty);
-        }
-
-        Task serializePlanTask;
-        
         internal void AddTestPlanCompleted(HybridStream logStream, bool openCompleted)
         {
             ScheduleInResultProcessingThread<IResultListener>(r => 
@@ -368,16 +354,6 @@ namespace OpenTap
 
         }
 
-        class StringHashPair
-        {
-            public string Xml { get; set; }
-            public string Hash { get; set; }
-            public byte[] Bytes { get; set; }
-        }
-        
-        /// <summary> Memorizer for storing pairs of Xml and hash. </summary>
-        static ConditionalWeakTable<TestPlan, StringHashPair> testPlanHashMemory = new ConditionalWeakTable<TestPlan, StringHashPair>();
-        
         /// <summary>
         /// Starts tasks to open resources. All referenced instruments and duts as well as supplied resultListeners to the plan.
         /// </summary>
@@ -385,8 +361,8 @@ namespace OpenTap
         /// <param name="resultListeners">The ResultListeners for this test plan run.</param>
         /// <param name="startTime">Property StartTime.</param>
         /// <param name="startTimeStamp"></param>
+        /// <param name="testPlanXml"></param>
         /// <param name="isCompositeRun"></param>
-        /// <param name="testPlanXml">Predefined test plan XML. Allowed to be null.</param>
         public TestPlanRun(TestPlan plan, IList<IResultListener> resultListeners, DateTime startTime, long startTimeStamp, string testPlanXml, bool isCompositeRun = false) : this()
         {
             if (plan == null)
@@ -414,69 +390,11 @@ namespace OpenTap
                 resultWorkers[res] = new WorkQueue(WorkQueue.Options.LongRunning | WorkQueue.Options.TimeAveraging, res.ToString());
             }
 
+            TestPlanXml = testPlanXml;
 
             StartTime = startTime;
             StartTimeStamp = startTimeStamp;
             this.plan = plan;
-            serializePlanTask = Task.Factory.StartNew(() =>
-            {
-                if (testPlanXml != null)
-                {
-                    TestPlanXml = testPlanXml;
-                    Parameters.Add("Test Plan", nameof(Hash), GetHash(Encoding.UTF8.GetBytes(testPlanXml)), new MetaDataAttribute());
-                    return;
-                }
-
-                if (plan.GetCachedXml() is byte[] xml)
-                {
-                    
-                    if(!testPlanHashMemory.TryGetValue(this.plan, out var pair))
-                    {
-                        if (pair == null)
-                        {
-                            pair = new StringHashPair();
-                            testPlanHashMemory.Add(plan, pair);    
-                        }
-                    }
-
-                    
-                    if (Equals(pair.Bytes, xml) == false)
-                    {
-                        pair.Xml = Encoding.UTF8.GetString(xml);
-                        pair.Hash = GetHash(xml);
-                        pair.Bytes = xml;
-                        TestPlanXml = pair.Xml;
-                    }
-                    else
-                        TestPlanXml = pair.Xml;
-
-                    Parameters.Add("Test Plan", nameof(Hash), pair.Hash, new MetaDataAttribute());
-                    return;
-                }
-
-                using (var memstr = new MemoryStream(128))
-                {
-                    var sw = Stopwatch.StartNew();
-                    try
-                    {
-                        plan.Save(memstr);
-                        var testPlanBytes = memstr.ToArray();
-                        TestPlanXml = Encoding.UTF8.GetString(testPlanBytes);
-                        
-                        Parameters.Add(new ResultParameter("Test Plan", nameof(Hash), GetHash(testPlanBytes),
-                            new MetaDataAttribute(), 0));
-                    }
-                    catch (Exception e)
-                    {
-                        log.Warning("Unable to XML serialize test plan.");
-                        log.Debug(e);
-                    }
-                    finally
-                    {
-                        log.Debug(sw, "Saved Test Plan XML");
-                    }
-                }
-            });
             
             
             TestPlanName = plan.Name;
@@ -550,24 +468,6 @@ namespace OpenTap
             this.IsCompositeRun = original.IsCompositeRun;
             Id = original.Id;
             this.plan = original.plan;
-            serializePlanTask = Task.Factory.StartNew(() =>
-            {
-                using (var memstr = new MemoryStream(128))
-                {
-                    try
-                    {
-                        plan.Save(memstr);
-                        var testPlanBytes = memstr.ToArray();
-                        TestPlanXml = Encoding.UTF8.GetString(testPlanBytes);
-                        Parameters.Add(new ResultParameter("Test Plan", nameof(Hash), GetHash(testPlanBytes), new MetaDataAttribute(), 0));
-                    }
-                    catch (Exception e)
-                    {
-                        log.Warning("Unable to XML serialize test plan.");
-                        log.Debug(e);
-                    }
-                }
-            });
             TestPlanName = original.TestPlanName;
         }
         #endregion

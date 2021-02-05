@@ -78,7 +78,7 @@ namespace OpenTap
         {
             public ITypeData StageType;
             public IExecutionStage Stage;
-            public List<Transision> Transisions;
+            public List<Transision> Transisions = new List<Transision>();
             public object StateTransitionLock = new object();
             public State State = State.Pending;
             public Result Result = Result.Pending;
@@ -123,7 +123,6 @@ namespace OpenTap
             foreach (Node node in AllNodes)
             {
                 var stageReferences = node.StageType.GetMembers().Where(m => m.TypeDescriptor.DescendsTo(stageBaseType));
-                node.Transisions = new List<Transision>();
                 if (stageReferences.Any())
                 {
                     foreach (var stageRef in stageReferences)

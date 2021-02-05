@@ -115,7 +115,7 @@ namespace OpenTap.Engine.UnitTests
             var planRun = target.Execute(new IResultListener[] { orderTester, pl });
             if (open)
             {
-                Assert.IsTrue(orderTester.IsConnected);
+                Assert.IsTrue(orderTester.IsConnected); // if this is not connected, it is probably because it threw an exception and was removed.
                 Assert.IsTrue(pl.IsConnected);
                 target.Close();
             }
