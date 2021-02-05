@@ -21,11 +21,12 @@ namespace OpenTap.UnitTests
         public class FirstStage : ITestExecutionStage
         {
             public int Output = 0;
-            public void Execute(ExecutionStageContext context)
+            public bool Execute(ExecutionStageContext context)
             {
                 Debug.WriteLine("First stage executing.");
                 Thread.Sleep(50);
                 Output = 1;
+                return true;
             }
         }
 
@@ -33,12 +34,13 @@ namespace OpenTap.UnitTests
         {
             public FirstStage First { get; set; }
             
-            public void Execute(ExecutionStageContext context)
+            public bool Execute(ExecutionStageContext context)
             {
                 Assert.NotNull(First);
                 Assert.AreEqual(1, First.Output);
                 Debug.WriteLine("Second stage executing.");
-                Thread.Sleep(50);
+                Thread.Sleep(50); 
+                return true;
             }
         }
 
@@ -46,10 +48,11 @@ namespace OpenTap.UnitTests
         {
             public SecondStage Dep { get; set; }
 
-            public void Execute(ExecutionStageContext context)
+            public bool Execute(ExecutionStageContext context)
             {
                 Assert.NotNull(Dep);
                 Thread.Sleep(50);
+                return true;
             }
         }
 
@@ -59,12 +62,13 @@ namespace OpenTap.UnitTests
             public SecondStage Dep { get; set; }
             public ThirdStage Dep2 { get; set; }
 
-            public void Execute(ExecutionStageContext context)
+            public bool Execute(ExecutionStageContext context)
             {
                 Assert.NotNull(Dep);
                 Assert.NotNull(Dep2);
                 Thread.Sleep(50);
                 DidRun = true;
+                return true;
             }
         }
 

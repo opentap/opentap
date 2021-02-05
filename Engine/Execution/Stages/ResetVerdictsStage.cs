@@ -8,7 +8,7 @@ namespace OpenTap
     class ResetVerdictsStage : TestPlanExecutionStageBase
     {
         public StepOverrideStage StepsStage { get; set; }
-        protected override void Execute(TestPlanExecutionContext context)
+        protected override bool Execute(TestPlanExecutionContext context)
         {
             foreach (var step in StepsStage.allSteps)
             {
@@ -18,6 +18,7 @@ namespace OpenTap
                     step.OnPropertyChanged("Verdict");
                 }
             }
+            return true;
         }
     }
 }

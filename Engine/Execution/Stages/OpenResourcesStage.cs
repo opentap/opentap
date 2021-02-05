@@ -12,7 +12,7 @@ namespace OpenTap
 
         public ITestPlanRunMonitor[] monitors { get; private set; }
 
-        protected override void Execute(TestPlanExecutionContext context)
+        protected override bool Execute(TestPlanExecutionContext context)
         {
             var currentListeners = context.currentExecutionState != null ? context.currentExecutionState.ResultListeners : context.resultListeners;
 
@@ -42,6 +42,7 @@ namespace OpenTap
                 foreach (var res in run.ResourceManager.Resources)
                     run.Parameters.AddRange(ResultParameters.GetMetadataFromObject(res));
             }
+            return true;
         }
     }
 }

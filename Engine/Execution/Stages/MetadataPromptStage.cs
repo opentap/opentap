@@ -13,7 +13,7 @@ namespace OpenTap
         public CreateRunStage CreateRunStage { get; set; }
 
         public OpenResourcesStage OpenResourcesStage { get; set; } // Only run this after resources have been opened
-        protected override void Execute(TestPlanExecutionContext context)
+        protected override bool Execute(TestPlanExecutionContext context)
         {
             TestPlanRun run = CreateRunStage.execStage;
             
@@ -22,6 +22,7 @@ namespace OpenTap
             TestPlanExecutonHelpers.StartResourcePromptAsync(run, resources.Select(res => res.Resource));
             
             WaitHandle.WaitAny(new[] { run.PromptWaitHandle, TapThread.Current.AbortToken.WaitHandle });
+            return true;
         }
     }
 }

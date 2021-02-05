@@ -13,7 +13,7 @@ namespace OpenTap
         public HybridStream logStream { get; private set; }
         public FileTraceListener planRunLog { get; private set; }
 
-        protected override void Execute(TestPlanExecutionContext context)
+        protected override bool Execute(TestPlanExecutionContext context)
         {
             Log.Info("-----------------------------------------------------------------"); // Print this to the session log, just before attaching the run log
 
@@ -22,6 +22,7 @@ namespace OpenTap
 
             planRunLog = new FileTraceListener(logStream) { IsRelative = true };
             OpenTap.Log.AddListener(planRunLog);
+            return true;
         }
     }
 }

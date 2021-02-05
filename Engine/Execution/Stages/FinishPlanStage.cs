@@ -13,21 +13,26 @@ namespace OpenTap
     class FinishPlanStage : TestPlanExecutionStageBase
     {
         internal static readonly TraceSource Log = OpenTap.Log.CreateSource("Executor(FP)");
+        
         public StepOverrideStage StepOverrideStage { get; set; }
+        
         public CreateLogStage CreateLogStage { get; set; }
 
         public CreateRunStage CreateRunStage { get; set; }
+
         [ExecutionStageReference(executeIfReferenceFails: true, executeIfReferenceSkipped: true)]
-        public ExecutePlanStage ExecutePlanStage { get; set; }
+        public RunStage RunStage { get; set; }
+
         [ExecutionStageReference(executeIfReferenceFails: true)]
         public OpenResourcesStage OpenResourcesStage { get; set; }
-        protected override void Execute(TestPlanExecutionContext context)
+        
+        protected override bool Execute(TestPlanExecutionContext context)
         {
             TestPlanRun execStage = CreateRunStage.execStage;
 
             Exception e = context.GetExceptionFromFailedStage(OpenResourcesStage);
             if(e == null)
-                e = context.GetExceptionFromFailedStage(ExecutePlanStage);
+                e = context.GetExceptionFromFailedStage(RunStage);
             if (e != null)
             {
                 if (e is OperationCanceledException && execStage.MainThread.AbortToken.IsCancellationRequested)
@@ -42,7 +47,7 @@ namespace OpenTap
                     Log.Warning("TestPlan aborted.");
                     execStage.UpgradeVerdict(Verdict.Aborted);
                     //Avoid entering the finally clause.
-                    return;
+                    return false;
                 }
                 else if (e is System.ComponentModel.LicenseException)
                 {
@@ -184,6 +189,7 @@ namespace OpenTap
                     step.StepRun = null;
                 
                 context.Run = null;
+                return true;
             }
         }
     }

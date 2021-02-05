@@ -20,7 +20,7 @@ namespace OpenTap
 
         public Stopwatch preRun_Run_PostRunTimer { get; private set; }
 
-        protected override void Execute(TestPlanExecutionContext context)
+        protected override bool Execute(TestPlanExecutionContext context)
         {
             long initTimeStamp = Stopwatch.GetTimestamp();
             var initTime = DateTime.Now;
@@ -71,6 +71,7 @@ namespace OpenTap
 
             context.Run = execStage;
             preRun_Run_PostRunTimer = Stopwatch.StartNew();
+            return true;
         }
     }
 }

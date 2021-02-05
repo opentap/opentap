@@ -32,7 +32,7 @@ namespace OpenTap
         /// <summary>
         /// Runs the stage.
         /// </summary>
-        void Execute(ExecutionStageContext context);
+        bool Execute(ExecutionStageContext context);
     }
 
     /// <summary>
@@ -228,14 +228,21 @@ namespace OpenTap
             Stopwatch timer = Stopwatch.StartNew();
             try
             {
-                stage.Execute(context);
-                EventLog.Add(new CompletedEvent(stage));
-                log.Debug(timer, "Stage {0} completed.",stage.GetType().Name);
+                if (stage.Execute(context))
+                {
+                    EventLog.Add(new CompletedEvent(stage));
+                    log.Debug(timer, "Stage {0} completed.", stage.GetType().Name);
+                }
+                else
+                {
+                    EventLog.Add(new FailedEvent(stage, null));
+                    log.Warning(timer, "Stage {0} failed.", stage.GetType().Name);
+                }
             }
             catch (Exception ex)
             {
                 EventLog.Add(new FailedEvent(stage, ex));
-                log.Warning(timer, "Stage {0} failed: {1}", stage.GetType().Name, ex.Message);
+                log.Warning(timer, "Stage {0} failed with exception: {1}", stage.GetType().Name, ex.Message);
             }
         }
 

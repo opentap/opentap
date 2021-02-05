@@ -18,7 +18,7 @@ namespace OpenTap
 
         public CreateRunStage CreateRun { get; set; }
 
-        protected override void Execute(TestPlanExecutionContext context)
+        protected override bool Execute(TestPlanExecutionContext context)
         {
             TestPlan plan = context.Plan;
             TestPlanRun run = CreateRun.execStage;
@@ -48,7 +48,7 @@ namespace OpenTap
                 if (run.TestPlanXml != null)
                 {
                     run.Parameters.Add("Test Plan", nameof(run.Hash), GetHash(Encoding.UTF8.GetBytes(run.TestPlanXml)), new MetaDataAttribute());
-                    return;
+                    return true;
                 }
 
                 if (plan.GetCachedXml() is byte[] xml)
@@ -75,7 +75,7 @@ namespace OpenTap
                         run.TestPlanXml = pair.Xml;
 
                     run.Parameters.Add("Test Plan", nameof(run.Hash), pair.Hash, new MetaDataAttribute());
-                    return;
+                    return true;
                 }
 
                 using (var memstr = new MemoryStream(128))
@@ -98,6 +98,7 @@ namespace OpenTap
                     }
                 }
             }
+            return true;
         }
 
 

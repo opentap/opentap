@@ -15,7 +15,7 @@ namespace OpenTap
         public List<ITestStep> allSteps { get; private set; }
         public List<ITestStep> allEnabledSteps { get; private set; }
 
-        protected override void Execute(TestPlanExecutionContext context)
+        protected override bool Execute(TestPlanExecutionContext context)
         {
             if (context.stepsOverride == null)
                 steps = context.Plan.Steps;
@@ -40,7 +40,7 @@ namespace OpenTap
 
             allSteps = Utils.FlattenHeirarchy(steps, step => step.ChildTestSteps);
             allEnabledSteps = Utils.FlattenHeirarchy(steps.Where(x => x.Enabled), step => step.GetEnabledChildSteps());
-
+            return true;
         }
     }
 }

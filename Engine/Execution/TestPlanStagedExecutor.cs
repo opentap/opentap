@@ -161,11 +161,11 @@ namespace OpenTap
 
     abstract class TestPlanExecutionStageBase : IExecutionStage
     {
-        public void Execute(ExecutionStageContext context)
+        public bool Execute(ExecutionStageContext context)
         {
-            Execute((TestPlanExecutionContext)context);
+            return Execute((TestPlanExecutionContext)context);
         }
 
-        protected abstract void Execute(TestPlanExecutionContext context);
+        protected abstract bool Execute(TestPlanExecutionContext context);
     }
 }

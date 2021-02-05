@@ -17,7 +17,7 @@ namespace OpenTap
 
         public SerializePlanStage SerializePlanStage { get; set; } // Wait for the TestPlanXml property in the TestPlanRun to be filled before calling OnTestPlanRunStart
 
-        protected override void Execute(TestPlanExecutionContext context)
+        protected override bool Execute(TestPlanExecutionContext context)
         {
             TestPlanRun execStage = CreateRun.execStage;
             Exception resultListenerError = null;
@@ -61,8 +61,9 @@ namespace OpenTap
             if (resultListenerError != null)
             {
                 execStage.FailedToStart = true;
-                throw resultListenerError;
+                return false;
             }
+            return true;
         }
     }
 }
