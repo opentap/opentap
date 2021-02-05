@@ -1,9 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-  </PropertyGroup>
-
   <ItemGroup>
     <Content Include="..\opentap.x64.package.xml" Link="opentap.x64.package.xml" />
     <Content Include="..\opentap.x86.package.xml" Link="opentap.x86.package.xml" />
