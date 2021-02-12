@@ -140,11 +140,43 @@ namespace OpenTap
     {
         #region fields
         static readonly ThreadManager manager = new ThreadManager();
+        
+        static readonly SessionLocal<ThreadManager> sessionThreadManager = new SessionLocal<ThreadManager>(manager);
         Action action;
-        readonly CancellationTokenSource abortTokenSource;
+ 
+        CancellationTokenSource _abortTokenSource;
+
+        object tokenCreateLock = new object();
+        CancellationTokenSource abortTokenSource
+        {
+            get
+            {
+                if (_abortTokenSource == null)
+                {
+                    lock (tokenCreateLock)
+                    {
+                        if (Parent is TapThread parentThread)
+                        {
+                            // Create a new cancellation token source and link it to the thread's parent abort token.
+                            _abortTokenSource =
+                                CancellationTokenSource.CreateLinkedTokenSource(parentThread.AbortToken);
+                        }
+                        else
+                        {
+                            if (sessionThreadManager.Value is ThreadManager mng)
+                                _abortTokenSource = CancellationTokenSource.CreateLinkedTokenSource(mng.AbortToken);
+                            else _abortTokenSource = new CancellationTokenSource();
+                        }
+                    }
+                }
+
+                return _abortTokenSource;
+            }
+        }
+
         #endregion
 
-        internal object[] Fields = null;
+        internal object[] Fields;
         #region properties
         /// <summary>
         /// The currently running TapThread
@@ -162,7 +194,7 @@ namespace OpenTap
         }
 
         /// <summary> Pretends that the current thread is a different thread while evaluating 'action'. 
-        /// This affects the functionality of ThreadHeirachyLocals and TapThread.Current. 
+        /// This affects the functionality of ThreadHierarchyLocals and TapThread.Current. 
         /// This overload also specifies which parent thread should be used.</summary>
         public static void WithNewContext(Action action, TapThread parent)
         {
@@ -177,30 +209,33 @@ namespace OpenTap
             }
             finally
             {
+                decrementThreadHierarchyCount(ThreadManager.ThreadKey);
                 ThreadManager.ThreadKey = currentThread;
             }
         }
 
         /// <summary> This should be used through Session. </summary>
-        internal static IDisposable UsingThreadContext(TapThread parent, Action<TapThread> onHierarchyCompleted = null)
+        internal static IDisposable UsingThreadContext(TapThread parent, Action onHierarchyCompleted = null)
         {
             var currentThread = Current;
-            ThreadManager.ThreadKey = new TapThread(parent, () => { }, onHierarchyCompleted, currentThread.Name)
+            var newThread = new TapThread(parent, () => { }, onHierarchyCompleted, currentThread.Name)
             {
                 Status = TapThreadStatus.Running
             };
-
+            ThreadManager.ThreadKey = newThread;
+            
             return Utils.WithDisposable(() =>
             {
+                decrementThreadHierarchyCount(newThread);
                 ThreadManager.ThreadKey = currentThread;
             });
         }
 
         /// <summary> This should be used through Session. </summary>
-        internal static IDisposable UsingThreadContext(Action<TapThread> onHierarchyCompleted = null) => UsingThreadContext(TapThread.Current, onHierarchyCompleted);
+        internal static IDisposable UsingThreadContext(Action onHierarchyCompleted = null) => UsingThreadContext(TapThread.Current, onHierarchyCompleted);
 
         /// <summary> Pretends that the current thread is a different thread while evaluating 'action'. 
-        /// This affects the functionality of ThreadHeirachyLocals and TapThread.Current. </summary>
+        /// This affects the functionality of ThreadHierarchyLocals and TapThread.Current. </summary>
         public static void WithNewContext(Action action)
         {
             WithNewContext(action, parent: Current);
@@ -219,44 +254,32 @@ namespace OpenTap
         /// </summary>
         public CancellationToken AbortToken => abortTokenSource.Token;
 
+        internal bool CanAbort { get; set; } = true;
+        
         /// <summary>
         /// The parent <see cref="TapThread">TapThread</see> that started this thread. In case it is null, then it is 
         /// not a managed <see cref="TapThread">TapThread</see>.
         /// </summary>
-        public TapThread Parent { get; private set; }
+        public TapThread Parent { get; }
         #endregion
 
         #region ctor
-        internal TapThread(TapThread parent, Action action, Action<TapThread> onHierarchyCompleted = null, string name = "")
+        internal TapThread(TapThread parent, Action action, Action onHierarchyCompleted = null, string name = "")
         {
             Name = name;
             this.action = action;
             Parent = parent;
-            ThreadHierarchyCompleted = onHierarchyCompleted;
-            if (onHierarchyCompleted != null)
-                ThreadHierarchyCount = 1;
-            if (onHierarchyCompletedUsed(Parent))
-            {
-                ThreadHierarchyCount = 1;
-                Interlocked.Increment(ref Parent.ThreadHierarchyCount); // add a "reference count" for this new child TapThread
-            }
+            threadHierarchyCompleted = onHierarchyCompleted ?? (() => {});
+            incrementThreadHeirarchy(this);
             Status = TapThreadStatus.Queued;
-            if (parent is TapThread parentThread)
-            {
-                // Create a new cancellation token source and link it to the thread's parent abort token.
-                abortTokenSource = CancellationTokenSource.CreateLinkedTokenSource(parentThread.abortTokenSource.Token);
-            }
-            else
-            {
-                // Create a new cancellation token source in case this thread has not TapThread parent.
-                abortTokenSource = new CancellationTokenSource();
-            }
+            
+
         }
 
         /// <summary> </summary>
         ~TapThread()
         {
-            abortTokenSource.Dispose();
+            _abortTokenSource?.Dispose();
         }
         #endregion
 
@@ -275,6 +298,8 @@ namespace OpenTap
         /// </summary>
         internal void Abort(string reason)
         {
+            //if (CanAbort == false)
+            //    throw new Exception("Cannot abort Thread");
             abortTokenSource.Cancel();
             if (Current.AbortToken.IsCancellationRequested)
             {
@@ -287,15 +312,14 @@ namespace OpenTap
                     {
                         if(reason != null)
                             throw new OperationCanceledException(reason, Current.AbortToken);
-                        else
-                            Current.AbortToken.ThrowIfCancellationRequested();
+                        Current.AbortToken.ThrowIfCancellationRequested();
                     }
                     trd = trd.Parent;
                 }
             }
         }
 
-        /// <summary> Enqueue an action to be executed asynchroniously. </summary>
+        /// <summary> Enqueue an action to be executed asynchronously. </summary>
         /// <param name="action">The action to be executed.</param>
         /// <param name="name">The (optional) name of the OpenTAP thread. </param>
         public static TapThread Start(Action action, string name = "")
@@ -303,7 +327,7 @@ namespace OpenTap
             return Start(action, null, name);
         }
 
-        internal static TapThread Start(Action action, Action<TapThread> onHierarchyCompleted, string name = "")
+        internal static TapThread Start(Action action, Action onHierarchyCompleted, string name = "")
         {
             if (action == null)
                 throw new ArgumentNullException(nameof(action), "Action to be executed cannot be null.");
@@ -363,9 +387,9 @@ namespace OpenTap
             }
         }
 
-        // Reference conter for all threads in this hierarchy
-        private int ThreadHierarchyCount = -1;
-        internal Action<TapThread> ThreadHierarchyCompleted;
+        // Reference counter for all threads in this hierarchy
+        int threadHierarchyCount;
+        readonly Action threadHierarchyCompleted;
 
         internal void Process()
         {
@@ -386,29 +410,25 @@ namespace OpenTap
             }
         }
 
-        private static bool onHierarchyCompletedUsed(TapThread t)
+        static void incrementThreadHeirarchy(TapThread trd)
         {
-            if (t == null)
-                return false;
-            return t.ThreadHierarchyCount >= 0;
+            for(; trd != null; trd = trd.Parent)
+                Interlocked.Increment(ref trd.threadHierarchyCount);
         }
-
+        
         static void decrementThreadHierarchyCount(TapThread t)
         {
-            if (onHierarchyCompletedUsed(t))
+            for (; t != null; t = t.Parent)
             {
-                if (Interlocked.Decrement(ref t.ThreadHierarchyCount) == 0)
+                var dec = Interlocked.Decrement(ref t.threadHierarchyCount); 
+                if (dec == 0)
                 {
                     t.Status = TapThreadStatus.HierarchyCompleted;
-                    if (t.ThreadHierarchyCompleted != null)
-                        t.ThreadHierarchyCompleted(t);
-
-                    // when we created this TapThread we incremented this on the parent, now that we are done, decrement again.
-                    if (t.Parent != null)
-                    {
-                        decrementThreadHierarchyCount(t.Parent);
-                    }
+                    t.threadHierarchyCompleted();
                 }
+
+                if (dec < 0)
+                    throw new InvalidOperationException("thread hierarchy count mismatch");
             }
         }
 
@@ -424,18 +444,17 @@ namespace OpenTap
     internal class ThreadManager : IDisposable
     {
         // this queue is generally empty, since a new thread will be started whenever no workers are available for processing.
-        ConcurrentQueue<TapThread> workQueue = new ConcurrentQueue<TapThread>();
+        readonly ConcurrentQueue<TapThread> workQueue = new ConcurrentQueue<TapThread>();
 
         [ThreadStatic]
         internal static TapThread ThreadKey;
         
         // used for cancelling currently running tasks.
-        CancellationTokenSource cancelSrc = new CancellationTokenSource();
+        readonly CancellationTokenSource cancelSrc = new CancellationTokenSource();
 
         // this semaphore counts up whenever there is work to be done.
-        Semaphore freeWorkSemaphore = new Semaphore(0, Int32.MaxValue);
+        readonly Semaphore freeWorkSemaphore = new Semaphore(0, Int32.MaxValue);
 
-        Thread threadManagerThread;
         /// <summary> The number of currently available workers.</summary>
         int freeWorkers = 0;
         /// <summary>
@@ -445,11 +464,17 @@ namespace OpenTap
 
         /// <summary> Current number of threads. </summary>
         public uint ThreadCount => (uint)threads;
+
+        /// <summary> Thread manager root abort token. This can cancel all thread and child threads.
+        /// Canceled when the thread manager is disposed. </summary>
+        public CancellationToken AbortToken => cancelSrc.Token;
+
         /// <summary> Enqueue an action to be executed in the future. </summary>
         /// <param name="work">The work to be processed.</param>
         public void Enqueue(TapThread work)
         {
-            if(cancelSrc.IsCancellationRequested) throw new Exception("ThreadManager has been disposed.");
+            if(cancelSrc.IsCancellationRequested) 
+                throw new Exception("ThreadManager has been disposed.");
             workQueue.Enqueue(work);
             freeWorkSemaphore.Release();
         }
@@ -457,11 +482,11 @@ namespace OpenTap
         /// <summary> Creates a new ThreadManager. </summary>
         internal ThreadManager()
         {
-            threadManagerThread = new Thread(threadManagerWork) { Name = "Thread Manager", IsBackground = true, Priority = ThreadPriority.Normal };
+            var threadManagerThread = new Thread(threadManagerWork) { Name = "Thread Manager", IsBackground = true, Priority = ThreadPriority.Normal };
             threadManagerThread.Start();
-            ThreadPool.GetMaxThreads(out MaxWorkerThreads, out int _);
+            //ThreadPool.GetMaxThreads(out MaxWorkerThreads, out int _);
         }
-        static int idleThreadCount = Environment.ProcessorCount * 2;
+        static readonly int idleThreadCount = 4;
         void threadManagerWork()
         {
             var handles = new WaitHandle[2];
@@ -480,10 +505,13 @@ namespace OpenTap
                 freeWorkSemaphore.Release();
                 if (freeWorkers < workQueue.Count)
                 {
-                    if (threads > MaxWorkerThreads || freeWorkers > 20)
+                    if (freeWorkers > 20)
+                        Thread.Sleep(freeWorkers);
+                    else if (threads > MaxWorkerThreads)
                     {
-                        // this is very bad (and unlikely). We should just wait for the threads to do their things and not start more threads.
-                        Thread.Sleep(20);
+                        int delay = threads - MaxWorkerThreads;
+                        Thread.Sleep(delay); // throttle the creation of new threads.
+                        newWorkerThread();
                     }
                     else
                     {

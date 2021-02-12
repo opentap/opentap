@@ -1,7 +1,6 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Collections.Immutable;
-using System.Threading;
 
 namespace OpenTap
 {
@@ -27,7 +26,7 @@ namespace OpenTap
         ///// Instead the session will be the root of a new separate context.
         ///// This will affect the behavior of e.g. <see cref="TapThread.Abort()"/> and <see cref="ThreadHierarchyLocal{T}"/>.
         ///// </summary>
-        //ThreadHeirarchyRoot = 4,
+        //ThreadHierarchyRoot = 4,
     }
 
     internal interface ISessionLocal
@@ -44,32 +43,42 @@ namespace OpenTap
         /// Automatically dispose the value when all threads in the session has completed.
         /// Only has any effect if T is IDisposable
         /// </summary>
-        public bool AutoDispose { get; private set; }
+        public bool AutoDispose { get; }
 
-        /// <summary>
-        /// Session specifc value.
-        /// </summary>
+        /// <summary> Session specific value. </summary>
         public T Value
         {
             get
             {
-                if (Session.Current.sessionLocals.TryGetValue(this, out object val))
-                    return (T)val;
-                return defaultValue;
+                for (var session = Session.Current; session != null; session = session.Parent)
+                {
+                    if (session.sessionLocals.TryGetValue(this, out object val))
+                        return (T) val;
+                    if (session == session.Parent) throw new InvalidOperationException("This should not be possible");
+                }
+                return default;
             }
             set => Session.Current.sessionLocals[this] = value;
         }
 
-        readonly T defaultValue;
 
         /// <summary>
         /// Used to hold a value that is specific to a session.
         /// </summary>
-        /// <param name="defaultValue">Default value used if there is no session, or if the value has not been set for the session.</param>
+        /// <param name="rootValue">Default value set at the root session.</param>
         /// <param name="autoDispose">True to automatically dispose the value when all threads in the session has completed. Only has any effect if T is IDisposable.</param>
-        public SessionLocal(T defaultValue, bool autoDispose = true)
+        public SessionLocal(T rootValue, bool autoDispose = true) : this(autoDispose)
         {
-            this.defaultValue = defaultValue;
+            if(Equals(rootValue, default(T)) == false)
+                Session.RootSession.sessionLocals[this] = rootValue;
+        }
+        
+        /// <summary>
+        /// Initializes a session local without a root/default value.
+        /// </summary>
+        /// <param name="autoDispose"></param>
+        public SessionLocal(bool autoDispose = true)
+        {
             AutoDispose = autoDispose;
         }
     }
@@ -83,28 +92,40 @@ namespace OpenTap
     /// </summary>
     public class Session : IDisposable
     {
-        static ThreadField<Session> session = new ThreadField<Session>(ThreadFieldMode.Cached);
-        internal static readonly Session RootSession = new Session(SessionOptions.None);
+        static readonly ThreadField<Session> sessionTField = new ThreadField<Session>(ThreadFieldMode.Cached);
+        
+        /// <summary> The default/root session. This session is active when no else is. </summary>
+        public static readonly Session RootSession;
 
-        readonly TapThread ThreadContext = TapThread.Current;
-        internal Dictionary<ISessionLocal, object> sessionLocals = new Dictionary<ISessionLocal, object>();
+        TapThread threadContext;
+        internal readonly ConcurrentDictionary<ISessionLocal, object> sessionLocals = new ConcurrentDictionary<ISessionLocal, object>();
 
-        internal void DisposeSessionLocals(TapThread lastThread)
+        /// <summary> The parent session of the current session. This marks the session that started it.</summary>
+        public readonly Session Parent;
+
+        static Session()
+        {
+            // TapThread needs a RootSession to start, so the first time, the TapThread cannot be set.
+            RootSession = new Session(SessionOptions.None, true);
+            RootSession.threadContext = TapThread.Current;
+        }
+        
+        internal void DisposeSessionLocals()
         {
             foreach (var item in sessionLocals)
             {
                 if(item.Key.AutoDispose && item.Value is IDisposable disp)
                 {
                     disp.Dispose();
-                    sessionLocals[item.Key] = null;
                 }
             }
+            sessionLocals.Clear();
         }
 
         /// <summary>
         /// Gets the currently active session.
         /// </summary>
-        public static Session Current => session.Value ?? RootSession;
+        public static Session Current => sessionTField.Value ?? RootSession;
 
         /// <summary>
         /// Gets the session ID for this session.
@@ -114,13 +135,16 @@ namespace OpenTap
         /// <summary>
         /// Gets the flags used to create/start this session.
         /// </summary>
-        public SessionOptions Options => options;
+        public SessionOptions Options { get; }
 
-        readonly SessionOptions options;
-
-        Session(SessionOptions options)
+        Session(SessionOptions options, bool rootSession = false)
         {
-            this.options = options;
+            Options = options;
+            if (!rootSession)
+            {
+                threadContext = TapThread.Current;
+                Parent = Current;
+            }
         } 
 
         static readonly TraceSource log = Log.CreateSource(nameof(Session));
@@ -173,7 +197,7 @@ namespace OpenTap
                 try
                 {
                     session.Activate();
-                    Session.session.Value = session;
+                    sessionTField.Value = session;
                     action();
                 }
                 finally
@@ -184,24 +208,20 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Synchroniously runs the specified ation in the context of the given session
+        /// Synchronously runs the specified action in the context of the given session
         /// </summary>
         /// <param name="action">The action to run.</param>
         /// <returns>The session in which the action is run</returns>
         public void RunInSession(Action action)
         {
-            TapThread.WithNewContext(action, this.ThreadContext);
+            TapThread.WithNewContext(action, this.threadContext);
         }
 
         void Activate()
         {
             try
             {
-                foreach (var item in Current.sessionLocals)
-                {
-                    sessionLocals.Add(item.Key, item.Value);
-                }
-                session.Value = this;
+                sessionTField.Value = this;
                 if (Options.HasFlag(SessionOptions.OverlayComponentSettings))
                     ComponentSettings.BeginSession();
                 if (Options.HasFlag(SessionOptions.RedirectLogging))

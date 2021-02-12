@@ -74,7 +74,7 @@ namespace OpenTap.Diagnostic
         {
             var copy = new List<ILogListener>();
             Event[] bunch = new Event[0];
-            while (true)
+            while (isDisposed == false)
             {
                 int count = LogQueue.DequeueBunch(ref bunch);
 
@@ -149,6 +149,7 @@ namespace OpenTap.Diagnostic
 
         public bool Flush(int timeoutMs = 0)
         {
+            if (isDisposed) return true;
             long posted = LogQueue.PostedMessages;
 
             flushBarrier.Set();
@@ -181,10 +182,12 @@ namespace OpenTap.Diagnostic
             return Flush((int)timeout.TotalMilliseconds);
         }
 
+        bool isDisposed;
         public void Dispose()
         {
             Flush();
-            processor.Abort();
+            isDisposed = true;
+            flushBarrier.Set();
         }
 
         public bool Async { get; set; }

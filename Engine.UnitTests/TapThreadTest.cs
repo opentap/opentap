@@ -29,7 +29,7 @@ namespace OpenTap.UnitTests
         /// Test two levels of children where the last level finishes last
         /// </summary>
         [Test]
-        public void TestHeirarchyCompleted1()
+        public void TestHierarchyCompleted1()
         {
             ManualResetEventSlim level1Completed = new ManualResetEventSlim();
             ManualResetEventSlim level2Completed = new ManualResetEventSlim();
@@ -48,7 +48,7 @@ namespace OpenTap.UnitTests
                     }, "Level2");
                     level1Completed.Set();
                 }, "Level1");
-            }, t =>
+            }, () =>
             {
                 level1CompletedBeforeHierarchyCompletedCallback = level1Completed.IsSet;
                 level2CompletedBeforeHierarchyCompletedCallback = level2Completed.IsSet;
@@ -64,7 +64,7 @@ namespace OpenTap.UnitTests
         /// Test two levels of children where the last level finishes first
         /// </summary>
         [Test]
-        public void TestHeirarchyCompleted2()
+        public void TestHierarchyCompleted2()
         {
             ManualResetEventSlim level1Completed = new ManualResetEventSlim();
             ManualResetEventSlim level2Completed = new ManualResetEventSlim();
@@ -82,7 +82,7 @@ namespace OpenTap.UnitTests
                     Thread.Sleep(100);
                     level1Completed.Set();
                 }, "Level1");
-            }, t =>
+            }, () =>
             {
                 level1CompletedBeforeHierarchyCompletedCallback = level1Completed.IsSet;
                 level2CompletedBeforeHierarchyCompletedCallback = level2Completed.IsSet;
