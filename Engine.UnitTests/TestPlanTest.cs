@@ -1999,6 +1999,72 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void TestFastTapThreads()
+        {
+            using (TapThread.UsingThreadContext())
+            {
+                var startThread = TapThread.Current;
+                long startedThreads = 0;
+                var sem = new Semaphore(0, 100);
+                void newThread()
+                {
+                    Interlocked.Increment(ref startedThreads);
+                    TapThread.Start(() =>
+                    {
+                        try
+                        {
+                            if (TapThread.Current.AbortToken.IsCancellationRequested)
+                                return;
+                            if (startedThreads > 100)
+                                startThread.Abort("end");
+                            newThread();
+                        }
+                        finally
+                        {
+                            sem.Release();
+                        }
+                    });
+                }
+                newThread();
+                for (long i = 0; i < startedThreads; i++)
+                    sem.WaitOne();
+            }
+        }
+        
+        [Test]
+        public void TestFastTapThreadsWaitWait()
+        {
+            using (TapThread.UsingThreadContext())
+            {
+                int concurrentThreads = 20;
+                
+                long startedThreads = 0;
+                var sem = new Semaphore(0,concurrentThreads);
+                void newThread()
+                {
+                    TapThread.Start(() =>
+                    {
+                        Interlocked.Increment(ref startedThreads);
+                        try
+                        {
+                            while (startedThreads < concurrentThreads)
+                                TapThread.Sleep(10);
+                        }
+                        finally
+                        {
+                            sem.Release();
+                        }
+                    });
+                }
+
+                for (int i = 0; i < concurrentThreads; i++)
+                    newThread();
+                for (long i = 0; i < concurrentThreads; i++)
+                    sem.WaitOne();
+            }
+        }
+        
+        [Test]
         public void OpenCloseOrderLazyRM()
         {
             var lastrm = EngineSettings.Current.ResourceManagerType;
