@@ -2015,7 +2015,7 @@ namespace OpenTap.Engine.UnitTests
                         {
                             if (TapThread.Current.AbortToken.IsCancellationRequested)
                                 return;
-                            if (startedThreads > 100)
+                            if (startedThreads >= 100)
                                 startThread.Abort("end");
                             newThread();
                         }

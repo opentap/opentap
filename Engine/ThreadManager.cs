@@ -541,8 +541,7 @@ namespace OpenTap
         // This method can be processed by many threads at once.
         void processQueue()
         {
-            int trd = Interlocked.Increment(ref threads);
-            Debug.WriteLine("ThreadManager: Stating thread {0}", trd);
+            Interlocked.Increment(ref threads);
             var handles = new WaitHandle[2];
             try
             {
@@ -591,20 +590,26 @@ namespace OpenTap
             }
             catch (ThreadAbortException)
             {
-                // Can be throws when the application exits.
+                // Can be thrown when the application exits.
             }
             catch (Exception e)
             {
                 // exceptions should be handled at the 'work' level.
-                Debug.WriteLine("Exception unhandled in worker thread.");
-                Debug.WriteLine(e.StackTrace);
+                log.Error("Exception unhandled in worker thread.");
+                log.Debug(e);
             }
             finally
             {
                 Interlocked.Decrement(ref freeWorkers);
-                trd = Interlocked.Decrement(ref threads);
-                Debug.WriteLine("ThreadManager: Ending thread {0}", trd);
+                Interlocked.Decrement(ref threads);
+                //log.Debug("ThreadManager: Ending thread {0}", trd);
             }
+        }
+
+        private static TraceSource _log;
+        private static TraceSource log
+        {
+            get => (_log ?? (_log = Log.CreateSource("thread")));
         }
 
         /// <summary> Disposes the ThreadManager. This can optionally be done at program exit.</summary>
