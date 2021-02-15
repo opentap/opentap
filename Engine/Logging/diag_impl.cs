@@ -70,12 +70,16 @@ namespace OpenTap.Diagnostic
             return new LogContext(false);
         }
 
+        readonly AutoResetEvent evt = new AutoResetEvent(false);
+
         void ProcessLog()
         {
             var copy = new List<ILogListener>();
             Event[] bunch = new Event[0];
             while (isDisposed == false)
             {
+                evt.WaitOne();
+                flushBarrier.WaitOne(100); // let things queue up unless flush is called.
                 int count = LogQueue.DequeueBunch(ref bunch);
 
                 if (count > 0)
@@ -110,12 +114,9 @@ namespace OpenTap.Diagnostic
                         }
                     }
 
-                    Interlocked.Add(ref processedMessages, bunch.Length);
+                    processedMessages += bunch.LongLength;    
                 }
-                else
-                {
-                    flushBarrier.WaitOne(50);
-                }
+                
             }
         }
 
@@ -153,6 +154,7 @@ namespace OpenTap.Diagnostic
             long posted = LogQueue.PostedMessages;
 
             flushBarrier.Set();
+            evt.Set();
 
             if (timeoutMs == 0)
             {
@@ -187,6 +189,7 @@ namespace OpenTap.Diagnostic
         {
             Flush();
             isDisposed = true;
+            evt.Set();
             flushBarrier.Set();
         }
 
@@ -224,6 +227,7 @@ namespace OpenTap.Diagnostic
             {
                 injectEvent(evt);
             }
+            this.evt.Set();
         }
 
         internal class LogInjector
