@@ -2037,18 +2037,20 @@ namespace OpenTap.Engine.UnitTests
             using (TapThread.UsingThreadContext())
             {
                 int concurrentThreads = 20;
-                
+                var evt = new ManualResetEvent(false);
                 long startedThreads = 0;
                 var sem = new Semaphore(0,concurrentThreads);
                 void newThread()
                 {
                     TapThread.Start(() =>
                     {
-                        Interlocked.Increment(ref startedThreads);
+                        if (Interlocked.Increment(ref startedThreads) == concurrentThreads)
+                            evt.Set();
+                        
                         try
                         {
-                            while (startedThreads < concurrentThreads)
-                                TapThread.Sleep(10);
+                            evt.WaitOne();
+                            TapThread.Sleep(10);
                         }
                         finally
                         {

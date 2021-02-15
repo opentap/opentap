@@ -100,9 +100,115 @@ namespace OpenTap.UnitTests
             CollectionAssert.AllItemsAreUnique(sessionIds);
         }
 
-        public void RunInSession()
+        class TestDisposable : IDisposable
         {
+            public int Id { get; set; }
 
+            public bool IsDisposed { get; set; }
+
+            ManualResetEvent waitForDispose = new ManualResetEvent(false);
+
+            public void WaitForDispose() => waitForDispose.WaitOne();
+            public void Dispose()
+            {
+                if (IsDisposed) throw new Exception("This value was previously disposed");
+                IsDisposed = true;
+                waitForDispose.Set();
+            }
+        }
+        
+        static SessionLocal<TestDisposable> testLocal = new SessionLocal<TestDisposable>(true);
+        /// <summary>
+        /// This unit test tests what happens with nested sessions and verifies that when session locals are configured
+        /// they keep their values, even when the session ends and some threads depends on the values from the threads.
+        /// Also checks that the values eventually will be disposed, even tough they  
+        /// </summary>
+        
+        public void NestedStart()
+        {
+            // start a new thread and return an action that is called to check
+            // if the value is still the expected one in that thread
+            Action startLocalValueChecker(int expectedLocalValue, CancellationToken cancellationToken)
+            {
+                var sem = new SemaphoreSlim(0, 1);
+                var sem2 = new SemaphoreSlim(0, 1);
+                TapThread.Start(() =>
+                {
+                    try
+                    {
+                        while(true)
+                        {
+                            sem.Wait(cancellationToken);
+                            try
+                            {
+                                Assert.IsFalse(testLocal.Value.IsDisposed);
+                                Assert.AreEqual(expectedLocalValue, testLocal.Value.Id);
+                            }
+                            finally
+                            {
+                                sem2.Release();
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        
+                    }
+                    finally
+                    {
+                        sem2.Release();
+                    }
+                });
+
+                void doCheck()
+                {
+                    sem.Release();
+                    sem2.Wait();
+                }
+
+                return doCheck;
+            }
+
+            var value1 = new TestDisposable(){Id = 5};
+            var value2 = new TestDisposable(){Id = 15};
+            var value3 = new TestDisposable(){Id = 25};
+            
+            
+            testLocal.Value = value1;
+            CancellationTokenSource c = new CancellationTokenSource();
+            Action check = startLocalValueChecker(5, c.Token);
+            check();
+            using(Session.Create())
+            {
+                Assert.AreEqual(5, testLocal.Value.Id);
+                testLocal.Value = value2;
+                check += startLocalValueChecker(15, c.Token);
+                check();
+                Assert.AreEqual(15, testLocal.Value.Id);
+                Assert.AreEqual(value2, testLocal.Value);
+                using(Session.Create())
+                {
+                    Assert.AreEqual(value2, testLocal.Value);
+                    Assert.AreEqual(15, testLocal.Value.Id);
+                    testLocal.Value = value3;
+                    check += startLocalValueChecker(25, c.Token);    
+                    Assert.AreEqual(25, testLocal.Value.Id);
+                    check();
+                }
+
+                check();
+                Assert.AreEqual(15, testLocal.Value.Id);
+            }
+            Assert.AreEqual(5, testLocal.Value.Id);
+            check();
+            c.Cancel();
+            check();
+            
+            Assert.IsFalse(value1.IsDisposed);
+            value2.WaitForDispose();
+            value3.WaitForDispose();
+            Assert.IsTrue(value2.IsDisposed);
+            Assert.IsTrue(value3.IsDisposed);
         }
     }
 }
