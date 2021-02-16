@@ -2066,16 +2066,29 @@ namespace OpenTap.Engine.UnitTests
         private class DeferredResultsStep2 : TestStep
         {
             public ManualResetEvent CompleteDefer = new ManualResetEvent(false);
+            public ManualResetEvent DeferStarted = new ManualResetEvent(false);
             public ManualResetEvent RunCompleted = new ManualResetEvent(false);
             public override void Run()
             {
                 Results.Defer(() =>
                 {
+                    DeferStarted.Set();
                     CompleteDefer.WaitOne();
                     Log.Info("Deferred Step also done");
                 });
                 RunCompleted.Set();
             }
+        }
+
+        [Test]
+        public void TestExecuteWaitForDefer_Simpler()
+        {
+            var plan = new TestPlan();
+            var defer = new DeferredResultsStep2();
+            plan.Steps.Add(defer);
+            Task<TestPlanRun> t = Task.Run(() => plan.Execute());
+            defer.CompleteDefer.Set();
+            Assert.IsTrue(t.Wait(100000));
         }
 
         [Test]
@@ -2086,14 +2099,29 @@ namespace OpenTap.Engine.UnitTests
             plan.Steps.Add(defer);
             Task<TestPlanRun> t = Task.Run(() => plan.Execute());
             defer.RunCompleted.WaitOne();
-            Thread.Sleep(300);
+            defer.DeferStarted.WaitOne();
+            // do something that takes about the time for a test plan to complete
+            TestExecuteWaitForDefer_WithParallel_Simpler(); 
+            
             Assert.IsFalse(t.IsCompleted);
             defer.CompleteDefer.Set();
-            Thread.Sleep(100);
-            Assert.IsTrue(t.IsCompleted);
+            Assert.IsTrue(t.Wait(100000));
         }
 
-        [Test, Retry(3)]
+        [Test]
+        public void TestExecuteWaitForDefer_WithParallel_Simpler()
+        {
+            var plan = new TestPlan();
+            var parallel = new ParallelStep();
+            var defer = new DeferredResultsStep2();
+            plan.Steps.Add(parallel);
+            parallel.ChildTestSteps.Add(defer);
+            Task<TestPlanRun> t = Task.Run(() => plan.Execute());
+            defer.CompleteDefer.Set();
+            Assert.IsTrue(t.Wait(100000));
+        }
+        
+        [Test]
         public void TestExecuteWaitForDefer_WithParallel()
         {
             var plan = new TestPlan();
@@ -2102,14 +2130,16 @@ namespace OpenTap.Engine.UnitTests
             plan.Steps.Add(parallel);
             parallel.ChildTestSteps.Add(defer);
             Task<TestPlanRun> t = Task.Run(() => plan.Execute());
+            defer.DeferStarted.WaitOne();
             defer.RunCompleted.WaitOne();
-            Thread.Sleep(300);
+            
+            // do something that takes about the time for a test plan to complete
+            TestExecuteWaitForDefer_WithParallel_Simpler();
+            
             Assert.IsFalse(t.IsCompleted);
             defer.CompleteDefer.Set();
-            // this should eventually complete.
-            // previously the wait was 100ms, 
-            // but in some restricted systems this can take longer than that.
-            Assert.IsTrue(t.Wait(1000));
+            
+            Assert.IsTrue(t.Wait(100000));
         }
     }
 
