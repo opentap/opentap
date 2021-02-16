@@ -1178,10 +1178,16 @@ namespace OpenTap.Engine.UnitTests
             public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
             {
                 var sub = AnnotationCollection.Annotate(dataObject).Get<IForwardedAnnotations>().Forwarded.ToArray();
-                var comment = sub.First(x => x.Get<IMemberAnnotation>().Member.Name == "MetaComment");
-                Assert.IsNotNull(comment != null);
-                comment.Get<IStringValueAnnotation>().Value = "Just another meta comment";
-                comment.Write();
+                foreach(string name in new []{"MetaComment", "MetaComment2"}){
+                    var comments = sub.Where(x => x.Get<IMemberAnnotation>().Member.Name == name);
+                    Assert.AreEqual(1, comments.Count());
+                    var comment = comments.First();
+
+                    Assert.IsNotNull(comment != null);
+                    comment.Get<IStringValueAnnotation>().Value = "Just another meta comment";
+                    comment.Write();
+                }
+                
             }
         }
 
@@ -1192,6 +1198,10 @@ namespace OpenTap.Engine.UnitTests
             [MetaData(true)]
             [Display("MetaComment", Description: "Some comment for meta data")]
             public string MetaComment { get; set; }
+            
+            [MetaData(true)]
+            [Display("MetaComment2", Description: "Some comment for meta data 2")]
+            public string MetaComment2 { get; set; }
 
             public TestComponentSetting() { }
         }
@@ -1201,6 +1211,8 @@ namespace OpenTap.Engine.UnitTests
             public override void Run()
             {
                 if (string.Compare("Just another meta comment", TestComponentSetting.Current.MetaComment, true) != 0)
+                    throw new InvalidOperationException();
+                if (string.Compare("Just another meta comment", TestComponentSetting.Current.MetaComment2, true) != 0)
                     throw new InvalidOperationException();
                 UpgradeVerdict(Verdict.Pass);
             }
