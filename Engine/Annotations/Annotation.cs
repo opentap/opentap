@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
@@ -1382,21 +1383,26 @@ namespace OpenTap
                                 return mem.IsBrowsable();
                             return true;
                         }
+                        
+                        double order(Enum e) =>  enumType.GetMember(e.ToString()).FirstOrDefault().GetDisplayAttribute().Order;
 
-                        availableValues = Enum.GetValues(enumType).Cast<Enum>().Where(isBrowsable).ToArray();
+                        availableValues = Enum.GetValues(enumType)
+                            .Cast<Enum>()
+                            .Where(isBrowsable)
+                            .OrderBy(order)
+                            .ToArray();
                     }
                     return availableValues;
                 }
             }
 
+            readonly Type enumType;
+            EnumValuesAnnotation(Type enumType) => this.enumType = enumType;
 
-            Type enumType;
-            AnnotationCollection a;
-            public EnumValuesAnnotation(Type enumType, AnnotationCollection a)
-            {
-                this.enumType = enumType;
-                this.a = a;
-            }
+            static readonly ConcurrentDictionary<Type, EnumValuesAnnotation> lookup =
+                new ConcurrentDictionary<Type, EnumValuesAnnotation>();
+            public static EnumValuesAnnotation FromEnumType(Type type) =>
+                lookup.GetOrAdd(type, x => new EnumValuesAnnotation(x));
         }
 
         class EnumStringAnnotation : IStringValueAnnotation, IValueDescriptionAnnotation, ICopyStringValueAnnotation
@@ -2619,7 +2625,7 @@ namespace OpenTap
                         }
                         else
                         {    
-                            annotation.Add(new EnumValuesAnnotation(type, annotation));
+                            annotation.Add(EnumValuesAnnotation.FromEnumType(type));
                             annotation.Add(new EnumStringAnnotation(type, annotation));
 
                             if (csharpType.HasFlags())
@@ -2792,7 +2798,7 @@ namespace OpenTap
                                 lst.Add(da2);
                             }
                         }
-                        lst.RemoveIf<AnnotationCollection>(x => x.Get<IAccessAnnotation>()?.IsVisible == false);
+                        lst.RemoveIf(x => x.Get<IAccessAnnotation>()?.IsVisible == false);                 
                         annotations = lst;
 
                     }
