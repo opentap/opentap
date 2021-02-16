@@ -345,9 +345,10 @@ namespace OpenTap
         {
             var resources = _resources.Where(x => x != null).ToArray();
             
-            List<Type> componentSettingsWithMetaData = new List<Type>();
-            var componentSettings = PluginManager.GetPlugins<ComponentSettings>();
-            bool AnyMetaData = false;
+            var componentSettingsWithMetaData = new List<ITypeData>();
+            var componentSettings = TypeData.GetDerivedTypes<ComponentSettings>()
+                .Where(type => type.CanCreateInstance);
+            bool anyMetaData = false;
             planRun.PromptWaitHandle.Reset();
 
             try
@@ -359,32 +360,36 @@ namespace OpenTap
                         var attr = member.GetAttribute<MetaDataAttribute>();
                         if (attr != null && attr.PromptUser)
                         {
-                            AnyMetaData = true;
+                            anyMetaData = true;
                             componentSettingsWithMetaData.Add(setting);
+                            break; // avoid adding this multiple times.
                         }
                     }
                 }
 
                 foreach (var resource in resources)
                 {
+                    if (anyMetaData) break;
                     var type = TypeData.GetTypeData(resource);
-                    foreach (var __prop in type.GetMembers())
+                    foreach (var prop in type.GetMembers())
                     {
-                        IMemberData prop = __prop;
                         var attr = prop.GetAttribute<MetaDataAttribute>();
                         if (attr != null && attr.PromptUser)
-                            AnyMetaData = true;
+                        {
+                            anyMetaData = true;
+                            break;
+                        }
                     }
                 }
             }
             catch
             {
-                // this is just a defensive catch to make sure that the waithandle is not left unset (and we risk waiting for it indefinitely)
+                // this is just a defensive catch to make sure that the WaitHandle is not left unset (and we risk waiting for it indefinitely)
                 planRun.PromptWaitHandle.Set();
                 throw;
             }
             
-            if (AnyMetaData && EngineSettings.Current.PromptForMetaData)
+            if (anyMetaData && EngineSettings.Current.PromptForMetaData)
             {
                 TapThread.Start(() =>
                     {
@@ -393,6 +398,7 @@ namespace OpenTap
                             List<object> objects = new List<object>();
                             objects.AddRange(componentSettingsWithMetaData.Select(ComponentSettings.GetCurrent));
                             objects.AddRange(resources);
+                            objects.RemoveIf<object>(x => x == null); //ComponentSettings.GetCurrent can return null for abstract types.
 
                             planRun.PromptedResources = resources;
                             var obj = new MetadataPromptObject { Resources = objects };
@@ -809,3 +815,4 @@ namespace OpenTap
         
     }
 }
+    
