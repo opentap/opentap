@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using NUnit.Framework;
@@ -232,8 +233,10 @@ namespace OpenTap.Engine.UnitTests
                     {
                         var refPlan = new TestPlanReference
                         {
-                            HideSteps = HideSteps
                         };
+                        var hideSteps = refPlan.GetType().GetProperty("HideSteps", BindingFlags.Instance | BindingFlags.NonPublic);
+                        hideSteps.SetValue(refPlan, true);
+
                         refPlan.Filepath.Text = tmpFile;
                         testPlan.Steps.Add(refPlan);
                         refPlan.Filepath= refPlan.Filepath;

@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading;
 using NUnit.Framework;
 using OpenTap.Diagnostic;
@@ -282,9 +282,10 @@ namespace OpenTap.UnitTests
                 {
                     var tpr1 = new TestPlanReference
                     {
-                        Filepath = {Text = planName},
-                        HideSteps = true
+                        Filepath = {Text = planName}
                     };
+                    var hideSteps = tpr1.GetType().GetProperty("HideSteps", BindingFlags.Instance | BindingFlags.NonPublic);
+                    hideSteps.SetValue(tpr1, true);
                     par.ChildTestSteps.Add(tpr1);
                 }
                 

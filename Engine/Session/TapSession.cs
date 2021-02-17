@@ -147,9 +147,11 @@ namespace OpenTap
                 threadContext = TapThread.Current;
                 Parent = Current;
             }
-        } 
+        }
 
-        static readonly TraceSource log = Log.CreateSource(nameof(Session));
+        static TraceSource _log;
+        // lazily loaded to prevent a circular dependency between Session and LogContext.
+        static TraceSource log => _log ?? (_log = Log.CreateSource(nameof(Session)));
         
         readonly Stack<IDisposable> disposables = new Stack<IDisposable>();
         
