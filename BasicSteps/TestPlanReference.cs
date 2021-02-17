@@ -34,7 +34,7 @@ namespace OpenTap.Plugins.BasicSteps
         
         /// <summary>  Gets or sets if the loaded test steps should be hidden from the user. </summary>
         [Display("Hide Steps", Order: 0, Description: "Set if the steps should run hidden (isolated) or if they should be loaded into the test plan.")]
-        public bool HideSteps { get; set; }
+        private bool HideSteps { get; set; }
 
         ITestStepParent parent;
         // The PlanDir of 'this' should be ignored when calculating Filepath, so the MacroString context is set to the parent.

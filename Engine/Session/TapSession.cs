@@ -64,6 +64,7 @@ namespace OpenTap
 
         /// <summary>
         /// Used to hold a value that is specific to a session.
+        /// Initializes a session local with a root/default value.
         /// </summary>
         /// <param name="rootValue">Default value set at the root session.</param>
         /// <param name="autoDispose">True to automatically dispose the value when all threads in the session has completed. Only has any effect if T is IDisposable.</param>
@@ -72,11 +73,12 @@ namespace OpenTap
             if(Equals(rootValue, default(T)) == false)
                 Session.RootSession.sessionLocals[this] = rootValue;
         }
-        
+
         /// <summary>
+        /// Used to hold a value that is specific to a session.
         /// Initializes a session local without a root/default value.
         /// </summary>
-        /// <param name="autoDispose"></param>
+        /// <param name="autoDispose">True to automatically dispose the value when all threads in the session has completed. Only has any effect if T is IDisposable.</param>
         public SessionLocal(bool autoDispose = true)
         {
             AutoDispose = autoDispose;
@@ -94,7 +96,7 @@ namespace OpenTap
     {
         static readonly ThreadField<Session> sessionTField = new ThreadField<Session>(ThreadFieldMode.Cached);
         
-        /// <summary> The default/root session. This session is active when no else is. </summary>
+        /// <summary> The default/root session. This session is active when no other session is. </summary>
         public static readonly Session RootSession;
 
         TapThread threadContext;
