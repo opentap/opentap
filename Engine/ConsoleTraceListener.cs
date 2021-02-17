@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using OpenTap.Diagnostic;
@@ -39,6 +40,35 @@ namespace OpenTap
         /// </summary>
         public bool IsColor { get; set; }
 
+        private bool isAnsiColorCodes = false;
+        private void EnableAnsiColorCodes()
+        {
+            if (OperatingSystem.Current == OperatingSystem.Windows)
+            {
+                try
+                {
+                    if (Environment.GetEnvironmentVariable("OPENTAP_ANSI_COLORS") != null)
+                    {
+                        isAnsiColorCodes = true;
+                        // This is a "isolated" process that has its stdoout redirected to the parent process. 
+                        // The parent process already successfully enabled ansi color codes. No need to do anything else here.
+                        return;
+                    }
+                    isAnsiColorCodes = AnsiColorCodeFix.TryEnableForWin10();
+                    if (isAnsiColorCodes)
+                        Environment.SetEnvironmentVariable("OPENTAP_ANSI_COLORS", "1");
+                }
+                catch (Exception ex)
+                {
+                    InternalTraceEvent("Console", LogEventType.Debug, 0, $"Error while enabeling ANSI colors: {ex.Message}", 0);
+                }
+            }
+            else
+            {
+                isAnsiColorCodes = true;
+            }
+        }
+
         /// <summary>
         /// Waits for the messages to be written to the console.
         /// </summary>
@@ -59,6 +89,8 @@ namespace OpenTap
             this.IsVerbose = isVerbose;
             this.IsQuiet = isQuiet;
             this.IsColor = isColor;
+            if (isColor)
+                EnableAnsiColorCodes();
         }
 
         internal static ConsoleColor GetColorForTraceLevel(LogEventType eventType)
@@ -73,6 +105,25 @@ namespace OpenTap
                     return ConsoleColor.DarkGray;
                 default:
                     return ConsoleColor.Gray;
+            }
+        }
+
+        internal static string GetAnsiCodeColorForTraceLevel(LogEventType eventType)
+        {
+            const string AnsiRed = "\x1B[31m";
+            const string AnsiYellow = "\x1B[33m";
+            const string AnsiBrightBlack = "\x1B[30;1m";
+            const string AnsiReset = "\x1B[0m";
+            switch (eventType)
+            {
+                case LogEventType.Error:
+                    return AnsiRed;
+                case LogEventType.Warning:
+                    return AnsiYellow;
+                case LogEventType.Debug:
+                    return AnsiBrightBlack;
+                default:
+                    return AnsiReset;
             }
         }
 
@@ -99,11 +150,19 @@ namespace OpenTap
 
             if (IsColor)
             {
-                ConsoleColor color = GetColorForTraceLevel(eventType);
-                if (color != currentColor)
+                if (isAnsiColorCodes)
                 {
-                    currentColor = color;
-                    Console.ForegroundColor = color;
+                    string colorCode = GetAnsiCodeColorForTraceLevel(eventType);
+                    formattedLine = colorCode + formattedLine + GetAnsiCodeColorForTraceLevel(LogEventType.Information);
+                }
+                else
+                {
+                    ConsoleColor color = GetColorForTraceLevel(eventType);
+                    if (color != currentColor)
+                    {
+                        currentColor = color;
+                        Console.ForegroundColor = color;
+                    }
                 }
             }
 
@@ -134,6 +193,47 @@ namespace OpenTap
                     Console.ForegroundColor = currentColor;
                 }
             }
+        }
+    }
+
+    class AnsiColorCodeFix
+    {
+        private const int STD_OUTPUT_HANDLE = -11;
+        private const uint ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004;
+        private const uint DISABLE_NEWLINE_AUTO_RETURN = 0x0008;
+
+        [DllImport("kernel32.dll")]
+        private static extern bool GetConsoleMode(IntPtr hConsoleHandle, out uint lpMode);
+
+        [DllImport("kernel32.dll")]
+        private static extern bool SetConsoleMode(IntPtr hConsoleHandle, uint dwMode);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr GetStdHandle(int nStdHandle);
+
+        [DllImport("kernel32.dll")]
+        public static extern uint GetLastError();
+
+        /// <summary>
+        /// This should work for win10 version 1511 or later
+        /// </summary>
+        public static bool TryEnableForWin10()
+        {
+            var iStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+            if (!GetConsoleMode(iStdOut, out uint outConsoleMode))
+            {
+                // this happens when std out is redirected e.g. when running isolated. 
+                // We rely on the parent process to have completed this fix
+                return false;
+            }
+
+            outConsoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING | DISABLE_NEWLINE_AUTO_RETURN;
+            if (!SetConsoleMode(iStdOut, outConsoleMode))
+            {
+                return false;
+            }
+
+            return true;
         }
     }
 }

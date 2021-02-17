@@ -1,8 +1,11 @@
 {
   "profiles": {
-    "tap (Install Demo)": {
+    "tap (Install Editor CE)": {
       "commandName": "Project",
-      "commandLineArgs": "profile --test-plan --quiet"
+      "commandLineArgs": "package install \"Editor CE\" --no-dependencies",
+      "environmentVariables": {
+        "OPENTAP_COLOR": "1"
+      }
     },
     "tap (list)": {
       "commandName": "Project",
