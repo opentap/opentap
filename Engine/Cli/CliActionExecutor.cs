@@ -245,14 +245,14 @@ namespace OpenTap.Cli
                 if (cmd.IsBrowsable)
                 {
                     int relativePadding = descriptionStart - (level * LevelPadding); // Calculate amount of characters to pad right before description start to ensure description alignments.
-                    Console.Write($"{"".PadRight(level * LevelPadding)}{cmd.Name.PadRight(relativePadding)}");
+                    string str = ($"{"".PadRight(level * LevelPadding)}{cmd.Name.PadRight(relativePadding)}");
                     if (cmd.Type?.IsBrowsable() ?? false)
                     {
-                        Console.WriteLine($"{cmd.Type.GetDisplayAttribute().Description}");
+                        log.Info($"{str}{cmd.Type.GetDisplayAttribute().Description}");
                     }
                     else
                     {
-                        Console.WriteLine();
+                        log.Info("{0}", str);
                     }
 
                     if (cmd.IsGroup)
@@ -301,8 +301,8 @@ namespace OpenTap.Cli
             try{
                 packageAction = (ICliAction)selectedCommand.CreateInstance();
             }catch(TargetInvocationException e1) when (e1.InnerException is System.ComponentModel.LicenseException e){
-                Console.Error.WriteLine("Unable to load CLI Action '{0}'", selectedCommand.GetDisplayAttribute().GetFullName());
-                Console.Error.WriteLine(e.Message);
+                log.Error("Unable to load CLI Action '{0}'", selectedCommand.GetDisplayAttribute().GetFullName());
+                log.Info("{0}", e.Message);
                 return -4;
             }
 
