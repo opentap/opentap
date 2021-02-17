@@ -47,8 +47,31 @@ namespace OpenTap.Cli
             }
         }
 
+        private static bool IsColor()
+        {
+            string[] arguments = Environment.GetCommandLineArgs();
+            if (arguments.Contains("--color") || arguments.Contains("-c"))
+                return true;
+            var envvar = Environment.GetEnvironmentVariable("OPENTAP_COLOR");
+            if (envvar == null)
+                return false;
+            if (envvar == "always")
+                return true;
+            else if (envvar == "auto")
+                return !(Console.IsErrorRedirected || Console.IsOutputRedirected) || ExecutorClient.IsExecutorMode;
+            else if (envvar != "never")
+                Console.WriteLine("Unknown value of variable OPENTAP_COLOR, valid values are always, auto or never.");
+            return false;
+        }
+
         private static void goIsolated()
         {
+            if (IsColor())
+            {
+                // Call constructor to get Ascii Color codes enabled for the parent process
+                var cliTraceListener = new ConsoleTraceListener(false, false, true);
+            }
+
             string arguments = new CommandLineSplit(Environment.CommandLine).Args;
             string message = null;
             using (ExecutorSubProcess subproc = ExecutorSubProcess.Create("tap.exe", arguments))
@@ -141,9 +164,8 @@ namespace OpenTap.Cli
                 var args = Environment.GetCommandLineArgs();
                 bool isVerbose = args.Contains("--verbose") || args.Contains("-v");
                 bool isQuiet = args.Contains("--quiet");
-                bool isColor = args.Contains("--color") || args.Contains("-c");
                 ConsoleTraceListener.SetStartupTime(start);
-                var cliTraceListener = new ConsoleTraceListener(isVerbose, isQuiet, isColor);
+                var cliTraceListener = new ConsoleTraceListener(isVerbose, isQuiet, IsColor());
                 Log.AddListener(cliTraceListener);
                 cliTraceListener.TraceEvents(TapInitializer.InitTraceListener.Instance.AllEvents.ToArray());
                 AppDomain.CurrentDomain.ProcessExit += (s, e) => cliTraceListener.Flush();
