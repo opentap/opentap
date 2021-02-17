@@ -91,7 +91,10 @@ namespace OpenTap
             // this overload is important since otherwise the logging system will use 
             // the overload with [args] even though there are none. And that can give
             // problems if the message itself contains formatting demarcations e.g '{0}'
-            log.LogEvent((int)te, durationNs, message);
+            if (redirectedLog != null)
+                redirectedLog.LogEvent(log.Source, (int)te, durationNs, message);
+            else
+                log.LogEvent((int)te, durationNs, message);
         }
 
         /// <summary>
