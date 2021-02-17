@@ -1265,13 +1265,13 @@ namespace OpenTap.Engine.UnitTests
                 int counter = 0;
                 for (int i = 0; i < finalCount; i++)
                 {
-                    tm.Enqueue(() =>
+                    tm.Enqueue(new TapThread(TapThread.Current,() =>
                     {
 
                         //Thread.Sleep(10);
                         Interlocked.Increment(ref counter);
                         sem.Release();
-                    });
+                    }));
                 }
                 for (int i = 0; i < finalCount; i++)
                 {
@@ -1998,6 +1998,74 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(instrB.CloseCalled); 
         }
 
+        [Test]
+        public void TestFastTapThreads()
+        {
+            using (TapThread.UsingThreadContext())
+            {
+                var startThread = TapThread.Current;
+                long startedThreads = 0;
+                var sem = new Semaphore(0, 100);
+                void newThread()
+                {
+                    Interlocked.Increment(ref startedThreads);
+                    TapThread.Start(() =>
+                    {
+                        try
+                        {
+                            if (TapThread.Current.AbortToken.IsCancellationRequested)
+                                return;
+                            if (startedThreads >= 100)
+                                startThread.Abort("end");
+                            newThread();
+                        }
+                        finally
+                        {
+                            sem.Release();
+                        }
+                    });
+                }
+                newThread();
+                for (long i = 0; i < startedThreads; i++)
+                    sem.WaitOne();
+            }
+        }
+        
+        [Test]
+        public void TestFastTapThreadsWaitWait()
+        {
+            using (TapThread.UsingThreadContext())
+            {
+                int concurrentThreads = 20;
+                var evt = new ManualResetEvent(false);
+                long startedThreads = 0;
+                var sem = new Semaphore(0,concurrentThreads);
+                void newThread()
+                {
+                    TapThread.Start(() =>
+                    {
+                        if (Interlocked.Increment(ref startedThreads) == concurrentThreads)
+                            evt.Set();
+                        
+                        try
+                        {
+                            evt.WaitOne();
+                            TapThread.Sleep(10);
+                        }
+                        finally
+                        {
+                            sem.Release();
+                        }
+                    });
+                }
+
+                for (int i = 0; i < concurrentThreads; i++)
+                    newThread();
+                for (long i = 0; i < concurrentThreads; i++)
+                    sem.WaitOne();
+            }
+        }
+        
         [Test]
         public void OpenCloseOrderLazyRM()
         {

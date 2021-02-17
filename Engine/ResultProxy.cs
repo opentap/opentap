@@ -468,6 +468,13 @@ namespace OpenTap
 
             DoStore(new ResultTable(name, columns));
         }
+
+        /// <summary> Publishes a result table. </summary>
+        /// <param name="table"></param>
+        public void PublishTable(ResultTable table)
+        {
+            DoStore(table);
+        }
     }
     
 }

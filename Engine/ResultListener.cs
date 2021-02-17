@@ -369,7 +369,7 @@ namespace OpenTap
         public static ResultParameters GetMetadataFromObject(object res)
         {
             if (res == null)
-                throw new ArgumentNullException("res");
+                throw new ArgumentNullException(nameof(res));
             var parameters = new List<ResultParameter>();
             getMetadataFromObject(res, "", parameters);
             return new ResultParameters(parameters);
@@ -381,22 +381,36 @@ namespace OpenTap
         /// </summary>
         public static ResultParameters GetComponentSettingsMetadata(bool expandComponentSettings = false)
         {
-            var componentSettings = PluginManager //get component settings instances (lazy)
-                .GetPlugins<ComponentSettings>()
-                .Select(ComponentSettings.GetCurrent)
+            var componentSettings = TypeData.FromType(typeof(ComponentSettings)) //get component settings instances (lazy)
+                .DerivedTypes
+                .Where(x => x.CanCreateInstance && GetParametersMap(x).Any(y => y.metadata != null))
+                .Select(td => ComponentSettings.GetCurrent(td.Type))
                 .Where(o => o != null)
                 .Cast<object>();
 
             if (expandComponentSettings)
-                componentSettings = componentSettings.Concat(componentSettings.OfType<IEnumerable>().SelectMany(c => (IEnumerable<object>)c));
-            return new ResultParameters(componentSettings.SelectMany(GetMetadataFromObject).ToArray());// get metadata from each.
+            {
+                var componentSettingsLists = TypeData
+                    .FromType(typeof(ComponentSettings)) //get component settings instances (lazy)
+                    .DerivedTypes
+                    .Where(x => x.CanCreateInstance && x.DescendsTo(typeof(IEnumerable)))
+                    .Select(td => ComponentSettings.GetCurrent(td.Type))
+                    .Where(o => o != null)
+                    .Cast<object>();
+                
+                if (expandComponentSettings)
+                    componentSettings = componentSettings.Concat(componentSettingsLists.OfType<IEnumerable>().SelectMany(c => (IEnumerable<object>)c)).Distinct();
+            }
+
+            
+            return new ResultParameters(componentSettings.ToArray().SelectMany(GetMetadataFromObject).ToArray());// get metadata from each.
         }
 
         
         /// <summary>
         /// Lazily pull result parameters from component settings. Reduces the number of component settings XML that needs to be deserialized.
         /// </summary>
-        /// <param name="includeObjects">If objects in componentsettingslists should be included.</param>
+        /// <param name="includeObjects">If objects in ComponentSettingsLists should be included.</param>
         /// <returns></returns>
         internal static IEnumerable<ResultParameters> GetComponentSettingsMetadataLazy(bool includeObjects)
         {
@@ -425,6 +439,8 @@ namespace OpenTap
             {
                 var t = tp.Load();
                 if (tp.CanCreateInstance == false) continue;
+                if (GetParametersMap(tp).Any(x => x.metadata != null) == false)
+                    continue;
                 var componentSetting = ComponentSettings.GetCurrent(t);
                 if (componentSetting != null)
                 {
@@ -435,14 +451,11 @@ namespace OpenTap
             foreach (var tp in types)
             {
                 var t = tp.Load();
-                var componentSetting = ComponentSettings.GetCurrent(t);
-                if(componentSetting is IEnumerable elements)
-                {
-                    foreach(var elem in elements)
-                    {
-                        yield return GetMetadataFromObject(elem);
-                    }
-                }
+                if (tp.CanCreateInstance == false) continue;
+                if (tp.DescendsTo(typeof(IEnumerable)) == false) continue;
+                var elements = ComponentSettings.GetCurrent(t) as IEnumerable ?? Array.Empty<object>();
+                foreach (var elem in elements)
+                    yield return GetMetadataFromObject(elem);
             }
         }
 
