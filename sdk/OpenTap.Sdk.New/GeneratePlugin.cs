@@ -1,4 +1,4 @@
-﻿//            Copyright Keysight Technologies 2012-2019
+//            Copyright Keysight Technologies 2012-2019
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
@@ -14,7 +14,7 @@ using System.Threading;
 
 namespace OpenTap.Sdk.New
 {
-    [Display("dut", "C# template for a DUT plugin. Requires a project.", Groups: new[] { "sdk", "new" })]
+    [Display("dut", "C# template for a DUT plugin.", Groups: new[] { "sdk", "new" })]
     public class GenerateDut : GenerateType
     {
         [UnnamedCommandLineArgument("name", Required = true)]
@@ -32,7 +32,7 @@ namespace OpenTap.Sdk.New
             return 0;
         }
     }
-    [Display("instrument", "C# template for a Instrument plugin. Requires a project.", Groups: new[] { "sdk", "new" })]
+    [Display("instrument", "C# template for a Instrument plugin.", Groups: new[] { "sdk", "new" })]
     public class GenerateInstrument : GenerateType
     {
         [UnnamedCommandLineArgument("name", Required = true)]
@@ -50,7 +50,7 @@ namespace OpenTap.Sdk.New
             return 0;
         }
     }
-    [Display("resultlistener", "C# template for a ResultListener plugin. Requires a project.", Groups: new[] { "sdk", "new" })]
+    [Display("resultlistener", "C# template for a ResultListener plugin.", Groups: new[] { "sdk", "new" })]
     public class GenerateResultListener : GenerateType
     {
         [UnnamedCommandLineArgument("name", Required = true)]
@@ -68,7 +68,7 @@ namespace OpenTap.Sdk.New
             return 0;
         }
     }
-    [Display("settings", "C# template for a ComponentSetting plugin. Requires a project.", Groups: new[] { "sdk", "new" })]
+    [Display("settings", "C# template for a ComponentSetting plugin.", Groups: new[] { "sdk", "new" })]
     public class GenerateSetting : GenerateType
     {
         [UnnamedCommandLineArgument("name", Required = true)]
@@ -86,7 +86,7 @@ namespace OpenTap.Sdk.New
             return 0;
         }
     }
-    [Display("teststep", "C# template for a TestStep plugin. Requires a project.", Groups: new[] { "sdk", "new" })]
+    [Display("teststep", "C# template for a TestStep plugin.", Groups: new[] { "sdk", "new" })]
     public class GenerateTestStep : GenerateType
     {
         [UnnamedCommandLineArgument("name", Required = true)]
@@ -133,7 +133,7 @@ namespace OpenTap.Sdk.New
             return 0;
         }
     }
-    [Display("cliaction", "C# template for a CliAction plugin. Requires a project.", Groups: new[] { "sdk", "new" })]
+    [Display("cliaction", "C# template for a CliAction plugin.", Groups: new[] { "sdk", "new" })]
     public class GenerateCliAction : GenerateType
     {
         [UnnamedCommandLineArgument("name", Required = true)]
