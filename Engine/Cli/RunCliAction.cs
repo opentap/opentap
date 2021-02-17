@@ -18,6 +18,7 @@ namespace OpenTap.Cli
         Ok = 0,
         TestPlanInconclusive = 20,
         TestPlanFail = 30,
+        UserExit = 40,
         RuntimeError = 50,
         ArgumentError = 60,
         LoadError = 70,
@@ -100,7 +101,12 @@ namespace OpenTap.Cli
         {
             if (status == ExitStatus.RuntimeError || status == ExitStatus.ArgumentError)
             {
-                log.Info("Unable to continue. Now exiting OpenTAP CLI.");
+                log.Info("Unable to continue. Now exiting tap.exe.");
+            }
+
+            if (status == ExitStatus.UserExit)
+            {
+                log.Info("tap.exe was exited due to an interrupt. (CTRL+C)");
             }
 
             log.Flush();
@@ -200,6 +206,10 @@ namespace OpenTap.Cli
                 log.Error(ex.Message);
                 return Exit(ExitStatus.LoadError);
             }
+            catch (OperationCanceledException) when (TapThread.Current.AbortToken.IsCancellationRequested)
+            {
+                
+            }
             catch (ArgumentException ex)
             {
                 if(!string.IsNullOrWhiteSpace(ex.Message))
@@ -219,6 +229,11 @@ namespace OpenTap.Cli
             {
                 PrintExternalParameters(log);
                 return Exit(ExitStatus.Ok);
+            }
+
+            if (TapThread.Current.AbortToken.IsCancellationRequested)
+            {
+                return Exit(ExitStatus.UserExit);
             }
 
             Verdict verdict = TestPlanRunner.RunPlanForDut(Plan, metaData, cancellationToken);
@@ -264,6 +279,7 @@ namespace OpenTap.Cli
             {
                 // only cache the XML if there are no external parameters.
                 bool cacheXml = values.Any() == false && externalParameterFiles.Any() == false;
+                
                 
                 Plan = TestPlan.Load(fs, planToLoad, cacheXml, serializer, IgnoreLoadErrors);
                 log.Info(timer, "Loaded test plan from {0}", planToLoad);
