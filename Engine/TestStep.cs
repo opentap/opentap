@@ -1232,8 +1232,8 @@ namespace OpenTap
                 var rep = replaces[i];
                 outName.Remove(rep.StartIndex, rep.EndIndex - rep.StartIndex + 1);
                 outName.Insert(rep.StartIndex, rep.Content);
-             }
-            return outName.ToString();
+            }
+            return outName.ToString().TrimEnd();
         }
     }
 
