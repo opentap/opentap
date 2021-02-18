@@ -661,7 +661,7 @@ namespace OpenTap.Engine.UnitTests
             {
                 step.Name = testStepName + " " + formatName;
                 var result = step.GetFormattedName();
-                Assert.AreEqual(result, testStepName + " " + expectedOutput);
+                Assert.AreEqual((testStepName + " " + expectedOutput).TrimEnd(), result);
             }
         }
 
