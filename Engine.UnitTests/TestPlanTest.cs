@@ -220,6 +220,38 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void TestPlanResourceCrashTest()
+        {
+            var inst = new InstrumentTest() {CrashPhase = InstrumentTest.InstrPhase.Open};
+            var step = new InstrumentTestStep();
+            step.Instrument = inst;
+            
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step);
+
+            string logString = null;
+            InstrumentSettings.Current.Add(inst);
+            try
+            {
+                TestTraceListener trace = new TestTraceListener();
+                Log.AddListener(trace);
+                var run = plan.Execute();
+                Log.Flush();
+                logString = trace.GetLog();
+                var err = trace.ErrorMessage;
+                Assert.AreEqual(Verdict.Error, run.Verdict);
+                // improvement: only one error in the log.
+                Assert.AreEqual(2, err.Count);
+                // the log should not be really long.
+                Assert.IsTrue(logString.Split('\n').Length < 70);
+            }
+            finally
+            {
+                InstrumentSettings.Current.Remove(inst);    
+            }
+        }
+
+        [Test]
         public void TestPlanSaveLoadTest()
         {
 
