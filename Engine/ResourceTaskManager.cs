@@ -8,7 +8,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading;
-using System.Reflection;
 using System.Collections.Concurrent;
 
 namespace OpenTap
@@ -250,33 +249,47 @@ namespace OpenTap
 
             Stopwatch swatch = Stopwatch.StartNew();
 
-            // start a new thread to do synchronous work
-            await Task.Factory.StartNew(node.Resource.Open); 
             var reslog = GetLogSource(node.Resource);
 
-            reslog.Info(swatch, "Resource \"{0}\" opened.", node.Resource);
-
-            foreach (var dep in node.WeakDependencies)
-                await openTasks[dep];
-
-            ResourceOpened?.Invoke(node.Resource);
-        }
-        
-        /// <summary>
-        /// Waits for a specific resource to be open.
-        /// </summary>
-        /// <param name="cancellationToken">Used to cancel the wait early</param>
-        /// <param name="targets"></param>
-        public void WaitUntilResourcesOpened(CancellationToken cancellationToken, params IResource[] targets)
-        {
-            if (cancellationToken == null) cancellationToken = CancellationToken.None;
             try
             {
-                foreach (var target in targets)
-                    openTasks[target].Wait(cancellationToken);
+                // start a new thread to do synchronous work
+                await Task.Factory.StartNew(node.Resource.Open);
+
+                reslog.Info(swatch, "Resource \"{0}\" opened.", node.Resource);
+
+                foreach (var dep in node.WeakDependencies)
+                    await openTasks[dep];
+
+                ResourceOpened?.Invoke(node.Resource);
             }
-            catch(OperationCanceledException)
-            { }
+            catch (Exception ex)
+            {
+                string msg = string.Format("Error while opening resource \"{0}\"", node.Resource);
+                throw new ExceptionCustomStackTrace(msg, null, ex);
+            }
+        }
+
+        /// <summary> Waits for a specific resource to be open. </summary>
+        /// <param name="cancellationToken">Used to cancel the wait early.</param>
+        /// <param name="targets">The resources that we wait to be opened.</param>
+        public void WaitUntilResourcesOpened(CancellationToken cancellationToken, params IResource[] targets)
+        {
+            try
+            {
+                var waitFor = targets.Select(target => openTasks[target])
+                    .Where(task => !task.IsCompleted || task.IsFaulted).ToArray(); // if task is faulted keep it to throw later
+                if (waitFor.Length == 0) return;
+                // WaitAll waits until all finish even if an exception occurs in one task.
+                Task.WaitAll(waitFor, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception e)
+            {
+                e.RethrowInner();
+            }
         }
 
         /// <summary>
@@ -307,17 +320,19 @@ namespace OpenTap
         /// </summary>
         private void CloseAllResources()
         {
-            Dictionary<IResource, List<IResource>> dependencies = openedResources.ToDictionary(r => r.Resource, r => new List<IResource>()); // this dictionary will hold resources with dependencies (keys) and what resources depend on them (values)
+            Dictionary<IResource, List<IResource>> dependencies =
+                openedResources.ToDictionary(r => r.Resource,
+                    r => new List<IResource>()); // this dictionary will hold resources with dependencies (keys) and what resources depend on them (values)
             foreach (var n in openedResources)
-                foreach (var dep in n.StrongDependencies)
-                    dependencies[dep].Add(n.Resource);
+            foreach (var dep in n.StrongDependencies)
+                dependencies[dep].Add(n.Resource);
 
             Dictionary<IResource, Task> closeTasks = new Dictionary<IResource, Task>();
 
             foreach (var r in openedResources)
                 closeTasks[r.Resource] = new Task(o =>
                 {
-                    ResourceNode res = (ResourceNode)o;
+                    ResourceNode res = (ResourceNode) o;
 
                     // Wait for the resource to open to open before closing it.
                     // in rare cases, another instrument failing open will cause close to be called.
@@ -327,7 +342,7 @@ namespace OpenTap
                     }
                     catch
                     {
-                        
+
                     }
 
                     // wait for resources that depend on this resource (res) to close before closing this
@@ -340,16 +355,18 @@ namespace OpenTap
                     }
                     catch (Exception e)
                     {
-                        
+
                         log.Error("Error while closing \"{0}\": {1}", res.Resource.Name, e.Message);
                         log.Debug(e);
-                        
+
                     }
+
                     if (reslog != null)
                         reslog.Info(timer, "Resource \"{0}\" closed.", res.Resource);
                 }, r);
 
-            closeTasks.Values.ToList().ForEach(t => t.Start());
+            var closeTaskArray = closeTasks.Values.ToArray();
+            closeTaskArray.ForEach(t => t.Start());
 
             void complainAboutWait()
             {
@@ -362,9 +379,11 @@ namespace OpenTap
             }
 
             using (TimeoutOperation.Create(complainAboutWait))
-                Task.WaitAll(closeTasks.Values.ToArray());
+            {
+                Task.WaitAll(closeTaskArray);
+            }
         }
-        
+
         void beginOpenResoureces(List<ResourceNode> resources, CancellationToken cancellationToken)
         {
             lockManager.BeforeOpen(resources, cancellationToken);
@@ -474,6 +493,7 @@ namespace OpenTap
             }
         }
     }
+
     
     /// <summary>
     /// Opens resources in a lazy way only before teststeps or global plan resources actually need them.
@@ -539,30 +559,36 @@ namespace OpenTap
 
                 Stopwatch swatch = Stopwatch.StartNew();
 
+                var reslog = ResourceTaskManager.GetLogSource(node.Resource);
 
                 try
                 {
-                    // start a new thread to do synchronous work
-                    await Task.Factory.StartNew(node.Resource.Open);
+                    try
+                    {
+                        // start a new thread to do synchronous work
+                        await Task.Factory.StartNew(node.Resource.Open);
+        
+                        reslog.Info(swatch, "Resource \"{0}\" opened.", node.Resource);
 
-                    var reslog = ResourceTaskManager.GetLogSource(node.Resource);
-                    reslog.Info(swatch, "Resource \"{0}\" opened.", node.Resource);
+                    }
+                    finally
+                    {
+                        lock (LockObj)
+                            if (state == ResourceState.Opening)
+                                state = ResourceState.Open;
+                    }
 
+                    foreach (var dep in node.WeakDependencies)
+                    {
+                        if (dep == null) continue;
+                        await requester.RequestResourceOpen(dep, cancellationToken);
+                    }
                 }
-                finally
+                catch (Exception ex)
                 {
-                    lock (LockObj)
-                        if (state == ResourceState.Opening)
-                            state = ResourceState.Open;
+                    string msg = string.Format("Error while opening resource \"{0}\"", node.Resource);
+                    throw new ExceptionCustomStackTrace(msg, null, ex);
                 }
-
-                foreach (var dep in node.WeakDependencies)
-                {
-                    if (dep == null) continue;
-                    await requester.RequestResourceOpen(dep, cancellationToken);
-                }
-
-
                 requester.ResourceOpenedCallback(node.Resource);
             }
 
