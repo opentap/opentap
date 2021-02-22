@@ -483,7 +483,15 @@ namespace OpenTap
         {
             if (message == null)
                 throw new ArgumentNullException(nameof(message));
-            trace.TraceEvent(eventType, 0, message, args);
+            if (args.Length == 0)
+            {
+                trace.TraceEvent(eventType, 0, message);    
+            }
+            else
+            {
+                trace.TraceEvent(eventType, 0, message, args);
+            }
+            
         }
 
         static void exceptionEvent(this TraceSource trace, Exception exception, LogEventType eventType)
@@ -603,6 +611,7 @@ namespace OpenTap
         {
             traceEvent(trace, elapsed, LogEventType.Debug, message, args);
         }
+        
         /// <summary>
         /// Writes a message with the time appended in the format [xx.x (m/u/n)s].
         /// if timer is a TimerToken it will be disposed.
