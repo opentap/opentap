@@ -2253,6 +2253,17 @@ namespace OpenTap.Engine.UnitTests
             
             Assert.IsTrue(t.Wait(100000));
         }
+        
+        [Test]
+        public void TestBreakOnPlanCompleted()
+        {
+            var rl = new resultListenerCrash() {CrashResultPhase = resultListenerCrash.ResultPhase.PlanRunCompleted};
+            var plan = new TestPlan();
+            var step = new SequenceStep();
+            plan.ChildTestSteps.Add(step);
+            var run = plan.Execute(new IResultListener[] {rl});
+            Assert.AreEqual(Verdict.Error, run.Verdict);
+        }
     }
 
     public class TestITestStep : ValidatingObject, ITestStep
