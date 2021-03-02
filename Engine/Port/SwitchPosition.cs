@@ -5,6 +5,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Xml.Serialization;
 
 namespace OpenTap
 {
@@ -34,15 +35,23 @@ namespace OpenTap
         /// </summary>
         public virtual string Name { get; protected set; }
 
+        /// <summary>  An alias providing a user-configurable name for this class. </summary>
+        public string Alias { get; set; } = "";
+        
+        /// <summary> Gets a friendly name this class. </summary>
+        string DisplayName => string.IsNullOrEmpty(Alias) ? Name : Alias;
         /// <summary>
         /// Indicates whether the switch is currently in this position. 
         /// Should be set by the Device implementation.
         /// </summary>
+        
+        [XmlIgnore]
         public bool IsActive { get; set; }
 
         /// <summary>
         /// The device (usually an <see cref="Instrument"/>) on which this switch position exists.
         /// </summary>
+        [XmlIgnore]
         public IResource Device { get; set; }
         
         /// <summary>
@@ -51,9 +60,8 @@ namespace OpenTap
         public override string ToString()
         {
             if (Device != null)
-                return string.Format("{0}.{1}", Device.Name, Name);
-            else
-                return Name;
+                return $"{Device.Name}.{DisplayName}";
+            return DisplayName;
         }
 
         /// <summary>

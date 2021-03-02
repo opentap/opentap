@@ -40,6 +40,9 @@ namespace OpenTap
             }
         }
 
+        /// <summary> returns true if the port is used by this connection. </summary>
+        internal bool HasPort(Port port) => Equals(Port1, port) || Equals(Port2, port);
+
         Port port2;
         /// <summary>
         /// The port at the second end of the connection.
@@ -103,7 +106,7 @@ namespace OpenTap
         /// <param name="oldPort"></param>
         void loadEndpoint(Port newport, Port oldPort)
         {
-            if (oldPort != null && oldPort.Device != null)
+            if (oldPort?.Device != null)
             {
                 var type = oldPort.Device.GetType();
                 var list = ComponentSettingsList.GetContainer(type) as INotifyCollectionChanged;
@@ -112,7 +115,7 @@ namespace OpenTap
 
             }
 
-            if (newport != null && newport.Device != null)
+            if (newport?.Device != null)
             {
                 var type = newport.Device.GetType();
                 var list = ComponentSettingsList.GetContainer(type) as INotifyCollectionChanged;
@@ -120,7 +123,6 @@ namespace OpenTap
                 {
                     list.CollectionChanged += componentSettingsChanged;
                 }
-
             }
         }
 

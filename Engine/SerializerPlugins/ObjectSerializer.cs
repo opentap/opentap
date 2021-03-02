@@ -72,8 +72,26 @@ namespace OpenTap.Plugins
             {
                 try
                 {
-                    newobj = t.CreateInstance(Array.Empty<object>());
-                    
+                    if (t.CanCreateInstance == false)
+                    { 
+                        // if the instance type cannot be constructed,
+                        // use the instance already on the object.
+                        var objectSerializer = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
+                        var ownerMember = objectSerializer?.CurrentMember;
+                        var ownerObj = objectSerializer?.Object;
+                        if (ownerMember == null || ownerObj == null)
+                        {
+                            throw new Exception($"Cannot create instance of {t} and no default value exists.");
+                        }
+                        newobj = ownerMember.GetValue(ownerObj);
+                        if (newobj == null)
+                            throw new Exception($"Unable to get default value of {ownerMember}");
+                    }
+                    else
+                    {
+                        newobj = t.CreateInstance(Array.Empty<object>());
+                    }
+
                 }
                 catch (TargetInvocationException ex)
                 {

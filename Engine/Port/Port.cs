@@ -20,16 +20,19 @@ namespace OpenTap
         [XmlIgnore] // avoid potential cycle in XML.
         public IResource Device { get; private set; }
 
+        /// <summary>  An alias providing a user-configurable name for this class. </summary>
+        public string Alias { get; set; } = "";
+
+        /// <summary> Gets a friendly name this class. </summary>
+        string DisplayName => string.IsNullOrEmpty(Alias) ? Name : Alias;
+        
         /// <summary>
         /// List of <see cref="Connection"/>s connected to this port.
         /// </summary>
-        public IEnumerable<Connection> Connections
-        {
-            get
-            {
-                return ConnectionSettings.Current.Where(con => (con.Port1 != null && con.Port1.Equals(this)) || (con.Port2 != null && con.Port2.Equals(this)));
-            }
-        }
+        public IEnumerable<Connection> Connections => ConnectionSettings.Current.Where(con => con.HasPort(this));
+
+        IEnumerable<Connection> ActiveConnections => Connections.Where(con => con.IsActive);
+            
 
         /// <summary>
         /// The name of this port. (Should be unique among <see cref="Port"/> objects on the same device/resource).
@@ -50,17 +53,7 @@ namespace OpenTap
         /// </summary>
         public IEnumerable<Port> GetConnectedPorts()
         {
-            foreach (var connection in ConnectionSettings.Current)
-            {
-                if (connection.Port1 == this && connection.Port2 != null)
-                {
-                    yield return connection.Port2;
-                }
-                else if (connection.Port2 == this && connection.Port1 != null)
-                {
-                    yield return connection.Port1;
-                }
-            }
+            return Connections.SelectMany(c => new[] {c.Port1, c.Port2}).Where(p => p != this && p != null);
         }
 
         /// <summary>
@@ -68,19 +61,9 @@ namespace OpenTap
         /// </summary>
         public IEnumerable<Port> GetActiveConnectedPorts()
         {
-            foreach (var connection in ConnectionSettings.Current)
-            {
-                if (!connection.IsActive)
-                    continue;
-                if (connection.Port1 == this && connection.Port2 != null)
-                {
-                    yield return connection.Port2;
-                }
-                else if (connection.Port2 == this && connection.Port1 != null)
-                {
-                    yield return connection.Port1;
-                }
-            }
+            return ActiveConnections
+                .SelectMany(c => new[] {c.Port1, c.Port2})
+                .Where(p => p != this && p != null);
         }
 
         /// <summary>
@@ -88,26 +71,10 @@ namespace OpenTap
         /// </summary>
         public IEnumerable<Connection> GetConnectionsTo(IResource device)
         {
-            foreach (var connection in ConnectionSettings.Current)
-            {
-                if (connection.Port1 == this && connection.Port2 != null && connection.Port2.Device == device)
-                {
-                    yield return connection;
-                }
-                else if (connection.Port2 == this && connection.Port1 != null && connection.Port1.Device == device)
-                {
-                    yield return connection;
-                }
-            }
-
-            foreach (var connection in ConnectionSettings.Current)
-            {
-                if (connection.Port1 == this || connection.Port2 == this)
-                {
-                    if (connection.Via.Any(vp => vp.Device == device))
-                        yield return connection;
-                }
-            }
+            if (device == null) throw new ArgumentNullException(nameof(device));
+            return Connections.Where(x =>
+                x?.Port1?.Device == device || x?.Port2?.Device == device || (x?.Via?.Any(v => v.Device == device) ??
+                false));
         }
 
         /// <summary>
@@ -115,17 +82,7 @@ namespace OpenTap
         /// </summary>
         public IEnumerable<Connection> GetConnectionsTo(Port otherPort)
         {
-            foreach (var connection in ConnectionSettings.Current)
-            {
-                if (connection.Port1 == otherPort && connection.Port2 == this)
-                {
-                    yield return connection;
-                }
-                else if (connection.Port2 == otherPort && connection.Port1 == this)
-                {
-                    yield return connection;
-                }
-            }
+            return Connections.Where(c => c.HasPort(otherPort));
         }
 
         /// <summary>
@@ -134,7 +91,7 @@ namespace OpenTap
         /// <returns></returns>
         public override string ToString()
         {
-            return String.Format("{0} on {1}", Name, Device != null ? Device.Name : "<NULL>");
+            return String.Format("{0} on {1}", DisplayName, Device != null ? Device.Name : "<NULL>");
         }
     }
 
