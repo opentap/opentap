@@ -246,7 +246,18 @@ namespace OpenTap.Plugins
                                             setter(newobj);
                                         }
                                     };
-                                    Serializer.Deserialize(element2, setValue, property.TypeDescriptor);
+                                    if (property.HasAttribute<DeserializeInPlaceAttribute>())
+                                    {
+                                        var current = property.GetValue(newobj);
+                                        if (current == null)
+                                            throw new Exception($"Unable to deserialize {property} in-place.");
+                                        this.TryDeserializeObject(element2, TypeData.GetTypeData(current), (x) => { },
+                                            current, true);
+                                    }
+                                    else
+                                    {
+                                        Serializer.Deserialize(element2, setValue, property.TypeDescriptor);    
+                                    }
                                 }
                             }
                             catch (Exception e)

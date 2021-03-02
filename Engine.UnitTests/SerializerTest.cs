@@ -2374,5 +2374,58 @@ namespace OpenTap.Engine.UnitTests
              object outValue = new ObjectCloner(null).Clone(true, null, TypeData.FromType(typeof(ScpiInstrument)));
              Assert.IsNull(outValue);
         }
+        
+        public class InPlaceProperty : ValidatingObject
+        {
+            int x;
+            public int X
+            {
+                get => x;
+                set
+                {
+                    x = value;
+                    OnPropertyChanged(nameof(X));
+                } 
+            }
+
+            public InPlaceProperty()
+            {
+                
+            }
+        }
+        public class InPlacePropertyOwner
+        {
+            InPlaceProperty prop = new InPlaceProperty();
+
+            [DeserializeInPlace]
+            public InPlaceProperty Prop
+            {
+                get => prop;
+                set => throw new Exception("This should not be set.");
+            }
+
+            public int XChanged = 0;
+            public InPlacePropertyOwner()
+            {
+                prop.PropertyChanged += PropOnPropertyChanged;
+            }
+
+            void PropOnPropertyChanged(object sender, PropertyChangedEventArgs e)
+            {
+                XChanged += 1;
+            }
+        }
+        
+        [Test]
+        public void TestInPlaceProperty()
+        {
+            var a = new InPlacePropertyOwner();
+            a.Prop.X += 1;
+            a.Prop.X += 2;
+            var xml = new TapSerializer().SerializeToString(a);
+            var b = (InPlacePropertyOwner) new TapSerializer().DeserializeFromString(xml);
+            Assert.AreEqual(1, b.XChanged);
+            Assert.AreEqual(3, b.Prop.X);
+        }
     }
 }
