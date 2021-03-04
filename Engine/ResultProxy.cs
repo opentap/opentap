@@ -15,7 +15,7 @@ namespace OpenTap
     /// A class to store a column of data for a <see cref="ResultTable"/>.
     /// </summary>
     [Serializable]
-    public class ResultColumn : IResultColumn
+    public class ResultColumn : IResultColumn, IData
     {
         /// <summary>
         /// The name of the column.
@@ -32,7 +32,7 @@ namespace OpenTap
         /// <summary>
         /// String describing the column.
         /// </summary>
-        public string ObjectType { get; } = "Result Column";
+        public string ObjectType { get; } = "OpenTap.ResultColumn";
 
         /// <summary>
         /// Helper to access a strongly typed value in the <see cref="Data"/> array.
@@ -66,7 +66,7 @@ namespace OpenTap
             Name = name;
             Data = data;
             TypeCode = Type.GetTypeCode(data.GetType().GetElementType());
-            Parameters = new ParameterCollection(ParameterCollection.Empty);
+            Parameters = ParameterCollection.Empty;
         }
 
         /// <summary> Creates a new result column with parameters attached.  </summary>
@@ -75,8 +75,33 @@ namespace OpenTap
             Parameters = new ParameterCollection(parameters);
         }
 
+        internal ResultColumn(string name, Array data, IData table, IParameters parameters) : this(name, data)
+        {
+            Parameters = parameters;
+            Parent = table;
+        }
+        
+        internal ResultColumn WithResultTable(ResultTable table)
+        {
+            return new ResultColumn(Name, Data, table, Parameters);
+        }
+
+        /// <summary>
+        /// The parent object of this column. Usually a Result Table. This value will get assigned during ResultProxy.Publish.
+        /// </summary>
+        public IData Parent { get; }
+
+        /// <summary> Unused. </summary>
+        long IData.GetID() => 0;
+
         /// <summary> The parameters attached to this column. </summary>
-        public ParameterCollection Parameters { get; }
+        public IParameters Parameters { get; }
+
+        /// <summary>  Create a result column clone with additional parameters. </summary>
+        public ResultColumn AddParameters(params IParameter[] additionalParameters)
+        {
+            return new ResultColumn(Name, Data, Parent, new ParameterCollection(Parameters.Concat(additionalParameters).ToArray()));
+        }
     }
 
     /// <summary>
@@ -89,10 +114,14 @@ namespace OpenTap
         /// The name of the results.
         /// </summary>
         public string Name { get; private set; }
-        /// <summary>
-        /// An array containing the result columns.
-        /// </summary>
-        public ResultColumn[] Columns { get; private set; }
+
+        ResultColumn[] columns;
+        /// <summary> An array containing the result columns. </summary>
+        public ResultColumn[] Columns
+        {
+            get => columns.ToArray();
+            private set => columns = value;
+        }
         /// <summary>
         /// Indicates how many rows of results this vector contains.
         /// </summary>
@@ -109,11 +138,10 @@ namespace OpenTap
         /// Parameters attached to this Result Table.
         /// Note, test step parameter are often attached in the result listener and does not need to be added here.
         /// </summary>
-        public ParameterCollection Parameters { get; } = ParameterCollection.Empty;
+        public IParameters Parameters { get; } = ParameterCollection.Empty;
         
-        IParameters IData.Parameters => new ParameterCollection(Parameters.ToList());
 
-        string IAttributedObject.ObjectType { get; } = "Result Vector"; 
+        string IAttributedObject.ObjectType { get; } = "OpenTap.ResultTable"; 
 
         long IData.GetID()
         {
@@ -141,15 +169,19 @@ namespace OpenTap
             if (resultColumns == null) throw new ArgumentNullException(nameof(resultColumns));
 
             Name = name;
-            Columns = resultColumns;
-            if (resultColumns.Length <= 0)
+            columns = resultColumns.ToArray();
+            for (int i = 0; i < columns.Length; i++)
+            {
+                columns[i] = columns[i].WithResultTable(this);
+            }
+            if (columns.Length <= 0)
                 Rows = 0;
             else
             {
-                Rows = resultColumns[0].Data.Length;
-                for (int i = 1; i < resultColumns.Length; i++)
+                Rows = columns[0].Data.Length;
+                for (int i = 1; i < columns.Length; i++)
                 {
-                    if (resultColumns[i].Data.Length != Rows)
+                    if (columns[i].Data.Length != Rows)
                         throw new ArgumentException("Columns needs to be of same length.", nameof(resultColumns));
                 }
             }
@@ -158,9 +190,14 @@ namespace OpenTap
         /// <summary>
         /// Creates a new Result Table with a name, result columns and parameters.
         /// </summary>
-        public ResultTable(string name, ResultColumn[] resultColumns, IEnumerable<IParameter> parameters) : this(name,resultColumns)
+        public ResultTable(string name, ResultColumn[] resultColumns, params IParameter[] parameters) : this(name,resultColumns)
         {
             Parameters = new ParameterCollection(parameters);
+        }
+        
+        ResultTable(string name, ResultColumn[] resultColumns, IParameters parameters) : this(name,resultColumns)
+        {
+            Parameters = parameters;
         }
 
         internal ResultTable WithName(string newName) =>  new ResultTable(newName, Columns, Parameters);

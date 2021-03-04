@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 
@@ -8,18 +7,21 @@ namespace OpenTap
     /// <summary>
     /// Read-only collection of parameters where parameters can be looked up by name.
     /// </summary>
-    public class ParameterCollection : ReadOnlyCollection<IParameter>, IParameters
+    class ParameterCollection : ReadOnlyCollection<IParameter>, IParameters
     {
+        IParameter GetParameterByObjectType(string name) => this.FirstOrDefault(x => x.ObjectType == name);
+        IParameter GetParameter(string name) => this.FirstOrDefault(x => x.Name == name);
+
         /// <summary> Gets a parameter by name.</summary>
-        /// <param name="Name"></param>
-        public IConvertible this[string Name] => this.FirstOrDefault(x => x.Name == Name)?.Value;
+        /// <param name="name"></param>
+        public IConvertible this[string name] => (GetParameterByObjectType(name) ?? GetParameter(name))?.Value; 
 
         /// <summary> Creates a new parameter collection from an existing list of parameters. </summary>
-        public ParameterCollection(IEnumerable<IParameter> list) : base(list.ToArray())
+        public ParameterCollection(IParameter[] list) : base(list)
         {
             
         }
 
-        internal static readonly ParameterCollection Empty = new ParameterCollection(Enumerable.Empty<IParameter>());
+        internal static readonly ParameterCollection Empty = new ParameterCollection(Array.Empty<IParameter>());
     }
 }

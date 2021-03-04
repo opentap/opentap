@@ -52,7 +52,7 @@ namespace OpenTap
             this.UseRanges = UseRanges;
         }
 
-        string IAttributedObject.ObjectType => "String";
+        string IAttributedObject.ObjectType => "OpenTap.Unit";
 
         string IParameter.Group => "";
 
