@@ -48,6 +48,7 @@ The configuration file supports optional attributes:
 
 | **Attribute** | **Description** |
 | ---- | -------- |
+| **Name** | The name of the package. Must not include invalid file name characters: `"`, `<`, `>`, `|`, `\0`, `\u0001`, `\u0002`, `\u0003`, `\u0004`, `\u0005`, `\u0006`, `\a`, `\b`, `\t`, `\n`, `\v`, `\f`, `\r`, `\u000e`, `\u000f`, `\u0010`, `\u0011`, `\u0012`, `\u0013`, `\u0014`, `\u0015`, `\u0016`, `\u0017`, `\u0018`, `\u0019`, `\u001a`, `\u001b`, `\u001c`, `\u001d`, `\u001e`, `\u001f`, `:`, `*`, `?`, `\\`, `/`. |
 | **InfoLink**   | Specifies a location where additional information about the package can be found. It is visible in the Package Manager as the **More Information** link.  |
 | **Version**  | The version of the package. This field supports the $(GitVersion) macro. The version is displayed in the Package Manager. See [Versioning](#versioning) for more details. |
 | **OS**   | Which operative systems the package is compatible with. This is a comma separated list. It is used to filter packages which are compatible with the operating system the PackageManager is running on. If the attribute is not specified, the default "Windows" is used. Example: `OS="Windows,Linux"`. Note, only the following OS values are currently supported by the package manager for automatic detection: Windows, Linux and OSX. So using one of these is recommended. |
@@ -56,6 +57,7 @@ The configuration file supports optional attributes:
 | **Group** | Name of the group that this package belongs to. Groups can be nested in other groups, in which case this string will have several entries separated with '/' or '\'. May be empty. UIs may use this information to show a list of packages as a tree structure. See the example below. |
 | **Tags** | A list of keywords that describe the package. Tags are separated by space or comma. |
 | **LicenseRequired** | License key(s) required to use this package. During package create all `LicenseRequired` attributes from the `File` Elements will be concatenated into this property. Bundle packages (`Class` is 'bundle') can use this property to show license keys that are required by the bundle dependencies.  |
+| **SourceLicense** | The license of the open sources project. Must be a [SPDX identifier](https://spdx.org/licenses/). |
 
 > **Note:** OpenTAP does not validate any `LicenseRequired` attributes. This attribute is only used by UIs to inform the user of a license key. The license key check should be implemented by the plugin assembly.
 

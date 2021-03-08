@@ -266,6 +266,7 @@ namespace OpenTap.Package
             }
 
             AddWritePair("Owner", package.Owner);
+            AddWritePair("Source License", package.SourceLicense);
             var licenseString = (package.LicenseRequired ?? "").Replace("&", " and ").Replace("|", " or ");
             AddWritePair("License Required", licenseString);
             AddWritePair("SourceUrl", package.SourceUrl);

@@ -336,6 +336,12 @@ namespace OpenTap.Package
         /// </summary>
         [DefaultValue(null)]
         public string SourceUrl { get; set; }
+        
+        /// <summary>
+        /// Specific open source license. Must be a SPDX identifier, read more at https://spdx.org/licenses/.
+        /// </summary>
+        [DefaultValue(null)]
+        public string SourceLicense { get; set; }
 
         /// <summary>
         /// License(s) required to use this package. During package create all '<see cref="PackageFile.LicenseRequired"/>' attributes from '<see cref="Files"/>' will be concatenated into this property.
