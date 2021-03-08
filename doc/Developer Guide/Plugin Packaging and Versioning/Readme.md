@@ -57,7 +57,6 @@ The configuration file supports optional attributes:
 | **Group** | Name of the group that this package belongs to. Groups can be nested in other groups, in which case this string will have several entries separated with '/' or '\'. May be empty. UIs may use this information to show a list of packages as a tree structure. See the example below. |
 | **Tags** | A list of keywords that describe the package. Tags are separated by space or comma. |
 | **LicenseRequired** | License key(s) required to use this package. During package create all `LicenseRequired` attributes from the `File` Elements will be concatenated into this property. Bundle packages (`Class` is 'bundle') can use this property to show license keys that are required by the bundle dependencies.  |
-| **SourceLicense** | The license of the open sources project. Must be a [SPDX identifier](https://spdx.org/licenses/). |
 
 > **Note:** OpenTAP does not validate any `LicenseRequired` attributes. This attribute is only used by UIs to inform the user of a license key. The license key check should be implemented by the plugin assembly.
 
@@ -70,6 +69,9 @@ The **Owner** element inside the configuration file is the name of the package o
 
 ### SourceUrl Element
 The **SourceUrl** element in the configuration file is a link to the package source code. This is intended for open sourced projects.
+
+### SourceLicense Element
+The license of the open sources project. Must be a [SPDX identifier](https://spdx.org/licenses/).
 
 ### File Element
 The **File** element inside the configuration file supports the following attributes:
