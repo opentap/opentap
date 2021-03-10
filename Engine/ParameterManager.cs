@@ -184,11 +184,13 @@ namespace OpenTap
                     var existing = TypeData.GetTypeData(step).GetMember(selectedName.Trim());
                     var originalExisting = TypeData.GetTypeData(step).GetMember(defaultFullName);
 
-                    if (existing != null && (step != originalScope || originalExisting != existing))
+                    if (existing != null && (step != originalScope || !ReferenceEquals(originalExisting, existing)))
                     {
-                        if (UnmergableListType(existing))
+                        var val = existing.GetValue(step);
+                        var cloner = new ObjectCloner(val);
+                        if (cloner.CanClone(step, memberType) == false)
                         {
-                            var error = "Cannot merge list-type parameters, except for lists of numbers.";
+                            var error = $"Cannot merge properties of this kind.";
                             yield return (error, error);
                             yield break;
                         }
@@ -495,18 +497,6 @@ namespace OpenTap
 
             if (steps.Any(step => isParameterized(step, property)))
                 return false;
-
- 
-
-            var value = property.GetValue(steps.FirstOrDefault());
-
-            var cloner = new ObjectCloner(value);
-            
-            if (!cloner.CanClone(steps.FirstOrDefault(), property.TypeDescriptor) && property.TypeDescriptor.IsA(typeof(string)) == false)
-            {
-                return false;
-            }
-            
             return true;
         }
         

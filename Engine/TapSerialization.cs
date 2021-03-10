@@ -6,7 +6,6 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
@@ -107,6 +106,7 @@ namespace OpenTap
             this.ReadPath = path;
             var prevSer = currentSerializer.Value;
             currentSerializer.Value = this;
+            ClearErrors();
             using (ParameterManager.WithSanityCheckDelayed())
             {
                 try
@@ -299,10 +299,16 @@ namespace OpenTap
         
         readonly List<Error> errors = new List<Error>();
 
-        /// <summary> Get the errors associated with deserialization. </summary>
+        /// <summary> Get the errors associated with deserialization. The errors only persists between calls to Serialize/Deserialize. </summary>
         public IEnumerable<string> Errors => errors.Select(x => x.ToString());
 
-        static TraceSource log = Log.CreateSource("Serializer");
+        /// <summary> Clears the errors accumulated in the serializer. </summary>
+        void ClearErrors()
+        {
+            errors.Clear();
+        }
+
+        static readonly TraceSource log = Log.CreateSource("Serializer");
 
         /// <summary>
         /// Deserializes an object from an XElement. Calls the setter action with the result. returns true on success. Optionally, the type can be added.
@@ -377,12 +383,13 @@ namespace OpenTap
         public void Serialize(Stream stream, object obj)
         {
             if (stream == null)
-                throw new ArgumentNullException("stream");
+                throw new ArgumentNullException(nameof(stream));
             
             using (var writer = XmlWriter.Create(stream, DefaultWriterSettings))
                 this.Serialize(writer, obj);
         }
 
+        static readonly XName rootName = "root";
         /// <summary>
         /// Serializes an object to a XML writer.
         /// </summary>
@@ -391,11 +398,12 @@ namespace OpenTap
         public void Serialize(XmlWriter writer, object obj)
         {
             if (writer == null)
-                throw new ArgumentNullException("writer");
+                throw new ArgumentNullException(nameof(writer));
             XDocument doc = new XDocument();
-            XElement elem = new XElement("root");
+            XElement elem = new XElement(rootName);
             if(obj != null)
-                elem.Name = TapSerializer.TypeToXmlString(obj.GetType());
+                elem.Name = TypeToXmlString(obj.GetType());
+            ClearErrors();
             using(TypeData.WithTypeDataCache())
             using(ParameterManager.WithSanityCheckDelayed())
                 Serialize(elem, obj);
@@ -419,7 +427,6 @@ namespace OpenTap
                 return DefaultWriterSettings.Encoding.GetString(memoryStream.ToArray());
             }
         }
-        
 
         /// <summary>
         /// Serializes an object to XML.
@@ -528,8 +535,9 @@ namespace OpenTap
         public object Clone(object obj)
         {
             if (obj == null) return null;
+            ClearErrors();
             XDocument doc = new XDocument();
-            XElement elem = new XElement("root");
+            XElement elem = new XElement(rootName);
             Serialize(elem, obj);
             doc.Add(elem);
             return Deserialize(doc);
@@ -550,7 +558,7 @@ namespace OpenTap
             return serializer ?? GetCurrentSerializer();
         }
 
-        HashSet<ITypeData> registeredTypes = new HashSet<ITypeData>();
+        readonly HashSet<ITypeData> registeredTypes = new HashSet<ITypeData>();
 
         void NotifyTypeUsed(ITypeData type)
         {

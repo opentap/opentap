@@ -288,8 +288,6 @@ namespace OpenTap.UnitTests
                 sweep2.Error.ToString(); // getting the error causes validation to be done.
                 Assert.AreEqual(1, sweep2.SweepValues[0].Values.Count);
             }
-
-
         }
 
         [Test]
@@ -400,7 +398,48 @@ namespace OpenTap.UnitTests
             {
                 Assert.AreEqual(ex.Message, "No values selected to sweep");
             }
+        }
 
+
+        public class Unclonable
+        {
+            public int Value { get; set; }
+            public Unclonable(int value) => Value = value;
+        }
+        
+        public class UnmergableValueTest : TestStep
+        {
+            public Unclonable A { get; set; } = new Unclonable(5);
+            public override void Run()
+            {
+                
+            }
+        }
+        
+        [Test]
+        public void MergeableScopeTest()
+        {
+            var plan = new TestPlan();
+            var step1 = new UnmergableValueTest();
+            var step2 = new UnmergableValueTest();
+            plan.ChildTestSteps.Add(step1);
+            plan.ChildTestSteps.Add(step2);
+
+            foreach(var s in new []{step1, step2})                
+            {
+                var a = AnnotationCollection.Annotate(step2)
+                    .GetMember(nameof(step1.A))
+                    .Get<MenuAnnotation>().MenuItems.FirstOrDefault(x =>
+                        x.Get<IconAnnotationAttribute>().IconName == IconNames.ParameterizeOnTestPlan);
+                var enabled = a.Get<IEnabledAnnotation>().IsEnabled;
+                if (s == step1)
+                {
+                    Assert.IsTrue(enabled);
+                    a.Get<IMethodAnnotation>()?.Invoke();
+                }
+                else
+                    Assert.IsFalse(enabled);
+            }
         }
     }
 }
