@@ -506,12 +506,7 @@ namespace OpenTap
         /// Invokes when the cache for this settings item is invalidated for this item.
         /// The way to handle it is usually to fetch the new instance using ComponentSettings.GetCurrent(sender.GetType()).
         /// </summary>
-        public event EventHandler CacheInvalidated
-        {
-            add => context.CacheInvalidated += value;
-            remove => context.CacheInvalidated -= value;
-        }
-        
+        public event EventHandler CacheInvalidated;
         /// <summary>
         /// Where settings files are located. 
         /// Usually this is at "[Executable location]\Settings", but it can be set to different locations. 
@@ -623,5 +618,10 @@ namespace OpenTap
         /// <returns>Returns the loaded components settings. Null if it was not able to load the settings type or if it was not cached.</returns>
         public static ComponentSettings GetCurrentFromCache(Type settingsType) =>
             context.GetCurrentFromCache(settingsType);
+
+        internal void InvokeInvalidate()
+        {
+            CacheInvalidated?.Invoke(this, EventArgs.Empty);
+        }
     }
 }

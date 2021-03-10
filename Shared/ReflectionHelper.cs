@@ -1568,6 +1568,10 @@ namespace OpenTap
 
     static internal class Sequence
     {
+        /// <summary> Turns item into a one element array, unless it is null.</summary>
+        public static T[] AsSingle<T>(this T item) => item == null ? Array.Empty<T>() : new[] {item};
+        
+        
         /// <summary>
         /// Like distinct but keeps the last item. Returns List because we need to iterate until last element anyway.
         /// </summary>
