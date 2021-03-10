@@ -5,10 +5,8 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Xml.Serialization;
 using NUnit.Framework;
-using OpenTap.Engine.UnitTests;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using OpenTap.Plugins.BasicSteps;
 
@@ -278,12 +276,16 @@ namespace OpenTap.UnitTests
                 TestPlan = 8,
                 Remove = 16,
                 ExpectNoRename = 32,
-                RenameBlank = 64
+                RenameBlank = 64,
+                Merge = 128,
+                Error = 256
             }
             public bool WasInvoked;
             public string SelectName { get; set; }
 
             public Mode SelectedMode;
+            
+            public string ErrorString { get; set; }
             
             public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
             {
@@ -327,6 +329,19 @@ namespace OpenTap.UnitTests
                 {
                     var msg = message.Get<IStringValueAnnotation>().Value;
                     Assert.IsTrue(msg.Contains("Create new parameter "));   
+                }
+                if (SelectedMode == (Mode.Merge|Mode.TestPlan))
+                {
+                    var msg = message.Get<IStringValueAnnotation>().Value;
+                    Assert.IsTrue(msg.Contains("Merge with an existing parameter "));   
+                }
+
+                if (SelectedMode.HasFlag(Mode.Error))
+                {
+                    var err = message.Get<IErrorAnnotation>()?.Errors.FirstOrDefault();
+                    Assert.IsTrue(err != null);
+                    if(ErrorString != null)
+                        Assert.IsTrue(err.Contains(ErrorString));    
                 }
                 
                 WasInvoked = true;
@@ -1002,7 +1017,21 @@ namespace OpenTap.UnitTests
             doTest(nameof(obj1.DoubleValues), obj1, true);
             doTest(nameof(obj2.DoubleValues), obj2, true);
             doTest(nameof(obj1.Items), obj1, true);
-            doTest(nameof(obj2.Items), obj2, false);
+            doTest(nameof(obj2.Items), obj2, true);
+
+            // finally, test that modifying the value also propagates.
+            var items = AnnotationCollection.Annotate(plan).GetMember("Parameters \\ " + nameof(obj1.Items));
+            Assert.IsNotNull(items);
+
+            var collection = items.Get<ICollectionAnnotation>();
+            collection.AnnotatedElements = collection.AnnotatedElements.Append(collection.NewElement()).ToArray();
+            items.Write();
+
+            Assert.AreEqual(1, obj1.Items.Count);
+            Assert.AreEqual(1, obj2.Items.Count);
+            
+            // not same reference.
+            Assert.AreNotEqual(obj1.Items, obj2.Items);
         }
 
         [Test]
@@ -1107,6 +1136,34 @@ namespace OpenTap.UnitTests
             Assert.IsFalse(sweepParametersAnnotation.GetIcon(IconNames.ParameterizeOnTestPlan).Get<IEnabledAnnotation>().IsEnabled);
             var nameAnnotation = AnnotationCollection.Annotate(sweep).GetMember(nameof(sweep.Name));
             Assert.IsTrue(nameAnnotation.GetIcon(IconNames.ParameterizeOnTestPlan).Get<IEnabledAnnotation>().IsEnabled);
+        }
+
+        [Test]
+        public void TestMergeBadParameters()
+        {
+            var plan = new TestPlan();
+            var dialog = new DialogStep();
+            plan.Steps.Add(dialog);
+            var a = AnnotationCollection.Annotate(dialog);
+            var menuInterface = new MenuTestUserInterface();
+            var currentInterface = UserInput.Interface as IUserInputInterface;
+            UserInput.SetInterface(menuInterface);
+            try
+            {
+                menuInterface.SelectName = "a";
+                menuInterface.SelectedMode = MenuTestUserInterface.Mode.Create | MenuTestUserInterface.Mode.TestPlan;
+                a.GetMember("Title").GetIcon(IconNames.Parameterize).Get<IMethodAnnotation>().Invoke();
+                menuInterface.SelectedMode = MenuTestUserInterface.Mode.Merge | MenuTestUserInterface.Mode.TestPlan;
+                a.GetMember("Message").GetIcon(IconNames.Parameterize).Get<IMethodAnnotation>().Invoke();
+                menuInterface.SelectedMode = MenuTestUserInterface.Mode.Merge | MenuTestUserInterface.Mode.TestPlan | MenuTestUserInterface.Mode.Error;
+                menuInterface.ErrorString = "Cannot merge properties of this kind.";
+                a.GetMember(nameof(DialogStep.Timeout)).GetIcon(IconNames.Parameterize).Get<IMethodAnnotation>().Invoke();
+            }
+            finally
+            {
+                UserInput.SetInterface(currentInterface);    
+            }
+
         }
     }
 }

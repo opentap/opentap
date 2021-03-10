@@ -558,8 +558,7 @@ namespace OpenTap.Plugins
             }
             catch(Exception ex)
             {
-                Log.Warning(element, "Object value was not read correctly.");
-                Log.Debug(ex);
+                Serializer.PushError(element, $"Object value was not read correctly.", ex);
                 return false;
             }
             try
@@ -567,10 +566,9 @@ namespace OpenTap.Plugins
                 if (TryDeserializeObject(element, t, setter))
                     return true;
             }
-            catch (Exception)
+            catch (Exception ex) 
             {
-                Log.Error("Unable to create instance of {0}.", t);
-                throw;
+                Serializer.PushError(element, $"Unable to create instance of {t}.", ex);
             }
             return false;
         }
