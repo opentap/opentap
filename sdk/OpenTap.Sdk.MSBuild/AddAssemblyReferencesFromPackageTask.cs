@@ -162,7 +162,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             foreach (var asmPath in assembliesInPackage)
             {
                 Result.AppendLine($"    <Reference Include=\"{Path.GetFileNameWithoutExtension(asmPath)}\">");
-                Result.AppendLine($"      <HintPath>$(OutDir)/{asmPath}</HintPath>");
+                Result.AppendLine($"      <HintPath>$(OutDir){asmPath.Replace("/", "\\")}</HintPath>");
                 Result.AppendLine("    </Reference>");
             }
 
