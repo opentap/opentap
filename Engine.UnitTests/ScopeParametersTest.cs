@@ -441,5 +441,37 @@ namespace OpenTap.UnitTests
                     Assert.IsFalse(enabled);
             }
         }
+        
+        [Test]
+        public void NestedPropertyUnparameterize()
+        {
+            // testing unparameterize on multiple levels of parameters.
+            
+            var plan = new TestPlan();
+            var seq = new SequenceStep();
+            var logOutput = new LogStep();
+            seq.ChildTestSteps.Add(logOutput);
+            plan.Steps.Add(seq);
+            var parameterName = "A";
+            var p1 = TypeData.GetTypeData(logOutput).GetMember(nameof(logOutput.Severity)).Parameterize(seq, logOutput, parameterName);
+            TypeData.GetTypeData(seq).GetMember(parameterName).Parameterize(plan, seq, parameterName);
+            plan.SerializeToString(true);
+            
+            TypeData.GetTypeData(plan).GetMembers(); // check sanity is called, everything seems good. 
+            var (x, y) = p1.ParameterizedMembers.First();
+            y.Unparameterize(p1, x);
+            
+            // originally it failed already here since the sanity check was not done properly.
+            var param2 = TypeData.GetTypeData(plan).GetMember(parameterName);
+            Assert.IsNull(param2);
+            
+            // this has always passed.
+            var param1 = TypeData.GetTypeData(seq).GetMember(parameterName);
+            Assert.IsNull(param1);
+            
+            // this was what failed in the original bug report.
+            plan.SerializeToString(true);
+
+        }
     }
 }
