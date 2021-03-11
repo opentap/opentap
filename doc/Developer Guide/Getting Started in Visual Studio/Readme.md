@@ -89,18 +89,19 @@ The OpenTAP SDK makes it easy to create plugin templates using the `tap sdk new`
 
 | Commands                           | Description                                                                                         |
 |------------------------------------|-----------------------------------------------------------------------------------------------------|
-| **tap sdk gitversion** | Calculates a semantic version number for a specific git commit. |
+| **tap sdk gitversion**                 | Calculates a semantic version number for a specific git commit.                                     |
 | **tap sdk new cliaction**              | Create a C# template for a CliAction plugin. Requires a project.                                    |
 | **tap sdk new dut**                    | Create a C# template for a DUT plugin. Requires a project.                                          |
 | **tap sdk new instrument**             | Create C# template for an Instrument plugin. Requires a project.                                    |
 | **tap sdk new packagexml**             | Create a package definition file (package.xml).                                                     |
 | **tap sdk new resultlistener**         | Create a C# template for a ResultListener plugin. Requires a project.                               |
 | **tap sdk new settings**               | Create a C# template for a ComponentSetting plugin. Requires a project.                             |
-| **tap sdk new testplan**               | Create a TestPlan (.TapPlan) containing all test step types defined in the given project.           |
-| **tap sdk new teststep**               | Create a  C# template for a TestStep plugin. Requires a project.                                    |
-| **tap sdk new integration gitlab-ci**  | Create a  GitLab CI build script. For building and publishing the .TapPackage in the given project. |
+| **tap sdk new testplan**               | **OBSOLETED:** Use [an editor](https://doc.opentap.io/User%20Guide/Editors/) to create a TestPlan.  |
+| **tap sdk new teststep**               | Create a C# template for a TestStep plugin. Requires a project.                                     |
+| **tap sdk new project**                | Create a C# Project (.csproj). Including a new TestStep, solution file (.sln) and package.xml.      |
+| **tap sdk new integration gitlab-ci**  | Create a GitLab CI build script. For building and publishing the .TapPackage in the given project.  |
 | **tap sdk new integration gitversion** | Configure automatic version of the package using version numbers generated from git history.        |
-| **tap sdk new integration vs**       | Create files that enable building and debugging with Visual Studio.                                 |
+| **tap sdk new integration vs**         | Create files that enable building and debugging with Visual Studio.                                 |
 | **tap sdk new integration vscode**     | Create files to enable building and debugging with vscode.                                          |
 
 The following example shows how to create a new project using the SDK:
@@ -109,13 +110,15 @@ The following example shows how to create a new project using the SDK:
 tap sdk new project MyAwesomePlugin
 ```
 
-This command creates a new project called `MyAwesomePlugin` with a .csproj file, a test step class, a test plan, a solution file, and a package.xml file.
+This command creates a new project called `MyAwesomePlugin` with a .csproj file, a test step class, a solution file, and a package.xml file.
 
 Once you created a project you can easily add other templates. To add a DUT for example simply call the following command:
 
 ```
 tap sdk new dut MyNewDut
 ```
+
+Use an editor to create a testplan to use your new teststep and DUT! See https://doc.opentap.io/User%20Guide/Editors/ for more info on the different editors!
 
 ### SDK Examples
 

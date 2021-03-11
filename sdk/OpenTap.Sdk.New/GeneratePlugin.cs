@@ -105,6 +105,7 @@ namespace OpenTap.Sdk.New
         }
     }
     [Display("testplan", "Creates a TestPlan (.TapPlan) containing all TestSteps types defined in this project.", Groups: new[] { "sdk", "new" })]
+    [Obsolete("Use an editor to create TestPlans instead")]
     public class GenerateTestPlan : GenerateType
     {
         [UnnamedCommandLineArgument("name", Required = true)]
@@ -129,6 +130,9 @@ namespace OpenTap.Sdk.New
                 var content = ReplaceInTemplate(reader.ReadToEnd(), steps.ToString());
                 WriteFile(output ?? Path.Combine(WorkingDirectory, Name + ".TapPlan"), content);
             }
+
+            log.Warning("This feature is obsoleted. Use an editor to create a testplan.");
+            log.Warning("For more information, see https://doc.opentap.io/User%20Guide/Editors/");
 
             return 0;
         }
