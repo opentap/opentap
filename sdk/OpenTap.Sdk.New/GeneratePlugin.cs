@@ -104,7 +104,7 @@ namespace OpenTap.Sdk.New
             return 0;
         }
     }
-    [Display("testplan", "Creates a TestPlan (.TapPlan) containing all TestSteps types defined in this project.", Groups: new[] { "sdk", "new" })]
+    [Display("testplan", "Deprecated! Creates a TestPlan (.TapPlan) containing all TestSteps types defined in this project.", Groups: new[] { "sdk", "new" })]
     [Obsolete("Use an editor to create TestPlans instead")]
     public class GenerateTestPlan : GenerateType
     {
