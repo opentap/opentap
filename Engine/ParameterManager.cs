@@ -571,7 +571,7 @@ namespace OpenTap
                 if (elem is ParameterMemberData)
                     return checkParameterSanity(step, parameters);
             }
-            return false;
+            return true;
         }
         
         /// <summary>
@@ -635,7 +635,7 @@ namespace OpenTap
                         }
 
                         if (member is IParameterMemberData)
-                            CheckParameterSanity(src, new[] {member});
+                            isSane &= CheckParameterSanity(src, new[] {member});
                         
                         bool memberDisposed = member is IDynamicMemberData dynamicMember && dynamicMember.IsDisposed;
                         if (memberDisposed || isParent == false || unparented)
@@ -652,19 +652,20 @@ namespace OpenTap
                 }
             }
             // only update the change id for this step if sanity check passed.
-            changeid.Value = step.ChildTestSteps.ChangeId;
+            if(isSane)
+                changeid.Value = step.ChildTestSteps.ChangeId;
 
             return isSane;
         }
         
         static bool checkParameterSanity(ITestStepParent step)
         {
-            bool isSane = true;
-            if (step == null) return isSane;
+            if (step == null) return true;
+            
             ParameterMemberData[] parameters;
             using(WithSanityCheckDelayed()) // sanity checks are being done inside check members.
                 parameters = TypeData.GetTypeData(step).GetMembers().OfType<ParameterMemberData>().ToArray();
-            isSane = CheckParameterSanity(step, parameters);
+            var isSane = CheckParameterSanity(step, parameters);
             if(step.Parent is ITestStepParent parent)
                 return checkParameterSanity(parent) & isSane;
             return isSane;
