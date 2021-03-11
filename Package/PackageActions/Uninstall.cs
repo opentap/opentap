@@ -20,6 +20,12 @@ namespace OpenTap.Package
 
         [UnnamedCommandLineArgument("package(s)", Required = true)]
         public string[] Packages { get; set; }
+        
+        /// <summary>
+        /// Never prompt for user input.
+        /// </summary>
+        [CommandLineArgument("non-interactive", Description = "Never prompt for user input.")]
+        public bool NonInteractive { get; set; } = false;
 
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
@@ -44,7 +50,11 @@ namespace OpenTap.Package
                 PackageDef package = installedPackages.FirstOrDefault(p => p.Name == pack);
 
                 if (package != null && package.PackageSource is InstalledPackageDefSource source)
+                {
                     installer.PackagePaths.Add(source.PackageDefFilePath);
+                    if (package.IsBundle())
+                        installer.PackagePaths.AddRange(GetPaths(package, source, installedPackages));
+                }
                 else if (!IgnoreMissing)
                 {
                     log.Error("Package '{0}' is not installed", pack);
@@ -60,6 +70,40 @@ namespace OpenTap.Package
                     return -3;
 
             return installer.RunCommand("uninstall", Force, true) ? 0 : -1;
+        }
+
+        private List<string> GetPaths(PackageDef package, InstalledPackageDefSource source,
+            List<PackageDef> installedPackages)
+        {
+            if (NonInteractive)
+            {
+                var bundledPackages = string.Join("\n", package.Dependencies.Select(d => d.Name));
+                log.Warning(
+                    $"Package '{package.Name}' is a bundle and has installed:\n{bundledPackages}\n\nThese packages must be uninstalled separately.\n");
+                log.Info($"Run the uninstall without the 'non-interactive' flag to interactively decide whether to keep or remove each package.");
+                return new List<string>();
+            }
+
+            var result = new List<string>(package.Dependencies.Count);
+
+            foreach (var dependency in package.Dependencies)
+            {
+                var dependencyPackage = installedPackages.FirstOrDefault(p => p.Name == dependency.Name);
+                
+                if (dependencyPackage != null && dependencyPackage.PackageSource is InstalledPackageDefSource source2)
+                {
+                    var question =
+                        $"Package '{dependency.Name}' is a member of the bundle '{package.Name}'.\nDo you wish to uninstall '{dependency.Name}'?";
+
+                    var req = new UninstallRequest(question) {Response = UninstallResponse.No};
+                    UserInput.Request(req, true);
+
+                    if (req.Response == UninstallResponse.Yes)
+                        result.Add(source2.PackageDefFilePath);
+                }
+            }
+
+            return result;
         }
 
         private bool CheckPackageAndDependencies(List<PackageDef> installed, List<string> packagePaths)
@@ -94,17 +138,8 @@ namespace OpenTap.Package
 
                 return req.Response == ContinueResponse.Continue;
             }
-            else
-            {
-                foreach (var bundle in packages.Where(p => p.IsBundle()).ToList())
-                {
-                    log.Warning("Package '{0}' is a bundle and has installed:\n{1}\n\nThese packages must be uninstalled separately.\n",
-                        bundle.Name,
-                        string.Join("\n", bundle.Dependencies.Select(d => d.Name)));
-                }
 
-                return true;
-            }
+            return true;
         }
     }
 
@@ -125,5 +160,26 @@ namespace OpenTap.Package
 
         [Submit]
         public ContinueResponse Response { get; set; }
+    }
+
+    [Obfuscation(Exclude = true)]
+    enum UninstallResponse
+    {
+        Yes,
+        No
+    }
+    
+    [Obfuscation(Exclude = true)]
+    [Display("Uninstall bundled package?")]
+    class UninstallRequest
+    {
+        public UninstallRequest(string message)
+        {
+            Message = message;
+        }
+        
+        [Browsable(true)]
+        public string Message { get; }
+        [Submit] public UninstallResponse Response { get; set; }
     }
 }
