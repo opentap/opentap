@@ -642,7 +642,7 @@ namespace OpenTap
                         {
                             member.Unparameterize(item, src);
                             if (!isParent || unparented)
-                                log.Warning("Step {0} is no longer a child step of the parameter owner. Removing from {1}.",
+                                log.Info("Step {0} is no longer a child step of the parameter owner. Removing from {1}.",
                                     (src as ITestStep)?.GetFormattedName() ?? src?.ToString(), item.Name);
                             else
                                 log.Warning("Member {0} no longer exists, unparameterizing member.", member.Name);
