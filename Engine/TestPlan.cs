@@ -330,7 +330,6 @@ namespace OpenTap
                     throw new PlanLoadException(string.Join("\n", errors));
                 }
             }
-
             if (cacheXml)
             {
                 plan.CacheXml = true;

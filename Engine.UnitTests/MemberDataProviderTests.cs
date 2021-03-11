@@ -512,7 +512,7 @@ namespace OpenTap.Engine.UnitTests
 
             public enum SingleEnum
             {
-                [Display("AAA")]
+                [Display("AAA", Order: 2)]
                 A,
                 B
             }
@@ -743,9 +743,14 @@ namespace OpenTap.Engine.UnitTests
                 if (mem.Member.Name == nameof(DataInterfaceTestClass.TheSingleEnum))
                 {
                     var avail = member.Get<IAvailableValuesAnnotationProxy>();
-                    var aEnum = avail.AvailableValues.First();
-                    var disp2 = aEnum.Get<IStringValueAnnotation>();
-                    Assert.AreEqual("AAA", disp2.Value);
+                    var bEnum = avail.AvailableValues.First();
+                    var bDisplay = bEnum.Get<IStringValueAnnotation>();
+                    Assert.AreEqual("B", bDisplay.Value);
+                    
+                    // order inverted because of display order.
+                    var aEnum = avail.AvailableValues.Last();
+                    var aDisplay = aEnum.Get<IStringValueAnnotation>();
+                    Assert.AreEqual("AAA", aDisplay.Value);
                 }
                 if (mem.Member.Name == nameof(DataInterfaceTestClass.Instruments))
                 {

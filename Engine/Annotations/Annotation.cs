@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
@@ -1043,11 +1044,14 @@ namespace OpenTap
     }
     class MemberValueAnnotation : IObjectValueAnnotation, IOwnedAnnotation, IErrorAnnotation
     {
-        AnnotationCollection annotation;
+        readonly AnnotationCollection annotation;
         object currentValue;
 
-        bool wasRead = false;
-        bool wasSet = false;
+        bool wasRead;
+        bool wasSet;
+        // the the member is a parameter we may need to update it
+        // even if the value is the same as the cached one.
+        bool isParameter; 
         public object Value
         {
             get
@@ -1072,6 +1076,7 @@ namespace OpenTap
         {
             if (annotation.Source == null) return;
             var m = annotation.Get<IMemberAnnotation>();
+            isParameter = m.Member is IParameterMemberData;
             try
             {
                 currentValue = m.Member.GetValue(annotation.Source);
@@ -1089,18 +1094,21 @@ namespace OpenTap
         public void Write(object source)
         {
             if (annotation.Source == null) return;
-            if (wasSet == false) return;
+            
             var m = annotation.Get<IMemberAnnotation>();
             if (m.Member.Writable == false) return;
+            
+            if (wasSet == false && !isParameter) return;
+            
             error = null;
             try
             {
-                if (object.Equals(currentValue, m.Member.GetValue(source)) == false)
+                if (object.Equals(currentValue, m.Member.GetValue(source)) == false || isParameter)
                     m.Member.SetValue(source, currentValue);
             }
-            catch (Exception _e)
+            catch (Exception e)
             {
-                error = _e.GetInnerMostExceptionMessage();
+                error = e.GetInnerMostExceptionMessage();
             }
         }
 
@@ -1382,21 +1390,26 @@ namespace OpenTap
                                 return mem.IsBrowsable();
                             return true;
                         }
+                        
+                        double order(Enum e) =>  enumType.GetMember(e.ToString()).FirstOrDefault().GetDisplayAttribute().Order;
 
-                        availableValues = Enum.GetValues(enumType).Cast<Enum>().Where(isBrowsable).ToArray();
+                        availableValues = Enum.GetValues(enumType)
+                            .Cast<Enum>()
+                            .Where(isBrowsable)
+                            .OrderBy(order)
+                            .ToArray();
                     }
                     return availableValues;
                 }
             }
 
+            readonly Type enumType;
+            EnumValuesAnnotation(Type enumType) => this.enumType = enumType;
 
-            Type enumType;
-            AnnotationCollection a;
-            public EnumValuesAnnotation(Type enumType, AnnotationCollection a)
-            {
-                this.enumType = enumType;
-                this.a = a;
-            }
+            static readonly ConcurrentDictionary<Type, EnumValuesAnnotation> lookup =
+                new ConcurrentDictionary<Type, EnumValuesAnnotation>();
+            public static EnumValuesAnnotation FromEnumType(Type type) =>
+                lookup.GetOrAdd(type, x => new EnumValuesAnnotation(x));
         }
 
         class EnumStringAnnotation : IStringValueAnnotation, IValueDescriptionAnnotation, ICopyStringValueAnnotation
@@ -1439,29 +1452,6 @@ namespace OpenTap
                 if (evalue is Enum e)
                     return Utils.EnumToDescription(e);
                 return null;
-            }
-        }
-
-        class MultiSelectable
-        {
-            public string FriendlyName { get; set; }
-            public object Value { get; set; }
-
-            public override string ToString()
-            {
-                return FriendlyName;
-            }
-            public override bool Equals(object obj)
-            {
-                if (obj is MultiSelectable ms)
-                {
-                    return object.Equals(ms.Value, Value);
-                }
-                return base.Equals(obj);
-            }
-            public override int GetHashCode()
-            {
-                return Value.GetHashCode() ^ typeof(MultiSelectable).GetHashCode();
             }
         }
 
@@ -2642,7 +2632,7 @@ namespace OpenTap
                         }
                         else
                         {    
-                            annotation.Add(new EnumValuesAnnotation(type, annotation));
+                            annotation.Add(EnumValuesAnnotation.FromEnumType(type));
                             annotation.Add(new EnumStringAnnotation(type, annotation));
 
                             if (csharpType.HasFlags())
@@ -2815,7 +2805,7 @@ namespace OpenTap
                                 lst.Add(da2);
                             }
                         }
-                        lst.RemoveIf<AnnotationCollection>(x => x.Get<IAccessAnnotation>()?.IsVisible == false);
+                        lst.RemoveIf(x => x.Get<IAccessAnnotation>()?.IsVisible == false);                 
                         annotations = lst;
 
                     }

@@ -26,18 +26,33 @@ namespace OpenTap
         /// <summary>
         /// Work has completed.
         /// </summary>
-        Completed
+        Completed,
+        /// <summary>
+        /// This and all child threads have completed.
+        /// </summary>
+        HierarchyCompleted,
     }
 
 
     /// <summary> baseclass for ThreadField types. </summary>
     internal abstract class ThreadField
     {
+        protected static readonly object DefaultCacheMarker = new object();
         static int threadFieldIndexer = 0;
         /// <summary>  Index of this thread field. </summary>
         protected readonly int Index = GetThreadFieldIndex();   
         
         static int GetThreadFieldIndex() => Interlocked.Increment(ref threadFieldIndexer);
+    }
+    
+    [Flags]
+    internal enum ThreadFieldMode
+    {
+        None = 0,
+        /// <summary>  Cached-mode ThreadFields are a bit faster as they dont need to iterate for finding commonly used values.
+        /// A value found in the parent thread is upgraded to local cache. Changes in parent thread thread-field values has no effect after it has
+        /// been cached the first time.</summary>
+        Cached = 1
     }
     
     /// <summary>
@@ -46,6 +61,12 @@ namespace OpenTap
     /// <typeparam name="T"></typeparam>
     internal class ThreadField<T> : ThreadField
     {
+        readonly int mode; 
+         
+        bool isCached => (mode & (int) ThreadFieldMode.Cached) > 0;
+
+        public ThreadField(ThreadFieldMode threadFieldMode = ThreadFieldMode.None) =>  mode = (int)threadFieldMode;
+        
         /// <summary>
         /// Gets or sets the value of the thread field. Note that the getter may get a value from a parent thread, while the setter cannot override values from parent fields. 
         /// </summary>
@@ -54,47 +75,108 @@ namespace OpenTap
             get => Get();
             set => Set(value);
         }
+
+        /// <summary> Gets the current value for things thread, if any.</summary>
+        public T GetCached()
+        {
+            var thread = TapThread.Current;
+            if (thread.Fields != null && thread.Fields.Length > Index && thread.Fields[Index] is T x)
+                return x;
+            return default;
+        } 
         
         T Get()
         {
             var thread = TapThread.Current;
+            bool isParent = false;
+            
+            // iterate through parent threads.
             while (thread != null)
             {
-                if (thread.Fields != null && thread.Fields.Length > Index && thread.Fields[Index] != null)
-                    return (T)thread.Fields[Index];
+                object found;
+                if (thread.Fields != null && thread.Fields.Length > Index && (found = thread.Fields[Index]) != null)
+                {
+                    if (isCached)
+                    {
+                        if (isParent)
+                            set(found); // set the value on the current thread (not on parent).
+                        if (ReferenceEquals(found, DefaultCacheMarker))
+                            return default;
+                    }
+                    return (T)found;
+                }
+
                 thread = thread.Parent;
+                isParent = true;
             }
+
+            if (isCached)
+                set(DefaultCacheMarker);
 
             return default;
         }
 
-        void Set(T value)
+        void set(object value)
         {
             var currentThread = TapThread.Current;
             if (currentThread.Fields == null)
                 currentThread.Fields = new object[Index + 1];
             else if(currentThread.Fields.Length <= Index)
             {
-                var newarray = new object[Index + 1];
-                currentThread.Fields.CopyTo(newarray, 0);
-                currentThread.Fields = newarray;
+                var newArray = new object[Index + 1];
+                currentThread.Fields.CopyTo(newArray, 0);
+                currentThread.Fields = newArray;
             }
             currentThread.Fields[Index] = value;
         }
+
+        void Set(T value) => set(value);
     }
-    
+
     /// <summary>
-    /// Represents a item of work in the <see cref="ThreadManager"/>. Also allows access to the Parent <see cref="TapThread"/> (the thread that initially called<see cref="TapThread.Start"/>)
+    /// Represents a item of work in the <see cref="ThreadManager"/>. Also allows access to the Parent <see cref="TapThread"/> (the thread that initially called<see cref="TapThread.Start(Action, string)"/>)
     /// </summary>
     public class TapThread
     {
         #region fields
-        static ThreadManager manager = new ThreadManager();
+        static readonly ThreadManager manager = new ThreadManager();
+        
+        static readonly SessionLocal<ThreadManager> sessionThreadManager = new SessionLocal<ThreadManager>(manager);
         Action action;
-        readonly CancellationTokenSource abortTokenSource;
+ 
+        CancellationTokenSource _abortTokenSource;
+
+        object tokenCreateLock = new object();
+        CancellationTokenSource abortTokenSource
+        {
+            get
+            {
+                if (_abortTokenSource == null)
+                {
+                    lock (tokenCreateLock)
+                    {
+                        if (Parent is TapThread parentThread)
+                        {
+                            // Create a new cancellation token source and link it to the thread's parent abort token.
+                            _abortTokenSource =
+                                CancellationTokenSource.CreateLinkedTokenSource(parentThread.AbortToken);
+                        }
+                        else
+                        {
+                            if (sessionThreadManager.Value is ThreadManager mng)
+                                _abortTokenSource = CancellationTokenSource.CreateLinkedTokenSource(mng.AbortToken);
+                            else _abortTokenSource = new CancellationTokenSource();
+                        }
+                    }
+                }
+
+                return _abortTokenSource;
+            }
+        }
+
         #endregion
 
-        internal object[] Fields = null;
+        internal object[] Fields;
         #region properties
         /// <summary>
         /// The currently running TapThread
@@ -105,19 +187,19 @@ namespace OpenTap
             {
                 if (ThreadManager.ThreadKey == null)
                 {
-                    ThreadManager.ThreadKey = new TapThread(null, null);
+                    ThreadManager.ThreadKey = new TapThread(null, null, null);
                 }
                 return ThreadManager.ThreadKey;
             }
         }
 
         /// <summary> Pretends that the current thread is a different thread while evaluating 'action'. 
-        /// This affects the functionality of ThreadHeirachyLocals and TapThread.Current. 
+        /// This affects the functionality of ThreadHierarchyLocals and TapThread.Current. 
         /// This overload also specifies which parent thread should be used.</summary>
         public static void WithNewContext(Action action, TapThread parent)
         {
             var currentThread = Current;
-            ThreadManager.ThreadKey = new TapThread(parent, action, currentThread.Name)
+            ThreadManager.ThreadKey = new TapThread(parent, action, null, currentThread.Name)
             {
                 Status = TapThreadStatus.Running
             };
@@ -127,12 +209,33 @@ namespace OpenTap
             }
             finally
             {
+                decrementThreadHierarchyCount(ThreadManager.ThreadKey);
                 ThreadManager.ThreadKey = currentThread;
             }
         }
 
+        /// <summary> This should be used through Session. </summary>
+        internal static IDisposable UsingThreadContext(TapThread parent, Action onHierarchyCompleted = null)
+        {
+            var currentThread = Current;
+            var newThread = new TapThread(parent, () => { }, onHierarchyCompleted, currentThread.Name)
+            {
+                Status = TapThreadStatus.Running
+            };
+            ThreadManager.ThreadKey = newThread;
+            
+            return Utils.WithDisposable(() =>
+            {
+                decrementThreadHierarchyCount(newThread);
+                ThreadManager.ThreadKey = currentThread;
+            });
+        }
+
+        /// <summary> This should be used through Session. </summary>
+        internal static IDisposable UsingThreadContext(Action onHierarchyCompleted = null) => UsingThreadContext(TapThread.Current, onHierarchyCompleted);
+
         /// <summary> Pretends that the current thread is a different thread while evaluating 'action'. 
-        /// This affects the functionality of ThreadHeirachyLocals and TapThread.Current. </summary>
+        /// This affects the functionality of ThreadHierarchyLocals and TapThread.Current. </summary>
         public static void WithNewContext(Action action)
         {
             WithNewContext(action, parent: Current);
@@ -151,36 +254,32 @@ namespace OpenTap
         /// </summary>
         public CancellationToken AbortToken => abortTokenSource.Token;
 
+        internal bool CanAbort { get; set; } = true;
+        
         /// <summary>
         /// The parent <see cref="TapThread">TapThread</see> that started this thread. In case it is null, then it is 
         /// not a managed <see cref="TapThread">TapThread</see>.
         /// </summary>
-        public TapThread Parent { get; private set; }
+        public TapThread Parent { get; }
         #endregion
 
         #region ctor
-        internal TapThread(TapThread parent, Action action, string name = "")
+        internal TapThread(TapThread parent, Action action, Action onHierarchyCompleted = null, string name = "")
         {
             Name = name;
             this.action = action;
             Parent = parent;
+            threadHierarchyCompleted = onHierarchyCompleted ?? (() => {});
+            incrementThreadHeirarchy(this);
             Status = TapThreadStatus.Queued;
-            if (parent is TapThread parentThread)
-            {
-                // Create a new cancellation token source and link it to the thread's parent abort token.
-                abortTokenSource = CancellationTokenSource.CreateLinkedTokenSource(parentThread.abortTokenSource.Token);
-            }
-            else
-            {
-                // Create a new cancellation token source in case this thread has not TapThread parent.
-                abortTokenSource = new CancellationTokenSource();
-            }
+            
+
         }
 
         /// <summary> </summary>
         ~TapThread()
         {
-            abortTokenSource.Dispose();
+            _abortTokenSource?.Dispose();
         }
         #endregion
 
@@ -199,6 +298,8 @@ namespace OpenTap
         /// </summary>
         internal void Abort(string reason)
         {
+            //if (CanAbort == false)
+            //    throw new Exception("Cannot abort Thread");
             abortTokenSource.Cancel();
             if (Current.AbortToken.IsCancellationRequested)
             {
@@ -211,22 +312,28 @@ namespace OpenTap
                     {
                         if(reason != null)
                             throw new OperationCanceledException(reason, Current.AbortToken);
-                        else
-                            Current.AbortToken.ThrowIfCancellationRequested();
+                        Current.AbortToken.ThrowIfCancellationRequested();
                     }
                     trd = trd.Parent;
                 }
             }
         }
 
-        /// <summary> Enqueue an action to be executed asynchroniously. </summary>
+        /// <summary> Enqueue an action to be executed asynchronously. </summary>
         /// <param name="action">The action to be executed.</param>
         /// <param name="name">The (optional) name of the OpenTAP thread. </param>
         public static TapThread Start(Action action, string name = "")
         {
+            return Start(action, null, name);
+        }
+
+        internal static TapThread Start(Action action, Action onHierarchyCompleted, string name = "")
+        {
             if (action == null)
                 throw new ArgumentNullException(nameof(action), "Action to be executed cannot be null.");
-            return manager.Enqueue(action, name ?? "");
+            var newThread = new TapThread(Current, action, onHierarchyCompleted, name);
+            manager.Enqueue(newThread);
+            return newThread;
         }
 
         /// <summary>
@@ -280,6 +387,10 @@ namespace OpenTap
             }
         }
 
+        // Reference counter for all threads in this hierarchy
+        int threadHierarchyCount;
+        readonly Action threadHierarchyCompleted;
+
         internal void Process()
         {
             if (action == null) throw new InvalidOperationException("TapThread cannot be executed twice.");
@@ -293,7 +404,31 @@ namespace OpenTap
                 Status = TapThreadStatus.Completed;
                 // set action to null to signal that it has been processed.
                 // also to allow GC to clean up closures.
-                action = null; 
+                action = null;
+
+                decrementThreadHierarchyCount(this);
+            }
+        }
+
+        static void incrementThreadHeirarchy(TapThread trd)
+        {
+            for(; trd != null; trd = trd.Parent)
+                Interlocked.Increment(ref trd.threadHierarchyCount);
+        }
+        
+        static void decrementThreadHierarchyCount(TapThread t)
+        {
+            for (; t != null; t = t.Parent)
+            {
+                var dec = Interlocked.Decrement(ref t.threadHierarchyCount); 
+                if (dec == 0)
+                {
+                    t.Status = TapThreadStatus.HierarchyCompleted;
+                    t.threadHierarchyCompleted();
+                }
+
+                if (dec < 0)
+                    throw new InvalidOperationException("thread hierarchy count mismatch");
             }
         }
 
@@ -309,18 +444,17 @@ namespace OpenTap
     internal class ThreadManager : IDisposable
     {
         // this queue is generally empty, since a new thread will be started whenever no workers are available for processing.
-        ConcurrentQueue<TapThread> workQueue = new ConcurrentQueue<TapThread>();
+        readonly ConcurrentQueue<TapThread> workQueue = new ConcurrentQueue<TapThread>();
 
         [ThreadStatic]
         internal static TapThread ThreadKey;
         
         // used for cancelling currently running tasks.
-        CancellationTokenSource cancelSrc = new CancellationTokenSource();
+        readonly CancellationTokenSource cancelSrc = new CancellationTokenSource();
 
         // this semaphore counts up whenever there is work to be done.
-        Semaphore freeWorkSemaphore = new Semaphore(0, Int32.MaxValue);
+        readonly Semaphore freeWorkSemaphore = new Semaphore(0, Int32.MaxValue);
 
-        Thread threadManagerThread;
         /// <summary> The number of currently available workers.</summary>
         int freeWorkers = 0;
         /// <summary>
@@ -330,26 +464,29 @@ namespace OpenTap
 
         /// <summary> Current number of threads. </summary>
         public uint ThreadCount => (uint)threads;
+
+        /// <summary> Thread manager root abort token. This can cancel all thread and child threads.
+        /// Canceled when the thread manager is disposed. </summary>
+        public CancellationToken AbortToken => cancelSrc.Token;
+
         /// <summary> Enqueue an action to be executed in the future. </summary>
-        /// <param name="action">The work to be processed.</param>
-        /// <param name="name">The (Optional) name of the new OpenTAP thread. </param>
-        public TapThread Enqueue(Action action, string name = "")
+        /// <param name="work">The work to be processed.</param>
+        public void Enqueue(TapThread work)
         {
-            if(cancelSrc.IsCancellationRequested) throw new Exception("ThreadManager has been disposed.");
-            var newThread = new TapThread(TapThread.Current, action, name);
-            workQueue.Enqueue(newThread);
+            if(cancelSrc.IsCancellationRequested) 
+                throw new Exception("ThreadManager has been disposed.");
+            workQueue.Enqueue(work);
             freeWorkSemaphore.Release();
-            return newThread;
         }
         
         /// <summary> Creates a new ThreadManager. </summary>
         internal ThreadManager()
         {
-            threadManagerThread = new Thread(threadManagerWork) { Name = "Thread Manager", IsBackground = true, Priority = ThreadPriority.Normal };
+            var threadManagerThread = new Thread(threadManagerWork) { Name = "Thread Manager", IsBackground = true, Priority = ThreadPriority.Normal };
             threadManagerThread.Start();
-            ThreadPool.GetMaxThreads(out MaxWorkerThreads, out int _);
+            //ThreadPool.GetMaxThreads(out MaxWorkerThreads, out int _);
         }
-        static int idleThreadCount = Environment.ProcessorCount * 2;
+        static readonly int idleThreadCount = 4;
         void threadManagerWork()
         {
             var handles = new WaitHandle[2];
@@ -368,10 +505,13 @@ namespace OpenTap
                 freeWorkSemaphore.Release();
                 if (freeWorkers < workQueue.Count)
                 {
-                    if (threads > MaxWorkerThreads || freeWorkers > 20)
+                    if (freeWorkers > 20)
+                        Thread.Sleep(freeWorkers);
+                    else if (threads > MaxWorkerThreads)
                     {
-                        // this is very bad (and unlikely). We should just wait for the threads to do their things and not start more threads.
-                        Thread.Sleep(20);
+                        int delay = threads - MaxWorkerThreads;
+                        Thread.Sleep(delay); // throttle the creation of new threads.
+                        newWorkerThread();
                     }
                     else
                     {
@@ -401,8 +541,7 @@ namespace OpenTap
         // This method can be processed by many threads at once.
         void processQueue()
         {
-            int trd = Interlocked.Increment(ref threads);
-            Debug.WriteLine("ThreadManager: Stating thread {0}", trd);
+            Interlocked.Increment(ref threads);
             var handles = new WaitHandle[2];
             try
             {
@@ -451,20 +590,26 @@ namespace OpenTap
             }
             catch (ThreadAbortException)
             {
-                // Can be throws when the application exits.
+                // Can be thrown when the application exits.
             }
             catch (Exception e)
             {
                 // exceptions should be handled at the 'work' level.
-                Debug.WriteLine("Exception unhandled in worker thread.");
-                Debug.WriteLine(e.StackTrace);
+                log.Error("Exception unhandled in worker thread.");
+                log.Debug(e);
             }
             finally
             {
                 Interlocked.Decrement(ref freeWorkers);
-                trd = Interlocked.Decrement(ref threads);
-                Debug.WriteLine("ThreadManager: Ending thread {0}", trd);
+                Interlocked.Decrement(ref threads);
+                //log.Debug("ThreadManager: Ending thread {0}", trd);
             }
+        }
+
+        private static TraceSource _log;
+        private static TraceSource log
+        {
+            get => (_log ?? (_log = Log.CreateSource("thread")));
         }
 
         /// <summary> Disposes the ThreadManager. This can optionally be done at program exit.</summary>
@@ -478,14 +623,14 @@ namespace OpenTap
 
     /// <summary>
     /// Has a separate value for each hierarchy of Threads that it is set on.
-    /// If a thread sets this to a value, that value will be visible only to that thread and its child threads (as started using <see cref="TapThread.Start"/>)
+    /// If a thread sets this to a value, that value will be visible only to that thread and its child threads (as started using <see cref="TapThread.Start(Action, string)"/>)
     /// </summary>
     class ThreadHierarchyLocal<T> where T : class
     {
         ConditionalWeakTable<TapThread, T> threadObjects = new ConditionalWeakTable<TapThread, T>();
         /// <summary>
         /// Has a separate value for each hierarchy of Threads that it is set on.
-        /// If a thread sets this to a value, that value will be visible only to that thread and its child threads (as started using <see cref="TapThread.Start"/>)
+        /// If a thread sets this to a value, that value will be visible only to that thread and its child threads (as started using <see cref="TapThread.Start(Action, string)"/>)
         /// </summary>
         public T LocalValue
         {

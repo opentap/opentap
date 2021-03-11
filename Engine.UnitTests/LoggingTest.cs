@@ -6,6 +6,8 @@ using NUnit.Framework;
 using OpenTap.Diagnostic;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using OpenTap.EngineUnitTestUtils;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -239,5 +241,28 @@ namespace OpenTap.Engine.UnitTests
                 Log.RemoveListener(listener);
             }
         }
+        
+        [TestCase("{")]
+        [TestCase("}")]
+        [TestCase("{}")]
+        [TestCase("")]
+        public void SimpleTest(string logStr)
+        {
+            var redirectedLogging = new TestTraceListener();
+            using (Session.Create())
+            {
+                Log.AddListener(redirectedLogging);
+                var log = Log.CreateSource("test");
+                log.Debug(logStr);   
+            }
+
+            var logResult = redirectedLogging.allLog.ToString()
+                .Split(new []{"\n"},StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.TrimEnd('\r'))
+                .ToArray();
+            Assert.AreEqual(1, logResult.Length);
+            Assert.IsTrue(logResult[0].EndsWith(logStr));
+        }
+        
     }
 }

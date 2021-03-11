@@ -288,24 +288,12 @@ namespace OpenTap
                         // Just to be sure also upgrade verdict to aborted.
                         run.UpgradeVerdict(Verdict.Aborted);
                     }
-                    catch (AggregateException e)
+                    catch (Exception e)
                     {
-                        if (e.InnerExceptions.Count == 1)
-                        {
-                            Log.Error("Failed to open resource ({0})", e.GetInnerMostExceptionMessage());
-                            Log.Debug(e);
-                        }
-                        else
-                        {
-                            Log.Error("Errors while opening resources:", e.GetInnerMostExceptionMessage());
-                            foreach (Exception ie in e.InnerExceptions)
-                            {
-                                Log.Error("    {0}", ie.GetInnerMostExceptionMessage());
-                                Log.Debug(ie);
-                            }
-                        }
+                        Log.Error("Failed to open resource ({0})", e.GetInnerMostExceptionMessage());
+                        Log.Debug(e);
                     }
-
+                    
                     if (PrintTestPlanRunSummary)
                     {
                         // wait for the summaryListener so the summary appears in the log file.
@@ -345,9 +333,10 @@ namespace OpenTap
         {
             var resources = _resources.Where(x => x != null).ToArray();
             
-            List<Type> componentSettingsWithMetaData = new List<Type>();
-            var componentSettings = PluginManager.GetPlugins<ComponentSettings>();
-            bool AnyMetaData = false;
+            var componentSettingsWithMetaData = new List<ITypeData>();
+            var componentSettings = TypeData.GetDerivedTypes<ComponentSettings>()
+                .Where(type => type.CanCreateInstance);
+            bool anyMetaData = false;
             planRun.PromptWaitHandle.Reset();
 
             try
@@ -359,32 +348,36 @@ namespace OpenTap
                         var attr = member.GetAttribute<MetaDataAttribute>();
                         if (attr != null && attr.PromptUser)
                         {
-                            AnyMetaData = true;
+                            anyMetaData = true;
                             componentSettingsWithMetaData.Add(setting);
+                            break; // avoid adding this multiple times.
                         }
                     }
                 }
 
                 foreach (var resource in resources)
                 {
+                    if (anyMetaData) break;
                     var type = TypeData.GetTypeData(resource);
-                    foreach (var __prop in type.GetMembers())
+                    foreach (var prop in type.GetMembers())
                     {
-                        IMemberData prop = __prop;
                         var attr = prop.GetAttribute<MetaDataAttribute>();
                         if (attr != null && attr.PromptUser)
-                            AnyMetaData = true;
+                        {
+                            anyMetaData = true;
+                            break;
+                        }
                     }
                 }
             }
             catch
             {
-                // this is just a defensive catch to make sure that the waithandle is not left unset (and we risk waiting for it indefinitely)
+                // this is just a defensive catch to make sure that the WaitHandle is not left unset (and we risk waiting for it indefinitely)
                 planRun.PromptWaitHandle.Set();
                 throw;
             }
             
-            if (AnyMetaData && EngineSettings.Current.PromptForMetaData)
+            if (anyMetaData && EngineSettings.Current.PromptForMetaData)
             {
                 TapThread.Start(() =>
                     {
@@ -393,6 +386,7 @@ namespace OpenTap
                             List<object> objects = new List<object>();
                             objects.AddRange(componentSettingsWithMetaData.Select(ComponentSettings.GetCurrent));
                             objects.AddRange(resources);
+                            objects.RemoveIf<object>(x => x == null); //ComponentSettings.GetCurrent can return null for abstract types.
 
                             planRun.PromptedResources = resources;
                             var obj = new MetadataPromptObject { Resources = objects };
@@ -425,7 +419,15 @@ namespace OpenTap
         {
             return Execute(ResultSettings.Current, null);
         }
-        TestPlanRunSummaryListener summaryListener = new TestPlanRunSummaryListener();
+
+        /// <summary> </summary>
+        /// <returns></returns>
+        public Task<TestPlanRun> ExecuteAsync()
+        {
+            return ExecuteAsync(ResultSettings.Current, null,null, TapThread.Current.AbortToken);
+        }
+        
+        readonly TestPlanRunSummaryListener summaryListener = new TestPlanRunSummaryListener();
         /// <summary>
         /// Execute the TestPlan as specified.
         /// </summary>
@@ -436,28 +438,21 @@ namespace OpenTap
         /// <returns>TestPlanRun results, no StepResults.</returns>
         public Task<TestPlanRun> ExecuteAsync(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride, CancellationToken cancellationToken)
         {
-            Task<TestPlanRun> result = Task.Run(() =>
+            var tcs = new TaskCompletionSource<TestPlanRun>();
+            TapThread.Start(() =>
             {
-                var sem = new SemaphoreSlim(0);
-                TestPlanRun testPlanRun = null;
-                TapThread.Start(() =>
+                try
                 {
-                    try
-                    {
-                        cancellationToken.Register(TapThread.Current.Abort);
-                        testPlanRun = Execute(resultListeners, metaDataParameters, stepsOverride);
-                    }
-                    finally
-                    {
-                        sem.Release();
-                    }
-                }, "Plan Thread");
-                sem.Wait();
-                
-                return testPlanRun;
-            });
-            
-            return result;
+                    cancellationToken.Register(TapThread.Current.Abort);
+                    var testPlanRun = Execute(resultListeners, metaDataParameters, stepsOverride);
+                    tcs.SetResult(testPlanRun);
+                }
+                catch (Exception e)
+                {
+                    tcs.SetException(e);
+                }
+            }, "Plan Thread");
+            return tcs.Task;
         }
 
         internal static ThreadHierarchyLocal<TestPlanRun> executingPlanRun = new ThreadHierarchyLocal<TestPlanRun>();
@@ -471,9 +466,16 @@ namespace OpenTap
         /// <returns>TestPlanRun results, no StepResults.</returns>
         public TestPlanRun Execute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters = null, HashSet<ITestStep> stepsOverride = null)
         {
-            TestPlanRun run = null;
-            TapThread.WithNewContext(() => run = this.DoExecute(resultListeners, metaDataParameters, stepsOverride));
-            return run;
+            return executeInContext( resultListeners, metaDataParameters, stepsOverride);
+        }
+
+        TestPlanRun executeInContext(IEnumerable<IResultListener> resultListeners,
+            IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride)
+        {
+            using (TapThread.UsingThreadContext())
+            {
+                return DoExecute(resultListeners, metaDataParameters, stepsOverride);
+            }
         }
 
         private TestPlanRun DoExecute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride)
@@ -511,8 +513,8 @@ namespace OpenTap
 
             Log.Info("-----------------------------------------------------------------");
 
-            var fileStreamFile = FileSystemHelper.CreateTempFile();
-            var logStream = new HybridStream(fileStreamFile, 1024 * 1024);
+            
+            var logStream = new HybridStream();
 
             var planRunLog = new FileTraceListener(logStream) { IsRelative = true };
             OpenTap.Log.AddListener(planRunLog);
@@ -558,12 +560,12 @@ namespace OpenTap
             if (currentExecutionState != null)
             {
                 execStage = new TestPlanRun(currentExecutionState, initTime, initTimeStamp);
-
                 continuedExecutionState = true;
             }
             else
             {
                 execStage = new TestPlanRun(this, resultListeners.ToList(), initTime, initTimeStamp);
+                execStage.Start();
 
                 execStage.Parameters.AddRange(PluginManager.GetPluginVersions(allEnabledSteps));
                 execStage.ResourceManager.ResourceOpened += r =>
@@ -650,7 +652,6 @@ namespace OpenTap
                 planRunLog.Dispose();
 
                 logStream.Dispose();
-                File.Delete(fileStreamFile);
 
                 // Clean all test steps StepRun, otherwise the next test plan execution will be stuck at TestStep.DoRun at steps that does not have a cleared StepRun.
                 foreach (var step in allSteps)
@@ -694,7 +695,7 @@ namespace OpenTap
         public void Open(IEnumerable<IResultListener> listeners)
         {
             if (listeners == null)
-                throw new ArgumentNullException("listeners");
+                throw new ArgumentNullException(nameof(listeners));
             if (PrintTestPlanRunSummary)
                 listeners = listeners.Concat(new IResultListener[] { summaryListener });
 
@@ -709,15 +710,16 @@ namespace OpenTap
 
                 Stopwatch timer = Stopwatch.StartNew();
                 currentExecutionState = new TestPlanRun(this, listeners.ToList(), DateTime.Now, Stopwatch.GetTimestamp(), true);
+                currentExecutionState.Start();
                 OpenInternal(currentExecutionState, false, listeners.Cast<IResource>().ToList(), allSteps);
                 try
                 {
                     currentExecutionState.ResourceManager.WaitUntilAllResourcesOpened(TapThread.Current.AbortToken);
                 }
-                catch
+                catch (Exception ex)
                 {
                     Log.Warning("Caught error while opening resources! See error message for details.");
-                    throw;
+                    ex.RethrowInner();
                 }
 
                 Log.Debug(timer, "TestPlan opened.");
@@ -801,3 +803,4 @@ namespace OpenTap
         
     }
 }
+    

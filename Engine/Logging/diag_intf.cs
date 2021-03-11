@@ -98,6 +98,9 @@ namespace OpenTap.Diagnostic
         /// The message for the event.
         /// </summary>
         public string Message;
+
+        /// <summary> Creates a string representation of this event structure. </summary>
+        public override string ToString() => $"{Timestamp} : {Source} : {Message}";
     }
     
     /// <summary>
@@ -360,5 +363,17 @@ namespace OpenTap.Diagnostic
         /// Maximum number of outstanding events. Only relevant for <see cref="Async"/> mode.  
         /// </summary>
         int MessageBufferSize { get; set; }
+    }
+
+    /// <summary>
+    /// Extended ILogContext interface.
+    /// </summary>
+    public interface ILogContext2 : ILogContext
+    {
+        /// <summary> Registers a new event</summary>
+        /// <param name="event"></param>
+        void AddEvent(Event @event);
+        /// <summary> gets if the context has any listeners.</summary>
+        bool HasListeners { get; }
     }
 }

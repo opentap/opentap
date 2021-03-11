@@ -35,32 +35,22 @@ namespace OpenTap.Package
             public DepResponse Response { get; set; } = DepResponse.Add;
         }
 
-        internal static PackageDef FindPackage(PackageSpecifier packageReference, bool force, Installation installation, List<IPackageRepository> repositories)
+        internal static PackageDef FindPackage(PackageSpecifier packageReference, IEnumerable<IPackageIdentifier> compatibleWith, List<IPackageRepository> repositories)
         {
-            IPackageIdentifier[] compatibleWith;
-            if (!force)
-			{
-                var tapPackage = installation.GetOpenTapPackage();
-                if(tapPackage != null)
-                    compatibleWith = new[] { installation.GetOpenTapPackage() };
-                else
-                    compatibleWith = new[] { new PackageIdentifier("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString(), CpuArchitecture.Unspecified, "") };
-            }
-            else
-                compatibleWith = Array.Empty<IPackageIdentifier>();
-            
-            var compatiblePackages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageReference, compatibleWith);
+            var compatiblePackages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageReference, compatibleWith.ToArray());
 
             // Of the compatible packages, pick the one with the highest version number. If that package is available from several repositories, pick the one with the lowest index in the list in PackageManagerSettings
             PackageDef package = null;
             if (compatiblePackages.Any())
                 package = compatiblePackages.GroupBy(p => p.Version).OrderByDescending(g => g.Key).FirstOrDefault()
-                                            .OrderBy(p => repositories.IndexWhen(e => NormalizeRepoUrl(e.Url) == NormalizeRepoUrl((p.PackageSource as IRepositoryPackageDefSource)?.RepositoryUrl))).FirstOrDefault();
+                                            .OrderBy(p => repositories.IndexWhen(e => NormalizeRepoUrl(e.Url) == NormalizeRepoUrl((p.PackageSource as IRepositoryPackageDefSource)?.RepositoryUrl)))
+                                            .OrderBy(p => OrderArchitecture(p.Architecture))
+                                            .FirstOrDefault();
 
             // If no package was found, try to figure out why
             if (package == null)
             {
-                var compatibleVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageReference.Name, compatibleWith);
+                var compatibleVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageReference.Name, compatibleWith.ToArray());
                 var versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageReference.Name);
 
                 // Any packages compatible with opentap and platform
@@ -112,6 +102,29 @@ namespace OpenTap.Package
             return package;
         }
 
+        private static int OrderArchitecture(CpuArchitecture architecture)
+        {
+            if (architecture == ArchitectureHelper.GuessBaseArchitecture)
+                return 0;
+            switch (architecture)
+            {
+                case CpuArchitecture.Unspecified:
+                    return 10;
+                case CpuArchitecture.AnyCPU:
+                    return 1;
+                case CpuArchitecture.x86:
+                    return 3;
+                case CpuArchitecture.x64:
+                    return 2;
+                case CpuArchitecture.arm:
+                    return 5;
+                case CpuArchitecture.arm64:
+                    return 4;
+                default:
+                    return 10;
+            }
+        }
+
         internal static string NormalizeRepoUrl(string path)
         {
             if (Uri.IsWellFormedUriString(path, UriKind.Relative) && Directory.Exists(path) || Regex.IsMatch(path ?? "", @"^([A-Z|a-z]:)?(\\|/)"))
@@ -131,7 +144,8 @@ namespace OpenTap.Package
 
         }
 
-        internal static List<PackageDef> GatherPackagesAndDependencyDefs(Installation installation, PackageSpecifier[] pkgRefs, string[] packageNames, string Version, CpuArchitecture arch, string OS, List<IPackageRepository> repositories, bool force, bool includeDependencies, bool askToIncludeDependencies, bool noDowngrade)
+        internal static List<PackageDef> GatherPackagesAndDependencyDefs(Installation installation, PackageSpecifier[] pkgRefs, string[] packageNames, string Version, CpuArchitecture arch, string OS, List<IPackageRepository> repositories, 
+            bool force, bool includeDependencies, bool ignoreDependencies, bool askToIncludeDependencies, bool noDowngrade)
         {
             List<PackageDef> gatheredPackages = new List<PackageDef>();
 
@@ -213,8 +227,8 @@ namespace OpenTap.Package
                 }
                 else
                 {
-                    PackageDef package = PackageActionHelpers.FindPackage(packageReference, force, installation, repositories);
-                    
+                    PackageDef package = FindPackage(packageReference, new List<PackageDef>(), repositories);
+
                     if (noDowngrade)
                     {
                         var installedPackage = installedPackages.FirstOrDefault(p => p.Name == package.Name);
@@ -242,7 +256,18 @@ namespace OpenTap.Package
             
             log.Debug("Resolving dependencies.");
             var resolver = new DependencyResolver(installation, gatheredPackages, repositories);
-            if (resolver.UnknownDependencies.Any())
+            if(ignoreDependencies)
+            {
+                if(resolver.UnknownDependencies.Any() || resolver.MissingDependencies.Any())
+                    log.Info($"Ignoring depencencies (--no-dependencies option specified).");
+            }
+            if (force)
+            {
+                // this it for compatibility with old 9.11 behavior (--force means don't ask for dependencies).
+                if (resolver.UnknownDependencies.Any() || resolver.MissingDependencies.Any())
+                    log.Info($"Ignoring depencencies (--force option specified).");
+            }
+            else if (resolver.UnknownDependencies.Any())
             {
                 foreach (var dep in resolver.UnknownDependencies)
                 {
@@ -264,16 +289,14 @@ namespace OpenTap.Package
             }
             else if (resolver.MissingDependencies.Any())
             {
-                string dependencyArgsHint = "";
-                if (!includeDependencies)
-                    dependencyArgsHint = $" (use --dependencies to also get these)";
-                if (resolver.MissingDependencies.Count > 1)
-                    log.Info("{0} required dependencies are currently not installed{1}.", resolver.MissingDependencies.Count, dependencyArgsHint);
-                else
-                    log.Info("A required dependency is currently not installed{0}.", dependencyArgsHint);
+                if (includeDependencies == false)
+                {
+                    var dependencies = string.Join(", ",
+                        resolver.MissingDependencies.Select(d => $"{d.Name} {d.Version}"));
+                    log.Info($"Use '--dependencies' to include {dependencies}.");
+                }
 
-
-                if (includeDependencies && (askToIncludeDependencies == false))
+                if (includeDependencies)
                 {
                     foreach (var package in resolver.MissingDependencies)
                     {
@@ -301,6 +324,8 @@ namespace OpenTap.Package
                         {
                             gatheredPackages.Insert(0, pkg);
                         }
+                        else
+                            log.Debug("Ignoring dependent package {0} at users request.", pkg.Name);
                     }
                 }
             }

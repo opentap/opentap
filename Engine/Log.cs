@@ -52,6 +52,8 @@ namespace OpenTap
             log = logSource;
         }
 
+        LogContext.LogInjector redirectedLog => Log.RedirectedLog;
+
         /// <summary>
         /// Blocks until all messages posted up to this point have reached all TraceListeners.  
         /// </summary>
@@ -68,13 +70,31 @@ namespace OpenTap
             
             if (message == null)
                 throw new ArgumentNullException(nameof(message));
-            log.LogEvent((int)te, message);
+            if(redirectedLog != null)
+                redirectedLog.LogEvent(log.Source, (int)te, message);
+            else
+                log.LogEvent((int)te, message);
         }
 
         /// <summary> Register a single event with formatting and duration. </summary>
         public void TraceEvent(long durationNs, LogEventType te, int id, string message, params object[] args)
         {
-            log.LogEvent((int)te, durationNs, message, args);
+            if(redirectedLog != null)
+                redirectedLog.LogEvent(log.Source, (int)te, durationNs, message, args);
+            else
+                log.LogEvent((int)te, durationNs, message, args);
+        }
+        
+        /// <summary> Register a single event without formatting and duration. </summary>
+        public void TraceEvent(long durationNs, LogEventType te, int id, string message)
+        {
+            // this overload is important since otherwise the logging system will use 
+            // the overload with [args] even though there are none. And that can give
+            // problems if the message itself contains formatting demarcations e.g '{0}'
+            if (redirectedLog != null)
+                redirectedLog.LogEvent(log.Source, (int)te, durationNs, message);
+            else
+                log.LogEvent((int)te, durationNs, message);
         }
 
         /// <summary>
@@ -86,7 +106,10 @@ namespace OpenTap
                 throw new ArgumentNullException(nameof(message));
             if (args == null)
                 throw new ArgumentNullException(nameof(args));
-            log.LogEvent((int)te, message, args);
+            if(redirectedLog != null)
+                redirectedLog.LogEvent(log.Source, (int)te, message, args);
+            else
+                log.LogEvent((int)te, message, args);
         }
     }
 
@@ -285,41 +308,50 @@ namespace OpenTap
     /// </summary>
     public static class Log
     {
-        private static ILogContext TapContext = LogFactory.CreateContext();
+        static readonly LogContext rootLogContext = (LogContext)LogFactory.CreateContext();
 
         internal static ILogTimestampProvider Timestamper
         {
-            get
-            {
-                return TapContext.Timestamper;
-            }
-            set
-            {
-                TapContext.Timestamper = value;
-            }
+            get => rootLogContext.Timestamper;
+            set => rootLogContext.Timestamper = value;
         }
 
-        
+        static readonly SessionLocal<LogContext.LogInjector> logField = new SessionLocal<LogContext.LogInjector>(null);
+        static readonly SessionLocal<LogContext> sessionLogContext = new SessionLocal<LogContext>(rootLogContext);
+
+        internal static void WithNewContext()
+        {
+            var ctx = new LogContext();
+            
+            logField.Value = new LogContext.LogInjector(ctx);
+            sessionLogContext.Value = ctx;
+        }
+
+        internal static LogContext.LogInjector RedirectedLog => logField.Value;
+
+        /// <summary> The current log context. </summary>
+        public static ILogContext Context => sessionLogContext.Value;
+
         /// <summary> Makes a TraceListener start receiving log messages. </summary>
         /// <param name="listener">The TraceListener to add.</param>
         public static void AddListener(ILogListener listener)
         {
             if (listener == null)
-                throw new ArgumentNullException("listener");
-            Log.Flush();
-            TapContext.AttachListener(listener);
+                throw new ArgumentNullException(nameof(listener));
+            var ctx = Context;
+            ctx.Flush();
+            ctx.AttachListener(listener);
         }
         
-        
-
         /// <summary> Stops a specified TraceListener from receiving log messages. </summary>
         /// <param name="listener">The TraceListener to remove.</param>
         public static void RemoveListener(ILogListener listener)
         {
             if (listener == null)
-                throw new ArgumentNullException("listener");
+                throw new ArgumentNullException(nameof(listener));
+            var ctx = Context;
             listener.Flush();
-            TapContext.DetachListener(listener);
+            ctx.DetachListener(listener);
             listener.Flush();
         }
         /// <summary>
@@ -328,19 +360,19 @@ namespace OpenTap
         /// <returns>A readonly collection of TraceListeners.</returns>
         public static ReadOnlyCollection<ILogListener> GetListeners()
         {
-            return (TapContext as LogContext)?.GetListeners();
+            return sessionLogContext.Value?.GetListeners();
         }
         /// <summary> Creates a new log source. </summary>
         /// <param name="name">The name of the Log.</param>
         /// <returns>The created Log.</returns>
         public static TraceSource CreateSource(string name)
         {
-            return new TraceSource(TapContext.CreateLog(name));
+            return new TraceSource(rootLogContext.CreateLog(name));
         }
 
         // ConditionalWeakTable keys does not count as a reference and are automatically removed on GC. This way we avoid leak. CWT's are thread safe.
         static readonly System.Runtime.CompilerServices.ConditionalWeakTable<object, TraceSource> ownedTraceSources = new System.Runtime.CompilerServices.ConditionalWeakTable<object, TraceSource>();
-        static object addlock = new object();
+        static readonly object addlock = new object();
         /// <summary> Creates a new owned log source. Note that any given object can only have one owned TraceSource.</summary>
         /// <param name="name">The name of the Log.</param>
         /// <param name="owner">The object owning the log. This is used to enable OpenTAP to emit log messages on behalf of the owner object. </param>
@@ -348,7 +380,7 @@ namespace OpenTap
         public static TraceSource CreateSource(string name, object owner)
         {
             if (owner == null)
-                throw new ArgumentNullException("owner");
+                throw new ArgumentNullException(nameof(owner));
             var source = CreateSource(name);
             source.Owner = owner;
             lock (addlock)
@@ -365,11 +397,12 @@ namespace OpenTap
         public static TraceSource GetOwnedSource(object owner)
         {
             if (owner == null)
-                throw new ArgumentNullException("owner");
-            TraceSource source = null;
+                throw new ArgumentNullException(nameof(owner));
             lock (addlock)
-                ownedTraceSources.TryGetValue(owner, out source);
-            return source;
+            {
+                ownedTraceSources.TryGetValue(owner, out TraceSource source);
+                return source;
+            }
         }
 
         /// <summary>
@@ -379,8 +412,8 @@ namespace OpenTap
         public static void RemoveSource(TraceSource source)
         {
             if (source == null)
-                throw new ArgumentNullException("source");
-            TapContext.RemoveLog(source.log);
+                throw new ArgumentNullException(nameof(source));
+            rootLogContext.RemoveLog(source.log);
         }
 
         static Log()
@@ -392,8 +425,8 @@ namespace OpenTap
             // prevent a deadlock when using the Log Breaking feature in the GUI.
             Trace.UseGlobalLock = false;
 
-            TapContext.Async = true;
-            TapContext.MessageBufferSize = 8 * 1024 * 1024;
+            rootLogContext.Async = true;
+            rootLogContext.MessageBufferSize = 8 * 1024 * 1024;
         }
 
         // Performance: Reuse the string build each time to avoid generating GC pressure.
@@ -449,14 +482,22 @@ namespace OpenTap
         static void traceEvent(this TraceSource trace, LogEventType eventType, string message, params object[] args)
         {
             if (message == null)
-                throw new ArgumentNullException("message");
-            trace.TraceEvent(eventType, 0, args.Length == 0 ? message : String.Format(message, args));
+                throw new ArgumentNullException(nameof(message));
+            if (args.Length == 0)
+            {
+                trace.TraceEvent(eventType, 0, message);    
+            }
+            else
+            {
+                trace.TraceEvent(eventType, 0, message, args);
+            }
+            
         }
 
         static void exceptionEvent(this TraceSource trace, Exception exception, LogEventType eventType)
         {
             if (exception == null)
-                throw new ArgumentNullException("exception");
+                throw new ArgumentNullException(nameof(exception));
             WriteException(trace, exception, eventType);
         }
 
@@ -570,6 +611,7 @@ namespace OpenTap
         {
             traceEvent(trace, elapsed, LogEventType.Debug, message, args);
         }
+        
         /// <summary>
         /// Writes a message with the time appended in the format [xx.x (m/u/n)s].
         /// if timer is a TimerToken it will be disposed.
@@ -649,57 +691,75 @@ namespace OpenTap
             exceptionEvent(trace, exception, LogEventType.Error);
         }
 
+        const int callerStackTraceLimit = 4;
         static void WriteStackTrace(TraceSource trace, StackTrace stack, LogEventType level)
         {
-            var lines = stack.GetFrames().Skip(3); // skip the frames from the logging itself
+            var frames = stack.GetFrames() ?? Array.Empty<StackFrame>(); 
+            var lines = frames
+                .Skip(3) // Skip the frames from the logging itself.
+                .Where(line => line.HasMethod()); // only take those with the method available.
+            int lineCount = lines.Count();
             
-            foreach (StackFrame line in lines.Where(line => line.HasMethod()))
+            lines = lines.Take(callerStackTraceLimit); // Just show the top of the call stack.
+            
+            foreach (StackFrame line in lines)
             {
                 var fixedLine =  $"at {line.GetMethod()}";
                 if (line.HasSource())
                 {
                     fixedLine += $" in {line.GetFileName()}:line {line.GetFileLineNumber()}";
                 }
-                
-                trace.TraceEvent(LogEventType.Debug, 2, "    " + fixedLine, false);
+                trace.TraceEvent(level, 2, "    " + fixedLine, false);
+            }
+
+            if (lineCount > callerStackTraceLimit)
+            {
+                trace.TraceEvent(level, 2, "    ...");
             }
         }
 
-        private static void WriteException(TraceSource trace, Exception exception, LogEventType level, bool appendStack = true)
+        static void WriteException(TraceSource trace, Exception exception, LogEventType level, bool appendStack = true, bool isInner = false)
         {
             try
             {
-                bool isInner = false;
-                while (exception != null)
+                var exceptionMessage = exception.Message
+                    .Replace("{", "{{")
+                    .Replace("}", "}}");
+                if (isInner)
+                    trace.TraceEvent(level, 2, "  Inner exception: " + exceptionMessage, false);
+                else
+                    trace.TraceEvent(level, 2, "Exception: " + exceptionMessage);
+                if (exception.StackTrace != null)
                 {
-                    var exceptionMessage = exception.Message
-                        .Replace("{", "{{")
-                        .Replace("}", "}}");
-                    if (isInner)
-                        trace.TraceEvent(level, 2, "  Inner exception: " + exceptionMessage, false);
-                    else
-                        trace.TraceEvent(level, 2, "Exception: " + exceptionMessage);
-                    if (exception.StackTrace != null)
+                    string[] lines = exception.StackTrace.Split(new char[] {'\n'});
+                    foreach (string line in lines)
                     {
-                        string[] lines = exception.StackTrace.Split(new char[] { '\n' });
-                        foreach (string line in lines)
-                        {
-                            var fixedLine = line.Replace("{", "{{").Replace("}", "}}").Trim();
-                            trace.TraceEvent(LogEventType.Debug, 2, "    " + fixedLine, false);
-                        }
+                        var fixedLine = line.Replace("{", "{{").Replace("}", "}}").Trim();
+                        trace.TraceEvent(LogEventType.Debug, 2, "    " + fixedLine, false);
                     }
-                    if (exception is ReflectionTypeLoadException)
-                    {
-                        ReflectionTypeLoadException reflectionTypeLoadException = (ReflectionTypeLoadException)exception;
-                        foreach (Exception ex in reflectionTypeLoadException.LoaderExceptions)
-                        {
-                            WriteException(trace, ex, level, false);
-                        }
-                    }
-                    exception = exception.InnerException;
-                    isInner = true;
                 }
-            }catch(Exception)
+
+                if (exception is ReflectionTypeLoadException)
+                {
+                    ReflectionTypeLoadException reflectionTypeLoadException = (ReflectionTypeLoadException) exception;
+                    foreach (Exception ex in reflectionTypeLoadException.LoaderExceptions)
+                    {
+                        WriteException(trace, ex, level, false);
+                    }
+                }
+                else if (exception is AggregateException ag)
+                {
+                    foreach (var inner in ag.InnerExceptions)
+                    {
+                        WriteException(trace, inner, level, false, true);
+                    }
+                }
+                else if (exception.InnerException is Exception inner)
+                {
+                    WriteException(trace, inner, level, false, true);
+                }
+            }
+            catch (Exception)
             {
                 trace.TraceEvent(level, 2, "Error caught while logging an exception.");
             }
@@ -724,7 +784,7 @@ namespace OpenTap
         /// </summary>
         public static void Flush()
         {
-            TapContext.Flush();
+            rootLogContext.Flush();
         }
 
         /// <summary>
@@ -734,7 +794,7 @@ namespace OpenTap
         public static void StartSync()
         {
             Flush();
-            TapContext.Async = false;
+            rootLogContext.Async = false;
         }
 
         /// <summary>
@@ -742,7 +802,7 @@ namespace OpenTap
         /// </summary>
         public static void StopSync()
         {
-            TapContext.Async = true;
+            rootLogContext.Async = true;
             Flush();
         }
     }
@@ -758,10 +818,28 @@ namespace OpenTap
         /// </summary>
         public static string GetInnerMostExceptionMessage(this Exception ex)
         {
-            Exception inner = ex;
-            while (inner.InnerException != null && !(inner.InnerException is System.Runtime.InteropServices.COMException))
-                inner = inner.InnerException;
-            return inner.Message;
+            if (ex is AggregateException ag)
+            {
+                if(ag.InnerExceptions.Count == 1)
+                    return ag.InnerExceptions[0].GetInnerMostExceptionMessage();
+                return ag.Message;
+            }
+            if (ex is System.Runtime.InteropServices.COMException)
+                return ex.Message;
+            return ex.InnerException?.GetInnerMostExceptionMessage() ?? ex.Message;
+        }
+
+        public static void Rethrow(this Exception ex)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex).Throw();
+        }
+
+        public static void RethrowInner(this Exception ex)
+        {
+            if(ex is AggregateException a && a.InnerExceptions.Count > 1)
+                ex.Rethrow();
+            else
+                (ex.InnerException ?? ex).Rethrow();
         }
     }
 }

@@ -48,6 +48,7 @@ The configuration file supports optional attributes:
 
 | **Attribute** | **Description** |
 | ---- | -------- |
+| **Name** | The name of the package. Must not include invalid file name characters: `"`, `<`, `>`, `|`, `\0`, `\u0001`, `\u0002`, `\u0003`, `\u0004`, `\u0005`, `\u0006`, `\a`, `\b`, `\t`, `\n`, `\v`, `\f`, `\r`, `\u000e`, `\u000f`, `\u0010`, `\u0011`, `\u0012`, `\u0013`, `\u0014`, `\u0015`, `\u0016`, `\u0017`, `\u0018`, `\u0019`, `\u001a`, `\u001b`, `\u001c`, `\u001d`, `\u001e`, `\u001f`, `:`, `*`, `?`, `\\`, `/`. |
 | **InfoLink**   | Specifies a location where additional information about the package can be found. It is visible in the Package Manager as the **More Information** link.  |
 | **Version**  | The version of the package. This field supports the $(GitVersion) macro. The version is displayed in the Package Manager. See [Versioning](#versioning) for more details. |
 | **OS**   | Which operative systems the package is compatible with. This is a comma separated list. It is used to filter packages which are compatible with the operating system the PackageManager is running on. If the attribute is not specified, the default "Windows" is used. Example: `OS="Windows,Linux"`. Note, only the following OS values are currently supported by the package manager for automatic detection: Windows, Linux and OSX. So using one of these is recommended. |
@@ -68,6 +69,9 @@ The **Owner** element inside the configuration file is the name of the package o
 
 ### SourceUrl Element
 The **SourceUrl** element in the configuration file is a link to the package source code. This is intended for open sourced projects.
+
+### SourceLicense Element
+The license of the open sources project. Must be a [SPDX identifier](https://spdx.org/licenses/).
 
 ### File Element
 The **File** element inside the configuration file supports the following attributes:

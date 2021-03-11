@@ -33,6 +33,7 @@
     <File Path="Packages/SDK/Examples/ExamplePlugin/Properties/*"/>
     <File Path="Packages/SDK/Examples/PluginDevelopment/package.xml"/>
     <File Path="Packages/SDK/Examples/PluginDevelopment/PluginDevelopment.csproj"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment/Advanced Examples/*.cs"/>
     <File Path="Packages/SDK/Examples/PluginDevelopment/GUI/*.cs"/>
     <File Path="Packages/SDK/Examples/PluginDevelopment/InstrumentsAndDuts/*.cs"/>
     <File Path="Packages/SDK/Examples/PluginDevelopment/Properties/*"/>

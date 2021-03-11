@@ -41,7 +41,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Determines whether tap.exe will run an update check against configured repositories at startup.
         /// </summary>
-        [Display("Check for Updates at Startup", Group: "General", Description: "Checks for updates against enabled package repositories. The update check sends annymized package idenfiers to the enabled repositories.")]
+        [Display("Check for Updates at Startup", Group: "General", Description: "Checks for updates against enabled package repositories. The update check sends anonymized package idenfiers to the enabled repositories.")]
         public bool CheckForUpdates { get; set; } = true;
 
         /// <summary>

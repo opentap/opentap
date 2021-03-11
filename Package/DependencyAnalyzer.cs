@@ -16,8 +16,10 @@ namespace OpenTap.Package
         /// <summary> The dependency is missing. </summary>
         Missing,
         /// <summary> Incompatible version installed. </summary>
+        [Display("Incompatible Version")]
         IncompatibleVersion,
         /// <summary> One of the dependencies has a issue.</summary>
+        [Display("Dependency Missing")]
         DependencyMissing
     }
 

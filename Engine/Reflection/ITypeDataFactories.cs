@@ -118,6 +118,9 @@ namespace OpenTap
             if (obj == null) return FromType(typeof(object));
             var resolver = new TypeDataProviderStack();
             var result = resolver.GetTypeData(obj);
+            if (result == null)
+                // this should never be possible since even GetTypeData(null) returns type of object.
+                throw new Exception($"GetTypeData returned null for an object if type {obj.GetType()}");
             if (cache == null)
                 return result;
             cache[obj] = result;

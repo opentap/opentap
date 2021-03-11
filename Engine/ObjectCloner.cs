@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 
 namespace OpenTap
 {
@@ -28,8 +29,7 @@ namespace OpenTap
             if (typeOfValue.AsTypeData().IsValueType || value == null || value is string)
             {
                 valueType = true;
-            }
-                
+            }       
         }
 
         public bool CanClone(object context, ITypeData targetType = null)
@@ -37,9 +37,9 @@ namespace OpenTap
             return TryClone(context, targetType ?? typeOfValue, false, out object _);
         }
         
-        public bool TryClone(object context, ITypeData targetType, bool skipIfPossible, out object clone )
+        bool TryClone(object context, ITypeData targetType, bool skipIfPossible, out object clone )
         {
-            if (targetType == typeOfValue && valueType || value == null)
+            if (ReferenceEquals(targetType, typeOfValue) && valueType || value == null)
             {
                 clone = value;
                 return true;
@@ -65,18 +65,23 @@ namespace OpenTap
                     }
 
                     if (serializer == null)
-                        serializer = new TapSerializer();
+                        serializer = new TapSerializer {IgnoreErrors = true}; // dont emit errors.
 
                     if (xmlString == null)
                         xmlString = serializer.SerializeToString(value);
                     if (xmlString != null)
                     {
                         clone = serializer.DeserializeFromString(xmlString);
+                        if (serializer.Errors.Any())
+                            return false;
                         return true;
                     }
                 }
                 catch
                 {
+                    // catch any error. this means cloning is not possible.
+                    clone = null;
+                    return false;
                 }
             }
 
@@ -86,7 +91,7 @@ namespace OpenTap
 
         public object Clone(bool skipIfPossible, object context, ITypeData targetType)
         {
-            TryClone(context, targetType, skipIfPossible, out object clone);
+            TryClone(context, targetType, skipIfPossible, out var clone);
             return clone;
         }
     }

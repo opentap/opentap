@@ -44,7 +44,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                     repository = "packages.opentap.io";
                 var version = item.GetMetadata("Version");
 
-                var arguments = $@"package install --dependencies ""{package}"" -r ""{repository}""";
+                var arguments = $@"package install --dependencies ""{package}"" -r ""{repository}"" --non-interactive";
                 if (string.IsNullOrWhiteSpace(version) == false)
                     arguments += $@" --version ""{version}""";
 

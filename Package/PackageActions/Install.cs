@@ -23,6 +23,12 @@ namespace OpenTap.Package
         [CommandLineArgument("dependencies", Description = "Install dependencies without asking. This is always enabled when installing bundle packages.", ShortName = "y")]
         public bool InstallDependencies { get; set; }
 
+        [CommandLineArgument("no-dependencies", Description = "Don't install dependencies. This is implied when using --force.")]
+        public bool IgnoreDependencies { get; set; }
+
+        [CommandLineArgument("overwrite", Description = "Overwrite files that already exist without asking. This is implied when using --force.")]
+        public bool Overwrite { get; set; }
+
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
@@ -43,10 +49,17 @@ namespace OpenTap.Package
         
         [CommandLineArgument("check-only", Description = "Checks if the selected package(s) can be installed, but does not install or download them.")]
         public bool CheckOnly { get; set; }
-        
-        [CommandLineArgument("interactive", Description = "More user responsive.")]
+
+        [Obsolete("Interactive is the default. Use --non-interactive to disable.")]
+        [CommandLineArgument("interactive", Description = "More user responsive.",Visible = false)]
         public bool Interactive { get; set; }
-        
+
+        /// <summary>
+        /// Never prompt for user input.
+        /// </summary>
+        [CommandLineArgument("non-interactive", Description = "Never prompt for user input.")]
+        public bool NonInteractive { get; set; } = false;
+
         [CommandLineArgument("no-downgrade", Description = "Don't install if the same or a newer version is already installed.")]
         public bool NoDowngrade { get; set; }
         
@@ -112,11 +125,14 @@ namespace OpenTap.Package
                         }
                     }
                 }
-                
+
                 // Get package information
+                bool askToInstallDependencies = !NonInteractive;
+                if (IgnoreDependencies || Force)
+                    askToInstallDependencies = false;
                 List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                     targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
-                    InstallDependencies, Interactive, NoDowngrade);
+                    InstallDependencies, IgnoreDependencies, askToInstallDependencies, NoDowngrade);
                 if (packagesToInstall?.Any() != true)
                 {
                     if (NoDowngrade)
@@ -130,28 +146,29 @@ namespace OpenTap.Package
 
                 var installationPackages = targetInstallation.GetPackages();
 
-                var overWriteCheckExitCode = CheckForOverwrittenPackages(installationPackages, packagesToInstall, Force, Interactive);
+                var overWriteCheckExitCode = CheckForOverwrittenPackages(installationPackages, packagesToInstall, Force || Overwrite, !(NonInteractive || Overwrite));
                 if (overWriteCheckExitCode == InstallationQuestion.Cancel)
                     return 2;
+                if (overWriteCheckExitCode == InstallationQuestion.OverwriteFile)
+                    log.Warning("Overwriting files. (--{0} option specified).", Overwrite ? "overwrite" : "force");
 
                 // Check dependencies
-                var issue = DependencyChecker.CheckDependencies(installationPackages, packagesToInstall, Force ? LogEventType.Warning : LogEventType.Error);
-                if (issue == DependencyChecker.Issue.BrokenPackages)
+                bool dependenciesRequired = (!askToInstallDependencies && !IgnoreDependencies && !Force) || CheckOnly;
+                var issue = DependencyChecker.CheckDependencies(installationPackages, packagesToInstall, dependenciesRequired ? LogEventType.Error : LogEventType.Warning);
+                if (dependenciesRequired)
                 {
-                    if (!Force)
+                    if (issue == DependencyChecker.Issue.BrokenPackages)
                     {
                         log.Info("To fix the package conflict uninstall or update the conflicted packages.");
-                        log.Info("To install packages despite the conflicts, use the --force option.");
+                        log.Info("To install packages despite the conflicts, use the --no-dependencies option.");
                         return 4;
                     }
-                    if(!CheckOnly)
-                        log.Warning("Continuing despite breaking installed packages (--force)...");
-                }
 
-                if (CheckOnly)
-                {
-                    log.Info("Check completed with no problems detected.");
-                    return 0;
+                    if (CheckOnly)
+                    {
+                        log.Info("Check completed with no problems detected.");
+                        return 0;
+                    }
                 }
 
                 // Download the packages
@@ -282,13 +299,12 @@ namespace OpenTap.Package
 
                 if (force)
                 {
-                    log.Warning("--force specified. Overwriting files.");
                     return InstallationQuestion.OverwriteFile;
                 }
 
                 log.Error(
                     "Installing these packages will overwrite existing files. " +
-                    "Use --force to overwrite existing files, possibly breaking installed packages.");
+                    "Use --overwrite to overwrite existing files, possibly breaking installed packages.");
                 return InstallationQuestion.Cancel;
             }
 

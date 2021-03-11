@@ -314,12 +314,17 @@ namespace OpenTap
             if(target == null) throw new ArgumentNullException(nameof(target));
             if(member == null) throw new ArgumentNullException(nameof(member));
             if(source == null) throw new ArgumentNullException(nameof(source));
-            if (name == null) throw new ArgumentNullException(nameof(name));
-            {
+            if(name == null) throw new ArgumentNullException(nameof(name));
+            if(name.Length == 0) throw new ArgumentException("Cannot be an empty string.", nameof(name));
+            
+            { // Verify that the member belongs to the type.   
                 var sourceType = TypeData.GetTypeData(source);
                 if (!sourceType.GetMembers().Contains(member))
                     throw new ArgumentException("The member does not belong to the source object type");
             }
+            if (member.HasAttribute<UnparameterizableAttribute>())
+                throw new ArgumentException("Member cannot be parameterized", nameof(member));
+            
             var targetType = TypeData.GetTypeData(target);
             var existingMember = targetType.GetMember(name);
             

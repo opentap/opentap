@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.IO;
 using OpenTap.Cli;
 using System.Threading;
+using Tap.Shared;
 
 namespace OpenTap.Package
 {
@@ -24,9 +25,13 @@ namespace OpenTap.Package
             FileSystemError = 4,
             InvalidPackageName = 5,
             PackageDependencyError = 6,
-            AssemblyDependencyError = 7,
+            AssemblyDependencyError = 7
         }
-
+        
+        private static readonly char[] IllegalPackageNameChars = {'"', '<', '>', '|', '\0', '\u0001', '\u0002', '\u0003', '\u0004', '\u0005', '\u0006', '\a', '\b', 
+            '\t', '\n', '\v', '\f', '\r', '\u000e', '\u000f', '\u0010', '\u0011', '\u0012', '\u0013', '\u0014', '\u0015', '\u0016', '\u0017', '\u0018', 
+            '\u0019', '\u001a', '\u001b', '\u001c', '\u001d', '\u001e', '\u001f', ':', '*', '?', '\\', '/'};
+        
         /// <summary>
         /// The default file extension for OpenTAP packages.
         /// </summary>
@@ -94,10 +99,10 @@ namespace OpenTap.Package
             if (PackageXmlFile == null)
                 throw new Exception("No packages definition file specified.");
 
-            return Process(OutputPaths);
+            return Process(OutputPaths, cancellationToken);
         }
 
-        private int Process(string[] OutputPaths)
+        private int Process(string[] OutputPaths, CancellationToken cancellationToken)
         {
             try
             {
@@ -118,10 +123,10 @@ namespace OpenTap.Package
                     pkg = PackageDefExt.FromInputXml(fullpath, ProjectDir, IgnoreMissingFiles);
 
                     // Check if package name has invalid characters or is not a valid path
-                    var illegalCharacter = pkg.Name.IndexOfAny(Path.GetInvalidFileNameChars());
+                    var illegalCharacter = pkg.Name.IndexOfAny(IllegalPackageNameChars);
                     if (illegalCharacter >= 0)
                     {
-                        log.Error("Package name cannot contain invalid file path characters: '{0}'", pkg.Name[illegalCharacter]);
+                        log.Error("Package name cannot contain invalid file path characters: '{0}'.", pkg.Name[illegalCharacter]);
                         return (int)ExitCodes.InvalidPackageName;
                     }
                 }
@@ -139,31 +144,33 @@ namespace OpenTap.Package
                         }
                     }
                     log.Error("Caught errors while loading package definition.");
-                    return 4;
+                    return (int)ExitCodes.FileSystemError;
                 }
 
-                var tmpFile = Path.GetTempFileName();
+                var tmpFile = PathUtils.GetTempFileName(".opentap_package_tmp.zip"); ;
 
                 // If user omitted the Version XML attribute or put Version="", lets inform.
                 if(string.IsNullOrEmpty(pkg.RawVersion))
                     log.Warning($"Package version is {pkg.Version} due to blank or missing 'Version' XML attribute in 'Package' element");
 
-                pkg.CreatePackage(tmpFile, IgnoreMissingPlugins, IgnoreMissingFiles);
-
-                if (OutputPaths == null || OutputPaths.Length == 0)
-                    OutputPaths = new string[1] { "" };
-
-                foreach (var outputPath in OutputPaths)
+                using (var str = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, FileOptions.DeleteOnClose))
                 {
-                    var path = outputPath;
+                    pkg.CreatePackage(str, IgnoreMissingPlugins, IgnoreMissingFiles);
+                    if (OutputPaths == null || OutputPaths.Length == 0)
+                        OutputPaths = new string[1] {""};
 
-                    if (String.IsNullOrEmpty(path))
-                        path = GetRealFilePathFromName(pkg.Name, pkg.Version.ToString(), DefaultEnding);
+                    foreach (var outputPath in OutputPaths)
+                    {
+                        var path = outputPath;
 
-                    Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)));
+                        if (String.IsNullOrEmpty(path))
+                            path = GetRealFilePathFromName(pkg.Name, pkg.Version.ToString(), DefaultEnding);
 
-                    ProgramHelper.FileCopy(tmpFile, path);
-                    log.Info("OpenTAP plugin package '{0}' containing '{1}' successfully created.", path, pkg.Name);
+                        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)));
+
+                        ProgramHelper.FileCopy(tmpFile, path);
+                        log.Info("OpenTAP plugin package '{0}' containing '{1}' successfully created.", path, pkg.Name);
+                    }
                 }
 
                 if (FakeInstall)

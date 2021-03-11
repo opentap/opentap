@@ -5,10 +5,8 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Xml.Serialization;
 using NUnit.Framework;
-using OpenTap.Engine.UnitTests;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using OpenTap.Plugins.BasicSteps;
 
@@ -277,12 +275,17 @@ namespace OpenTap.UnitTests
                 Create = 4,
                 TestPlan = 8,
                 Remove = 16,
-                ExpectNoRename = 32
+                ExpectNoRename = 32,
+                RenameBlank = 64,
+                Merge = 128,
+                Error = 256
             }
             public bool WasInvoked;
             public string SelectName { get; set; }
 
             public Mode SelectedMode;
+            
+            public string ErrorString { get; set; }
             
             public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
             {
@@ -316,10 +319,29 @@ namespace OpenTap.UnitTests
                     Assert.AreEqual(false == SelectedMode.HasFlag(Mode.ExpectNoRename), msg.Contains("Rename "));
                 }
 
+                if (SelectedMode.HasFlag(Mode.RenameBlank))
+                {
+                    var error = selectedName.Get<IErrorAnnotation>().Errors.First();
+                    Assert.AreEqual("Name cannot be left empty.", error);
+                }
+
                 if (SelectedMode == (Mode.Create|Mode.TestPlan))
                 {
                     var msg = message.Get<IStringValueAnnotation>().Value;
                     Assert.IsTrue(msg.Contains("Create new parameter "));   
+                }
+                if (SelectedMode == (Mode.Merge|Mode.TestPlan))
+                {
+                    var msg = message.Get<IStringValueAnnotation>().Value;
+                    Assert.IsTrue(msg.Contains("Merge with an existing parameter "));   
+                }
+
+                if (SelectedMode.HasFlag(Mode.Error))
+                {
+                    var err = message.Get<IErrorAnnotation>()?.Errors.FirstOrDefault();
+                    Assert.IsTrue(err != null);
+                    if(ErrorString != null)
+                        Assert.IsTrue(err.Contains(ErrorString));    
                 }
                 
                 WasInvoked = true;
@@ -400,6 +422,13 @@ namespace OpenTap.UnitTests
                         .MenuItems
                         .FirstOrDefault(x => x.Get<IconAnnotationAttribute>()?.IconName == IconNames.EditParameter);
 
+                    menuInterface.SelectName = " ";
+                    menuInterface.SelectedMode = MenuTestUserInterface.Mode.RenameBlank;
+                    editParameter.Get<IMethodAnnotation>().Invoke();
+                    Assert.IsNotNull(TypeData.GetTypeData(sequence).GetMember("A"));
+                    Assert.IsNull(TypeData.GetTypeData(sequence).GetMember(""));
+
+                    
                     menuInterface.SelectName = "B";
                     menuInterface.SelectedMode = MenuTestUserInterface.Mode.Rename;
                     editParameter.Get<IMethodAnnotation>().Invoke();
@@ -599,6 +628,16 @@ namespace OpenTap.UnitTests
 
         }
 
+        public class TwoDelayStep : TestStep
+        {
+            public double DelaySecs { get; set; }
+            public double DelaySecs2 { get; set; }
+            public override void Run()
+            {
+                
+            }
+        }
+        
         /// <summary>
         /// When the test plan is changed, parameters that becomes invalid needs to be removed.
         /// This is done by doing some checks in DynamicMemberTypeDataProvider.
@@ -608,7 +647,7 @@ namespace OpenTap.UnitTests
         public void AutoRemoveParameters()
         {
             var plan = new TestPlan();
-            var step = new DelayStep();
+            var step = new TwoDelayStep();
             plan.ChildTestSteps.Add(step);
             var member = TypeData.GetTypeData(step).GetMember(nameof(step.DelaySecs));
             var parameter = member.Parameterize(plan, step, "delay");
@@ -637,10 +676,14 @@ namespace OpenTap.UnitTests
             
             plan.ChildTestSteps.Add(seq);
             parameter2 = member2.Parameterize(plan, seq, "delay");
+            var member3 = TypeData.GetTypeData(step).GetMember(nameof(TwoDelayStep.DelaySecs2));
+            var parameter3 = member3.Parameterize(plan, step, "delay2");
             Assert.IsNotNull(TypeData.GetTypeData(plan).GetMember(parameter2.Name));
+            Assert.IsNotNull(TypeData.GetTypeData(plan).GetMember(parameter3.Name));
             Assert.IsNotNull(TypeData.GetTypeData(seq).GetMember(parameter.Name));
             seq.ChildTestSteps.Remove(step);
             Assert.IsNull(TypeData.GetTypeData(plan).GetMember(parameter2.Name));
+            Assert.IsNull(TypeData.GetTypeData(plan).GetMember(parameter3.Name));
             Assert.IsNull(TypeData.GetTypeData(seq).GetMember(parameter.Name));
         }
 
@@ -974,7 +1017,21 @@ namespace OpenTap.UnitTests
             doTest(nameof(obj1.DoubleValues), obj1, true);
             doTest(nameof(obj2.DoubleValues), obj2, true);
             doTest(nameof(obj1.Items), obj1, true);
-            doTest(nameof(obj2.Items), obj2, false);
+            doTest(nameof(obj2.Items), obj2, true);
+
+            // finally, test that modifying the value also propagates.
+            var items = AnnotationCollection.Annotate(plan).GetMember("Parameters \\ " + nameof(obj1.Items));
+            Assert.IsNotNull(items);
+
+            var collection = items.Get<ICollectionAnnotation>();
+            collection.AnnotatedElements = collection.AnnotatedElements.Append(collection.NewElement()).ToArray();
+            items.Write();
+
+            Assert.AreEqual(1, obj1.Items.Count);
+            Assert.AreEqual(1, obj2.Items.Count);
+            
+            // not same reference.
+            Assert.AreNotEqual(obj1.Items, obj2.Items);
         }
 
         [Test]
@@ -1061,8 +1118,52 @@ namespace OpenTap.UnitTests
             {
                 Assert.AreEqual("msg" + i, sweep.SweepValues[i].Values["Parameters \\ Log Message"]);
             }
+        }
+
+        [Test]
+        public void SweepLoopUnparameterizable()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepLoop();
+            var delay = new DelayStep();
+            plan.ChildTestSteps.Add(sweep);
+            sweep.ChildTestSteps.Add(delay);
+            var members = new List<IMemberData>()
+                {TypeData.GetTypeData(delay).GetMember(nameof(delay.DelaySecs))};
+            sweep.SweepParameters.Add(new SweepParam(members));
+
+            var sweepParametersAnnotation = AnnotationCollection.Annotate(sweep).GetMember(nameof(sweep.SweepParameters));
+            Assert.IsFalse(sweepParametersAnnotation.GetIcon(IconNames.ParameterizeOnTestPlan).Get<IEnabledAnnotation>().IsEnabled);
+            var nameAnnotation = AnnotationCollection.Annotate(sweep).GetMember(nameof(sweep.Name));
+            Assert.IsTrue(nameAnnotation.GetIcon(IconNames.ParameterizeOnTestPlan).Get<IEnabledAnnotation>().IsEnabled);
+        }
+
+        [Test]
+        public void TestMergeBadParameters()
+        {
+            var plan = new TestPlan();
+            var dialog = new DialogStep();
+            plan.Steps.Add(dialog);
+            var a = AnnotationCollection.Annotate(dialog);
+            var menuInterface = new MenuTestUserInterface();
+            var currentInterface = UserInput.Interface as IUserInputInterface;
+            UserInput.SetInterface(menuInterface);
+            try
+            {
+                menuInterface.SelectName = "a";
+                menuInterface.SelectedMode = MenuTestUserInterface.Mode.Create | MenuTestUserInterface.Mode.TestPlan;
+                a.GetMember("Title").GetIcon(IconNames.Parameterize).Get<IMethodAnnotation>().Invoke();
+                menuInterface.SelectedMode = MenuTestUserInterface.Mode.Merge | MenuTestUserInterface.Mode.TestPlan;
+                a.GetMember("Message").GetIcon(IconNames.Parameterize).Get<IMethodAnnotation>().Invoke();
+                menuInterface.SelectedMode = MenuTestUserInterface.Mode.Merge | MenuTestUserInterface.Mode.TestPlan | MenuTestUserInterface.Mode.Error;
+                menuInterface.ErrorString = "Cannot merge properties of this kind.";
+                a.GetMember(nameof(DialogStep.Timeout)).GetIcon(IconNames.Parameterize).Get<IMethodAnnotation>().Invoke();
+            }
+            finally
+            {
+                UserInput.SetInterface(currentInterface);    
+            }
 
         }
-        
     }
 }

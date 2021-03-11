@@ -28,6 +28,14 @@ namespace OpenTap.Engine.UnitTests
         {
             SessionLogs.Flush();
             Log.Flush();
+            Assert.IsTrue(Session.RootSession == Session.Current);
+            if (TapThread.Current.AbortToken.IsCancellationRequested)
+            {
+                Assert.Fail("This should not occur.");
+            }
+            
+            //Session.RootSession.Dispose();
+            //Session.RootSession.DisposeSessionLocals();
         }
     }
 }

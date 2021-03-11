@@ -3,11 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace OpenTap
 {
@@ -105,6 +101,12 @@ namespace OpenTap
 
         private Stream stream = new MemoryStream();
 
+        /// <summary> Create a new instance with default parameters. </summary>
+        public HybridStream() : this( FileSystemHelper.CreateTempFile(".opentap-log.txt"), 1024 * 1024)
+        {
+            
+        }
+        
         public HybridStream(string filename, int threshold)
         {
             this.Filename = filename;
@@ -166,8 +168,7 @@ namespace OpenTap
         {
             lock (lockObject)
             {
-
-                var fileStream = new FileStream(Filename, FileMode.Create, FileAccess.Write, FileShare.Read);
+                var fileStream = new FileStream(Filename, FileMode.Create, FileAccess.Write, FileShare.ReadWrite,   1024 * 16, FileOptions.DeleteOnClose);
                 fileStream.Write(((MemoryStream)stream).GetBuffer(), 0, (int)stream.Length);
                 stream.Dispose();
                 stream = fileStream;
@@ -179,9 +180,8 @@ namespace OpenTap
             lock (lockObject)
             {
                 if (stream is FileStream)
-                    return new FileStream(Filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                else
-                    return new MemViewStream(((MemoryStream)stream).GetBuffer(), stream.Length);
+                    return new FileStream(Filename, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                return new MemViewStream(((MemoryStream)stream).GetBuffer(), stream.Length);
             }
         }
 

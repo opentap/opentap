@@ -185,10 +185,10 @@ namespace OpenTap
         /// <returns> The string representation of the value of this instance. </returns>
         public override string ToString()
         {
-            if (Value == null)
-                return "NULL";
-            else
-                return StringConvertProvider.GetString(Value);
+            if (Step == null|| Property == null)
+                return "";
+            var value = Value == null ? "" : StringConvertProvider.GetString(Value);
+            return value ?? "";
         }
 
         /// <summary> Compares one Input to another. </summary>

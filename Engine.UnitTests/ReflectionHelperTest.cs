@@ -295,8 +295,42 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual("16", mem[4]);
         }
 
+        [Flags]
+        enum TestFlags
+        {
+            None = 0,
+            Value1 = 1,
+            [Display("Value 2")]
+            Value2 = 2,
+            [Display("Value 4")]
+            Value4 = 4
+            
+        }
+
+        const EngineSettings.AbortTestPlanType blankAbortType = 0;
+        [TestCase(EngineSettings.AbortTestPlanType.Step_Error | EngineSettings.AbortTestPlanType.Step_Fail, "Break On Fail | Break On Error")]
+        [TestCase(EngineSettings.AbortTestPlanType.Step_Error, "Break On Error")]
+        [TestCase(EngineSettings.AbortTestPlanType.Step_Fail, "Break On Fail")]
+        [TestCase(blankAbortType, "")]
+        [TestCase(Verdict.Pass, "Pass")]
+        [TestCase(Verdict.NotSet, "Not Set")]
+        
+        [TestCase(TestFlags.None, "None")]
+        [TestCase(TestFlags.None | TestFlags.Value1, "Value1")]
+        [TestCase(TestFlags.Value2 | TestFlags.Value1, "Value1 | Value 2")]
+        [TestCase(TestFlags.Value2 | TestFlags.Value1 | TestFlags.Value4, "Value1 | Value 2 | Value 4")]
+        public void TestEnumToString(Enum testValue, string expectedString)
+        {
+            var actualString = Utils.EnumToReadableString(testValue);
+            Assert.AreEqual(expectedString, actualString);
+        }
+
+        [Test]
+        public void TestInvalidEnumToString()
+        {
+            TestEnumToString((Verdict) 111, "111");
+            // 1 and 2 are included in 111, so actually these flags are set.
+            TestEnumToString((EngineSettings.AbortTestPlanType) 111, "Break On Fail | Break On Error");
+        }
     }
-
-
-
 }

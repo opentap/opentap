@@ -92,7 +92,7 @@ namespace OpenTap.Package
 
             List<PackageDef> PackagesToDownload = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                 destinationInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories,
-                ForceInstall, InstallDependencies, false, false);
+                ForceInstall, InstallDependencies, false, false, false);
 
             if (PackagesToDownload == null)
                 return 2;

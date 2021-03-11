@@ -1500,21 +1500,18 @@ namespace OpenTap
             if (mem != null) return mem.GetDisplayAttribute().Name;
             if (false == enumType.HasAttribute<FlagsAttribute>())
                 return value.ToString();
+            var zeroValue = Enum.ToObject(enumType, 0);
+            if (value.Equals(zeroValue))
+                return ""; // this does not happen if zeroValue is declared.
 
-            var flags = Enum.GetValues(enumType).OfType<Enum>().ToArray();
-            var zeroVal = flags.FirstOrDefault();
+            var flags = Enum.GetValues(enumType).OfType<Enum>();
+            var activeFlags = flags.Where(value.HasFlag).Except(f => f.Equals(zeroValue));
+            var result = string.Join(" | ", activeFlags.Select(EnumToReadableString));
+            if (string.IsNullOrEmpty(result) == false) return result;
             
-            var activeFlags = flags.Where(value.HasFlag).Except(f => f.Equals(zeroVal)).ToArray();
-
-            if (activeFlags.Any() == false)
-            {
-                var val = (long) Convert.ChangeType(value, TypeCode.Int64);
-                if (val == 0)
-                    return EnumToReadableString(zeroVal);
-                return val.ToString();
-            }
-
-            return string.Join(" | ", activeFlags.Select(EnumToReadableString));
+            // last resort.
+            var val = (long) Convert.ChangeType(value, TypeCode.Int64);
+            return val.ToString(); 
         }
 
         public static string EnumToDescription(Enum value)
@@ -1571,6 +1568,10 @@ namespace OpenTap
 
     static internal class Sequence
     {
+        /// <summary> Turns item into a one element array, unless it is null.</summary>
+        public static T[] AsSingle<T>(this T item) => item == null ? Array.Empty<T>() : new[] {item};
+        
+        
         /// <summary>
         /// Like distinct but keeps the last item. Returns List because we need to iterate until last element anyway.
         /// </summary>
