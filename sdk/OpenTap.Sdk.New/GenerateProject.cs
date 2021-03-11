@@ -21,7 +21,7 @@ using Newtonsoft.Json;
 
 namespace OpenTap.Sdk.New
 {
-    [Display("project", "OpenTAP C# Project (.csproj). Including a new TestStep, TestPlan and package.xml.", Groups: new[] { "sdk", "new" })]
+    [Display("project", "OpenTAP C# Project (.csproj). Including a new TestStep, solution file (.sln) and package.xml.", Groups: new[] { "sdk", "new" })]
     public class GenerateProject : GenerateType
     {
         [CommandLineArgument("out", ShortName = "o", Description = "Destination directory for generated files.")]
@@ -147,13 +147,10 @@ namespace OpenTap.Sdk.New
                 WriteFile(csprojFile, content);
             }
             log.Info("The '.csproj' file contains the configuration specific to this project.\n");
-            
+
             new GenerateTestStep() { Name = Name, WorkingDirectory = dest.FullName, output = Path.Combine(dest.FullName, $"{Name}.cs") }.Execute(cancellationToken);
             log.Info("This is a basic TestStep.\n");
-            var testPlanName = Path.Combine(dest.FullName, $"{Name}.TapPlan");
-            new GenerateTestPlan() { Name = Name, WorkingDirectory = dest.FullName, output = testPlanName }.Execute(cancellationToken);
-            log.Info($"This is a basic test plan that executes the above TestStep.");
-            log.Info($"Execute this test plan with 'tap run {testPlanName}'.\n");
+
             new GeneratePackageXml() { Name = Name, WorkingDirectory = dest.FullName, output = Path.Combine(dest.FullName, "package.xml") }.Execute(cancellationToken);
             log.Info("The 'package.xml' file tells OpenTAP which files to package when creating a '.TapPackage'. ");
             log.Info("When building in release mode, OpenTAP will attempt to build a TapPackage according to the contents of this file. ");
@@ -162,9 +159,9 @@ namespace OpenTap.Sdk.New
             if (newProject)
             {
                 log.Info($"After you build this project, OpenTAP will be installed in '{(Path.Combine(dest.Parent.FullName, "bin", "Debug"))}'");
-                log.Info("Try building the project and running the generated test plan!");
             }
-            
+
+            log.Info("Build the project and use an editor to create a test plan to use your new test step! See https://doc.opentap.io/User%20Guide/Editors/ for more info on the different editors!");
             return 0;
         }
 
