@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using NUnit.Framework;
 
 namespace OpenTap.Package.UnitTests
@@ -19,20 +18,27 @@ namespace OpenTap.Package.UnitTests
 
         public override string ToString()
         {
-
             return @"<Project Sdk=""Microsoft.NET.Sdk"" ToolsVersion=""Current"">" + '\n' +
                    string.Join("\n", PropertyGroups) + '\n' +
                    string.Join("\n", ItemGroups) + '\n' +
                    string.Join("\n", Imports) + '\n' +
                    "</Project>\n";
-        }        
+        }
+
+        string[] _linesCache;
+        public int GetLineNo(string str)
+        {
+            if (_linesCache == null)
+                _linesCache = this.ToString().Split('\n');
+                
+            return _linesCache.IndexWhen(l => l.Contains(str)) + 1;
+        }
 
         public CsProj(ProjectBuildTest caller)
         {
             ProjectBuildTest = caller;
             PropertyGroups = new List<string>()
-            {
-                $@"                   
+            {$@"                   
     <PropertyGroup>
         <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
         <TargetFrameworkVersion></TargetFrameworkVersion>
@@ -74,20 +80,21 @@ namespace OpenTap.Package.UnitTests
                 }
             };
 
-            process.Start();
             var timeLimit = TimeSpan.FromSeconds(30);
-            
-            // For some reason, the process doesn't exit properly with WaitForExit
-            while (process.HasExited == false)
+            var stdout = "";
+            var stderr = "";
+
+            process.Start();
+
+            while (!process.HasExited && (DateTime.Now - process.StartTime) < timeLimit)
             {
-                if (DateTime.Now - process.StartTime > timeLimit)
-                    break;
-                
                 TapThread.Sleep(TimeSpan.FromSeconds(1));
+                
+                stdout += process.StandardOutput.ReadToEnd();
+                stderr += process.StandardError.ReadToEnd();
             }
             
-
-            return (process.StandardOutput.ReadToEnd(), process.StandardError.ReadToEnd(), process.ExitCode);
+            return (stdout, stderr, process.ExitCode);
         }
         
         public string GetGeneratedFileContent()
@@ -109,7 +116,6 @@ namespace OpenTap.Package.UnitTests
 
         private static string FileRepository => Path.Combine(Directory.GetCurrentDirectory(), "TapPackages");
         
-
         public ProjectBuildTest()
         {
             WorkingDirectory = Path.Combine(Directory.GetCurrentDirectory(), "buildTestDir");
@@ -154,18 +160,22 @@ namespace OpenTap.Package.UnitTests
   </ItemGroup>
 ");
             var result = csProj.Build();
+
+            int lineNo =
+                csProj.GetLineNo($@"<OpenTapPackageReference Include=""MyPlugin4"" Repository=""{FileRepository}"" />");
+            
+            StringAssert.Contains($"test.csproj({lineNo}): warning OpenTAP Reference: Duplicate entry detected.", result.Stdout);
             
             StringAssert.Contains(@"package install --dependencies ""MyPlugin4""", result.Stdout);
             StringAssert.Contains("Got 1 OpenTapPackageReference targets.", result.Stdout);
             StringAssert.Contains("MyPlugin4 Include=\"**\" Exclude=\"Dependencies/**\"", result.Stdout);
             StringAssert.Contains("Skipped duplicate entries", result.Stdout);
-            StringAssert.Contains($@"<OpenTapPackageReference Include=""MyPlugin4"" Repository=""{FileRepository}"" />", result.Stdout);
             Assert.AreEqual(result.ExitCode, 0);
 
             Assert.True(File.Exists(OutputFile));
             var Generated = csProj.GetGeneratedFileContent();
             StringAssert.Contains("MyPlugin4.dll", Generated);
-        }
+        }        
 
         [Test]
         public void TwoEqualReferencesDefaultTest()
@@ -249,7 +259,14 @@ namespace OpenTap.Package.UnitTests
 ");
 
             var result = csProj.Build();
-            
+
+            int index1 =
+                csProj.GetLineNo($@"<OpenTapPackageReference Repository=""{FileRepository}"" Include=""MyPlugin5"">");
+            int index2 = csProj.GetLineNo(@"<OpenTapPackageReference Include=""MyPlugin4"">");
+
+            StringAssert.Contains($"test.csproj({index1}): warning OpenTAP Reference: No references added from package 'MyPlugin5'", result.Stdout);
+            StringAssert.Contains($"test.csproj({index2}): warning OpenTAP Reference: No references added from package 'MyPlugin4'", result.Stdout);
+
             StringAssert.Contains(@"package install --dependencies ""MyPlugin4""", result.Stdout);
             StringAssert.Contains(@"package install --dependencies ""MyPlugin5""", result.Stdout);
             StringAssert.Contains("Got 2 OpenTapPackageReference targets.", result.Stdout);
@@ -306,6 +323,36 @@ namespace OpenTap.Package.UnitTests
             StringAssert.Contains("Skipping OS Integration (OPENTAP_DEBUG_INSTALL environment variable is set).", result.Stdout);
             Assert.AreEqual(result.ExitCode, 0);
             Assert.True(File.Exists(OutputFile));
+        }
+
+        [Test]
+        public void TestPackageInstallFailedContainsLineNumber()
+        {
+            var csProj = new CsProj(this);
+            csProj.PropertyGroups.Add($@"
+<PropertyGroup>
+<Version1>1.2.3</Version1>
+<Version2>2.3.4</Version2>
+</PropertyGroup>
+");
+            csProj.ItemGroups.Add($@"
+<ItemGroup>
+<AdditionalOpenTapPackage Include=""Bad Package"" Version=""$(Version1)"" />
+</ItemGroup>
+
+<ItemGroup>
+<AdditionalOpenTapPackage Include=""Bad Package"" Version=""$(Version2)"" />
+</ItemGroup>
+");
+            var result = csProj.Build().Stdout;
+
+            var index1 = csProj.GetLineNo($"(Version1)");
+            var index2 = csProj.GetLineNo($"(Version2)");
+            
+            // These assertions verify that $(Version1) and $(Version2) are correctly expanded to '1.2.3' and '2.3.4' in the build task
+            // If they are not correctly expanded, the correct line numbers for those two elements cannot be determined
+            StringAssert.Contains($"test.csproj({index1}): error OpenTAP Install: Failed to install package 'Bad Package'.", result);
+            StringAssert.Contains($"test.csproj({index2}): error OpenTAP Install: Failed to install package 'Bad Package'.", result);
         }
     }
 }
