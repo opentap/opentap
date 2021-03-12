@@ -77,6 +77,8 @@ namespace OpenTap
             DeclaringType = TypeData.GetTypeData(target);
             this.source = source;
             this.member = member;
+            if (member is IDynamicMemberData)
+                dynamicMembers += 1;
             Name = name;
 
             var disp = member.GetDisplayAttribute();
@@ -149,6 +151,7 @@ namespace OpenTap
         {
             get
             {
+                if (source == null) yield break;
                 yield return (source, member);
                 if (additionalMembers != null)
                     foreach (var item in additionalMembers)
@@ -203,6 +206,7 @@ namespace OpenTap
                 if (additionalMembers == null || additionalMembers.Count == 0)
                 {
                     source = null;
+                    DynamicMember.RemovedDynamicMember(Target, this);
                     return true;
                 }
                 (source, member) = additionalMembers.FirstOrDefault();
@@ -348,8 +352,8 @@ namespace OpenTap
             if (parameterMember == null) throw new ArgumentNullException(nameof(parameterMember));
             if (parameterMember == null)
                 throw new Exception($"Member {parameterMember.Name} is not a forwarded member.");
-            if (parameterMember.RemoveMember(delMember, delSource))
-                RemovedDynamicMember(parameterMember.Target, parameterMember);
+            parameterMember.RemoveMember(delMember, delSource);
+
         }
     }
 

@@ -1523,11 +1523,14 @@ namespace OpenTap
             return mem?.GetDisplayAttribute().Description ?? EnumToReadableString(value);
         }
 
-        public static string SerializeToString(this TestPlan plan)
+        public static string SerializeToString(this TestPlan plan, bool throwOnErrors = false)
         {
             using (var mem = new MemoryStream())
             {
-                plan.Save(mem);
+                var serializer = new TapSerializer();
+                plan.Save(mem, serializer);
+                if (throwOnErrors && serializer.Errors.Any())
+                    throw new Exception(string.Join("\n", serializer.Errors));
                 return Encoding.UTF8.GetString(mem.ToArray());
             }
         }
