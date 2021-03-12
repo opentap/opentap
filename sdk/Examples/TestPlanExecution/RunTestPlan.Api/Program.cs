@@ -29,7 +29,7 @@ namespace OpenTap.TestPlanExecution.RunTestPlan.Api
 
             try
             {
-                // If you have plugins in directories different from the location of your TAP_PATH, then add those directories here.
+                // If you have plugins in directories different from the location of your OpenTAP installation, then add those directories here.
                 // PluginManager.DirectoriesToSearch.Add(@"C:\SomeOtherDirectory");
 
                 // Start finding plugins.
