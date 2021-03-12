@@ -9,6 +9,9 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml;
+using System.Xml.Linq;
+using System.Xml.XPath;
 using DotNet.Globbing;
 using DotNet.Globbing.Token;
 using Microsoft.Build.Framework;
@@ -19,14 +22,14 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 {
     internal class GlobWrapper : IComparable<GlobWrapper>
     {
-        public bool Include { get; }
+        internal bool Include { get; }
 
         private static GlobOptions _globOptions = new DotNet.Globbing.GlobOptions
             {Evaluation = {CaseInsensitive = false}};
 
-        public Glob Globber { get; }
+        internal Glob Globber { get; }
 
-        public GlobWrapper(string pattern, bool include)
+        internal GlobWrapper(string pattern, bool include)
         {
             Include = include;
             Globber = Glob.Parse(pattern, _globOptions);
@@ -64,9 +67,14 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
     internal class GlobTask
     {
-        public List<GlobWrapper> Globs { get; }
+        internal void LogWarningWithLineNumber(string msg)
+        {
+            Owner.LogWarningWithLineNumber(msg, TaskItem);
+        }
+        internal List<GlobWrapper> Globs { get; }
 
-        public static List<GlobTask> Parse(ITaskItem[] tasks)
+        internal static List<GlobTask> Parse(ITaskItem[] tasks,
+            AddAssemblyReferencesFromPackage caller)
         {
             var result = new List<GlobTask>();
 
@@ -76,19 +84,33 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 var excludeAssemblies = task.GetMetadata("ExcludeAssemblies");
 
 
-                var includeGlobs = string.IsNullOrWhiteSpace(includeAssemblies) ? new [] {"**"} : includeAssemblies.Split(':', ';');
-                var excludeGlobs = string.IsNullOrWhiteSpace(excludeAssemblies) ? new [] {"Dependencies/**"} : excludeAssemblies.Split(':', ';');
+                var includeGlobs = string.IsNullOrWhiteSpace(includeAssemblies)
+                    ? new[] {DefaultInclude}
+                    : includeAssemblies.Split(':', ';');
+                var excludeGlobs = string.IsNullOrWhiteSpace(excludeAssemblies)
+                    ? new[] {DefaultExclude}
+                    : excludeAssemblies.Split(':', ';');
                 
-                result.Add(new GlobTask(task.ItemSpec, includeGlobs, excludeGlobs));
+                result.Add(new GlobTask(task, includeGlobs, excludeGlobs, caller));
             }            
             
             return result;
         }
-        public string PackageName { get; }
 
-        private GlobTask(string packageName, IEnumerable<string> includePatterns, IEnumerable<string> excludePatterns)
+        internal const string DefaultExclude = "Dependencies/**";
+
+        internal const string DefaultInclude = "**";
+
+        internal string PackageName { get; }
+        private ITaskItem TaskItem { get; }
+        private AddAssemblyReferencesFromPackage Owner { get; set; }
+
+        private GlobTask(ITaskItem item, IEnumerable<string> includePatterns, IEnumerable<string> excludePatterns,
+            AddAssemblyReferencesFromPackage owner)
         {
-            PackageName = packageName;
+            this.Owner = owner;
+            TaskItem = item;
+            PackageName = item.ItemSpec;
             includePatterns = includePatterns.Distinct().Where(x => !string.IsNullOrWhiteSpace(x));
             excludePatterns = excludePatterns.Distinct().Where(x => !string.IsNullOrWhiteSpace(x));
             Globs = includePatterns.Select(x => new GlobWrapper(x, true)).Concat(
@@ -96,7 +118,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             Globs.Sort();
         }
 
-        public bool Includes(string file, TaskLoggingHelper log)
+        internal bool Includes(string file, TaskLoggingHelper log)
         {
             foreach (var glob in Globs)
             {
@@ -109,7 +131,9 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 }
                 catch (IndexOutOfRangeException)
                 {
-                    log.LogError($"Error in glob pattern {glob.Globber.ToString()} when testing {file}");
+                    log.LogError(null, "OpenTAP Reference", null,
+                        Owner.SourceFile, Owner.GetLineNumber(TaskItem), 0, 0, 0,
+                        $"Error in glob pattern {glob.Globber} when testing against '{file}'");
                 }
             }
 
@@ -125,6 +149,74 @@ namespace Keysight.OpenTap.Sdk.MSBuild
     [Serializable]
     public class AddAssemblyReferencesFromPackage : Task
     {
+        private XElement _document;
+
+        internal XElement Document
+        {
+            get
+            {
+                if (_document != null)
+                    return _document;
+                
+                var expander = new BuildVariableExpander(SourceFile);
+                // Expand all the build variables in the document to accurately identify which element corresponds to 'item'
+                _document = XElement.Parse(expander.ExpandBuildVariables(File.ReadAllText(SourceFile)),
+                    LoadOptions.SetLineInfo);
+                return _document;
+            }
+        }
+        
+        internal void LogWarningWithLineNumber(string msg, ITaskItem item)
+        {
+            Log.LogWarning(null, "OpenTAP Reference", null,
+                SourceFile, GetLineNumber(item), 0, 0, 0, msg);
+        }
+        internal int GetLineNumber(ITaskItem item)
+        {
+            try
+            {
+                var packageName = item.ItemSpec;
+                var version = item.GetMetadata("Version");
+                var repository = item.GetMetadata("Repository");
+                var includeAssemblies = item.GetMetadata("IncludeAssemblies");
+                var excludeAssemblies = item.GetMetadata("ExcludeAssemblies");
+
+                includeAssemblies = string.IsNullOrWhiteSpace(includeAssemblies)
+                    ? GlobTask.DefaultInclude
+                    : includeAssemblies;
+                excludeAssemblies = string.IsNullOrWhiteSpace(excludeAssemblies)
+                    ? GlobTask.DefaultExclude
+                    : excludeAssemblies;
+
+                foreach (var elem in Document.GetPackageElements(packageName))
+                {
+                    if (elem is IXmlLineInfo lineInfo && lineInfo.HasLineInfo())
+                    {
+                        var elemVersion = elem.ElemOrAttributeValue("Version", "");
+                        var elemRepo = elem.ElemOrAttributeValue("Repository", "");
+                        var elemIncludeAssemblies =
+                            elem.ElemOrAttributeValue("IncludeAssemblies", GlobTask.DefaultInclude);
+                        var elemExcludeAssemblies =
+                            elem.ElemOrAttributeValue("ExcludeAssemblies", GlobTask.DefaultExclude);
+
+                        if (elemVersion != version ||
+                            elemRepo != repository ||
+                            elemIncludeAssemblies != includeAssemblies ||
+                            elemExcludeAssemblies != excludeAssemblies)
+                            continue;
+
+                        return lineInfo.LineNumber;
+                    }
+                }
+            }
+            catch
+            {
+                // Ignore exception
+            }
+
+            return 0;
+        }
+        public string SourceFile { get; set; }
         public AddAssemblyReferencesFromPackage()
         {
             _added = new HashSet<string>();
@@ -139,7 +231,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         public string PackageInstallDir { get; set; }
 
         public string TargetMsBuildFile { get; set; }
-        public Microsoft.Build.Framework.ITaskItem[] OpenTapPackagesToReference { get; set; }
+        public ITaskItem[] OpenTapPackagesToReference { get; set; }
         
         private StringBuilder Result { get; } = new StringBuilder();
 
@@ -169,29 +261,6 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             Result.AppendLine("  </ItemGroup>");
         }
 
-        private string ITaskItemString(ITaskItem item)
-        {
-            var include = item.GetMetadata("IncludeAssemblies");
-            var exclude = item.GetMetadata("ExcludeAssemblies");
-            var repo = item.GetMetadata("Repository");
-            var version = item.GetMetadata("Version");
-            
-            var result = $@"<OpenTapPackageReference Include=""{item.ItemSpec}"" ";
-            
-            if (string.IsNullOrWhiteSpace(include) == false)
-                result += $@"IncludeAssemblies=""{include}"" ";
-            if (string.IsNullOrWhiteSpace(exclude) == false)
-                result += $@"ExcludeAssemblies=""{exclude}"" ";
-            if (string.IsNullOrWhiteSpace(repo) == false)
-                result += $@"Repository=""{repo}"" ";
-            if (string.IsNullOrWhiteSpace(version) == false)
-                result += $@"Version=""{version}"" ";
-            
-            result += "/>";
-
-            return result;
-        }
-
         public override bool Execute()
         {
             if (OpenTapPackagesToReference == null || OpenTapPackagesToReference.Length == 0)
@@ -203,6 +272,9 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             
             if (TargetMsBuildFile == null)
                 throw new Exception("TargetMsBuildFile is null");
+            
+            // Task instances are sometimes reused by the build engine -- ensure 'document' is reinstantiated
+            _document = null;
 
             Assemblies = new string[] { };
             try
@@ -213,7 +285,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 foreach (var task in OpenTapPackagesToReference)
                 {
                     if (distinctTasks.Contains(task))
-                        Log.LogWarning($"Duplicate entry '{ITaskItemString(task)}' detected.");
+                        LogWarningWithLineNumber($"Duplicate entry detected.", task);
                     else
                     {
                         distinctTasks.Add(task);
@@ -223,7 +295,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 if (distinctTasks.Count != OpenTapPackagesToReference.Length)
                     Log.LogWarning("Skipped duplicate entries.");
 
-                var globTasks = GlobTask.Parse(distinctTasks.ToArray());
+                var globTasks = GlobTask.Parse(distinctTasks.ToArray(), this);
                 Log.LogMessage($"Got {globTasks.Count} OpenTapPackageReference targets.");
 
                 foreach (var task in globTasks)
@@ -234,7 +306,6 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                     var excludeGlobString = string.Join(",", excludeGlobs);
 
                     Log.LogMessage($"{task.PackageName} Include=\"{includeGlobString}\" Exclude=\"{excludeGlobString}\"");
-
                 }
 
                 foreach (var globTask in globTasks)
@@ -250,7 +321,8 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             }
             finally
             {
-                Write(); // Ensure we always write an output file. MSBuild may get confused otherwise.
+                // Ensure we always write an output file. MSBuild may get confused otherwise.
+                Write();
             }
 
             return true;
@@ -261,10 +333,11 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             var assembliesInPackage = new List<string>();
 
             var packageDefPath = Path.Combine(PackageInstallDir, "Packages", globTask.PackageName, "package.xml");
-            //  Silently ignore the package if its package.xml does not exist
+
             if (!File.Exists(packageDefPath))
             {
-                Log.LogWarning($"No package named {globTask.PackageName}. Does a glob expression contain a semicolon?");
+                globTask.LogWarningWithLineNumber(
+                    $"No package named '{globTask.PackageName}'.");
                 return;
             }
 
@@ -293,7 +366,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 }
                 else
                 {
-                    Log.LogWarning($"{absolutedllPath} not recognized as a DotNet assembly. Reference not added.");
+                    globTask.LogWarningWithLineNumber($"{absolutedllPath} not recognized as a DotNet assembly. Reference not added.");
                 }
             }
             
@@ -302,7 +375,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
             if (!assembliesInPackage.Any())
             {
-                Log.LogWarning($"No references added from package '{globTask.PackageName}'.");
+                globTask.LogWarningWithLineNumber($"No references added from package '{globTask.PackageName}'.");
             }
             else
             {
