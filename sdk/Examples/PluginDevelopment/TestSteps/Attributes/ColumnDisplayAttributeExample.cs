@@ -14,7 +14,6 @@
 using System;
 using System.ComponentModel;
 using System.Globalization;
-using OpenTap;
 
 // This example defines a "Bin" column that can be shown in the test plan editor.  
 namespace OpenTap.Plugins.PluginDevelopment
