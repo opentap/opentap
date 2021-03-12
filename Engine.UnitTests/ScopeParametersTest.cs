@@ -427,8 +427,41 @@ namespace OpenTap.UnitTests
 
             foreach(var s in new []{step1, step2})                
             {
-                var a = AnnotationCollection.Annotate(step2)
+                var a = AnnotationCollection.Annotate(s)
                     .GetMember(nameof(step1.A))
+                    .Get<MenuAnnotation>().MenuItems.FirstOrDefault(x =>
+                        x.Get<IconAnnotationAttribute>().IconName == IconNames.ParameterizeOnTestPlan);
+                var enabled = a.Get<IEnabledAnnotation>().IsEnabled;
+                if (s == step1)
+                {
+                    Assert.IsTrue(enabled);
+                    a.Get<IMethodAnnotation>()?.Invoke();
+                }
+                else
+                    Assert.IsFalse(enabled);
+            }
+        }
+        
+        [Test]
+        public void MergeableScopeTest2()
+        {
+            var plan = new TestPlan();
+            var step1 = new SweepParameterStep();
+            var step2 = new SweepParameterStep();
+            plan.ChildTestSteps.Add(step1);
+            plan.ChildTestSteps.Add(step2);
+
+            var delay1 = new DelayStep();
+            var delay2 = new DelayStep();
+            step1.ChildTestSteps.Add(delay1);
+            step2.ChildTestSteps.Add(delay2);
+            TypeData.GetTypeData(delay1).GetMember(nameof(delay1.DelaySecs)).Parameterize(step1, delay1, "A");
+            TypeData.GetTypeData(delay2).GetMember(nameof(delay2.DelaySecs)).Parameterize(step2, delay2, "A");
+            
+            foreach(var s in new []{step1, step2})                
+            {
+                var a = AnnotationCollection.Annotate(s)
+                    .GetMember(nameof(s.SweepValues))
                     .Get<MenuAnnotation>().MenuItems.FirstOrDefault(x =>
                         x.Get<IconAnnotationAttribute>().IconName == IconNames.ParameterizeOnTestPlan);
                 var enabled = a.Get<IEnabledAnnotation>().IsEnabled;
