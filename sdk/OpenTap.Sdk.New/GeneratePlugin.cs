@@ -6,6 +6,7 @@ using OpenTap;
 using OpenTap.Cli;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Reflection;
 using System.Text;
@@ -104,8 +105,11 @@ namespace OpenTap.Sdk.New
             return 0;
         }
     }
+
+
     [Display("testplan", "Deprecated! Creates a TestPlan (.TapPlan) containing all TestSteps types defined in this project.", Groups: new[] { "sdk", "new" })]
     [Obsolete("Use an editor to create TestPlans instead")]
+    [Browsable(false)]
     public class GenerateTestPlan : GenerateType
     {
         [UnnamedCommandLineArgument("name", Required = true)]
