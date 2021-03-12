@@ -68,8 +68,18 @@ namespace OpenTap.Cli
         {
             if (IsColor())
             {
-                // Call constructor to get Ascii Color codes enabled for the parent process
-                var cliTraceListener = new ConsoleTraceListener(false, false, true);
+                try
+                {
+                    if (OperatingSystem.Current == OperatingSystem.Windows)
+                    {
+                        if (AnsiColorCodeFix.TryEnableForWin10())
+                            Environment.SetEnvironmentVariable("OPENTAP_ANSI_COLORS", "1");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error while enabling ANSI colors: {ex.Message}");
+                }
             }
 
             string arguments = new CommandLineSplit(Environment.CommandLine).Args;
