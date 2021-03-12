@@ -127,7 +127,7 @@ namespace OpenTap.Package
 
             if (packagesWithIssues.Any())
             {
-                log.Warning("Plugin Dependecy Conflict.");
+                log.Warning("Plugin Dependency Conflict.");
 
                 var question = string.Format("One or more installed packages depend on {0}. Uninstalling might cause these packages to break:\n{1}",
                     string.Join(" and ", packages.Select(p => p.Name)),

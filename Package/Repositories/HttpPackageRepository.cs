@@ -2,17 +2,14 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
-using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Net.NetworkInformation;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -27,7 +24,7 @@ namespace OpenTap.Package
     /// <summary>
     /// Implements a IPackageRepository that queries a server for OpenTAP packages via http/https.
     /// </summary>
-    public class HttpPackageRepository : IPackageRepository
+    public class HttpPackageRepository : IPackageRepository, IPackageDownloadProgress
     {
         #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
         private static TraceSource log = Log.CreateSource("HttpPackageRepository");
@@ -71,7 +68,7 @@ namespace OpenTap.Package
             string installDir = ExecutorClient.ExeDir;
             UpdateId = String.Format("{0:X8}{1:X8}", MurMurHash3.Hash(id), MurMurHash3.Hash(installDir));
         }
-
+        Action<string, long, long> IPackageDownloadProgress.OnProgressUpdate { get; set; }
         internal static string GetUserId()
         {
             var idPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTAP", "OpenTapGeneratedId");
@@ -173,7 +170,14 @@ namespace OpenTap.Package
                                     
                                     finished = true;
                                 }, cancellationToken);
-                                ConsoleUtils.PrintProgressTillEnd(task, "Downloading", () => fileStream.Position, () => totalSize);
+                                ConsoleUtils.ReportProgressTillEnd(task, "Downloading",
+                                    () => fileStream.Position,
+                                    () => totalSize,
+                                    (header, pos, len) =>
+                                    {
+                                        ConsoleUtils.printProgress(header, pos, len);
+                                        (this as IPackageDownloadProgress).OnProgressUpdate?.Invoke(header, pos, len);
+                                    });
                             }
                                 
                             if (finished)
@@ -423,7 +427,6 @@ namespace OpenTap.Package
 
         #region IPackageRepository Implementation
         public string Url { get; set; }
-
         public void DownloadPackage(IPackageIdentifier package, string destination, CancellationToken cancellationToken)
         {
             var tmpPath = destination + "." + Guid.NewGuid().ToString();
@@ -439,6 +442,7 @@ namespace OpenTap.Package
                         Name = package.Name, Version = package.Version, 
                         Architecture = package.Architecture, OS = package.OS
                     };
+                    
                     DoDownloadPackage(packageDef, tmpFile, cancellationToken).Wait(cancellationToken);
 
                     if (cancellationToken.IsCancellationRequested == false)

@@ -333,9 +333,12 @@ namespace OpenTap.Package
             return gatheredPackages;
         }
 
-        internal static List<string> DownloadPackages(string destinationDir, List<PackageDef> PackagesToDownload, List<string> filenames = null)
+        internal static List<string> DownloadPackages(string destinationDir, List<PackageDef> PackagesToDownload, List<string> filenames = null, Action<int, string> progressUpdate = null)
         {
+            progressUpdate = progressUpdate ?? ((i, s) => { });
+            
             List<string> downloadedPackages = new List<string>();
+
             for(int i = 0; i < PackagesToDownload.Count; i++)
             {
                 Stopwatch timer = Stopwatch.StartNew();
@@ -344,7 +347,23 @@ namespace OpenTap.Package
                 string filename = filenames?.ElementAtOrDefault(i) ?? Path.Combine(destinationDir, GetQualifiedFileName(pkg));
 
                 TapThread.ThrowIfAborted();
-                
+
+                var i1 = i;
+
+                void innerProgress(string header, long pos, long len)
+                {
+                    var downloadProgress = 100.0 * pos / len;
+                    
+                    var thisProgress = downloadProgress / PackagesToDownload.Count;
+                    var otherProgress = (100.0 * i1) / PackagesToDownload.Count;
+
+                    var progress = thisProgress + otherProgress;
+                    
+                    var progressString = $"({downloadProgress:0.00}% | {Utils.BytesToReadable(pos)} of {Utils.BytesToReadable(len)})";
+                    progressUpdate((int)progress, $"Downloading '{pkg}' {progressString}");
+                }
+
+
                 try
                 {
                     PackageDef existingPkg = null;
@@ -382,6 +401,10 @@ namespace OpenTap.Package
                             source = fileSource.PackageFilePath;
                         
                         IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(source);
+                        if (rm is IPackageDownloadProgress r)
+                        {
+                            r.OnProgressUpdate = innerProgress;
+                        }
                         if (PackageCacheHelper.PackageIsFromCache(pkg))
                         {
                             rm.DownloadPackage(pkg, filename);
@@ -403,7 +426,11 @@ namespace OpenTap.Package
                 }
 
                 downloadedPackages.Add(filename);
+                float progress_f = (float) (i + 1) / PackagesToDownload.Count;
+                progressUpdate((int)(progress_f * 100), $"Acquired '{pkg}'.");
             }
+            
+            progressUpdate(100, "Finished downloading packages.");
 
             return downloadedPackages;
         }

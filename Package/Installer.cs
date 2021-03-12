@@ -62,8 +62,10 @@ namespace OpenTap.Package
                     log.Warning("Installation stopped while waiting for package files to become unlocked.");
                 }
 
-                int progressPercent = 10;
-                OnProgressUpdate(progressPercent, "");
+                // The packages have all been downloaded at this stage. Now we just need to install them.
+                // Assume this accounts for roughly 60% of the installation process.
+                int progressPercent = 60;
+                OnProgressUpdate(progressPercent, "Installing packages.");
                 foreach (string fileName in PackagePaths)
                 {
                     try
@@ -74,7 +76,7 @@ namespace OpenTap.Package
 
                         log.Info(timer, "Installed " + pkg.Name + " version " + pkg.Version);
 
-                        progressPercent += 80 / PackagePaths.Count();
+                        progressPercent += 30 / PackagePaths.Count();
 
                         if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) && PackagePaths.Last() != fileName)
                         {
@@ -98,14 +100,13 @@ namespace OpenTap.Package
                         }
                     }
                 }
-                OnProgressUpdate(90, "");
-
+                
+                
                 if (DoSleep)
                     Thread.Sleep(100);
 
-                OnProgressUpdate(100, "Plugin installed.");
-                Thread.Sleep(50); // Let Eventhandler get the last OnProgressUpdate
-
+                OnProgressUpdate(100, $"Package installation finished.");
+                Thread.Sleep(50);
             }
             catch (Exception ex)
             {

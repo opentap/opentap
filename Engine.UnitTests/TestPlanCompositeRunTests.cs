@@ -127,7 +127,7 @@ namespace OpenTap.Engine.UnitTests
         }
 
 
-        [Test]
+        [Test, Retry(3)]
         public void RunCompositeFollowedByRun()
         {
             TestPlan target = getTestTestPlan();

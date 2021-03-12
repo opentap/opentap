@@ -102,10 +102,12 @@ namespace OpenTap.Package
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;
             installer.Error += ex => installError = true;
-
+            
             try
             {
                 log.Debug("Fetching package information...");
+                
+                RaiseProgressUpdate(5, "Gathering packages.");
 
                 // If exact version is specified, check if it's already installed
                 if (Version != null && VersionSpecifier.TryParse(Version, out var vs) && vs.MatchBehavior == VersionMatchBehavior.Exact && Force == false)
@@ -151,6 +153,8 @@ namespace OpenTap.Package
                     return 2;
                 if (overWriteCheckExitCode == InstallationQuestion.OverwriteFile)
                     log.Warning("Overwriting files. (--{0} option specified).", Overwrite ? "overwrite" : "force");
+                
+                RaiseProgressUpdate(10, "Gathering dependencies.");
 
                 // Check dependencies
                 bool dependenciesRequired = (!askToInstallDependencies && !IgnoreDependencies && !Force) || CheckOnly;
@@ -172,7 +176,14 @@ namespace OpenTap.Package
                 }
 
                 // Download the packages
-                var downloadedPackageFiles = PackageActionHelpers.DownloadPackages(PackageCacheHelper.PackageCacheDirectory, packagesToInstall);
+                // We divide the progress by 2 in the progress update because we assume downloading the packages
+                // accounts for half the installation progress. So when all the packages have finished downloading,
+                // we have finished 10 + (100/2)% of the installation process.
+
+                var downloadedPackageFiles = PackageActionHelpers.DownloadPackages(
+                    PackageCacheHelper.PackageCacheDirectory, packagesToInstall,
+                    progressUpdate: (progress, msg) => RaiseProgressUpdate(10 + progress / 2, msg));
+
                 installer.PackagePaths.AddRange(downloadedPackageFiles);
             }
             catch (Exception e)
