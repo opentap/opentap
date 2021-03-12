@@ -562,6 +562,19 @@ Test-Installer-Linux:
     - $HOME/bin/tap -h
     - $HOME/bin/tap package list -v
 
+TestIsolated:
+  stage: testinstaller
+  image: opentapio/opentap:9.12-windowsserver1809
+  tags: [ docker, windows ]
+  dependencies:
+    - Package-Windows64
+  needs:
+    - Package-Windows64
+  script:
+    - mv OpenTAP.*.Windows.TapPackage OpenTAP.TapPackage
+    - tap package install OpenTAP.TapPackage # Install opentap from package
+    - tap package install OpenTAP # Install an older released version
+
 #############################################
 # Stage: publish                            #
 #############################################
