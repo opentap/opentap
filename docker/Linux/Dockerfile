@@ -41,9 +41,7 @@ COPY --from=development /opt/tap /opt/tap
 RUN chmod -R +w /opt/tap
 RUN chmod +x /opt/tap/tap
 
-RUN apt update
-# TAP dotnet core 2.1 dependency
-RUN apt install libc6-dev libunwind8 curl git -y
+RUN apt-get update && apt-get install -y --no-install-recommends libunwind8 curl git && rm -rf /var/lib/apt/lists/*
 
 ENV PATH="/opt/tap:${PATH}"
 ENV TAP_PATH="/opt/tap"
