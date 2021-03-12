@@ -1564,6 +1564,14 @@ namespace OpenTap
                 return value;
             return dictionary[key] = createValue(key);
         }
+
+        public static string BytesToReadable(long bytes)
+        {
+            if (bytes < 1000) return $"{bytes} B";
+            if (bytes < 1000000) return $"{bytes/1000.0:0.00} kB";
+            if (bytes < 1000000000 )return $"{bytes/1000000.0:0.00} MB";
+            return $"{bytes/1000000000.0:0.00} GB";
+        }
     }
 
     static internal class Sequence

@@ -332,5 +332,25 @@ namespace OpenTap.Engine.UnitTests
             // 1 and 2 are included in 111, so actually these flags are set.
             TestEnumToString((EngineSettings.AbortTestPlanType) 111, "Break On Fail | Break On Error");
         }
+
+
+        [TestCase(1000, "1.00 kB")]
+        [TestCase(0, "0 B")]
+        [TestCase(110, "110 B")]
+        [TestCase(1500, "1.50 kB")]
+        [TestCase(15000, "15.00 kB")]
+        [TestCase(150000, "150.00 kB")]
+        [TestCase(1500000, "1.50 MB")]
+        [TestCase(1000000, "1.00 MB")]
+        [TestCase(15500000, "15.50 MB")]
+        [TestCase(155550000, "155.55 MB")]
+        [TestCase(1550000000, "1.55 GB")]
+        [TestCase(2000000000, "2.00 GB")]
+        [TestCase(20500000000, "20.50 GB")]
+        public void TestBytesToReadable(long number, string expected)
+        {
+            var str = Utils.BytesToReadable(number);
+            Assert.AreEqual(expected, str);
+        }
     }
 }

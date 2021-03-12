@@ -97,6 +97,8 @@ namespace OpenTap.Package
             if (PackagesToDownload == null)
                 return 2;
 
+            var progressPercentage = 0.0f;
+
             if (!DryRun)
             {
                 if (OutputPath != null)
@@ -109,10 +111,11 @@ namespace OpenTap.Package
                         destinationDir = OutputPath;
                     }
                     else
-                    {   // If a filename is specified, name the first Package argument 
+                    {
+                        // If a filename is specified, name the first Package argument 
                         destinationDir = new FileInfo(OutputPath).DirectoryName;
                         Directory.CreateDirectory(destinationDir);
-                        
+
                         var firstPackage = Packages?.FirstOrDefault();
                         if (firstPackage != null)
                         {
@@ -120,21 +123,37 @@ namespace OpenTap.Package
                                 p.Name == firstPackage || p.PackageSource is FilePackageDefSource s &&
                                 s.PackageFilePath == Path.GetFullPath(firstPackage));
 
+                            // The total progress of downloading 1 package
+                            var packageProgressAmount = 1.0f / PackagesToDownload.Count;
 
                             PackageActionHelpers.DownloadPackages(destinationDir, new List<PackageDef>() {package},
-                                new List<string>() {OutputPath});
+                                new List<string>() {OutputPath},
+                                (percent, msg) => RaiseProgressUpdate((int) (packageProgressAmount * percent), msg));
+
+                            progressPercentage = packageProgressAmount * 100;
+                            RaiseProgressUpdate((int) progressPercentage, $"Downloaded {package.Name}");
+
                             PackagesToDownload.Remove(package);
                         }
-                    }                    
+                    }
                 }
 
+                // The total remaining progress - 100.0 if not using the --out parameter - ((nPackages - 1) / nPackages) otherwise
+                var remainingPercentage = 100.0f - progressPercentage;
+
                 // Download the remaining packages
-                PackageActionHelpers.DownloadPackages(destinationDir, PackagesToDownload);
+                PackageActionHelpers.DownloadPackages(destinationDir, PackagesToDownload,
+                    progressUpdate: (partialPercent, message) =>
+                    {
+                        var partialProgressPercentage = partialPercent * (remainingPercentage / 100);
+                        RaiseProgressUpdate((int) (progressPercentage + partialProgressPercentage), message);
+                    });
             }
             else
                 log.Info("Dry run completed. Specified packages are available.");
 
             DownloadedPackages = PackagesToDownload;
+
             return 0;
         }
 
