@@ -117,6 +117,25 @@ When using wildcards in the **Path** attribute, the **SourcePath** attribute has
  ...
  ```
 
+### ActionStep Element
+A package can define ActionStep elements, which are commands that OpenTAP will run
+at predefined stages. The ActionStep element supports the following attributes:
+
+| **Attribute** | **Description** |
+| ---- | -------- |
+| **ExeFile** | The name of the program to execute. This is always relative to the directory containing the OpenTAP executable. |
+| **Arguments** | The arguments with which to invoke the ExeFile. |
+| **ActionName** | The stage at which to run the action. |
+
+OpenTAP runs actions at three predefined stages:
+
+1. **ActionName == "install"** is executed *after* a package has finished installing.
+2. **ActionName == "uninstall"** is executed *before* a package starts uninstalling.
+3. **ActionName == "test"** is executed when `tap package test MyPlugin` is invoked on the command line.
+
+A package can contain any number of ActionStep elements, and they must be contained in a PackageActionExtensions element.
+
+
 ### Folder Conventions
 
 In a the package definition XML file, package authors are able to put payload files anywhere in the installation folder structure for increased flexibility. However, some conventions are defined to encurage an organized folder structure. In this context two subfolders of the OpenTAP installation folder are significant:
@@ -141,7 +160,7 @@ Any folder named exactly "Dependencies" will be excluded from plugin discovery o
 
 ### Example
 
-The below configuration file results in `MyPlugin.{version}.TapPackage` file,containing `OpenTap.Plugins.MyPlugin.dll`, `waveform1.wfm` and `waveform2.wfm`. `OpenTap.Plugins.MyPlugin.dll` is obfuscated but none of the waveform files are.  
+The below configuration file results in `MyPlugin.{version}.TapPackage` file,containing `OpenTap.Plugins.MyPlugin.dll`, `waveform1.wfm` and `waveform2.wfm`.
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -224,6 +243,71 @@ Following the image below:
 - The gray text `by: Keysight Technologies` signifies the owner of the package.
 
 ![](./GroupOwner.png)
+
+### Example of ActionSteps
+Let us expand a bit on the example plugin `MyPlugin` from the previous section to see how we could use the ActionStep feature.
+Let us imagine that the plugin now includes a test plan to verify that the steps it provides are working correctly,
+and a binary executable for generating debug waveform data. Let us also imagine that it contains CLI actions
+that it needs to make further configuration when it is installed, and a CLI action that it needs to run when it is uninstalled.
+This can all be done using the ActionStep element:
+
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://myplugin.com"
+		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example" Tags="Example DUT Instrument">
+  <Description>
+    This is an example of a "package.xml" file.
+    <Status>Released</Status>
+    <Organisation>Keysight Technologies</Organisation>
+    <Contacts>
+      <Contact Email="tap.support@keysight.com" Name="TAP Support"/>
+    </Contacts>
+    <Prerequisites>None</Prerequisites>
+    <Hardware>Emulated PSU</Hardware>
+    <Links>
+      <Link Description="Description of the MyPlugin" Name="MyPlugin" Url="http://www.keysight.com/find/TAP"/>
+    </Links>
+  </Description>
+  <Owner>OpenTAP</Owner>
+  <Files>
+    <File Path="Packages/MyPlugin/OpenTAP.Plugins.MyPlugin.dll">
+      <SetAssemblyInfo Attributes="Version"/>
+    </File>
+    <File Path="Packages/MyPlugin/waveform1.wfm"/>
+    <File Path="Packages/MyPlugin/waveform2.wfm"/>
+    <File Path="Packages/MyPlugin/waveform-test.TapPlan"/>
+    <File Path="./Packages/MyPlugin/WaveformGenerator.exe"/>
+    <File Path="Packages/MyPlugin/Example Icon.ico">    
+      <PackageIcon/>
+    </File>
+  </Files>  
+  <PackageActionExtensions>
+    <ActionStep ExeFile="tap" Arguments="MyPlugin install" ActionName="install" />
+    <ActionStep ExeFile="tap" Arguments="MyPlugin uninstall" ActionName="uninstall" />
+    <ActionStep ExeFile="./Packages/MyPlugin/WaveformGenerator.exe" Arguments='--generate-waveforms --debug' ActionName="test" />    
+    <ActionStep ExeFile="tap" Arguments='run -v ./Packages/MyPlugin/waveform-test.TapPlan' ActionName="test" />
+  </PackageActionExtensions>    
+</Package>
+```
+
+The ActionStep elements are executed in the order that they appear in the package file. When `MyPlugin` is installed, OpenTAP will run the CLI action:
+
+`tap MyPlugin install`
+
+When it is uninstalled, OpenTAP will run the CLI action:
+
+`tap MyPlugin uninstall`
+
+When `tap package test MyPlugin` is invoked, OpenTAP will first execute the binary executable:
+
+`./Packages/MyPlugin/WaveformGenerator.exe --generate-waveforms --debug`
+
+And then run the bundled test plan: 
+
+`tap run -v ./Packages/MyPlugin/waveform-test.TapPlan`
+
+Note that using **ExeFile="tap.exe"** will work on Windows, but not on Linux and MacOS. Omitting the '.exe' extension will work on all platforms.
 
 ## Command Line Use
 You can create an OpenTAP package from the command line or from MSBUILD (directly in Visual Studio). If you create an OpenTAP project in Visual Studio using the SDK, the resulting project is set up to generate a .TapPackage using the Keysight.OpenTAP.Sdk.MSBuild.dll (only when building in "Release" configuration).
@@ -338,5 +422,4 @@ To preview the version number that Git assisted versioning generates, you can us
 This command can also be useful if you need the same version number elsewhere in your build script.
 
 ### Manual Versioning
-The version can be set manually, e.g. `Version="1.0.2"`. The version **must** follow the semantic versioning format.
-
+The version can be set manually, e.g. `Version="1.0.2"`. The version **must** follow the [semantic versioning format.](https://semver.org/)
