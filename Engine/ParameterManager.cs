@@ -188,7 +188,13 @@ namespace OpenTap
                     {
                         var val = existing.GetValue(step);
                         var cloner = new ObjectCloner(val);
-                        if (cloner.CanClone(step, memberType) == false)
+                        if (originalExisting.HasAttribute<UnmergableAttribute>())
+                        {
+                            var error = $"The selected property does not support merging.";
+                            yield return (error, error);
+                            yield break;
+                        }
+                        if( cloner.CanClone(step, memberType) == false)
                         {
                             var error = $"Cannot merge properties of this kind.";
                             yield return (error, error);
