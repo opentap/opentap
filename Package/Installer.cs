@@ -140,7 +140,8 @@ namespace OpenTap.Package
                     catch
                     {
                         log.Warning("Uninstall stopped while waiting for package files to become unlocked.");
-                        throw;
+                        if (!force)
+                            throw;
                     }
                 }
                 
@@ -158,8 +159,13 @@ namespace OpenTap.Package
 
                     if (res == ActionResult.Error)
                     {
-                        OnProgressUpdate(100, "Done");
-                        return false;
+                        if (!force)
+                        {
+                            OnProgressUpdate(100, "Done");
+                            return false;
+                        }
+                        else
+                            log.Warning($"There was an error while trying to {command} '{pkg.Name}'.");
                     }
                     else if(res == ActionResult.NothingToDo)
                     {
