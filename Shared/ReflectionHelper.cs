@@ -1755,6 +1755,13 @@ namespace OpenTap
             using (var e = objs.GetEnumerator())
                 return ProcessPattern(e, f1, f2, f3, f4, f5, f6);
         }
+
+        public static void Append<T>(ref T[]  array, params T[] appendage)
+        {
+            int preLen = array.Length;
+            Array.Resize(ref array, array.Length + appendage.Length);
+            Array.Copy(appendage, 0, array, preLen, appendage.Length);
+        }
     }
 
     internal class Time

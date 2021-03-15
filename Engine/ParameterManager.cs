@@ -188,7 +188,7 @@ namespace OpenTap
                     {
                         var val = existing.GetValue(step);
                         var cloner = new ObjectCloner(val);
-                        if (originalExisting.HasAttribute<UnmergableAttribute>())
+                        if (originalExisting?.HasAttribute<UnmergableAttribute>() == true)
                         {
                             var error = $"The selected property does not support merging.";
                             yield return (error, error);

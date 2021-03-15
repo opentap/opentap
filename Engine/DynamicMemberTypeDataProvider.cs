@@ -99,10 +99,20 @@ namespace OpenTap
                 if (attributes != null) return attributes;
                 // copy all attributes from first member.
                 // if there is no display attribute, create one.
-                var attrs = member.Attributes;
-                if (!attrs.OfType<DisplayAttribute>().Any())
-                    attrs = attrs.Append(displayAttribute);
-                return attributes = attrs.ToArray();
+                bool found = false;
+                var attrs = member.Attributes.ToArray();
+                for (int i = 0; i < attrs.Length; i++)
+                {
+                    if (false == (attrs[i] is DisplayAttribute))
+                        continue;
+                    attrs[i] = displayAttribute;
+                    found = true;
+                    break;
+                }
+
+                if(!found)
+                    Sequence.Append(ref attrs, displayAttribute);
+                return attributes = attrs;
             }
         }
 
