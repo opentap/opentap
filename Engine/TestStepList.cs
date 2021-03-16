@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 namespace OpenTap
 {
@@ -66,6 +67,7 @@ namespace OpenTap
     /// It is responsible for making sure that all TestSteps added to the list are supported/allowed 
     /// as children of the TestStep in the TestStepList.Parent field.
     /// </summary>
+    [DebuggerDisplay("TestStepList {Count}")]
     public class TestStepList : ObservableCollection<ITestStep>
     {
         /// <summary>

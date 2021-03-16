@@ -262,6 +262,7 @@ namespace OpenTap
         {
             this.stepRun = stepRun;
             this.planRun = planRun;
+            stepRun.SetResultSource(this);
         }
 
         /// <summary>
@@ -475,6 +476,8 @@ namespace OpenTap
         {
             DoStore(table);
         }
+
+        internal bool WasDeferred => DeferWorker != null;
     }
     
 }

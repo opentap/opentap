@@ -22,6 +22,7 @@ namespace OpenTap
     /// </summary>
     [Serializable]
     [DataContract(IsReference = true)]
+    [DebuggerDisplay("TestPlanRun {TestPlanName}")]
     public class TestPlanRun : TestRun
     {
         static readonly TraceSource log = Log.CreateSource("TestPlan");

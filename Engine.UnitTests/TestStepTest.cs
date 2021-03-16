@@ -694,6 +694,7 @@ namespace OpenTap.Engine.UnitTests
                 SetOutputProperty(inputAnnotation);
 
                 annotation.Write(inputStep);
+                
 
                 AssertFormatName("{Input Bool Array}", "False, True");
                 AssertFormatName("{Input Double}", "1");
