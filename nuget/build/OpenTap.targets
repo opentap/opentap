@@ -62,13 +62,15 @@
       <OpenTapPackagesToInstall Include="@(AdditionalOpenTapPackage)">
         <Version>%(AdditionalOpenTapPackage.Version)</Version>
         <Repository>%(AdditionalOpenTapPackage.Repository)</Repository>
+        <UnpackOnly>%(AdditionalOpenTapPackage.UnpackOnly)</UnpackOnly>
       </OpenTapPackagesToInstall>
       <OpenTapPackagesToInstall Include="@(OpenTapPackageReference)">
         <Version>%(OpenTapPackageReference.Version)</Version>
         <Repository>%(OpenTapPackageReference.Repository)</Repository>
+        <UnpackOnly>%(OpenTapPackageReference.UnpackOnly)</UnpackOnly>
       </OpenTapPackagesToInstall>
     </ItemGroup>
-  </Target>
+  </Target> 
 
   <UsingTask TaskName="Keysight.OpenTap.Sdk.MSBuild.InstallOpenTapPackages" AssemblyFile="$(MSBuildThisFileDirectory)\Keysight.OpenTap.Sdk.MSBuild.dll"/>
   <Target Name="InstallOpenTapPackages"          
