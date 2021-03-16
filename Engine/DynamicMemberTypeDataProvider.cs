@@ -90,28 +90,29 @@ namespace OpenTap
         }
 
         readonly DisplayAttribute displayAttribute;
-        object[] __attributes__;
+        object[] attributes;
         /// <summary> Gets the attributes on this member. </summary>
         public IEnumerable<object> Attributes
         {
             get
             {
-                if (__attributes__ != null) return __attributes__;
-                bool anyDisplayAttribute = false;
-                var m = member.Attributes.Select(x =>
+                if (attributes != null) return attributes;
+                // copy all attributes from first member.
+                // if there is no display attribute, create one.
+                bool found = false;
+                var attrs = member.Attributes.ToArray();
+                for (int i = 0; i < attrs.Length; i++)
                 {
-                    if (x is DisplayAttribute)
-                    {
-                        anyDisplayAttribute = true;
-                        return displayAttribute;
-                    }
+                    if (false == (attrs[i] is DisplayAttribute))
+                        continue;
+                    attrs[i] = displayAttribute;
+                    found = true;
+                    break;
+                }
 
-                    return x;
-                }).ToArray();
-                if (!anyDisplayAttribute)
-                    m = member.Attributes.Append(displayAttribute).ToArray();
-                __attributes__ = m;
-                return m;
+                if(!found)
+                    Sequence.Append(ref attrs, displayAttribute);
+                return attributes = attrs;
             }
         }
 

@@ -34,6 +34,15 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void ArrayAppendTest()
+        {
+            int[] items = {0, 1, 2, 3, 4};
+            Sequence.Append(ref items, 5, 6);
+            for (int i = 0; i < 7; i++)
+                Assert.AreEqual(i, items[i]);
+        }
+
+        [Test]
         public void MemoryMappedApiTest()
         {
             if(OpenTap.OperatingSystem.Current == OpenTap.OperatingSystem.Linux) 

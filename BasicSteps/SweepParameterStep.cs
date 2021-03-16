@@ -16,7 +16,7 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Sweep Values", "A table of values to be swept for the selected parameters.", "Sweep")]
         [HideOnMultiSelect] // todo: In the future support multi-selecting this.
         [EnabledIf(nameof(SweepValuesEnabled), true)]
-        [Unsweepable]
+        [Unsweepable, Unmergable]
         public SweepRowCollection SweepValues 
         { 
             get => sweepValues;
