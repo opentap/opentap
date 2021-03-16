@@ -107,6 +107,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
             foreach (var item in PackagesToInstall)
             {
+                var unpackOnly = item.GetMetadata("UnpackOnly") ?? "";
                 var package = item.ItemSpec;
                 var repository = item.GetMetadata("Repository");
                 if (string.IsNullOrWhiteSpace(repository))
@@ -116,6 +117,8 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 var arguments = $@"package install --dependencies ""{package}"" -r ""{repository}"" --non-interactive";
                 if (string.IsNullOrWhiteSpace(version) == false)
                     arguments += $@" --version ""{version}""";
+                if (unpackOnly.Equals("true", StringComparison.CurrentCultureIgnoreCase))
+                    arguments += " --unpack-only";
 
                 var startInfo = new ProcessStartInfo()
                 {

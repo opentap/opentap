@@ -284,7 +284,7 @@ namespace OpenTap.Package
             }
             catch (InvalidDataException)
             {
-                log.Error($"Could not unpackage '{packagePath}'.");
+                log.Error($"Could not unpack '{packagePath}'.");
                 throw;
             }
             return files;
@@ -294,7 +294,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Tries to install a plugin from 'path', throws an exception on error.
         /// </summary>
-        internal static PackageDef InstallPluginPackage(string target, string path)
+        internal static PackageDef InstallPluginPackage(string target, string path, bool unpackOnly = false)
         {
             checkExtension(path);
             checkFileExists(path);
@@ -322,6 +322,12 @@ namespace OpenTap.Package
                 throw new Exception($"Failed to install package '{path}'.", e);
             }
 
+            if (unpackOnly)
+            {
+                log.Info("Skipping install actions as unpack-only was specified.");
+                return package;
+            }
+
             var pi = new PluginInstaller();
             if (pi.ExecuteAction(package, "install", false, target) == ActionResult.Error)
             {
@@ -330,9 +336,9 @@ namespace OpenTap.Package
                 throw new Exception($"Failed to install package '{path}'.");
             }
 
-
-            CustomPackageActionHelper.RunCustomActions(package, PackageActionStage.Install, new CustomPackageActionArgs(null, false));
-
+            CustomPackageActionHelper.RunCustomActions(package, PackageActionStage.Install,
+                new CustomPackageActionArgs(null, false));
+            
             return package;
         }
 

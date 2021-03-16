@@ -62,7 +62,12 @@ namespace OpenTap.Package
 
         [CommandLineArgument("no-downgrade", Description = "Don't install if the same or a newer version is already installed.")]
         public bool NoDowngrade { get; set; }
-        
+
+        [CommandLineArgument("unpack-only", Description = "Only unpack the package payload into the installation directory and\n" +
+                                                          "skip any additional install actions the package might have defined.\n" +
+                                                          "This can leave the installed package unusable.")]
+        public bool UnpackOnly { get; set; }
+
         /// <summary>
         /// This is used when specifying multiple packages with different version numbers. In that case <see cref="Packages"/> can be left null.
         /// </summary>
@@ -98,7 +103,7 @@ namespace OpenTap.Package
                 repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
             
             bool installError = false;
-            var installer = new Installer(Target, cancellationToken) { DoSleep = false, ForceInstall = Force };
+            var installer = new Installer(Target, cancellationToken) { DoSleep = false, ForceInstall = Force, UnpackOnly = UnpackOnly };
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;
             installer.Error += ex => installError = true;
@@ -194,9 +199,9 @@ namespace OpenTap.Package
                 RaiseError(e);
                 return 6;
             }
-            
+
             log.Info("Installing to {0}", Path.GetFullPath(Target));
-            
+
             // Uninstall old packages before
             UninstallExisting(targetInstallation, installer.PackagePaths, cancellationToken);
 

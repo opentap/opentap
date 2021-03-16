@@ -27,6 +27,7 @@ namespace OpenTap.Package
         internal bool DoSleep { get; set; }
         internal List<string> PackagePaths { get; private set; }
         internal string TapDir { get; set; }
+        internal bool UnpackOnly { get; set; }
 
         internal bool ForceInstall { get; set; }
 
@@ -34,6 +35,7 @@ namespace OpenTap.Package
         {
             this.cancellationToken = cancellationToken;
             DoSleep = true;
+            UnpackOnly = false;
             PackagePaths = new List<string>();
             TapDir = tapDir?.Trim() ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             if(ExecutorClient.IsRunningIsolated)
@@ -72,7 +74,7 @@ namespace OpenTap.Package
                     {
                         OnProgressUpdate(progressPercent, "Installing " + Path.GetFileNameWithoutExtension(fileName));
                         Stopwatch timer = Stopwatch.StartNew();
-                        PackageDef pkg = PluginInstaller.InstallPluginPackage(TapDir, fileName);
+                        PackageDef pkg = PluginInstaller.InstallPluginPackage(TapDir, fileName, UnpackOnly);
 
                         log.Info(timer, "Installed " + pkg.Name + " version " + pkg.Version);
 
