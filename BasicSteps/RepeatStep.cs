@@ -51,7 +51,7 @@ namespace OpenTap.Plugins.BasicSteps
             set => maxCount = value ?? throw new ArgumentNullException(nameof(value), "Cannot assign Max Count a null value.");
         }
         
-        [Output]
+        [Output(OutputAvailability.BeforeRun)]
         [Display("Iteration", "The current iteration.", Order: 4)]
         public string IterationInfo
         {

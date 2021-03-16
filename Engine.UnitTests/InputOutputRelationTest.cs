@@ -47,23 +47,31 @@ namespace OpenTap.UnitTests
         // The output is assigned to the input.
         public class OutputInput : TestStep
         {
-            [Output]
+            [Output(OutputAvailability.AfterDefer)]
             public double Output { get; set; }
+            
+            [Output(OutputAvailability.AfterRun)]
+            public double Output2 { get; set; }
             
             public double Input { get; set; }
             
             public bool CheckExpectedInput { get; set; }
             public double ExpectedInput { get; set; }
+            
+            public bool Defer { get; set; }
+            
             public override void Run()
             {
                 if(CheckExpectedInput && ExpectedInput != Input)
                     throw new Exception("Input has unexpected value");
                 UpgradeVerdict(Verdict.Pass);
-                Output = Input;
+                this.Results.Defer(() => Output = Input);
+                Output2 = Input;
             }
+
+            public override string ToString() => $"{Name}";
         }
 
-        
         [Test]
         public void TestInputOutputRelationsInTestPlan()
         {
@@ -94,6 +102,33 @@ namespace OpenTap.UnitTests
                 var run = plan.Execute();
                 Assert.AreEqual(Verdict.Pass, run.Verdict);
             }
+        }
+        
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(4)]
+        [TestCase(8)] // connect 8 inputs/outputs and update across 8 threads.
+        public void TestInputOutputRelationsInTestPlanParallelN(int n)
+        {
+            var plan = new TestPlan();
+            var parallel = new ParallelStep();
+            
+            plan.ChildTestSteps.Add(parallel);
+            var step1 = new OutputInput {Output = 5, Input = 5, Name = "Step 1"};
+            parallel.ChildTestSteps.Add(step1);
+            for (int i = 0; i < n; i++)
+            {
+                var prevStep = parallel.ChildTestSteps.Last() as OutputInput;
+                var newStep = new OutputInput {Output = 5, Input = 5, Name = "Step " + (i + 1)};
+                parallel.ChildTestSteps.Add(newStep);
+                // setup the connections.
+                var outputMember = TypeData.GetTypeData(prevStep).GetMember(nameof(OutputInput.Output));
+                var inputMember = TypeData.GetTypeData(newStep).GetMember(nameof(OutputInput.Input));
+                InputOutputRelation.Assign(newStep, inputMember, prevStep, outputMember );
+            }
+            
+            var r = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, r.Verdict);
         }
 
         [Test]

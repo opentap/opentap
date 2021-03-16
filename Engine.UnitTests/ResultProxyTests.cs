@@ -298,7 +298,5 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(Verdict.Pass, run.Verdict);
             Assert.IsTrue(run.Parameters.All(x => x.Group != null));
         }
-
-
     }
 }

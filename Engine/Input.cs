@@ -161,17 +161,9 @@ namespace OpenTap
             {
                 if (Step == null || Property == null)
                     throw new Exception("Step input requires reference to a TestStep output.");
-
-                // Wait for the step to complete
-                var run = Step.StepRun;
-                var planRun = step.PlanRun;
-                if (run != null && planRun != null)
-                {
-                    if (run.StepThread != TapThread.Current)
-                        run.WaitForCompletion();
-                }
                 
-                return (T)Property.GetValue(Step);
+                // Wait for the step to complete
+                return (T)InputOutputRelation.GetOutput(Property, Step); 
             }
         }
         
