@@ -284,6 +284,9 @@ namespace OpenTap.UnitTests
             public string SelectName { get; set; }
 
             public Mode SelectedMode;
+
+            public string[] LastError = Array.Empty<string>();
+
             
             public string ErrorString { get; set; }
             
@@ -330,6 +333,8 @@ namespace OpenTap.UnitTests
                     var msg = message.Get<IStringValueAnnotation>().Value;
                     Assert.IsTrue(msg.Contains("Create new parameter "));   
                 }
+
+                LastError = selectedName.Get<IErrorAnnotation>()?.Errors.ToArray();
                 if (SelectedMode == (Mode.Merge|Mode.TestPlan))
                 {
                     var msg = message.Get<IStringValueAnnotation>().Value;
@@ -627,7 +632,118 @@ namespace OpenTap.UnitTests
             }
 
         }
+        [Test]
+        public void MenuAnnotationTest3()
+        {
+            var currentUserInterface = UserInput.Interface;
+            var menuInterface = new MenuTestUserInterface();
+            UserInput.SetInterface(menuInterface);
+            try
+            {
+                const string param1 = "Parameters \\ Time Delay";
+                const string param2 = "Parameters \\ Byte Time Delay";
+                const string param3 = "Parameters \\ Short Time Delay";
+                var plan = new TestPlan();
+                var delay1 = new DelayStep();
+                var delay2 = new ByteDelayStep();
+                var delay3 = new ShortDelayStep();
+                plan.Steps.Add(delay1);
+                plan.Steps.Add(delay2);
+                plan.Steps.Add(delay3);
 
+                { // basic functionalities test 
+                    var member = AnnotationCollection.Annotate(delay1).GetMember(nameof(DelayStep.DelaySecs));
+                    var menu = member.Get<MenuAnnotation>();
+                    var items = menu.MenuItems;
+
+                    var icons = items.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
+                    var parameterizeOnTestPlan = icons[IconNames.ParameterizeOnTestPlan].First();
+                    Assert.IsNotNull(parameterizeOnTestPlan);
+                    var method = parameterizeOnTestPlan.Get<IMethodAnnotation>();
+                    method.Invoke();
+                    Assert.IsNotNull(plan.ExternalParameters.Get(param1));
+
+                    member = AnnotationCollection.Annotate(delay2).GetMember(nameof(ByteDelayStep.DelaySecs));
+                    menu = member.Get<MenuAnnotation>();
+                    items = menu.MenuItems;
+
+                    icons = items.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
+                    parameterizeOnTestPlan = icons[IconNames.ParameterizeOnTestPlan].First();
+                    Assert.IsNotNull(parameterizeOnTestPlan);
+                    method = parameterizeOnTestPlan.Get<IMethodAnnotation>();
+                    method.Invoke();
+                    Assert.IsNotNull(plan.ExternalParameters.Get(param2));
+
+                    member = AnnotationCollection.Annotate(delay3).GetMember(nameof(ShortDelayStep.DelaySecs));
+                    menu = member.Get<MenuAnnotation>();
+                    items = menu.MenuItems;
+
+                    icons = items.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
+                    parameterizeOnTestPlan = icons[IconNames.ParameterizeOnTestPlan].First();
+                    Assert.IsNotNull(parameterizeOnTestPlan);
+                    method = parameterizeOnTestPlan.Get<IMethodAnnotation>();
+                    method.Invoke();
+                    Assert.IsNotNull(plan.ExternalParameters.Get(param3));
+
+                    var editParameter = AnnotationCollection.Annotate(plan).GetMember(param2).Get<MenuAnnotation>()
+                        .MenuItems
+                        .FirstOrDefault(x => x.Get<IconAnnotationAttribute>()?.IconName == IconNames.EditParameter);
+
+                    // Try to merge byte time delay and time delay parameters
+                    menuInterface.SelectName = param1;
+                    menuInterface.SelectedMode = MenuTestUserInterface.Mode.Rename;
+
+                    editParameter.Get<IMethodAnnotation>().Invoke();
+                    CollectionAssert.AllItemsAreNotNull(menuInterface.LastError);
+
+                    // Try to merge byte time delay and short time delay parameters, overflow exception occurs
+                    editParameter = AnnotationCollection.Annotate(plan).GetMember(param3).Get<MenuAnnotation>()
+                        .MenuItems
+                        .FirstOrDefault(x => x.Get<IconAnnotationAttribute>()?.IconName == IconNames.EditParameter);
+
+                    menuInterface.SelectName = param2;
+                    menuInterface.SelectedMode = MenuTestUserInterface.Mode.Rename;
+
+                    editParameter.Get<IMethodAnnotation>().Invoke();
+                    CollectionAssert.AllItemsAreNotNull(menuInterface.LastError);
+
+                    // Try to merge byte and short time delay parameters, this is allowed
+                    delay3.DelaySecs = 12;
+                    editParameter.Get<IMethodAnnotation>().Invoke();
+                    CollectionAssert.IsEmpty(menuInterface.LastError);
+
+                    // Try to set an overflowed value
+                    member = AnnotationCollection.Annotate(plan).GetMember(param2);
+                    member.SetValue(50000);
+                    var memberParam = member.Get<NumberAnnotation>();
+                    CollectionAssert.AllItemsAreNotNull(memberParam.Errors);
+                }
+            }
+            finally
+            {
+                UserInput.SetInterface(currentUserInterface as IUserInputInterface);
+            }
+        }
+
+        public class ShortDelayStep : TestStep
+        {
+            [Display("Short Time Delay")]
+            public short DelaySecs { get; set; } = 222;
+            public override void Run()
+            {
+                TapThread.Sleep(Time.FromSeconds(DelaySecs));
+            }
+        }
+
+        public class ByteDelayStep : TestStep
+        {
+            [Display("Byte Time Delay")]
+            public sbyte DelaySecs { get; set; } = 3;
+            public override void Run()
+            {
+                TapThread.Sleep(Time.FromSeconds(DelaySecs));
+            }
+        }
         public class TwoDelayStep : TestStep
         {
             public double DelaySecs { get; set; }

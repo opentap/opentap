@@ -37,7 +37,7 @@ namespace OpenTap
             return TryClone(context, targetType ?? typeOfValue, false, out object _);
         }
         
-        bool TryClone(object context, ITypeData targetType, bool skipIfPossible, out object clone )
+        public bool TryClone(object context, ITypeData targetType, bool skipIfPossible, out object clone )
         {
             if (ReferenceEquals(targetType, typeOfValue) && valueType || value == null)
             {
