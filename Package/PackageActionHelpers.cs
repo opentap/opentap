@@ -32,6 +32,7 @@ namespace OpenTap.Package
             internal string message;
             internal string PackageName { get; set; }
             [Submit]
+            [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
             public DepResponse Response { get; set; } = DepResponse.Add;
         }
 
