@@ -367,7 +367,7 @@ namespace OpenTap.Engine.UnitTests
             });
 
 
-            Assert.AreEqual(4, cnt);
+            Assert.AreEqual(5, cnt);
         }
 
         [Test]
@@ -1909,6 +1909,31 @@ namespace OpenTap.Engine.UnitTests
                 InstrumentSettings.Current.Remove(instr);
                 InstrumentSettings.Current.Remove(instr2);
             }
+        }
+
+        [Test]
+        public void StepDescriptionTest()
+        {
+            string descriptionName = "OpenTap.Description";
+            var step = new DelayStep();
+            var description = TypeData.GetTypeData(step).GetMember(descriptionName);
+            var descriptionString = (string)description.GetValue(step);
+            var descriptionString2 = "Note: this is a test. \n" + descriptionString;
+            
+            var xml = new TapSerializer().SerializeToString(step);
+            Assert.IsFalse(xml.Contains(descriptionName), "Description in: {0}", xml); // since the default value was serialized the XML does not contain that.
+            description.SetValue(step, descriptionString2);
+            
+            //verify that it serializes correctly.
+            
+            var xml2 = new TapSerializer().SerializeToString(step);
+            Assert.IsTrue(xml2.Contains(descriptionName)); // In this case it is not the default value.
+            var step2 = Utils.DeserializeFromString<DelayStep>(xml2);
+            Assert.AreEqual(descriptionString2, (string)TypeData.GetTypeData(step).GetMember(descriptionName).GetValue(step2));
+            
+            var step3 = Utils.DeserializeFromString<DelayStep>(xml);
+            Assert.AreEqual(descriptionString, (string)TypeData.GetTypeData(step).GetMember(descriptionName).GetValue(step3));
+            
         }
     }
 }

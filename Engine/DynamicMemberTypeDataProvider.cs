@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Xml.Serialization;
@@ -533,22 +534,30 @@ namespace OpenTap
             };
 
 
-            internal static readonly DynamicMember DescriptionMember = new DescriptionDynamicMember
+            const string descriptionName = "OpenTap.Description";
+            internal static DynamicMember DescriptionMember(ITypeData target)
             {
-                Name = "Description",
-                DefaultValue = null,
-                Attributes = new Attribute[]
+                var descr = new DescriptionDynamicMember
                 {
-                    new DisplayAttribute("Description", "A short description of this test step.", "Common",
-                        20001.2),
-                    new LayoutAttribute(LayoutMode.Normal, 3, 5),
-                    new UnsweepableAttribute()
-                },
-                DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
-                Readable = true,
-                Writable = true,
-                TypeDescriptor = TypeData.FromType(typeof(string))
-            };
+                    Name = descriptionName,
+                    DefaultValue = target.GetDisplayAttribute().Description,
+                    Attributes = new Attribute[]
+                    {
+                        new DisplayAttribute("Description", "A short description of this item.", "Common",
+                            
+                            20001.2),
+                        new LayoutAttribute(LayoutMode.Normal, 3, 3),
+                        new UnsweepableAttribute(),
+                        new UnparameterizableAttribute(),
+                        new DefaultValueAttribute(target.GetDisplayAttribute().Description)
+                    },
+                    DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
+                    Readable = true,
+                    Writable = true,
+                    TypeDescriptor = TypeData.FromType(typeof(string))
+                };
+                return descr;
+            } 
             
             internal static readonly DynamicMember DynamicMembers = new DynamicMembersMember()
             {
@@ -563,17 +572,35 @@ namespace OpenTap
 
             
 
-            static IMemberData[] extraMembers = {BreakConditions, DynamicMembers}; //, DescriptionMember // Future: Include Description Member
-            static IMemberData[] extraMembersTestPlan = {TestPlanBreakConditions, DynamicMembers}; //, DescriptionMember // Future: Include Description Member
+            static readonly IMemberData[] extraMembers = {BreakConditions, DynamicMembers};
+            static readonly IMemberData[] extraMembersTestPlan = {TestPlanBreakConditions, DynamicMembers}; 
 
-            IMemberData[] members;
-            public TestStepTypeData(ITypeData innerType)
+            readonly IMemberData[] members;
+
+            static IMemberData[] getMembers(ITypeData innerType)
             {
-                this.innerType = innerType;
+                IMemberData[] members;
                 if (innerType.DescendsTo(typeof(TestPlan)))
                     members = extraMembersTestPlan;
                 else
                     members = extraMembers;
+                var d = DescriptionMember(innerType);
+                members = members.Append(d).ToArray();
+                return members;
+            }
+
+            // memorize the arrays to avoid generating for each instance of test step.
+            static readonly ConditionalWeakTable<ITypeData, IMemberData[]> memberMemorizer =
+                new ConditionalWeakTable<ITypeData, IMemberData[]>();
+            static IMemberData[] GetMembers(ITypeData innerType) =>  memberMemorizer.GetValue(innerType, getMembers);
+            
+            
+            readonly IMemberData descriptionMember;
+            public TestStepTypeData(ITypeData innerType)
+            {
+                this.innerType = innerType;
+                members = GetMembers(innerType);
+                descriptionMember = members.First(m => m.Name == descriptionName);
             }
 
             public override bool Equals(object obj)
@@ -598,6 +625,8 @@ namespace OpenTap
             public IMemberData GetMember(string name)
             {
                 if (name == BreakConditions.Name) return BreakConditions;
+                if (name == DynamicMembers.Name) return DynamicMembers;
+                if (name == descriptionMember.Name) return descriptionMember; 
                 return innerType.GetMember(name);
             }
 

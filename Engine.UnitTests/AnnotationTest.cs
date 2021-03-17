@@ -859,7 +859,7 @@ namespace OpenTap.UnitTests
             
             members = members.Where(filterCol).ToArray();
             // Name, delay
-            Assert.AreEqual(members.Count(), 4);
+            Assert.AreEqual(5, members.Count());
             
             AnnotationCollection getMember(string name) => members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member.Name == name);
 
