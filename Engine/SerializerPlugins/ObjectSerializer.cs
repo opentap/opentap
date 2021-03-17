@@ -728,8 +728,7 @@ namespace OpenTap.Plugins
                             try
                             {
                                 object val = subProp.GetValue(obj);
-                                ComponentSettingsList.HasContainer(((TypeData) subProp.TypeDescriptor).Type);
-
+                                
                                 var enu = val as IEnumerable;
                                 if (enu != null && enu.GetEnumerator().MoveNext() == false) // the value is an empty IEnumerable
                                 {
