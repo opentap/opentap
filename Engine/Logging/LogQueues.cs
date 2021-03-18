@@ -18,92 +18,83 @@ namespace OpenTap.Diagnostic
         internal class LogBuffer
         {
             /// <summary> How many log messages to make room for in the buffer.  </summary>
-            public const int Capacity = 1024 * 8; 
+            const int Capacity = 1024 * 8; 
 
             public LogBuffer Next = null;
 
-            private Event[] LogEvents;
-            private bool[] Written;
+            readonly Event[] logEvents = new Event[Capacity];
+            readonly bool[] written = new bool[Capacity];
 
-            private int _first;
+            int first;
+            int last;
 
-            private int First
-            {
-                get
-                {
-                    return _first;
-                }
-            }
-
-            private int LastRead
+            int lastRead
             {
                 get
                 {
                     for (int i = 0; i < Capacity; i++)
                     {
-                        if (Written[i] == false)
+                        if (written[i] == false)
                             return i;
                     }
                     return Capacity;
                 }
             }
 
-            private int _last;
-
-            private int Last
-            {
-                get
-                {
-                    return _last;
-                }
-            }
-
             public bool Empty
             {
-                get { return (Last <= First) || (First >= Capacity); }
+                get { return (last <= first) || (first >= Capacity); }
             }
 
             public bool Done
             {
-                get { return Last >= (Capacity - 1); }
-            }
-
-            public LogBuffer()
-            {
-                LogEvents = new Event[Capacity];
-                Written = new bool[Capacity];
+                get { return last >= (Capacity - 1); }
             }
 
             public bool PushMessage(string source, string message, long time, long duration, int eventType)
             {
-                var index = Interlocked.Increment(ref _last) - 1;
+                var index = Interlocked.Increment(ref last) - 1;
 
                 if (index > (Capacity - 1))
                     return false;
 
-                LogEvents[index] = new Event
+                logEvents[index] = new Event
                 {
                     Source = source, Message = message, Timestamp = time, DurationNS = duration, EventType = eventType
                 };
                 
-                Written[index] = true;
+                written[index] = true;
+
+                return true;
+            }
+
+            public bool PushEvent(Event evt)
+            {
+                var index = Interlocked.Increment(ref last) - 1;
+
+                if (index > (Capacity - 1))
+                    return false;
+
+                logEvents[index] = evt;
+                
+                written[index] = true;
 
                 return true;
             }
 
             public ArraySegment<Event> PopCurrent()
             {
-                int oldFirst = _first;
-                _first = LastRead;
-                int newFirst = First;
+                int oldFirst = first;
+                first = lastRead;
+                int newFirst = first;
 
                 if (newFirst > Capacity)
                     newFirst = Capacity;
 
                 if (newFirst > oldFirst)
-                    return new ArraySegment<Event>(LogEvents, oldFirst, newFirst - oldFirst);
+                    return new ArraySegment<Event>(logEvents, oldFirst, newFirst - oldFirst);
 
-                return new ArraySegment<Event>(LogEvents, 0, 0);
+                return new ArraySegment<Event>(logEvents, 0, 0);
             }
         }
 
@@ -124,7 +115,7 @@ namespace OpenTap.Diagnostic
             }
         }
 
-        object lck = new object();
+        readonly object lck = new object();
         public void Enqueue(string source, string message, long time, long duration, int eventType)
         {
             Interlocked.Increment(ref _postedMessages);
@@ -134,6 +125,31 @@ namespace OpenTap.Diagnostic
                 LogBuffer buf = _last;
 
                 if (!buf.PushMessage(source, message, time, duration, eventType))
+                {
+                    lock (lck)
+                    {
+                        if (!buf.Done)
+                            continue;
+                        LogBuffer nb = new LogBuffer();
+                        if (Interlocked.CompareExchange(ref _last, nb, buf) == buf)
+                            buf.Next = nb;
+                    }
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+        public void Enqueue(Event evt)
+        {
+            Interlocked.Increment(ref _postedMessages);
+
+            while (true)
+            {
+                LogBuffer buf = _last;
+
+                if (!buf.PushEvent(evt))
                 {
                     lock (lck)
                     {

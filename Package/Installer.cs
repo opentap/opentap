@@ -27,6 +27,7 @@ namespace OpenTap.Package
         internal bool DoSleep { get; set; }
         internal List<string> PackagePaths { get; private set; }
         internal string TapDir { get; set; }
+        internal bool UnpackOnly { get; set; }
 
         internal bool ForceInstall { get; set; }
 
@@ -34,6 +35,7 @@ namespace OpenTap.Package
         {
             this.cancellationToken = cancellationToken;
             DoSleep = true;
+            UnpackOnly = false;
             PackagePaths = new List<string>();
             TapDir = tapDir?.Trim() ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             if(ExecutorClient.IsRunningIsolated)
@@ -62,19 +64,21 @@ namespace OpenTap.Package
                     log.Warning("Installation stopped while waiting for package files to become unlocked.");
                 }
 
-                int progressPercent = 10;
-                OnProgressUpdate(progressPercent, "");
+                // The packages have all been downloaded at this stage. Now we just need to install them.
+                // Assume this accounts for roughly 60% of the installation process.
+                int progressPercent = 60;
+                OnProgressUpdate(progressPercent, "Installing packages.");
                 foreach (string fileName in PackagePaths)
                 {
                     try
                     {
                         OnProgressUpdate(progressPercent, "Installing " + Path.GetFileNameWithoutExtension(fileName));
                         Stopwatch timer = Stopwatch.StartNew();
-                        PackageDef pkg = PluginInstaller.InstallPluginPackage(TapDir, fileName);
+                        PackageDef pkg = PluginInstaller.InstallPluginPackage(TapDir, fileName, UnpackOnly);
 
                         log.Info(timer, "Installed " + pkg.Name + " version " + pkg.Version);
 
-                        progressPercent += 80 / PackagePaths.Count();
+                        progressPercent += 30 / PackagePaths.Count();
 
                         if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) && PackagePaths.Last() != fileName)
                         {
@@ -98,14 +102,13 @@ namespace OpenTap.Package
                         }
                     }
                 }
-                OnProgressUpdate(90, "");
-
+                
+                
                 if (DoSleep)
                     Thread.Sleep(100);
 
-                OnProgressUpdate(100, "Plugin installed.");
-                Thread.Sleep(50); // Let Eventhandler get the last OnProgressUpdate
-
+                OnProgressUpdate(100, $"Package installation finished.");
+                Thread.Sleep(50);
             }
             catch (Exception ex)
             {
@@ -139,7 +142,8 @@ namespace OpenTap.Package
                     catch
                     {
                         log.Warning("Uninstall stopped while waiting for package files to become unlocked.");
-                        throw;
+                        if (!force)
+                            throw;
                     }
                 }
                 
@@ -157,8 +161,13 @@ namespace OpenTap.Package
 
                     if (res == ActionResult.Error)
                     {
-                        OnProgressUpdate(100, "Done");
-                        return false;
+                        if (!force)
+                        {
+                            OnProgressUpdate(100, "Done");
+                            return false;
+                        }
+                        else
+                            log.Warning($"There was an error while trying to {command} '{pkg.Name}'.");
                     }
                     else if(res == ActionResult.NothingToDo)
                     {

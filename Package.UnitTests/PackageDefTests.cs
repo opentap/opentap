@@ -546,7 +546,7 @@ namespace OpenTap.Package.UnitTests
             }
             catch(Cli.ExitCodeException ex)
             {
-                Assert.AreEqual((int)PackageCreateAction.ExitCodes.PackageDependencyError, ex.ExitCode);
+                Assert.AreEqual((int)PackageExitCodes.PackageDependencyError, ex.ExitCode);
             }
         }
 

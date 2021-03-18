@@ -220,6 +220,38 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void TestPlanResourceCrashTest()
+        {
+            var inst = new InstrumentTest() {CrashPhase = InstrumentTest.InstrPhase.Open};
+            var step = new InstrumentTestStep();
+            step.Instrument = inst;
+            
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step);
+
+            string logString = null;
+            InstrumentSettings.Current.Add(inst);
+            try
+            {
+                TestTraceListener trace = new TestTraceListener();
+                Log.AddListener(trace);
+                var run = plan.Execute();
+                Log.Flush();
+                logString = trace.GetLog();
+                var err = trace.ErrorMessage;
+                Assert.AreEqual(Verdict.Error, run.Verdict);
+                // improvement: only one error in the log.
+                Assert.AreEqual(2, err.Count);
+                // the log should not be really long.
+                Assert.IsTrue(logString.Split('\n').Length < 70);
+            }
+            finally
+            {
+                InstrumentSettings.Current.Remove(inst);    
+            }
+        }
+
+        [Test]
         public void TestPlanSaveLoadTest()
         {
 
@@ -1178,10 +1210,16 @@ namespace OpenTap.Engine.UnitTests
             public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
             {
                 var sub = AnnotationCollection.Annotate(dataObject).Get<IForwardedAnnotations>().Forwarded.ToArray();
-                var comment = sub.First(x => x.Get<IMemberAnnotation>().Member.Name == "MetaComment");
-                Assert.IsNotNull(comment != null);
-                comment.Get<IStringValueAnnotation>().Value = "Just another meta comment";
-                comment.Write();
+                foreach(string name in new []{"MetaComment", "MetaComment2"}){
+                    var comments = sub.Where(x => x.Get<IMemberAnnotation>().Member.Name == name);
+                    Assert.AreEqual(1, comments.Count());
+                    var comment = comments.First();
+
+                    Assert.IsNotNull(comment != null);
+                    comment.Get<IStringValueAnnotation>().Value = "Just another meta comment";
+                    comment.Write();
+                }
+                
             }
         }
 
@@ -1192,6 +1230,10 @@ namespace OpenTap.Engine.UnitTests
             [MetaData(true)]
             [Display("MetaComment", Description: "Some comment for meta data")]
             public string MetaComment { get; set; }
+            
+            [MetaData(true)]
+            [Display("MetaComment2", Description: "Some comment for meta data 2")]
+            public string MetaComment2 { get; set; }
 
             public TestComponentSetting() { }
         }
@@ -1201,6 +1243,8 @@ namespace OpenTap.Engine.UnitTests
             public override void Run()
             {
                 if (string.Compare("Just another meta comment", TestComponentSetting.Current.MetaComment, true) != 0)
+                    throw new InvalidOperationException();
+                if (string.Compare("Just another meta comment", TestComponentSetting.Current.MetaComment2, true) != 0)
                     throw new InvalidOperationException();
                 UpgradeVerdict(Verdict.Pass);
             }
@@ -1265,13 +1309,13 @@ namespace OpenTap.Engine.UnitTests
                 int counter = 0;
                 for (int i = 0; i < finalCount; i++)
                 {
-                    tm.Enqueue(() =>
+                    tm.Enqueue(new TapThread(TapThread.Current,() =>
                     {
 
                         //Thread.Sleep(10);
                         Interlocked.Increment(ref counter);
                         sem.Release();
-                    });
+                    }));
                 }
                 for (int i = 0; i < finalCount; i++)
                 {
@@ -1999,6 +2043,74 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void TestFastTapThreads()
+        {
+            using (TapThread.UsingThreadContext())
+            {
+                var startThread = TapThread.Current;
+                long startedThreads = 0;
+                var sem = new Semaphore(0, 100);
+                void newThread()
+                {
+                    Interlocked.Increment(ref startedThreads);
+                    TapThread.Start(() =>
+                    {
+                        try
+                        {
+                            if (TapThread.Current.AbortToken.IsCancellationRequested)
+                                return;
+                            if (startedThreads >= 100)
+                                startThread.Abort("end");
+                            newThread();
+                        }
+                        finally
+                        {
+                            sem.Release();
+                        }
+                    });
+                }
+                newThread();
+                for (long i = 0; i < startedThreads; i++)
+                    sem.WaitOne();
+            }
+        }
+        
+        [Test]
+        public void TestFastTapThreadsWaitWait()
+        {
+            using (TapThread.UsingThreadContext())
+            {
+                int concurrentThreads = 20;
+                var evt = new ManualResetEvent(false);
+                long startedThreads = 0;
+                var sem = new Semaphore(0,concurrentThreads);
+                void newThread()
+                {
+                    TapThread.Start(() =>
+                    {
+                        if (Interlocked.Increment(ref startedThreads) == concurrentThreads)
+                            evt.Set();
+                        
+                        try
+                        {
+                            evt.WaitOne();
+                            TapThread.Sleep(10);
+                        }
+                        finally
+                        {
+                            sem.Release();
+                        }
+                    });
+                }
+
+                for (int i = 0; i < concurrentThreads; i++)
+                    newThread();
+                for (long i = 0; i < concurrentThreads; i++)
+                    sem.WaitOne();
+            }
+        }
+        
+        [Test]
         public void OpenCloseOrderLazyRM()
         {
             var lastrm = EngineSettings.Current.ResourceManagerType;
@@ -2066,16 +2178,29 @@ namespace OpenTap.Engine.UnitTests
         private class DeferredResultsStep2 : TestStep
         {
             public ManualResetEvent CompleteDefer = new ManualResetEvent(false);
+            public ManualResetEvent DeferStarted = new ManualResetEvent(false);
             public ManualResetEvent RunCompleted = new ManualResetEvent(false);
             public override void Run()
             {
                 Results.Defer(() =>
                 {
+                    DeferStarted.Set();
                     CompleteDefer.WaitOne();
                     Log.Info("Deferred Step also done");
                 });
                 RunCompleted.Set();
             }
+        }
+
+        [Test]
+        public void TestExecuteWaitForDefer_Simpler()
+        {
+            var plan = new TestPlan();
+            var defer = new DeferredResultsStep2();
+            plan.Steps.Add(defer);
+            Task<TestPlanRun> t = Task.Run(() => plan.Execute());
+            defer.CompleteDefer.Set();
+            Assert.IsTrue(t.Wait(100000));
         }
 
         [Test]
@@ -2086,14 +2211,29 @@ namespace OpenTap.Engine.UnitTests
             plan.Steps.Add(defer);
             Task<TestPlanRun> t = Task.Run(() => plan.Execute());
             defer.RunCompleted.WaitOne();
-            Thread.Sleep(300);
+            defer.DeferStarted.WaitOne();
+            // do something that takes about the time for a test plan to complete
+            TestExecuteWaitForDefer_WithParallel_Simpler(); 
+            
             Assert.IsFalse(t.IsCompleted);
             defer.CompleteDefer.Set();
-            Thread.Sleep(100);
-            Assert.IsTrue(t.IsCompleted);
+            Assert.IsTrue(t.Wait(100000));
         }
 
-        [Test, Retry(3)]
+        [Test]
+        public void TestExecuteWaitForDefer_WithParallel_Simpler()
+        {
+            var plan = new TestPlan();
+            var parallel = new ParallelStep();
+            var defer = new DeferredResultsStep2();
+            plan.Steps.Add(parallel);
+            parallel.ChildTestSteps.Add(defer);
+            Task<TestPlanRun> t = Task.Run(() => plan.Execute());
+            defer.CompleteDefer.Set();
+            Assert.IsTrue(t.Wait(100000));
+        }
+        
+        [Test]
         public void TestExecuteWaitForDefer_WithParallel()
         {
             var plan = new TestPlan();
@@ -2102,14 +2242,27 @@ namespace OpenTap.Engine.UnitTests
             plan.Steps.Add(parallel);
             parallel.ChildTestSteps.Add(defer);
             Task<TestPlanRun> t = Task.Run(() => plan.Execute());
+            defer.DeferStarted.WaitOne();
             defer.RunCompleted.WaitOne();
-            Thread.Sleep(300);
+            
+            // do something that takes about the time for a test plan to complete
+            TestExecuteWaitForDefer_WithParallel_Simpler();
+            
             Assert.IsFalse(t.IsCompleted);
             defer.CompleteDefer.Set();
-            // this should eventually complete.
-            // previously the wait was 100ms, 
-            // but in some restricted systems this can take longer than that.
-            Assert.IsTrue(t.Wait(1000));
+            
+            Assert.IsTrue(t.Wait(100000));
+        }
+        
+        [Test]
+        public void TestBreakOnPlanCompleted()
+        {
+            var rl = new resultListenerCrash() {CrashResultPhase = resultListenerCrash.ResultPhase.PlanRunCompleted};
+            var plan = new TestPlan();
+            var step = new SequenceStep();
+            plan.ChildTestSteps.Add(step);
+            var run = plan.Execute(new IResultListener[] {rl});
+            Assert.AreEqual(Verdict.Error, run.Verdict);
         }
     }
 

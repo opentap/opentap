@@ -4,8 +4,8 @@ As you may have noticed, a test plan consists of XML. You *could* modify and ext
 using the tools we have developed.
 
 You currently have two options:
-1. [Developer’s System Community Edition](https://www.opentap.io/download.html) - mature, feature-rich GUI (recommended)
-2. [TUI](https://gitlab.com/OpenTAP/Plugins/opentap-tui/opentap-tui) - open source cross-platform text-based user interface for usage in terminals (beta)
+1. [Developer’s System Community Edition](https://packages.opentap.io/index.html#/?name=Developer's%20System%20CE) - mature, feature-rich GUI (recommended)
+2. [TUI](https://packages.opentap.io/index.html#/?name=TUI) - open source cross-platform text-based user interface for usage in terminals (beta)
 
 ## The responsibility of an editor
 Editing test plans, providing a clear overview of what steps are available, safely making changes,

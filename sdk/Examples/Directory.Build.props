@@ -9,7 +9,7 @@
 	<PropertyGroup>
 		<!-- This variable is only defined so we can compile locally without replacing GitVersion. 
 		     It will be removed in the build script. -->
-		<GitVersion>9.9.3</GitVersion>
+		<GitVersion>9.12.3</GitVersion>
 	</PropertyGroup>	
 	<PropertyGroup>
 		<!-- Ensure that all projects in this solution use the same version of OpenTAP -->		
@@ -36,4 +36,10 @@
 	<PropertyGroup Condition="'$(OS)'=='Windows_NT' AND '$(Configuration)'=='Debug'">
 		<TargetFramework>net462</TargetFramework>
 	</PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OpenTAP" Version="$(OpenTapVersion)" />
+  </ItemGroup>
+
+
 </Project>

@@ -2,6 +2,7 @@
 using OpenTap.Cli;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -24,6 +25,7 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(root.GetSubCommand("test action testaction".Split(' ')).Name == "testaction");
             Assert.IsTrue(root.GetSubCommand("test action testaction arg".Split(' ')).Name == "testaction");
         }
+        
     }
 
     [Display("testaction", Groups: new[] { "test", "action" }, Description:"Runs TestAction")]
@@ -43,7 +45,20 @@ namespace OpenTap.UnitTests
         public int Execute(CancellationToken cancellationToken)
         {
             Console.WriteLine("Executed action 2");
-            return 0;
+            return (int)ExitCodes.Success;
+        }
+    }
+
+    [Display("action3", Groups: new[] { "test" }, Description:"Cannot create instance")]
+    public class TestAction3 : ICliAction
+    {
+        public TestAction3()
+        {
+            throw new LicenseException(GetType(), null, "No license installed!");
+        }
+        public int Execute(CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
         }
     }
 }

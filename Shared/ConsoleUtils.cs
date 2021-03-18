@@ -9,31 +9,41 @@ namespace OpenTap
 {
     internal static class ConsoleUtils
     {
-        static void printProgress(string header, long pos, long len)
+        internal static void printProgress(string header, long pos, long len)
         {
-            const int MB = 1000000;
-            Console.Write($"{header} [{new string('=', (int)(30 * pos / len))}{new string(' ', (int)(30 - 30 * pos / len))}] {100.0 * pos / len:0.00}% ({pos / MB} of {len/MB}MB) \r");
+            // 61 Downloading 'MyPlugin2|1.3.3+Build-something' (23.26% | 1.02 kB of 4.40 kB)
+            var downloadProgress = 100.0 * pos / len;
+            var progressString = $"({downloadProgress:0.00}% | {Utils.BytesToReadable(pos)} of {Utils.BytesToReadable(len)})";
+            Console.Write(
+                $"{header} [{new string('=', (int) (30 * pos / len))}{new string(' ', (int) (30 - 30 * pos / len))}] {progressString}   \r");
         }
-        
+
         public static void PrintProgressTillEnd(Task task, string header, Func<long> pos, Func<long> len)
         {
-            const int update_delay_ms = 1000;
+            ReportProgressTillEnd(task, header, pos, len, printProgress);
+        }
 
-            if (task.Wait(update_delay_ms)) return;
+        public static void ReportProgressTillEnd(Task task, string header, Func<long> pos, Func<long> len,
+            Action<string, long, long> updateProgress, int updateDelayMs = 1000)
+        {
+            updateProgress = updateProgress ?? ((h, p, l) => { });
+            
+
+            if (task.Wait(updateDelayMs)) return;
             try
             {
                 do
                 {
-                    printProgress(header, pos(), len());
-                }
-                while (!task.Wait(update_delay_ms));
-                printProgress(header, len(), len());
+                    updateProgress(header, pos(), len());
+                } 
+                while (!task.Wait(updateDelayMs));
+
+                updateProgress(header, len(), len());
             }
             finally
             {
                 Console.WriteLine();
             }
         }
-
     }
 }

@@ -48,6 +48,12 @@ namespace OpenTap.Package
             resolve(repositories, packages);
         }
 
+        internal DependencyResolver(Dictionary<string, PackageDef> installedPackages, IEnumerable<PackageDef> packages, List<IPackageRepository> repositories)
+        {
+            InstalledPackages = installedPackages;
+            resolve(repositories, packages);
+        }
+
         private void resolve(List<IPackageRepository> repositories, IEnumerable<PackageDef> packages)
         {
             var firstleveldependencies = packages.SelectMany(pkg => pkg.Dependencies.Select(dep => new { Dependency = dep, Architecture = pkg.Architecture, OS = pkg.OS }));

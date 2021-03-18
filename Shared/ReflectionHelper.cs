@@ -1523,11 +1523,14 @@ namespace OpenTap
             return mem?.GetDisplayAttribute().Description ?? EnumToReadableString(value);
         }
 
-        public static string SerializeToString(this TestPlan plan)
+        public static string SerializeToString(this TestPlan plan, bool throwOnErrors = false)
         {
             using (var mem = new MemoryStream())
             {
-                plan.Save(mem);
+                var serializer = new TapSerializer();
+                plan.Save(mem, serializer);
+                if (throwOnErrors && serializer.Errors.Any())
+                    throw new Exception(string.Join("\n", serializer.Errors));
                 return Encoding.UTF8.GetString(mem.ToArray());
             }
         }
@@ -1564,10 +1567,22 @@ namespace OpenTap
                 return value;
             return dictionary[key] = createValue(key);
         }
+
+        public static string BytesToReadable(long bytes)
+        {
+            if (bytes < 1000) return $"{bytes} B";
+            if (bytes < 1000000) return $"{bytes/1000.0:0.00} kB";
+            if (bytes < 1000000000 )return $"{bytes/1000000.0:0.00} MB";
+            return $"{bytes/1000000000.0:0.00} GB";
+        }
     }
 
     static internal class Sequence
     {
+        /// <summary> Turns item into a one element array, unless it is null.</summary>
+        public static T[] AsSingle<T>(this T item) => item == null ? Array.Empty<T>() : new[] {item};
+        
+        
         /// <summary>
         /// Like distinct but keeps the last item. Returns List because we need to iterate until last element anyway.
         /// </summary>
@@ -1747,6 +1762,13 @@ namespace OpenTap
         {
             using (var e = objs.GetEnumerator())
                 return ProcessPattern(e, f1, f2, f3, f4, f5, f6);
+        }
+
+        public static void Append<T>(ref T[]  array, params T[] appendage)
+        {
+            int preLen = array.Length;
+            Array.Resize(ref array, array.Length + appendage.Length);
+            Array.Copy(appendage, 0, array, preLen, appendage.Length);
         }
     }
 

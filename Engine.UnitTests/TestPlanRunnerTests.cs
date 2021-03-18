@@ -71,7 +71,7 @@ namespace OpenTap.Engine.UnitTests
                     var proc = TapProcessContainer.StartFromArgs(args, TimeSpan.FromSeconds(120));
                     proc.WaitForEnd();
                     if (v == "Error")
-                        Assert.AreEqual((int) ExitStatus.RuntimeError, proc.TapProcess.ExitCode);
+                        Assert.AreEqual((int) ExitStatus.TestPlanError, proc.TapProcess.ExitCode);
                     else
                         Assert.AreEqual((int) ExitStatus.TestPlanFail, proc.TapProcess.ExitCode);
                 });

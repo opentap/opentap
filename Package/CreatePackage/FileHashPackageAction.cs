@@ -143,7 +143,7 @@ namespace OpenTap.Package
             }
             if (!ok)
             {
-                exitCode = 1;
+                exitCode = (int)PackageExitCodes.InvalidPackageDefinition;
                 log.Error("Package '{0}' not verified.", pkg.Name);
                 print_issues();
             }
@@ -151,7 +151,7 @@ namespace OpenTap.Package
             {
                 if (inconclusive)
                 {
-                    exitCode = 2;
+                    exitCode = (int)PackageExitCodes.InvalidPackageDefinition;
                     log.Warning("Package '{0}' is missing SHA1 checksum for verification.", pkg.Name);
                     print_issues();
                 }
@@ -178,7 +178,7 @@ namespace OpenTap.Package
                 {
                     log.Error("Unable to locate package '{0}'", Package);
                     log.Info("Installed packages: {0}", string.Join(", ", packages.Select(x => x.Name)));
-                    return 1;
+                    return (int)PackageExitCodes.InvalidPackageName;
                 }  
                 verifyPackage(pkg);
             }

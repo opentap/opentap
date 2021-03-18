@@ -185,7 +185,7 @@ namespace OpenTap.Cli
             if(!TypeData.GetDerivedTypes<ICliAction>().Any())
             {
                 Console.WriteLine("No commands found. Please try reinstalling OpenTAP.");
-                return 1;
+                return (int)ExitCodes.UnknownCliAction;
             }
 
             try
@@ -245,14 +245,14 @@ namespace OpenTap.Cli
                 if (cmd.IsBrowsable)
                 {
                     int relativePadding = descriptionStart - (level * LevelPadding); // Calculate amount of characters to pad right before description start to ensure description alignments.
-                    Console.Write($"{"".PadRight(level * LevelPadding)}{cmd.Name.PadRight(relativePadding)}");
+                    string str = ($"{"".PadRight(level * LevelPadding)}{cmd.Name.PadRight(relativePadding)}");
                     if (cmd.Type?.IsBrowsable() ?? false)
                     {
-                        Console.WriteLine($"{cmd.Type.GetDisplayAttribute().Description}");
+                        log.Info($"{str}{cmd.Type.GetDisplayAttribute().Description}");
                     }
                     else
                     {
-                        Console.WriteLine();
+                        log.Info("{0}", str);
                     }
 
                     if (cmd.IsGroup)
@@ -289,9 +289,9 @@ namespace OpenTap.Cli
                                    "<command> [<subcommand>] -h\" to get additional help for a specific command.\n");
 
                 if (args.Length == 0 || args.Any(s => s.ToLower() == "--help" || s.ToLower() == "-h"))
-                    return 0;
+                    return (int)ExitCodes.Success;
                 else
-                    return -1;
+                    return (int)ExitCodes.ArgumentParseError;
             }
 
             if (selectedCommand != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
@@ -301,15 +301,15 @@ namespace OpenTap.Cli
             try{
                 packageAction = (ICliAction)selectedCommand.CreateInstance();
             }catch(TargetInvocationException e1) when (e1.InnerException is System.ComponentModel.LicenseException e){
-                Console.Error.WriteLine("Unable to load CLI Action '{0}'", selectedCommand.GetDisplayAttribute().GetFullName());
-                Console.Error.WriteLine(e.Message);
-                return -4;
+                log.Error("Unable to load CLI Action '{0}'", selectedCommand.GetDisplayAttribute().GetFullName());
+                log.Info("{0}", e.Message);
+                return (int)ExitCodes.UnknownCliAction;
             }
 
             if (packageAction == null)
             {
                 Console.WriteLine("Error instantiating command {0}", selectedCommand.Name);
-                return -3;
+                return (int)ExitCodes.UnknownCliAction;
             }
 
             try
@@ -333,18 +333,18 @@ namespace OpenTap.Cli
                 log.Error(lines.First());
                 for(int i = 1;i<lines.Length;i++)
                     log.Debug(lines[i]);
-                return -1;
+                return (int)ExitCodes.ArgumentError;
             }
             catch (OperationCanceledException ex)
             {
                 log.Error(ex.Message);
-                return 1;
+                return (int)ExitCodes.UserCancelled;
             }
             catch (Exception ex)
             {
                 log.Error("A CliAction has thrown an exception: " + ex.Message);
                 log.Debug(ex);
-                return -1;
+                return (int)ExitCodes.GeneralException;
             }
             finally
             {

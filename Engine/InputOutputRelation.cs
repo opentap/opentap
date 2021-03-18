@@ -12,7 +12,7 @@ namespace OpenTap
         /// <summary>  Relations from the object('this'); </summary>
         InputOutputRelation[] Outputs { get; set; }
     }
-    
+
     /// <summary> Relations between two object and a pair of their members. </summary>
     public sealed class InputOutputRelation
     {
@@ -20,10 +20,10 @@ namespace OpenTap
         readonly ITestStepParent inputObject;
         readonly IMemberData outputMember;
         readonly IMemberData inputMember;
-        
+
         /// <summary> The object that owns the output member. </summary>
         public ITestStepParent OutputObject => outputObject;
-        
+
         /// <summary> The object that owns the input member.</summary>
         public ITestStepParent InputObject => inputObject;
 
@@ -33,7 +33,8 @@ namespace OpenTap
         /// <summary> The Member which the input value is read from. </summary>
         public IMemberData InputMember => inputMember;
 
-        InputOutputRelation(ITestStepParent inputObject, IMemberData inputMember, ITestStepParent outputObject, IMemberData outputMember)
+        InputOutputRelation(ITestStepParent inputObject, IMemberData inputMember, ITestStepParent outputObject,
+            IMemberData outputMember)
         {
             this.outputObject = outputObject;
             this.inputObject = inputObject;
@@ -42,49 +43,51 @@ namespace OpenTap
         }
 
         /// <summary> Returns true if member on object is assigned to an output / is an input. </summary>
-        public static bool IsInput(ITestStepParent @object, IMemberData member) 
+        public static bool IsInput(ITestStepParent @object, IMemberData member)
             => GetOutputRelations(@object).Any(con => con.InputMember == member);
-        
+
         /// <summary> Returns true if member on object is assigned to an input / is an output. </summary>
         public static bool IsOutput(ITestStepParent @object, IMemberData member)
             => GetInputRelations(@object).Any(con => con.OutputMember == member);
 
         /// <summary> Create a relation between two members on two different objects. </summary>
-        public static void Assign(ITestStepParent inputObject, IMemberData inputMember, ITestStepParent outputObject, IMemberData outputMember)
+        public static void Assign(ITestStepParent inputObject, IMemberData inputMember, ITestStepParent outputObject,
+            IMemberData outputMember)
         {
-            if(outputMember == null)
+            if (outputMember == null)
                 throw new ArgumentNullException(nameof(outputMember));
-            if(inputMember == null)
+            if (inputMember == null)
                 throw new ArgumentNullException(nameof(inputMember));
-            if(inputObject == null)
+            if (inputObject == null)
                 throw new ArgumentNullException(nameof(inputObject));
-            if(outputObject == null)
+            if (outputObject == null)
                 throw new ArgumentNullException(nameof(outputObject));
-            if(inputMember == outputMember && inputObject == outputObject)
+            if (inputMember == outputMember && inputObject == outputObject)
                 throw new ArgumentException("An input/output may not be assigned to itself.");
-            if(outputMember.Readable == false)
+            if (outputMember.Readable == false)
                 throw new ArgumentException(nameof(outputMember) + " is not readable!", nameof(outputMember));
             if (inputMember.Writable == false)
                 throw new ArgumentException(nameof(inputMember) + " is not writeable!", nameof(inputMember));
             var connTo = getOutputRelations(inputObject).ToList();
             var connFrom = getInputRelations(outputObject).ToList();
-            foreach(var connection in connTo)
-                if (connection.OutputObject == outputObject && connection.OutputMember == outputMember && inputMember == connection.InputMember)
+            foreach (var connection in connTo)
+                if (connection.OutputObject == outputObject && connection.OutputMember == outputMember &&
+                    inputMember == connection.InputMember)
                     throw new ArgumentException("Input already assigned", nameof(inputMember));
-            if(IsInput(inputObject, inputMember))
+            if (IsInput(inputObject, inputMember))
                 throw new Exception("This input is already in use by another connection.");
-            
+
             // these two restrictions might not be necessary, but it might be good to leave it 
             // in case we want to change the mechanism
-            if(IsInput(outputObject, outputMember))
+            if (IsInput(outputObject, outputMember))
                 throw new Exception("An output cannot also be an input");
-            if(IsOutput(inputObject, inputMember))
+            if (IsOutput(inputObject, inputMember))
                 throw new Exception("An input cannot also be an output");
 
             var newSpec = new InputOutputRelation(inputObject, inputMember, outputObject, outputMember);
             connTo.Add(newSpec);
             connFrom.Add(newSpec);
-            
+
             SetOutputRelations(inputObject, connTo.ToArray());
             SetInputRelations(outputObject, connFrom.ToArray());
         }
@@ -93,17 +96,20 @@ namespace OpenTap
         /// <param name="relation"></param>
         internal static void Unassign(InputOutputRelation relation)
         {
-            SetOutputRelations(relation.InputObject, getOutputRelations(relation.InputObject).Where(x => x != relation).ToArray());
-            SetInputRelations(relation.OutputObject, getInputRelations(relation.OutputObject).Where(x => x != relation).ToArray());
+            SetOutputRelations(relation.InputObject,
+                getOutputRelations(relation.InputObject).Where(x => x != relation).ToArray());
+            SetInputRelations(relation.OutputObject,
+                getInputRelations(relation.OutputObject).Where(x => x != relation).ToArray());
         }
-        
+
         /// <summary> Unassign an input/output relation . </summary>
         public static void Unassign(ITestStepParent target, IMemberData targetMember, ITestStepParent source,
             IMemberData sourceMember)
         {
             var from = getInputRelations(source);
-            var con = from.FirstOrDefault(i => i.InputObject == target && i.InputMember == targetMember && i.OutputMember == sourceMember);
-            if(con != null)
+            var con = from.FirstOrDefault(i =>
+                i.InputObject == target && i.InputMember == targetMember && i.OutputMember == sourceMember);
+            if (con != null)
                 Unassign(con);
         }
 
@@ -112,40 +118,92 @@ namespace OpenTap
             var plan = target.GetParent<TestPlan>();
             if (plan == null) return;
             bool removeAllRelations = false;
-            if(target is ITestStep step)
+            if (target is ITestStep step)
                 removeAllRelations = plan.ChildTestSteps.GetStep(step.Id) == null;
-            Action defer = () => { }; 
-            
+            Action defer = () => { };
+
             foreach (var connection in getOutputRelations(target))
             {
                 if (connection.OutputObject is ITestStep otherStep)
-                { // steps can only be connected to a step from the same test plan.
+                {
+                    // steps can only be connected to a step from the same test plan.
                     if (removeAllRelations || plan.ChildTestSteps.GetStep(otherStep.Id) == null)
                     {
                         defer = defer.Bind(Unassign, connection);
                     }
                 }
             }
+
             foreach (var connection in getInputRelations(target))
             {
-                if(connection.InputObject is ITestStep otherStep)
-                { // steps can only be connected to a step from the same test plan.
+                if (connection.InputObject is ITestStep otherStep)
+                {
+                    // steps can only be connected to a step from the same test plan.
                     if (removeAllRelations || plan.ChildTestSteps.GetStep(otherStep.Id) == null)
                     {
                         defer = defer.Bind(Unassign, connection);
                     }
                 }
             }
-            
+
             defer();
         }
-        
-        /// <summary> Updates the input of 'target' by reading the value of the source output.  </summary>
+
+        internal static object GetOutput(IMemberData outputMember, object outputObject)
+        {
+            var avail = outputMember.GetAttribute<OutputAttribute>()?.Availability ??
+                        OutputAttribute.DefaultAvailability;
+            if (avail != OutputAvailability.BeforeRun && outputObject is ITestStep step )
+            {
+                var thisThread = TapThread.Current;
+                TestStepRun run = step.StepRun;
+                while (step.StepRun == null)
+                {
+                    
+                    // in this case it might be that the parent thread is starting steps in parallel.
+                    // so we could get lucky if we just wait a bit.
+                    var child = step;
+                    var parent = step.Parent as ITestStep;
+                    while (parent != null)
+                    {
+                        if (parent.StepRun != null && thisThread != parent.StepRun.StepThread)
+                            break;
+                        child = parent;
+                        parent = parent.Parent as ITestStep;
+                    }
+
+                    if (parent?.StepRun != null)
+                    {
+                        run = child.StepRun ??  parent.StepRun.WaitForChildStepStart(child.Id, 500);
+                        if (run == null) break;
+                        if(run.TestStepId == step.Id)
+                            break;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+
+                run = step.StepRun ?? run;
+
+                if (run != null)
+                    run.WaitForOutput(avail);
+            }
+
+            return outputMember.GetValue(outputObject);
+        }
+    
+
+    /// <summary> Updates the input of 'target' by reading the value of the source output.  </summary>
         public static void UpdateInputs(ITestStepParent target)
         {
             checkRelations(target);
-            Action defer = () => { }; 
-            foreach (var connection in getOutputRelations(target))
+            var outputs = getOutputRelations(target);
+            if (outputs.Length == 0) return;
+            
+            Action defer = () => { };
+            foreach (var connection in outputs)
             {
                 if (connection.OutputObject is ITestStepParent src)
                 {
@@ -155,9 +213,9 @@ namespace OpenTap
                     {
                         defer = defer.Bind(Unassign, connection);
                         continue;
-                    } 
+                    }
 
-                    object value = connection.OutputMember.GetValue(src);
+                    object value = GetOutput(connection.OutputMember, src);
                     connection.InputMember.SetValue(target, value);
                 }
             }

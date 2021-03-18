@@ -4,6 +4,7 @@ include:
 variables:
   PACKAGE_REPO_URL: "http://packages.opentap.io"
   DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+  OPENTAP_COLOR: "auto"
 
 stages:
   - build
@@ -232,7 +233,7 @@ TestLinuxPlan:
         - tap sdk gitversion --log 10 # verify that gitversion log works.
         - echo "tap package create/verify unit tests"
         - tap package verify -v || exit_code=$?
-        - check_exit_code 2
+        - check_exit_code 31
         - sed -i "/Sign Certificate/ d" opentap_linux64.package.xml
         - sed -i -e '/File Path/ s!Dependencies/!Dependencies\\!' opentap_linux64.package.xml
         - sed -i -e '/SourcePath/ s!dotnet_library_license.txt!.\\dotnet_library_license.txt!' opentap_linux64.package.xml
@@ -431,30 +432,35 @@ Package-NuGet:
   dependencies:
     - Build-x64
     - Package-Windows64
-    - Build-Linux64
+    - Package-Windows32
+    - Package-Linux
   needs:
     - Build-x64
     - Package-Windows64
-    - Build-Linux64
+    - Package-Windows32
+    - Package-Linux
   script:
-    - Move-Item bin/Release/publish/ bin/Linux/
-    - dotnet build -c NetCore tap/tap.csproj
-    - mkdir nuget/build/payload
-    - cd bin/Release
-    - Move-Item "../../OpenTAP.*.Windows.TapPackage" OpenTAP.TapPackage
-    - ./tap package install --target "../../nuget/build/payload" OpenTAP.TapPackage -f -v
-    - Move-Item OpenTap.xml ../../nuget/build/payload
-    - Move-Item OpenTap.Package.xml ../../nuget/build/payload
-    - ./tap sdk gitversion --replace ../../nuget/OpenTAP.nuspec --fields 4
-    - Move-Item Keysight.OpenTap.Sdk.MSBuild.dll ../../nuget/build
-    - Move-Item DotNet.Glob.dll ../../nuget/build
-    - cd ../../nuget/
-    - Move-Item ../bin/Linux/tap build/payload/
-    - Move-Item ../bin/Linux/tap.dll build/payload/
-    - $LibGitFolderName = $(Get-ChildItem -directory ./build/payload/Dependencies/LibGit2Sharp* -Name)
-    - $LibGitFolderNameLinux = $(Get-ChildItem -directory ../bin/Linux/Dependencies/LibGit2Sharp* -Name)
-    - Move-Item ../bin/Linux/Dependencies/$LibGitFolderNameLinux/libgit2-*.so.* build/payload/Dependencies/$LibGitFolderName/
-    - Move-Item ../bin/Release/tap.runtimeconfig.json build/payload/
+    - ./bin/Release/tap sdk gitversion --replace ./nuget/OpenTAP.nuspec --fields 4
+    - New-Item -Force ./nuget/build/payload -ItemType Directory | Out-Null
+    # Expand-Archive will only extract .zip extensions    
+    - Move-Item OpenTAP.*.x86.Windows.TapPackage OpenTAP.x86.zip 
+    - Move-Item OpenTAP.*.x64.Windows.TapPackage OpenTAP.x64.zip
+    - Move-Item OpenTAP.*.Linux.TapPackage OpenTAP.Linux.zip
+
+    - Move-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
+    - Move-Item ./bin/Release/DotNet.Glob.dll ./nuget/build    
+    - ./bin/Release/tap package install ./OpenTap.x64.zip -t ./nuget/build/payload -f
+    - Move-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload
+    - Move-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
+    - Push-Location ./nuget/build/payload
+    - Remove-Item tap.exe
+    - Remove-Item ./Dependencies/LibGit2Sharp.0.25.0.0/git2*.dll
+    - Pop-Location
+    - Expand-Archive OpenTAP.x64.zip win-x64
+    - Expand-Archive OpenTAP.x86.zip win-x86
+    - Expand-Archive OpenTAP.Linux.zip linux-x64
+    - ./nuget/NugetPackager.ps1
+    - cd ./nuget    
     - nuget update -self
     - nuget pack OpenTAP.nuspec -OutputDirectory ../
   artifacts:
@@ -560,6 +566,19 @@ Test-Installer-Linux:
     - echo 'y' | ./INSTALL.sh
     - $HOME/bin/tap -h
     - $HOME/bin/tap package list -v
+
+TestIsolated:
+  stage: testinstaller
+  image: opentapio/opentap:9.12-windowsserver1809
+  tags: [ docker, windows ]
+  dependencies:
+    - Package-Windows64
+  needs:
+    - Package-Windows64
+  script:
+    - mv OpenTAP.*.Windows.TapPackage OpenTAP.TapPackage
+    - tap package install OpenTAP.TapPackage # Install opentap from package
+    - tap package install OpenTAP # Install an older released version
 
 #############################################
 # Stage: publish                            #

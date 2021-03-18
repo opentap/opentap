@@ -1,6 +1,7 @@
 ﻿using OpenTap.Cli;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -98,11 +99,11 @@ namespace OpenTap.Package
                     if (package is null)
                     {
                         log.Info($"{Name} is not installed");
-                        return -1;
+                        return (int)ExitCodes.ArgumentError;
                     }
 
                     log.Info(package.Version.ToString());
-                    return 0;
+                    return (int)ExitCodes.Success;
                 }
 
 
@@ -115,7 +116,7 @@ namespace OpenTap.Package
                     if (versionsCount == 0) // No versions
                     {
                         log.Info($"No versions of '{Name}'.");
-                        return 0;
+                        return (int)ExitCodes.Success;
                     }
 
                     if (Version != null) // Version is specified by user
@@ -125,7 +126,7 @@ namespace OpenTap.Package
                     {
                         log.Info($"Package '{Name}' does not exists with version '{Version}'.");
                         log.Info($"Package '{Name}' exists in {versionsCount} other versions, please specify a different version.");
-                        return 0;
+                        return (int)ExitCodes.Success;
                     }
                 }
                 else
@@ -146,7 +147,7 @@ namespace OpenTap.Package
                         else
                             log.Warning($"Package '{Name}' could not be found in any repository.");
 
-                        return 0;
+                        return (int)ExitCodes.Success;
                     }
 
 
@@ -163,21 +164,22 @@ namespace OpenTap.Package
                         if (versions.Any())
                             log.Info($"There are {versions.Count} pre-released versions available. Use '--version <pre-release>' (e.g. '--version rc') or '--all' to show these.");
 
-                        return 0;
+                        return (int)ExitCodes.Success;
                     }
                 }
                 PrintVersionsReadable(package, versions);
             }
-            return 0;
+            return (int)ExitCodes.Success;
         }
 
         private void PrintVersionsReadable(IPackageIdentifier package, List<PackageVersion> versions)
         {
-            var verLen = versions.Select(p => p.Version?.ToString().Length).Max();
-            var arcLen = versions.Select(p => p?.Architecture.ToString().Length).Max();
-            var osLen = versions.Select(p => p.OS?.Length).Max();
+            var verLen = versions.Select(p => p.Version?.ToString().Length).Max() ?? 0;
+            var arcLen = versions.Select(p => p?.Architecture.ToString().Length).Max() ?? 0;
+            var osLen = versions.Select(p => p.OS?.Length).Max() ?? 0;
             foreach (var version in versions)
             {
+                // string interpolate + format complex to add padding.
                 log.Info(string.Format($"{{0,-{verLen}}} - {{1,-{arcLen}}} - {{2,-{osLen}}} - {{3}}", version.Version, version.Architecture, version.OS ?? "Unknown", package != null && package.Equals(version) ? "installed" : ""));
             }
         }
@@ -192,7 +194,7 @@ namespace OpenTap.Package
                 return;
             }
 
-            var nameLen = packageList.Select(p => p.Name?.Length).Max();
+            var nameLen = packageList.Select(p => p.Name?.Length).Max() ?? 0;
             var verLen = packageList.Select(p => p.Version?.ToString().Length).Max() ?? 0;
             verLen = Math.Max(verLen, installed.Select(p => p.Version?.ToString().Length).Max() ?? 0);
             
@@ -201,7 +203,13 @@ namespace OpenTap.Package
                 var installedPackage = installed.FirstOrDefault(p => p.Name == plugin.Name);
                 var latestPackage = packages.Where(p => p.Name == plugin.Name).OrderByDescending(p => p.Version).FirstOrDefault();
 
-                string logMessage = string.Format($"{{0,-{nameLen}}} - {{1,-{verLen}}}{{2}}", plugin.Name, (installedPackage ?? plugin).Version, installedPackage != null ? " - installed" : "");
+                var installedString = installedPackage == null ? "" : " - installed";
+                
+                if (installedPackage != null && installedPackage.IsSystemWide())
+                    installedString += " system-wide";
+
+                // string interpolate + format complex to add padding.
+                string logMessage = string.Format($"{{0,-{nameLen}}} - {{1,-{verLen}}}{{2}}", plugin.Name, (installedPackage ?? plugin).Version, installedString);
 
                 if (installedPackage != null && installedPackage?.Version?.CompareTo(latestPackage.Version) < 0)
                     logMessage += $" - update available ({latestPackage.Version})";

@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 
 namespace OpenTap.Diagnostic
@@ -40,68 +39,63 @@ namespace OpenTap.Diagnostic
         }
     }
 
-    internal class LogContext : ILogContext
+    internal class LogContext : ILogContext, ILogContext2, IDisposable
     {
-        private int BufferSize;
+        
+        readonly LogQueue LogQueue = new LogQueue();
 
-        internal bool IsAsync;
+        public bool HasListeners => listeners.Count > 0;
 
-        internal LogQueue LogQueue;
+        readonly List<ILogListener> listeners = new List<ILogListener>();
 
-        internal bool HasListeners;
+        long processedMessages;
+        long OutstandingMessages =>  LogQueue.PostedMessages - processedMessages;
+        
+        ILogTimestampProvider timeStamper = new AccurateStamper();
+        
+        readonly AutoResetEvent flushBarrier = new AutoResetEvent(false);
 
-        internal List<ILogListener> Listeners;
-
-        private long ProcessedMessages;
-
-        internal long OutstandingMessages
-        {
-            get { return LogQueue.PostedMessages - ProcessedMessages; }
-        }
-
+        readonly Thread processor;
         public LogContext(bool startProcessor = true)
         {
-            LogQueue = new LogQueue();
-            Listeners = new List<ILogListener>();
-
-            timestamper = new AccurateStamper();
-
             if (startProcessor)
             {
-                var processor = new Thread(ProcessLog) { IsBackground = true, Name = "Log processing" };
+                processor = new Thread(ProcessLog) { IsBackground = true, Name = "Log processing" };
                 processor.Start();
             }
         }
 
-        private static LogContext EmptyLogContext()
+        static LogContext EmptyLogContext()
         {
-            return new LogContext(false) { HasListeners = false };
+            return new LogContext(false);
         }
 
-        private ILogTimestampProvider timestamper;
-        private AutoResetEvent FlushBarrier = new AutoResetEvent(false);
-        private void ProcessLog()
+        readonly AutoResetEvent evt = new AutoResetEvent(false);
+
+        void ProcessLog()
         {
             var copy = new List<ILogListener>();
             Event[] bunch = new Event[0];
-            while (true)
+            while (isDisposed == false)
             {
+                evt.WaitOne();
+                flushBarrier.WaitOne(100); // let things queue up unless flush is called.
                 int count = LogQueue.DequeueBunch(ref bunch);
 
                 if (count > 0)
                 {
-                    lock (Listeners)
+                    lock (listeners)
                     {
                         copy.Clear();
-                        foreach (var thing in Listeners)
+                        foreach (var thing in listeners)
                             copy.Add(thing);
                     }
 
                     if (copy.Count > 0)
                     {
-                        if (timestamper != null)
+                        if (timeStamper != null)
                             for (int i = 0; i < bunch.Length; i++)
-                                bunch[i].Timestamp = timestamper.ConvertToTicks(bunch[i].Timestamp);
+                                bunch[i].Timestamp = timeStamper.ConvertToTicks(bunch[i].Timestamp);
 
 
                         foreach (var listener in copy)
@@ -120,12 +114,9 @@ namespace OpenTap.Diagnostic
                         }
                     }
 
-                    Interlocked.Add(ref ProcessedMessages, bunch.Length);
+                    processedMessages += bunch.LongLength;    
                 }
-                else
-                {
-                    FlushBarrier.WaitOne(50);
-                }
+                
             }
         }
 
@@ -136,63 +127,55 @@ namespace OpenTap.Diagnostic
 
         public void RemoveLog(ILog logSource)
         {
-            var log = logSource as Log;
-            if (log != null)
-            {
+            if (logSource is Log log)
                 log.Context = EmptyLogContext();
-            }
         }
 
         public void AttachListener(ILogListener listener)
         {
-            lock (Listeners)
-            {
-                Listeners.Add(listener);
-                HasListeners = true;
-            }
+            lock (listeners)
+                listeners.Add(listener);
         }
 
         public void DetachListener(ILogListener listener)
         {
-            lock (Listeners)
-            {
-                Listeners.Remove(listener);
-                HasListeners = Listeners.Count > 0;
-            }
+            lock (listeners)
+                listeners.Remove(listener);
         }
 
         public ReadOnlyCollection<ILogListener> GetListeners()
         {
-            return new ReadOnlyCollection<ILogListener>(Listeners);
+            return new ReadOnlyCollection<ILogListener>(listeners);
         }
 
         public bool Flush(int timeoutMs = 0)
         {
+            if (isDisposed) return true;
             long posted = LogQueue.PostedMessages;
 
-            FlushBarrier.Set();
+            flushBarrier.Set();
+            evt.Set();
 
             if (timeoutMs == 0)
             {
-                while (((ProcessedMessages - posted)) < 0)
+                while (((processedMessages - posted)) < 0)
                 {
                     Thread.Yield();
-                    FlushBarrier.Set();
+                    flushBarrier.Set();
                 }
-
                 return true;
             }
-            else
+            
             {
-                var sw = System.Diagnostics.Stopwatch.StartNew();
+                var sw = Stopwatch.StartNew();
 
-                while ((((ProcessedMessages - posted)) < 0) && (sw.ElapsedMilliseconds < timeoutMs))
+                while ((processedMessages - posted) < 0 && sw.ElapsedMilliseconds < timeoutMs)
                 {
                     Thread.Yield();
-                    FlushBarrier.Set();
+                    flushBarrier.Set();
                 }
 
-                return (((ProcessedMessages - posted)) < 0);
+                return (processedMessages - posted) < 0;
             }
         }
 
@@ -201,184 +184,147 @@ namespace OpenTap.Diagnostic
             return Flush((int)timeout.TotalMilliseconds);
         }
 
-        public bool Async
+        bool isDisposed;
+        public void Dispose()
         {
-            get
-            {
-                return IsAsync;
-            }
+            Flush();
+            isDisposed = true;
+            evt.Set();
+            flushBarrier.Set();
+        }
 
-            set
+        public bool Async { get; set; }
+
+        public int MessageBufferSize { get; set; }
+
+        public ILogTimestampProvider Timestamper { get { return timeStamper; } set { timeStamper = value; } }
+
+
+        void injectEvent(Event @event)
+        {
+            lock (listeners)
             {
-                if (IsAsync != value)
+                using (EventCollection eventCollection = new EventCollection(new [] { @event }))
                 {
-                    IsAsync = value;
+                    listeners.ForEach(l => l.EventsLogged(eventCollection));
                 }
             }
         }
-
-        public int MessageBufferSize
+        
+        public void AddEvent(Event evt)
         {
-            get
+            if (Async)
             {
-                return BufferSize;
+                int msgCnt = MessageBufferSize;
+                if (msgCnt > 0)
+                {
+                    while (OutstandingMessages > msgCnt)
+                        Thread.Sleep(1);
+                }
+                LogQueue.Enqueue(evt);
             }
-
-            set
+            else
             {
-                BufferSize = value;
+                injectEvent(evt);
             }
+            this.evt.Set();
         }
 
-        public ILogTimestampProvider Timestamper { get { return timestamper; } set { timestamper = value; } }
-
-
-        internal void InjectEvent(Event @event)
+        internal class LogInjector
         {
-            lock (Listeners)
+            internal LogContext Context;
+            public LogInjector(LogContext context) => Context = context;
+
+            public void logEvent(Event evt) => Context.AddEvent(evt);
+            
+            public void LogEvent(string source, int eventType, string message)
             {
-                using (EventCollection eventCollection = new EventCollection(new Event[] { @event }))
+                if (Context.HasListeners)
                 {
-                    Listeners.ForEach(l => l.EventsLogged(eventCollection));
+                    long timestamp = getTimestamp();
+                    var evt = new Event(0, eventType, message, source, timestamp);
+                    logEvent(evt);
+                }
+            }
+
+            public void LogEvent(string source, int eventType, string message, params object[] args)
+            {
+                if (message == null)
+                    throw new ArgumentNullException(nameof(message));
+                if (args == null)
+                    throw new ArgumentNullException(nameof(args));
+                if (Context.HasListeners)
+                {
+                    var messageFmt = string.Format(message, args);
+                    LogEvent(source, eventType, messageFmt);
+                }
+            }
+
+            long getTimestamp()
+            {
+                long timestamp = 0;
+                var timestamper = Context.Timestamper;
+                if (timestamper != null)
+                    timestamp = timestamper.Timestamp();
+                return timestamp;
+            }
+
+            public void LogEvent(string source, int eventType, long durationNs, string message)
+            {
+                if (Context.HasListeners)
+                {
+                    long timestamp = getTimestamp();
+                    var evt = new Event(durationNs, eventType, message, source, timestamp);
+                    logEvent(evt);
+                }
+            }
+
+            public void LogEvent(string source, int eventType, long durationNs, string message, params object[] args)
+            {
+                if (message == null)
+                    throw new ArgumentNullException(nameof(message));
+                if (args == null)
+                    throw new ArgumentNullException(nameof(args));
+                if (source == null)
+                    throw new ArgumentNullException(nameof(source));
+                if (Context.HasListeners)
+                {
+                    var messageFmt = string.Format(message, args);
+                    LogEvent(source, eventType, durationNs, messageFmt);
                 }
             }
         }
-
-        internal class Log : ILog
+        
+        internal class Log : LogInjector, ILog
         {
             private readonly string _source;
 
-            internal LogContext Context;
-
-            public Log(LogContext context, string source)
+            public Log(LogContext context, string source) : base(context)
             {
-                Context = context;
                 _source = source;
             }
 
             public void LogEvent(int eventType, string message)
             {
-                if (Context.HasListeners)
-                {
-                    long timestamp = 0;
-                    var timestamper = Context.Timestamper;
-                    if (timestamper != null)
-                        timestamp = timestamper.Timestamp();
-
-                    if (!Context.IsAsync)
-                    {
-                        Context.InjectEvent(new Event(0, eventType, message, _source, timestamp));
-                    }
-                    else
-                    {
-                        int msgCnt = Context.BufferSize;
-                        if (msgCnt > 0)
-                        {
-                            while (Context.OutstandingMessages > msgCnt)
-                                Thread.Sleep(1);
-                        }
-
-                        Context.LogQueue.Enqueue(_source, message, timestamp, 0, eventType);
-                    }
-                }
+                LogEvent(_source, eventType, message);
             }
 
             public void LogEvent(int eventType, string message, params object[] args)
             {
-                if (message == null)
-                    throw new ArgumentNullException("message");
-                if (args == null)
-                    throw new ArgumentNullException("args");
-                if (Context.HasListeners)
-                {
-                    long timestamp = 0;
-                    var timestamper = Context.Timestamper;
-                    if (timestamper != null)
-                        timestamp = timestamper.Timestamp();
-
-                    if (!Context.IsAsync)
-                    {
-                        Context.InjectEvent(new Event(0, eventType, string.Format(message, args), _source, timestamp));
-                    }
-                    else
-                    {
-                        int msgCnt = Context.BufferSize;
-                        if (msgCnt > 0)
-                        {
-                            while (Context.OutstandingMessages > msgCnt)
-                                Thread.Sleep(1);
-                        }
-
-                        Context.LogQueue.Enqueue(_source, string.Format(message, args), timestamp, 0, eventType);
-                    }
-                }
+                LogEvent(_source, eventType, message, args);
             }
 
             public void LogEvent(int eventType, long durationNs, string message)
             {
-                if (Context.HasListeners)
-                {
-                    long timestamp = 0;
-                    var timestamper = Context.Timestamper;
-                    if (timestamper != null)
-                        timestamp = timestamper.Timestamp();
-
-                    if (!Context.IsAsync)
-                    {
-                        Context.InjectEvent(new Event(durationNs, eventType, message, _source, timestamp));
-                    }
-                    else
-                    {
-                        int msgCnt = Context.BufferSize;
-                        if (msgCnt > 0)
-                        {
-                            while (Context.OutstandingMessages > msgCnt)
-                                Thread.Sleep(1);
-                        }
-
-                        Context.LogQueue.Enqueue(_source, message, timestamp, durationNs, eventType);
-                    }
-                }
+                LogEvent(_source, eventType, durationNs, message);
             }
 
             public void LogEvent(int eventType, long durationNs, string message, params object[] args)
             {
-                if (message == null)
-                    throw new ArgumentNullException("message");
-                if (args == null)
-                    throw new ArgumentNullException("args");
-                if (Context.HasListeners)
-                {
-                    long timestamp = 0;
-                    var timestamper = Context.Timestamper;
-                    if (timestamper != null)
-                        timestamp = timestamper.Timestamp();
-
-                    if (!Context.IsAsync)
-                    {
-                        Context.InjectEvent(new Event(durationNs, eventType, string.Format(message, args), _source, timestamp));
-                    }
-                    else
-                    {
-                        int msgCnt = Context.BufferSize;
-                        if (msgCnt > 0)
-                        {
-                            while (Context.OutstandingMessages > msgCnt)
-                                Thread.Sleep(1);
-                        }
-
-                        Context.LogQueue.Enqueue(_source, string.Format(message, args), timestamp, durationNs, eventType);
-                    }
-                }
+                LogEvent(_source, eventType, durationNs, message, args);
             }
 
-            string ILog.Source
-            {
-                get
-                {
-                    return _source;
-                }
-            }
+            string ILog.Source =>  _source;
         }
     }
 }

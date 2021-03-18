@@ -173,7 +173,7 @@ namespace OpenTap
             IEnumerable<(string message, string error)> getMessage()
             {
                 var selectedName = SelectedName?.Trim() ?? "";
-                
+
                 if(Scope.Object is ITestStepParent step)
                 {
                     string name;
@@ -184,11 +184,19 @@ namespace OpenTap
                     var existing = TypeData.GetTypeData(step).GetMember(selectedName.Trim());
                     var originalExisting = TypeData.GetTypeData(step).GetMember(defaultFullName);
 
-                    if (existing != null && (step != originalScope || originalExisting != existing))
+                    if (existing != null && (step != originalScope || !ReferenceEquals(originalExisting, existing)))
                     {
-                        if (UnmergableListType(existing))
+                        var val = existing.GetValue(step);
+                        var cloner = new ObjectCloner(val);
+                        if (member.HasAttribute<UnmergableAttribute>() || existing.HasAttribute<UnmergableAttribute>())
                         {
-                            var error = "Cannot merge list-type parameters, except for lists of numbers.";
+                            var error = $"The selected property does not support merging.";
+                            yield return (error, error);
+                            yield break;
+                        }
+                        if( cloner.CanClone(step, member.TypeDescriptor) == false)
+                        {
+                            var error = $"Cannot merge properties of this kind.";
                             yield return (error, error);
                             yield break;
                         }
@@ -210,9 +218,16 @@ namespace OpenTap
                         } 
                         if (Settings.Count < availSettingsCount)
                             yield return ("Remove settings from being controlled by the parameter.", null);
-                        
+
                         if (step == originalScope)
                         {
+                            // Check if they can be merged first before renaming
+                            if (existing != null)
+                            {
+                                var errorTypeComparison = typeComparison(originalScope, originalExisting, existing);
+                                if (errorTypeComparison != null)
+                                    yield return ($"Cannot merge parameters '{SelectedName}' and '{defaultFullName}'.", errorTypeComparison);
+                            }
                             if (Equals(defaultFullName, selectedName) == false)
                                 yield return ($"Rename parameter to '{SelectedName}'.", null);
                         }
@@ -256,40 +271,57 @@ namespace OpenTap
                 }
             }
 
+            private HashSet<ITypeData> decimalTypes = new HashSet<ITypeData>() { TypeData.FromType(typeof(decimal)), TypeData.FromType(typeof(double)), TypeData.FromType(typeof(float)) };
+            private HashSet<ITypeData> intTypes = new HashSet<ITypeData>() {
+                TypeData.FromType(typeof(long)), TypeData.FromType(typeof(int)), TypeData.FromType(typeof(short)), TypeData.FromType(typeof(sbyte)),
+                TypeData.FromType(typeof(ulong)), TypeData.FromType(typeof(uint)), TypeData.FromType(typeof(ushort)), TypeData.FromType(typeof(byte))
+            };
+
+            string typeComparison(object firstMemberOwner, IMemberData firstMember, IMemberData secondMember)
+            {
+                ITypeData firstType = firstMember.TypeDescriptor;
+                ITypeData secondType = secondMember.TypeDescriptor;
+                ObjectCloner cloner;
+                object value, output;
+                bool status;
+                string error = null;
+
+                if (Equals(firstType, secondType))
+                    return null;
+                if ( (decimalTypes.Contains(firstType) && decimalTypes.Contains(secondType)) || (intTypes.Contains(firstType) && intTypes.Contains(secondType)) )
+                {
+                    value = firstMember.GetValue(firstMemberOwner);
+                    cloner = new ObjectCloner(value);
+                    status = cloner.TryClone(value, secondType, false, out output);
+                    if (!status)
+                        error = string.Format("Overflow occurs for merging parameters of type {0} and {1}", firstType.ToString(), secondType.ToString());
+                }
+                else
+                    return "Value types must match to support merging parameters";
+
+                return error;
+            }
+
             string validateName()
             {
                 if (string.IsNullOrWhiteSpace(SelectedName))
                     return "Name cannot be left empty.";
                 var selectedName = SelectedName.Trim();
-                if (Scope.Object is TestPlan plan)
-                {
-                    var ext = plan.ExternalParameters.Get(selectedName);
-                    if (ext == null) return null; // fine
-                    if(false == Equals(memberType, ext.PropertyInfos.FirstOrDefault().TypeDescriptor))
-                        return "Value types must match to support merging parameters";
-                    
-                    return null;
-                }
-
-                if(Scope.Object is ITestStep step)
+                if(Scope.Object is ITestStepParent step)
                 {
                     var type = TypeData.GetTypeData(step);
                     var currentMember = type.GetMember(selectedName);
                     if (currentMember == null) return null;
-                    if (currentMember is ParameterMemberData)
-                    {
-                        if (false == Equals(currentMember.TypeDescriptor, memberType))
-                            return "Value types must match to support merging parameters.";
-
-                        return null;
-                    }
+                    if (currentMember is IParameterMemberData)
+                        return typeComparison(step,  currentMember, member);
+                    
                     return "Selected name is already used for a setting.";
                 }
 
                 return null;
             }
 
-            ITypeData memberType;
+            IMemberData member;
 
             ScopeMember[] scopeMembers;
 
@@ -301,7 +333,7 @@ namespace OpenTap
             {
                 Rules.Add(() => validateName() == null, validateName, nameof(SelectedName));
                 Rules.Add(() => GetError() == null, () => getMessage().FirstOrDefault(x => x.error != null).error, nameof(Message));
-                memberType = member.TypeDescriptor;
+                this.member = member;
                 this.source = source;
                 this.scopeMembers = scopeMembers;
                 this.originalScope = originalScope; 
@@ -415,9 +447,9 @@ namespace OpenTap
             parameterUserRequest.Scope = new NamingQuestion.ScopeItem { Object = ui.Source.First() };
             parameterUserRequest.SelectedName = ui.Member.Name;
             parameterUserRequest.OverrideDefaultName = ui.Member.Name;
-            
+
             var prevScope = parameterUserRequest.Scope;
-            
+
             UserInput.Request(parameterUserRequest, true);
             if (parameterUserRequest.Response == OkCancel.Cancel || string.IsNullOrWhiteSpace(parameterUserRequest.Name))
                 return;
@@ -495,18 +527,6 @@ namespace OpenTap
 
             if (steps.Any(step => isParameterized(step, property)))
                 return false;
-
- 
-
-            var value = property.GetValue(steps.FirstOrDefault());
-
-            var cloner = new ObjectCloner(value);
-            
-            if (!cloner.CanClone(steps.FirstOrDefault(), property.TypeDescriptor) && property.TypeDescriptor.IsA(typeof(string)) == false)
-            {
-                return false;
-            }
-            
             return true;
         }
         
@@ -581,7 +601,7 @@ namespace OpenTap
                 if (elem is ParameterMemberData)
                     return checkParameterSanity(step, parameters);
             }
-            return false;
+            return true;
         }
         
         /// <summary>
@@ -645,14 +665,14 @@ namespace OpenTap
                         }
 
                         if (member is IParameterMemberData)
-                            CheckParameterSanity(src, new[] {member});
+                            isSane &= CheckParameterSanity(src, new[] {member});
                         
                         bool memberDisposed = member is IDynamicMemberData dynamicMember && dynamicMember.IsDisposed;
                         if (memberDisposed || isParent == false || unparented)
                         {
                             member.Unparameterize(item, src);
                             if (!isParent || unparented)
-                                log.Warning("Step {0} is no longer a child step of the parameter owner. Removing from {1}.",
+                                log.Info("Step {0} is no longer a child step of the parameter owner. Removing from {1}.",
                                     (src as ITestStep)?.GetFormattedName() ?? src?.ToString(), item.Name);
                             else
                                 log.Warning("Member {0} no longer exists, unparameterizing member.", member.Name);
@@ -662,19 +682,20 @@ namespace OpenTap
                 }
             }
             // only update the change id for this step if sanity check passed.
-            changeid.Value = step.ChildTestSteps.ChangeId;
+            if(isSane)
+                changeid.Value = step.ChildTestSteps.ChangeId;
 
             return isSane;
         }
         
         static bool checkParameterSanity(ITestStepParent step)
         {
-            bool isSane = true;
-            if (step == null) return isSane;
+            if (step == null) return true;
+            
             ParameterMemberData[] parameters;
             using(WithSanityCheckDelayed()) // sanity checks are being done inside check members.
                 parameters = TypeData.GetTypeData(step).GetMembers().OfType<ParameterMemberData>().ToArray();
-            isSane = CheckParameterSanity(step, parameters);
+            var isSane = CheckParameterSanity(step, parameters);
             if(step.Parent is ITestStepParent parent)
                 return checkParameterSanity(parent) & isSane;
             return isSane;

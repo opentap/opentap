@@ -22,13 +22,14 @@ namespace OpenTap
     /// </summary>
     [Serializable]
     [DataContract(IsReference = true)]
+    [DebuggerDisplay("TestPlanRun {TestPlanName}")]
     public class TestPlanRun : TestRun
     {
-        private static readonly TraceSource log = Log.CreateSource("TestPlan");
-        private static readonly TraceSource resultLog = Log.CreateSource("Resources");
-        private TestPlan plan = null;
-
-        string planXml = null;
+        static readonly TraceSource log = Log.CreateSource("TestPlan");
+        static readonly TraceSource resultLog = Log.CreateSource("Resources");
+        
+        TestPlan plan;
+        string planXml;
 
         /// <summary> XML for the running test plan. </summary>
         [DataMember]
@@ -78,9 +79,9 @@ namespace OpenTap
         /// <summary> Resources touched by the prompt metadata action. </summary>
         internal IResource[] PromptedResources = Array.Empty<IResource>();
 
-        internal readonly IResourceManager ResourceManager;
+        internal IResourceManager ResourceManager { get; private set; }
 
-        internal readonly bool IsCompositeRun;
+        internal bool IsCompositeRun { get; set; }
 
         #region Result propagation dispatcher system
         
@@ -183,6 +184,7 @@ namespace OpenTap
                     {
                         reslog.Error("Error in OnTestPlanRunCompleted for '{0}': '{1}'", r, ex.Message);
                         reslog.Debug(ex);
+                        UpgradeVerdict(Verdict.Error);
                     }
                 }
                 else
@@ -414,10 +416,6 @@ namespace OpenTap
                 resultWorkers[res] = new WorkQueue(WorkQueue.Options.LongRunning | WorkQueue.Options.TimeAveraging, res.ToString());
             }
 
-            if (EngineSettings.Current.ResourceManagerType == null)
-                ResourceManager = new ResourceTaskManager();
-            else
-                ResourceManager = (IResourceManager)EngineSettings.Current.ResourceManagerType.GetType().CreateInstance();
 
             StartTime = startTime;
             StartTimeStamp = startTimeStamp;
@@ -481,13 +479,32 @@ namespace OpenTap
                     }
                 }
             });
-            // waits for prompt before loading the parameters.
-            ResourceManager.ResourceOpened += res =>
-            {
-                Parameters.AddRange(ResultParameters.GetMetadataFromObject(res));
-            };
+            
+            
             TestPlanName = plan.Name;
             this.plan = plan;
+        }
+
+        bool resourceOpenedAttached;
+        internal void Start()
+        {
+            if (ResourceManager == null)
+            {
+                if (EngineSettings.Current.ResourceManagerType == null)
+                    ResourceManager = new ResourceTaskManager();
+                else
+                    ResourceManager =
+                        (IResourceManager) EngineSettings.Current.ResourceManagerType.GetType().CreateInstance();
+            }
+
+            if (resourceOpenedAttached)
+                return;
+
+            // waits for prompt before loading the parameters.
+            resourceOpenedAttached = true;
+            ResourceManager.ResourceOpened += 
+                res => Parameters.AddRange(ResultParameters.GetMetadataFromObject(res));
+            
         }
 
         internal TestPlanRun() 
@@ -516,7 +533,7 @@ namespace OpenTap
                 }
             }
         }
-        
+
         internal TestPlanRun(TestPlanRun original, DateTime startTime, long startTimeStamp) : this()
         {
             resultWorkers = original.resultWorkers;

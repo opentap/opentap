@@ -83,7 +83,7 @@ namespace OpenTap.Cli
             if (args.Contains("help"))
             {
                 printOptions(action.GetType().GetAttribute<DisplayAttribute>().Name, ap.AllOptions, unnamedArgToProp);
-                return 0;
+                return (int)ExitCodes.Success;
             }
 
             if (args.Contains("log"))
@@ -156,7 +156,7 @@ namespace OpenTap.Cli
                     Console.WriteLine("Missing argument: " + string.Join(" ", requiredArgs.Select(p => p.GetAttribute<UnnamedCommandLineArgument>().Name)));
                 
                 printOptions(action.GetType().GetAttribute<DisplayAttribute>().Name, ap.AllOptions, unnamedArgToProp);
-                return 1;
+                return (int)ExitCodes.ArgumentParseError;
             }
 
             var actionFullName = td.GetDisplayAttribute().GetFullName();

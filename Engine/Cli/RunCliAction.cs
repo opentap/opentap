@@ -15,13 +15,10 @@ namespace OpenTap.Cli
 {
     internal enum ExitStatus : int
     {
-        Ok = 0,
         TestPlanInconclusive = 20,
         TestPlanFail = 30,
-        RuntimeError = 50,
-        ArgumentError = 60,
+        TestPlanError = 50,
         LoadError = 70,
-        PluginError = 80
     }
     /// <summary>
     /// Test plan run CLI action. Execute a test plan with 'tap.exe run test.TapPlan'
@@ -96,17 +93,6 @@ namespace OpenTap.Cli
         private static TestPlan Plan;
         
 
-        internal static int Exit(ExitStatus status)
-        {
-            if (status == ExitStatus.RuntimeError || status == ExitStatus.ArgumentError)
-            {
-                log.Info("Unable to continue. Now exiting OpenTAP CLI.");
-            }
-
-            log.Flush();
-            return (int)status;
-        }
-
         /// <summary>
         /// Executes test plan
         /// </summary>
@@ -134,7 +120,8 @@ namespace OpenTap.Cli
             {
                 Console.WriteLine("Invalid path: '{0}'", TestPlanPath);
                 Console.WriteLine("The path only supports a valid file path.");
-                return Exit(ExitStatus.ArgumentError);
+                log.Info("Unable to continue. Now exiting tap.exe.");
+                return (int)ExitCodes.ArgumentError;
             }
 
             try
@@ -143,7 +130,8 @@ namespace OpenTap.Cli
             }
             catch (ArgumentException)
             {
-                return Exit(ExitStatus.ArgumentError);
+                log.Info("Unable to continue. Now exiting tap.exe.");
+                return (int)ExitCodes.ArgumentError;
             }
 
             EngineSettings.LoadWorkingDirectory(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
@@ -172,14 +160,16 @@ namespace OpenTap.Cli
                 }
                 catch (ArgumentException)
                 {
-                    return Exit(ExitStatus.ArgumentError);
+                    log.Info("Unable to continue. Now exiting tap.exe.");
+                    return (int)ExitCodes.ArgumentError;
                 }
             }
 
             if (planToLoad == null)
             {
                 Console.WriteLine("Please supply a valid test plan path as an argument.");
-                return Exit(ExitStatus.ArgumentError);
+                log.Info("Unable to continue. Now exiting tap.exe.");
+                return (int)ExitCodes.ArgumentError;
             }
 
             // Load TestPlan:
@@ -188,7 +178,8 @@ namespace OpenTap.Cli
                 log.Error("File '{0}' does not exist.", planToLoad);
                 log.Flush();
                 Thread.Sleep(100);
-                return Exit(ExitStatus.ArgumentError);
+                log.Info("Unable to continue. Now exiting tap.exe.");
+                return (int)ExitCodes.ArgumentError;
             }
 
             try
@@ -198,19 +189,24 @@ namespace OpenTap.Cli
             catch (TestPlan.PlanLoadException ex)
             {
                 log.Error(ex.Message);
-                return Exit(ExitStatus.LoadError);
+                return (int)ExitStatus.LoadError;
+            }
+            catch (OperationCanceledException) when (TapThread.Current.AbortToken.IsCancellationRequested)
+            {
+                log.Info("tap.exe was exited due to an interrupt. (CTRL+C)");
+                return (int)ExitCodes.UserCancelled;
             }
             catch (ArgumentException ex)
             {
                 if(!string.IsNullOrWhiteSpace(ex.Message))
                     log.Error(ex.Message);
-                return Exit(ExitStatus.ArgumentError);
+                return (int)ExitCodes.ArgumentError;
             }
             catch (Exception e)
             {
                 log.Error("Caught error while loading test plan: '{0}'", e.Message);
                 log.Debug(e);
-                return Exit(ExitStatus.RuntimeError);
+                return (int)ExitStatus.LoadError;
             }
 
             log.Info("Test Plan: {0}", Plan.Name);
@@ -218,19 +214,25 @@ namespace OpenTap.Cli
             if (ListExternal)
             {
                 PrintExternalParameters(log);
-                return Exit(ExitStatus.Ok);
+                return (int)ExitCodes.Success;
             }
 
             Verdict verdict = TestPlanRunner.RunPlanForDut(Plan, metaData, cancellationToken);
 
-            if (verdict == Verdict.Inconclusive)
-                return Exit(ExitStatus.TestPlanInconclusive);
-            if (verdict == Verdict.Fail)
-                return Exit(ExitStatus.TestPlanFail);
-            if (verdict > Verdict.Fail)
-                return Exit(ExitStatus.RuntimeError);
+            if (TapThread.Current.AbortToken.IsCancellationRequested)
+            {
+                log.Info("tap.exe was exited due to an interrupt. (CTRL+C)");
+                return (int)ExitCodes.UserCancelled;
+            }
 
-            return Exit(ExitStatus.Ok);
+            if (verdict == Verdict.Inconclusive)
+                return (int)ExitStatus.TestPlanInconclusive;
+            if (verdict == Verdict.Fail)
+                return (int)ExitStatus.TestPlanFail;
+            if (verdict > Verdict.Fail)
+                return (int)ExitStatus.TestPlanError;
+
+            return (int)ExitCodes.Success;
         }
 
         private void HandleExternalParametersAndLoadPlan(string planToLoad)
@@ -264,6 +266,7 @@ namespace OpenTap.Cli
             {
                 // only cache the XML if there are no external parameters.
                 bool cacheXml = values.Any() == false && externalParameterFiles.Any() == false;
+                
                 
                 Plan = TestPlan.Load(fs, planToLoad, cacheXml, serializer, IgnoreLoadErrors);
                 log.Info(timer, "Loaded test plan from {0}", planToLoad);
