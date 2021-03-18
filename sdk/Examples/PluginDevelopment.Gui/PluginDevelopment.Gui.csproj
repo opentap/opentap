@@ -47,5 +47,8 @@
     <Reference Include="PresentationFramework" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="WindowsBase" />
+    <Reference Include="ResultsViewer">
+      <HintPath>$(OutputPath)\ResultsViewer.exe</HintPath>
+    </Reference>
   </ItemGroup>
 </Project>
