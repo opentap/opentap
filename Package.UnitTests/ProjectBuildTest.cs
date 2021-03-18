@@ -44,6 +44,7 @@ namespace OpenTap.Package.UnitTests
         <TargetFrameworkVersion></TargetFrameworkVersion>
         <TargetFramework>netstandard2.0</TargetFramework>
         <OutputPath>{Directory.GetCurrentDirectory()}</OutputPath>
+
     </PropertyGroup>"
             };
             ItemGroups = new List<string>();
@@ -159,23 +160,42 @@ namespace OpenTap.Package.UnitTests
 	  <OpenTapPackageReference Include=""MyPlugin4"" Repository=""{FileRepository}"" />	  
   </ItemGroup>
 ");
+            csProj.PropertyGroups.Add($@"
+    <PropertyGroup>
+        <PlatformTarget>x86</PlatformTarget> 
+    </PropertyGroup>
+            ");
+
             var result = csProj.Build();
 
-            int lineNo =
-                csProj.GetLineNo($@"<OpenTapPackageReference Include=""MyPlugin4"" Repository=""{FileRepository}"" />");
-            
-            StringAssert.Contains($"test.csproj({lineNo}): warning OpenTAP Reference: Duplicate entry detected.", result.Stdout);
-            
-            StringAssert.Contains(@"package install --dependencies ""MyPlugin4""", result.Stdout);
-            StringAssert.Contains("Got 1 OpenTapPackageReference targets.", result.Stdout);
-            StringAssert.Contains("MyPlugin4 Include=\"**\" Exclude=\"Dependencies/**\"", result.Stdout);
-            StringAssert.Contains("Skipped duplicate entries", result.Stdout);
-            Assert.AreEqual(result.ExitCode, 0);
+            if (OpenTap.OperatingSystem.Current == OperatingSystem.Windows)
+            {
 
-            Assert.True(File.Exists(OutputFile));
-            var Generated = csProj.GetGeneratedFileContent();
-            StringAssert.Contains("MyPlugin4.dll", Generated);
-        }        
+                int lineNo =
+                    csProj.GetLineNo(
+                        $@"<OpenTapPackageReference Include=""MyPlugin4"" Repository=""{FileRepository}"" />");
+
+                StringAssert.Contains($"test.csproj({lineNo}): warning OpenTAP Reference: Duplicate entry detected.",
+                    result.Stdout);
+
+                // Verify PlatformTarget is used
+                StringAssert.Contains(
+                    $@" package install --dependencies ""MyPlugin4"" -r ""{FileRepository}"" --non-interactive",
+                    result.Stdout);
+                StringAssert.Contains("Got 1 OpenTapPackageReference targets.", result.Stdout);
+                StringAssert.Contains("MyPlugin4 Include=\"**\" Exclude=\"Dependencies/**\"", result.Stdout);
+                StringAssert.Contains("Skipped duplicate entries", result.Stdout);
+                Assert.AreEqual(result.ExitCode, 0);
+
+                Assert.True(File.Exists(OutputFile));
+                var Generated = csProj.GetGeneratedFileContent();
+                StringAssert.Contains("MyPlugin4.dll", Generated);
+            }
+            else
+            {   // Expected error message on 
+                StringAssert.Contains("x86 builds are not supported on Unix.", result.Stdout);
+            }
+        }
 
         [Test]
         public void TwoEqualReferencesDefaultTest()
@@ -233,7 +253,7 @@ namespace OpenTap.Package.UnitTests
             StringAssert.Contains("MyPlugin5 Include=\"test1,test2\" Exclude=\"test3,test4\"", result.Stdout);
             Assert.AreEqual(result.ExitCode, 0);
 
-            Assert.True(File.Exists(OutputFile));
+            Assert.True(File.Exists(OutputFile)); 
         }
 
         [Test]
@@ -318,9 +338,20 @@ namespace OpenTap.Package.UnitTests
 <OpenTapPackageReference Include=""OSIntegration"" /> 
     </ItemGroup>
             ");
+            csProj.PropertyGroups.Add($@"
+    <PropertyGroup>
+<PlatformTarget>x86</PlatformTarget> 
+    </PropertyGroup>
+            ");
+            
             var result = csProj.Build();
             
+            // Verify environment variable is set
             StringAssert.Contains("Skipping OS Integration (OPENTAP_DEBUG_INSTALL environment variable is set).", result.Stdout);
+            
+            StringAssert.Contains(
+                $@"package install --dependencies ""OSIntegration"" -r ""packages.opentap.io"" --non-interactive",
+                result.Stdout);
             Assert.AreEqual(result.ExitCode, 0);
             Assert.True(File.Exists(OutputFile));
         }

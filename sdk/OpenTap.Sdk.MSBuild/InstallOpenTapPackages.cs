@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
-using System.Xml.XPath;
 using Microsoft.Build.Framework;
 using Task = Microsoft.Build.Utilities.Task;
 
@@ -18,17 +18,45 @@ namespace Keysight.OpenTap.Sdk.MSBuild
     public class InstallOpenTapPackages : Task
     {
         /// <summary>
-        /// Array of packages to install, including version and repository
-        /// </summary>
-        public ITaskItem[] PackagesToInstall { get; set; }
-        /// <summary>
-        /// Full qualified path to the tap directory where packages will be installed (usually $(ProjectRoot)\bin\$(Configuration))
-        /// </summary>
-        public string TapDir { get; set; }
-        /// <summary>
         /// Full qualified path to the .csproj file for which packages are being installed
         /// </summary>
         public string SourceFile { get; set; }
+        
+        /// <summary>
+        /// Array of packages to install, including version and repository
+        /// </summary>
+        public Microsoft.Build.Framework.ITaskItem[] PackagesToInstall { get; set; }
+
+        /// <summary>
+        /// The build directory containing 'tap.exe' and 'OpenTAP.dll'
+        /// </summary>
+        public string TapDir { get; set; }
+        
+        /// <summary>
+        /// The target platform defined in msbuild
+        /// </summary>
+        public string PlatformTarget { get; set; }
+
+        private string BuildArgumentString(ITaskItem item)
+        {
+            var package = item.ItemSpec;
+            var repository = item.GetMetadata("Repository");
+            if (string.IsNullOrWhiteSpace(repository))
+                repository = "packages.opentap.io";
+            var version = item.GetMetadata("Version");
+
+            var unpackOnly = item.GetMetadata("UnpackOnly") ?? "";
+
+            var arguments = $@"package install --dependencies ""{package}"" -r ""{repository}"" --non-interactive";
+            if (string.IsNullOrWhiteSpace(version) == false)
+                arguments += $@" --version ""{version}""";
+
+            if (unpackOnly.Equals("true", StringComparison.CurrentCultureIgnoreCase))
+                arguments += " --unpack-only";
+
+            return arguments;
+        }
+        
         private XElement _document;
 
         internal XElement Document
@@ -94,7 +122,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             if (string.IsNullOrWhiteSpace(TapDir))
                 return false;
 
-            // Task instances are sometimes reused by the build engine -- ensure 'document' is reinstantiated
+            // Task instances are sometimes reused by the build engine -- ensure '_document' is reinstantiated
             _document = null;
 
             var success = true;
@@ -107,18 +135,36 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
             foreach (var item in PackagesToInstall)
             {
-                var unpackOnly = item.GetMetadata("UnpackOnly") ?? "";
-                var package = item.ItemSpec;
-                var repository = item.GetMetadata("Repository");
-                if (string.IsNullOrWhiteSpace(repository))
-                    repository = "packages.opentap.io";
-                var version = item.GetMetadata("Version");
+                // OpenTAP is always installed through nuget
+                // but is sometimes added to include additional references
+                // Skip it
+                if (item.ItemSpec == "OpenTAP")
+                {
+                    var version = item.GetMetadata("Version")?.ToLower() ?? "";
+                    if (string.IsNullOrWhiteSpace(version) == false && version.ToLower() != "any")
+                    {
+                        var packageXml = Path.Combine(TapDir, "Packages", "OpenTAP", "package.xml");
+                        var content = File.ReadAllText(packageXml);
+                        var nugetVersion = Regex.Match(content, "Version=\"(.*?)\"").Groups[1].Value.ToLower();
 
-                var arguments = $@"package install --dependencies ""{package}"" -r ""{repository}"" --non-interactive";
-                if (string.IsNullOrWhiteSpace(version) == false)
-                    arguments += $@" --version ""{version}""";
-                if (unpackOnly.Equals("true", StringComparison.CurrentCultureIgnoreCase))
-                    arguments += " --unpack-only";
+                        if (nugetVersion.StartsWith(version) == false)
+                        {
+                            var lineNum = GetLineNum(item).FirstOrDefault();
+
+                            Log.LogWarning(null, "OpenTAP Install", null,
+                                SourceFile, lineNum, 0, 0, 0,
+                                $"Element specifies OpenTAP version '{version}' but version '{nugetVersion}' is installed through nuget. " +
+                                "Using a different OpenTAP version from the nuget package can cause issues. " +
+                                "Omitting the version number for this element is recommended. " +
+                                $"This build will proceed with OpenTAP version '{nugetVersion}' from nuget.");
+                        }
+                    }
+
+                    continue;
+                }
+
+                var arguments = BuildArgumentString(item);
+                
 
                 var startInfo = new ProcessStartInfo()
                 {
@@ -128,10 +174,16 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                     RedirectStandardInput = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = false,
-                    WorkingDirectory = TapDir,
-                    EnvironmentVariables = {{"OPENTAP_DEBUG_INSTALL", "true"}}
+                    WorkingDirectory = TapDir
                 };
                 
+                if (startInfo.EnvironmentVariables.ContainsKey("OPENTAP_DEBUG_INSTALL"))
+                    startInfo.EnvironmentVariables["OPENTAP_DEBUG_INSTALL"] = "true";
+                else
+                    startInfo.EnvironmentVariables.Add("OPENTAP_DEBUG_INSTALL", "true");
+
+
+
                 var p = Process.Start(startInfo);
                 Log.LogMessage($"Running '{tapInstall} {arguments}'.");
                 p.WaitForExit();
@@ -147,7 +199,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                     {
                         Log.LogError(null, "OpenTAP Install", null,
                             SourceFile, lineNumber, 0, 0, 0,
-                            $"Failed to install package '{package}'. {installLog.Replace("\r", "").Replace('\n', ' ')}");
+                            $"Failed to install package '{item.ItemSpec}'. {installLog.Replace("\r", "").Replace('\n', ' ')}");
                     }
                 }
             }

@@ -432,30 +432,35 @@ Package-NuGet:
   dependencies:
     - Build-x64
     - Package-Windows64
-    - Build-Linux64
+    - Package-Windows32
+    - Package-Linux
   needs:
     - Build-x64
     - Package-Windows64
-    - Build-Linux64
+    - Package-Windows32
+    - Package-Linux
   script:
-    - Move-Item bin/Release/publish/ bin/Linux/
-    - dotnet build -c NetCore tap/tap.csproj
-    - mkdir nuget/build/payload
-    - cd bin/Release
-    - Move-Item "../../OpenTAP.*.Windows.TapPackage" OpenTAP.TapPackage
-    - ./tap package install --target "../../nuget/build/payload" OpenTAP.TapPackage -f -v
-    - Move-Item OpenTap.xml ../../nuget/build/payload
-    - Move-Item OpenTap.Package.xml ../../nuget/build/payload
-    - ./tap sdk gitversion --replace ../../nuget/OpenTAP.nuspec --fields 4
-    - Move-Item Keysight.OpenTap.Sdk.MSBuild.dll ../../nuget/build
-    - Move-Item DotNet.Glob.dll ../../nuget/build
-    - cd ../../nuget/
-    - Move-Item ../bin/Linux/tap build/payload/
-    - Move-Item ../bin/Linux/tap.dll build/payload/
-    - $LibGitFolderName = $(Get-ChildItem -directory ./build/payload/Dependencies/LibGit2Sharp* -Name)
-    - $LibGitFolderNameLinux = $(Get-ChildItem -directory ../bin/Linux/Dependencies/LibGit2Sharp* -Name)
-    - Move-Item ../bin/Linux/Dependencies/$LibGitFolderNameLinux/libgit2-*.so.* build/payload/Dependencies/$LibGitFolderName/
-    - Move-Item ../bin/Release/tap.runtimeconfig.json build/payload/
+    - ./bin/Release/tap sdk gitversion --replace ./nuget/OpenTAP.nuspec --fields 4
+    - New-Item -Force ./nuget/build/payload -ItemType Directory | Out-Null
+    # Expand-Archive will only extract .zip extensions    
+    - Move-Item OpenTAP.*.x86.Windows.TapPackage OpenTAP.x86.zip 
+    - Move-Item OpenTAP.*.x64.Windows.TapPackage OpenTAP.x64.zip
+    - Move-Item OpenTAP.*.Linux.TapPackage OpenTAP.Linux.zip
+
+    - Move-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
+    - Move-Item ./bin/Release/DotNet.Glob.dll ./nuget/build    
+    - ./bin/Release/tap package install ./OpenTap.x64.zip -t ./nuget/build/payload -f
+    - Move-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload
+    - Move-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
+    - Push-Location ./nuget/build/payload
+    - Remove-Item tap.exe
+    - Remove-Item ./Dependencies/LibGit2Sharp.0.25.0.0/git2*.dll
+    - Pop-Location
+    - Expand-Archive OpenTAP.x64.zip win-x64
+    - Expand-Archive OpenTAP.x86.zip win-x86
+    - Expand-Archive OpenTAP.Linux.zip linux-x64
+    - ./nuget/NugetPackager.ps1
+    - cd ./nuget    
     - nuget update -self
     - nuget pack OpenTAP.nuspec -OutputDirectory ../
   artifacts:
