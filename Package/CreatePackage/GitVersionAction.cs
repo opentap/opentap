@@ -74,7 +74,7 @@ namespace OpenTap.Package
                 if (repositoryDir == null)
                 {
                     log.Error("Directory {0} is not a git repository.", RepoPath);
-                    return 1;
+                    return (int)ExitCodes.ArgumentError;
                 }
             }
             RepoPath = repositoryDir;
@@ -82,7 +82,7 @@ namespace OpenTap.Package
             if (FieldCount < 1 || FieldCount > 5)
             {
                 log.Error("The argument for --fields ({0}) must be an integer between 1 and 5.", FieldCount);
-                return 1;
+                return (int)ExitCodes.ArgumentError;
             }
 
             if (!String.IsNullOrEmpty(PrintLog))
@@ -91,7 +91,7 @@ namespace OpenTap.Package
                 if (!int.TryParse(PrintLog, out nLines) || nLines <= 0)
                 {
                     log.Error("The argument for --log ({0}) must be an integer greater than 0.", PrintLog);
-                    return 1;
+                    return (int)ExitCodes.ArgumentError;
                 }
                 return DoPrintLog(cancellationToken);
             }
@@ -109,17 +109,17 @@ namespace OpenTap.Package
                 if (!File.Exists(ReplaceFile))
                 {
                     log.Error("File '{0}' given in --replace argument could not be found.", Path.GetFullPath(ReplaceFile));
-                    return 1;
+                    return (int)ExitCodes.ArgumentError;
                 }
                 int replaceLineCount = DoReplaceFile(ReplaceFile, versionString);
                 if (replaceLineCount == 0)
                     log.Warning("Nothing to replace. '$(GitVersion)' was not found in {0}.", ReplaceFile);
                 else
                     log.Info("Replaced '$(GitVersion)' with '{0}' in {1} line(s) of {2}", versionString, replaceLineCount, ReplaceFile);
-                return 0;
+                return (int)ExitCodes.Success;
             }
             log.Info(versionString);
-            return 0;
+            return (int)ExitCodes.Success;
         }
 
         private static int DoReplaceFile(string fileName, string versionString)
@@ -160,7 +160,7 @@ namespace OpenTap.Package
                     if(tip == null)
                     {
                         log.Error($"The commit with reference {Sha} does not exist in the repository.");
-                        return 1;
+                        return (int)ExitCodes.ArgumentError;
                     }
                 }
                 IEnumerable<Commit> History = repo.Commits.QueryBy(new CommitFilter() { IncludeReachableFrom = tip, SortBy = CommitSortStrategies.Topological });
@@ -412,7 +412,7 @@ namespace OpenTap.Package
                     }
                 }
             }
-            return 0;
+            return (int)ExitCodes.Success;
         }
     }
 

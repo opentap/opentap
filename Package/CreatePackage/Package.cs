@@ -491,12 +491,12 @@ namespace OpenTap.Package
                     else
                     {
                         if (!dep.Version.IsCompatible(installedPackage.Version))
-                            throw new ExitCodeException((int)PackageCreateAction.ExitCodes.PackageDependencyError, $"Installed version of {dep.Name} ({installedPackage.Version}) is incompatible with dependency specified in package definition ({dep.Version}).");
+                            throw new ExitCodeException((int)PackageExitCodes.PackageDependencyError, $"Installed version of {dep.Name} ({installedPackage.Version}) is incompatible with dependency specified in package definition ({dep.Version}).");
                     }
                 }
                 else
                 {
-                    throw new ExitCodeException((int)PackageCreateAction.ExitCodes.PackageDependencyError, 
+                    throw new ExitCodeException((int)PackageExitCodes.PackageDependencyError, 
                                                 $"Package dependency '{dep.Name}' specified in package definition is not installed. Please install a compatible version first.");
                 }
             }
@@ -566,7 +566,7 @@ namespace OpenTap.Package
                                     else
                                         log.Error($"{Path.GetFileName(depender.FileName)} in this package require assembly {requiredAsm.Name} in version {requiredAsm.Version} while that assembly is already installed through package '{candidatePkg.Name}' in version {candidateAsm.Version}.");
                                     //log.Error($"Please align the version of {requiredAsm.Name} to ensure interoperability with package '{candidate.Key.Name}' or uninstall that package.");
-                                    throw new ExitCodeException((int)PackageCreateAction.ExitCodes.AssemblyDependencyError, 
+                                    throw new ExitCodeException((int)PackageExitCodes.AssemblyDependencyError, 
                                                                 $"Please align the version of {requiredAsm.Name} ({candidateAsm.Version} vs {requiredAsm.Version})  to ensure interoperability with package '{candidatePkg.Name}' or uninstall that package.");
                                 }
                             }

@@ -35,7 +35,7 @@ namespace OpenTap.Package
             if (Force == false && Packages.Any(p => p == "OpenTAP") && Target == ExecutorClient.ExeDir)
             {
                 log.Error("Aborting request to uninstall the OpenTAP package that is currently executing as that would brick this installation. Use --force to uninstall anyway.");
-                return -4;
+                return (int)ExitCodes.ArgumentError;
             }
 
             Installer installer = new Installer(Target, cancellationToken) { DoSleep = false };
@@ -63,13 +63,21 @@ namespace OpenTap.Package
             }
 
             if (anyUnrecognizedPlugins)
-                return -2;
+                return (int)PackageExitCodes.InvalidPackageName;
 
             if (!Force)
-                if (!CheckPackageAndDependencies(installedPackages, installer.PackagePaths))
-                    return -3;
+                if (!CheckPackageAndDependencies(installedPackages, installer.PackagePaths, out var userCancelled))
+                {
+                    if (userCancelled)
+                    {
+                        log.Info("Uninstall cancelled by user.");
+                        return (int)ExitCodes.UserCancelled;
+                    }
 
-            return installer.RunCommand("uninstall", Force, true) ? 0 : -1;
+                    return (int)PackageExitCodes.PackageDependencyError;
+                }
+
+            return installer.RunCommand("uninstall", Force, true) ? (int)ExitCodes.Success : (int)PackageExitCodes.PackageInstallError;
         }
 
         private List<string> GetPaths(PackageDef package, InstalledPackageDefSource source,
@@ -106,8 +114,9 @@ namespace OpenTap.Package
             return result;
         }
 
-        private bool CheckPackageAndDependencies(List<PackageDef> installed, List<string> packagePaths)
+        private bool CheckPackageAndDependencies(List<PackageDef> installed, List<string> packagePaths, out bool userCancelled)
         {
+            userCancelled = false;
             var packages = packagePaths.Select(PackageDef.FromXml).ToList();
             installed.RemoveIf(i => packages.Any(u => u.Name == i.Name && u.Version == i.Version));
             var analyzer = DependencyAnalyzer.BuildAnalyzerContext(installed);
@@ -136,7 +145,10 @@ namespace OpenTap.Package
                 var req = new ContinueRequest { message = question, Response = ContinueResponse.Continue };
                 UserInput.Request(req, true);
 
-                return req.Response == ContinueResponse.Continue;
+                if (req.Response == ContinueResponse.Continue)
+                    return true;
+                userCancelled = true;
+                return false;
             }
 
             return true;

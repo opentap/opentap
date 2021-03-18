@@ -128,7 +128,7 @@ namespace OpenTap.Package
                         if (installedPackage != null && pid.Version.CompareTo(installedPackage.Version) == 0)
                         {
                             log.Info($"Package '{pid.Name}' is already installed.");
-                            return 0;
+                            return (int)ExitCodes.Success;
                         }
                     }
                 }
@@ -140,22 +140,26 @@ namespace OpenTap.Package
                 List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                     targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
                     InstallDependencies, IgnoreDependencies, askToInstallDependencies, NoDowngrade);
-                if (packagesToInstall?.Any() != true)
+                if (!packagesToInstall.Any())
                 {
                     if (NoDowngrade)
                     {
                         log.Info("No package(s) were upgraded.");
-                        return 0;
+                        return (int)ExitCodes.Success;
                     }
                     log.Info("Could not find one or more packages.");
-                    return 2;
+                    return (int)PackageExitCodes.InvalidPackageName;
                 }
 
                 var installationPackages = targetInstallation.GetPackages();
 
                 var overWriteCheckExitCode = CheckForOverwrittenPackages(installationPackages, packagesToInstall, Force || Overwrite, !(NonInteractive || Overwrite));
                 if (overWriteCheckExitCode == InstallationQuestion.Cancel)
-                    return 2;
+                {
+                    log.Info("Install cancelled by user.");
+                    return (int)ExitCodes.UserCancelled;
+                }
+
                 if (overWriteCheckExitCode == InstallationQuestion.OverwriteFile)
                     log.Warning("Overwriting files. (--{0} option specified).", Overwrite ? "overwrite" : "force");
                 
@@ -170,13 +174,13 @@ namespace OpenTap.Package
                     {
                         log.Info("To fix the package conflict uninstall or update the conflicted packages.");
                         log.Info("To install packages despite the conflicts, use the --no-dependencies option.");
-                        return 4;
+                        return (int)PackageExitCodes.PackageDependencyError;
                     }
 
                     if (CheckOnly)
                     {
                         log.Info("Check completed with no problems detected.");
-                        return 0;
+                        return (int)ExitCodes.Success;
                     }
                 }
 
@@ -197,7 +201,7 @@ namespace OpenTap.Package
                 log.Info(e.Message);
                 log.Debug(e);
                 RaiseError(e);
-                return 6;
+                return (int)ExitCodes.NetworkError;
             }
 
             log.Info("Installing to {0}", Path.GetFullPath(Target));
@@ -212,7 +216,7 @@ namespace OpenTap.Package
             // Install the package
             installer.InstallThread();
 
-            return installError ? 5 : 0;
+            return installError ? (int)PackageExitCodes.PackageInstallError : (int)ExitCodes.Success;
         }
 
         private void UninstallExisting(Installation installation, List<string> packagePaths, CancellationToken cancellationToken)

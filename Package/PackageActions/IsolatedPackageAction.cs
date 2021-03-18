@@ -39,7 +39,7 @@ namespace OpenTap.Package
             if (!Directory.Exists(Target))
             {
                 log.Error("Destination directory \"{0}\" does not exist.", Target);
-                return -1;
+                return (int)ExitCodes.ArgumentError;
             }
 
             if (ExecutorClient.IsExecutorMode) // do we support running isolated?
@@ -50,7 +50,7 @@ namespace OpenTap.Package
                     try
                     {
                         RunIsolated(target: Target, isolatedAction: this);
-                        return 0; // we succeeded in "recursively" running everything isolated from a different process, we are done now.
+                        return (int)ExitCodes.Success; // we succeeded in "recursively" running everything isolated from a different process, we are done now.
                     }
                     catch (Exception ex)
                     {
