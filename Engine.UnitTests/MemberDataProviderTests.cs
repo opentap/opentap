@@ -116,23 +116,25 @@ namespace OpenTap.Engine.UnitTests
             }
 
 
-            private static IEnumerable<ITypeData> hardcodedTypes = new List<ITypeData>
+            static List<ITypeData> hardcodedTypes = new List<ITypeData>
             {
                 new TypeDataTestImpl( "UnitTestType", TypeData.FromType(typeof(IResultListener)),null),
                 new TypeDataTestImpl( "UnitTestCliActionType", TypeData.FromType(typeof(ICliAction)),() => new SomeTestAction())
             };
 
-            public static bool Enable { get; set; }
-
-            private IEnumerable<ITypeData> _types = new List<ITypeData>();
-            public IEnumerable<ITypeData> Types
+            public static void AddType(string name, ITypeData baseType)
             {
-                get => Enable ? _types : Enumerable.Empty<ITypeData>();
+                hardcodedTypes.Add(new TypeDataTestImpl(name, baseType, null));
             }
 
+            public static bool Enable { get; set; }
+
+            private List<ITypeData> _types = new List<ITypeData>();
+            public IEnumerable<ITypeData> Types => Enable ? (_types.Count != hardcodedTypes.Count ? null : _types) : Enumerable.Empty<ITypeData>();
+            
             public void Search()
             {
-                _types = hardcodedTypes;
+                _types = hardcodedTypes.ToList();
             }
 
             public double Priority => 1;
@@ -169,6 +171,37 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(types.All(t => t.DescendsTo(baseType)));
             Assert.IsTrue(types.Any(t => t.Name == "UnitTestType"));
         }
+        
+        [Test]
+        public void ITypeDataSearcherTest3()
+        {
+            TypeData.GetDerivedTypes<ITestStep>().Count();
+            TypeDataSearcherTestImpl.Enable = true;
+            TypeData.GetDerivedTypes<ITestStep>().Count();
+            try
+            {
+                ITypeData baseType = TypeData.FromType(typeof(IResultListener));
+                Assert.IsNotNull(TypeData.GetTypeData("UnitTestType"));
+                
+                TypeData.GetDerivedTypes<ITestStep>().Count();
+                var c1 = TypeData.GetDerivedTypes<IResultListener>().Count();
+                TypeDataSearcherTestImpl.AddType("UnitTestType2", baseType);
+                TypeData.GetDerivedTypes<ITestStep>().Count();
+                var c2 = TypeData.GetDerivedTypes<IResultListener>().Count();
+                TypeDataSearcherTestImpl.AddType("UnitTestType3", baseType);
+                TypeData.GetDerivedTypes<ITestStep>().Count();
+                var c3 = TypeData.GetDerivedTypes<IResultListener>().Count();
+                Assert.IsTrue(c1 + 1 == c2);
+                Assert.IsTrue(c2 + 1 == c3);
+
+            }
+            finally
+            {
+                TypeDataSearcherTestImpl.Enable = false;    
+            }
+        }
+        
+        
 
         [Browsable(false)]
         private class SomeTestAction : ICliAction
