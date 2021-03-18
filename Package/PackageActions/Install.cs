@@ -279,11 +279,12 @@ namespace OpenTap.Package
             public string Name { get; } = "Overwrite Files?";
             
             [Browsable(true)]
+            [Layout(LayoutMode.FullRow)]
             public string Message { get; private set; }
 
             public AskAboutInstallingAnyway(string message) => Message = message;
 
-            [Layout(LayoutMode.FloatBottom)]
+            [Layout(LayoutMode.FloatBottom | LayoutMode.FullRow)]
             [Submit] public InstallationQuestion Response { get; set; } = InstallationQuestion.Cancel;
         }
 

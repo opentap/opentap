@@ -166,11 +166,13 @@ namespace OpenTap.Package
     class ContinueRequest
     {
         [Browsable(true)]
+        [Layout(LayoutMode.FullRow)]
         public string Message => message;
         internal string message;
         public string Name { get; private set; } = "Continue?";
 
         [Submit]
+        [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
         public ContinueResponse Response { get; set; }
     }
 
@@ -191,7 +193,9 @@ namespace OpenTap.Package
         }
         
         [Browsable(true)]
+        [Layout(LayoutMode.FullRow)]
         public string Message { get; }
+        [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
         [Submit] public UninstallResponse Response { get; set; }
     }
 }
