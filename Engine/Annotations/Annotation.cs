@@ -2008,7 +2008,7 @@ namespace OpenTap
             }
         }
 
-        class MultiResourceSelector : IMultiSelect
+        class MultiResourceSelector : IMultiSelect, IStringReadOnlyValueAnnotation
         {
             public IEnumerable Selected
             {
@@ -2037,6 +2037,8 @@ namespace OpenTap
                     seq.AnnotatedElements = elements;
                 }
             }
+
+            public string Value => string.Join(", ", Selected.Cast<IResource>().Select(s => s.Name));
 
             AnnotationCollection annotation;
             Type baseType;
