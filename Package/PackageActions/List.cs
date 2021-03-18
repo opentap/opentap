@@ -99,11 +99,11 @@ namespace OpenTap.Package
                     if (package is null)
                     {
                         log.Info($"{Name} is not installed");
-                        return -1;
+                        return (int)ExitCodes.ArgumentError;
                     }
 
                     log.Info(package.Version.ToString());
-                    return 0;
+                    return (int)ExitCodes.Success;
                 }
 
 
@@ -116,7 +116,7 @@ namespace OpenTap.Package
                     if (versionsCount == 0) // No versions
                     {
                         log.Info($"No versions of '{Name}'.");
-                        return 0;
+                        return (int)ExitCodes.Success;
                     }
 
                     if (Version != null) // Version is specified by user
@@ -126,7 +126,7 @@ namespace OpenTap.Package
                     {
                         log.Info($"Package '{Name}' does not exists with version '{Version}'.");
                         log.Info($"Package '{Name}' exists in {versionsCount} other versions, please specify a different version.");
-                        return 0;
+                        return (int)ExitCodes.Success;
                     }
                 }
                 else
@@ -147,7 +147,7 @@ namespace OpenTap.Package
                         else
                             log.Warning($"Package '{Name}' could not be found in any repository.");
 
-                        return 0;
+                        return (int)ExitCodes.Success;
                     }
 
 
@@ -164,12 +164,12 @@ namespace OpenTap.Package
                         if (versions.Any())
                             log.Info($"There are {versions.Count} pre-released versions available. Use '--version <pre-release>' (e.g. '--version rc') or '--all' to show these.");
 
-                        return 0;
+                        return (int)ExitCodes.Success;
                     }
                 }
                 PrintVersionsReadable(package, versions);
             }
-            return 0;
+            return (int)ExitCodes.Success;
         }
 
         private void PrintVersionsReadable(IPackageIdentifier package, List<PackageVersion> versions)

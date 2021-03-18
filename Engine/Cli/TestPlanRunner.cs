@@ -26,10 +26,8 @@ namespace OpenTap.Cli
             ComponentSettings.PersistSettingGroups = false;
             string settingsSetDir = Path.Combine(ComponentSettings.SettingsDirectoryRoot, "Bench", dir);
             if (dir != "Default" && !Directory.Exists(settingsSetDir))
-            {
-                Console.WriteLine("Could not find settings directory \"{0}\"", settingsSetDir);
-                RunCliAction.Exit(ExitStatus.ArgumentError);
-            }
+                throw new ArgumentException($"Could not find settings directory \"{settingsSetDir}\"", nameof(RunCliAction.Settings));
+
             ComponentSettings.SetSettingsProfile("Bench", dir);
             log.TraceInformation("Settings: " + ComponentSettings.GetSettingsDirectory("Bench"));
         }

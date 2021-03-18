@@ -94,9 +94,6 @@ namespace OpenTap.Package
                 destinationInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories,
                 ForceInstall, InstallDependencies, false, false, false);
 
-            if (PackagesToDownload == null)
-                return 2;
-
             var progressPercentage = 0.0f;
 
             if (!DryRun)
@@ -154,12 +151,7 @@ namespace OpenTap.Package
 
             DownloadedPackages = PackagesToDownload;
 
-            return 0;
-        }
-
-        private static string MakeFilename(string osList)
-        {
-            return FileSystemHelper.EscapeBadPathChars(osList.Replace("/", "").Replace("\\", ""));
+            return (int)ExitCodes.Success;
         }
     }
 }

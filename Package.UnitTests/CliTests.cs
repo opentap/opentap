@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using NUnit.Framework;
+using OpenTap.Cli;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -428,7 +429,7 @@ namespace OpenTap.Package.UnitTests
         {
             int exitCode;
             string output = RunPackageCli("install NonExistent.TapPackage", out exitCode);
-            Assert.AreEqual(6, exitCode, "Unexpected exit code.\n" + output);
+            Assert.AreEqual((int)ExitCodes.NetworkError, exitCode, "Unexpected exit code.\n" + output);
             StringAssert.Contains("Could not download", output);
         }
 

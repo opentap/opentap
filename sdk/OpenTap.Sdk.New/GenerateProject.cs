@@ -126,7 +126,7 @@ namespace OpenTap.Sdk.New
                     if (request.Override == RequestEnum.No)
                     {
                         log.Info("Project creation cancelled.");
-                        return 0;
+                        return (int)ExitCodes.Success;
                     }
                 }
             }
@@ -162,7 +162,7 @@ namespace OpenTap.Sdk.New
             }
 
             log.Info("Build the project and use an editor to create a test plan to use your new test step! See https://doc.opentap.io/User%20Guide/Editors/ for more info on the different editors!");
-            return 0;
+            return (int)ExitCodes.Success;
         }
 
         private FileInfo GetAncestorTapInstall(DirectoryInfo dest)
