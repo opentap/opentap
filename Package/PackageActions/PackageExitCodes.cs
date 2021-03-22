@@ -14,32 +14,32 @@ namespace OpenTap.Package
         /// <summary>
         /// Errors occured while creating package
         /// </summary>
-        [Display("PackageCreateError", "Errors occured while creating package")]
+        [Display("Package Create Error", "Errors occured while creating package")]
         PackageCreateError = 30,
         /// <summary>
         /// Invalid data in package definition
         /// </summary>
-        [Display("InvalidPackageDefinition", "Invalid data in package definition")]
+        [Display("Invalid Package Definition", "Invalid data in package definition")]
         InvalidPackageDefinition = 31,
         /// <summary>
         /// Package name is invalid
         /// </summary>
-        [Display("InvalidPackageName", "Package name is invalid")]
+        [Display("Invalid Package Name", "Package name is invalid")]
         InvalidPackageName = 32,
         /// <summary>
         /// Package dependency error occurred
         /// </summary>
-        [Display("PackageDependencyError", "Package dependency error occurred")]
+        [Display("Package Dependency Error", "Package dependency error occurred")]
         PackageDependencyError = 33,
         /// <summary>
         /// Assembly dependencies conflict
         /// </summary>
-        [Display("AssemblyDependencyError", "Assembly dependencies conflict")]
+        [Display("Assembly Dependency Error", "Conflicting assembly dependencies")]
         AssemblyDependencyError = 34,
         /// <summary>
         /// Error occurred while installing package
         /// </summary>
-        [Display("PackageInstallError", "Error occurred while installing package")]
+        [Display("Package Install Error", "Error occurred while installing package")]
         PackageInstallError = 35,
     }
 }
