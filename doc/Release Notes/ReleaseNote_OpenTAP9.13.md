@@ -37,6 +37,9 @@ Usability Improvements:
 - Avoid using negative integer exit codes [#596](https://gitlab.com/OpenTAP/opentap/issues/596)
 - Add `IStringReadOnlyValueAnnotation` to `MultiResourceSelector` annotation [#599](https://gitlab.com/OpenTAP/opentap/issues/599)
 - Install / uninstall UserRequest dialogues are inconsistent and unnecessarily cluttered [#600](https://gitlab.com/OpenTAP/opentap/issues/600)
+- Add UserInput Request when files are in use instead of spamming and polling [#601](https://gitlab.com/OpenTAP/opentap/issues/601)
+- "Returning a partial answer" message is displayed [#603](https://gitlab.com/OpenTAP/opentap/issues/603)
+- Make ExitCode names and descriptions more generic [#605](https://gitlab.com/OpenTAP/opentap/issues/605)
 
 Bug Fixes: 
 -------
@@ -48,7 +51,7 @@ Bug Fixes:
 - `OpenTapPackageReference` only works the first time on Linux [#567](https://gitlab.com/OpenTAP/opentap/issues/567)
 - Uninstalling multiple packages with `force` will fail if a single file is locked [#591](https://gitlab.com/OpenTAP/opentap/issues/591)
 - `ITypeDataSearcher` types not used properly [#595](https://gitlab.com/OpenTAP/opentap/issues/595)
-- Builds fail when the environment variable `OPENTAP_DEBUG_INSTALL` is already set [#589](https://gitlab.com/OpenTAP/opentap/issues/598)
+- Builds fail when the environment variable `OPENTAP_DEBUG_INSTALL` is already set [#598](https://gitlab.com/OpenTAP/opentap/issues/598)
 
 Documentation:
 -------
