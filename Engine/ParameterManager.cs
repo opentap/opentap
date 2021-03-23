@@ -221,13 +221,6 @@ namespace OpenTap
 
                         if (step == originalScope)
                         {
-                            // Check if they can be merged first before renaming
-                            if (existing != null)
-                            {
-                                var errorTypeComparison = typeComparison(originalScope, originalExisting, existing);
-                                if (errorTypeComparison != null)
-                                    yield return ($"Cannot merge parameters '{SelectedName}' and '{defaultFullName}'.", errorTypeComparison);
-                            }
                             if (Equals(defaultFullName, selectedName) == false)
                                 yield return ($"Rename parameter to '{SelectedName}'.", null);
                         }
