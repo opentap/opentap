@@ -319,7 +319,7 @@ namespace OpenTap
             }
 
             Console.WriteLine();
-            log.Info("Timed out while waiting for user input. Returning a partial answer.");
+            log.Info("Timed out while waiting for user input.");
             throw new TimeoutException("Request user input timed out");
         }
 
