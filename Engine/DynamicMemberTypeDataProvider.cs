@@ -537,15 +537,18 @@ namespace OpenTap
             const string descriptionName = "OpenTap.Description";
             internal static DynamicMember DescriptionMember(ITypeData target)
             {
+                // TestPlan Description should not be in the Common group.
+                var displayAttribute = target.DescendsTo(typeof(TestPlan)) ?
+                    new DisplayAttribute("Description", "A short description of this item.", null, 20001.2) :
+                    new DisplayAttribute("Description", "A short description of this item.", "Common", 20001.2);
+
                 var descr = new DescriptionDynamicMember
                 {
                     Name = descriptionName,
                     DefaultValue = target.GetDisplayAttribute().Description,
                     Attributes = new Attribute[]
                     {
-                        new DisplayAttribute("Description", "A short description of this item.", "Common",
-                            
-                            20001.2),
+                        displayAttribute,
                         new LayoutAttribute(LayoutMode.Normal, 3, 3),
                         new UnsweepableAttribute(),
                         new UnparameterizableAttribute(),

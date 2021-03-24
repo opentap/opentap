@@ -186,6 +186,14 @@ namespace OpenTap
 
                     if (existing != null && (step != originalScope || !ReferenceEquals(originalExisting, existing)))
                     {
+                        var t1 = existing?.TypeDescriptor;
+                        var t2 = member?.TypeDescriptor;
+                        if (t1 != null && t2 != null && typeComparison(t1, t2) != null)
+                        {
+                            var error = $"Cannot merge properties of this kind.";
+                            yield return (error, error);
+                            yield break;
+                        }
                         var val = existing.GetValue(step);
                         var cloner = new ObjectCloner(val);
                         if (member.HasAttribute<UnmergableAttribute>() || existing.HasAttribute<UnmergableAttribute>())
@@ -221,13 +229,6 @@ namespace OpenTap
 
                         if (step == originalScope)
                         {
-                            // Check if they can be merged first before renaming
-                            if (existing != null)
-                            {
-                                var errorTypeComparison = typeComparison(originalScope, originalExisting, existing);
-                                if (errorTypeComparison != null)
-                                    yield return ($"Cannot merge parameters '{SelectedName}' and '{defaultFullName}'.", errorTypeComparison);
-                            }
                             if (Equals(defaultFullName, selectedName) == false)
                                 yield return ($"Rename parameter to '{SelectedName}'.", null);
                         }
@@ -271,54 +272,25 @@ namespace OpenTap
                 }
             }
 
-            private HashSet<ITypeData> decimalTypes = new HashSet<ITypeData>() { TypeData.FromType(typeof(decimal)), TypeData.FromType(typeof(double)), TypeData.FromType(typeof(float)) };
-            private HashSet<ITypeData> intTypes = new HashSet<ITypeData>() {
+            HashSet<ITypeData> numericTypes = new HashSet<ITypeData>() {
+                TypeData.FromType(typeof(decimal)), TypeData.FromType(typeof(double)), TypeData.FromType(typeof(float)), 
                 TypeData.FromType(typeof(long)), TypeData.FromType(typeof(int)), TypeData.FromType(typeof(short)), TypeData.FromType(typeof(sbyte)),
                 TypeData.FromType(typeof(ulong)), TypeData.FromType(typeof(uint)), TypeData.FromType(typeof(ushort)), TypeData.FromType(typeof(byte))
             };
-
-            string typeComparison(object firstMemberOwner, IMemberData firstMember, IMemberData secondMember)
+            string typeComparison(ITypeData firstType, ITypeData secondType)
             {
-                ITypeData firstType = firstMember.TypeDescriptor;
-                ITypeData secondType = secondMember.TypeDescriptor;
-                ObjectCloner cloner;
-                object value, output;
-                bool status;
-                string error = null;
-
                 if (Equals(firstType, secondType))
                     return null;
-                if ( (decimalTypes.Contains(firstType) && decimalTypes.Contains(secondType)) || (intTypes.Contains(firstType) && intTypes.Contains(secondType)) )
-                {
-                    value = firstMember.GetValue(firstMemberOwner);
-                    cloner = new ObjectCloner(value);
-                    status = cloner.TryClone(value, secondType, false, out output);
-                    if (!status)
-                        error = string.Format("Overflow occurs for merging parameters of type {0} and {1}", firstType.ToString(), secondType.ToString());
-                }
-                else
-                    return "Value types must match to support merging parameters";
-
-                return error;
+                if (numericTypes.Contains(firstType) && numericTypes.Contains(secondType))
+                    return null;
+                return "Value types must match to support merging parameters";
             }
 
             string validateName()
             {
                 if (string.IsNullOrWhiteSpace(SelectedName))
                     return "Name cannot be left empty.";
-                var selectedName = SelectedName.Trim();
-                if(Scope.Object is ITestStepParent step)
-                {
-                    var type = TypeData.GetTypeData(step);
-                    var currentMember = type.GetMember(selectedName);
-                    if (currentMember == null) return null;
-                    if (currentMember is IParameterMemberData)
-                        return typeComparison(step,  currentMember, member);
-                    
-                    return "Selected name is already used for a setting.";
-                }
-
-                return null;
+              return null;
             }
 
             IMemberData member;
