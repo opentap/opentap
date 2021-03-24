@@ -1266,12 +1266,12 @@ namespace OpenTap.UnitTests
         }
 
         [TestCase(nameof(DialogStep.Title), nameof(DialogStep.Message), true)]
-        [TestCase(nameof(DialogStep.Buttons), nameof(DialogStep.Message), true)]
+        [TestCase(nameof(DialogStep.Buttons), nameof(DialogStep.Message), false)]
         [TestCase(nameof(DialogStep.Message), nameof(DialogStep.Buttons), false)]
         [TestCase(nameof(DialogStep.Title), nameof(DialogStep.Buttons), false)]
         [TestCase(nameof(DialogStep.Title), nameof(DialogStep.UseTimeout), false)]
         [TestCase(nameof(DialogStep.UseTimeout), nameof(DialogStep.Buttons), false)]
-        [TestCase(nameof(DialogStep.Timeout), nameof(DialogStep.Message), true)]
+        [TestCase(nameof(DialogStep.Timeout), nameof(DialogStep.Message), false)]
         [TestCase(nameof(DialogStep.Message), nameof(DialogStep.Timeout), false)]
         public void TestMergeBadParameters(string paramA, string paramB, bool canMerge)
         {
