@@ -73,6 +73,8 @@ pages:
   image: node:9.11.1
   dependencies:
     - Doc-API
+  needs:
+    - Doc-API
   only:
     - /^release.*$/
   cache:
