@@ -95,7 +95,7 @@ namespace OpenTap
                     {
                         var forwardedMembers = TypeData.GetTypeData(scope)
                             .GetMembers().OfType<IParameterMemberData>();
-                        var f = forwardedMembers.FirstOrDefault(x => owners.All(y => x.ParameterizedMembers.Contains((y, member))));
+                        var f = forwardedMembers.FirstOrDefault(x => owners.All(y => x.ContainsMember((y, member))));
                         if(f != null)
                             return (parent, f);
                     }
@@ -475,7 +475,7 @@ namespace OpenTap
         
         static bool isParameterized(ITestStepParent item, IMemberData member) => item.GetParents().Any(parent =>
             TypeData.GetTypeData(parent).GetMembers().OfType<ParameterMemberData>()
-                .Any(x => x.ParameterizedMembers.Contains((item, Member: member))));
+                .Any(x => x.ContainsMember((item, Member: member))));
         public static bool CanParameter(IMemberData property, ITestStepParent[] steps)
         {
             if (steps.Length == 0) return false;

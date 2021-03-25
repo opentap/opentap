@@ -436,6 +436,13 @@ namespace OpenTap
             }
         }
 
+        public static bool ContainsMember(this IParameterMemberData p, (object Source, IMemberData Member) item)
+        {
+            if (p is ParameterMemberData p2) return p2.ContainsMember(item);
+            return p.ParameterizedMembers.Contains(item);
+        }
+            
+
         /// <summary> Extracts properties from a Type that are public and not static. Default GetProperties() also returns static properties. </summary>
         public static PropertyInfo[] GetPropertiesTap(this Type type)
         {

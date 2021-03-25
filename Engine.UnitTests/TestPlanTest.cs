@@ -653,6 +653,9 @@ namespace OpenTap.Engine.UnitTests
             plan.Steps.Add(step);
             plan.Save(filePath);
 
+            // this threw an exception at one point.
+            step.LoadTestPlan();
+
             TestTraceListener trace = new TestTraceListener();
             Log.AddListener(trace);
             var plan2 = TestPlan.Load(filePath);
