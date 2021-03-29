@@ -11,7 +11,6 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using OpenTap.Cli;
 
 namespace OpenTap.Package
@@ -189,7 +188,7 @@ namespace OpenTap.Package
             }
             catch (Exception ex)
             {
-                if (ex is ExitCodeException)
+                if (ex is ExitCodeException || ex is OperationCanceledException)
                     throw;
                 OnError(ex);
                 return false;
@@ -259,11 +258,8 @@ namespace OpenTap.Package
 
                     if (req.Response == AbortOrRetryResponse.Abort)
                     {
-                        var sep = "\n- ";
-                        var error = $"One or more plugin files are in use:{sep}";
-                        error += string.Join(sep, filesInUse.Select(f => f.FullName));
-                        OnError(new IOException(error));
-                        throw new ExitCodeException((int)ExitCodes.UserCancelled, error);
+                        OnError(new IOException(inUseString));
+                        throw new OperationCanceledException();
                     }
 
                     filesInUse = GetFilesInUse(tapDir, packagePaths);

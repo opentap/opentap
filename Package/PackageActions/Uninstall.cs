@@ -83,10 +83,20 @@ namespace OpenTap.Package
                     ? (int) ExitCodes.Success
                     : (int) PackageExitCodes.PackageInstallError;
             }
-            catch (ExitCodeException ex)
+            catch (Exception ex)
             {
-                log.Error(ex.Message);
-                return ex.ExitCode;
+                if (ex is ExitCodeException ec)
+                {
+                    log.Error(ec.Message);
+                    return ec.ExitCode;
+                }
+
+                if (ex is OperationCanceledException oc)
+                {
+                    return (int)ExitCodes.UserCancelled;
+                }
+
+                throw;
             }
         }
 
