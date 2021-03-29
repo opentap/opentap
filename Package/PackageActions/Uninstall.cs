@@ -77,7 +77,17 @@ namespace OpenTap.Package
                     return (int)PackageExitCodes.PackageDependencyError;
                 }
 
-            return installer.RunCommand("uninstall", Force, true) ? (int)ExitCodes.Success : (int)PackageExitCodes.PackageInstallError;
+            try
+            {
+                return installer.RunCommand("uninstall", Force, true)
+                    ? (int) ExitCodes.Success
+                    : (int) PackageExitCodes.PackageInstallError;
+            }
+            catch (ExitCodeException ex)
+            {
+                log.Error(ex.Message);
+                return ex.ExitCode;
+            }
         }
 
         private List<string> GetPaths(PackageDef package, InstalledPackageDefSource source,

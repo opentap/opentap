@@ -49,7 +49,17 @@ namespace OpenTap.Package
             if (anyUnrecognizedPlugins)
                 return (int)PackageExitCodes.InvalidPackageName;
 
-            return installer.RunCommand("test", false, false) ? (int)ExitCodes.Success : (int)ExitCodes.GeneralException;
+            try
+            {
+                return installer.RunCommand("test", false, false)
+                    ? (int) ExitCodes.Success
+                    : (int) ExitCodes.GeneralException;
+            }
+            catch (ExitCodeException ex)
+            {
+                log.Error(ex.Message);
+                return ex.ExitCode;
+            }
         }
     }
 }

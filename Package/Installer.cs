@@ -12,6 +12,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenTap.Cli;
 
 namespace OpenTap.Package
 {
@@ -132,7 +133,6 @@ namespace OpenTap.Package
 
             try
             {
-
                 if (modifiesPackageFiles)
                 {
                     try
@@ -156,7 +156,7 @@ namespace OpenTap.Package
                 foreach (string fileName in PackagePaths)
                 {
                     PackageDef pkg = PackageDef.FromXml(fileName);
-                    OnProgressUpdate((int)progressPercent, string.Format("Running command '{0}' on '{1}'", command, pkg.Name));
+                    OnProgressUpdate((int)progressPercent, $"Running command '{command}' on '{pkg.Name}'");
                     Stopwatch timer = Stopwatch.StartNew();
                     var res = pi.ExecuteAction(pkg, command, force, TapDir);
 
@@ -172,10 +172,10 @@ namespace OpenTap.Package
                     }
                     else if(res == ActionResult.NothingToDo)
                     {
-                        log.Info(string.Format("Tried to {0} {1}, but there was nothing to do.", command, pkg.Name));
+                        log.Info($"Tried to {command} {pkg.Name}, but there was nothing to do.");
                     }
                     else
-                        log.Info(timer, string.Format("{1} {0} version {2}.", pkg.Name, verb, pkg.Version));
+                        log.Info(timer, $"{verb} {pkg.Name} version {pkg.Version}.");
 
                     progressPercent += (double)80 / PackagePaths.Count();
                 }
@@ -189,6 +189,8 @@ namespace OpenTap.Package
             }
             catch (Exception ex)
             {
+                if (ex is ExitCodeException)
+                    throw;
                 OnError(ex);
                 return false;
             }
@@ -257,9 +259,11 @@ namespace OpenTap.Package
 
                     if (req.Response == AbortOrRetryResponse.Abort)
                     {
-                        var error = "One or more plugin files are in use. View log for more information.";
+                        var sep = "\n- ";
+                        var error = $"One or more plugin files are in use:{sep}";
+                        error += string.Join(sep, filesInUse.Select(f => f.FullName));
                         OnError(new IOException(error));
-                        throw new OperationCanceledException();
+                        throw new ExitCodeException((int)ExitCodes.UserCancelled, error);
                     }
 
                     filesInUse = GetFilesInUse(tapDir, packagePaths);
