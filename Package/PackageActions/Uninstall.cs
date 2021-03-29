@@ -34,11 +34,12 @@ namespace OpenTap.Package
 
             if (Force == false && Packages.Any(p => p == "OpenTAP") && Target == ExecutorClient.ExeDir)
             {
-                log.Error("Aborting request to uninstall the OpenTAP package that is currently executing as that would brick this installation. Use --force to uninstall anyway.");
-                return (int)ExitCodes.ArgumentError;
+                log.Error(
+                    "Aborting request to uninstall the OpenTAP package that is currently executing as that would brick this installation. Use --force to uninstall anyway.");
+                return (int) ExitCodes.ArgumentError;
             }
 
-            Installer installer = new Installer(Target, cancellationToken) { DoSleep = false };
+            Installer installer = new Installer(Target, cancellationToken) {DoSleep = false};
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;
 
@@ -63,7 +64,7 @@ namespace OpenTap.Package
             }
 
             if (anyUnrecognizedPlugins)
-                return (int)PackageExitCodes.InvalidPackageName;
+                return (int) PackageExitCodes.InvalidPackageName;
 
             if (!Force)
                 if (!CheckPackageAndDependencies(installedPackages, installer.PackagePaths, out var userCancelled))
@@ -71,33 +72,16 @@ namespace OpenTap.Package
                     if (userCancelled)
                     {
                         log.Info("Uninstall cancelled by user.");
-                        return (int)ExitCodes.UserCancelled;
+                        return (int) ExitCodes.UserCancelled;
                     }
 
-                    return (int)PackageExitCodes.PackageDependencyError;
+                    return (int) PackageExitCodes.PackageDependencyError;
                 }
 
-            try
-            {
-                return installer.RunCommand("uninstall", Force, true)
-                    ? (int) ExitCodes.Success
-                    : (int) PackageExitCodes.PackageInstallError;
-            }
-            catch (Exception ex)
-            {
-                if (ex is ExitCodeException ec)
-                {
-                    log.Error(ec.Message);
-                    return ec.ExitCode;
-                }
-
-                if (ex is OperationCanceledException oc)
-                {
-                    return (int)ExitCodes.UserCancelled;
-                }
-
-                throw;
-            }
+            var status = installer.RunCommand("uninstall", Force, true);
+            if (status == (int) ExitCodes.GeneralException)
+                return (int) PackageExitCodes.PackageUninstallError;
+            return status;
         }
 
         private List<string> GetPaths(PackageDef package, InstalledPackageDefSource source,

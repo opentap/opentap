@@ -126,7 +126,7 @@ namespace OpenTap.Package
             RunCommand("uninstall", false, true);
         }
         
-        internal bool RunCommand(string command, bool force, bool modifiesPackageFiles)
+        internal int RunCommand(string command, bool force, bool modifiesPackageFiles)
         {
             var verb = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(command.ToLower()) + "ed";
 
@@ -164,7 +164,7 @@ namespace OpenTap.Package
                         if (!force)
                         {
                             OnProgressUpdate(100, "Done");
-                            return false;
+                            return (int) ExitCodes.GeneralException;
                         }
                         else
                             log.Warning($"There was an error while trying to {command} '{pkg.Name}'.");
@@ -188,15 +188,21 @@ namespace OpenTap.Package
             }
             catch (Exception ex)
             {
-                if (ex is ExitCodeException || ex is OperationCanceledException)
-                    throw;
-                OnError(ex);
-                return false;
+                if (ex is ExitCodeException ec)
+                {
+                    log.Error(ec.Message);
+                    return ec.ExitCode;
+                }
+
+                if (ex is OperationCanceledException)
+                    return (int)ExitCodes.UserCancelled;
+
+                return (int) ExitCodes.GeneralException;
             }
 
             new Installation(TapDir).AnnouncePackageChange();
 
-            return true;
+            return (int)ExitCodes.Success;
         }
 
         // ignore tap.exe as it is not meant to be overwritten.
