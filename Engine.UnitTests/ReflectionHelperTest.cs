@@ -361,5 +361,42 @@ namespace OpenTap.Engine.UnitTests
             var str = Utils.BytesToReadable(number);
             Assert.AreEqual(expected, str);
         }
+
+        [Test]
+        public void TestSharedStringList()
+        {
+            string name = Guid.NewGuid().ToString();
+            var list = new SharedStringList(name);
+            list.Add("1");
+            list.Add("2");
+            list.Add("3");
+            Assert.IsTrue(list.SequenceEqual(new[] {"1", "2", "3"}));
+            
+            
+            var list2 = new SharedStringList(name);
+            Assert.IsTrue(list2.SequenceEqual(new[] {"1", "2", "3"}));
+            list.Add("4");
+            list2.Add("5");
+            Assert.IsTrue(list2.SequenceEqual(new[] {"1", "2", "3", "4", "5"}));
+            list.Clear();
+            Assert.IsTrue(!list2.Any());
+        }
+
+        [Test]
+        public void TestLebReadWrite()
+        {
+            var memStr = new MemoryStream();
+            for (long i = 1; i < 100000000; i = i * 20 / 3)
+            {
+                memStr.WriteI64Leb(i);
+            }
+
+            memStr.Position = 0;
+            for (long i = 1; i < 100000000; i = i * 20 / 3)
+            {
+                var i2 = memStr.ReadI64Leb();
+                Assert.AreEqual(i2, i);
+            }
+        }
     }
 }

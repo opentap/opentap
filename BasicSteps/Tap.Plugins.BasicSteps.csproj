@@ -21,6 +21,11 @@
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Shared\SharedStringList.cs">
+      <Link>Shared\SharedStringList.cs</Link>
+    </Compile>
+  </ItemGroup>
 
   <Import Project="..\Shared\Tap.Shared.projitems" Label="Shared" />
 </Project>

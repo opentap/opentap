@@ -26,6 +26,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)PathUtils.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ReflectionHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ShortTimeSpan.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)StreamExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)VersionChecker.cs" />
   </ItemGroup>
 </Project>
