@@ -352,6 +352,7 @@ namespace OpenTap
         
         static Func<object, object> buildGetter(PropertyInfo propertyInfo)
         {
+            // get property value. '(i) => (object) ((XOwner) i).X'
             var instance = Expression.Parameter(typeof(object), "i");
             UnaryExpression convert1;
             if(propertyInfo.DeclaringType.IsValueType)
@@ -366,8 +367,38 @@ namespace OpenTap
             return action;
         }
 
-        Func<object, object> propertyGetter = null; 
+        static Action<object, object> buildSetter(PropertyInfo propertyInfo)
+        {
+            var instance = Expression.Parameter(typeof(object), "i");
+            var value = Expression.Parameter(typeof(object), "value");
+            UnaryExpression convert1;
+            if(propertyInfo.DeclaringType.IsValueType)
+                convert1 = Expression.Convert(instance, propertyInfo.DeclaringType);
+            else
+                convert1 = Expression.TypeAs(instance, propertyInfo.DeclaringType);
+            var property = Expression.Property(convert1, propertyInfo);
 
+            UnaryExpression valueConvert; 
+            if (propertyInfo.PropertyType.IsValueType)
+            {
+                valueConvert = Expression.Convert(value, propertyInfo.PropertyType);
+            }
+            else
+            {
+                valueConvert = Expression.TypeAs(value, propertyInfo.PropertyType);
+            }
+
+            var setter = Expression.Assign(property, valueConvert);
+            var lambda = Expression.Lambda<Action<object, object>>(setter, instance, value);
+            var action = lambda.Compile();
+            return action;
+        }
+        
+
+        Func<object, object> propertyGetter = null;
+        Action<object, object> propertySetter = null;
+
+        
         /// <summary> Gets the value of this member.</summary> 
         /// <param name="owner"></param>
         /// <returns></returns>
@@ -398,7 +429,10 @@ namespace OpenTap
             switch (Member)
             {
                 case PropertyInfo Property:
-                    Property.SetValue(owner, value);
+                    if(this.Writable == false) throw new Exception("Cannot get the value of a read-only property.");
+                    if (propertySetter == null)
+                        propertySetter = buildSetter(Property);
+                    propertySetter(owner, value);
                     break;
                 case FieldInfo Field:
                     Field.SetValue(owner, value);
