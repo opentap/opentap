@@ -450,17 +450,18 @@ namespace OpenTap
         /// </summary>
         public ITypeData DeclaringType { get; }
 
+        bool? writeable;
+
         /// <summary> Gets if the member is writable. </summary>
-        public bool Writable
+        public bool Writable => writeable ?? (writeable = getWritable()) ?? false;
+
+        bool getWritable()
         {
-            get
+            switch (Member)
             {
-                switch (Member)
-                {
-                    case PropertyInfo Property: return Property.CanWrite && Property.GetSetMethod() != null;
-                    case FieldInfo Field: return Field.IsInitOnly == false;
-                    default: return false;
-                }
+                case PropertyInfo Property: return Property.CanWrite && Property.GetSetMethod() != null;
+                case FieldInfo Field: return Field.IsInitOnly == false;
+                default: return false;
             }
         }
 
