@@ -275,6 +275,7 @@ namespace OpenTap.Cli
             if (externalParameterFiles.Count > 0)
             {
                 var importers = CreateInstances<IExternalTestPlanParameterImport>();
+                System.IO.Directory.SetCurrentDirectory(EngineSettings.StartupDir);
                 foreach (var file in externalParameterFiles)
                 {
                     var ext = Path.GetExtension(file);
@@ -289,6 +290,7 @@ namespace OpenTap.Cli
                         throw new ArgumentException($"No installed plugins provide loading of external parameters from '{ext}' files. No external parameters loaded from '{file}'.");
                     }
                 }
+                System.IO.Directory.SetCurrentDirectory(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
             }
 
             if (External.Length > 0)
