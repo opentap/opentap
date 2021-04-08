@@ -1668,7 +1668,7 @@ namespace OpenTap.Engine.UnitTests
             var mem = embc_type.GetMember("B.A.X");
             
             Assert.AreEqual(c.B.A2.X, (double)mem.GetValue(c));
-            mem.SetValue(c, 20);
+            mem.SetValue(c, 20.0);
             Assert.AreEqual(c.B.A2.X, 20.0);
 
             var mem2 = embc_type.GetMember("B.X");

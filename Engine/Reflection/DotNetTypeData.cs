@@ -356,7 +356,7 @@ namespace OpenTap
             var instance = Expression.Parameter(typeof(object), "i");
             UnaryExpression convert1;
             if(propertyInfo.DeclaringType.IsValueType)
-                convert1 = Expression.Convert(instance, propertyInfo.DeclaringType);
+                convert1 = Expression.Unbox(instance, propertyInfo.DeclaringType);
             else
                 convert1 = Expression.TypeAs(instance, propertyInfo.DeclaringType);
             var property = Expression.Property(convert1, propertyInfo);
@@ -381,7 +381,7 @@ namespace OpenTap
             UnaryExpression valueConvert; 
             if (propertyInfo.PropertyType.IsValueType)
             {
-                valueConvert = Expression.Convert(value, propertyInfo.PropertyType);
+                valueConvert = Expression.Unbox(value, propertyInfo.PropertyType);
             }
             else
             {
@@ -426,10 +426,10 @@ namespace OpenTap
         /// <param name="value"></param>
         public void SetValue(object owner, object value)
         {
+            if(this.Writable == false) throw new Exception("Cannot get the value of a read-only property.");
             switch (Member)
             {
                 case PropertyInfo Property:
-                    if(this.Writable == false) throw new Exception("Cannot get the value of a read-only property.");
                     if (propertySetter == null)
                         propertySetter = buildSetter(Property);
                     propertySetter(owner, value);
