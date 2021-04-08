@@ -275,22 +275,29 @@ namespace OpenTap.Cli
             if (externalParameterFiles.Count > 0)
             {
                 var importers = CreateInstances<IExternalTestPlanParameterImport>();
-                System.IO.Directory.SetCurrentDirectory(EngineSettings.StartupDir);
-                foreach (var file in externalParameterFiles)
+                var CurDir = Directory.GetCurrentDirectory();
+                try
                 {
-                    var ext = Path.GetExtension(file);
-                    log.Info($"Loading external parameters from '{file}'.");
-                    var importer = importers.FirstOrDefault(i => i.Extension == ext);
-                    if (importer != null)
+                    Directory.SetCurrentDirectory(EngineSettings.StartupDir);
+                    foreach (var file in externalParameterFiles)
                     {
-                        importer.ImportExternalParameters(Plan, file);
-                    }
-                    else
-                    {
-                        throw new ArgumentException($"No installed plugins provide loading of external parameters from '{ext}' files. No external parameters loaded from '{file}'.");
+                        var ext = Path.GetExtension(file);
+                        log.Info($"Loading external parameters from '{file}'.");
+                        var importer = importers.FirstOrDefault(i => i.Extension == ext);
+                        if (importer != null)
+                        {
+                            importer.ImportExternalParameters(Plan, file);
+                        }
+                        else
+                        {
+                            throw new ArgumentException($"No installed plugins provide loading of external parameters from '{ext}' files. No external parameters loaded from '{file}'.");
+                        }
                     }
                 }
-                System.IO.Directory.SetCurrentDirectory(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+                finally
+                {
+                    Directory.SetCurrentDirectory(CurDir);
+                }
             }
 
             if (External.Length > 0)
