@@ -32,6 +32,11 @@ namespace OpenTap.Package
             if (Packages == null)
                 throw new Exception("No packages specified.");
 
+            // Disable input requests for this CLI action
+            // All prompts will be answered immediately with the default response
+            if (NonInteractive)
+                UserInput.SetInterface(null);
+
             if (Force == false && Packages.Any(p => p == "OpenTAP") && Target == ExecutorClient.ExeDir)
             {
                 log.Error("Aborting request to uninstall the OpenTAP package that is currently executing as that would brick this installation. Use --force to uninstall anyway.");

@@ -12,6 +12,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenTap.Cli;
 
 namespace OpenTap.Package
 {
@@ -49,16 +50,19 @@ namespace OpenTap.Package
             }
         }
 
-        internal void InstallThread()
+        internal Enum InstallThread()
         {
-            if (cancellationToken.IsCancellationRequested) return;
+            if (cancellationToken.IsCancellationRequested) return ExitCodes.UserCancelled;
 
             try
             {
                 try
                 {
-
                     WaitForPackageFilesFree(TapDir, PackagePaths);
+                }
+                catch (OperationCanceledException)
+                {
+                    return ExitCodes.UserCancelled;
                 }
                 catch
                 {
@@ -94,7 +98,7 @@ namespace OpenTap.Package
                         {
                             if (PackagePaths.Last() != fileName)
                                 log.Warning("Aborting installation of remaining packages (use --force to override this behavior).");
-                            throw;
+                            return PackageExitCodes.PackageInstallError;
                         }
                         else
                         {
@@ -114,11 +118,13 @@ namespace OpenTap.Package
             catch (Exception ex)
             {
                 OnError(ex);
-                return;
+                return PackageExitCodes.PackageInstallError;
             }
 
             Installation installation = new Installation(TapDir);
             installation.AnnouncePackageChange();
+
+            return ExitCodes.Success;
         }
 
         internal void UninstallThread()
