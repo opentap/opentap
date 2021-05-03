@@ -1968,6 +1968,24 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(descriptionString, (string)TypeData.GetTypeData(step).GetMember(descriptionName).GetValue(step3));
             
         }
+
+        public class MemberDataListTest
+        {
+            public IList<string> Value { get; set; } = new List<string>();
+        }
+        
+        [Test]
+        public void MemberDataListSetterTest()
+        {
+            var t = TypeData.FromType(typeof(MemberDataListTest));
+            var members = t.GetMembers();
+            var member = members.FirstOrDefault();
+
+            var list = new MemberDataListTest();
+            Assert.NotNull(list.Value);
+            member.SetValue(list, new string[0]);
+            Assert.NotNull(list.Value);
+        }
     }
 }
 
