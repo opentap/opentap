@@ -2,32 +2,30 @@ using System;
 
 namespace OpenTap.Package
 {
-    internal struct Either<TLeft, TRight>
+    internal class Either<TLeft, TRight>
     {
-        private readonly bool isLeft;
+        public bool isLeft { get; }
         public Either(TLeft value)
         {
             isLeft = true;
-            right = default;
-            left = value;
+            lValue = value;
         }
 
         public Either(TRight value)
         {
             isLeft = false;
-            left = default;
-            right = value;
+            rValue = value;
         }
 
-        readonly TLeft left;
-        readonly TRight right;
+        readonly TLeft lValue;
+        readonly TRight rValue;
 
         public TLeft Left
         {
             get
             {
                 if (isLeft)
-                    return left;
+                    return lValue;
                 throw new Exception($"Tried to get 'left', but type is 'right'.");
             }
         }
@@ -38,11 +36,11 @@ namespace OpenTap.Package
             {
                 if (isLeft)
                     throw new Exception($"Tried to get 'right', but type is 'left'.");
-                return right;
+                return rValue;
             }
         }
 
-        public TResult Match<TResult>(Func<TLeft, TResult> WhenLeft, Func<TRight, TResult> WhenRight) =>
-            isLeft ? WhenLeft(Left) : WhenRight(Right);
+        public TResult Match<TResult>(Func<TLeft, TResult> left, Func<TRight, TResult> right) =>
+            isLeft ? left(Left) : right(Right);
     }
 }

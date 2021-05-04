@@ -222,7 +222,9 @@ namespace OpenTap.Package
             if (installError)
                 return (int) PackageExitCodes.PackageInstallError;
 
-            return status.Match(v => (int) v, v => (int) v);
+            return status.Match(
+                left: exitCode => (int) exitCode,
+                right: packageExitCode => (int) packageExitCode);
         }
 
         private void UninstallExisting(Installation installation, List<string> packagePaths, CancellationToken cancellationToken)
