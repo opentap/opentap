@@ -11,8 +11,8 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using OpenTap.Cli;
+using ExitCode = OpenTap.Package.Either<OpenTap.Cli.ExitCodes, OpenTap.Package.PackageExitCodes>;
 
 namespace OpenTap.Package
 {
@@ -50,9 +50,10 @@ namespace OpenTap.Package
             }
         }
 
-        internal Enum InstallThread()
+        internal ExitCode InstallThread()
         {
-            if (cancellationToken.IsCancellationRequested) return ExitCodes.UserCancelled;
+            if (cancellationToken.IsCancellationRequested)
+                return new ExitCode(ExitCodes.UserCancelled);
 
             try
             {
@@ -62,7 +63,7 @@ namespace OpenTap.Package
                 }
                 catch (OperationCanceledException)
                 {
-                    return ExitCodes.UserCancelled;
+                    return new ExitCode(ExitCodes.UserCancelled);
                 }
                 catch
                 {
@@ -98,7 +99,7 @@ namespace OpenTap.Package
                         {
                             if (PackagePaths.Last() != fileName)
                                 log.Warning("Aborting installation of remaining packages (use --force to override this behavior).");
-                            return PackageExitCodes.PackageInstallError;
+                            return new ExitCode(PackageExitCodes.PackageInstallError);
                         }
                         else
                         {
@@ -118,13 +119,14 @@ namespace OpenTap.Package
             catch (Exception ex)
             {
                 OnError(ex);
-                return PackageExitCodes.PackageInstallError;
+                return new ExitCode(PackageExitCodes.PackageInstallError);
             }
 
             Installation installation = new Installation(TapDir);
             installation.AnnouncePackageChange();
 
-            return ExitCodes.Success;
+            return new ExitCode(ExitCodes.Success);
+
         }
 
         internal void UninstallThread()
@@ -367,7 +369,7 @@ namespace OpenTap.Package
                 handler(progressPercent, message);
         }
     }
-    
+
     [Obfuscation(Exclude = true)]
     enum AbortOrRetryResponse
     {

@@ -218,11 +218,11 @@ namespace OpenTap.Package
 
             // Install the package
             
-            Enum status = installer.InstallThread();
+            var status = installer.InstallThread();
             if (installError)
                 return (int) PackageExitCodes.PackageInstallError;
 
-            return Convert.ToInt32(status);
+            return status.Match(v => (int) v, v => (int) v);
         }
 
         private void UninstallExisting(Installation installation, List<string> packagePaths, CancellationToken cancellationToken)
