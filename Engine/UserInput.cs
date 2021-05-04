@@ -120,6 +120,17 @@ namespace OpenTap
     /// <summary> Specifies that a property finalizes input.</summary>
     public class SubmitAttribute : Attribute { }
 
+    /// <summary>
+    /// UserInputInterface implementation which returns immediately. Intended for non-interactive use.
+    /// </summary>
+    public class NonInteractiveUserInputInterface : IUserInputInterface
+    {
+        public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
+        {
+            
+        }
+    }
+    
     /// <summary> Standard implementation of UserInputInterface for Command Line interfaces</summary>
     public class CliUserInputInterface : IUserInputInterface
     {

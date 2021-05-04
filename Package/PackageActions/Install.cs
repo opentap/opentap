@@ -92,10 +92,8 @@ namespace OpenTap.Package
 
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
-            // Disable input requests for this CLI action
-            // All prompts will be answered immediately with the default response
             if (NonInteractive)
-                UserInput.SetInterface(null);
+                UserInput.SetInterface(new NonInteractiveUserInputInterface());
             
             if (Target == null)
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
@@ -220,7 +218,7 @@ namespace OpenTap.Package
 
             // Install the package
             
-            var status = installer.InstallThread();
+            Enum status = installer.InstallThread();
             if (installError)
                 return (int) PackageExitCodes.PackageInstallError;
 

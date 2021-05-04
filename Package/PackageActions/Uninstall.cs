@@ -31,11 +31,9 @@ namespace OpenTap.Package
         {
             if (Packages == null)
                 throw new Exception("No packages specified.");
-
-            // Disable input requests for this CLI action
-            // All prompts will be answered immediately with the default response
+            
             if (NonInteractive)
-                UserInput.SetInterface(null);
+                UserInput.SetInterface(new NonInteractiveUserInputInterface());
 
             if (Force == false && Packages.Any(p => p == "OpenTAP") && Target == ExecutorClient.ExeDir)
             {
