@@ -2,9 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.Remoting.Messaging;
 using NUnit.Framework;
-using OpenTap.Engine.UnitTests;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
@@ -48,7 +46,19 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
-        public void TestSimpleResults3()
+        public void TestResultMetadataSimple()
+        {
+            var metadata = new ResultParameter("", "MetaData1", "Value1", new MetaDataAttribute());
+            var plan = new TestPlan();
+            var pr = new TestPlanRun(plan, new List<IResultListener>(), DateTime.Now, 0,"",false);
+            pr.Parameters.Add(metadata);
+            var mt = pr.Parameters.Find(metadata.Name);
+            Assert.IsTrue(mt.IsMetaData);
+        }
+        
+        
+        [Test]
+        public void TestResultMetadata()
         {
             var step = new SimpleResultTest();
             var seq = new SequenceStep();
