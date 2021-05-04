@@ -125,7 +125,7 @@ namespace OpenTap
     /// </summary>
     public class NonInteractiveUserInputInterface : IUserInputInterface
     {
-        public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
+        void IUserInputInterface.RequestUserInput(object dataObject, TimeSpan timeout, bool modal)
         {
             
         }
