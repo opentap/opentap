@@ -356,6 +356,61 @@ namespace OpenTap.Package.UnitTests
             Assert.IsTrue(issues == DependencyChecker.Issue.BrokenPackages, "Dependency on plugin");
             log.Info("Dependency on plugin - SUCCESS");
         }
+        
+        [Test]
+        public void TestDependencyPatchVersion()
+        {
+            // Verify that the resolver bumps from installed "9.12.0" because "^9.12.1" is required
+            var repo = "packages.opentap.io";
+
+            var installedOpenTap = new PackageDef() {Version = SemanticVersion.Parse("9.12.0"), Name = "OpenTAP"};
+
+            var toInstall = new PackageDef()
+            {
+                Name = "MockPackage",
+                Dependencies = new List<PackageDependency>()
+                    {new PackageDependency("OpenTAP", VersionSpecifier.Parse("^9.12.1"), "^9.12.1")}
+            };
+
+            var installedPackages = new Dictionary<string, PackageDef> {{"OpenTAP", installedOpenTap}};
+            var packages = new[] {toInstall};
+            var repositories = new List<IPackageRepository>() {new HttpPackageRepository(repo)};
+
+            var resolver = new DependencyResolver(installedPackages, packages, repositories);
+
+            Assert.AreEqual(1, resolver.MissingDependencies.Count);
+            var missing = resolver.MissingDependencies.First();
+            
+            Assert.AreEqual("OpenTAP", missing.Name);
+            Assert.LessOrEqual(9, missing.Version.Major);
+            Assert.LessOrEqual(12, missing.Version.Minor);
+            if (missing.Version.Minor == 12)
+                Assert.LessOrEqual(1, missing.Version.Patch);
+        }
+
+        [Test]
+        public void TestDependencyNoUpgrade()
+        {
+            // Verify that the resolver does not try to upgrade installed "9.12.0"
+            var repo = "packages.opentap.io";
+
+            var installedOpenTap = new PackageDef() {Version = SemanticVersion.Parse("9.12.0"), Name = "OpenTAP"};
+
+            var toInstall = new PackageDef()
+            {
+                Name = "MockPackage",
+                Dependencies = new List<PackageDependency>()
+                    {new PackageDependency("OpenTAP", VersionSpecifier.Parse("^9.12"), "^9.12")}
+            };
+
+            var installedPackages = new Dictionary<string, PackageDef> {{"OpenTAP", installedOpenTap}};
+            var packages = new[] {toInstall};
+            var repositories = new List<IPackageRepository>() {new HttpPackageRepository(repo)};
+
+            var resolver = new DependencyResolver(installedPackages, packages, repositories);
+
+            Assert.AreEqual(0, resolver.MissingDependencies.Count);
+        }
     }
 
     [TestFixture]
@@ -381,7 +436,8 @@ namespace OpenTap.Package.UnitTests
             
             // Development, don't check build version
             var packages = get(tap);
-            Assert.IsTrue(packages.Any(p => p.Name == "MyPlugin1"));
+            // MyPlugin1 requires OpenTAP ^9.0.605 which is not compatible with 9.0.0 
+            Assert.IsFalse(packages.Any(p => p.Name == "MyPlugin1")); 
             Assert.IsTrue(packages.Any(p => p.Name == "MyPlugin2"));
             Assert.IsTrue(packages.Any(p => p.Name == "MyPlugin3"));
 
@@ -409,7 +465,8 @@ namespace OpenTap.Package.UnitTests
             // Release, 1 build behind
             tap.Version = SemanticVersion.Parse("9.0.604");
             packages = get(tap);
-            Assert.IsTrue(packages.Any(p => p.Name == "MyPlugin1"));
+            // MyPlugin1 requires patch 605
+            Assert.IsFalse(packages.Any(p => p.Name == "MyPlugin1"));
             Assert.IsTrue(packages.Any(p => p.Name == "MyPlugin2"));
             Assert.IsTrue(packages.Any(p => p.Name == "MyPlugin3"), "GetPackages - Release, 1 build behind");
 
@@ -423,7 +480,9 @@ namespace OpenTap.Package.UnitTests
         
         List<PackageDef> get(IPackageIdentifier compatibleWith)
         {
-            var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager).ToList(), new PackageSpecifier(os: "Windows"),compatibleWith);
+            var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(
+                PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager).Where(p => p is FilePackageRepository).ToList(),
+                new PackageSpecifier(os: "Windows"), compatibleWith);
 
             return packages;
         }

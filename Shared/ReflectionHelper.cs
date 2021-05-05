@@ -436,6 +436,13 @@ namespace OpenTap
             }
         }
 
+        public static bool ContainsMember(this IParameterMemberData p, (object Source, IMemberData Member) item)
+        {
+            if (p is ParameterMemberData p2) return p2.ContainsMember(item);
+            return p.ParameterizedMembers.Contains(item);
+        }
+            
+
         /// <summary> Extracts properties from a Type that are public and not static. Default GetProperties() also returns static properties. </summary>
         public static PropertyInfo[] GetPropertiesTap(this Type type)
         {
@@ -1523,11 +1530,14 @@ namespace OpenTap
             return mem?.GetDisplayAttribute().Description ?? EnumToReadableString(value);
         }
 
-        public static string SerializeToString(this TestPlan plan)
+        public static string SerializeToString(this TestPlan plan, bool throwOnErrors = false)
         {
             using (var mem = new MemoryStream())
             {
-                plan.Save(mem);
+                var serializer = new TapSerializer();
+                plan.Save(mem, serializer);
+                if (throwOnErrors && serializer.Errors.Any())
+                    throw new Exception(string.Join("\n", serializer.Errors));
                 return Encoding.UTF8.GetString(mem.ToArray());
             }
         }
@@ -1564,10 +1574,30 @@ namespace OpenTap
                 return value;
             return dictionary[key] = createValue(key);
         }
+
+        public static string BytesToReadable(long bytes)
+        {
+            if (bytes < 1000) return $"{bytes} B";
+            if (bytes < 1000000) return $"{bytes/1000.0:0.00} kB";
+            if (bytes < 1000000000 )return $"{bytes/1000000.0:0.00} MB";
+            return $"{bytes/1000000000.0:0.00} GB";
+        }
     }
 
     static internal class Sequence
     {
+        /// <summary> Turns item into a one element array, unless it is null.</summary>
+        public static T[] AsSingle<T>(this T item) => item == null ? Array.Empty<T>() : new[] {item};
+        
+        public static int Count(this IEnumerable e)
+        {
+            if (e is IList l) return l.Count;
+            int c = 0;
+            foreach (var _ in e)
+                c++;
+            return c;
+        }
+        
         /// <summary>
         /// Like distinct but keeps the last item. Returns List because we need to iterate until last element anyway.
         /// </summary>
@@ -1775,6 +1805,13 @@ namespace OpenTap
                     yield return (ia.Current, ib.Current);
                 }
             }
+        }
+
+        public static void Append<T>(ref T[]  array, params T[] appendage)
+        {
+            int preLen = array.Length;
+            Array.Resize(ref array, array.Length + appendage.Length);
+            Array.Copy(appendage, 0, array, preLen, appendage.Length);
         }
     }
 
@@ -2090,270 +2127,6 @@ namespace OpenTap
         long readOffset = 4;
     }
     
-    internal static class DataSerialization
-    {
-        internal class Data : IData
-        {
-            public long ID { get; set; }
-            public string Name { get; set; }
-            public string ObjectType { get; set; }
-            public IParameters Parameters { get; set; }
-            public IData Parent { get; set; }
-            public long GetID() { return ID; }
-
-            public override string ToString() => $"{Name} ({Parameters.Count})";
-        }
-
-        private class Params : List<IParameter>, IParameters
-        {
-            public Params(IEnumerable<IParameter> collection) :  base(collection) { }
-
-            public IConvertible this[string Name] { get { return null; } }
-        }
-
-        private class ResultTable2 : ResultTable, IAttributedObject
-        {
-            private string objType;
-
-            string IAttributedObject.ObjectType { get { return objType; } }
-
-            internal ResultTable2(string name, string objectType, ResultColumn[] resultColumns, IData data) : base(name, resultColumns)
-            {
-                this.objType = objectType;
-                this.Parent = data;
-            }
-        }
-
-        private class ResultColumn2 : ResultColumn, IAttributedObject
-        {
-            private string objType;
-
-            string IAttributedObject.ObjectType { get { return objType; } }
-
-            public ResultColumn2(string name, string objectType, Array data) : base(name, data)
-            {
-                this.objType = objectType;
-            }
-        }
-
-        private class ResultParameter2 : ResultParameter, IAttributedObject
-        {
-            private string objType;
-
-            string IAttributedObject.ObjectType { get { return objType; } }
-
-            public ResultParameter2(string group, string name, string objtype, IConvertible value, MetaDataAttribute metadata = null, int parentLevel = 0) : base(group, name, value, metadata, parentLevel)
-            {
-                this.objType = objtype;
-            }
-        }
-
-        internal static void SerializeIData(List<IData> elements, BinaryWriter writer)
-        {
-            writer.Write(elements.Count);
-
-            foreach (var e in elements)
-            {
-                writer.Write(e is IResultTable);
-                writer.Write(elements.IndexOf(e.Parent));
-                writer.Write(e.GetID());
-                writer.Write(e.Name);
-                writer.Write(e.ObjectType);
-
-                writer.Write(e.Parameters.Count);
-
-                foreach (var param in e.Parameters)
-                {
-                    writer.Write(param.Name);
-                    writer.Write(param.Group);
-                    writer.Write(param.ObjectType);
-                    writer.Write((Int32)param.Value.GetTypeCode());
-                    writer.Write(param.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
-                }
-
-                if (e is IResultTable)
-                {
-                    var tbl = e as IResultTable;
-
-                    writer.Write(tbl.Columns.Length);
-                    foreach (var col in tbl.Columns)
-                    {
-                        var columnType = Type.GetTypeCode(col.Data.GetType().GetElementType());
-
-                        // Note regarding TypeCode.Object:
-                        // when columnType is TypeCode.Object (which happens when the original result was null)
-                        // we need to treat is like a string as 'Object' cannot be written to the shared file.
-
-                        Int32 len = 0;
-                        byte[] bytes = null;
-
-                        switch (columnType)
-                        {
-                            case TypeCode.Object:
-                            case TypeCode.String:
-                            case TypeCode.Decimal:
-                            case TypeCode.DateTime:
-                                break;
-                            default:
-                                len = Buffer.ByteLength(col.Data);
-                                bytes = new byte[len];
-
-                                Buffer.BlockCopy(col.Data, 0, bytes, 0, len);
-                                break;
-                        }
-
-                        writer.Write(col.Name);
-                        writer.Write(col.ObjectType);
-
-                        writer.Write(col.Data.Length);
-                        writer.Write(len);
-                        writer.Write((Int32)(columnType == TypeCode.Object ? TypeCode.String : columnType));
-
-                        if (bytes != null)
-                            writer.Write(bytes, 0, len);
-                        else
-                        {
-                            switch (columnType)
-                            {
-                                case TypeCode.Object:
-                                    foreach (var data in col.Data)
-                                    {
-                                        if (data == null)
-                                            writer.Write(false);
-                                        else
-                                        {
-                                            writer.Write(true);
-                                            writer.Write(data.ToString());
-                                        }
-                                    }
-                                    break;
-                                case TypeCode.String:
-                                    foreach (var data in col.Data)
-                                    {
-                                        if (data == null)
-                                            writer.Write(false);
-                                        else
-                                        {
-                                            writer.Write(true);
-                                            writer.Write((string)data);
-                                        }
-                                    }
-                                    break;
-                                case TypeCode.Decimal:
-                                    foreach (var data in col.Data) writer.Write((decimal)data);
-                                    break;
-                                case TypeCode.DateTime:
-                                    foreach (var data in col.Data) writer.Write(((DateTime)data).ToBinary());
-                                    break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        internal static List<IData> Deserialize(BinaryReader reader)
-        {
-            var count = reader.ReadInt32();
-            List<IData> items = new List<IData>();
-            List<Int32> parents = new List<Int32>();
-
-            for (int i = 0; i < count; i++)
-                items.Add(new Data());
-
-            for (int i = 0; i < count; i++)
-            {
-                var isTable = reader.ReadBoolean();
-                parents.Add(reader.ReadInt32());
-
-                var id = reader.ReadInt64();
-                var name = reader.ReadString();
-                var objType = reader.ReadString();
-
-                var parCount = reader.ReadInt32();
-                var param = new List<IParameter>();
-
-                for(int i2=0; i2<parCount; i2++)
-                {
-                    var pname = reader.ReadString();
-                    var group = reader.ReadString();
-                    var pobjType = reader.ReadString();
-                    var tc = reader.ReadInt32();
-                    var value = reader.ReadString();
-
-                    param.Add(new ResultParameter2(group, pname, pobjType, (IConvertible)Convert.ChangeType(value, (TypeCode)tc, System.Globalization.CultureInfo.InvariantCulture)));
-                }
-
-                if (isTable)
-                {
-                    var cnt = reader.ReadInt32();
-                    var cols = new List<ResultColumn>();
-
-                    for (int i2 = 0; i2 < cnt; i2++)
-                    {
-                        var rname = reader.ReadString();
-                        var robjtype = reader.ReadString();
-                        var num = reader.ReadInt32();
-                        var bytelen = reader.ReadInt32();
-                        var tc = (TypeCode)reader.ReadInt32();
-
-                        var array = Array.CreateInstance(Utils.TypeOf(tc), num);
-
-                        switch (tc)
-                        {
-                            case TypeCode.String:
-                                for (int i3 = 0; i3 < num; i3++)
-                                {
-                                    var hasString = reader.ReadBoolean();
-                                    if (hasString)
-                                        ((string[])array)[i3] = reader.ReadString();
-                                    else
-                                        ((string[])array)[i3] = null;
-                                }
-                                break;
-                            case TypeCode.Decimal:
-                                for (int i3 = 0; i3 < num; i3++)
-                                    ((Decimal[])array)[i3] = reader.ReadDecimal();
-                                break;
-                            case TypeCode.DateTime:
-                                for (int i3 = 0; i3 < num; i3++)
-                                    ((DateTime[])array)[i3] = DateTime.FromBinary(reader.ReadInt64());
-                                break;
-                            default:
-                                var data = reader.ReadBytes(bytelen);
-                                Buffer.BlockCopy(data, 0, array, 0, bytelen);
-                                break;
-                        }
-
-                        cols.Add(new ResultColumn2(rname, robjtype, array));
-                    }
-
-                    items[i] = new ResultTable2(name, objType, cols.ToArray(), parents[i] != -1 ? items[parents[i]] : null);
-                }
-                else
-                {
-                    var data = items[i] as Data;
-                    data.ID = id;
-                    data.Name = name;
-                    data.ObjectType = objType;
-                    data.Parameters = new Params(param);
-                }
-            }
-
-            for (int i = 0; i < count; i++)
-            {
-                var item = items[i];
-
-                if (parents[i] < 0) continue;
-
-                if (item is Data)
-                    ((Data)item).Parent = items[parents[i]];
-            }
-
-            return items;
-        }
-    }
-
     /// <summary> Invoke an action after a timeout, unless canceled. </summary>
     class TimeoutOperation : IDisposable
     {

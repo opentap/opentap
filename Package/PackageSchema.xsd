@@ -99,6 +99,7 @@
 
         <xs:element name="Owner" type="xs:string" minOccurs="0"/>
         <xs:element name="SourceUrl" type="xs:string" minOccurs="0"/>
+        <xs:element name="SourceLicense" type="xs:string" minOccurs="0"/>
         
       </xs:all>
       <xs:attribute name="Name" type="xs:string" use ="required"/>

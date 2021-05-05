@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -113,12 +114,15 @@ namespace OpenTap
         }
         readonly object upgradeVerdictLock = new object();
         
-        
-        /// <summary>
-        /// Calculated abort condition...
-        /// </summary>
+        /// <summary> Calculated abort condition. </summary>
         internal BreakCondition BreakCondition { get; set; }
 
+        /// <summary> This is invoked when a child run is started. </summary>
+        /// <param name="stepRun"></param>
+        internal virtual void ChildStarted(TestStepRun stepRun)
+        {
+            
+        }
     }
 
     /// <summary>
@@ -129,6 +133,7 @@ namespace OpenTap
     [Serializable]
     [DataContract(IsReference = true)]
     [KnownType(typeof(TestPlanRun))]
+    [DebuggerDisplay("TestStepRun {TestStepName}")]
     public class TestStepRun : TestRun
     {
         /// <summary>
@@ -179,7 +184,6 @@ namespace OpenTap
 
         readonly ManualResetEventSlim completedEvent = new ManualResetEventSlim(false);
         
-        bool completed = false;
         /// <summary>  Waits for the test step run to be entirely done. This includes any deferred processing.</summary>
         public void WaitForCompletion()
         {
@@ -189,7 +193,6 @@ namespace OpenTap
         /// <summary>  Waits for the test step run to be entirely done. This includes any deferred processing. It does not break when the test plan is aborted</summary>
         public void WaitForCompletion(CancellationToken cancellationToken)
         {
-            if (completed) return;
             if (completedEvent.IsSet) return;
 
             var currentThread = TapThread.Current;
@@ -202,7 +205,7 @@ namespace OpenTap
             var waits = new[] { completedEvent.WaitHandle, cancellationToken.WaitHandle };
             while (WaitHandle.WaitAny(waits, 100) == WaitHandle.WaitTimeout)
             {
-                if (completed)
+                if (completedEvent.Wait(0))
                     break;
             }
         }
@@ -211,7 +214,7 @@ namespace OpenTap
         public TapThread StepThread { get; private set; }
 
         /// <summary> Set to true if the step execution has been deferred. </summary>
-        internal bool WasDeferred { get; set; }
+        internal bool WasDeferred => (this.ResultSource as ResultSource)?.WasDeferred ?? false;
 
         #region Internal Members used by the TestPlan
 
@@ -234,7 +237,6 @@ namespace OpenTap
             
             Duration = runDuration; // Requires update after TestStepRunStart and before TestStepRunCompleted
             UpgradeVerdict(step.Verdict);
-            completed = true;
             completedEvent.Set();
         }
 
@@ -307,10 +309,125 @@ namespace OpenTap
         }
         
         internal bool OutOfRetries { get; set; }
+        internal bool Completed => deferDone.IsSet;
 
         internal void ThrowDueToBreakConditions()
         {
             throw new TestStepBreakException(TestStepName, Verdict);
+        }
+
+        internal void WaitForOutput(OutputAvailability mode)
+        {
+            var currentThread = TapThread.Current;
+            switch (mode)
+            {
+                case OutputAvailability.BeforeRun: 
+                    return;
+                case OutputAvailability.AfterDefer:
+                    if (StepThread == currentThread && runDone.Wait(0) == false)
+                        throw new Exception("Deadlock detected");
+                    deferDone.Wait(TapThread.Current.AbortToken);
+                    break; 
+                case OutputAvailability.AfterRun:
+                    if (StepThread == currentThread && runDone.Wait(0) == false)
+                        throw new Exception("Deadlock detected");
+                    runDone.Wait(TapThread.Current.AbortToken);
+                    break;
+            }
+        }
+
+        ManualResetEventSlim runDone = new ManualResetEventSlim(false, 0);
+        ManualResetEventSlim deferDone = new ManualResetEventSlim(false, 0);
+        
+        internal void AfterRun(ITestStep step)
+        {
+            var resultMembers = TypeData.GetTypeData(step)
+                .GetMembers()
+                .Where(member => member.HasAttribute<ResultAttribute>())
+                .ToArray();
+
+            void publishResults()
+            {
+                foreach (var r in resultMembers)
+                {
+                    var value = r.GetValue(step);
+                    ((ResultSource)ResultSource).Publish(r.GetDisplayAttribute().Name, value);
+                }    
+            }
+
+            if (ResultSource is ResultSource)
+            {
+                if (WasDeferred)
+                    ResultSource.Defer(publishResults);
+                else
+                    publishResults();
+            }
+
+            runDone.Set();
+            if (WasDeferred && ResultSource != null)
+            {
+                ResultSource.Defer(() =>
+                {
+                    deferDone.Set();
+                    stepRuns.Clear();
+                });
+            }
+            else
+            {
+                deferDone.Set();
+                stepRuns.Clear();
+            }
+        }
+
+        internal IResultSource ResultSource;
+        /// <summary> Sets the result source for this run. </summary>
+        public void SetResultSource(IResultSource resultSource) => this.ResultSource = resultSource;
+
+        /// <summary> Will throw an exception when it times out. </summary>
+        /// <exception cref="TimeoutException"></exception>
+        internal TestStepRun WaitForChildStepStart(Guid childStep, int timeout)
+        {
+            if (stepRuns.TryGetValue(childStep, out var run))
+                return run;
+            
+            var sem = new ManualResetEventSlim(false, 0 );
+
+            TestStepRun stepRun = null;
+            void onChildStarted(TestStepRun id)
+            {
+                if (childStep == id.TestStepId)
+                {
+                    sem.Set();
+                    stepRun = id;
+                }
+            }
+            
+
+            childStarted += onChildStarted;
+            try
+            {
+                if (stepRuns.TryGetValue(childStep, out run))
+                    return run;
+                if (!sem.Wait(timeout, TapThread.Current.AbortToken))
+                    throw new TimeoutException("Wait timed out");
+                return stepRun;
+            }
+            finally
+            {
+                childStarted -= onChildStarted;
+            }
+        }
+
+        Action<TestStepRun> childStarted;
+        
+        // we keep a mapping of the most recent run of any child step. This is important to be able to update inputs.
+        // the guid is the ID of a step.
+        ConcurrentDictionary<Guid, TestStepRun> stepRuns = new ConcurrentDictionary<Guid, TestStepRun>(); 
+        internal override void ChildStarted(TestStepRun stepRun)
+        {
+            base.ChildStarted(stepRun);
+            stepRuns[stepRun.TestStepId] = stepRun;
+            childStarted?.Invoke(stepRun);
         }
     }
 

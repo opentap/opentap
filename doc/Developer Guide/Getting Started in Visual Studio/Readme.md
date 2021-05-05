@@ -46,13 +46,14 @@ When using the OpenTAP NuGet package, you can reference other TapPackages you ne
 You can specify an OpenTAP package that your project should reference. You do this by adding the following to your csproj file:
 ```xml
 <ItemGroup>
-  <OpenTapPackageReference Include="DMM API" Version="2.1.2" Repository="packages.opentap.io" IncludeAssemblies="pattern1;pattern2" ExcludeAssemblies="pattern3;pattern4"/>
+  <OpenTapPackageReference Include="DMM API" Version="2.1.2" Repository="packages.opentap.io" UnpackOnly="false" IncludeAssemblies="pattern1;pattern2" ExcludeAssemblies="pattern3;pattern4" />
 </ItemGroup>
 ```
-This should be very similar to the way you add a NuGet package using `<PackageReference>`. `Version` and `Repository` are optional attributes, and default to latest release, and packages.opentap.io if omitted. 
+This should be very similar to the way you add a NuGet package using `<PackageReference>`. 
 
 When referencing a package in this way, assemblies belonging to that package are also referenced in your project.
-The `IncludeAssemblies` and `ExcludeAssemblies` attributes are optional, and control which assemblies are referenced. The supplied value is interpreted as one or more glob patterns. 
+
+All attributes except `Include` are optional. `Version` and `Repository` attributes default to latest release, and packages.opentap.io if omitted. `UnpackOnly` defaults to false and can be used to suppress any install actions from running as part of the package being installed in the output dir. The `IncludeAssemblies` and `ExcludeAssemblies` attributes control which assemblies are referenced. The supplied value is interpreted as one or more glob patterns. 
 If not specified, they take on a default value. The default value of `IncludeAssemblies` is `**`, and the default value of ExcludeAssemblies is `Dependencies/**`.
 You can specify several glob patterns, separated by semicolons (`;`). By leveraging glob patterns, your project can target specific dependencies of other packages. 
 Glob patterns are tested in order of specificity, meaning that the evaluation order of patterns in IncludeAssemblies and ExcludeAssemblies can be interleaved. Specificity is measured by the number of tokens used in the expression.
@@ -89,18 +90,19 @@ The OpenTAP SDK makes it easy to create plugin templates using the `tap sdk new`
 
 | Commands                           | Description                                                                                         |
 |------------------------------------|-----------------------------------------------------------------------------------------------------|
-| **tap sdk gitversion** | Calculates a semantic version number for a specific git commit. |
+| **tap sdk gitversion**                 | Calculates a semantic version number for a specific git commit.                                     |
 | **tap sdk new cliaction**              | Create a C# template for a CliAction plugin. Requires a project.                                    |
 | **tap sdk new dut**                    | Create a C# template for a DUT plugin. Requires a project.                                          |
 | **tap sdk new instrument**             | Create C# template for an Instrument plugin. Requires a project.                                    |
 | **tap sdk new packagexml**             | Create a package definition file (package.xml).                                                     |
 | **tap sdk new resultlistener**         | Create a C# template for a ResultListener plugin. Requires a project.                               |
 | **tap sdk new settings**               | Create a C# template for a ComponentSetting plugin. Requires a project.                             |
-| **tap sdk new testplan**               | Create a TestPlan (.TapPlan) containing all test step types defined in the given project.           |
-| **tap sdk new teststep**               | Create a  C# template for a TestStep plugin. Requires a project.                                    |
-| **tap sdk new integration gitlab-ci**  | Create a  GitLab CI build script. For building and publishing the .TapPackage in the given project. |
+| **tap sdk new testplan**               | **OBSOLETED:** Use [an editor](https://doc.opentap.io/User%20Guide/Editors/) to create a TestPlan.  |
+| **tap sdk new teststep**               | Create a C# template for a TestStep plugin. Requires a project.                                     |
+| **tap sdk new project**                | Create a C# Project (.csproj). Including a new TestStep, solution file (.sln) and package.xml.      |
+| **tap sdk new integration gitlab-ci**  | Create a GitLab CI build script. For building and publishing the .TapPackage in the given project.  |
 | **tap sdk new integration gitversion** | Configure automatic version of the package using version numbers generated from git history.        |
-| **tap sdk new integration vs**       | Create files that enable building and debugging with Visual Studio.                                 |
+| **tap sdk new integration vs**         | Create files that enable building and debugging with Visual Studio.                                 |
 | **tap sdk new integration vscode**     | Create files to enable building and debugging with vscode.                                          |
 
 The following example shows how to create a new project using the SDK:
@@ -109,13 +111,15 @@ The following example shows how to create a new project using the SDK:
 tap sdk new project MyAwesomePlugin
 ```
 
-This command creates a new project called `MyAwesomePlugin` with a .csproj file, a test step class, a test plan, a solution file, and a package.xml file.
+This command creates a new project called `MyAwesomePlugin` with a .csproj file, a test step class, a solution file, and a package.xml file.
 
 Once you created a project you can easily add other templates. To add a DUT for example simply call the following command:
 
 ```
 tap sdk new dut MyNewDut
 ```
+
+Use an editor to create a testplan to use your new teststep and DUT! See https://doc.opentap.io/User%20Guide/Editors/ for more info on the different editors!
 
 ### SDK Examples
 

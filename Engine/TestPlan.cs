@@ -189,10 +189,11 @@ namespace OpenTap
         
         #region Load/Save TestPlan
         /// <summary>
-        /// Saves this TestPlan to a stream.
+        /// Saves this TestPlan to a stream with a specific serializer.
         /// </summary>
         /// <param name="stream">The <see cref="Stream"/> in which to save the TestPlan.</param>
-        public void Save(Stream stream)
+        /// <param name="serializer">Optional. The serializer use for deserialization. If set to null, one will be created. </param>
+        public void Save(Stream stream, TapSerializer serializer)
         {
             if (xmlCache != null)
             {
@@ -202,19 +203,26 @@ namespace OpenTap
             
             if (stream == null)
                 throw new ArgumentNullException(nameof(stream));
-            var ser = new TapSerializer();
+            serializer = serializer ?? new TapSerializer();
             if (CacheXml)
             {
                 var str = new MemoryStream();
-                ser.Serialize(str, this);
+                serializer.Serialize(str, this);
                 xmlCache = str.ToArray();
                 str.CopyTo(stream);
             }
             else
             {
-                ser.Serialize(stream, this);
+                serializer.Serialize(stream, this);
             }
         }
+        
+        /// <summary>
+        /// Saves this TestPlan to a stream;
+        /// </summary>
+        /// <param name="stream">The <see cref="Stream"/> in which to save the TestPlan.</param>
+        public void Save(Stream stream) => Save(stream, null);
+        
         /// <summary>
         /// Saves this TestPlan to a file path.
         /// </summary>

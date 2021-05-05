@@ -116,23 +116,25 @@ namespace OpenTap.Engine.UnitTests
             }
 
 
-            private static IEnumerable<ITypeData> hardcodedTypes = new List<ITypeData>
+            static List<ITypeData> hardcodedTypes = new List<ITypeData>
             {
                 new TypeDataTestImpl( "UnitTestType", TypeData.FromType(typeof(IResultListener)),null),
                 new TypeDataTestImpl( "UnitTestCliActionType", TypeData.FromType(typeof(ICliAction)),() => new SomeTestAction())
             };
 
-            public static bool Enable { get; set; }
-
-            private IEnumerable<ITypeData> _types = new List<ITypeData>();
-            public IEnumerable<ITypeData> Types
+            public static void AddType(string name, ITypeData baseType)
             {
-                get => Enable ? _types : Enumerable.Empty<ITypeData>();
+                hardcodedTypes.Add(new TypeDataTestImpl(name, baseType, null));
             }
 
+            public static bool Enable { get; set; }
+
+            private List<ITypeData> _types = new List<ITypeData>();
+            public IEnumerable<ITypeData> Types => Enable ? (_types.Count != hardcodedTypes.Count ? null : _types) : Enumerable.Empty<ITypeData>();
+            
             public void Search()
             {
-                _types = hardcodedTypes;
+                _types = hardcodedTypes.ToList();
             }
 
             public double Priority => 1;
@@ -169,6 +171,37 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(types.All(t => t.DescendsTo(baseType)));
             Assert.IsTrue(types.Any(t => t.Name == "UnitTestType"));
         }
+        
+        [Test]
+        public void ITypeDataSearcherTest3()
+        {
+            TypeData.GetDerivedTypes<ITestStep>().Count();
+            TypeDataSearcherTestImpl.Enable = true;
+            TypeData.GetDerivedTypes<ITestStep>().Count();
+            try
+            {
+                ITypeData baseType = TypeData.FromType(typeof(IResultListener));
+                Assert.IsNotNull(TypeData.GetTypeData("UnitTestType"));
+                
+                TypeData.GetDerivedTypes<ITestStep>().Count();
+                var c1 = TypeData.GetDerivedTypes<IResultListener>().Count();
+                TypeDataSearcherTestImpl.AddType("UnitTestType2", baseType);
+                TypeData.GetDerivedTypes<ITestStep>().Count();
+                var c2 = TypeData.GetDerivedTypes<IResultListener>().Count();
+                TypeDataSearcherTestImpl.AddType("UnitTestType3", baseType);
+                TypeData.GetDerivedTypes<ITestStep>().Count();
+                var c3 = TypeData.GetDerivedTypes<IResultListener>().Count();
+                Assert.IsTrue(c1 + 1 == c2);
+                Assert.IsTrue(c2 + 1 == c3);
+
+            }
+            finally
+            {
+                TypeDataSearcherTestImpl.Enable = false;    
+            }
+        }
+        
+        
 
         [Browsable(false)]
         private class SomeTestAction : ICliAction
@@ -367,7 +400,7 @@ namespace OpenTap.Engine.UnitTests
             });
 
 
-            Assert.AreEqual(4, cnt);
+            Assert.AreEqual(5, cnt);
         }
 
         [Test]
@@ -1909,6 +1942,31 @@ namespace OpenTap.Engine.UnitTests
                 InstrumentSettings.Current.Remove(instr);
                 InstrumentSettings.Current.Remove(instr2);
             }
+        }
+
+        [Test]
+        public void StepDescriptionTest()
+        {
+            string descriptionName = "OpenTap.Description";
+            var step = new DelayStep();
+            var description = TypeData.GetTypeData(step).GetMember(descriptionName);
+            var descriptionString = (string)description.GetValue(step);
+            var descriptionString2 = "Note: this is a test. \n" + descriptionString;
+            
+            var xml = new TapSerializer().SerializeToString(step);
+            Assert.IsFalse(xml.Contains(descriptionName), "Description in: {0}", xml); // since the default value was serialized the XML does not contain that.
+            description.SetValue(step, descriptionString2);
+            
+            //verify that it serializes correctly.
+            
+            var xml2 = new TapSerializer().SerializeToString(step);
+            Assert.IsTrue(xml2.Contains(descriptionName)); // In this case it is not the default value.
+            var step2 = Utils.DeserializeFromString<DelayStep>(xml2);
+            Assert.AreEqual(descriptionString2, (string)TypeData.GetTypeData(step).GetMember(descriptionName).GetValue(step2));
+            
+            var step3 = Utils.DeserializeFromString<DelayStep>(xml);
+            Assert.AreEqual(descriptionString, (string)TypeData.GetTypeData(step).GetMember(descriptionName).GetValue(step3));
+            
         }
     }
 }

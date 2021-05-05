@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -297,9 +298,14 @@ namespace OpenTap.Package
                 return false;
             if (Minor.HasValue && Minor.Value > actualVersion.Minor)
                 return false;
+            if (Minor.HasValue && Minor.Value == actualVersion.Minor)
+                if (Patch.HasValue && Patch.Value > actualVersion.Patch)
+                    return false;
+                
 
             if (MatchBehavior.HasFlag(VersionMatchBehavior.AnyPrerelease))
                 return true;
+
             if (0 < new SemanticVersion(0, 0, 0, PreRelease, null).CompareTo(new SemanticVersion(0, 0, 0, actualVersion.PreRelease, null)))
                 return false;
             return true;

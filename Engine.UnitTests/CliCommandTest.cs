@@ -45,7 +45,7 @@ namespace OpenTap.UnitTests
         public int Execute(CancellationToken cancellationToken)
         {
             Console.WriteLine("Executed action 2");
-            return 0;
+            return (int)ExitCodes.Success;
         }
     }
 

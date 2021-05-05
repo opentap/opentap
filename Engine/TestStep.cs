@@ -36,7 +36,7 @@ namespace OpenTap
         [Browsable(false)]
         [ColumnDisplayName(Order : -99, IsReadOnly : true)]
         [XmlIgnore]
-        [Output]
+        [Output(OutputAvailability.AfterDefer)]
         [SettingsIgnore]
         [MetaData]
         public Verdict Verdict { get; set; }
@@ -107,7 +107,7 @@ namespace OpenTap
         public string TypeName => typeName ?? (typeName = TypeData.GetTypeData(this)
             .GetDisplayAttribute().GetFullName());
 
-        private TestStepList _ChildTestSteps;
+        TestStepList childTestSteps;
         /// <summary>
         /// Gets or sets a List of child <see cref="TestStep"/>s. Any TestSteps in this list will be
         /// executed instead of the Run method of this TestStep.
@@ -117,11 +117,11 @@ namespace OpenTap
         [SettingsIgnore]
         public TestStepList ChildTestSteps
         {
-            get => _ChildTestSteps; 
+            get => childTestSteps; 
             set
             {
-                _ChildTestSteps = value;
-                _ChildTestSteps.Parent = this;
+                childTestSteps = value;
+                childTestSteps.Parent = this;
                 OnPropertyChanged(nameof(ChildTestSteps));
             }
         }
@@ -834,7 +834,6 @@ namespace OpenTap
 
             TapThread.ThrowIfAborted(); // if an OfferBreak handler called TestPlan.Abort, abort now.
 
-            IResultSource resultSource = null;
             // To properly support single stepping stopwatch has to be below offerBreak
             // since OfferBreak requires a TestStepRun, this has to be re-instantiated.
             var swatch = Stopwatch.StartNew();
@@ -848,12 +847,14 @@ namespace OpenTap
                     try
                     {
                         if (Step is TestStep _step)
-                            resultSource = _step.Results = new ResultSource(stepRun, Step.PlanRun);
-                        TestPlan.Log.Info("{0} started.", stepPath);
+                            _step.Results = new ResultSource(stepRun, Step.PlanRun);
+                        TestPlan.Log.Info("{0} started.", stepRun.TestStepPath);
                         stepRun.StartStepRun(); // set verdict to running, set Timestamp.
+                        parentRun.ChildStarted(stepRun);
                         planRun.AddTestStepRunStart(stepRun);
                         Step.Run();
-
+                        stepRun.AfterRun(Step);
+                        
                         TapThread.ThrowIfAborted();
                     }
                     finally
@@ -878,26 +879,23 @@ namespace OpenTap
                 {
                     Step.Verdict = Verdict.Aborted;
                     if(e.Message == new OperationCanceledException().Message)
-                        TestPlan.Log.Warning("Test step {0} was canceled.", stepPath);
+                        TestPlan.Log.Warning("Test step {0} was canceled.", stepRun.TestStepPath);
                     else
-                        TestPlan.Log.Warning("Test step {0} was canceled with message '{1}'.", stepPath, e.Message);
+                        TestPlan.Log.Warning("Test step {0} was canceled with message '{1}'.", stepRun.TestStepPath, e.Message);
                 }
                 else
                 {
                     Step.Verdict = Verdict.Error;
-                    TestPlan.Log.Error("Error running {0}: {1}.", stepPath, e.Message);
+                    TestPlan.Log.Error("Error running {0}: {1}.", stepRun.TestStepPath, e.Message);
                 }
                 TestPlan.Log.Debug(e);
             }
             finally
             {
-                // set during complete action.
-                bool completeActionExecuted = false;
                 
                 // if it was a ThreadAbortException we need 'finally'.
                 void completeAction(Task runTask)
                 {
-                    completeActionExecuted = true;
                     try
                     {
                         runTask.Wait();
@@ -914,14 +912,14 @@ namespace OpenTap
                             if (TapThread.Current.AbortToken.IsCancellationRequested && Step.Verdict < Verdict.Aborted)
                                 Step.Verdict = Verdict.Aborted;
                             if (e.Message == new OperationCanceledException().Message)
-                                TestPlan.Log.Warning("Test step {0} was canceled.", stepPath);
+                                TestPlan.Log.Warning("Test step {0} was canceled.", stepRun.TestStepPath);
                             else
-                                TestPlan.Log.Warning("Test step {0} was canceled with message '{1}'.", stepPath, e.Message);
+                                TestPlan.Log.Warning("Test step {0} was canceled with message '{1}'.", stepRun.TestStepPath, e.Message);
                         }
                         else
                         {
                             Step.Verdict = Verdict.Error;
-                            TestPlan.Log.Error("Error running {0}: {1}.", stepPath, e.Message);
+                            TestPlan.Log.Error("Error running {0}: {1}.", stepRun.TestStepPath, e.Message);
                         }
                         TestPlan.Log.Debug(e);
                     }
@@ -938,23 +936,21 @@ namespace OpenTap
                         stepRun.CompleteStepRun(planRun, Step, time);
                         if (Step.Verdict == Verdict.NotSet)
                         {
-                            TestPlan.Log.Info(time, "{0} completed.", stepPath);
+                            TestPlan.Log.Info(time, "{0} completed.", stepRun.TestStepPath);
                         }
                         else
                         {
-                            TestPlan.Log.Info(time, "{0} completed with verdict '{1}'.", stepPath, Step.Verdict);
+                            TestPlan.Log.Info(time, "{0} completed with verdict '{1}'.", stepRun.TestStepPath, Step.Verdict);
                         }
 
                         planRun.AddTestStepRunCompleted(stepRun);
                     }
                 }
 
-                if (resultSource != null)
-                    resultSource.Finally(completeAction);
+                if (stepRun.ResultSource != null)
+                    stepRun.ResultSource.Finally(completeAction);
                 else
                     completeAction(Task.FromResult(0));
-                
-                stepRun.WasDeferred = !completeActionExecuted; // completeAction was already executed -> not deferred.
             }
             
             return stepRun;
@@ -1232,8 +1228,8 @@ namespace OpenTap
                 var rep = replaces[i];
                 outName.Remove(rep.StartIndex, rep.EndIndex - rep.StartIndex + 1);
                 outName.Insert(rep.StartIndex, rep.Content);
-             }
-            return outName.ToString();
+            }
+            return outName.ToString().TrimEnd();
         }
     }
 

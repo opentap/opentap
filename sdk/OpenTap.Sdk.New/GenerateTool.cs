@@ -26,7 +26,7 @@ namespace OpenTap.Sdk.New
                 WriteFile(output ?? Path.Combine(WorkingDirectory, ns + ".sln"), content);
             }
 
-            return 0;
+            return (int)ExitCodes.Success;
         }
     }
 
@@ -42,7 +42,7 @@ namespace OpenTap.Sdk.New
                 WriteFile(output ?? Path.Combine(WorkingDirectory, ".gitlab-ci.yml"), content);
             }
 
-            return 0;
+            return (int)ExitCodes.Success;
         }
     }
 
@@ -80,7 +80,7 @@ namespace OpenTap.Sdk.New
                     log.Info($"Please note: The vscode integration assumes OutputPath is in '{WorkingDirectory}/bin/Debug>'.");
             }
 
-            return 0;
+            return (int)ExitCodes.Success;
         }
     }
 
@@ -128,7 +128,7 @@ namespace OpenTap.Sdk.New
                 WriteFile(target, reader.ReadToEnd());
             }
 
-            return 0;
+            return (int)ExitCodes.Success;
         }
     }
 }

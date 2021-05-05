@@ -11,7 +11,7 @@ using System.Xml;
 #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
 namespace OpenTap.Package
 {
-    
+
     [Display("show", Group: "package", Description: "Show information about a package.")]
     public class PackageShowAction : IsolatedPackageAction
     {
@@ -36,7 +36,7 @@ namespace OpenTap.Package
                 }
             }
         }
-        
+
         private void AddWritePair(string key, string value)
         {
             if (!string.IsNullOrWhiteSpace(value))
@@ -56,7 +56,7 @@ namespace OpenTap.Package
             }
             catch // No handle to a console window -- default to something reasonable
             {
-                consoleWidth = 120; 
+                consoleWidth = 120;
             }
 
             if (consoleWidth < 10) // assume an error and just use 120 as default.
@@ -69,16 +69,16 @@ namespace OpenTap.Package
                 log.Info($"{key}: {value}");
             }
         }
-        
+
         private List<string> values = new List<string>();
         private List<string> keys = new List<string>();
-        
+
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
-        
+
         [CommandLineArgument("offline", Description = "Don't check http repositories.", ShortName = "o")]
         public bool Offline { get; set; }
-        
+
         [UnnamedCommandLineArgument("package", Required = true)]
         public string Name { get; set; }
 
@@ -93,12 +93,12 @@ namespace OpenTap.Package
 
         [CommandLineArgument("include-files", Description = "List all files included in the package")]
         public bool IncludeFiles { get; set; } = false;
-        
+
         [CommandLineArgument("include-plugins", Description = "List all plugins included in the package")]
         public bool IncludePlugins { get; set; } = false;
-        
+
         private List<IPackageRepository> repositories = new List<IPackageRepository>();
-        
+
         private VersionSpecifier versionSpec { get; set; }
         public PackageShowAction()
         {
@@ -138,7 +138,7 @@ namespace OpenTap.Package
                     return package;
                 }
             }
-            
+
             // a currently installed package
             package = targetInstallation.GetPackages().FirstOrDefault(p => p.Name == Name && versionSpec.IsCompatible(p.Version));
             if (package != null)
@@ -179,7 +179,7 @@ namespace OpenTap.Package
             return package;
         }
         protected override int LockedExecute(CancellationToken cancellationToken)
-        {            
+        {
             repositories.AddRange(Repository == null
                 ? PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager)
                 : Repository.Select(PackageRepositoryHelpers.DetermineRepositoryType));
@@ -191,46 +191,36 @@ namespace OpenTap.Package
             if (!String.IsNullOrWhiteSpace(Version))
             {
                 versionSpec = VersionSpecifier.Parse(Version);
-            }            
-            
+            }
+
             var targetInstallation = new Installation(Target);
 
-            try
+            PackageDef package = GetPackageDef(targetInstallation);
+            if (package == null)
             {
-                PackageDef package = GetPackageDef(targetInstallation);
-                if (package == null)
-                {
-                    var versionString = string.IsNullOrWhiteSpace(Version) ? "" : $" version '{Version}'";
-                    throw new Exception(
-                        $"Package '{Name}'{versionString} not found in specified repositories or local install.");
-                }
-
-                var ct = new CancellationTokenSource();
-
-                var packageVersions = Offline
-                    ? new List<PackageVersion>()
-                    : repositories.SelectMany(repo => repo.GetPackageVersions(package.Name, ct.Token, null))
-                        .Where(p => versionSpec.IsCompatible(p.Version));
-                // Remove prereleases if found package is a release
-                if (string.IsNullOrWhiteSpace(package.Version.PreRelease))
-                    packageVersions = packageVersions.Where(p => string.IsNullOrWhiteSpace(p.Version.PreRelease));
-
-                GetPackageInfo(package, packageVersions.ToList(), targetInstallation);
-            }
-            catch (Exception e)
-            {
-                log.Error(e.Message);
-                return 1;
+                var versionString = string.IsNullOrWhiteSpace(Version) ? "" : $" version '{Version}'";
+                throw new Exception(
+                    $"Package '{Name}'{versionString} not found in specified repositories or local install.");
             }
 
-            return 0;
+            var packageVersions = Offline
+                ? new List<PackageVersion>()
+                : repositories.SelectMany(repo => repo.GetPackageVersions(package.Name, cancellationToken, null))
+                    .Where(p => versionSpec.IsCompatible(p.Version));
+            // Remove prereleases if found package is a release
+            if (string.IsNullOrWhiteSpace(package.Version.PreRelease))
+                packageVersions = packageVersions.Where(p => string.IsNullOrWhiteSpace(p.Version.PreRelease));
+
+            GetPackageInfo(package, packageVersions.ToList(), targetInstallation);
+
+            return (int)ExitCodes.Success;
         }
 
         private void GetPackageInfo(PackageDef package, List<PackageVersion> packageVersions,
             Installation installation)
         {
             var allPackages = installation.GetPackages();
-            var latestVersion = packageVersions?.Max(p => p.Version); 
+            var latestVersion = packageVersions?.Max(p => p.Version);
             var packageInstalled = allPackages.Contains(package);
             if (!packageInstalled)
                 allPackages.Add(package);
@@ -239,22 +229,22 @@ namespace OpenTap.Package
             var issues = tree.GetIssues(package);
 
             ParseDescription(package.Description);
-            
+
             // Get similar releases to get available platforms and architectures
             var similarReleases = packageVersions.Where(x =>
                 x.Version.Major == package.Version.Major && x.Version.Minor == package.Version.Minor).ToList();
 
             AddWritePair("Package Name", package.Name);
-                            
+
             AddWritePair("Group", package.Group);
 
             var installedVersion = installation.GetPackages().Where(x => x.Name == package.Name)?.FirstOrDefault()?.Version;
             var installedString = installedVersion == null ? "(not installed)" : $"({installedVersion} installed)";
             AddWritePair("Version", $"{package.Version} {installedString}");
-            
+
             if (latestVersion != null && installedVersion != null && latestVersion != installedVersion)
                 AddWritePair("Newest Version in Repository", $"{latestVersion}");
-            
+
             AddWritePair("Compatible Architectures", string.Join(Environment.NewLine, similarReleases.Select(x => x.Architecture).Distinct()));
             AddWritePair("Compatible Platforms", string.Join(Environment.NewLine, similarReleases.Select(x => x.OS).Distinct()));
 
@@ -266,6 +256,7 @@ namespace OpenTap.Package
             }
 
             AddWritePair("Owner", package.Owner);
+            AddWritePair("Source License", package.SourceLicense);
             var licenseString = (package.LicenseRequired ?? "").Replace("&", " and ").Replace("|", " or ");
             AddWritePair("License Required", licenseString);
             AddWritePair("SourceUrl", package.SourceUrl);
@@ -274,7 +265,7 @@ namespace OpenTap.Package
             AddWritePair("Package Type", package.FileType);
             AddWritePair("Package Class", package.Class);
 
-            var tags = package.Tags?.Split(new string[]{ " ", "," }, StringSplitOptions.RemoveEmptyEntries);
+            var tags = package.Tags?.Split(new string[] { " ", "," }, StringSplitOptions.RemoveEmptyEntries);
             if (tags?.Length > 0)
                 AddWritePair("Package Tags", string.Join(" ", tags));
 
@@ -282,12 +273,12 @@ namespace OpenTap.Package
             {
                 AddWritePair("Dependencies", string.Join(Environment.NewLine, package.Dependencies.Select(x => x.Name)));
             }
-            
+
             foreach (var (key, value) in SubTags)
             {
                 AddWritePair(key, value);
             }
-            
+
             AddWritePair("Description", Description);
 
             if (IncludeFiles)
@@ -295,13 +286,13 @@ namespace OpenTap.Package
                 if (package.Files.Count > 0)
                 {
                     AddWritePair("Files", string.Join(Environment.NewLine, package.Files.Select(x => x.RelativeDestinationPath.Replace("\\", "/"))));
-                }                
+                }
             }
 
             if (IncludePlugins)
             {
                 var plugins = package.Files.Select(x => x.Plugins);
-                
+
                 var sb = new StringBuilder();
                 foreach (var plugin in plugins)
                 {
@@ -320,28 +311,28 @@ namespace OpenTap.Package
         private IEnumerable<string> WordWrap(string input, int breakLength)
         {
             // In addition to whitespace, break on these characters
-            var breakableCharacters = new List<char>() {'-', ' ', '\t', '\n'};
-            
+            var breakableCharacters = new List<char>() { '-', ' ', '\t', '\n' };
+
             var progress = 0;
             var currentLength = 0;
             var lastBreakableCharacter = -1;
-            
+
             foreach (var c in input)
             {
                 currentLength++;
 
                 if (breakableCharacters.Contains(c))
                     lastBreakableCharacter = currentLength;
-                
+
                 // Break if line length exceeds break length, or if the sentence contains a literal newline
                 if (currentLength > breakLength || c == '\n')
                 {
                     // Keep reading until we can break
                     if (lastBreakableCharacter == -1)
                         continue;
-                    
+
                     yield return input.Substring(progress, lastBreakableCharacter).Trim();
-                    
+
                     progress += lastBreakableCharacter;
                     currentLength -= lastBreakableCharacter;
                     lastBreakableCharacter = -1;

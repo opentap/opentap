@@ -6,6 +6,7 @@ using OpenTap;
 using OpenTap.Cli;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Reflection;
 using System.Text;
@@ -29,7 +30,8 @@ namespace OpenTap.Sdk.New
                 WriteFile(output ?? Path.Combine(WorkingDirectory, Name + ".cs"), content);
             }
 
-            return 0;
+            return (int)ExitCodes.Success;
+
         }
     }
     [Display("instrument", "C# template for a Instrument plugin.", Groups: new[] { "sdk", "new" })]
@@ -47,7 +49,7 @@ namespace OpenTap.Sdk.New
                 WriteFile(output ?? Path.Combine(WorkingDirectory, Name + ".cs"), content);
             }
 
-            return 0;
+            return (int)ExitCodes.Success;
         }
     }
     [Display("resultlistener", "C# template for a ResultListener plugin.", Groups: new[] { "sdk", "new" })]
@@ -65,7 +67,7 @@ namespace OpenTap.Sdk.New
                 WriteFile(output ?? Path.Combine(WorkingDirectory, Name + ".cs"), content);
             }
 
-            return 0;
+            return (int)ExitCodes.Success;
         }
     }
     [Display("settings", "C# template for a ComponentSetting plugin.", Groups: new[] { "sdk", "new" })]
@@ -83,7 +85,7 @@ namespace OpenTap.Sdk.New
                 WriteFile(output ?? Path.Combine(WorkingDirectory, Name + ".cs"), content);
             }
 
-            return 0;
+            return (int)ExitCodes.Success;
         }
     }
     [Display("teststep", "C# template for a TestStep plugin.", Groups: new[] { "sdk", "new" })]
@@ -101,10 +103,14 @@ namespace OpenTap.Sdk.New
                 WriteFile(output ?? Path.Combine(WorkingDirectory, Name + ".cs"), content);
             }
 
-            return 0;
+            return (int)ExitCodes.Success;
         }
     }
-    [Display("testplan", "Creates a TestPlan (.TapPlan) containing all TestSteps types defined in this project.", Groups: new[] { "sdk", "new" })]
+
+
+    [Display("testplan", "Deprecated! Creates a TestPlan (.TapPlan) containing all TestSteps types defined in this project.", Groups: new[] { "sdk", "new" })]
+    [Obsolete("Use an editor to create TestPlans instead")]
+    [Browsable(false)]
     public class GenerateTestPlan : GenerateType
     {
         [UnnamedCommandLineArgument("name", Required = true)]
@@ -130,7 +136,10 @@ namespace OpenTap.Sdk.New
                 WriteFile(output ?? Path.Combine(WorkingDirectory, Name + ".TapPlan"), content);
             }
 
-            return 0;
+            log.Warning("This feature is obsoleted. Use an editor to create a testplan.");
+            log.Warning("For more information, see https://doc.opentap.io/User%20Guide/Editors/");
+
+            return (int)ExitCodes.Success;
         }
     }
     [Display("cliaction", "C# template for a CliAction plugin.", Groups: new[] { "sdk", "new" })]
@@ -148,7 +157,7 @@ namespace OpenTap.Sdk.New
                 WriteFile(output ?? Path.Combine(WorkingDirectory, Name + ".cs"), content);
             }
 
-            return 0;
+            return (int)ExitCodes.Success;
         }
     }
     [Display("packagexml", "Package Definition file (package.xml).", Groups: new[] { "sdk", "new" })]
@@ -166,7 +175,7 @@ namespace OpenTap.Sdk.New
                 WriteFile(output ?? Path.Combine(WorkingDirectory, "package.xml"), content);
             }
 
-            return 0;
+            return (int)ExitCodes.Success;
         }
     }
 

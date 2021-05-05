@@ -22,11 +22,11 @@ namespace OpenTap.Package
         {
             if (Packages == null)
                 throw new Exception("No packages specified.");
-            
-            var target = LockingPackageAction.GetLocalInstallationDir();
-            
 
-            Installer installer = new Installer(target, cancellationToken) { DoSleep = false };
+            var target = LockingPackageAction.GetLocalInstallationDir();
+
+
+            Installer installer = new Installer(target, cancellationToken) {DoSleep = false};
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;
 
@@ -47,9 +47,9 @@ namespace OpenTap.Package
             }
 
             if (anyUnrecognizedPlugins)
-                return -2;
+                return (int) PackageExitCodes.InvalidPackageName;
 
-            return installer.RunCommand("test", false, false) ? 0 : -1;
+            return installer.RunCommand("test", false, false);
         }
     }
 }

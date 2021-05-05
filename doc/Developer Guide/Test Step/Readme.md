@@ -63,10 +63,6 @@ namespace MyOpenTAPProject
     }
 }
 ```
-To allow user configuration of a test step, developers must add appropriate properties to the plugin code. These properties will very likely be visible and editable in the GUI Editor. Properties typically include instrument and DUT references, instrument and DUT settings, timing and limit information, etc. Defining these properties is a major part of plugin development.
-
-The SDK provides many examples of test step development in the **`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps`** folder. 
-
 ## TestStep Hierarchy
 
 Each TestStep object contains a list of TestSteps called *Child Steps*. A hierarchy of test steps can be built with an endless number of levels. The child steps:

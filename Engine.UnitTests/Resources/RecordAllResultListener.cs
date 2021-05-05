@@ -9,6 +9,7 @@ namespace OpenTap.UnitTests
     {
         public Dictionary<Guid, TestRun> Runs { get; set; } = new Dictionary<Guid, TestRun>();
         public Dictionary<Guid, string> planLogs = new Dictionary<Guid, string>();
+        public List<ResultTable> Results = new List<ResultTable>();
 
         public override void OnTestStepRunStart(TestStepRun stepRun)
         {
@@ -27,6 +28,12 @@ namespace OpenTap.UnitTests
             Runs[planRun.Id] = planRun;
             planLogs[planRun.Id] = new StreamReader(logStream,Encoding.UTF8, true, 4096, true).ReadLine();
             base.OnTestPlanRunCompleted(planRun, logStream);
+        }
+
+        public override void OnResultPublished(Guid stepRunId, ResultTable result)
+        {
+            base.OnResultPublished(stepRunId, result);
+            Results.Add(result);
         }
     }
 }

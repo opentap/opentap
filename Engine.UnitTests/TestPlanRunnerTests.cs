@@ -47,8 +47,11 @@ namespace OpenTap.Engine.UnitTests
             TestPlan plan = new TestPlan();
             plan.Steps.Add(setVerdict);
             plan.ExternalParameters.Add(setVerdict, TypeData.GetTypeData(setVerdict).GetMember("VerdictOutput"),"verdict");
-            plan.ExternalParameters.Get("verdict").Value = "Not Set";
+            plan.ExternalParameters.Get("verdict").Value = "Error";
             plan.Save("verdictPlan.TapPlan");
+            var csv = TapProcessContainer.StartFromArgs("package install -f CSV", TimeSpan.FromMinutes(2));
+            csv.WaitForEnd();
+            Assert.AreEqual(0, csv.TapProcess.ExitCode);
             var fileName = CreateCsvTestFile(new string[] { "verdict" }, new object[] { "pass" });
             {
                 string[] passingThings = new[] { "verdict=\"pass\"", "verdict=\"Not Set\"", "verdict=\"not set\"", fileName };
@@ -62,6 +65,8 @@ namespace OpenTap.Engine.UnitTests
                     Assert.AreEqual(0, proc.TapProcess.ExitCode);
                 });
             }
+            plan.ExternalParameters.Get("verdict").Value = "Not Set";
+            plan.Save("verdictPlan.TapPlan");
             {
                 string[] passingThings = new[] { "fail", "Error" };
                 passingThings.AsParallel().ForAll(v =>
@@ -71,7 +76,7 @@ namespace OpenTap.Engine.UnitTests
                     var proc = TapProcessContainer.StartFromArgs(args, TimeSpan.FromSeconds(120));
                     proc.WaitForEnd();
                     if (v == "Error")
-                        Assert.AreEqual((int) ExitStatus.RuntimeError, proc.TapProcess.ExitCode);
+                        Assert.AreEqual((int) ExitStatus.TestPlanError, proc.TapProcess.ExitCode);
                     else
                         Assert.AreEqual((int) ExitStatus.TestPlanFail, proc.TapProcess.ExitCode);
                 });

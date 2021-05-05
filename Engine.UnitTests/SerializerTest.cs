@@ -1789,36 +1789,6 @@ namespace OpenTap.Engine.UnitTests
 
 
         [Test]
-        public void DataSerializerArray()
-        {
-            var table = new ResultTable("XYZ", new ResultColumn[] {
-                new ResultColumn("X", new double[5] { 1, Double.NegativeInfinity, Double.PositiveInfinity, Double.NaN, Double.MaxValue}),
-                new ResultColumn("Y", new byte[5] { 1, 2, 3, 4, 5 }),
-                new ResultColumn("Z", new char[5] { 'a', 'b', 'c', 'd', 'e' }),
-                new ResultColumn("W", new string[] {"asd", "🍰", "", "\t\t\t\t\t", null }),
-                new ResultColumn("W2", new object[] {null, null, null, null, null }), // since null can be an IConvertible this situation can be reproduced by all Result.Publish calls with null results.
-                new ResultColumn("U",new DateTime[5] {DateTime.MaxValue, DateTime.MinValue, DateTime.Now, new DateTime(0,DateTimeKind.Local), new DateTime(10, DateTimeKind.Local)})
-                });
-            using (var stream = new MemoryStream())
-            {
-                using (var writer = new BinaryWriter(stream, Encoding.UTF8, true))
-                    DataSerialization.SerializeIData(new List<IData> { table }, writer);
-
-                stream.Position = 0;
-
-                using (var reader = new BinaryReader(stream, Encoding.UTF8))
-                {
-                    var tab = (IResultTable)DataSerialization.Deserialize(reader)[0];
-                    for (int i = 0; i < table.Columns.Length; i++)
-                    {
-                        bool areEqual = tab.Columns[i].Data.Cast<object>().SequenceEqual(table.Columns[i].Data.Cast<object>());
-                        Assert.IsTrue(areEqual);
-                    }
-                }
-            }
-        }
-
-        [Test]
         public void SerializePLanWithIntegerResourceNames()
         {
             InstrumentSettings.Current.Clear();

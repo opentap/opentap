@@ -24,18 +24,22 @@ namespace OpenTap
 
         string settingsDirectoryRoot = Path.Combine(ExecutorClient.ExeDir, "Settings");
 
+        void Invalidate(IList<ComponentSettings> setting)
+        {
+            // Settings can be co-dependent. Example: Connections and Instruments.
+            // So we need to invalidate all the settings,  invoke the event afterwards.
+            foreach (var componentSetting in setting)
+                objectCache.Invalidate(componentSetting.GetType());
+            foreach (var componentSetting in setting)
+                componentSetting.InvokeInvalidate();
+        }
+        
         public void InvalidateAllSettings()
         {
             var cachedComponentSettings = objectCache.GetResults()
                 .Where(x => x != null)
                 .ToArray();
-
-            // Settings can be co-dependent. Example: Connections and Instruments.
-            // So we need to invalidate all the settings and then invoke the event.
-            foreach (var componentSetting in cachedComponentSettings)
-                objectCache.Invalidate(componentSetting.GetType());
-            foreach (var componentSetting in cachedComponentSettings)
-                CacheInvalidated?.Invoke(componentSetting, new EventArgs());
+            Invalidate(cachedComponentSettings);
         }
 
         public void SaveAllCurrentSettings()
@@ -60,7 +64,7 @@ namespace OpenTap
 
         public void Reload() => CacheInvalidated?.Invoke(this, new EventArgs());
 
-        public void Invalidate(Type t) => objectCache.Invalidate(t);
+        public void Invalidate(Type t) => Invalidate(ComponentSettings.GetCurrent(t).AsSingle());
 
         public string GetSaveFilePath(Type type)
         {

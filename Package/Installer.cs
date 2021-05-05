@@ -9,8 +9,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
+using OpenTap.Cli;
 
 namespace OpenTap.Package
 {
@@ -27,6 +28,7 @@ namespace OpenTap.Package
         internal bool DoSleep { get; set; }
         internal List<string> PackagePaths { get; private set; }
         internal string TapDir { get; set; }
+        internal bool UnpackOnly { get; set; }
 
         internal bool ForceInstall { get; set; }
 
@@ -34,6 +36,7 @@ namespace OpenTap.Package
         {
             this.cancellationToken = cancellationToken;
             DoSleep = true;
+            UnpackOnly = false;
             PackagePaths = new List<string>();
             TapDir = tapDir?.Trim() ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             if(ExecutorClient.IsRunningIsolated)
@@ -55,26 +58,28 @@ namespace OpenTap.Package
                 try
                 {
 
-                    waitForPackageFilesFree(TapDir, PackagePaths);
+                    WaitForPackageFilesFree(TapDir, PackagePaths);
                 }
                 catch
                 {
                     log.Warning("Installation stopped while waiting for package files to become unlocked.");
                 }
 
-                int progressPercent = 10;
-                OnProgressUpdate(progressPercent, "");
+                // The packages have all been downloaded at this stage. Now we just need to install them.
+                // Assume this accounts for roughly 60% of the installation process.
+                int progressPercent = 60;
+                OnProgressUpdate(progressPercent, "Installing packages.");
                 foreach (string fileName in PackagePaths)
                 {
                     try
                     {
                         OnProgressUpdate(progressPercent, "Installing " + Path.GetFileNameWithoutExtension(fileName));
                         Stopwatch timer = Stopwatch.StartNew();
-                        PackageDef pkg = PluginInstaller.InstallPluginPackage(TapDir, fileName);
+                        PackageDef pkg = PluginInstaller.InstallPluginPackage(TapDir, fileName, UnpackOnly);
 
                         log.Info(timer, "Installed " + pkg.Name + " version " + pkg.Version);
 
-                        progressPercent += 80 / PackagePaths.Count();
+                        progressPercent += 30 / PackagePaths.Count();
 
                         if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) && PackagePaths.Last() != fileName)
                         {
@@ -98,14 +103,13 @@ namespace OpenTap.Package
                         }
                     }
                 }
-                OnProgressUpdate(90, "");
-
+                
+                
                 if (DoSleep)
                     Thread.Sleep(100);
 
-                OnProgressUpdate(100, "Plugin installed.");
-                Thread.Sleep(50); // Let Eventhandler get the last OnProgressUpdate
-
+                OnProgressUpdate(100, $"Package installation finished.");
+                Thread.Sleep(50);
             }
             catch (Exception ex)
             {
@@ -122,24 +126,24 @@ namespace OpenTap.Package
             RunCommand("uninstall", false, true);
         }
         
-        internal bool RunCommand(string command, bool force, bool modifiesPackageFiles)
+        internal int RunCommand(string command, bool force, bool modifiesPackageFiles)
         {
             var verb = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(command.ToLower()) + "ed";
 
             try
             {
-
                 if (modifiesPackageFiles)
                 {
                     try
                     {
-                        waitForPackageFilesFree(TapDir, PackagePaths);
+                        WaitForPackageFilesFree(TapDir, PackagePaths);
                     }
 
                     catch
                     {
                         log.Warning("Uninstall stopped while waiting for package files to become unlocked.");
-                        throw;
+                        if (!force)
+                            throw;
                     }
                 }
                 
@@ -151,21 +155,26 @@ namespace OpenTap.Package
                 foreach (string fileName in PackagePaths)
                 {
                     PackageDef pkg = PackageDef.FromXml(fileName);
-                    OnProgressUpdate((int)progressPercent, string.Format("Running command '{0}' on '{1}'", command, pkg.Name));
+                    OnProgressUpdate((int)progressPercent, $"Running command '{command}' on '{pkg.Name}'");
                     Stopwatch timer = Stopwatch.StartNew();
                     var res = pi.ExecuteAction(pkg, command, force, TapDir);
 
                     if (res == ActionResult.Error)
                     {
-                        OnProgressUpdate(100, "Done");
-                        return false;
+                        if (!force)
+                        {
+                            OnProgressUpdate(100, "Done");
+                            return (int) ExitCodes.GeneralException;
+                        }
+                        else
+                            log.Warning($"There was an error while trying to {command} '{pkg.Name}'.");
                     }
                     else if(res == ActionResult.NothingToDo)
                     {
-                        log.Info(string.Format("Tried to {0} {1}, but there was nothing to do.", command, pkg.Name));
+                        log.Info($"Tried to {command} {pkg.Name}, but there was nothing to do.");
                     }
                     else
-                        log.Info(timer, string.Format("{1} {0} version {2}.", pkg.Name, verb, pkg.Version));
+                        log.Info(timer, $"{verb} {pkg.Name} version {pkg.Version}.");
 
                     progressPercent += (double)80 / PackagePaths.Count();
                 }
@@ -179,23 +188,30 @@ namespace OpenTap.Package
             }
             catch (Exception ex)
             {
-                OnError(ex);
-                return false;
+                if (ex is ExitCodeException ec)
+                {
+                    log.Error(ec.Message);
+                    return ec.ExitCode;
+                }
+
+                if (ex is OperationCanceledException)
+                    return (int)ExitCodes.UserCancelled;
+
+                return (int) ExitCodes.GeneralException;
             }
 
             new Installation(TapDir).AnnouncePackageChange();
 
-            return true;
+            return (int)ExitCodes.Success;
         }
 
-        private void waitForPackageFilesFree(string tapDir, List<string> PackagePaths)
-        {
-            // ignore tap.exe as it is not meant to be overwritten.
-            bool exclude(string filename) => filename.ToLower() == "tap" || filename.ToLower() == "tap.exe";
-            
+        // ignore tap.exe as it is not meant to be overwritten.
+        private bool exclude(string filename) => filename.ToLower() == "tap" || filename.ToLower() == "tap.exe";
+        private FileInfo[] GetFilesInUse(string tapDir, List<string> packagePaths)
+        {            
             List<FileInfo> filesInUse = new List<FileInfo>();
 
-            foreach (string packageFileName in PackagePaths)
+            foreach (string packageFileName in packagePaths)
             {
                 foreach (string file in PluginInstaller.FilesInPackage(packageFileName))
                 {
@@ -209,53 +225,75 @@ namespace OpenTap.Package
             }
 
             // Check if the files that are in use are used by any other package
-            var packages = PackagePaths.Select(p => p.EndsWith("TapPackage") ? PackageDef.FromPackage(p) : PackageDef.FromXml(p));
+            var packages = packagePaths.Select(p => p.EndsWith("TapPackage") ? PackageDef.FromPackage(p) : PackageDef.FromXml(p));
             var remainingInstalledPlugins = new Installation(tapDir).GetPackages().Where(i => packages.Any(p => p.Name == i.Name) == false);
             var filesToRemain = remainingInstalledPlugins.SelectMany(p => p.Files).Select(f => f.RelativeDestinationPath).Distinct(StringComparer.InvariantCultureIgnoreCase);
             filesInUse = filesInUse.Where(f => filesToRemain.Contains(f.Name, StringComparer.InvariantCultureIgnoreCase) == false).ToList();
-            
-            if (filesInUse.Count > 0)
+
+            return filesInUse.ToArray();
+        }
+
+        private void WaitForPackageFilesFree(string tapDir, List<string> packagePaths)
+        {
+            var filesInUse = GetFilesInUse(tapDir, packagePaths);
+
+            if (filesInUse.Length > 0)
             {
-                log.Info("Following files cannot be modified because they are in use:");
-                foreach (var file in filesInUse)
-                {
-                    log.Info("- " + file.FullName);
-
-                    var loaded_asm = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(x => x.IsDynamic == false && x.Location == file.FullName);
-                    if (loaded_asm != null)
-                        throw new InvalidOperationException($"The file '{file.FullName}' is being used by this process.");
-                }
-
-                var allProcesses = Process.GetProcesses().Where(p => 
-                    p.ProcessName.ToLowerInvariant().Contains("opentap") && 
+                var allProcesses = Process.GetProcesses().Where(p =>
+                    p.ProcessName.ToLowerInvariant().Contains("opentap") &&
                     p.ProcessName.ToLowerInvariant().Contains("vshost") == false &&
                     p.ProcessName != Assembly.GetExecutingAssembly().GetName().Name).ToArray();
+
                 if (allProcesses.Any())
                 {
                     // The file could be locked by someone other than OpenTAP processes. We should not assume it's OpenTAP holding the file.
-                    log.Warning(Environment.NewLine + "To continue, try closing applications that could be using the files.");
+                    log.Warning(Environment.NewLine +
+                                "To continue, try closing applications that could be using the files.");
                     foreach (var process in allProcesses)
                         log.Warning("- " + process.ProcessName);
                 }
 
                 log.Warning(Environment.NewLine + "Waiting for files to become unlocked...");
 
-                using (var cancel2 = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+                while (isPackageFilesInUse(tapDir, packagePaths, exclude))
                 {
-                    cancel2.CancelAfter(waitForFilesTimeout); // cancel wait after two minutes.
-                    var cancelToken2 = cancel2.Token;
-                    while (isPackageFilesInUse(tapDir, PackagePaths, exclude))
+                    var inUseString = BuildString(filesInUse);
+                    
+                    var req = new AbortOrRetryRequest(inUseString) {Response = AbortOrRetryResponse.Abort};
+                    UserInput.Request(req, waitForFilesTimeout, true);
+
+                    if (req.Response == AbortOrRetryResponse.Abort)
                     {
-                        cancelToken2.ThrowIfCancellationRequested();
-                        OnError(new IOException("One or more plugin files are in use. View log for more information."));
-                        
-                        // this will throw when it times out.
-                        Task.Delay(300).Wait(cancelToken2);
+                        OnError(new IOException(inUseString));
+                        throw new OperationCanceledException();
                     }
+
+                    filesInUse = GetFilesInUse(tapDir, packagePaths);
                 }
             }
         }
-        
+
+        private string BuildString(FileInfo[] filesInUse)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("The following files cannot be modified because they are in use:");
+            foreach (var file in filesInUse)
+            {
+                sb.AppendLine("- " + file.FullName);
+
+                var loaded_asm = AppDomain.CurrentDomain.GetAssemblies()
+                    .FirstOrDefault(x => x.IsDynamic == false && x.Location == file.FullName);
+                if (loaded_asm != null)
+                    throw new InvalidOperationException(
+                        $"The file '{file.FullName}' is being used by this process.");
+            }
+
+            sb.AppendLine("To continue, try closing applications that could be using the files.");
+
+            return sb.ToString();
+        }
+
+
         static readonly TimeSpan waitForFilesTimeout = TimeSpan.FromMinutes(2);
 
         private bool isPackageFilesInUse(string tapDir, List<string> packagePaths, Func<string, bool> exclude = null)
@@ -328,5 +366,28 @@ namespace OpenTap.Package
             if (handler != null)
                 handler(progressPercent, message);
         }
+    }
+    
+    [Obfuscation(Exclude = true)]
+    enum AbortOrRetryResponse
+    {
+        Abort,
+        Retry
+    }
+    
+    [Obfuscation(Exclude = true)]
+    [Display("Package files are in use")]
+    class AbortOrRetryRequest
+    {
+        public AbortOrRetryRequest(string message)
+        {
+            Message = message;
+        }
+        
+        [Browsable(true)]
+        [Layout(LayoutMode.FullRow)]
+        public string Message { get; }
+        [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+        [Submit] public AbortOrRetryResponse Response { get; set; }
     }
 }

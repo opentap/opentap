@@ -36,7 +36,7 @@ namespace OpenTap.Sdk.New
             if (string.IsNullOrEmpty(PackageName))
             {
                 log.Error("Please specify a valid package name.");
-                return 1;
+                return (int)ExitCodes.ArgumentError;
             }
 
             {   // check if the package exists in the repo.
@@ -46,7 +46,7 @@ namespace OpenTap.Sdk.New
                 if (pkg == null)
                 {
                     log.Error("No such package");
-                    return 2;
+                    return (int)ExitCodes.ArgumentError;
                 }
                 if (Version == null)
                     Version = pkg.Version.ToString();
@@ -63,13 +63,13 @@ namespace OpenTap.Sdk.New
             var csproj = Project ?? get_csproj();
             if (csproj == null)
             {  // error was already printed.
-                return 1;
+                return (int)ExitCodes.ArgumentError;
             }
 
             if (File.Exists(csproj) == false)
             {
                 log.Error("C# project files does not exist {0}", csproj);
-                return 2;
+                return (int)ExitCodes.ArgumentError;
             }
             
             var document = XDocument.Load(csproj, LoadOptions.PreserveWhitespace);
@@ -100,9 +100,9 @@ namespace OpenTap.Sdk.New
                         if (version.Value == Version)
                         {
                             log.Info("Package {0} version {1} already in the csproj.", PackageName, Version);
-                            return 0;
+                            return (int)ExitCodes.Success;
                         }
-                        
+
                         log.Info("Package {0} version {1} changed to version {2}.", PackageName, version.Value, Version);
                         
                         version.Value = Version;
@@ -151,7 +151,7 @@ namespace OpenTap.Sdk.New
             }
 
             document.Save(csproj, SaveOptions.DisableFormatting);
-            return 0;
+            return (int)ExitCodes.Success;
         }
 
         static string get_csproj()

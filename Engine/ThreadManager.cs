@@ -7,6 +7,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace OpenTap
 {
@@ -325,6 +326,24 @@ namespace OpenTap
         public static TapThread Start(Action action, string name = "")
         {
             return Start(action, null, name);
+        }
+        
+        internal static Task StartAwaitable(Action action, string name = "")
+        {
+            var wait = new ManualResetEventSlim(false);
+            Start(() =>
+            {
+                try
+                {
+                    action();
+                }
+                finally
+                {
+                    wait.Set();
+                }
+            }, null, name);
+            var awaiter = new Awaitable(wait);
+            return Task.Factory.FromAsync(awaiter, _ => { });
         }
 
         internal static TapThread Start(Action action, Action onHierarchyCompleted, string name = "")
