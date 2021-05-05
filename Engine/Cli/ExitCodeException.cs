@@ -16,7 +16,7 @@ namespace OpenTap.Cli
         /// </summary>
         public int ExitCode { get; private set; }
         /// <summary>
-        /// Instanciates a new <see cref="ExitCodeException"/>
+        /// Instantiates a new <see cref="ExitCodeException"/>
         /// </summary>
         /// <param name="exitcode"> Exit code to set when ending the process</param>
         /// <param name="message">Exception message to print in the log</param>
