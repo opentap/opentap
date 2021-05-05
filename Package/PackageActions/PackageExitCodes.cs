@@ -41,5 +41,10 @@ namespace OpenTap.Package
         /// </summary>
         [Display("Package Install Error", "Error occurred while installing package")]
         PackageInstallError = 35,
+        /// <summary>
+        /// Error occurred while uninstalling package
+        /// </summary>
+        [Display("Package Uninstall Error", "Error occurred while uninstalling package")]
+        PackageUninstallError = 36,
     }
 }
