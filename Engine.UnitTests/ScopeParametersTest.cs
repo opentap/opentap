@@ -504,7 +504,26 @@ namespace OpenTap.UnitTests
             
             // this was what failed in the original bug report.
             plan.SerializeToString(true);
+        }
 
+        [Test]
+        public void MultiStepParameterize()
+        {
+            var plan = new TestPlan();
+            for (int i = 0; i < 4; i++)
+            {
+                var diag = new DialogStep();
+                plan.ChildTestSteps.Add(diag);
+                var titleMem = TypeData.GetTypeData(diag).GetMember(nameof(diag.Title));
+                titleMem.Parameterize(plan, diag, nameof(DialogStep.Title));
+            }
+
+            for (int i = 0; i < 4; i++)
+            {
+                Assert.IsNotNull(TypeData.GetTypeData(plan).GetMember(nameof(DialogStep.Title)));
+                plan.ChildTestSteps.RemoveAt(0);
+            }
+            Assert.IsNull(TypeData.GetTypeData(plan).GetMember(nameof(DialogStep.Title)));
         }
     }
 }
