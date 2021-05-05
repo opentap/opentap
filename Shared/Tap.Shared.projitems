@@ -10,6 +10,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)AnsiColorCodeFix.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Either.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)OperatingSystem.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SharedState.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ArgumentsParser.cs" />

@@ -1,7 +1,16 @@
 using System;
 
-namespace OpenTap.Package
+namespace OpenTap.Plugins.BasicSteps.Tap.Shared
 {
+    /// <summary>
+    /// An 'Either' instance always holds either a TLeft type or a TRight type, but never both.
+    /// The 'match' method can be called with function arguments:
+    /// If the 'either' is a left either, the left method is invoked on the left value.
+    /// Otherwise, the right method is invoked on the right value.
+    /// This allows for type-safe polymorphism between e.g. enum types as used in the Install package action.
+    /// </summary>
+    /// <typeparam name="TLeft"></typeparam>
+    /// <typeparam name="TRight"></typeparam>
     internal class Either<TLeft, TRight>
     {
         public bool isLeft { get; }

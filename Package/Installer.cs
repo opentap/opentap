@@ -12,10 +12,13 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using OpenTap.Cli;
-using ExitCode = OpenTap.Package.Either<OpenTap.Cli.ExitCodes, OpenTap.Package.PackageExitCodes>;
+using OpenTap.Plugins.BasicSteps.Tap.Shared;
+
 
 namespace OpenTap.Package
 {
+    using ExitCode = Either<ExitCodes, PackageExitCodes>;
+    
     internal class Installer
     {
         private readonly static TraceSource log =  OpenTap.Log.CreateSource("Installer");
@@ -52,6 +55,7 @@ namespace OpenTap.Package
 
         internal ExitCode InstallThread()
         {
+
             if (cancellationToken.IsCancellationRequested)
                 return new ExitCode(ExitCodes.UserCancelled);
 
