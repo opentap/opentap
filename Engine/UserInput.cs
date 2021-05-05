@@ -165,6 +165,13 @@ namespace OpenTap
 
                 if (members == null) return;
                 members = members.Concat(a.Get<IForwardedAnnotations>()?.Forwarded ?? Array.Empty<AnnotationCollection>());
+
+                // Order members
+                members = members.OrderBy(m => m.Get<DisplayAttribute>()?.Name ?? m.Get<IMemberAnnotation>()?.Member.Name);
+                members = members.OrderBy(m => m.Get<DisplayAttribute>()?.Order ?? -10000);
+                members = members.OrderBy(m => m.Get<IMemberAnnotation>()?.Member?.GetAttribute<LayoutAttribute>()?.Mode == LayoutMode.FloatBottom ? 1 : 0);
+                members = members.OrderBy(m => m.Get<IMemberAnnotation>()?.Member?.HasAttribute<SubmitAttribute>() == true ? 1 : 0);
+
                 var display = a.Get<IDisplayAnnotation>();
 
                 string title = null;
