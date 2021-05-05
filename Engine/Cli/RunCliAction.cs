@@ -286,7 +286,7 @@ namespace OpenTap.Cli
                     }
                     else
                     {
-                        log.Error($"No installed plugins provide loading of external parameters from '{ext}' files. No external parameters loaded from '{file}'.");
+                        throw new ArgumentException($"No installed plugins provide loading of external parameters from '{ext}' files. No external parameters loaded from '{file}'.");
                     }
                 }
             }
