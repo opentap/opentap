@@ -1589,6 +1589,14 @@ namespace OpenTap
         /// <summary> Turns item into a one element array, unless it is null.</summary>
         public static T[] AsSingle<T>(this T item) => item == null ? Array.Empty<T>() : new[] {item};
         
+        public static int Count(this IEnumerable e)
+        {
+            if (e is IList l) return l.Count;
+            int c = 0;
+            foreach (var _ in e)
+                c++;
+            return c;
+        }
         
         /// <summary>
         /// Like distinct but keeps the last item. Returns List because we need to iterate until last element anyway.
