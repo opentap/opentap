@@ -284,7 +284,8 @@ then you can set these values from the command line with:
 
 `tap run My.TapPlan -e value1=hello -e value2=3 -e value3=0.75`.
 
-Alternatively, you can create a csv file named `values.csv` containing:
+Alternatively, if the [CSV](https://packages.opentap.io/index.html#/?name=CSV) plugin is installed,
+you can create a csv file named `values.csv` containing:
 
 ```
 value1,hello
