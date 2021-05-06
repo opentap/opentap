@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.ComponentModel;
+using System.IO;
 using System.Threading;
 using NUnit.Framework;
 
@@ -61,6 +63,65 @@ namespace OpenTap.Engine.UnitTests
             {
                 UserInput.SetInterface(prev);
             }
+        }
+
+        [Test]
+        public void TestUserInputOrder()
+        {
+            CliUserInputInterface.Load();
+            var request = new TestRequest();
+            using (var writer = new StringWriter())
+            {
+                Console.SetOut(writer);
+                UserInput.Request(request);
+
+                var log = writer.ToString().Split(new [] {Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries);
+                for (int i = 0; i <= 5; i++)
+                    Assert.AreEqual(log[i], i.ToString());
+            }
+        }
+    }
+    
+    public class TestRequest
+    {
+        [Display("g", Order: 2)]
+        [Submit]
+        [Browsable(true)]
+        public string g { get; }
+        
+        [Display("e", Order: 2)]
+        [Layout(LayoutMode.FloatBottom)]
+        [Browsable(true)]
+        public string e { get; }
+        
+        [Display("d", Order: 2)]
+        [Browsable(true)]
+        public string d { get; }
+        
+        [Display("c", Order: 3)]
+        [Browsable(true)]
+        public string c { get; }
+        
+        [Display("b", Order: 2)]
+        [Browsable(true)]
+        public string b { get; }
+        
+        [Display("a", Order: 1)]
+        [Browsable(true)]
+        public string a { get; }
+
+        [Browsable(true)]
+        public string f { get; }
+        
+        public TestRequest()
+        {
+            f = "0";
+            a = "1";
+            b = "2";
+            d = "3";
+            c = "4";
+            e = "5";
+            g = "6";
         }
     }
 }

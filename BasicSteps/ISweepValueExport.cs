@@ -8,7 +8,7 @@ namespace OpenTap.Plugins.BasicSteps
     /// <summary>
     /// Custom handler for exporting a table of values to a file.
     /// </summary>
-    [Display("External Parameter Export")]
+    [Display("Table Export")]
     public interface ITableExport : ITapPlugin
     {
         /// <summary>

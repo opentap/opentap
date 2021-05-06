@@ -212,7 +212,7 @@ namespace OpenTap
                     return true;
                 }
                 (source, member) = additionalMembers.FirstOrDefault();
-                additionalMembers.Clear();
+                additionalMembers.Remove((source, member));
             }
             else
             {

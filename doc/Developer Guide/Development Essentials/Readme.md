@@ -3,17 +3,17 @@ Development Essentials
 
 ## OpenTAP Plugin Object Hierarchy
 
-At the very root of the OpenTAP plugin class hierarchy is the **ValidatingObject** class. Items in blue are OpenTAP base classes. The green, dotted rectangles are user extensions to those base classes.
+At the very root of the OpenTAP plugin class hierarchy is the **ITapPlugin** class. Items in blue are OpenTAP base classes. The green, dotted rectangles are user extensions to those base classes.
 
  ![](./ObjectHierarchy.png)
  
- Extending **ValidatingObject** are the **ComponentSettings**, **Resource**, and **TestStep** base classes. These are abstract classes and hence cannot be instantiated. They are used as base classes for other classes.
+ Extending **ITapPlugin** are the **ComponentSettings**, **Resource**, and **TestStep** base classes. These are abstract classes and hence cannot be instantiated. They are used as base classes for other classes.
  
 -	**ComponentSettings** is used for storing settings throughout the system. It contains properties to be set or lists of instruments, DUTs, and so on. ComponentSettings are available via the various Settings menus in the GUIs.
 
 -	**Resource** is a base class for the DUT, Instrument and ResultListener classes. Resources are often specified in the settings for a test step. Referencing a 'Resource' from a test step will cause it to automatically be opened upon test plan execution. 
 
--	**TestStep** does not inherit from Resource but inherits directly from ValidatingObject.
+-	**TestStep** does not inherit from Resource but inherits directly from ITapPlugin.
 
 ## Developing Using Interfaces
 
@@ -35,6 +35,25 @@ The `UserInput.Request` method takes three parameters:
 - `modal` - a Boolean that specifies if the user can interact with background objects if the dialog is open. If it is set to true the user will have to answer before doing anything else.
 
 To finalize the input you can use the [`SubmitAttribute`](../Attributes/Readme.md#submit-attribute). If this is used in a GUI with an enum, buttons appear that can submit or cancel the user input. In this case we recommend using the `SubmitAttribute` together with the [`LayoutAttribute`](../Attributes/Readme.md#layout-attribute). This helps to create a natural look-and-feel for your UI because it handles how the buttons are displayed. You can use this attribute to control the height, width and placement of the buttons. To give a title to your dialog box you can use the `Create Name` property.
+
+## Plugin Settings
+
+Adding user settings to a *TapPlugin*, such as a step setting for a test step, can be done with properties.
+These properties are visible and editable in the GUI Editor. Properties typically include instrument and DUT references, instrument and DUT settings, timing and limit information, etc. Defining these properties is a major part of plugin development.
+
+These properties can be configured using attributes, see [Attributes Used by OpenTAP](../Attributes/Readme.md#attributes-used-by-opentap).
+
+An example from the repeat step: 
+```cs
+[EnabledIf("Action",RepeatStepAction.Fixed_Count, HideIfDisabled = true)]
+[Display("Count", Order: 1, Description: "Set the fixed number of times to repeat.")]
+public uint Count { get; set; }
+```
+Turns into:
+
+![](./Properties.png)
+
+The SDK provides many examples of properties for test step development in the **`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps`** folder.
 
 ## Best Practices for Plugin Development
 
