@@ -97,6 +97,9 @@ namespace OpenTap
             }
         }
 
+        public bool CanExecuteUnparameterize => ParameterManager.CanUnparameter(this) && (IsAnyOutputAssigned == false);
+        
+        [EnabledIf(nameof(CanExecuteUnparameterize), true, HideIfDisabled = true)]
         [EnabledIf(nameof(IsParameterized), true, HideIfDisabled = true)]
         [EnabledIf(nameof(TestPlanLocked), false)]
         [Display("Unparameterize", "Removes the parameterization of this setting.", Order: 1.0)]

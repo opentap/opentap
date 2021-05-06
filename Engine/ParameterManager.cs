@@ -471,12 +471,13 @@ namespace OpenTap
             checkParameterSanity(step);
         }
 
+        public static bool CanUnparameter(ITestStepMenuModel menuItemModel) => CanUnparameter(menuItemModel.Member, menuItemModel.Source);
         public static bool CanParameter(ITestStepMenuModel menuItemModel) => CanParameter(menuItemModel.Member, menuItemModel.Source);
         
         static bool isParameterized(ITestStepParent item, IMemberData member) => item.GetParents().Any(parent =>
             TypeData.GetTypeData(parent).GetMembers().OfType<ParameterMemberData>()
                 .Any(x => x.ContainsMember((item, Member: member))));
-        public static bool CanParameter(IMemberData property, ITestStepParent[] steps)
+        static bool IsValidParameter(IMemberData property, ITestStepParent[] steps)
         {
             if (steps.Length == 0) return false;
             if (property == null) return false;
@@ -497,10 +498,22 @@ namespace OpenTap
                 if (x is TestPlan) return false;
             }
 
-            if (steps.Any(step => isParameterized(step, property)))
-                return false;
             return true;
         }
+
+        public static bool CanParameter(IMemberData property, ITestStepParent[] steps)
+        {
+            if (IsValidParameter(property, steps) == false)
+                return false;
+            return !steps.Any(step => isParameterized(step, property));
+        }
+        public static bool CanUnparameter(IMemberData property, ITestStepParent[] steps)
+        {
+            if (IsValidParameter(property, steps) == false)
+                return false;
+            return steps.Any(step => isParameterized(step, property));
+        }
+        
         
         public static bool CanAutoParameterize(IMemberData property, ITestStepParent[] steps )
         {
