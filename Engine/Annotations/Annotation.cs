@@ -2484,7 +2484,7 @@ namespace OpenTap
                     {
                         annotation.Add(new MemberToStringAnnotation(annotation));
                     }
-                    if (reflect.ReflectionInfo.DescendsTo(typeof(Port)))
+                    if (reflect.ReflectionInfo.DescendsTo(typeof(Port)) )
                     {
                         annotation.Add(new PortAnnotation(annotation));
                     }

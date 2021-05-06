@@ -257,6 +257,11 @@ namespace OpenTap
         }
     }
     
+    interface IPropertyProvider
+    {
+        IMemberData GetDataForType(ITypeData type);
+    }
+
     class DynamicMember : IMemberData
     {
         public virtual IEnumerable<object> Attributes { get; set; } = Array.Empty<object>();
@@ -274,6 +279,7 @@ namespace OpenTap
         {
             
         }
+
         /// <summary> This overload allows two DynamicMembers to share the same Get/Set value backing field.</summary>
         /// <param name="base"></param>
         public DynamicMember(DynamicMember @base)
@@ -641,35 +647,117 @@ namespace OpenTap
             public bool CanCreateInstance => innerType.CanCreateInstance;
         }
 
+        internal class PropertyExtender : ITypeData
+        {
+            readonly IMemberData[] extraMembers = { };
+
+            public PropertyExtender(ITypeData innerType, IEnumerable<IMemberData> extraMembers)
+            {
+                this.innerType = innerType;
+                this.extraMembers = extraMembers.ToArray();
+            }
+
+            public override bool Equals(object obj)
+            {
+                if (obj is PropertyExtender td2)
+                    return td2.innerType.Equals(innerType);
+                return base.Equals(obj);
+            }
+
+            public override int GetHashCode() => innerType.GetHashCode() * 157489213;
+
+            readonly ITypeData innerType;
+            public IEnumerable<object> Attributes => innerType.Attributes;
+            public string Name => innerType.Name;
+            public ITypeData BaseType => innerType;
+
+            public IEnumerable<IMemberData> GetMembers()
+            {
+                return innerType.GetMembers().Concat(extraMembers);
+            }
+
+            public IMemberData GetMember(string name)
+            {
+                return extraMembers.FirstOrDefault(m => m.Name == name) ?? innerType.GetMember(name);
+            }
+
+            public object CreateInstance(object[] arguments)
+            {
+                return innerType.CreateInstance(arguments);
+            }
+
+            public bool CanCreateInstance => innerType.CanCreateInstance;
+        }
+
+
         // memorize for reference equality.
         static ConditionalWeakTable<ITypeData, TestStepTypeData> dict =
             new ConditionalWeakTable<ITypeData, TestStepTypeData>();
         static TestStepTypeData getStepTypeData(ITypeData subtype) =>
             dict.GetValue(subtype, x => new TestStepTypeData(x));
 
+        static IEnumerable<IPropertyProvider> propertyProviders = TypeData.GetDerivedTypes(TypeData.FromType(typeof(IPropertyProvider)))
+                                                                          .Where(t => t.CanCreateInstance)
+                                                                          .Select(t => t.CreateInstance())
+                                                                          .Cast<IPropertyProvider>();
+
+        static ConditionalWeakTable<ITypeData, PropertyExtender> dict2 =
+    new ConditionalWeakTable<ITypeData, PropertyExtender>();
+
         public ITypeData GetTypeData(string identifier, TypeDataProviderStack stack)
         {
-            var subtype = stack.GetTypeData(identifier);
+            ITypeData subtype = stack.GetTypeData(identifier);
             if (subtype.DescendsTo(typeof(ITestStep)))
             {
-                var result = getStepTypeData(subtype);
-                return result;
+                subtype = getStepTypeData(subtype);
             }
-
-            return subtype;
+            var extender = dict2.GetValue(subtype, x =>
+            {
+                var extraMembers = new List<IMemberData>();
+                foreach (var p in propertyProviders)
+                {
+                    var mem = p.GetDataForType(subtype);
+                    if (mem != null)
+                        extraMembers.Add(mem);
+                }
+                if (extraMembers.Any())
+                    return new PropertyExtender(subtype, extraMembers); // Todo: memorize this
+                else
+                    return null;
+            });
+            if (extender != null)
+                return extender;
+            else
+                return subtype;
         }
 
         public ITypeData GetTypeData(object obj, TypeDataProviderStack stack)
         {
+            var subtype = stack.GetTypeData(obj);
             if (obj is ITestStepParent)
             {
-                var subtype = stack.GetTypeData(obj);
-                var result = getStepTypeData(subtype);
+                subtype = getStepTypeData(subtype);
                 if (TestStepTypeData.DynamicMembers.GetValue(obj) is IMemberData[])
-                    return new DynamicTestStepTypeData(result, obj);
-                return result;
+                    subtype = new DynamicTestStepTypeData((TestStepTypeData)subtype, obj);
             }
-            return null;
+            var extender = dict2.GetValue(subtype, x =>
+            {
+                var extraMembers = new List<IMemberData>();
+                foreach (var p in propertyProviders)
+                {
+                    var mem = p.GetDataForType(subtype);
+                    if (mem != null)
+                        extraMembers.Add(mem);
+                }
+                if (extraMembers.Any())
+                    return new PropertyExtender(subtype, extraMembers); // Todo: memorize this
+                else
+                    return null;
+            });
+            if (extender != null)
+                return extender;
+            else
+                return subtype;
         }
         public double Priority { get; } = 10;
     }

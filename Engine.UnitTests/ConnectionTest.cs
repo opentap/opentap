@@ -6,6 +6,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using NUnit.Framework;
@@ -55,7 +56,6 @@ namespace OpenTap.Engine.UnitTests
         }
 
         
-        
         public class ViaPointCollection : IReadOnlyList<ViaPoint>
         {
             readonly SwitchPosition[] points;
@@ -77,6 +77,7 @@ namespace OpenTap.Engine.UnitTests
 
         public class TestRevolverSwitchInstrument : Instrument
         {
+            [Browsable(true)]
             public IReadOnlyList<ViaPoint> Ports { get; set; }
             public Port A { get; set; } 
 
@@ -91,13 +92,15 @@ namespace OpenTap.Engine.UnitTests
         public void TestRevolverSwitchInstrumentSerialization()
         {
             var instrument = new TestRevolverSwitchInstrument();
-            instrument.Ports[0].Alias = "test";
-            instrument.A.Alias = "test2";
+            var viaAliasMem = TypeData.GetTypeData(instrument.Ports[0]).GetMember("Alias");
+            viaAliasMem.SetValue(instrument.Ports[0], "test");
+            var portAliasMem = TypeData.GetTypeData(instrument.A).GetMember("Alias");
+            portAliasMem.SetValue(instrument.A,"test2");
             var serializer = new TapSerializer();
             var xml = serializer.SerializeToString(instrument);
             var instrument2 = (TestRevolverSwitchInstrument) new TapSerializer().DeserializeFromString(xml);
-            Assert.AreEqual(instrument.Ports[0].Alias, instrument2.Ports[0].Alias);
-            Assert.AreEqual(instrument.A.Alias, instrument2.A.Alias);
+            Assert.AreEqual(viaAliasMem.GetValue(instrument.Ports[0]), viaAliasMem.GetValue(instrument2.Ports[0]));
+            Assert.AreEqual(portAliasMem.GetValue(instrument.A), portAliasMem.GetValue(instrument2.A));
         }        
     }
 }

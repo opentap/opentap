@@ -2,9 +2,16 @@
   "profiles": {
     "tap (Install Editor CE)": {
       "commandName": "Project",
-      "commandLineArgs": "package install \"Editor CE\" --no-dependencies",
+      "commandLineArgs": "package install \"Editor CE\" \"WPF Controls\" --no-dependencies --force",
       "environmentVariables": {
-        "OPENTAP_COLOR": "1"
+        "OPENTAP_COLOR": "auto"
+      }
+    },
+    "tap (Install vssdk)": {
+      "commandName": "Project",
+      "commandLineArgs": "package install \"Visual Studio SDK CE\" --force --unpack-only",
+      "environmentVariables": {
+        "OPENTAP_COLOR": "auto"
       }
     },
     "tap (list)": {
@@ -21,6 +28,10 @@
     },
     "tap (commands)": {
       "commandName": "Project"
+    },
+    "tap (editor)": {
+      "commandName": "Project",
+      "commandLineArgs": "editor"
     }
   }
 }
