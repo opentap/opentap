@@ -2187,14 +2187,15 @@ namespace OpenTap.Engine.UnitTests
         public void DeserializeLostInputProperty()
         {
             var plan1 = new TestPlan();
-            var delay1 = new DelayStep();
-            var delay2 = new DelayStep();
-            plan1.ChildTestSteps.Add(delay1);
-            plan1.ChildTestSteps.Add(delay2);
-            var member = TypeData.GetTypeData(delay1).GetMember(nameof(delay1.DelaySecs));
-            InputOutputRelation.Assign(delay1, member, delay2, member);
+            var repeat = new RepeatStep();
+            var log = new LogStep();
+            plan1.ChildTestSteps.Add(repeat);
+            repeat.ChildTestSteps.Add(log);
+            var member = TypeData.GetTypeData(log).GetMember(nameof(LogStep.LogMessage));
+            var outputMember = TypeData.GetTypeData(repeat).GetMember(nameof(RepeatStep.IterationInfo));
+            InputOutputRelation.Assign(log, member, repeat, outputMember);
 
-            var steps = new ITestStep[] {delay1, delay2};
+            var steps = new ITestStep[] {repeat, log};
             var xml = new TapSerializer().SerializeToString(steps);
 
             var ser2 = new TapSerializer();
@@ -2203,10 +2204,10 @@ namespace OpenTap.Engine.UnitTests
             var plan = new TestPlan();
             plan.Steps.AddRange(deserialized);
             
-            var delay3 = deserialized[0];
-            var delay4 = deserialized[1];
-            Assert.IsTrue(InputOutputRelation.IsInput(delay3, member));
-            Assert.IsTrue(InputOutputRelation.IsOutput(delay4, member));
+            var repeat2 = deserialized[0];
+            var delay2 = deserialized[1];
+            Assert.IsTrue(InputOutputRelation.IsOutput(repeat2, outputMember));
+            Assert.IsTrue(InputOutputRelation.IsInput(delay2, member));
         }
     }
 

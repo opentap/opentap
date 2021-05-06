@@ -113,6 +113,20 @@ namespace OpenTap
                 Unassign(con);
         }
 
+        static bool IsInScope(ITestStepParent target, ITestStep otherStep)
+        {
+            var parent = target;
+            while (parent != null)
+            {
+                if (parent == otherStep.Parent)
+                    return true;
+                        
+                parent = parent.Parent;
+            }
+
+            return false;
+        }
+        
         static void checkRelations(ITestStepParent target)
         {
             var plan = target.GetParent<TestPlan>();
@@ -127,7 +141,7 @@ namespace OpenTap
                 if (connection.OutputObject is ITestStep otherStep)
                 {
                     // steps can only be connected to a step from the same test plan.
-                    if (removeAllRelations || plan.ChildTestSteps.GetStep(otherStep.Id) == null)
+                    if (removeAllRelations || plan.ChildTestSteps.GetStep(otherStep.Id) == null || IsInScope(target, otherStep) == false)
                     {
                         defer = defer.Bind(Unassign, connection);
                     }
