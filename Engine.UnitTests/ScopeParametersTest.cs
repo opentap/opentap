@@ -506,6 +506,48 @@ namespace OpenTap.UnitTests
             plan.SerializeToString(true);
         }
 
+        public class FailParameterStep : TestStep
+        {
+            double value;
+
+            public double Value {
+                get => value;
+                set
+                {
+                    if (value < 0.0)
+                    {
+                        throw new Exception("!");
+                    }
+
+                    this.value = value;
+                }
+            }
+            
+            public override void Run()
+            {
+                
+            }
+        }
+
+
+        [Test]
+        public void SweepParameterStepTest()
+        {
+            var plan = new TestPlan();
+            var step1 = new SweepParameterStep();
+            plan.ChildTestSteps.Add(step1);
+            
+            var failStep = new FailParameterStep();
+            step1.ChildTestSteps.Add(failStep);
+            TypeData.GetTypeData(failStep).GetMember(nameof(failStep.Value)).Parameterize(step1, failStep, "A");
+            step1.SweepValues.Add(new SweepRow());
+            // this should make failStep fail.
+            step1.SweepValues[0].Values["A"] = -1.0;
+
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Error, run.Verdict);
+        }
+
         [Test]
         public void MultiStepParameterize()
         {
