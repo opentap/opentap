@@ -283,7 +283,9 @@ namespace OpenTap.Cli
                     {
                         var ext = Path.GetExtension(file);
                         log.Info($"Loading external parameters from '{file}'.");
-                        var importer = importers.FirstOrDefault(i => i.Extension == ext);
+                        var importer = importers
+                                // find importer that accepts that extension, case-insensitively. 
+                            .FirstOrDefault(i => string.Compare(i.Extension, ext, StringComparison.InvariantCultureIgnoreCase) == 0);
                         if (importer != null)
                         {
                             importer.ImportExternalParameters(Plan, file);
