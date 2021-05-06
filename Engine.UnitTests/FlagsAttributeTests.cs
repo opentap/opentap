@@ -77,26 +77,31 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(select.Selected.Cast<Enum>().Count(), 1);
 
             flagStep.MyNonPowers2Mode = NonPowers2Modes.AC;
+            stepAnnotation.Read();
             Assert.True(select.Selected.Cast<Enum>().Contains(NonPowers2Modes.A | NonPowers2Modes.C | NonPowers2Modes.AC));
             Assert.AreEqual(select.Selected.Cast<Enum>().Count(), 3);
 
             flagStep.MyNonPowers2Mode = NonPowers2Modes.BC;
+            stepAnnotation.Read();
             Assert.False(select.Selected.Cast<Enum>().Contains(NonPowers2Modes.A)); // A should be unselected
             Assert.True(select.Selected.Cast<Enum>().Contains(NonPowers2Modes.B | NonPowers2Modes.C | NonPowers2Modes.BC));
             Assert.AreEqual(select.Selected.Cast<Enum>().Count(), 3);
 
             flagStep.MyNonPowers2Mode |= NonPowers2Modes.D;
+            stepAnnotation.Read();
             Assert.True(select.Selected.Cast<Enum>().Contains(NonPowers2Modes.D | NonPowers2Modes.B | NonPowers2Modes.C | NonPowers2Modes.BC));
             Assert.True(select.Selected.Cast<Enum>().Contains(NonPowers2Modes.BD | NonPowers2Modes.CD | NonPowers2Modes.BCD));
             Assert.AreEqual(select.Selected.Cast<Enum>().Count(), 7);
 
             // Unselection
             flagStep.MyNonPowers2Mode ^= NonPowers2Modes.B;  // Remove B from previous selection
+            stepAnnotation.Read();
             Assert.True(select.Selected.Cast<Enum>().Contains(NonPowers2Modes.D | NonPowers2Modes.C | NonPowers2Modes.CD));
             Assert.AreEqual(select.Selected.Cast<Enum>().Count(), 3);
 
             //Select All
             flagStep.MyNonPowers2Mode = NonPowers2Modes.All;
+            stepAnnotation.Read();
             Assert.False(select.Selected.Cast<Enum>().Contains(NonPowers2Modes.None));
             Assert.AreEqual(select.Selected.Cast<Enum>().Count(), 15);
         }
@@ -113,16 +118,19 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(select.Selected.Cast<Enum>().Count(), 1);
 
             flagStep.MyPowers2Mode = Powers2Modes.C;
+            stepAnnotation.Read();
             Assert.True(select.Selected.Cast<Enum>().Contains(Powers2Modes.C));
             Assert.AreEqual(select.Selected.Cast<Enum>().Count(), 1);
 
             flagStep.MyPowers2Mode |= Powers2Modes.D;
+            stepAnnotation.Read();
             Assert.True(select.Selected.Cast<Enum>().Contains(Powers2Modes.C));
             Assert.True(select.Selected.Cast<Enum>().Contains(Powers2Modes.D));
             Assert.AreEqual(select.Selected.Cast<Enum>().Count(), 2);
             Assert.False(select.Selected.Cast<Enum>().Contains(Powers2Modes.C | Powers2Modes.D));    // C|D is not a defined enum constant
 
             flagStep.MyPowers2Mode = Powers2Modes.A;
+            stepAnnotation.Read();
             Assert.True(select.Selected.Cast<Enum>().Contains(Powers2Modes.A));
             Assert.AreEqual(select.Selected.Cast<Enum>().Count(), 1);
         }
@@ -139,23 +147,28 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(select.Selected.Cast<Enum>().Count(), 1);
             
             flagStep.MyLargeFlagValues = LargeFlagValues.ShortA;
+            stepAnnotation.Read();
             Assert.True(select.Selected.Cast<Enum>().Contains(LargeFlagValues.ShortA));
             Assert.AreEqual(select.Selected.Cast<Enum>().Count(), 1);
             
             flagStep.MyLargeFlagValues = LargeFlagValues.LongA;
+            stepAnnotation.Read();
             Assert.True(select.Selected.Cast<Enum>().Contains(LargeFlagValues.LongA));
             Assert.AreEqual(select.Selected.Cast<Enum>().Count(), 1);
 
             flagStep.MyLargeFlagValues = LargeFlagValues.LongB;
+            stepAnnotation.Read();
             Assert.True(select.Selected.Cast<Enum>().Contains(LargeFlagValues.LongB));
             Assert.AreEqual(select.Selected.Cast<Enum>().Count(), 1);
             
             flagStep.MyLargeFlagValues |= LargeFlagValues.LongA;
+            stepAnnotation.Read();
             Assert.True(select.Selected.Cast<Enum>().Contains(LargeFlagValues.LongB) &&
                         select.Selected.Cast<Enum>().Contains(LargeFlagValues.LongA));
             Assert.AreEqual(select.Selected.Cast<Enum>().Count(), 2);
             
             flagStep.MyLargeFlagValues = LargeFlagValues.ShortA | LargeFlagValues.LongA;
+            stepAnnotation.Read();
             Assert.True(select.Selected.Cast<Enum>().Contains(LargeFlagValues.ShortA));
             Assert.True(select.Selected.Cast<Enum>().Contains(LargeFlagValues.LongA));
             Assert.AreEqual(select.Selected.Cast<Enum>().Count(), 2);
