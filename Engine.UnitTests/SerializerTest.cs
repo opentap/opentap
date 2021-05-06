@@ -1789,36 +1789,6 @@ namespace OpenTap.Engine.UnitTests
 
 
         [Test]
-        public void DataSerializerArray()
-        {
-            var table = new ResultTable("XYZ", new ResultColumn[] {
-                new ResultColumn("X", new double[5] { 1, Double.NegativeInfinity, Double.PositiveInfinity, Double.NaN, Double.MaxValue}),
-                new ResultColumn("Y", new byte[5] { 1, 2, 3, 4, 5 }),
-                new ResultColumn("Z", new char[5] { 'a', 'b', 'c', 'd', 'e' }),
-                new ResultColumn("W", new string[] {"asd", "🍰", "", "\t\t\t\t\t", null }),
-                new ResultColumn("W2", new object[] {null, null, null, null, null }), // since null can be an IConvertible this situation can be reproduced by all Result.Publish calls with null results.
-                new ResultColumn("U",new DateTime[5] {DateTime.MaxValue, DateTime.MinValue, DateTime.Now, new DateTime(0,DateTimeKind.Local), new DateTime(10, DateTimeKind.Local)})
-                });
-            using (var stream = new MemoryStream())
-            {
-                using (var writer = new BinaryWriter(stream, Encoding.UTF8, true))
-                    DataSerialization.SerializeIData(new List<IData> { table }, writer);
-
-                stream.Position = 0;
-
-                using (var reader = new BinaryReader(stream, Encoding.UTF8))
-                {
-                    var tab = (IResultTable)DataSerialization.Deserialize(reader)[0];
-                    for (int i = 0; i < table.Columns.Length; i++)
-                    {
-                        bool areEqual = tab.Columns[i].Data.Cast<object>().SequenceEqual(table.Columns[i].Data.Cast<object>());
-                        Assert.IsTrue(areEqual);
-                    }
-                }
-            }
-        }
-
-        [Test]
         public void SerializePLanWithIntegerResourceNames()
         {
             InstrumentSettings.Current.Clear();
@@ -2217,14 +2187,15 @@ namespace OpenTap.Engine.UnitTests
         public void DeserializeLostInputProperty()
         {
             var plan1 = new TestPlan();
-            var delay1 = new DelayStep();
-            var delay2 = new DelayStep();
-            plan1.ChildTestSteps.Add(delay1);
-            plan1.ChildTestSteps.Add(delay2);
-            var member = TypeData.GetTypeData(delay1).GetMember(nameof(delay1.DelaySecs));
-            InputOutputRelation.Assign(delay1, member, delay2, member);
+            var repeat = new RepeatStep();
+            var log = new LogStep();
+            plan1.ChildTestSteps.Add(repeat);
+            repeat.ChildTestSteps.Add(log);
+            var member = TypeData.GetTypeData(log).GetMember(nameof(LogStep.LogMessage));
+            var outputMember = TypeData.GetTypeData(repeat).GetMember(nameof(RepeatStep.IterationInfo));
+            InputOutputRelation.Assign(log, member, repeat, outputMember);
 
-            var steps = new ITestStep[] {delay1, delay2};
+            var steps = new ITestStep[] {repeat, log};
             var xml = new TapSerializer().SerializeToString(steps);
 
             var ser2 = new TapSerializer();
@@ -2233,10 +2204,10 @@ namespace OpenTap.Engine.UnitTests
             var plan = new TestPlan();
             plan.Steps.AddRange(deserialized);
             
-            var delay3 = deserialized[0];
-            var delay4 = deserialized[1];
-            Assert.IsTrue(InputOutputRelation.IsInput(delay3, member));
-            Assert.IsTrue(InputOutputRelation.IsOutput(delay4, member));
+            var repeat2 = deserialized[0];
+            var delay2 = deserialized[1];
+            Assert.IsTrue(InputOutputRelation.IsOutput(repeat2, outputMember));
+            Assert.IsTrue(InputOutputRelation.IsInput(delay2, member));
         }
     }
 

@@ -55,7 +55,7 @@ namespace OpenTap
         Dictionary<string, string> asmlookup = new Dictionary<string, string>();
         public SimpleTapAssemblyResolver()
         {
-            string currentDir = Environment.GetEnvironmentVariable("OPENTAP_INIT_DIRECTORY");
+            string currentDir = Environment.GetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.OpenTapInitDirectory);
             if (currentDir == null)
             {
                 currentDir = new Uri(Assembly.GetExecutingAssembly().CodeBase).LocalPath;

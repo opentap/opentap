@@ -47,7 +47,7 @@ namespace OpenTap
     public interface IParameters : IList<IParameter>
     {
         /// <summary>
-        /// Get a parameter by name.
+        /// Get a parameter by name. This can be the ObjectType or Name of a parameter. e.g "OpenTap.Unit" or just "Unit".
         /// </summary>
         /// <returns>Null if the parameter was not found</returns>
         IConvertible this[string Name] { get; }

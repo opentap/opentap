@@ -64,7 +64,7 @@ namespace OpenTap
 
         public static SelectedOutputItem[] GetAvailableOutputs(ITestStepParent scope, ITestStepParent[] steps, ITypeData outputType)
         {
-            return scope.ChildTestSteps
+            var list = scope.ChildTestSteps
 
                 .SelectMany(childStep =>
                 {
@@ -73,7 +73,14 @@ namespace OpenTap
                         .Select(mem => SelectedOutputItem.Create(childStep, mem));
                 })
                 .Where(item => steps.Contains(item.Step) == false)
-                .ToArray();
+                .ToList();
+            
+            // Add the current scope
+            list.AddRange(TypeData.GetTypeData(scope).GetMembers()
+                .Where(y => y.HasAttribute<OutputAttribute>() && y.TypeDescriptor == outputType)
+                .Select(mem => SelectedOutputItem.Create(scope, mem)));
+
+            return list.ToArray();
         }
 
         public SelectedOutputItem[] GetAvailableOutputs() => GetAvailableOutputs(scope, steps, inputMember.TypeDescriptor);

@@ -179,18 +179,29 @@ namespace OpenTap.Engine.UnitTests
 
         private class ResultValidator : ResultListener
         {
-            public List<ResultTable> Results { get; set; }
+            public List<ResultTable> Results { get; } = new List<ResultTable>();
+            public List<(ResultTable,TestStepRun)> Results2 { get; } = new List<(ResultTable, TestStepRun)>();
 
-            public ResultValidator()
+
+            Dictionary<Guid, TestStepRun> stepRuns = new Dictionary<Guid, TestStepRun>();
+            public override void OnTestStepRunStart(TestStepRun stepRun)
             {
-                Results = new List<ResultTable>();
+                stepRuns[stepRun.Id] = stepRun;
             }
+
+            public override void OnTestStepRunCompleted(TestStepRun stepRun)
+            {
+                stepRuns.Remove(stepRun.Id);
+            }
+
 
             public override void OnResultPublished(Guid stepRunId, ResultTable result)
             {
                 Results.Add(result);
+                Results2.Add((result,stepRuns[stepRunId]));
             }
         }
+        
 
         [Test]
         public void ResultsProxyTest()
@@ -297,6 +308,83 @@ namespace OpenTap.Engine.UnitTests
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Pass, run.Verdict);
             Assert.IsTrue(run.Parameters.All(x => x.Group != null));
+        }
+
+        public class AdvancedResultsStep : TestStep
+        {
+            public class ResultCommentAttribute : Attribute, IParameter
+            {
+                public string Name => "Comment";
+
+                public string ObjectType => "string";
+
+                public string Group => "";
+
+                public IConvertible Value { get; }
+                public ResultCommentAttribute(string comment) => Value = comment;
+            }
+            
+            [ResultComment("ResultCommentTest")]
+            [Display("XY")]
+            public class AdvancedResult
+            {
+                [Unit("s")]
+                [Display("X", "This axis denotes some time spent.")]
+                public double X { get; set; }
+                [Unit("W")]
+                [Display("Y", "This axis denotes some power.")]
+                [ResultComment("ResultCommentTest2")]
+                public double Y { get; set; }
+
+                public static AdvancedResult New(double x, double y)
+                {
+                    return new AdvancedResult() {X = x, Y = y};
+                }
+            }
+            public override void Run()
+            {
+                var c1 = new ResultColumn("X", Enumerable.Range(0, 10).ToArray(), new UnitAttribute("s"));
+                var c2 = new ResultColumn("Y", Enumerable.Range(0, 10).ToArray(), new UnitAttribute("W"));
+                var results = new ResultTable("XY", new []{c1, c2}, new []{new ResultParameter("Comment", "Test Result")});
+                
+                Results.Publish(results);
+                Results.Publish(Enumerable.Range(0, 10).Select( x => AdvancedResult.New(x,x)));
+            }
+        }
+
+        [Test]
+        public void ResultTableAndColumnParameters()
+        {
+            var step = new AdvancedResultsStep();
+            var plan = new TestPlan();
+            plan.Steps.Add(step);
+            var rl = new ResultValidator();
+            plan.Execute(new[] {rl});
+
+            void validatedResult(ResultTable t, string comment)
+            {
+                Assert.AreEqual(comment, t.Parameters["Comment"]);
+                Assert.AreEqual("XY", t.Name);
+                Assert.AreEqual(2, t.Columns.Length);
+                Assert.AreEqual(10, t.Rows);
+                var x = t.Columns[0];
+                var y = t.Columns[1];
+
+                Assert.AreEqual("X", x.Name);
+                Assert.AreEqual("Y", y.Name);
+                Assert.AreEqual(1, x.Data.GetValue(1));
+                Assert.AreEqual(9, y.Data.GetValue(9));
+                Assert.AreEqual("s", x.Parameters["Unit"]);
+                Assert.AreEqual("W",y.Parameters["Unit"]);
+                Assert.AreEqual("s", x.Parameters["OpenTap.Unit"]);
+                
+            }
+            
+            Assert.AreEqual(2, rl.Results2.Count);
+            
+            //verify that the same results were generated in two different ways
+            validatedResult(rl.Results[0], "Test Result");
+            validatedResult(rl.Results[1], "ResultCommentTest");
         }
     }
 }

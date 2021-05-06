@@ -11,7 +11,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
+using OpenTap.Cli;
 
 namespace OpenTap.Package
 {
@@ -126,13 +126,12 @@ namespace OpenTap.Package
             RunCommand("uninstall", false, true);
         }
         
-        internal bool RunCommand(string command, bool force, bool modifiesPackageFiles)
+        internal int RunCommand(string command, bool force, bool modifiesPackageFiles)
         {
             var verb = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(command.ToLower()) + "ed";
 
             try
             {
-
                 if (modifiesPackageFiles)
                 {
                     try
@@ -156,7 +155,7 @@ namespace OpenTap.Package
                 foreach (string fileName in PackagePaths)
                 {
                     PackageDef pkg = PackageDef.FromXml(fileName);
-                    OnProgressUpdate((int)progressPercent, string.Format("Running command '{0}' on '{1}'", command, pkg.Name));
+                    OnProgressUpdate((int)progressPercent, $"Running command '{command}' on '{pkg.Name}'");
                     Stopwatch timer = Stopwatch.StartNew();
                     var res = pi.ExecuteAction(pkg, command, force, TapDir);
 
@@ -165,17 +164,17 @@ namespace OpenTap.Package
                         if (!force)
                         {
                             OnProgressUpdate(100, "Done");
-                            return false;
+                            return (int) ExitCodes.GeneralException;
                         }
                         else
                             log.Warning($"There was an error while trying to {command} '{pkg.Name}'.");
                     }
                     else if(res == ActionResult.NothingToDo)
                     {
-                        log.Info(string.Format("Tried to {0} {1}, but there was nothing to do.", command, pkg.Name));
+                        log.Info($"Tried to {command} {pkg.Name}, but there was nothing to do.");
                     }
                     else
-                        log.Info(timer, string.Format("{1} {0} version {2}.", pkg.Name, verb, pkg.Version));
+                        log.Info(timer, $"{verb} {pkg.Name} version {pkg.Version}.");
 
                     progressPercent += (double)80 / PackagePaths.Count();
                 }
@@ -189,13 +188,21 @@ namespace OpenTap.Package
             }
             catch (Exception ex)
             {
-                OnError(ex);
-                return false;
+                if (ex is ExitCodeException ec)
+                {
+                    log.Error(ec.Message);
+                    return ec.ExitCode;
+                }
+
+                if (ex is OperationCanceledException)
+                    return (int)ExitCodes.UserCancelled;
+
+                return (int) ExitCodes.GeneralException;
             }
 
             new Installation(TapDir).AnnouncePackageChange();
 
-            return true;
+            return (int)ExitCodes.Success;
         }
 
         // ignore tap.exe as it is not meant to be overwritten.
@@ -257,8 +264,7 @@ namespace OpenTap.Package
 
                     if (req.Response == AbortOrRetryResponse.Abort)
                     {
-                        var error = "One or more plugin files are in use. View log for more information.";
-                        OnError(new IOException(error));
+                        OnError(new IOException(inUseString));
                         throw new OperationCanceledException();
                     }
 
