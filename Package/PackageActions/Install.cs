@@ -217,14 +217,12 @@ namespace OpenTap.Package
             installer.PackagePaths.AddRange(toInstall);
 
             // Install the package
-            
             var status = installer.InstallThread();
+            
             if (installError)
                 return (int) PackageExitCodes.PackageInstallError;
 
-            return status.Match(
-                left: exitCode => (int) exitCode,
-                right: packageExitCode => (int) packageExitCode);
+            return status.Unpack<int>();
         }
 
         private void UninstallExisting(Installation installation, List<string> packagePaths, CancellationToken cancellationToken)

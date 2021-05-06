@@ -12,7 +12,6 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using OpenTap.Cli;
-using OpenTap.Plugins.BasicSteps.Tap.Shared;
 
 namespace OpenTap.Package
 {
