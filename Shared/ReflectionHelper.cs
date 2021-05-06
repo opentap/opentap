@@ -826,6 +826,10 @@ namespace OpenTap
     
     static class Utils
     {
+        public static IEnumerable<(int, T)> WithIndex<T>(this IEnumerable<T> collection)
+        {
+            return collection.Select((ele, index) => (index, ele));
+        }
         public static Action Bind<T>(this Action del, Action<T> f, T v)
         {
             del += () => f(v); 

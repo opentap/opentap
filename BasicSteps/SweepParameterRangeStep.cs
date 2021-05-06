@@ -49,8 +49,14 @@ namespace OpenTap.Plugins.BasicSteps
 
         public override void PrePlanRun()
         {
+            base.PrePlanRun();
             validateSweepMutex.WaitOne();
+        }
+
+        public override void PostPlanRun()
+        {
             validateSweepMutex.ReleaseMutex();
+            base.PostPlanRun();
         }
 
         public override IEnumerable<ParameterMemberData> AvailableParameters => base.AvailableParameters.Where(x => x.TypeDescriptor.IsNumeric());
