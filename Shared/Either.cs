@@ -73,32 +73,6 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Unpacks the wrapped value as type T.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
-        /// <exception cref="InvalidCastException"></exception>
-        public T Unpack<T>()
-        {
-            object value = IsLeft ? (object) Left : Right;
-
-            // Try a regular cast
-            if (value is T t)
-                return t;
-
-            try
-            {
-                // Try to coerce the value
-                return (T) value;
-            }
-            catch
-            {
-                var type = IsLeft ? typeof(TLeft) : typeof(TRight);
-                throw new InvalidCastException($"Cannot convert value of type '{type.Name}' to target type '{typeof(T).Name}'.");
-            }
-        }
-
-        /// <summary>
         /// Unpacks the wrapped value.
         /// </summary>
         /// <returns></returns>
@@ -107,6 +81,15 @@ namespace OpenTap
             if (IsLeft)
                 return Left;
             return Right;
+        }
+
+        /// <summary>
+        /// Unpacks the wrapped value and casts it to type T.
+        /// </summary>
+        /// <returns></returns>
+        public T Unpack<T>()
+        {
+            return (T) Unpack();
         }
 
         /// <summary>
