@@ -264,6 +264,11 @@ namespace OpenTap.Package
                 }
 
                 log.Warning(Environment.NewLine + "Waiting for files to become unlocked...");
+                
+                var tries = 0;
+                const int maxTries = 10;
+                var delaySeconds = 3;
+                var noninteractive = UserInput.GetInterface() is NonInteractiveUserInputInterface;
 
                 while (isPackageFilesInUse(tapDir, packagePaths, exclude))
                 {
@@ -274,6 +279,14 @@ namespace OpenTap.Package
 
                     if (req.Response == AbortOrRetryResponse.Abort)
                     {
+                        if (noninteractive && tries < maxTries)
+                        {
+                            tries += 1;
+                            log.Info($"Package files are in use. Retrying in {delaySeconds} seconds. ({tries} / {maxTries})");
+                            TapThread.Sleep(TimeSpan.FromSeconds(delaySeconds));
+                            continue;
+                        }
+                        
                         OnError(new IOException(inUseString));
                         throw new OperationCanceledException();
                     }
