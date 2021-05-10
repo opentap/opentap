@@ -50,21 +50,24 @@ namespace OpenTap.Package
                     log.Debug(ex);
                 }
             });
-            if (updates.Any())
+            using (CliUserInputInterface.AcquireUserInputLock())
             {
-                log.Info("Updates available for:");
-                foreach (var update in updates.GroupBy(p => p.Name))
+                if (updates.Any())
                 {
-                    var currentPackage = installedPackages.FirstOrDefault(p => p.Name == update.Key);
-                    var updatedPackage = update.OrderByDescending(p => p.Version).FirstOrDefault();
-                    log.Info($" - {update.Key}: {currentPackage?.Version} -> {updatedPackage?.Version}");
+                    log.Info("Updates available for:");
+                    foreach (var update in updates.GroupBy(p => p.Name))
+                    {
+                        var currentPackage = installedPackages.FirstOrDefault(p => p.Name == update.Key);
+                        var updatedPackage = update.OrderByDescending(p => p.Version).FirstOrDefault();
+                        log.Info($" - {update.Key}: {currentPackage?.Version} -> {updatedPackage?.Version}");
+                    }
                 }
-            }
-            else
-            {
-                log.Debug(timer, "Update check completed.");
-                if (!Startup)
-                    log.Info("All installed packages are up to date.");
+                else
+                {
+                    log.Debug(timer, "Update check completed.");
+                    if (!Startup)
+                        log.Info("All installed packages are up to date.");
+                }
             }
         }
 
