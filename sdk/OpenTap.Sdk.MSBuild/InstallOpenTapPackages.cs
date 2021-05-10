@@ -117,6 +117,9 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         /// <returns></returns>
         public override bool Execute()
         {
+            Environment.SetEnvironmentVariable("OPENTAP_NO_UPDATE_CHECK", "true");
+            Environment.SetEnvironmentVariable("OPENTAP_DEBUG_INSTALL", "true");
+
             if (PackagesToInstall == null || PackagesToInstall.Any() == false)
                 return true;
             if (string.IsNullOrWhiteSpace(TapDir))
@@ -174,15 +177,8 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                     RedirectStandardInput = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = false,
-                    WorkingDirectory = TapDir
+                    WorkingDirectory = TapDir,
                 };
-                
-                if (startInfo.EnvironmentVariables.ContainsKey("OPENTAP_DEBUG_INSTALL"))
-                    startInfo.EnvironmentVariables["OPENTAP_DEBUG_INSTALL"] = "true";
-                else
-                    startInfo.EnvironmentVariables.Add("OPENTAP_DEBUG_INSTALL", "true");
-
-
 
                 var p = Process.Start(startInfo);
                 Log.LogMessage($"Running '{tapInstall} {arguments}'.");
