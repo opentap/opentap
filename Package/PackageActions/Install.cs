@@ -143,7 +143,7 @@ namespace OpenTap.Package
                 List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                     targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
                     InstallDependencies, IgnoreDependencies, askToInstallDependencies, NoDowngrade);
-                if (!packagesToInstall.Any())
+                if (packagesToInstall?.Any() != true)
                 {
                     if (NoDowngrade)
                     {
