@@ -463,8 +463,8 @@ Package-NuGet:
     - Expand-Archive OpenTAP.Linux.zip linux-x64
     - ./nuget/NugetPackager.ps1
     - cd ./nuget    
-    - nuget update -self
-    - nuget pack OpenTAP.nuspec -OutputDirectory ../
+    - Invoke-WebRequest -Method Get -Uri "https://dist.nuget.org/win-x86-commandline/v5.7.1/nuget.exe" -OutFile nuget.exe
+    - .\nuget pack OpenTAP.nuspec -OutputDirectory ../
   artifacts:
     expire_in: 1 week
     paths:
