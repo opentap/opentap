@@ -107,7 +107,10 @@ namespace OpenTap
         [Browsable(true)]
         public void Unparameterize() => ParameterManager.Unparameterize(this);
 
+        public bool CanEditParameter => ParameterManager.CanEditParameter(this);
+        
         [Display("Edit Parameter", "Edit an existing parameterization.", Order: 1.0)]
+        [EnabledIf(nameof(CanEditParameter), true, HideIfDisabled = true)]
         [Browsable(true)]
         [EnabledIf(nameof(TestPlanLocked), false)]
         [IconAnnotation(IconNames.EditParameter)]
