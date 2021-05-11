@@ -1937,6 +1937,8 @@ namespace OpenTap
                                 return fac.AnnotateSub(elem2, DateTime.MinValue);
                             if(elem2.DescendsTo(typeof(TimeSpan)))
                                 return fac.AnnotateSub(elem2, TimeSpan.MinValue);
+                            if(elem2.DescendsTo(typeof(bool)))
+                                return fac.AnnotateSub(elem2, false);
                         }
                         return fac.AnnotateSub(elem2, null);
                     }

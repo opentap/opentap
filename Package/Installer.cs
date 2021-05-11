@@ -49,16 +49,21 @@ namespace OpenTap.Package
             }
         }
 
-        internal void InstallThread()
+        internal int InstallThread()
         {
-            if (cancellationToken.IsCancellationRequested) return;
+
+            if (cancellationToken.IsCancellationRequested)
+                return (int)ExitCodes.UserCancelled;
 
             try
             {
                 try
                 {
-
                     WaitForPackageFilesFree(TapDir, PackagePaths);
+                }
+                catch (OperationCanceledException)
+                {
+                    return (int)ExitCodes.UserCancelled;
                 }
                 catch
                 {
@@ -94,7 +99,7 @@ namespace OpenTap.Package
                         {
                             if (PackagePaths.Last() != fileName)
                                 log.Warning("Aborting installation of remaining packages (use --force to override this behavior).");
-                            throw;
+                            return (int) PackageExitCodes.PackageInstallError;
                         }
                         else
                         {
@@ -114,11 +119,14 @@ namespace OpenTap.Package
             catch (Exception ex)
             {
                 OnError(ex);
-                return;
+                return (int) PackageExitCodes.PackageInstallError;
             }
 
             Installation installation = new Installation(TapDir);
             installation.AnnouncePackageChange();
+
+            return (int) ExitCodes.Success;
+
         }
 
         internal void UninstallThread()
@@ -254,6 +262,11 @@ namespace OpenTap.Package
                 }
 
                 log.Warning(Environment.NewLine + "Waiting for files to become unlocked...");
+                
+                var tries = 0;
+                const int maxTries = 10;
+                var delaySeconds = 3;
+                var noninteractive = UserInput.GetInterface() is NonInteractiveUserInputInterface;
 
                 while (isPackageFilesInUse(tapDir, packagePaths, exclude))
                 {
@@ -264,6 +277,14 @@ namespace OpenTap.Package
 
                     if (req.Response == AbortOrRetryResponse.Abort)
                     {
+                        if (noninteractive && tries < maxTries)
+                        {
+                            tries += 1;
+                            log.Info($"Package files are in use. Retrying in {delaySeconds} seconds. ({tries} / {maxTries})");
+                            TapThread.Sleep(TimeSpan.FromSeconds(delaySeconds));
+                            continue;
+                        }
+                        
                         OnError(new IOException(inUseString));
                         throw new OperationCanceledException();
                     }
@@ -367,7 +388,7 @@ namespace OpenTap.Package
                 handler(progressPercent, message);
         }
     }
-    
+
     [Obfuscation(Exclude = true)]
     enum AbortOrRetryResponse
     {

@@ -877,6 +877,10 @@ namespace OpenTap
         {
             return id;
         }
+        
+        /// <summary> Do nothing. </summary>
+        public static void Noop () { }
+
 
         /// <summary>
         /// Returns the element for which selector returns the max value.

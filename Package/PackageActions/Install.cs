@@ -92,6 +92,9 @@ namespace OpenTap.Package
 
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
+            if (NonInteractive)
+                UserInput.SetInterface(new NonInteractiveUserInputInterface());
+            
             if (Target == null)
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
             var targetInstallation = new Installation(Target);
@@ -140,7 +143,7 @@ namespace OpenTap.Package
                 List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                     targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
                     InstallDependencies, IgnoreDependencies, askToInstallDependencies, NoDowngrade);
-                if (!packagesToInstall.Any())
+                if (packagesToInstall?.Any() != true)
                 {
                     if (NoDowngrade)
                     {
@@ -214,9 +217,12 @@ namespace OpenTap.Package
             installer.PackagePaths.AddRange(toInstall);
 
             // Install the package
-            installer.InstallThread();
+            var status = installer.InstallThread();
+            
+            if (installError)
+                return (int) PackageExitCodes.PackageInstallError;
 
-            return installError ? (int)PackageExitCodes.PackageInstallError : (int)ExitCodes.Success;
+            return status;
         }
 
         private void UninstallExisting(Installation installation, List<string> packagePaths, CancellationToken cancellationToken)

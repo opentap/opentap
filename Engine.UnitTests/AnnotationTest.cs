@@ -1457,7 +1457,35 @@ namespace OpenTap.UnitTests
             {
                 UserInput.SetInterface(currentInterface);    
             }
+        }
 
+        class BoolArrayClass
+        {
+            public List<bool> A { get; set; }= new List<bool>();
+            public bool[] B { get; set; }= new bool[0];
+            //public int[] C { get; set; }= new int[0];
+            //public List<int> D { get; set; }= new List<int>();
+            public List<object> E { get; set; }= new List<object>();
+            public List<Verdict> F { get; set; }= new List<Verdict>();
+            public Verdict[] G { get; set; }= new Verdict[0];
+        }
+
+        [Test]
+        public void TestSetBoolArrayValues()
+        {
+            var obj = new BoolArrayClass() ;
+            var a = AnnotationCollection.Annotate(obj);
+            foreach (var mem in a.Get<IMembersAnnotation>().Members)
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    a.Read();
+                    var col = mem.Get<ICollectionAnnotation>();
+                    col.AnnotatedElements = col.AnnotatedElements.Append(col.NewElement());
+                    mem.Write();
+                    Assert.AreEqual(i + 1, col.AnnotatedElements.Count());
+                }
+            }
         }
     }
 }
