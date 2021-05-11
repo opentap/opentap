@@ -199,7 +199,7 @@ namespace OpenTap.Package
             if (package == null)
             {
                 var versionString = string.IsNullOrWhiteSpace(Version) ? "" : $" version '{Version}'";
-                throw new Exception(
+                throw new ExitCodeException((int)ExitCodes.ArgumentError, 
                     $"Package '{Name}'{versionString} not found in specified repositories or local install.");
             }
 
