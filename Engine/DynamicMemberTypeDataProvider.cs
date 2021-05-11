@@ -505,7 +505,8 @@ namespace OpenTap
                     new DisplayAttribute("Break Conditions",
                         "When enabled, specify new break conditions. When disabled conditions are inherited from the parent test step, test plan, or engine settings.",
                         "Common", 20001.1),
-                    new UnsweepableAttribute()
+                    new UnsweepableAttribute(),
+                    new NonMetaDataAttribute()
                 },
                 DeclaringType = TypeData.FromType(typeof(ITestStep)),
                 Readable = true,
@@ -525,7 +526,8 @@ namespace OpenTap
                     new DisplayAttribute("Break Conditions",
                         "When enabled, specify new break conditions. When disabled conditions are inherited from the engine settings.", Order: 3),
                     new UnsweepableAttribute(),
-                    new EnabledIfAttribute("Locked", false), 
+                    new EnabledIfAttribute("Locked", false),
+                    new NonMetaDataAttribute()
                 },
                 DeclaringType = TypeData.FromType(typeof(TestPlan)),
                 Readable = true,
@@ -552,7 +554,8 @@ namespace OpenTap
                         new LayoutAttribute(LayoutMode.Normal, 3, 3),
                         new UnsweepableAttribute(),
                         new UnparameterizableAttribute(),
-                        new DefaultValueAttribute(target.GetDisplayAttribute().Description)
+                        new DefaultValueAttribute(target.GetDisplayAttribute().Description),
+                        new NonMetaDataAttribute()
                     },
                     DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
                     Readable = true,
