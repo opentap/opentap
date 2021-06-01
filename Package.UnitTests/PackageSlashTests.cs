@@ -63,7 +63,7 @@ namespace OpenTap.Package.UnitTests
         public void CreateTestPackage()
         {
             var packageXml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
-<Package Name=""{FullName}"" xmlns=""http://opentap.io/schemas/package"" Version=""{version}"" >
+<Package Name=""{FullName}"" xmlns=""http://opentap.io/schemas/package"" Version=""{version}"" OS=""Windows,Linux"" >
   <Description>
       {description}
   </Description>
