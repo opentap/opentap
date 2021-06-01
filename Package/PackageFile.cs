@@ -730,7 +730,36 @@ namespace OpenTap.Package
             if (installationDir == null)
                 installationDir = FileSystemHelper.GetCurrentInstallationDirectory();
 
-            return String.Join("/", installationDir, PackageDef.PackageDefDirectory, name, PackageDef.PackageDefFileName); // don't use Path.Combine, as that might create \ which makes the package unable to install on linux
+            // don't use Path.Combine, as that might create \ which makes the package unable to install on linux
+            return String.Join("/", installationDir, PackageDef.PackageDefDirectory, name, PackageDef.PackageDefFileName); 
+        }
+
+        /// <summary>
+        /// Perform a BFS search to look for a "package.xml" file
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
+        private static string GetPackageXmlFile(string path)
+        {
+            var directories = new Queue<string>();
+            directories.Enqueue(path);
+
+            while (directories.Any())
+            {
+                var dir = directories.Dequeue();
+                foreach (var file in Directory.GetFiles(dir))
+                {
+                    if (Path.GetFileName(file) == "package.xml")
+                        return file;
+                }
+
+                foreach (var subdir in Directory.GetDirectories(dir))
+                {
+                    directories.Enqueue(subdir);
+                }
+            }
+
+            return null;
         }
 
         internal static List<string> GetPackageMetadataFilesInTapInstallation(string tapPath)
@@ -746,10 +775,11 @@ namespace OpenTap.Package
 
             if (Directory.Exists(packageDir))
             {
-                foreach (var dir in Directory.EnumerateDirectories(packageDir).Select(s => new DirectoryInfo(s).Name))
+                foreach (var dir in Directory.EnumerateDirectories(packageDir).Select(s => new DirectoryInfo(s)))
                 {
-                    if (File.Exists(GetDefaultPackageMetadataPath(dir, tapPath)))
-                        metadatas.Add(GetDefaultPackageMetadataPath(dir, tapPath));
+                    var xml = GetPackageXmlFile(dir.FullName);
+                    if (xml != null)
+                        metadatas.Add(xml);
                 }
             }
             
