@@ -327,15 +327,22 @@ namespace OpenTap
         {
             return Start(action, null, name);
         }
-        
+
         internal static Task StartAwaitable(Action action, string name = "")
+        {
+            return StartAwaitable(action, CancellationToken.None, name);
+        }
+        
+        internal static Task StartAwaitable(Action action, CancellationToken token, string name = "")
         {
             var wait = new ManualResetEventSlim(false);
             Start(() =>
             {
                 try
                 {
-                    action();
+                    var trd = TapThread.Current;
+                    using(token.Register(() => trd.Abort()))
+                        action();
                 }
                 finally
                 {
@@ -343,7 +350,7 @@ namespace OpenTap
                 }
             }, null, name);
             var awaiter = new Awaitable(wait);
-            return Task.Factory.FromAsync(awaiter, _ => { });
+            return Task.Factory.FromAsync(awaiter, x => { });
         }
 
         internal static TapThread Start(Action action, Action onHierarchyCompleted, string name = "")

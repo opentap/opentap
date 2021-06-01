@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using OpenTap.Plugins.BasicSteps;
 using NUnit.Framework;
 using OpenTap;
@@ -30,8 +31,6 @@ namespace OpenTap.Engine.UnitTests
             var prop = TypeData.FromType(typeof(DelayStep)).GetMember(nameof(DelayStep.DelaySecs));
             DelayStep delay = new DelayStep();
             Input<double> secs = new Input<double>() { Step = delay, Property = prop};
-            
-            
             
             delay.DelaySecs = 2;
             Assert.AreEqual(secs.Value, delay.DelaySecs);
@@ -102,6 +101,43 @@ namespace OpenTap.Engine.UnitTests
             var x = new Input<string>();
             Assert.DoesNotThrow(() => x.ToString());
             Assert.AreEqual("", x.ToString());
+        }
+        
+        /// <summary>
+        /// OpenTAP issue: #666
+        /// </summary>
+        [Test]
+        [Timeout(2 * 60 * 1000)]
+        public void ParallelIfVerdict()
+        {
+            var plan = new TestPlan();
+            var par = new ParallelStep();
+            var seq = new SequenceStep();
+            var del1 = new DelayStep {DelaySecs = 0};
+            var ifVerdict = new IfStep();
+            var del2 = new DelayStep {DelaySecs = 0};
+
+            plan.Steps.Add(par);
+            par.ChildTestSteps.Add(seq);
+            seq.ChildTestSteps.Add(del1);
+            del1.Enabled = false;
+            seq.ChildTestSteps.Add(ifVerdict);
+            ifVerdict.ChildTestSteps.Add(del2);
+
+            ifVerdict.InputVerdict.Step = del1;
+            ifVerdict.InputVerdict.Property = TypeData.GetTypeData(del1).GetMember(nameof(del1.Verdict));
+
+            var cancel = new CancellationTokenSource();
+            var trd = TapThread.StartAwaitable(() =>
+            {
+                var r = plan.Execute();
+                Assert.AreEqual(Verdict.NotSet, r.Verdict);
+            }, cancel.Token);
+            if (!trd.Wait(TimeSpan.FromMinutes(2)))
+            {
+                cancel.Cancel();
+                Assert.Fail("Test timed out");
+            }
         }
     }
 
