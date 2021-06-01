@@ -107,7 +107,6 @@ namespace OpenTap.Engine.UnitTests
         /// OpenTAP issue: #666
         /// </summary>
         [Test]
-        [Timeout(2 * 60 * 1000)]
         public void ParallelIfVerdict()
         {
             var plan = new TestPlan();

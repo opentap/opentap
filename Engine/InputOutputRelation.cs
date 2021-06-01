@@ -171,36 +171,27 @@ namespace OpenTap
             {
                 var thisThread = TapThread.Current;
                 TestStepRun run = step.StepRun;
-                while (step.StepRun == null)
+                if (step.Enabled == false)
+                    return outputMember.GetValue(outputObject);
+
+                // in this case it might be that the parent thread is starting steps in parallel.
+                // so we could get lucky if we just wait a bit.
+                ITestStep prev = null;
+                foreach (var p in step.GetStepHierarchy().Reverse().OfType<ITestStep>())
                 {
-                    
-                    // in this case it might be that the parent thread is starting steps in parallel.
-                    // so we could get lucky if we just wait a bit.
-                    var child = step;
-                    var parent = step.Parent as ITestStep;
-                    while (parent != null)
+                    if(p.Enabled == false)
+                        return outputMember.GetValue(outputObject);    
+                    if (prev != null)
                     {
-                        if (parent.StepRun != null && thisThread != parent.StepRun.StepThread)
-                            break;
-                        child = parent;
-                        parent = parent.Parent as ITestStep;
+                        var next = p.StepRun ?? prev.StepRun?.WaitForChildStepStart(p.Id, 500,
+                            prev.StepRun.StepThread != thisThread);
+                        if (next == null) break;
+                        if (p == step)
+                            run = next;
                     }
 
-                    if (parent?.StepRun != null)
-                    {
-                        run = child.StepRun ??  parent.StepRun.WaitForChildStepStart(child.Id, 500);
-                        if (run == null) break;
-                        if(run.TestStepId == step.Id)
-                            break;
-                    }
-                    else
-                    {
-                        break;
-                    }
+                    prev = p;
                 }
-
-                run = step.StepRun ?? run;
-
                 if (run != null)
                     run.WaitForOutput(avail);
             }
