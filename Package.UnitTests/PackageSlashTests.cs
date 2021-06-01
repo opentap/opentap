@@ -8,6 +8,29 @@ namespace OpenTap.Package.UnitTests
     [TestFixture]
     public class PackageSlashTests
     {
+        private void VerifyContent(string basePath, bool shouldExist)
+        {
+            var files = new string[]
+            {
+                Path.Combine(basePath, dir1, filename),
+                Path.Combine(basePath, dir1, dir2, filename),
+                Path.Combine(basePath, PackageDir, filename)
+            };
+
+            foreach (var file in files)
+            {
+                if (shouldExist)
+                    Assert.AreEqual(File.ReadAllText(file), sampleText);
+                else
+                    FileAssert.DoesNotExist(file);
+            }
+            
+            if (shouldExist)
+                FileAssert.Exists(Path.Combine(basePath, PackageDir, "package.xml"));
+            else
+                FileAssert.DoesNotExist(Path.Combine(basePath, PackageDir, "package.xml"));
+        }
+        
         private const string dir1 = "TestPackageDir";
         private const string dir2 = "Subdir";
         private const string name = "PackageName";
@@ -23,9 +46,18 @@ namespace OpenTap.Package.UnitTests
 
         private string description =
             "test package for testing that forward and backwards slashes are handled correctly in package names";
-        public PackageSlashTests()
+
+        [Test]
+        public void PackageTests()
         {
+            if (Directory.Exists(dir1))
+                Directory.Delete(dir1, true);
+            
             CreateTestPackage();
+            VerifyPackageContent();
+            DownloadPackage();
+            InstallPackage();
+            UninstallPackage();
         }
         
         public void CreateTestPackage()
@@ -49,30 +81,6 @@ namespace OpenTap.Package.UnitTests
             Assert.AreEqual(0, create.Execute(CancellationToken.None));
         }
 
-        private void VerifyContent(string basePath, bool shouldExist)
-        {
-            var files = new string[]
-            {
-                Path.Combine(basePath, dir1, filename),
-                Path.Combine(basePath, dir1, dir2, filename),
-                Path.Combine(basePath, PackageDir, filename)
-            };
-
-            foreach (var file in files)
-            {
-                if (shouldExist)
-                    Assert.AreEqual(File.ReadAllText(file), sampleText);
-                else
-                    FileAssert.DoesNotExist(file);
-            }
-            
-            if (shouldExist)
-                FileAssert.Exists(Path.Combine(basePath, PackageDir, "package.xml"));
-            else
-                FileAssert.DoesNotExist(Path.Combine(basePath, PackageDir, "package.xml"));
-        }
-
-        [Test]
         public void VerifyPackageContent()
         {
             Assert.IsTrue(File.Exists(outputPackagePath), "Package did not exist");
@@ -87,7 +95,6 @@ namespace OpenTap.Package.UnitTests
         }
         
 
-        [Test]
         public void DownloadPackage()
         {
             var outputPath = "DownloadedPackage.TapPackage";
@@ -113,7 +120,6 @@ namespace OpenTap.Package.UnitTests
             FileAssert.Exists(Path.Combine("PackageCache", outputPath));
         }
 
-        [Test]
         public void InstallPackage()
         {
             if (Directory.Exists(dir1))
@@ -138,23 +144,24 @@ namespace OpenTap.Package.UnitTests
 
                 VerifyContent("", true);
             }
+        }
 
-            { // uninstall test
-                var uninstall = new PackageUninstallAction()
-                {
-                    Force = true,
-                    NonInteractive = true,
-                    Packages = new[] {FullName}
-                };
+        public void UninstallPackage()
+        {
+            var uninstall = new PackageUninstallAction()
+            {
+                Force = true,
+                NonInteractive = true,
+                Packages = new[] {FullName}
+            };
 
-                DirectoryAssert.Exists(dir1);
-                VerifyContent("", true);
+            DirectoryAssert.Exists(dir1);
+            VerifyContent("", true);
 
-                Assert.AreEqual(0, uninstall.Execute(CancellationToken.None));
-                
-                DirectoryAssert.DoesNotExist(dir1);
-                VerifyContent("", false);
-            }
+            Assert.AreEqual(0, uninstall.Execute(CancellationToken.None));
+
+            DirectoryAssert.DoesNotExist(dir1);
+            VerifyContent("", false);
         }
     }
 }
