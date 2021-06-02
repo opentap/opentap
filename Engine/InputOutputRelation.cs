@@ -163,35 +163,31 @@ namespace OpenTap
             defer();
         }
 
+        static TestStepRun ResolveStepRun(ITestStep step)
+        {
+            TestStepRun run = step.StepRun;
+            if (run != null) return run;
+            if (step.Parent is ITestStep parent)
+            {
+                // recursively resolve the parent step's run.
+                var parentRun = ResolveStepRun(parent);
+                if (parentRun != null)
+                {
+                    // if parentRun.StepThread is the same as the current thread it does not make sense to wait.
+                    return parentRun.WaitForChildStepStart(step.Id, 500, parentRun.StepThread != TapThread.Current);
+                }
+            }
+
+            return null;
+
+        }
         internal static object GetOutput(IMemberData outputMember, object outputObject)
         {
             var avail = outputMember.GetAttribute<OutputAttribute>()?.Availability ??
                         OutputAttribute.DefaultAvailability;
             if (avail != OutputAvailability.BeforeRun && outputObject is ITestStep step )
             {
-                var thisThread = TapThread.Current;
-                TestStepRun run = step.StepRun;
-                if (step.Enabled == false)
-                    return outputMember.GetValue(outputObject);
-
-                // in this case it might be that the parent thread is starting steps in parallel.
-                // so we could get lucky if we just wait a bit.
-                ITestStep prev = null;
-                foreach (var p in step.GetStepHierarchy().Reverse().OfType<ITestStep>())
-                {
-                    if(p.Enabled == false)
-                        return outputMember.GetValue(outputObject);    
-                    if (prev != null)
-                    {
-                        var next = p.StepRun ?? prev.StepRun?.WaitForChildStepStart(p.Id, 500,
-                            prev.StepRun.StepThread != thisThread);
-                        if (next == null) break;
-                        if (p == step)
-                            run = next;
-                    }
-
-                    prev = p;
-                }
+                TestStepRun run = ResolveStepRun(step);  
                 if (run != null)
                     run.WaitForOutput(avail);
             }
