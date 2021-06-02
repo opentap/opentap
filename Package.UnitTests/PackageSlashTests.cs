@@ -15,7 +15,7 @@ namespace OpenTap.Package.UnitTests
             {
                 Path.Combine(basePath, dir1, filename),
                 Path.Combine(basePath, dir1, dir2, filename),
-                Path.Combine(basePath, PackageDir, filename)
+                Path.Combine(basePath, PackageDirRelative, filename)
             };
 
             foreach (var file in files)
@@ -27,24 +27,30 @@ namespace OpenTap.Package.UnitTests
             }
             
             if (shouldExist)
-                FileAssert.Exists(Path.Combine(basePath, PackageDir, "package.xml"));
+                FileAssert.Exists(Path.Combine(basePath, PackageDirRelative, "package.xml"));
             else
-                FileAssert.DoesNotExist(Path.Combine(basePath, PackageDir, "package.xml"));
+                FileAssert.DoesNotExist(Path.Combine(basePath, PackageDirRelative, "package.xml"));
         }
         
         private const string dir1 = "TestPackageDir";
+        private string TapDir => Path.GetDirectoryName(typeof(PluginSearcher).Assembly.Location);
         private const string dir2 = "Subdir";
         private const string name = "PackageName";
         private const string os = "Windows,Linux";
         private string FullName => Path.Combine(dir1, dir2, name);
-        private string PackageDir => Path.Combine("Packages", FullName);
+        private string PackageDirRelative => Path.Combine("Packages", FullName);
+        private string PackageDir => Path.Combine(TapDir, PackageDirRelative);
+        private string PackageCache => Path.Combine(TapDir, "PackageCache");
         private const string version = "3.2.1";
         private const string filename = "SampleFile.txt";
         private const string packageFileName = "TestPackage.xml";
         private const string sampleText = "Sample File Content";
 
         private string outputPackagePath =>
+            PackageActionHelpers.slashRegex.Replace(Path.Combine(dir1, dir2, $"{name}.{version}.TapPackage"), ".");
+        private string downloadedPackagePath =>
             PackageActionHelpers.slashRegex.Replace(Path.Combine(dir1, dir2, $"{name}.{version}.{os}.TapPackage"), ".");
+        
         private string description =
             "test package for testing that forward and backwards slashes are handled correctly in package names";
 
@@ -71,7 +77,7 @@ namespace OpenTap.Package.UnitTests
   <Files>
       <File Path=""{dir1}/{filename}"" SourcePath=""{filename}""/>
       <File Path=""{dir1}\{dir2}/{filename}"" SourcePath=""{filename}""/>
-      <File Path=""{PackageDir}/{filename}"" SourcePath=""{filename}""/>
+      <File Path=""{PackageDirRelative}/{filename}"" SourcePath=""{filename}""/>
   </Files>
 </Package>
 ";
@@ -84,13 +90,13 @@ namespace OpenTap.Package.UnitTests
 
         public void VerifyPackageContent()
         {
-            Assert.IsTrue(File.Exists(outputPackagePath), "Package did not exist");
+            FileAssert.Exists(outputPackagePath);
             var testDir = "__NewTestDir__";
             
             if (Directory.Exists(testDir))
                 Directory.Delete(testDir, true);
             
-            ZipFile.ExtractToDirectory(outputPackagePath, Path.Combine(Directory.GetCurrentDirectory(), testDir));
+            ZipFile.ExtractToDirectory(outputPackagePath, testDir);
             
             VerifyContent(testDir, true);
         }
@@ -111,7 +117,7 @@ namespace OpenTap.Package.UnitTests
             };
             Assert.AreEqual(0, download.Execute(CancellationToken.None));
             FileAssert.Exists(outputPath);
-            FileAssert.Exists(Path.Combine("PackageCache", outputPath));
+            FileAssert.Exists(Path.Combine(PackageCache, outputPath));
 
             download = new PackageDownloadAction()
             {
@@ -120,7 +126,7 @@ namespace OpenTap.Package.UnitTests
                 Packages = new[] {FullName}
             };
             
-            outputPath = PackageActionHelpers.slashRegex.Replace(outputPackagePath, ".");
+            outputPath = PackageActionHelpers.slashRegex.Replace(downloadedPackagePath, ".");
                         
             if (File.Exists(outputPath))
                 File.Delete(outputPath);
@@ -128,7 +134,7 @@ namespace OpenTap.Package.UnitTests
             Assert.AreEqual(0, download.Execute(CancellationToken.None));
 
             FileAssert.Exists(outputPath);
-            FileAssert.Exists(Path.Combine("PackageCache", outputPath));
+            FileAssert.Exists(Path.Combine(PackageCache, outputPath));
         }
 
         public void InstallPackage()
