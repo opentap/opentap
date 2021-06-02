@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.IO.Compression;
 using System.Threading;
@@ -34,6 +35,7 @@ namespace OpenTap.Package.UnitTests
         private const string dir1 = "TestPackageDir";
         private const string dir2 = "Subdir";
         private const string name = "PackageName";
+        private const string os = "Windows,Linux";
         private string FullName => Path.Combine(dir1, dir2, name);
         private string PackageDir => Path.Combine("Packages", FullName);
         private const string version = "3.2.1";
@@ -42,13 +44,12 @@ namespace OpenTap.Package.UnitTests
         private const string sampleText = "Sample File Content";
 
         private string outputPackagePath =>
-            PackageActionHelpers.slashRegex.Replace(Path.Combine(dir1, dir2, $"{name}.{version}.TapPackage"), ".");
-
+            PackageActionHelpers.slashRegex.Replace(Path.Combine(dir1, dir2, $"{name}.{version}.{os}.TapPackage"), ".");
         private string description =
             "test package for testing that forward and backwards slashes are handled correctly in package names";
 
         [Test]
-        public void PackageTests()
+        public void SlashTests()
         {
             if (Directory.Exists(dir1))
                 Directory.Delete(dir1, true);
@@ -63,7 +64,7 @@ namespace OpenTap.Package.UnitTests
         public void CreateTestPackage()
         {
             var packageXml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
-<Package Name=""{FullName}"" xmlns=""http://opentap.io/schemas/package"" Version=""{version}"" OS=""Windows,Linux"" >
+<Package Name=""{FullName}"" xmlns=""http://opentap.io/schemas/package"" Version=""{version}"" OS=""{os}"" >
   <Description>
       {description}
   </Description>
@@ -98,10 +99,14 @@ namespace OpenTap.Package.UnitTests
         public void DownloadPackage()
         {
             var outputPath = "DownloadedPackage.TapPackage";
+            if (File.Exists(outputPath))
+                File.Delete(outputPath);
+            
             var download = new PackageDownloadAction()
             {
                 ForceInstall = true,
                 Packages = new[] {FullName},
+                Repository = new[] { Directory.GetCurrentDirectory() },
                 OutputPath = outputPath
             };
             Assert.AreEqual(0, download.Execute(CancellationToken.None));
@@ -111,11 +116,17 @@ namespace OpenTap.Package.UnitTests
             download = new PackageDownloadAction()
             {
                 ForceInstall = true,
+                Repository = new[] { Directory.GetCurrentDirectory() },
                 Packages = new[] {FullName}
             };
             
-            Assert.AreEqual(0, download.Execute(CancellationToken.None));
             outputPath = PackageActionHelpers.slashRegex.Replace(outputPackagePath, ".");
+                        
+            if (File.Exists(outputPath))
+                File.Delete(outputPath);
+            
+            Assert.AreEqual(0, download.Execute(CancellationToken.None));
+
             FileAssert.Exists(outputPath);
             FileAssert.Exists(Path.Combine("PackageCache", outputPath));
         }
@@ -132,6 +143,7 @@ namespace OpenTap.Package.UnitTests
                 {
                     Force = true,
                     NonInteractive = true,
+                    Repository = new[] { Directory.GetCurrentDirectory() },
                     Packages = new[] {FullName}
                 };
 
