@@ -37,7 +37,7 @@ namespace OpenTap.Package.UnitTests
         private const string dir2 = "Subdir";
         private const string name = "PackageName";
         private const string os = "Windows,Linux";
-        private string FullName => Path.Combine(dir1, dir2, name);
+        private string FullName => Path.Combine(dir1, dir2, name).Replace("\\", "/");
         private string PackageDirRelative => Path.Combine("Packages", FullName);
         private string PackageDir => Path.Combine(TapDir, PackageDirRelative);
         private string PackageCache => Path.Combine(TapDir, "PackageCache");
