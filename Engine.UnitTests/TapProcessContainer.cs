@@ -16,28 +16,33 @@ namespace OpenTap.Engine.UnitTests
         public Process TapProcess;
         public string ConsoleOutput = "";
         Task consoleListener;
-        bool procStarted = false;
         void go()
         {
-            procStarted = TapProcess.Start();
-            StringBuilder ConsoleOutput = new StringBuilder();
+            TapProcess.Start();
+            var consoleOutput = new StringBuilder();
+            
             var procOutput = TapProcess.StandardOutput;
             var procOutput2 = TapProcess.StandardError;
-            void consoleOutputLoader()
+
+            async Task asyncReader(StreamReader read)
             {
                 char[] buffer = new char[100];
-
-                while (!procOutput.EndOfStream || !procOutput2.EndOfStream)
+                while (!read.EndOfStream)
                 {
-                    int read = procOutput.Read(buffer, 0, buffer.Length);
-                    ConsoleOutput.Append(buffer, 0, read);
-                    int read2 = procOutput2.Read(buffer, 0, buffer.Length);
-                    ConsoleOutput.Append(buffer, 0, read2);
-                    Thread.Sleep(10);
+                    int read2 = await read.ReadAsync(buffer, 0, buffer.Length);
+                    if (read2 == -1)
+                        break;
+                    lock(consoleOutput)
+                        consoleOutput.Append(buffer, 0, read2);
                 }
-                this.ConsoleOutput = ConsoleOutput.ToString();
             }
-            consoleListener = Task.Factory.StartNew(new Action(consoleOutputLoader));
+            
+            async Task consoleOutputLoader()
+            {
+                await Task.WhenAll(asyncReader(procOutput), asyncReader(procOutput2));
+                ConsoleOutput = consoleOutput.ToString();
+            }
+            consoleListener = consoleOutputLoader();
         }
 
         public static TapProcessContainer StartFromArgs(string args) => StartFromArgs(args, TimeSpan.FromMinutes(2));
@@ -80,8 +85,8 @@ namespace OpenTap.Engine.UnitTests
 
         public void WaitForEnd()
         {
-            TapProcess.WaitForExit();
             consoleListener.Wait();
+            TapProcess.WaitForExit();
         }
 
         public void WriteLine(string str)
