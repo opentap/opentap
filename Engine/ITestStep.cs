@@ -153,10 +153,14 @@ namespace OpenTap
 
     internal static class ITestStepParentExtensions
     {
-        public static IEnumerable<ITestStepParent> GetParents(this ITestStepParent step)
+        /// <summary> Gets the step hierarchy starting from child to parent.
+        /// Includes the test plan as the last item. </summary>
+        public static IEnumerable<ITestStepParent> GetStepHierarchy(this ITestStepParent step)
         {
-            for (ITestStepParent it = step.Parent; it != null; it = it.Parent)
+            for (ITestStepParent it = step; it != null; it = it.Parent)
                 yield return it;
         }
+        public static IEnumerable<ITestStepParent> GetParents(this ITestStepParent step)
+         =>  GetStepHierarchy(step.Parent);
     }
 }

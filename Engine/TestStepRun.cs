@@ -385,10 +385,11 @@ namespace OpenTap
 
         /// <summary> Will throw an exception when it times out. </summary>
         /// <exception cref="TimeoutException"></exception>
-        internal TestStepRun WaitForChildStepStart(Guid childStep, int timeout)
+        internal TestStepRun WaitForChildStepStart(Guid childStep, int timeout, bool wait)
         {
             if (stepRuns.TryGetValue(childStep, out var run))
                 return run;
+            if (!wait) return null;
             
             var sem = new ManualResetEventSlim(false, 0 );
 

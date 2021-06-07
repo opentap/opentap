@@ -163,44 +163,31 @@ namespace OpenTap
             defer();
         }
 
+        static TestStepRun ResolveStepRun(ITestStep step)
+        {
+            TestStepRun run = step.StepRun;
+            if (run != null) return run;
+            if (step.Parent is ITestStep parent)
+            {
+                // recursively resolve the parent step's run.
+                var parentRun = ResolveStepRun(parent);
+                if (parentRun != null)
+                {
+                    // if parentRun.StepThread is the same as the current thread it does not make sense to wait.
+                    return parentRun.WaitForChildStepStart(step.Id, 500, parentRun.StepThread != TapThread.Current);
+                }
+            }
+
+            return null;
+
+        }
         internal static object GetOutput(IMemberData outputMember, object outputObject)
         {
             var avail = outputMember.GetAttribute<OutputAttribute>()?.Availability ??
                         OutputAttribute.DefaultAvailability;
             if (avail != OutputAvailability.BeforeRun && outputObject is ITestStep step )
             {
-                var thisThread = TapThread.Current;
-                TestStepRun run = step.StepRun;
-                while (step.StepRun == null)
-                {
-                    
-                    // in this case it might be that the parent thread is starting steps in parallel.
-                    // so we could get lucky if we just wait a bit.
-                    var child = step;
-                    var parent = step.Parent as ITestStep;
-                    while (parent != null)
-                    {
-                        if (parent.StepRun != null && thisThread != parent.StepRun.StepThread)
-                            break;
-                        child = parent;
-                        parent = parent.Parent as ITestStep;
-                    }
-
-                    if (parent?.StepRun != null)
-                    {
-                        run = child.StepRun ??  parent.StepRun.WaitForChildStepStart(child.Id, 500);
-                        if (run == null) break;
-                        if(run.TestStepId == step.Id)
-                            break;
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-
-                run = step.StepRun ?? run;
-
+                TestStepRun run = ResolveStepRun(step);  
                 if (run != null)
                     run.WaitForOutput(avail);
             }
