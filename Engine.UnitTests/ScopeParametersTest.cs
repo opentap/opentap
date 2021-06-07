@@ -504,7 +504,68 @@ namespace OpenTap.UnitTests
             
             // this was what failed in the original bug report.
             plan.SerializeToString(true);
+        }
 
+        public class FailParameterStep : TestStep
+        {
+            double value;
+
+            public double Value {
+                get => value;
+                set
+                {
+                    if (value < 0.0)
+                    {
+                        throw new Exception("!");
+                    }
+
+                    this.value = value;
+                }
+            }
+            
+            public override void Run()
+            {
+                
+            }
+        }
+
+
+        [Test]
+        public void SweepParameterStepTest()
+        {
+            var plan = new TestPlan();
+            var step1 = new SweepParameterStep();
+            plan.ChildTestSteps.Add(step1);
+            
+            var failStep = new FailParameterStep();
+            step1.ChildTestSteps.Add(failStep);
+            TypeData.GetTypeData(failStep).GetMember(nameof(failStep.Value)).Parameterize(step1, failStep, "A");
+            step1.SweepValues.Add(new SweepRow());
+            // this should make failStep fail.
+            step1.SweepValues[0].Values["A"] = -1.0;
+
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Error, run.Verdict);
+        }
+
+        [Test]
+        public void MultiStepParameterize()
+        {
+            var plan = new TestPlan();
+            for (int i = 0; i < 4; i++)
+            {
+                var diag = new DialogStep();
+                plan.ChildTestSteps.Add(diag);
+                var titleMem = TypeData.GetTypeData(diag).GetMember(nameof(diag.Title));
+                titleMem.Parameterize(plan, diag, nameof(DialogStep.Title));
+            }
+
+            for (int i = 0; i < 4; i++)
+            {
+                Assert.IsNotNull(TypeData.GetTypeData(plan).GetMember(nameof(DialogStep.Title)));
+                plan.ChildTestSteps.RemoveAt(0);
+            }
+            Assert.IsNull(TypeData.GetTypeData(plan).GetMember(nameof(DialogStep.Title)));
         }
     }
 }

@@ -31,6 +31,9 @@ namespace OpenTap.Package
         {
             if (Packages == null)
                 throw new Exception("No packages specified.");
+            
+            if (NonInteractive)
+                UserInput.SetInterface(new NonInteractiveUserInputInterface());
 
             if (Force == false && Packages.Any(p => p == "OpenTAP") && Target == ExecutorClient.ExeDir)
             {

@@ -296,23 +296,24 @@ namespace OpenTap.UnitTests
         [Test]
         public void TestAutoRemoveInputOutputRelation()
         {
-
             var plan = new TestPlan();
-            var delay1 = new DelayStep();
-            var delay2 = new DelayStep();
-            plan.ChildTestSteps.Add(delay1);
-            plan.ChildTestSteps.Add(delay2);
+            var repeat = new RepeatStep();
+            plan.ChildTestSteps.Add(repeat);
+            var log = new LogStep();
+            repeat.ChildTestSteps.Add(log);
             {
-                var member = TypeData.GetTypeData(delay1).GetMember(nameof(DelayStep.DelaySecs));
-                InputOutputRelation.Assign(delay2, member, delay1, member);
-                Assert.IsTrue(InputOutputRelation.IsInput(delay2, member));
-                Assert.IsTrue(InputOutputRelation.IsOutput(delay1, member));
+                var member = TypeData.GetTypeData(log).GetMember(nameof(LogStep.LogMessage));
+                var outputMember = TypeData.GetTypeData(repeat).GetMember(nameof(RepeatStep.IterationInfo));
+                InputOutputRelation.Assign(log, member, repeat, outputMember);
+                Assert.IsTrue(InputOutputRelation.IsInput(log, member));
+                Assert.IsTrue(InputOutputRelation.IsOutput(repeat, outputMember));
             }
-            plan.ChildTestSteps.Remove(delay2);
+            plan.ChildTestSteps.Remove(repeat);
             {
-                var member = TypeData.GetTypeData(delay1).GetMember(nameof(DelayStep.DelaySecs));
-                Assert.IsFalse(InputOutputRelation.IsInput(delay2, member));
-                Assert.IsFalse(InputOutputRelation.IsOutput(delay1, member));
+                var member = TypeData.GetTypeData(log).GetMember(nameof(DelayStep.DelaySecs));
+                var outputMember = TypeData.GetTypeData(repeat).GetMember(nameof(RepeatStep.IterationInfo));
+                Assert.IsFalse(InputOutputRelation.IsInput(log, member));
+                Assert.IsFalse(InputOutputRelation.IsOutput(repeat, outputMember));
             }
         }
 

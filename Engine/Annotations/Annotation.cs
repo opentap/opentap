@@ -1063,6 +1063,7 @@ namespace OpenTap
             set
             {
                 wasSet = true;
+                // current value is cached until next Read().
                 wasRead = true;
                 currentValue = value;
             }
@@ -1080,6 +1081,8 @@ namespace OpenTap
             try
             {
                 currentValue = m.Member.GetValue(annotation.Source);
+                // This value is now being cached until the next Read().
+                wasRead = true;
             }
             catch
             {
@@ -1934,6 +1937,8 @@ namespace OpenTap
                                 return fac.AnnotateSub(elem2, DateTime.MinValue);
                             if(elem2.DescendsTo(typeof(TimeSpan)))
                                 return fac.AnnotateSub(elem2, TimeSpan.MinValue);
+                            if(elem2.DescendsTo(typeof(bool)))
+                                return fac.AnnotateSub(elem2, false);
                         }
                         return fac.AnnotateSub(elem2, null);
                     }

@@ -165,6 +165,13 @@ namespace OpenTap
 
                 if (members == null) return;
                 members = members.Concat(a.Get<IForwardedAnnotations>()?.Forwarded ?? Array.Empty<AnnotationCollection>());
+
+                // Order members
+                members = members.OrderBy(m => m.Get<DisplayAttribute>()?.Name ?? m.Get<IMemberAnnotation>()?.Member.Name);
+                members = members.OrderBy(m => m.Get<DisplayAttribute>()?.Order ?? -10000);
+                members = members.OrderBy(m => m.Get<IMemberAnnotation>()?.Member?.GetAttribute<LayoutAttribute>()?.Mode == LayoutMode.FloatBottom ? 1 : 0);
+                members = members.OrderBy(m => m.Get<IMemberAnnotation>()?.Member?.HasAttribute<SubmitAttribute>() == true ? 1 : 0);
+
                 var display = a.Get<IDisplayAnnotation>();
 
                 string title = null;
@@ -338,6 +345,23 @@ namespace OpenTap
             }
         }
 
-        static TraceSource log = Log.CreateSource("UserInput");
+        static readonly TraceSource log = Log.CreateSource("UserInput");
+
+        /// <summary>
+        /// Acquires a lock on the user input requests, so that user inputs will have to
+        /// wait for this object to be disposed in order to do the request.
+        /// </summary>
+        /// <returns>A disposable that must be disposed in the same thread as the caller.</returns>
+        public static IDisposable AcquireUserInputLock()
+        {
+            if (isLoaded && UserInput.Interface is CliUserInputInterface cli)
+            {
+                cli.userInputMutex.WaitOne();
+                return Utils.WithDisposable(cli.userInputMutex.ReleaseMutex);
+            }
+
+            // when CliUserInputInterface is not being used we don't have to do this.
+            return Utils.WithDisposable(Utils.Noop);
+        }
     }
 }

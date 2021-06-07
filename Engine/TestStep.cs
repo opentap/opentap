@@ -675,28 +675,21 @@ namespace OpenTap
 
                 if (runs.Count > 0) // Avoid deferring if there is nothing to do.
                 {
-                    if (Step is TestStep testStep && runs.Any(x => x.WasDeferred))
-                    {
-                        testStep.Results.DeferNoCheck(() =>
-                        {
-                            foreach (var run in runs)
-                            {
-                                run.WaitForCompletion();
-
-                                if (run.Verdict > Step.Verdict)
-                                    Step.Verdict = run.Verdict;
-                            }
-                        });
-                    }
-                    else
+                    void processRuns()
                     {
                         foreach (var run in runs)
                         {
                             run.WaitForCompletion();
-
-                            if (run.Verdict > Step.Verdict)
-                                Step.Verdict = run.Verdict;
+                            Step.UpgradeVerdict(run.Verdict);
                         }
+                    }
+                    if (Step is TestStep testStep && runs.Any(x => x.WasDeferred))
+                    {
+                        testStep.Results.DeferNoCheck(processRuns);
+                    }
+                    else
+                    {
+                        processRuns();
                     }
                 }
             }

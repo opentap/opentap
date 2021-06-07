@@ -177,8 +177,14 @@ namespace OpenTap
             Group = group;
             Name = name;
             Value = value ?? "NULL";
-            IsMetaData = macroName != null;
-            MacroName = macroName;
+            
+            if (macroName != null)
+            {
+                IsMetaData = true;
+                if (macroName.Length > 0)
+                    MacroName = macroName;
+                else MacroName = name;
+            }
         }
 
         /// <summary>
@@ -312,7 +318,7 @@ namespace OpenTap
                     Name = v.Name,
                     Value = v.Value,
                     Group = v.Group,
-                    MacroName = v.MacroName
+                    MacroName = v.MacroName ?? (v.IsMetaData ? "" : null) 
                 };
             }
         }

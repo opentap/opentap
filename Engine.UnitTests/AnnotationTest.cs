@@ -5,6 +5,8 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Xml.Serialization;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests.TestTestSteps;
@@ -353,7 +355,6 @@ namespace OpenTap.UnitTests
 
                 if (SelectedMode.HasFlag(Mode.Error))
                 {
-                    
                     Assert.IsTrue(LastError != null);
                     if(ErrorString != null)
                         Assert.IsTrue(LastError.Contains(ErrorString));    
@@ -763,6 +764,49 @@ namespace OpenTap.UnitTests
             {
                 
             }
+        }
+
+        [Test]
+        public void ParameterizeTest()
+        {
+            var plan = new TestPlan();
+            var delayStep = new DelayStep();
+            plan.ChildTestSteps.Add(delayStep);
+            
+            // Check can parameterize
+            var member = AnnotationCollection.Annotate(delayStep).GetMember(nameof(DelayStep.DelaySecs));
+            var menu = member.Get<MenuAnnotation>();
+            var menuItems = menu.MenuItems;
+            var icons = menuItems.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
+            var parameterizeIcon = icons[IconNames.Parameterize].First();
+            Assert.IsTrue(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+            parameterizeIcon = icons[IconNames.Unparameterize].First();
+            Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+            
+            // Parameterize 
+            var delayMember = TypeData.GetTypeData(delayStep).GetMember(nameof(DelayStep.DelaySecs));
+            delayMember.Parameterize(plan, delayStep, "Delay");
+            
+            // Check can parameterize
+            member = AnnotationCollection.Annotate(delayStep).GetMember(nameof(DelayStep.DelaySecs));
+            menu = member.Get<MenuAnnotation>();
+            menuItems = menu.MenuItems;
+            icons = menuItems.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
+            parameterizeIcon = icons[IconNames.Parameterize].First();
+            Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+            parameterizeIcon = icons[IconNames.Unparameterize].First();
+            Assert.IsTrue(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+            
+            // Set read only
+            delayStep.IsReadOnly = true;
+            
+            // Check can parameterize
+            member = AnnotationCollection.Annotate(delayStep).GetMember(nameof(DelayStep.DelaySecs));
+            menu = member.Get<MenuAnnotation>();
+            menuItems = menu.MenuItems;
+            icons = menuItems.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
+            parameterizeIcon = icons[IconNames.Unparameterize].First();
+            Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
         }
         
         /// <summary>
@@ -1246,6 +1290,116 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual("msg" + i, sweep.SweepValues[i].Values["Parameters \\ Log Message"]);
             }
         }
+        
+        [Display("Validation Error Step")]
+        public class ValidationErrorTestStep : TestStep
+        {
+            public bool HasValidationErrors { get; set; }
+            public ValidationErrorTestStep()
+            {
+                Rules.Add(() => !HasValidationErrors, "Validation errors", nameof(ValidationErrorTestStep));
+            }
+            public override void Run()
+            {
+            }
+        }
+
+        [Test]
+        public void SweepParametersValidationTest()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepParameterStep();
+            var errorStep = new DelayStep() {Name = "errorStep"};
+            var noErrorStep = new DelayStep() {Name = "noErrorStep"};
+            var validationErrorStep = new ValidationErrorTestStep();
+
+            plan.ChildTestSteps.Add(sweep);
+            sweep.ChildTestSteps.Add(errorStep);
+            sweep.ChildTestSteps.Add(noErrorStep);
+            sweep.ChildTestSteps.Add(validationErrorStep);
+
+            TypeData.GetTypeData(errorStep).GetMember(nameof(errorStep.DelaySecs))
+                .Parameterize(sweep, errorStep, nameof(errorStep.DelaySecs));
+            TypeData.GetTypeData(validationErrorStep).GetMember(nameof(validationErrorStep.HasValidationErrors))
+                .Parameterize(sweep, validationErrorStep, nameof(validationErrorStep.HasValidationErrors));
+
+            void addRow(double delay, bool validationErrors)
+            {
+                sweep.SweepValues.Add(new SweepRow());
+                var td = TypeData.GetTypeData(sweep.SweepValues[0]);
+                var timeDelay = td.GetMember(nameof(errorStep.DelaySecs));
+                var valErrors = td.GetMember(nameof(validationErrorStep.HasValidationErrors));
+
+                timeDelay.SetValue(sweep.SweepValues.Last(), delay);
+                valErrors.SetValue(sweep.SweepValues.Last(), validationErrors);
+            }
+
+            // First row has no errors
+            addRow(1, false);
+            // Second row has an invalid time delay
+            addRow(-1, false);
+            // Third row as validation errors
+            addRow(1, true);
+            // Fourth row has an invalid time delay and validation errors
+            addRow(-1, true);
+
+            void TestErrors()
+            {
+
+                var lines = sweep.Error.Split('\n');
+
+                // Test errors outside of run
+
+                {
+                    // Test row 1
+                    var row = lines.Where(l => l.Contains("Row 1"));
+                    CollectionAssert.IsEmpty(row);
+                }
+
+                {
+                    // Test row 2
+                    var row = lines.Where(l => l.Contains("Row 2")).ToArray();
+                    Assert.AreEqual(1, row.Length);
+                    Assert.IsTrue(row.First().Contains($"Delay must be a positive value."),
+                        "Row 2 should have an invalid DelaySecs value.");
+                }
+
+                {
+                    // Test row 3
+                    var row = lines.Where(l => l.Contains("Row 3")).ToArray();
+                    Assert.AreEqual(1, row.Length);
+                    Assert.IsTrue(row.Any(r => r.Contains("Validation Error Step - Validation errors")),
+                        "Row 3 should have validation errors.");
+                }
+
+                {
+                    // Test row 4
+                    var row = lines.Where(l => l.Contains("Row 4")).ToArray();
+                    Assert.AreEqual(2, row.Length);
+                    var row1 = row.First();
+                    Assert.IsTrue(row1.Contains($"Delay must be a positive value."),
+                        "Row 4 should have an invalid DelaySecs value.");
+                    var row2 = row.Last();
+                    Assert.IsTrue(row2.Contains("Validation Error Step - Validation errors"),
+                        "Row 4 should have validation errors.");
+                }
+            }
+            TestErrors();
+            
+            var t = TapThread.Start(() => { plan.Execute(); });
+            
+            while (plan.IsRunning == false)
+                TapThread.Sleep(10);
+            
+            // Validation should work while the test plan is running by returning the most recent validation error string
+            TestErrors();
+
+
+            while (plan.IsRunning)
+                TapThread.Sleep(10);
+
+            TestErrors();
+        }
 
         [Test]
         public void SweepLoopUnparameterizable()
@@ -1303,7 +1457,35 @@ namespace OpenTap.UnitTests
             {
                 UserInput.SetInterface(currentInterface);    
             }
+        }
 
+        class BoolArrayClass
+        {
+            public List<bool> A { get; set; }= new List<bool>();
+            public bool[] B { get; set; }= new bool[0];
+            //public int[] C { get; set; }= new int[0];
+            //public List<int> D { get; set; }= new List<int>();
+            public List<object> E { get; set; }= new List<object>();
+            public List<Verdict> F { get; set; }= new List<Verdict>();
+            public Verdict[] G { get; set; }= new Verdict[0];
+        }
+
+        [Test]
+        public void TestSetBoolArrayValues()
+        {
+            var obj = new BoolArrayClass() ;
+            var a = AnnotationCollection.Annotate(obj);
+            foreach (var mem in a.Get<IMembersAnnotation>().Members)
+            {
+                for (int i = 0; i < 5; i++)
+                {
+                    a.Read();
+                    var col = mem.Get<ICollectionAnnotation>();
+                    col.AnnotatedElements = col.AnnotatedElements.Append(col.NewElement());
+                    mem.Write();
+                    Assert.AreEqual(i + 1, col.AnnotatedElements.Count());
+                }
+            }
         }
     }
 }

@@ -8,7 +8,7 @@ namespace OpenTap.Plugins.BasicSteps
     /// <summary>
     /// Custom handler for importing values from a file.
     /// </summary>
-    [Display("Sweep Value Import")]
+    [Display("Table Import")]
     public interface ITableImport : ITapPlugin
     {
         /// <summary>
