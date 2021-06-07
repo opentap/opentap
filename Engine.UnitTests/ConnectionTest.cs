@@ -55,35 +55,55 @@ namespace OpenTap.Engine.UnitTests
         }
 
         
-        
-        public class ViaPointCollection : IReadOnlyList<ViaPoint>
+        public class RevolverSwitchPosition : ViaPoint
         {
-            readonly SwitchPosition[] points;
+            public string Alias { get; set; }
+
+            public RevolverSwitchPosition(IInstrument device, string name)
+            {
+                this.Name = name;
+                this.Device = device;
+            }
+            
+        }
+        
+        public class ViaPointCollection : IReadOnlyList<RevolverSwitchPosition>
+        {
+            readonly RevolverSwitchPosition[] points;
             public ViaPointCollection(Instrument device, int count)
             {
                 points = Enumerable.Range(1, count)
-                    .Select(x => new SwitchPosition(device, $"Switch position {x}"))
+                    .Select(x => new RevolverSwitchPosition(device, $"Switch position {x}"))
                     .ToArray();
             }
 
-            public IEnumerator<ViaPoint> GetEnumerator() => points.OfType<ViaPoint>().GetEnumerator();
+            public IEnumerator<RevolverSwitchPosition> GetEnumerator() => points.OfType<RevolverSwitchPosition>().GetEnumerator();
 
             IEnumerator IEnumerable.GetEnumerator() => points.GetEnumerator();
 
             public int Count => points.Length;
 
-            public ViaPoint this[int index] => points[index];
+            public RevolverSwitchPosition this[int index] => points[index];
         }
 
         public class TestRevolverSwitchInstrument : Instrument
         {
-            public IReadOnlyList<ViaPoint> Ports { get; set; }
-            public Port A { get; set; } 
+            public IReadOnlyList<RevolverSwitchPosition> SwitchPositions { get; set; }
+            public RevolverSwitchPort A { get; set; } 
 
             public TestRevolverSwitchInstrument()
             {
-                Ports = new ViaPointCollection(this, 6);
-                A = new OutputPort(this, "A");
+                SwitchPositions = new ViaPointCollection(this, 6);
+                A = new RevolverSwitchPort(this, "A");
+            }
+        }
+        
+        public class RevolverSwitchPort : OutputPort
+        {
+            public string Alias { get; set; }
+            public RevolverSwitchPort(IResource device, string name) : base(device, name)
+            {
+                
             }
         }
     
@@ -91,12 +111,12 @@ namespace OpenTap.Engine.UnitTests
         public void TestRevolverSwitchInstrumentSerialization()
         {
             var instrument = new TestRevolverSwitchInstrument();
-            instrument.Ports[0].Alias = "test";
+            instrument.SwitchPositions[0].Alias = "test";
             instrument.A.Alias = "test2";
             var serializer = new TapSerializer();
             var xml = serializer.SerializeToString(instrument);
             var instrument2 = (TestRevolverSwitchInstrument) new TapSerializer().DeserializeFromString(xml);
-            Assert.AreEqual(instrument.Ports[0].Alias, instrument2.Ports[0].Alias);
+            Assert.AreEqual(instrument.SwitchPositions[0].Alias, instrument2.SwitchPositions[0].Alias);
             Assert.AreEqual(instrument.A.Alias, instrument2.A.Alias);
         }        
     }

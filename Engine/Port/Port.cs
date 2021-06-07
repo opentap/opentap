@@ -20,11 +20,9 @@ namespace OpenTap
         [XmlIgnore] // avoid potential cycle in XML.
         public IResource Device { get; private set; }
 
-        /// <summary>  An alias providing a user-configurable name for this class. </summary>
-        public string Alias { get; set; } = "";
 
         /// <summary> Gets a friendly name this class. </summary>
-        string DisplayName => string.IsNullOrEmpty(Alias) ? Name : Alias;
+        string DisplayName => Name;
         
         /// <summary>
         /// List of <see cref="Connection"/>s connected to this port.
@@ -91,7 +89,7 @@ namespace OpenTap
         /// <returns></returns>
         public override string ToString()
         {
-            return String.Format("{0} on {1}", DisplayName, Device != null ? Device.Name : "<NULL>");
+            return $"{DisplayName} on {(Device != null ? Device.Name : "<NULL>")}";
         }
     }
 

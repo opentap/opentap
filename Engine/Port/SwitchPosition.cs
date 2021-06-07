@@ -35,11 +35,8 @@ namespace OpenTap
         /// </summary>
         public virtual string Name { get; protected set; }
 
-        /// <summary>  An alias providing a user-configurable name for this class. </summary>
-        public string Alias { get; set; } = "";
-        
         /// <summary> Gets a friendly name this class. </summary>
-        string DisplayName => string.IsNullOrEmpty(Alias) ? Name : Alias;
+        string DisplayName => Name;
         /// <summary>
         /// Indicates whether the switch is currently in this position. 
         /// Should be set by the Device implementation.
