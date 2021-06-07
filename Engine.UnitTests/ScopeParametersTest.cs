@@ -288,8 +288,6 @@ namespace OpenTap.UnitTests
                 sweep2.Error.ToString(); // getting the error causes validation to be done.
                 Assert.AreEqual(1, sweep2.SweepValues[0].Values.Count);
             }
-
-
         }
 
         [Test]
@@ -400,6 +398,112 @@ namespace OpenTap.UnitTests
             {
                 Assert.AreEqual(ex.Message, "No values selected to sweep");
             }
+        }
+
+
+        public class Unclonable
+        {
+            public int Value { get; set; }
+            public Unclonable(int value) => Value = value;
+        }
+        
+        public class UnmergableValueTest : TestStep
+        {
+            public Unclonable A { get; set; } = new Unclonable(5);
+            public override void Run()
+            {
+                
+            }
+        }
+        
+        [Test]
+        public void MergeableScopeTest()
+        {
+            var plan = new TestPlan();
+            var step1 = new UnmergableValueTest();
+            var step2 = new UnmergableValueTest();
+            plan.ChildTestSteps.Add(step1);
+            plan.ChildTestSteps.Add(step2);
+
+            foreach(var s in new []{step1, step2})                
+            {
+                var a = AnnotationCollection.Annotate(s)
+                    .GetMember(nameof(step1.A))
+                    .Get<MenuAnnotation>().MenuItems.FirstOrDefault(x =>
+                        x.Get<IconAnnotationAttribute>().IconName == IconNames.ParameterizeOnTestPlan);
+                var enabled = a.Get<IEnabledAnnotation>().IsEnabled;
+                if (s == step1)
+                {
+                    Assert.IsTrue(enabled);
+                    a.Get<IMethodAnnotation>()?.Invoke();
+                }
+                else
+                    Assert.IsFalse(enabled);
+            }
+        }
+        
+        [Test]
+        public void MergeableScopeTest2()
+        {
+            var plan = new TestPlan();
+            var step1 = new SweepParameterStep();
+            var step2 = new SweepParameterStep();
+            plan.ChildTestSteps.Add(step1);
+            plan.ChildTestSteps.Add(step2);
+
+            var delay1 = new DelayStep();
+            var delay2 = new DelayStep();
+            step1.ChildTestSteps.Add(delay1);
+            step2.ChildTestSteps.Add(delay2);
+            TypeData.GetTypeData(delay1).GetMember(nameof(delay1.DelaySecs)).Parameterize(step1, delay1, "A");
+            TypeData.GetTypeData(delay2).GetMember(nameof(delay2.DelaySecs)).Parameterize(step2, delay2, "A");
+            
+            foreach(var s in new []{step1, step2})                
+            {
+                var a = AnnotationCollection.Annotate(s)
+                    .GetMember(nameof(s.SweepValues))
+                    .Get<MenuAnnotation>().MenuItems.FirstOrDefault(x =>
+                        x.Get<IconAnnotationAttribute>().IconName == IconNames.ParameterizeOnTestPlan);
+                var enabled = a.Get<IEnabledAnnotation>().IsEnabled;
+                if (s == step1)
+                {
+                    Assert.IsTrue(enabled);
+                    a.Get<IMethodAnnotation>()?.Invoke();
+                }
+                else
+                    Assert.IsFalse(enabled);
+            }
+        }
+        
+        [Test]
+        public void NestedPropertyUnparameterize()
+        {
+            // testing unparameterize on multiple levels of parameters.
+            
+            var plan = new TestPlan();
+            var seq = new SequenceStep();
+            var logOutput = new LogStep();
+            seq.ChildTestSteps.Add(logOutput);
+            plan.Steps.Add(seq);
+            var parameterName = "A";
+            var p1 = TypeData.GetTypeData(logOutput).GetMember(nameof(logOutput.Severity)).Parameterize(seq, logOutput, parameterName);
+            TypeData.GetTypeData(seq).GetMember(parameterName).Parameterize(plan, seq, parameterName);
+            plan.SerializeToString(true);
+            
+            TypeData.GetTypeData(plan).GetMembers(); // check sanity is called, everything seems good. 
+            var (x, y) = p1.ParameterizedMembers.First();
+            y.Unparameterize(p1, x);
+            
+            // originally it failed already here since the sanity check was not done properly.
+            var param2 = TypeData.GetTypeData(plan).GetMember(parameterName);
+            Assert.IsNull(param2);
+            
+            // this has always passed.
+            var param1 = TypeData.GetTypeData(seq).GetMember(parameterName);
+            Assert.IsNull(param1);
+            
+            // this was what failed in the original bug report.
+            plan.SerializeToString(true);
 
         }
     }

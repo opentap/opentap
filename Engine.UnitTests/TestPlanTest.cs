@@ -220,6 +220,38 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void TestPlanResourceCrashTest()
+        {
+            var inst = new InstrumentTest() {CrashPhase = InstrumentTest.InstrPhase.Open};
+            var step = new InstrumentTestStep();
+            step.Instrument = inst;
+            
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step);
+
+            string logString = null;
+            InstrumentSettings.Current.Add(inst);
+            try
+            {
+                TestTraceListener trace = new TestTraceListener();
+                Log.AddListener(trace);
+                var run = plan.Execute();
+                Log.Flush();
+                logString = trace.GetLog();
+                var err = trace.ErrorMessage;
+                Assert.AreEqual(Verdict.Error, run.Verdict);
+                // improvement: only one error in the log.
+                Assert.AreEqual(2, err.Count);
+                // the log should not be really long.
+                Assert.IsTrue(logString.Split('\n').Length < 70);
+            }
+            finally
+            {
+                InstrumentSettings.Current.Remove(inst);    
+            }
+        }
+
+        [Test]
         public void TestPlanSaveLoadTest()
         {
 
@@ -620,6 +652,9 @@ namespace OpenTap.Engine.UnitTests
             step.Filepath.Text = filePath;
             plan.Steps.Add(step);
             plan.Save(filePath);
+
+            // this threw an exception at one point.
+            step.LoadTestPlan();
 
             TestTraceListener trace = new TestTraceListener();
             Log.AddListener(trace);
@@ -2220,6 +2255,17 @@ namespace OpenTap.Engine.UnitTests
             defer.CompleteDefer.Set();
             
             Assert.IsTrue(t.Wait(100000));
+        }
+        
+        [Test]
+        public void TestBreakOnPlanCompleted()
+        {
+            var rl = new resultListenerCrash() {CrashResultPhase = resultListenerCrash.ResultPhase.PlanRunCompleted};
+            var plan = new TestPlan();
+            var step = new SequenceStep();
+            plan.ChildTestSteps.Add(step);
+            var run = plan.Execute(new IResultListener[] {rl});
+            Assert.AreEqual(Verdict.Error, run.Verdict);
         }
     }
 

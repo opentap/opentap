@@ -16,17 +16,11 @@ namespace OpenTap.Package
     [Display("create", Group: "package", Description: "Create a package based on an XML description file.")]
     public class PackageCreateAction : PackageAction
     {
-        internal enum ExitCodes
-        {
-            // Exit code 1 is used by CliActionExecutor (e.g. for errors parsing command line args)
-            GeneralPackageCreateError = 2,
-            InvalidPackageDefinition = 3,
-            FileSystemError = 4,
-            InvalidPackageName = 5,
-            PackageDependencyError = 6,
-            AssemblyDependencyError = 7,
-        }
-
+      
+        private static readonly char[] IllegalPackageNameChars = {'"', '<', '>', '|', '\0', '\u0001', '\u0002', '\u0003', '\u0004', '\u0005', '\u0006', '\a', '\b', 
+            '\t', '\n', '\v', '\f', '\r', '\u000e', '\u000f', '\u0010', '\u0011', '\u0012', '\u0013', '\u0014', '\u0015', '\u0016', '\u0017', '\u0018', 
+            '\u0019', '\u001a', '\u001b', '\u001c', '\u001d', '\u001e', '\u001f', ':', '*', '?', '\\', '/'};
+        
         /// <summary>
         /// The default file extension for OpenTAP packages.
         /// </summary>
@@ -84,10 +78,10 @@ namespace OpenTap.Package
             if (PackageXmlFile == null)
                 throw new Exception("No packages definition file specified.");
 
-            return Process(OutputPaths);
+            return Process(OutputPaths, cancellationToken);
         }
 
-        private int Process(string[] OutputPaths)
+        private int Process(string[] OutputPaths, CancellationToken cancellationToken)
         {
             try
             {
@@ -95,12 +89,12 @@ namespace OpenTap.Package
                 if (!File.Exists(PackageXmlFile))
                 {
                     log.Error("Cannot locate XML file '{0}'", PackageXmlFile);
-                    return (int)ExitCodes.FileSystemError;
+                    return (int)ExitCodes.ArgumentError;
                 }
                 if (!Directory.Exists(ProjectDir))
                 {
                     log.Error("Project directory '{0}' does not exist.", ProjectDir);
-                    return (int)ExitCodes.FileSystemError;
+                    return (int)ExitCodes.ArgumentError;
                 }
                 try
                 {
@@ -108,11 +102,11 @@ namespace OpenTap.Package
                     pkg = PackageDefExt.FromInputXml(fullpath,ProjectDir);
 
                     // Check if package name has invalid characters or is not a valid path
-                    var illegalCharacter = pkg.Name.IndexOfAny(Path.GetInvalidFileNameChars());
+                    var illegalCharacter = pkg.Name.IndexOfAny(IllegalPackageNameChars);
                     if (illegalCharacter >= 0)
                     {
-                        log.Error("Package name cannot contain invalid file path characters: '{0}'", pkg.Name[illegalCharacter]);
-                        return (int)ExitCodes.InvalidPackageName;
+                        log.Error("Package name cannot contain invalid file path characters: '{0}'.", pkg.Name[illegalCharacter]);
+                        return (int)PackageExitCodes.InvalidPackageName;
                     }
                 }
                 catch (AggregateException aex)
@@ -129,7 +123,7 @@ namespace OpenTap.Package
                         }
                     }
                     log.Error("Caught errors while loading package definition.");
-                    return 4;
+                    return (int)PackageExitCodes.InvalidPackageDefinition;
                 }
 
                 var tmpFile = PathUtils.GetTempFileName(".opentap_package_tmp.zip"); ;
@@ -176,16 +170,16 @@ namespace OpenTap.Package
             }
             catch (ArgumentException ex)
             {
-                Console.Error.WriteLine(ex.Message);
-                return (int)ExitCodes.GeneralPackageCreateError;
+                log.Error("Caught exception: {0}", ex.Message);
+                return (int)PackageExitCodes.PackageCreateError;
             }
             catch (InvalidDataException ex)
             {
                 log.Error("Caught invalid data exception: {0}", ex.Message);
 
-                return (int)ExitCodes.InvalidPackageDefinition;
+                return (int)PackageExitCodes.InvalidPackageDefinition;
             }
-            return 0;
+            return (int)ExitCodes.Success;
         }
 
         /// <summary>

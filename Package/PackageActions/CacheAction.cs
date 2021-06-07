@@ -25,7 +25,7 @@ namespace OpenTap.Package
             {
                 PackageCacheHelper.ClearCache();
             }
-            return 0;
+            return (int)ExitCodes.Success;
         }
     }
 }

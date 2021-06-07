@@ -22,6 +22,7 @@ namespace OpenTap
     /// </summary>
     [Serializable]
     [DataContract(IsReference = true)]
+    [DebuggerDisplay("TestPlanRun {TestPlanName}")]
     public class TestPlanRun : TestRun
     {
         static readonly TraceSource log = Log.CreateSource("TestPlan");
@@ -183,6 +184,7 @@ namespace OpenTap
                     {
                         reslog.Error("Error in OnTestPlanRunCompleted for '{0}': '{1}'", r, ex.Message);
                         reslog.Debug(ex);
+                        UpgradeVerdict(Verdict.Error);
                     }
                 }
                 else

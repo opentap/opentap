@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -20,6 +21,7 @@ namespace OpenTap
         {
             public static string TpmInteropPipeName = "TPM_PIPE";
             public static string ParentProcessExeDir = "TPM_PARENTPROCESSDIR";
+            public static string OpenTapInitDirectory = "OPENTAP_INIT_DIRECTORY";
         }
 
         NamedPipeServerStream Pipe { get; set; }
@@ -163,9 +165,10 @@ namespace OpenTap
         /// </summary>
         public static bool IsExecutorMode => Environment.GetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.TpmInteropPipeName) != null;
         /// <summary>
-        /// The directory containing the executable that the user initially ran.
-        /// This is usually the value of Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)
-        /// but in some cases, when running isolated this is that value but from the parent process.
+        /// The directory containing the OpenTAP installation.
+        /// This is usually the value of the environment variable OPENTAP_INIT_DIRECTORY set by tap.exe
+        /// If this value is not set, use the location of OpenTap.dll instead
+        /// In some cases, when running isolated this is that value but from the parent process.
         /// </summary>
         public static string ExeDir
         {
@@ -175,18 +178,20 @@ namespace OpenTap
                     return Environment.GetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.ParentProcessExeDir);
                 else
                 {
-                    string exePath = Assembly.GetEntryAssembly()?.Location; // in unit tests GetEntryAssembly can apparently be null
-                    if (String.IsNullOrEmpty(exePath))
-                    {
-                        // if the entry assembly was loaded from memory/bytes instead of from a file, it does not have a location.
-                        // This is the case if the process was launched through tap.exe. 
-                        // In that case just use the location of Engine.dll, it is the same
-                        exePath = Assembly.GetExecutingAssembly().Location;
-                    }
-                    return Path.GetDirectoryName(exePath);
+                    var exePath = Environment.GetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.OpenTapInitDirectory);
+                    if (exePath != null)
+                        return exePath;
+
+                    // Referencing OpenTap.dll causes the file to become locked.
+                    // Ensure OpenTap.dll is only loaded if the environment variable is not set.
+                    // This should only happen if OpenTAP was not loaded through tap.exe.
+                    return GetOpenTapDllLocation();
                 }
             }
         }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static string GetOpenTapDllLocation() => Path.GetDirectoryName(typeof(PluginSearcher).Assembly.Location);
 
         Task pipeConnect;
         PipeStream pipe;

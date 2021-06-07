@@ -80,7 +80,7 @@ namespace OpenTap
 
         bool isParameterized(ITestStepParent item) => item.GetParents().Any(parent =>
             TypeData.GetTypeData(parent).GetMembers().OfType<ParameterMemberData>()
-                .Any(x => x.ParameterizedMembers.Contains((item, Member: member))));
+                .Any(x => x.ContainsMember((item, Member: member))));
         
         bool isParameterized() =>  source.Any(isParameterized);
         public bool IsParameterized => isParameterized();

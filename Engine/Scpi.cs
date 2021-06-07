@@ -3,7 +3,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -22,29 +24,20 @@ namespace OpenTap
         class ScpiEnum
         {
             // Remembers how to convert types.
-            readonly static Dictionary<Type, ScpiEnum> converters = new Dictionary<Type, ScpiEnum>();
+            static readonly ConcurrentDictionary<Type, ScpiEnum> converters = new ConcurrentDictionary<Type, ScpiEnum>();
 
-            /// <summary>
-            /// Get an enum converter for a specific enum type.
-            /// </summary>
+            /// <summary> Get an enum converter for a specific enum type. </summary>
             /// <param name="t">Must be a enum type!</param>
             /// <returns></returns>
             public static ScpiEnum GetEnumConv(Type t)
             {
-                if (converters.ContainsKey(t) == false)
-                {
-                    converters[t] = new ScpiEnum(t);
-                }
-                return converters[t];
+                return converters.GetOrAdd(t, t2 => new ScpiEnum(t2));
             }
 
-            readonly Dictionary<string, Enum> convertBack = new Dictionary<string, Enum>();
+            readonly ImmutableDictionary<string, Enum> convertBack;
+            readonly ImmutableDictionary<Enum, string> convert;
 
-            readonly Dictionary<Enum, string> convert = new Dictionary<Enum, string>();
-
-            /// <summary>
-            /// String to Enum.
-            /// </summary>
+            /// <summary> String to Enum. </summary>
             /// <param name="input"></param>
             /// <returns></returns>
             public Enum FromString(string input)
@@ -66,22 +59,19 @@ namespace OpenTap
             {
                 // collect enum values and string conversions.
                 var enumValues = Enum.GetValues(type);
+                
+                var enum2String = new Dictionary<Enum, string>();
+                var string2Enum = new Dictionary<string, Enum>();
                 foreach (Enum val in enumValues)
                 {
-                    var member = type.GetMember(val.ToString());
-                    var attr = member[0].GetCustomAttributes(typeof(ScpiAttribute), false);
-                    string scpiName = null;
-                    if (attr.Length != 1)
-                    {
-                        scpiName = val.ToString();
-                    }
-                    else
-                    {
-                        scpiName = ((ScpiAttribute)attr[0]).ScpiString;
-                    }
-                    convert[val] = scpiName;
-                    convertBack[scpiName] = val;
+                    var member = type.GetMember(val.ToString())[0];
+                    var scpiName = member.GetCustomAttribute<ScpiAttribute>()?.ScpiString ?? val.ToString();
+                    enum2String[val] = scpiName;
+                    string2Enum[scpiName] = val;
                 }
+
+                convert = enum2String.ToImmutableDictionary();
+                convertBack = string2Enum.ToImmutableDictionary();
             }
         }
 
@@ -309,7 +299,7 @@ namespace OpenTap
         /// Note that 'property' must be a property with the <see cref="ScpiAttribute"/>, and 'src' is the object containing 'property', not the value of the property. 
         /// If property.PropertyType is bool, then from the <see cref="ScpiAttribute.ScpiString"/> value 'A|B' A is selected if true, and B is selected if false.  
         /// </summary>
-        static public string[] GetUnescapedScpi(object src, PropertyInfo property)
+        public static string[] GetUnescapedScpi(object src, PropertyInfo property)
         {
             if (property == null)
                 throw new ArgumentNullException("property");

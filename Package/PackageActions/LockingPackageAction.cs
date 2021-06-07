@@ -88,7 +88,7 @@ namespace OpenTap.Package
             if (!Directory.Exists(Target))
             {
                 log.Error("Destination directory \"{0}\" does not exist.", Target);
-                return -1;
+                return (int)ExitCodes.ArgumentError;
             }
 
             using (Mutex state = GetMutex(Target))

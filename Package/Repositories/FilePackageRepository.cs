@@ -16,7 +16,7 @@ namespace OpenTap.Package
     /// <summary>
     /// Implements a IPackageRepository that queries a local directory for OpenTAP packages.
     /// </summary>
-    public class FilePackageRepository : IPackageRepository
+    public class FilePackageRepository : IPackageRepository, IPackageDownloadProgress
     {
         #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
         private static TraceSource log = Log.CreateSource("FilePackageRepository");
@@ -75,6 +75,8 @@ namespace OpenTap.Package
                 }
             }
         }
+        
+        Action<string, long, long> IPackageDownloadProgress.OnProgressUpdate { get; set; }
 
         #region IPackageRepository Implementation
         public string Url { get; set; }
@@ -125,7 +127,7 @@ namespace OpenTap.Package
                     if (string.IsNullOrEmpty(path) == false)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        File.Copy(path, destination, true);
+                        fileCopy(path, destination);
                         finished = true;
                     }
 
@@ -138,7 +140,7 @@ namespace OpenTap.Package
                 else
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    File.Copy(packageFilePath, destination, true);
+                    fileCopy(packageFilePath, destination);
                     finished = true;
                 }
             }
@@ -154,6 +156,31 @@ namespace OpenTap.Package
                 if ((!finished || cancellationToken.IsCancellationRequested) && File.Exists(destination))
                     File.Delete(destination);
             }
+        }
+
+        // Copying files can be very slow if it is from a network location.
+        // this file-copy action copies and notifies of progress.
+        void fileCopy(string source, string destination)
+        {
+            var tmpDestination = destination + ".part-" + System.Guid.NewGuid().ToString();
+            
+            using(var readStream = File.OpenRead(source))
+            using (var writeStream = File.OpenWrite(tmpDestination))
+            {
+                var task = Task.Run(() => readStream.CopyTo(writeStream));
+                ConsoleUtils.ReportProgressTillEnd(task, "Downloading",
+                    () => writeStream.Position,
+                    () => readStream.Length,
+                    (header, pos, len) =>
+                    {
+                        ConsoleUtils.printProgress(header, pos, len);
+                        (this as IPackageDownloadProgress).OnProgressUpdate?.Invoke(header, pos, len);
+                    });
+            }
+
+            File.Delete(destination);
+            // on most operative systems the same folder would be on the same disk, so this is a no-op.
+            File.Move(tmpDestination, destination);
         }
         public string[] GetPackageNames(CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {

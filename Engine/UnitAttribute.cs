@@ -10,7 +10,7 @@ namespace OpenTap
     /// Identifies that units should be assigned to a property.
     /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
-    public class UnitAttribute : Attribute, IAnnotation
+    public class UnitAttribute : Attribute, IAnnotation,  IParameter
     {
         /// <summary>
         /// The unit e.g "Hz".
@@ -51,5 +51,13 @@ namespace OpenTap
             this.StringFormat = StringFormat;
             this.UseRanges = UseRanges;
         }
+
+        string IAttributedObject.ObjectType => "OpenTap.Unit";
+
+        string IParameter.Group => "";
+
+        IConvertible IParameter.Value => Unit;
+
+        string IAttributedObject.Name => "Unit";
     }
 }

@@ -3,6 +3,10 @@
   <ItemGroup>
     <EmbeddedResource Include="Resources\*.txt" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="Resources\TapPlanTemplate.txt" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Engine\Tap.Engine.csproj" />
     <ProjectReference Include="..\..\Package\Tap.Package.csproj" />

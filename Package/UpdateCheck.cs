@@ -76,7 +76,7 @@ namespace OpenTap.Package
         public int Execute(CancellationToken cancellationToken)
         {
             CheckForUpdatesAsync(cancellationToken);
-            return 0;
+            return (int)ExitCodes.Success;
         }
     }
 }

@@ -52,35 +52,6 @@ namespace OpenTap.Engine.UnitTests
             {
                 Name = "TestStepId";
             }
-
-            public override void OnTestStepRunStart(TestStepRun stepRun)
-            {
-                base.OnTestStepRunStart(stepRun);
-                //Assert.IsNull(stepRun.PlanRun.Children);
-                //Assert.IsNull(stepRun.Children);
-            }
-            public override void OnTestStepRunCompleted(TestStepRun stepRun)
-            {
-                base.OnTestStepRunCompleted(stepRun);
-                //Assert.IsNull(stepRun.PlanRun.Children); //in some cases this is not null (remember this is executed async)
-                //foreach (TestStepRun testStepRun in stepRun.Children)
-                //{
-                //    Thread.Sleep(100);
-                //}
-            }
-
-            public override void OnTestPlanRunCompleted(TestPlanRun planRun, Stream logStream)
-            {
-                base.OnTestPlanRunCompleted(planRun, logStream);
-                //Assert.AreEqual(5, planRun.Children.Count());
-                //CollectionAssert.AllItemsAreUnique(planRun.Children);
-                //foreach (TestStepRun stepRun in planRun.Children)
-                //{
-                //Assert.IsNotNull(stepRun.Children);
-                //Assert.AreEqual(0, stepRun.Children.Count());
-                //    Thread.Sleep(100);
-                //}
-            }
         }
     }
 }

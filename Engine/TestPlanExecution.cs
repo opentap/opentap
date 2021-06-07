@@ -288,24 +288,12 @@ namespace OpenTap
                         // Just to be sure also upgrade verdict to aborted.
                         run.UpgradeVerdict(Verdict.Aborted);
                     }
-                    catch (AggregateException e)
+                    catch (Exception e)
                     {
-                        if (e.InnerExceptions.Count == 1)
-                        {
-                            Log.Error("Failed to open resource ({0})", e.GetInnerMostExceptionMessage());
-                            Log.Debug(e);
-                        }
-                        else
-                        {
-                            Log.Error("Errors while opening resources:", e.GetInnerMostExceptionMessage());
-                            foreach (Exception ie in e.InnerExceptions)
-                            {
-                                Log.Error("    {0}", ie.GetInnerMostExceptionMessage());
-                                Log.Debug(ie);
-                            }
-                        }
+                        Log.Error("Failed to open resource ({0})", e.GetInnerMostExceptionMessage());
+                        Log.Debug(e);
                     }
-
+                    
                     if (PrintTestPlanRunSummary)
                     {
                         // wait for the summaryListener so the summary appears in the log file.
@@ -728,10 +716,10 @@ namespace OpenTap
                 {
                     currentExecutionState.ResourceManager.WaitUntilAllResourcesOpened(TapThread.Current.AbortToken);
                 }
-                catch
+                catch (Exception ex)
                 {
                     Log.Warning("Caught error while opening resources! See error message for details.");
-                    throw;
+                    ex.RethrowInner();
                 }
 
                 Log.Debug(timer, "TestPlan opened.");

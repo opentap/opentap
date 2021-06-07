@@ -250,9 +250,9 @@ namespace OpenTap.Diagnostic
             public void LogEvent(string source, int eventType, string message, params object[] args)
             {
                 if (message == null)
-                    throw new ArgumentNullException("message");
+                    throw new ArgumentNullException(nameof(message));
                 if (args == null)
-                    throw new ArgumentNullException("args");
+                    throw new ArgumentNullException(nameof(args));
                 if (Context.HasListeners)
                 {
                     var messageFmt = string.Format(message, args);

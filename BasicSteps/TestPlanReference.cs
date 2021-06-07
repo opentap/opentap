@@ -304,8 +304,11 @@ namespace OpenTap.Plugins.BasicSteps
                 }
                 finally
                 {
-                    referencedPlanPaths.Remove(refPlanPath);
-                    if (referencedPlanPaths.Count == 0) referencedPlanPaths = null;
+                    if (referencedPlanPaths != null)
+                    {
+                        referencedPlanPaths.Remove(refPlanPath);
+                        if (referencedPlanPaths.Count == 0) referencedPlanPaths = null;
+                    }
                     CurrentMappings = prevc;
                 }
             }

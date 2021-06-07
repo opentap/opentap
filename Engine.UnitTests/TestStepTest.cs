@@ -558,6 +558,11 @@ namespace OpenTap.Engine.UnitTests
                 var result7 = funkyArray.GetFormattedName();
                 Assert.AreEqual(result7.Count(x => x == ','), funkyArray.Array.Length - 1);
                 Assert.IsTrue(result7.Contains(", Test"));
+                
+                var sweep = new SweepParameterStep();
+                // Sweep {Parameters} -> 'Sweep' when parameters is empty.
+                Assert.AreEqual("Sweep", sweep.GetFormattedName());
+
             }
             finally
             {
@@ -656,7 +661,7 @@ namespace OpenTap.Engine.UnitTests
             {
                 step.Name = testStepName + " " + formatName;
                 var result = step.GetFormattedName();
-                Assert.AreEqual(result, testStepName + " " + expectedOutput);
+                Assert.AreEqual((testStepName + " " + expectedOutput).TrimEnd(), result);
             }
         }
 
@@ -689,6 +694,7 @@ namespace OpenTap.Engine.UnitTests
                 SetOutputProperty(inputAnnotation);
 
                 annotation.Write(inputStep);
+                
 
                 AssertFormatName("{Input Bool Array}", "False, True");
                 AssertFormatName("{Input Double}", "1");

@@ -55,7 +55,7 @@ namespace OpenTap.UnitTests
                 hierarchyCompletedCallbackCalled.Set();
             }, "Root");
             Thread.Sleep(200);
-            Assert.IsTrue(hierarchyCompletedCallbackCalled.Wait(1000), "onHierarchyCompleted callback not called.");
+            Assert.IsTrue(hierarchyCompletedCallbackCalled.Wait(3000), "onHierarchyCompleted callback not called.");
             Assert.IsTrue(level1CompletedBeforeHierarchyCompletedCallback, "Child thread did not complete before onHierarchyCompleted callback.");
             Assert.IsTrue(level2CompletedBeforeHierarchyCompletedCallback, "Second level child thread did not complete before onHierarchyCompleted callback.");
         }
@@ -89,7 +89,7 @@ namespace OpenTap.UnitTests
                 hierarchyCompletedCallbackCalled.Set();
             }, "Root");
             Thread.Sleep(200);
-            Assert.IsTrue(hierarchyCompletedCallbackCalled.Wait(1000), "onHierarchyCompleted callback not called.");
+            Assert.IsTrue(hierarchyCompletedCallbackCalled.Wait(3000), "onHierarchyCompleted callback not called.");
             Assert.IsTrue(level1CompletedBeforeHierarchyCompletedCallback, "Child thread did not complete before onHierarchyCompleted callback.");
             Assert.IsTrue(level2CompletedBeforeHierarchyCompletedCallback, "Second level child thread did not complete before onHierarchyCompleted callback.");
         }

@@ -14,7 +14,6 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Xml.Serialization;
-using OpenTap;
 
 namespace OpenTap.Plugins.PluginDevelopment
 {

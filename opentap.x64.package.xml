@@ -11,7 +11,7 @@
             <SetAssemblyInfo Attributes="Version"/>
             <Sign Certificate="Keysight Technologies, Inc"/>
         </File>
-        <File Path="Packages/OpenTAP/OpenTap.Cli.dll" SourcePath="OpenTap.Cli.dll">
+        <File Path="Packages/OpenTAP/OpenTap.Cli.dll">
             <SetAssemblyInfo Attributes="Version"/>
             <Sign Certificate="Keysight Technologies, Inc"/>
         </File>

@@ -1044,11 +1044,14 @@ namespace OpenTap
     }
     class MemberValueAnnotation : IObjectValueAnnotation, IOwnedAnnotation, IErrorAnnotation
     {
-        AnnotationCollection annotation;
+        readonly AnnotationCollection annotation;
         object currentValue;
 
-        bool wasRead = false;
-        bool wasSet = false;
+        bool wasRead;
+        bool wasSet;
+        // the the member is a parameter we may need to update it
+        // even if the value is the same as the cached one.
+        bool isParameter; 
         public object Value
         {
             get
@@ -1073,6 +1076,7 @@ namespace OpenTap
         {
             if (annotation.Source == null) return;
             var m = annotation.Get<IMemberAnnotation>();
+            isParameter = m.Member is IParameterMemberData;
             try
             {
                 currentValue = m.Member.GetValue(annotation.Source);
@@ -1090,18 +1094,21 @@ namespace OpenTap
         public void Write(object source)
         {
             if (annotation.Source == null) return;
-            if (wasSet == false) return;
+            
             var m = annotation.Get<IMemberAnnotation>();
             if (m.Member.Writable == false) return;
+            
+            if (wasSet == false && !isParameter) return;
+            
             error = null;
             try
             {
-                if (object.Equals(currentValue, m.Member.GetValue(source)) == false)
+                if (object.Equals(currentValue, m.Member.GetValue(source)) == false || isParameter)
                     m.Member.SetValue(source, currentValue);
             }
-            catch (Exception _e)
+            catch (Exception e)
             {
-                error = _e.GetInnerMostExceptionMessage();
+                error = e.GetInnerMostExceptionMessage();
             }
         }
 
@@ -2001,7 +2008,7 @@ namespace OpenTap
             }
         }
 
-        class MultiResourceSelector : IMultiSelect
+        class MultiResourceSelector : IMultiSelect, IStringReadOnlyValueAnnotation
         {
             public IEnumerable Selected
             {
@@ -2030,6 +2037,8 @@ namespace OpenTap
                     seq.AnnotatedElements = elements;
                 }
             }
+
+            public string Value => string.Join(", ", Selected.Cast<IResource>().Select(s => s.Name));
 
             AnnotationCollection annotation;
             Type baseType;
