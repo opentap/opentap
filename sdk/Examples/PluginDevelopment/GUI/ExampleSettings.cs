@@ -13,6 +13,7 @@
 //limitations under the License.
 using System;
 using OpenTap;
+using OpenTap.Plugins.PluginDevelopment.Advanced_Examples;
 
 namespace OpenTap.Plugins.PluginDevelopment
 {
@@ -33,6 +34,13 @@ namespace OpenTap.Plugins.PluginDevelopment
         [MetaData(true)]
         [Display("My Comment", Description: "Some meta data comment")]
         public string MyComment { get; set; }
+        
+        [Display("Instrument ID Property Enabled", Description: "This enables an advanced example.")]
+        public bool InstrumentIDPropertyEnabled
+        {
+            get => InstrumentIDTypeDataProvider.Enabled; 
+            set => InstrumentIDTypeDataProvider.Enabled = value;
+        }
 
         public ExampleSettings()
         {
