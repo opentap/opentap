@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Reflection;
 
 namespace OpenTap
 {
@@ -145,6 +144,7 @@ namespace OpenTap
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
             UserInput.NotifyChanged(this, propertyName);
         }
+
 
         #endregion
     }

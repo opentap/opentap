@@ -157,6 +157,8 @@ namespace OpenTap.Plugins
                 
                 var container = ComponentSettingsList.GetContainer(type);
                 var index = container.IndexOf(obj);
+                if (index == -1)
+                    return false;
                 if (index != -1)
                 {
                     if (obj is Connection con)
