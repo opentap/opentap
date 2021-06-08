@@ -20,10 +20,6 @@ namespace OpenTap
         [XmlIgnore] // avoid potential cycle in XML.
         public IResource Device { get; private set; }
 
-
-        /// <summary> Gets a friendly name this class. </summary>
-        string DisplayName => Name;
-        
         /// <summary>
         /// List of <see cref="Connection"/>s connected to this port.
         /// </summary>
@@ -89,7 +85,7 @@ namespace OpenTap
         /// <returns></returns>
         public override string ToString()
         {
-            return $"{DisplayName} on {(Device != null ? Device.Name : "<NULL>")}";
+            return $"{Name} on {(Device != null ? Device.Name : "<NULL>")}";
         }
     }
 
