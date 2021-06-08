@@ -15,9 +15,7 @@ namespace OpenTap.Plugins
     internal class CollectionSerializer : TapSerializerPlugin, IConstructingSerializer
     {
         /// <summary> Order of this serializer.   </summary>
-        public override double Order { get { return 1; } }
-
-        internal IList CurrentSettingsList;
+        public override double Order { get; } = 1;
 
         /// <summary> Deserialization implementation. </summary>
         public override bool Deserialize( XElement element, ITypeData _t, Action<object> setResult)
@@ -34,10 +32,6 @@ namespace OpenTap.Plugins
                     genericType.IsValueType == false)
                 {
                     finalValues = (IList) Activator.CreateInstance(t);
-                    if (finalValues is ComponentSettings)
-                    {
-                        CurrentSettingsList = (IList) finalValues;
-                    }
                 }
 
                 if (finalValues == null)
@@ -103,7 +97,27 @@ namespace OpenTap.Plugins
                 }
                 else
                 {
+                    if (!_t.CanCreateInstance && !t.IsArray)
+                    {
+                        // the data has to be updated in-place.
+                        var os = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
+                        var mem = os?.CurrentMember;
+                        if (mem == null) throw new Exception("Unable to get member list");
+                        var val = ((IEnumerable)mem.GetValue(os.Object)).Cast<object>();
+                        var elems = element.Elements();
+                        if (elems.Count() != val.Count())
+                        {
+                            throw new Exception("Unable to deserialize unbalanced list");
+                        }
 
+                        foreach (var (elem, obj) in elems.Pairwise(val))
+                        {
+                            if (!os.TryDeserializeObject(elem, TypeData.GetTypeData(obj), o => { }, obj, true))
+                                return false;
+                        }
+
+                        return true;
+                    }
                     this.Object = finalValues;
                     var vals = (IList) finalValues;
                     foreach (var node2 in element.Elements())
@@ -165,7 +179,6 @@ namespace OpenTap.Plugins
                             // ComponentSettings must be loaded now.
                             foreach (var item in finalValues)
                                 ((IList) values).Add(item);
-                            CurrentSettingsList = (IList) values;
                         }
                         else
                         {

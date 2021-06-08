@@ -1597,14 +1597,6 @@ namespace OpenTap
         /// <summary> Turns item into a one element array, unless it is null.</summary>
         public static T[] AsSingle<T>(this T item) => item == null ? Array.Empty<T>() : new[] {item};
         
-        public static int Count(this IEnumerable e)
-        {
-            if (e is IList l) return l.Count;
-            int c = 0;
-            foreach (var _ in e)
-                c++;
-            return c;
-        }
         
         /// <summary>
         /// Like distinct but keeps the last item. Returns List because we need to iterate until last element anyway.
@@ -1785,6 +1777,34 @@ namespace OpenTap
         {
             using (var e = objs.GetEnumerator())
                 return ProcessPattern(e, f1, f2, f3, f4, f5, f6);
+        }
+
+        /// <summary>
+        /// Count the number of elements in an enumerable.
+        /// </summary>
+        public static int Count(this IEnumerable enumerable)
+        {
+            if (enumerable is ICollection col)
+                return col.Count;
+            int c = 0;
+            foreach (var _ in enumerable)
+                c++;
+            return c;
+        }
+
+        /// <summary>
+        /// iterates lists and generates pairs of each list. Once the end is reached for one of the lists, execution stops. 
+        /// </summary>
+        public static IEnumerable<(T1, T2)> Pairwise<T1, T2>(this IEnumerable<T1> a, IEnumerable<T2> b)
+        {
+            using(var ia = a.GetEnumerator())
+            using (var ib = b.GetEnumerator())
+            {
+                while (ia.MoveNext() && ib.MoveNext())
+                {
+                    yield return (ia.Current, ib.Current);
+                }
+            }
         }
 
         public static void Append<T>(ref T[]  array, params T[] appendage)
