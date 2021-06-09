@@ -6,8 +6,10 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using Mono.Collections.Generic;
 using NUnit.Framework;
 
 namespace OpenTap.Engine.UnitTests
@@ -118,6 +120,68 @@ namespace OpenTap.Engine.UnitTests
             var instrument2 = (TestRevolverSwitchInstrument) new TapSerializer().DeserializeFromString(xml);
             Assert.AreEqual(instrument.SwitchPositions[0].Alias, instrument2.SwitchPositions[0].Alias);
             Assert.AreEqual(instrument.A.Alias, instrument2.A.Alias);
-        }        
+        }
+
+
+        [DebuggerDisplay("{Name}")]
+        public class RowViaPoint : SubViaPoint
+        {
+            public int RowNumber { get; }
+            public RowViaPoint(int rowNumber)
+            {
+                RowNumber = rowNumber;
+                Name = $"Row {RowNumber}";
+            }
+        }
+        
+        [DebuggerDisplay("{Name}")]
+        public class ColumnViaPoint : SubViaPoint
+        {
+            public int ColumnNumber { get; }
+            public ColumnViaPoint(int columnNumber)
+            {
+                ColumnNumber = columnNumber;
+                Name = $"Column {ColumnNumber}";
+            }
+        }
+
+        public class Matrix2ViaPoint :ViaPoint
+        {
+            public new string Name { get; set; }
+            public ColumnViaPoint Column { get; set; }
+            public RowViaPoint Row { get; set; }
+        }
+
+        public class Matrix2ViaPointCollection : List<Matrix2ViaPoint>
+        {
+            
+        }
+        
+        public class SwitchMatrix2 : Instrument
+        {
+            public ReadOnlyCollection<RowViaPoint> Rows { get; }
+            public ReadOnlyCollection<ColumnViaPoint> Columns { get; }
+
+            [DeserializeInPlace]
+            public Matrix2ViaPointCollection ViaPoints { get; set; }
+
+            public SwitchMatrix2()
+            {
+                Rows = new ReadOnlyCollection<RowViaPoint>(Enumerable.Range(0, 128).Select(i => new RowViaPoint(i))
+                    .ToArray());
+                Columns = new ReadOnlyCollection<ColumnViaPoint>(Enumerable.Range(0, 128).Select(i => new ColumnViaPoint(i))
+                    .ToArray());
+                ViaPoints = new Matrix2ViaPointCollection();
+            }   
+        }
+
+        [Test]
+        public void SubSwitchMatrixTest()
+        {
+            
+            
+        }
+        
+        
     }
 }

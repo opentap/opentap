@@ -287,4 +287,15 @@ namespace OpenTap
     //        Name = name;
     //    }
     //}
+
+    /// <summary>
+    /// Sub via points are collections of objects which together can form a ViaPoint
+    /// </summary>
+    public class SubViaPoint
+    {
+        /// <summary>
+        /// The name of this state/mode/position in the switch. (Should be unique among <see cref="ViaPoint"/> objects on the same device/resource).
+        /// </summary>
+        public virtual string Name { get; protected set; }
+    }
 }
