@@ -465,30 +465,30 @@ namespace OpenTap.Package
         
         static Dictionary<string, bool> ignoredDirs = new Dictionary<string, bool>();
 
-        static bool ignoreDir(string realDir)
+        static bool ignoreDir(string dir)
         {
-            if (ignoredDirs.ContainsKey(realDir))
-                return ignoredDirs[realDir];
+            if (ignoredDirs.ContainsKey(dir))
+                return ignoredDirs[dir];
 
-            bool IsTapDir = File.Exists(Path.Combine(realDir, "OpenTap.dll"));
+            bool IsTapDir = File.Exists(Path.Combine(dir, "OpenTap.dll"));
             if (IsTapDir)
             {
-                ignoredDirs[realDir] = false;
+                ignoredDirs[dir] = false;
                 return false;
             }
 
-            bool ignoreThis = File.Exists(Path.Combine(realDir, ".OpenTapIgnore"));
+            bool ignoreThis = File.Exists(Path.Combine(dir, ".OpenTapIgnore"));
             if (ignoreThis)
             {
-                log.Debug($"Ignoring '{realDir}' because it contains '.OpenTapIgnore'.");
-                ignoredDirs[realDir] = true;
+                log.Debug($"Ignoring '{dir}' because it contains '.OpenTapIgnore'.");
+                ignoredDirs[dir] = true;
                 return true;
             }
             
-            var dInfo = new DirectoryInfo(realDir);
+            var dInfo = new DirectoryInfo(dir);
 
             bool ignoreParent = dInfo.Parent != null && ignoreDir(dInfo.Parent.FullName);
-            ignoredDirs[realDir] = ignoreParent;
+            ignoredDirs[dir] = ignoreParent;
             return ignoreParent;
         }
         
