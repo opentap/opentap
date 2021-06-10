@@ -463,6 +463,35 @@ namespace OpenTap.Package
             public void Clear(PackageDef pkg) => packageAssemblies.Invalidate(pkg);
         }
         
+        static Dictionary<string, bool> ignoredDirs = new Dictionary<string, bool>();
+
+        static bool ignoreDir(string realDir)
+        {
+            if (ignoredDirs.ContainsKey(realDir))
+                return ignoredDirs[realDir];
+
+            bool IsTapDir = File.Exists(Path.Combine(realDir, "OpenTap.dll"));
+            if (IsTapDir)
+            {
+                ignoredDirs[realDir] = false;
+                return false;
+            }
+
+            bool ignoreThis = File.Exists(Path.Combine(realDir, ".OpenTapIgnore"));
+            if (ignoreThis)
+            {
+                log.Debug($"Ignoring '{realDir}' because it contains '.OpenTapIgnore'.");
+                ignoredDirs[realDir] = true;
+                return true;
+            }
+            
+            var dInfo = new DirectoryInfo(realDir);
+
+            bool ignoreParent = dInfo.Parent != null && ignoreDir(dInfo.Parent.FullName);
+            ignoredDirs[realDir] = ignoreParent;
+            return ignoreParent;
+        }
+        
         internal static void findDependencies(this PackageDef pkg, List<string> excludeAdd, List<AssemblyData> searchedFiles)
         {
             var searcher = new PackageAssemblyCache(searchedFiles);
@@ -586,7 +615,7 @@ namespace OpenTap.Package
                         foreach (var unknown in dependentAssemblyNames)
                         {
                             var foundAsms = searchedFiles.Where(asm => (asm.Name == unknown.Name) && OpenTap.Utils.Compatible(asm.Version, unknown.Version)).ToList();
-                            var foundAsm = foundAsms.FirstOrDefault();
+                            var foundAsm = foundAsms.FirstOrDefault(x => ignoreDir(Path.GetDirectoryName(x.Location)) == false);
 
                             if (foundAsm != null)
                             {
