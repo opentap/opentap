@@ -463,17 +463,17 @@ namespace OpenTap.Package
             public void Clear(PackageDef pkg) => packageAssemblies.Invalidate(pkg);
         }
         
-        static Dictionary<string, bool> ignoredDirs = new Dictionary<string, bool>();
+        internal static readonly Dictionary<string, bool> ignoredDirectories = new Dictionary<string, bool>();
 
-        static bool ignoreDir(string dir)
+        internal static bool directoryIgnored(string dir)
         {
-            if (ignoredDirs.ContainsKey(dir))
-                return ignoredDirs[dir];
+            if (ignoredDirectories.ContainsKey(dir))
+                return ignoredDirectories[dir];
 
             bool IsTapDir = File.Exists(Path.Combine(dir, "OpenTap.dll"));
             if (IsTapDir)
             {
-                ignoredDirs[dir] = false;
+                ignoredDirectories[dir] = false;
                 return false;
             }
 
@@ -481,14 +481,14 @@ namespace OpenTap.Package
             if (ignoreThis)
             {
                 log.Debug($"Ignoring '{dir}' because it contains '.OpenTapIgnore'.");
-                ignoredDirs[dir] = true;
+                ignoredDirectories[dir] = true;
                 return true;
             }
             
             var dInfo = new DirectoryInfo(dir);
 
-            bool ignoreParent = dInfo.Parent != null && ignoreDir(dInfo.Parent.FullName);
-            ignoredDirs[dir] = ignoreParent;
+            bool ignoreParent = dInfo.Parent != null && directoryIgnored(dInfo.Parent.FullName);
+            ignoredDirectories[dir] = ignoreParent;
             return ignoreParent;
         }
         
@@ -615,7 +615,7 @@ namespace OpenTap.Package
                         foreach (var unknown in dependentAssemblyNames)
                         {
                             var foundAsms = searchedFiles.Where(asm => (asm.Name == unknown.Name) && OpenTap.Utils.Compatible(asm.Version, unknown.Version)).ToList();
-                            var foundAsm = foundAsms.FirstOrDefault(x => ignoreDir(Path.GetDirectoryName(x.Location)) == false);
+                            var foundAsm = foundAsms.FirstOrDefault(x => directoryIgnored(Path.GetDirectoryName(x.Location)) == false);
 
                             if (foundAsm != null)
                             {
