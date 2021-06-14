@@ -34,7 +34,7 @@ namespace OpenTap
                 return false;
             }
 
-            outConsoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING | DISABLE_NEWLINE_AUTO_RETURN;
+            outConsoleMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
             if (!SetConsoleMode(iStdOut, outConsoleMode))
             {
                 return false;
