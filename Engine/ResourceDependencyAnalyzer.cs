@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 
 namespace OpenTap
@@ -11,6 +12,7 @@ namespace OpenTap
     /// <summary>
     /// This class represents a resource in a dependency tree, and contains lists of the resources it depends on.
     /// </summary>
+    [DebuggerDisplay("{Depender} : {Resource}")]
     internal class ResourceNode : IResourceReferences
     {
         /// <summary>

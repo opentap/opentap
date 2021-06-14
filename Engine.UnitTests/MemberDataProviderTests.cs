@@ -219,21 +219,24 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void ITypeDataSearcherTest2()
         {
-            TypeDataSearcherTestImpl.Enable = true;
-            PluginManager.Search();
-            try
+            using (Session.Create())
             {
-                
-                var actionTypes = TypeData.GetDerivedTypes<ICliAction>();
-                Assert.IsTrue(actionTypes.Any(t => t.Name.EndsWith("UnitTestCliActionType")));
-                SomeTestAction.WasRun = false;
-                CliActionExecutor.Execute(new string[] { "unittesting", "--test", "hello" });
-                Assert.IsTrue(SomeTestAction.WasRun);
-                Assert.AreEqual("hello", TypeDataSearcherTestImpl.MemberDataTestImpl.Value);
-            }
-            finally
-            {
-                TypeDataSearcherTestImpl.Enable = false;
+                TypeDataSearcherTestImpl.Enable = true;
+                PluginManager.Search();
+                try
+                {
+
+                    var actionTypes = TypeData.GetDerivedTypes<ICliAction>();
+                    Assert.IsTrue(actionTypes.Any(t => t.Name.EndsWith("UnitTestCliActionType")));
+                    SomeTestAction.WasRun = false;
+                    CliActionExecutor.Execute(new string[] {"unittesting", "--test", "hello"});
+                    Assert.IsTrue(SomeTestAction.WasRun);
+                    Assert.AreEqual("hello", TypeDataSearcherTestImpl.MemberDataTestImpl.Value);
+                }
+                finally
+                {
+                    TypeDataSearcherTestImpl.Enable = false;
+                }
             }
         }
 

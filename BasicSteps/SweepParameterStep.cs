@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -30,6 +31,29 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
 
+
+        /// <summary>
+        /// This property declares to the Resource Manager which resources are declared by this test step. 
+        /// </summary>
+        [AnnotationIgnore]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        [Browsable(false)]
+        public IEnumerable<IResource> Resources
+        {
+            get
+            {
+                foreach (var row in SweepValues)
+                {
+                    if (row.Enabled == false) continue;
+                    foreach (var value in row.Values.Values)
+                    {
+                        if (value is IResource res)
+                            yield return res;
+                    }
+                }
+            }
+        }
+            
         public SweepParameterStep()
         {
             SweepValues.Loop = this;

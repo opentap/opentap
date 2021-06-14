@@ -1,7 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Diagnostics;
 using System.Linq;
 using NUnit.Framework;
+using NUnit.Framework.Constraints;
+using OpenTap.Engine.UnitTests;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using OpenTap.Plugins.BasicSteps;
 
@@ -566,6 +570,57 @@ namespace OpenTap.UnitTests
                 plan.ChildTestSteps.RemoveAt(0);
             }
             Assert.IsNull(TypeData.GetTypeData(plan).GetMember(nameof(DialogStep.Title)));
+        }
+
+        public class VerifyInstrumentTestStep : TestStep
+        {
+            public IInstrument Instrument { get; set; }
+            public readonly HashSet<IInstrument> Instruments = new HashSet<IInstrument>();
+            public override void PrePlanRun()
+            {
+                base.PrePlanRun();
+                Instruments.Clear();
+            }
+
+            public override void Run()
+            {
+                if (Instrument.IsConnected == false)
+                    throw new Exception("Instrument is not connected");
+                UpgradeVerdict(Verdict.Pass);
+                Instruments.Add(Instrument);
+            }
+        }
+        
+        [Test]
+        public void SweepResourcesTest()
+        {
+            using (Session.Create(SessionOptions.OverlayComponentSettings))
+            {
+                InstrumentSettings.Current.Clear();
+                
+                var plan = new TestPlan();
+                var step1 = new SweepParameterStep();
+                var step2 = new VerifyInstrumentTestStep();
+                int iterations = 10;
+                var instruments = new DummyInstrument[iterations];
+                for (int i = 0; i < iterations; i++)
+                    instruments[i] = new DummyInstrument();
+                step2.Instrument = instruments[0];
+                InstrumentSettings.Current.AddRange(instruments);
+                plan.ChildTestSteps.Add(step1);
+                step1.ChildTestSteps.Add(step2);
+                var mem = TypeData.GetTypeData(step2).GetMember(nameof(step2.Instrument));
+                mem.Parameterize(step1, step2, "Instrument");
+                for (int i = 0; i < iterations; i++)
+                {
+                    var row1 = new SweepRow();
+                    row1.Values["Instrument"] = instruments[i];
+                    step1.SweepValues.Add(row1);
+                }
+                var run = plan.Execute();
+                Assert.AreEqual(Verdict.Pass, run.Verdict);
+                Assert.AreEqual(iterations, step2.Instruments.Count());
+            }
         }
     }
 }

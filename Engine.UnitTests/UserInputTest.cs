@@ -68,16 +68,28 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void TestUserInputOrder()
         {
-            CliUserInputInterface.Load();
-            var request = new TestRequest();
-            using (var writer = new StringWriter())
+            using (Session.Create())
             {
-                Console.SetOut(writer);
-                UserInput.Request(request);
+                CliUserInputInterface.Load();
+                var request = new TestRequest();
+                using (var writer = new StringWriter())
+                {
+                    var prevOut = Console.Out;
+                    try
+                    {
+                        Console.SetOut(writer);
+                        UserInput.Request(request);
 
-                var log = writer.ToString().Split(new [] {Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries);
-                for (int i = 0; i <= 5; i++)
-                    Assert.AreEqual(log[i], i.ToString());
+                        var log = writer.ToString()
+                            .Split(new[] {Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries);
+                        for (int i = 0; i <= 5; i++)
+                            Assert.AreEqual(log[i], i.ToString());
+                    }
+                    finally
+                    {
+                        Console.SetOut(prevOut);
+                    }
+                }
             }
         }
     }
