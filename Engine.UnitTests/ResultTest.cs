@@ -44,6 +44,23 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(1.0, columnA.Data.GetValue(0));
             Assert.AreEqual(2.0, columnB.Data.GetValue(0));
         }
+        
+        [Test]
+        public void TestSimpleResults2()
+        {
+            var plan = new TestPlan();
+            var step = new SimpleResultTest();
+            TypeData.GetTypeData(step).GetMember("OpenTap.Description").SetValue(step, "ASD");
+            plan.Steps.Add(step);
+
+            var rl = new RecordAllResultListener();
+            
+            plan.Execute(new []{rl});
+
+            var parameterNames = rl.Runs.Values.OfType<TestStepRun>().SelectMany(run => run.Parameters.Select(x => x.Name)).Distinct();
+            Assert.IsFalse(parameterNames.Contains("Description"));
+            Assert.IsFalse(parameterNames.Contains("Break Conditions"));
+        }
 
         [Test]
         public void TestResultMetadataSimple()
