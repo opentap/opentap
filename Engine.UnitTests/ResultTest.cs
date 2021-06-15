@@ -71,7 +71,25 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(metadata.IsMetaData);
             var run = plan.Execute(new[] {rl}, new[] {metadata});
             Assert.IsTrue(run.Parameters.Find("MetaData1").IsMetaData);
+        }
 
+        [Test]
+        public void TestResultParameterConstructorArguments()
+        {
+            var step = new SimpleResultTest();
+            var seq = new SequenceStep();
+            var plan = new TestPlan();
+            plan.Steps.Add(seq);
+            seq.ChildTestSteps.Add(step);
+            
+            var rl = new SimpleResultTest2();
+            var planRun = plan.Execute(new[] {rl});
+            var resultParameters = new ResultParameters(planRun.Parameters);
+            var resultParameters1 = new ResultParameters(planRun.Parameters.Concat(new List<ResultParameter> {
+                new ResultParameter("", "Duration", planRun.Duration.TotalSeconds),
+                new ResultParameter("", "Verdict", planRun.Verdict)
+            }));
+            Assert.IsTrue(resultParameters.SequenceEqual(resultParameters1));
         }
 
         class SimpleResultTest2 : ResultListener
