@@ -334,7 +334,6 @@ namespace OpenTap.Package
             return gatheredPackages;
         }
 
-        internal static Regex slashRegex = new Regex("[/\\\\]");
         internal static List<string> DownloadPackages(string destinationDir, List<PackageDef> PackagesToDownload, List<string> filenames = null, Action<int, string> progressUpdate = null)
         {
             progressUpdate = progressUpdate ?? ((i, s) => { });
@@ -347,7 +346,7 @@ namespace OpenTap.Package
                 
                 var pkg = PackagesToDownload[i];
                 // Package names can contain slashes and backslashes -- avoid creating subdirectories when downloading packages
-                var packageName = slashRegex.Replace(GetQualifiedFileName(pkg), ".");
+                var packageName = GetQualifiedFileName(pkg).Replace('/', '.');
                 string filename = filenames?.ElementAtOrDefault(i) ??
                                   Path.Combine(destinationDir, packageName);
 

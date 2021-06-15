@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Threading;
 using NUnit.Framework;
 
@@ -46,10 +47,12 @@ namespace OpenTap.Package.UnitTests
         private const string packageFileName = "TestPackage.xml";
         private const string sampleText = "Sample File Content";
 
-        private string outputPackagePath =>
-            PackageActionHelpers.slashRegex.Replace(Path.Combine(dir1, dir2, $"{name}.{version}.TapPackage"), ".");
+        private string Filenameify(string path) => path.Replace('\\', '/').Replace('/', '.');
+
+        private string outputPackagePath => Filenameify(Path.Combine(dir1, dir2, $"{name}.{version}.TapPackage"));
+                
         private string downloadedPackagePath =>
-            PackageActionHelpers.slashRegex.Replace(Path.Combine(dir1, dir2, $"{name}.{version}.{os}.TapPackage"), ".");
+            Filenameify(Path.Combine(dir1, dir2, $"{name}.{version}.{os}.TapPackage"));
         
         private string description =
             "test package for testing that forward and backwards slashes are handled correctly in package names";
@@ -64,9 +67,9 @@ namespace OpenTap.Package.UnitTests
             VerifyPackageContent();
             DownloadPackage();
             InstallPackage();
+            VerifyInstalled();
             UninstallPackage();
         }
-        
         public void CreateTestPackage()
         {
             var packageXml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
@@ -125,8 +128,8 @@ namespace OpenTap.Package.UnitTests
                 Repository = new[] { Directory.GetCurrentDirectory() },
                 Packages = new[] {FullName}
             };
-            
-            outputPath = PackageActionHelpers.slashRegex.Replace(downloadedPackagePath, ".");
+
+            outputPath = downloadedPackagePath;
                         
             if (File.Exists(outputPath))
                 File.Delete(outputPath);
@@ -162,6 +165,12 @@ namespace OpenTap.Package.UnitTests
 
                 VerifyContent("", true);
             }
+        }
+
+        public void VerifyInstalled()
+        {
+            var installed = new Installation(ExecutorClient.ExeDir).GetPackages();
+            Assert.IsTrue(installed.Any(i => i.Name == FullName), $"Expected {FullName} to be installed");
         }
 
         public void UninstallPackage()

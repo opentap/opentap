@@ -147,7 +147,7 @@ namespace OpenTap.Package
                             path = GetRealFilePathFromName(pkg.Name, pkg.Version.ToString(), DefaultEnding);
                             // Package names support path separators now -- avoid writing the newly created package into a nested folder and
                             // replace the path separators with dots instead
-                            path = PackageActionHelpers.slashRegex.Replace(path, ".");
+                            path = path.Replace('/', '.');
                         }
 
                         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)));
