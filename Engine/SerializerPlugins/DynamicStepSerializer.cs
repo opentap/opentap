@@ -15,7 +15,13 @@ namespace OpenTap.Plugins
     {
         /// <summary> The order of this serializer. </summary>
         public override double Order { get { return new TestStepSerializer().Order + 1; } }
-        
+
+        public override bool DeserializeInPlace(XElement node, ITypeData t, object value)
+        {
+            if (value is IDynamicStep == false) return false;
+            if (serializing.Contains(node)) return false;
+            return base.DeserializeInPlace(node, t, value);
+        }
 
         /// <summary>
         /// Serializes a dynamic step.

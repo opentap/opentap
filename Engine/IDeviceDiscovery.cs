@@ -10,7 +10,7 @@ namespace OpenTap
     /// Specifies the device address used to establish a connection. Use inheritance to define a custom device address. />. 
     /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
-    public abstract class DeviceAddressAttribute : Attribute
+    public abstract class DeviceAddressAttribute : Attribute, IAnnotation
     { }
 
     /// <summary>   Interface for defining a custom device address discovery system. Implement this along with a specialization of <see cref="DeviceAddressAttribute"/>.  </summary>

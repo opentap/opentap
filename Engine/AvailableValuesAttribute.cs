@@ -30,7 +30,7 @@ namespace OpenTap
     /// Points to another property that contains the list of suggested values.
     /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
-    public class SuggestedValuesAttribute : Attribute
+    public class SuggestedValuesAttribute : Attribute, IAnnotation
     {
         /// <summary> Gets the name of the property with suggested values.</summary>
         public readonly string PropertyName;

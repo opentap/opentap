@@ -14,7 +14,7 @@ namespace OpenTap
     /// Indicates that a property can select an instance of a plugin type deriving from the type of the property.
     /// </summary>
     [AttributeUsage(AttributeTargets.Property)]
-    public class PluginTypeSelectorAttribute : Attribute
+    public class PluginTypeSelectorAttribute : Attribute, IAnnotation
     {
     }
 }

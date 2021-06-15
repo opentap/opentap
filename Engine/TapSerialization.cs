@@ -241,7 +241,7 @@ namespace OpenTap
             serializers.Sort((x, y) => -x.Order.CompareTo(y.Order));
         }
 
-        static System.Threading.ThreadLocal<TapSerializer> currentSerializer = new System.Threading.ThreadLocal<TapSerializer>();
+        static readonly System.Threading.ThreadLocal<TapSerializer> currentSerializer = new System.Threading.ThreadLocal<TapSerializer>();
         
         /// <summary> The serializer currently serializing/deserializing an object.</summary>
         public static TapSerializer GetCurrentSerializer() => currentSerializer.Value;
@@ -323,7 +323,36 @@ namespace OpenTap
         }
 
         static readonly XName typeName = "type";
-        
+
+        /// <summary>
+        /// Deserialize an object in-place. This means deserialize on-top of an existing object. This is supported for some types.
+        /// </summary>
+        /// <param name="element"></param>
+        /// <param name="t"></param>
+        /// <param name="value"></param>
+        /// <returns> true on success.</returns>
+        public bool DeserializeInPlace(XElement element, ITypeData t, object value)
+        {
+            foreach (var serializer in serializers)
+            {
+                if (serializer is IInPlaceDeserializer serializer2)
+                {
+                    activeSerializers.Push(serializer);
+                    try
+                    {
+                        if (serializer2.DeserializeInPlace(element, t, value))
+                            return true;
+                    }
+                    finally
+                    {
+                        activeSerializers.Pop();
+                    }
+                }
+            }
+
+            return false;
+        }
+
         /// <summary>
         /// Deserializes an object from XML.
         /// </summary>

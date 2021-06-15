@@ -13,7 +13,7 @@ namespace OpenTap
     [Display("Serializer")]
     public interface ITapSerializerPlugin : ITapPlugin
     {
-        
+
         /// <summary>
         /// Called as part for the deserialization chain. Returns false if it cannot serialize the XML element.  
         /// </summary>
@@ -22,6 +22,7 @@ namespace OpenTap
         /// <param name="setter"></param>
         /// <returns></returns>
         bool Deserialize(XElement node, ITypeData t, Action<object> setter);
+
         /// <summary>
         /// Called as part for the serialization chain. Returns false if it cannot serialize the XML element.  
         /// </summary>
@@ -35,6 +36,27 @@ namespace OpenTap
         /// Priority of the serializer. Defines the order in which the serializers are used. Default is 0.  
         /// </summary>
         double Order { get; }
+    }
+    /// <summary>
+    /// A deserializer that can deserialize objects in-place. This means, without creating a new object instance.
+    /// </summary>
+    public interface IInPlaceDeserializer : ITapPlugin
+    {
+        
+        /// <summary>
+        /// Called as part for the deserialization chain. Returns false if it cannot serialize the XML element.  
+        /// </summary>
+        /// <param name="node"></param>
+        /// <param name="t"></param>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        bool DeserializeInPlace(XElement node, ITypeData t, object value);
+        
+        /// <summary>
+        /// Priority of the serializer. Defines the order in which the serializers are used. Default is 0.  
+        /// </summary>
+        double Order { get; }
+        
     }
 
 }

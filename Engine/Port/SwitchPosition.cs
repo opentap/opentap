@@ -63,7 +63,7 @@ namespace OpenTap
         /// </summary>
         public override int GetHashCode()
         {
-            return this.Name.GetHashCode() ^ this.Device.GetHashCode();
+            return (Name?.GetHashCode() ?? 79569323) * 372917591 + (Device?.GetHashCode() ?? 20671031);
         }
 
         /// <summary>
@@ -288,14 +288,4 @@ namespace OpenTap
     //    }
     //}
 
-    /// <summary>
-    /// Sub via points are collections of objects which together can form a ViaPoint
-    /// </summary>
-    public class SubViaPoint
-    {
-        /// <summary>
-        /// The name of this state/mode/position in the switch. (Should be unique among <see cref="ViaPoint"/> objects on the same device/resource).
-        /// </summary>
-        public virtual string Name { get; protected set; }
-    }
 }

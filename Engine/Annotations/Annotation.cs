@@ -1940,6 +1940,13 @@ namespace OpenTap
                             if(elem2.DescendsTo(typeof(bool)))
                                 return fac.AnnotateSub(elem2, false);
                         }
+                        else
+                        {
+                            var listObject = fac.Get<IObjectValueAnnotation>()?.Value;
+                            if (listObject is ICreateElement create)
+                                return fac.AnnotateSub(elem2, create.CreateElement());
+                        }
+                            
                         return fac.AnnotateSub(elem2, null);
                     }
                     else
@@ -2624,7 +2631,7 @@ namespace OpenTap
                                 annotation.Add(new TestStepSelectAnnotation(annotation));
                                 annotation.Add(new TestStepMultiSelectAnnotation(annotation));
                             }
-                            else if (innerType.DescendsTo(typeof(ViaPoint)))
+                            else if (innerType.DescendsTo(typeof(ViaPoint)) && mem?.Member.HasAttribute<NoReferenceAttribute>() == false)
                                 annotation.Add(new ViaPointAnnotation(annotation));
                             else if (innerType.DescendsTo(typeof(IMemberData)))
                                 annotation.Add(new MemberDataSequenceStringAnnotation(annotation));

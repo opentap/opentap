@@ -30,7 +30,7 @@ namespace OpenTap.Plugins
     /// <summary>
     /// Default object serializer.
     /// </summary>
-    internal class ObjectSerializer : TapSerializerPlugin, ITapSerializerPlugin, IConstructingSerializer
+    internal class ObjectSerializer : TapSerializerPlugin, IConstructingSerializer, IInPlaceDeserializer
     {
         /// <summary>
         /// Gets the member currently being serialized.
@@ -45,11 +45,17 @@ namespace OpenTap.Plugins
         {
             get { return -1; }
         }
-        
+
+        /// <summary> Deserialize an object in-place - without creating a new instance. In this case, this is done by setting the property values.</summary>
+        public virtual bool DeserializeInPlace(XElement node, ITypeData t, object value)
+        {
+            return TryDeserializeObject(node, t, x => { }, value);
+        }
+
         /// <summary> The currently serializing or deserializing object. </summary>
         public object Object { get; private set; }
 
-        Dictionary<ITypeData, IMemberData[]> serializableMembers = new Dictionary<ITypeData, IMemberData[]>();
+        readonly Dictionary<ITypeData, IMemberData[]> serializableMembers = new Dictionary<ITypeData, IMemberData[]>();
         
         /// <summary>
         /// Tries to deserialize an object from an XElement.
@@ -251,8 +257,8 @@ namespace OpenTap.Plugins
                                         var current = property.GetValue(newobj);
                                         if (current == null)
                                             throw new Exception($"Unable to deserialize {property} in-place.");
-                                        this.TryDeserializeObject(element2, TypeData.GetTypeData(current), (x) => { },
-                                            current, true);
+                                        
+                                        Serializer.DeserializeInPlace(element2, property.TypeDescriptor, current);
                                     }
                                     else
                                     {

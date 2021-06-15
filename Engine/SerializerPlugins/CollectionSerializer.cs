@@ -8,14 +8,66 @@ using System.Linq;
 using System.Xml.Linq;
 using System.Globalization;
 using System.Collections;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace OpenTap.Plugins
 {
     /// <summary> Serializer implementation for Collections. </summary>
-    internal class CollectionSerializer : TapSerializerPlugin, IConstructingSerializer
+    internal class CollectionSerializer : TapSerializerPlugin, IConstructingSerializer, IInPlaceDeserializer
     {
         /// <summary> Order of this serializer.   </summary>
         public override double Order { get; } = 1;
+
+        /// <summary>
+        /// Deserializes a collection in-place. elements may be added or removed if the data does not match the existing number of elements.
+        /// </summary>
+        public bool DeserializeInPlace(XElement element, ITypeData t, object value)
+        {
+            object prevobj = this.Object;
+            try
+            {
+                this.Object = value;
+                if (t == null || !t.DescendsTo(typeof(IEnumerable)) || t.DescendsTo(typeof(string))) return false;
+                var elems = element.Elements();
+                ITypeData elementType = null;
+                var elemCount = elems.Count();
+                if (value is IList lst){
+                    while (lst.Count < elemCount)
+                    {
+                        if (lst is ICreateElement create)
+                        {
+                            lst.Add(create.CreateElement());
+                        }
+                        else
+                        {
+                            if (elementType == null)
+                            {
+                                elementType = t.AsTypeData()?.ElementType;
+                                if (elementType == null || elementType.CanCreateInstance == false)
+                                    throw new Exception("Cannot add elements to collection");
+                            }
+                            lst.Add(elementType.CreateInstance());
+                        }
+                    }
+                    while (lst.Count > elemCount)
+                    {
+                        lst.RemoveAt(lst.Count - 1);
+                    }
+                    foreach (var (elem, obj) in elems.Pairwise(lst.Cast<object>()))
+                    {
+                        if (!Serializer.DeserializeInPlace(elem, TypeData.GetTypeData(obj), obj))
+                            return false;
+                    }
+
+                    return true;
+                }
+                return false;
+            }
+            finally
+            {
+                this.Object = prevobj;
+            }
+        }
 
         /// <summary> Deserialization implementation. </summary>
         public override bool Deserialize( XElement element, ITypeData _t, Action<object> setResult)
