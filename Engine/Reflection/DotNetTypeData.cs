@@ -373,9 +373,9 @@ namespace OpenTap
             var value = Expression.Parameter(typeof(object), "value");
             UnaryExpression convert1;
             if(propertyInfo.DeclaringType.IsValueType)
-                convert1 = Expression.Convert(instance, propertyInfo.DeclaringType);
+                convert1 = Expression.Unbox(instance, propertyInfo.DeclaringType);
             else
-                convert1 = Expression.TypeAs(instance, propertyInfo.DeclaringType);
+                convert1 = Expression.ConvertChecked(instance, propertyInfo.DeclaringType);
             var property = Expression.Property(convert1, propertyInfo);
 
             UnaryExpression valueConvert; 
@@ -385,7 +385,7 @@ namespace OpenTap
             }
             else
             {
-                valueConvert = Expression.TypeAs(value, propertyInfo.PropertyType);
+                valueConvert = Expression.ConvertChecked(value, propertyInfo.PropertyType);
             }
 
             var setter = Expression.Assign(property, valueConvert);
@@ -409,8 +409,8 @@ namespace OpenTap
                 case PropertyInfo Property:
                     if(this.Readable == false) throw new Exception("Cannot get the value of a read-only property.");
                     if (propertyGetter == null)
+                        //Building a lambda expression is an order of magnitude faster than Property.GetValue.
                         propertyGetter = buildGetter(Property);
-                    //Building a lambda expression is an order of magnitude faster than Property.GetValue.
                     return propertyGetter(owner);
                     
                 case FieldInfo Field: return Field.GetValue(owner);
@@ -431,7 +431,17 @@ namespace OpenTap
             {
                 case PropertyInfo Property:
                     if (propertySetter == null)
-                        propertySetter = buildSetter(Property);
+                    {
+                        try
+                        {
+                            propertySetter = buildSetter(Property);
+                        }
+                        catch
+                        {
+                            propertySetter = (owner2, value2) => Property.SetValue(owner2, value2);
+                        }
+                    }
+
                     propertySetter(owner, value);
                     break;
                 case FieldInfo Field:

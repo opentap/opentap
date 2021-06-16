@@ -1971,7 +1971,7 @@ namespace OpenTap.Engine.UnitTests
 
         public class MemberDataListTest
         {
-            public IList<string> Value { get; set; } = new List<string>();
+            public List<string> Value { get; set; } = new List<string>();
         }
         
         [Test]
@@ -1983,8 +1983,10 @@ namespace OpenTap.Engine.UnitTests
 
             var list = new MemberDataListTest();
             Assert.NotNull(list.Value);
-            member.SetValue(list, new string[0]);
+            Assert.Throws<InvalidCastException>(() => member.SetValue(list, new string[0]));
             Assert.NotNull(list.Value);
+            member.SetValue(list, null);
+            Assert.IsNull(list.Value);
         }
     }
 }
