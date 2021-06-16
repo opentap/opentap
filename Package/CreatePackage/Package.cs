@@ -463,19 +463,21 @@ namespace OpenTap.Package
             public void Clear(PackageDef pkg) => packageAssemblies.Invalidate(pkg);
         }
         
+        /// <summary>
+        /// Cache of ignored directories to avoid repeated file system traversals
+        /// </summary>
         internal static readonly Dictionary<string, bool> ignoredDirectories = new Dictionary<string, bool>();
 
+        /// <summary>
+        /// Check if the directory 'dir' or any of it's ancestor directories contains a '.OpenTapIgnore' file.
+        /// Stop recursion when the OpenTAP install root dir is reached.
+        /// </summary>
+        /// <param name="dir"></param>
+        /// <returns></returns>
         internal static bool directoryIgnored(string dir)
         {
             if (ignoredDirectories.ContainsKey(dir))
                 return ignoredDirectories[dir];
-
-            bool IsTapDir = File.Exists(Path.Combine(dir, "OpenTap.dll"));
-            if (IsTapDir)
-            {
-                ignoredDirectories[dir] = false;
-                return false;
-            }
 
             bool ignoreThis = File.Exists(Path.Combine(dir, ".OpenTapIgnore"));
             if (ignoreThis)
@@ -485,8 +487,16 @@ namespace OpenTap.Package
                 return true;
             }
             
+            bool IsTapDir = File.Exists(Path.Combine(dir, "OpenTap.dll"));
+            // Avoid recursion outside of the root OpenTAP install directory
+            if (IsTapDir)
+            {
+                ignoredDirectories[dir] = false;
+                return false;
+            }
+            
+            // Recurse into parent directory
             var dInfo = new DirectoryInfo(dir);
-
             bool ignoreParent = dInfo.Parent != null && directoryIgnored(dInfo.Parent.FullName);
             ignoredDirectories[dir] = ignoreParent;
             return ignoreParent;
