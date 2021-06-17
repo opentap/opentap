@@ -344,8 +344,11 @@ namespace OpenTap.Package
             {
                 Stopwatch timer = Stopwatch.StartNew();
                 
-                var pkg = PackagesToDownload[i]; 
-                string filename = filenames?.ElementAtOrDefault(i) ?? Path.Combine(destinationDir, GetQualifiedFileName(pkg));
+                var pkg = PackagesToDownload[i];
+                // Package names can contain slashes and backslashes -- avoid creating subdirectories when downloading packages
+                var packageName = GetQualifiedFileName(pkg).Replace('/', '.');
+                string filename = filenames?.ElementAtOrDefault(i) ??
+                                  Path.Combine(destinationDir, packageName);
 
                 TapThread.ThrowIfAborted();
 
