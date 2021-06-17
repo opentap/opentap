@@ -90,48 +90,48 @@ namespace OpenTap.Package
             }
         }
 
-        protected override int LockedExecute(CancellationToken cancellationToken)
+        private int DoExecute(CancellationToken cancellationToken)
         {
-            if (NonInteractive)
-                UserInput.SetInterface(new NonInteractiveUserInputInterface());
-            
             if (Target == null)
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
             var targetInstallation = new Installation(Target);
 
             List<IPackageRepository> repositories = new List<IPackageRepository>();
             if (Repository == null)
-                repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager).ToList());
+                repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled)
+                    .Select(s => s.Manager).ToList());
             else
                 repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
-            
+
             bool installError = false;
-            var installer = new Installer(Target, cancellationToken) { DoSleep = false, ForceInstall = Force, UnpackOnly = UnpackOnly };
+            var installer = new Installer(Target, cancellationToken)
+                {DoSleep = false, ForceInstall = Force, UnpackOnly = UnpackOnly};
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;
             installer.Error += ex => installError = true;
-            
+
             try
             {
                 log.Debug("Fetching package information...");
-                
+
                 RaiseProgressUpdate(5, "Gathering packages.");
 
                 // If exact version is specified, check if it's already installed
-                if (Version != null && VersionSpecifier.TryParse(Version, out var vs) && vs.MatchBehavior == VersionMatchBehavior.Exact && Force == false)
+                if (Version != null && VersionSpecifier.TryParse(Version, out var vs) &&
+                    vs.MatchBehavior == VersionMatchBehavior.Exact && Force == false)
                 {
                     foreach (var pkg in Packages)
                     {
                         // We should always install when it's a file, this could be part of development
                         if (File.Exists(pkg))
                             break;
-                        
+
                         PackageIdentifier pid = new PackageIdentifier(pkg, Version, Architecture, OS);
                         var installedPackage = targetInstallation.GetPackages().FirstOrDefault(p => p.Name == pid.Name);
                         if (installedPackage != null && pid.Version.CompareTo(installedPackage.Version) == 0)
                         {
                             log.Info($"Package '{pid.Name}' is already installed.");
-                            return (int)ExitCodes.Success;
+                            return (int) ExitCodes.Success;
                         }
                     }
                 }
@@ -148,42 +148,45 @@ namespace OpenTap.Package
                     if (NoDowngrade)
                     {
                         log.Info("No package(s) were upgraded.");
-                        return (int)ExitCodes.Success;
+                        return (int) ExitCodes.Success;
                     }
+
                     log.Info("Could not find one or more packages.");
-                    return (int)PackageExitCodes.InvalidPackageName;
+                    return (int) PackageExitCodes.InvalidPackageName;
                 }
 
                 var installationPackages = targetInstallation.GetPackages();
 
-                var overWriteCheckExitCode = CheckForOverwrittenPackages(installationPackages, packagesToInstall, Force || Overwrite, !(NonInteractive || Overwrite));
+                var overWriteCheckExitCode = CheckForOverwrittenPackages(installationPackages, packagesToInstall,
+                    Force || Overwrite, !(NonInteractive || Overwrite));
                 if (overWriteCheckExitCode == InstallationQuestion.Cancel)
                 {
                     log.Info("Install cancelled by user.");
-                    return (int)ExitCodes.UserCancelled;
+                    return (int) ExitCodes.UserCancelled;
                 }
 
                 if (overWriteCheckExitCode == InstallationQuestion.OverwriteFile)
                     log.Warning("Overwriting files. (--{0} option specified).", Overwrite ? "overwrite" : "force");
-                
+
                 RaiseProgressUpdate(10, "Gathering dependencies.");
 
                 // Check dependencies
                 bool dependenciesRequired = (!askToInstallDependencies && !IgnoreDependencies && !Force) || CheckOnly;
-                var issue = DependencyChecker.CheckDependencies(installationPackages, packagesToInstall, dependenciesRequired ? LogEventType.Error : LogEventType.Warning);
+                var issue = DependencyChecker.CheckDependencies(installationPackages, packagesToInstall,
+                    dependenciesRequired ? LogEventType.Error : LogEventType.Warning);
                 if (dependenciesRequired)
                 {
                     if (issue == DependencyChecker.Issue.BrokenPackages)
                     {
                         log.Info("To fix the package conflict uninstall or update the conflicted packages.");
                         log.Info("To install packages despite the conflicts, use the --no-dependencies option.");
-                        return (int)PackageExitCodes.PackageDependencyError;
+                        return (int) PackageExitCodes.PackageDependencyError;
                     }
 
                     if (CheckOnly)
                     {
                         log.Info("Check completed with no problems detected.");
-                        return (int)ExitCodes.Success;
+                        return (int) ExitCodes.Success;
                     }
                 }
 
@@ -204,7 +207,7 @@ namespace OpenTap.Package
                 log.Info(e.Message);
                 log.Debug(e);
                 RaiseError(e);
-                return (int)ExitCodes.NetworkError;
+                return (int) ExitCodes.NetworkError;
             }
 
             log.Info("Installing to {0}", Path.GetFullPath(Target));
@@ -218,11 +221,27 @@ namespace OpenTap.Package
 
             // Install the package
             var status = installer.InstallThread();
-            
+
             if (installError)
                 return (int) PackageExitCodes.PackageInstallError;
 
             return status;
+        }
+
+        protected override int LockedExecute(CancellationToken cancellationToken)
+        {
+            var currentInterface = UserInput.GetInterface();
+            if (NonInteractive)
+                UserInput.SetInterface(new NonInteractiveUserInputInterface());
+
+            try
+            {
+                return DoExecute(cancellationToken);
+            }
+            finally
+            {
+                UserInput.SetInterface(currentInterface);
+            }
         }
 
         private void UninstallExisting(Installation installation, List<string> packagePaths, CancellationToken cancellationToken)

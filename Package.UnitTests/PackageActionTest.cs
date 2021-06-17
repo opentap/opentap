@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -135,6 +136,52 @@ namespace OpenTap.Package.UnitTests
                     File.Delete(outFile);
             }
 
+        }
+        
+        internal class MyTestInterface : IUserInputInterface
+        {
+            void IUserInputInterface.RequestUserInput(object dataObject, TimeSpan timeout, bool modal)
+            {
+            
+            }
+        }
+
+        [Test]
+        [TestCase(true)]
+        [TestCase(false)]
+        public void UserInterfaceResetTest(bool interactive)
+        {
+            var ui = new MyTestInterface();
+            var packageName = "MyPlugin1";
+            
+            using (OpenTap.Session.Create())
+            {
+                UserInput.SetInterface(ui);
+                Assert.IsTrue(ReferenceEquals(ui, UserInput.GetInterface()));
+
+                var act = new PackageInstallAction()
+                {
+                    Packages = new[] {packageName},
+                    Repository = new[] {new FileInfo(Assembly.GetExecutingAssembly().Location).Directory.FullName},
+                    Force = true,
+                    OS = "Windows",
+                    NonInteractive = interactive,
+                };
+
+                act.Execute(CancellationToken.None);
+                Assert.IsTrue(ReferenceEquals(ui, UserInput.GetInterface()));
+
+                var act2 = new PackageUninstallAction()
+                {
+                    Packages = new[] {packageName},
+                    Force = true,
+                    NonInteractive = interactive
+                };
+
+                act2.Execute(CancellationToken.None);
+                
+                Assert.IsTrue(ReferenceEquals(ui, UserInput.GetInterface()));
+            }
         }
     }
 }
