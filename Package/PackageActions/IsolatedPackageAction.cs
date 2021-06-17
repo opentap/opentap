@@ -16,7 +16,7 @@ using OpenTap.Cli;
 namespace OpenTap.Package
 {
     /// <summary>
-    /// Base class for ICliActions that makes a copy of the installation to a temp dir before executing. Usefull for making changes to the installation. 
+    /// Base class for ICliActions that makes a copy of the installation to a temp dir before executing. Useful for making changes to the installation. 
     /// </summary>
     public abstract class IsolatedPackageAction : LockingPackageAction
     {
