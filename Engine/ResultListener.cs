@@ -667,27 +667,31 @@ namespace OpenTap
         
         void addRangeUnsafe(IEnumerable<ResultParameter> parameters, bool initCollection = false)
         {
-            
             if (initCollection)
             {
                 var capacity = parameters.Count();
-                    
-                data = new SafeArray<resultParameter>(new resultParameter[capacity]);
-                indexByName = new Dictionary<string, int>(capacity);
+                var data2 = new resultParameter[capacity];
+                var indexByName2 = new Dictionary<string, int>(capacity);
+                var count2 = 0;
                 foreach (var par in parameters)
                 {
                     if (par?.Name == null) continue; 
-                    if (indexByName.TryGetValue(par.Name, out var idx))
+                    if (indexByName2.TryGetValue(par.Name, out var idx))
                     {
-                        data[idx] = par;
+                        data2[idx] = par;
                     }
                     else
                     {
-                        indexByName[par.Name] = count;
-                        data[count] = par;
-                        count += 1;
+                        indexByName2[par.Name] = count2;
+                        data2[count2] = par;
+                        count2 += 1;
                     }
                 }
+                // resize data to the actual count. This is a no-op if no change.
+                Array.Resize(ref data2, count2);
+                data = new SafeArray<resultParameter>(data2);
+                indexByName = indexByName2;
+                count = count2;
                 return;
             }
             
@@ -741,7 +745,7 @@ namespace OpenTap
 
         Dictionary<string, int> indexByName;
 
-        object addLock = new object();
+        readonly object addLock = new object();
         
         /// <summary>
         /// Adds a range of result parameters (synchronized).
