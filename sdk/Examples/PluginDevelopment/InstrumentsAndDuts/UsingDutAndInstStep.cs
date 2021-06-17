@@ -19,7 +19,7 @@ using OpenTap;
 
 namespace OpenTap.Plugins.PluginDevelopment
 {
-    [Display("Dut+Instrument Usage", Groups: new[] { "Examples", "Plugin Development", "InstrumentsAndDuts" }, 
+    [Display("Dut+Instrument Usage", Groups: new[] { "Examples", "Plugin Development", "Instruments And Duts" }, 
         Description: "Shows how a test step can reference resources such as DUTs and Instruments.")]
     public class UsingDutAndInstExample : TestStep
     {

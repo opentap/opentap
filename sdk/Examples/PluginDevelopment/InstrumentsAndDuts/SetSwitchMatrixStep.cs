@@ -20,7 +20,7 @@ using OpenTap;
 
 namespace OpenTap.Plugins.PluginDevelopment
 {
-    [Display("Set Switch Matrix", Groups: new[] { "Examples", "Plugin Development", "InstrumentsAndDuts", "Connections" }, Description: "A TestStep that operates on a simulated 4x4 switch matrix.")]
+    [Display("Set Switch Matrix", Groups: new[] { "Examples", "Plugin Development", "Instruments And Duts", "Connections" }, Description: "A TestStep that operates on a simulated 4x4 switch matrix.")]
     public class SetSwitchMatrixStep : TestStep
     {
         #region Settings
