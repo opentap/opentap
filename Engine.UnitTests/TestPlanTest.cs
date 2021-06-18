@@ -1484,7 +1484,7 @@ namespace OpenTap.Engine.UnitTests
                     sem.Release();
                 });
 
-                if (!sem.WaitOne(10000))
+                if (!sem.WaitOne(100000))
                 {
                     trd.Abort();
                     Assert.Fail("Deadlock occured in test plan");
