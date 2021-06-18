@@ -452,6 +452,8 @@ Package-NuGet:
     - Move-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
     - Move-Item ./bin/Release/DotNet.Glob.dll ./nuget/build    
     - ./bin/Release/tap package install ./OpenTap.x64.zip -t ./nuget/build/payload -f
+    # The package.xml of an installation should always come from one of the Runtime directories. Delete it from the payload directory.
+    - Remove-Item ./nuget/build/payload/Packages/OpenTAP/package.xml
     - Move-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload
     - Move-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
     - Push-Location ./nuget/build/payload
