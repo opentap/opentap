@@ -52,15 +52,19 @@ namespace OpenTap
         internal void WaitForSerialization() => serializePlanTask?.Wait(TapThread.Current.AbortToken);
 
         /// <summary> The SHA1 hash of XML of the test plan.</summary>
-        public string Hash => Parameters[nameof(Hash)]?.ToString();
+        //Note: for Hash the group must be Test Plan for backwards-compatibility.
+        public string Hash {
+            get => Parameters[nameof(Hash), "Test Plan"]?.ToString();
+            private set => Parameters[nameof(Hash), "Test Plan"] = value;
+        }
 
         /// <summary> Name of the running test plan. </summary>
         [DataMember]
         [MetaData(macroName: nameof(TestPlanName))]
         public string TestPlanName
         {
-            get => Parameters[nameof(TestPlanName)].ToString(); 
-            private set => Parameters[nameof(TestPlanName)] = value;
+            get => Parameters[nameof(TestPlanName), GROUP].ToString(); 
+            private set => Parameters[nameof(TestPlanName), GROUP] = value;
         }
 
         /// <summary> Set by the TestPlan execution logic to indicate whether the TestPlan failed to start the TestPlan. </summary>
@@ -425,7 +429,7 @@ namespace OpenTap
                 if (testPlanXml != null)
                 {
                     TestPlanXml = testPlanXml;
-                    Parameters.Add("Test Plan", nameof(Hash), GetHash(Encoding.UTF8.GetBytes(testPlanXml)), new MetaDataAttribute());
+                    Hash = GetHash(Encoding.UTF8.GetBytes(testPlanXml));
                     return;
                 }
 
@@ -451,8 +455,7 @@ namespace OpenTap
                     }
                     else
                         TestPlanXml = pair.Xml;
-
-                    Parameters.Add("Test Plan", nameof(Hash), pair.Hash, new MetaDataAttribute());
+                    Hash = pair.Hash;
                     return;
                 }
 
@@ -464,9 +467,7 @@ namespace OpenTap
                         plan.Save(memstr);
                         var testPlanBytes = memstr.ToArray();
                         TestPlanXml = Encoding.UTF8.GetString(testPlanBytes);
-                        
-                        Parameters.Add(new ResultParameter("Test Plan", nameof(Hash), GetHash(testPlanBytes),
-                            new MetaDataAttribute(), 0));
+                        Hash = GetHash(testPlanBytes);
                     }
                     catch (Exception e)
                     {
@@ -561,7 +562,7 @@ namespace OpenTap
                         plan.Save(memstr);
                         var testPlanBytes = memstr.ToArray();
                         TestPlanXml = Encoding.UTF8.GetString(testPlanBytes);
-                        Parameters.Add(new ResultParameter("Test Plan", nameof(Hash), GetHash(testPlanBytes), new MetaDataAttribute(), 0));
+                        Hash = GetHash(testPlanBytes);
                     }
                     catch (Exception e)
                     {
