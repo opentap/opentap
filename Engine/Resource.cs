@@ -172,6 +172,13 @@ namespace OpenTap
 
         /// <summary> These properties does not change during test plan run. </summary>
         public bool Frozen { get; set; }
+        
+        /// <summary> The group of this metadata. Generally this does not need to be set.
+        /// Common values for this is "Plan", "Step", "DUT". </summary>
+        public string Group { get; set; }
+        
+        /// <summary> The name of this metadata. Mostly this can be set to null to inherit Display Name.</summary>
+        public string Name { get; set; }
 
         /// <summary>
         /// Gets the name and value for each metadata property in this object that is not null.
@@ -181,7 +188,7 @@ namespace OpenTap
         public static List<MetaDataParameter> GetMetaDataParameters(object obj)
         {
             if (obj == null)
-                throw new ArgumentNullException("obj");
+                throw new ArgumentNullException(nameof(obj));
             var metadata = ResultParameters.GetMetadataFromObject(obj);
             return metadata.Select(meta => new MetaDataParameter(meta.Name, meta.Value)).ToList();
         }

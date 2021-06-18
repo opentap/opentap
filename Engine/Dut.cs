@@ -25,7 +25,7 @@ namespace OpenTap
         /// Identifier that uniquely identifies the DUT, such as its serial number. 
         /// </summary>
         [Display("ID", "ID identifying the DUT associated with results in the database.", "Common")]
-        [MetaData(true, "DUT ID")]
+        [MetaData(true, "DUT ID", Group = "DUT")]
         public string ID
         {
             get { return _ID; }
@@ -41,7 +41,7 @@ namespace OpenTap
         /// User-supplied comment about DUT. Entered in the Bench Settings > Instrument dialog in the OpenTAP GUI.
         /// </summary>
         [Display("Comment", "A comment related to the DUT associated with results in the database.", "Common", Order: 1)]
-        [MetaData(true)]
+        [MetaData(true, Group = "DUT")]
         public string Comment { get; set; }
     }
 }

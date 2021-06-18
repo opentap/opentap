@@ -65,11 +65,11 @@ namespace OpenTap.UnitTests
         [Test]
         public void TestResultMetadataSimple()
         {
-            var metadata = new ResultParameter("", "MetaData1", "Value1", new MetaDataAttribute());
+            var metadata = new ResultParameter("Test", "MetaData1", "Value1", new MetaDataAttribute());
             var plan = new TestPlan();
             var pr = new TestPlanRun(plan, new List<IResultListener>(), DateTime.Now, 0,"",false);
             pr.Parameters.Add(metadata);
-            var mt = pr.Parameters.Find(metadata.Name);
+            var mt = pr.Parameters.Find((metadata.Name, "Test"));
             Assert.IsTrue(mt.IsMetaData);
         }
         
@@ -84,10 +84,10 @@ namespace OpenTap.UnitTests
             seq.ChildTestSteps.Add(step);
             
             var rl = new SimpleResultTest2();
-            var metadata = new ResultParameter("", "MetaData1", "Value1", new MetaDataAttribute());
+            var metadata = new ResultParameter("Test", "MetaData1", "Value1", new MetaDataAttribute());
             Assert.IsTrue(metadata.IsMetaData);
             var run = plan.Execute(new[] {rl}, new[] {metadata});
-            Assert.IsTrue(run.Parameters.Find("MetaData1").IsMetaData);
+            Assert.IsTrue(run.Parameters.Find(("MetaData1", "Test")).IsMetaData);
         }
 
         [Test]
@@ -103,7 +103,7 @@ namespace OpenTap.UnitTests
             var planRun = plan.Execute(new[] {rl});
             var resultParameters = new ResultParameters(planRun.Parameters);
             var resultParameters1 = new ResultParameters(planRun.Parameters.Concat(new List<ResultParameter> {
-                new ResultParameter("", "Duration", planRun.Duration.TotalSeconds),
+                //new ResultParameter("", "Duration", planRun.Duration.TotalSeconds),
                 new ResultParameter("", "Verdict", planRun.Verdict)
             }));
             Assert.IsTrue(resultParameters.SequenceEqual(resultParameters1));
@@ -127,7 +127,7 @@ namespace OpenTap.UnitTests
                 while (runs.TryGetValue(runid, out TestRun subRun))
                 {
                     foreach(var subparameter in subRun.Parameters.Where(parameter => parameter.IsMetaData))
-                        if (parameterList.Find(subparameter.Name) == null)
+                        if (parameterList.Find(subparameter.Key) == null)
                         {
                             parameterList.Add(subparameter);
                         }

@@ -233,41 +233,39 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void ResourceStepTest()
         {
-            InstrumentSettings.Current.Clear();
-            ResultSettings.Current.Clear();
+            using (Session.Create(SessionOptions.OverlayComponentSettings))
+            {
+                InstrumentSettings.Current.Add(new CircDummyInst());
 
-            InstrumentSettings.Current.Add(new CircDummyInst());
+                var tp = new TestPlan();
+                tp.ChildTestSteps.Add(new ResourceStep() {Inst = InstrumentSettings.Current[0]});
 
-            var tp = new TestPlan();
-            tp.ChildTestSteps.Add(new ResourceStep() { Inst = InstrumentSettings.Current[0] });
+                var run = tp.Execute();
 
-            var run = tp.Execute();
-
-            Assert.AreEqual(1, run.StepsWithPrePlanRun.Count);
-            Assert.IsFalse(run.FailedToStart);
-            InstrumentSettings.Current.Clear();
-            ResultSettings.Current.Clear();
+                Assert.AreEqual(1, run.StepsWithPrePlanRun.Count);
+                Assert.IsFalse(run.FailedToStart);
+            }
         }
 
         [Test]
         public void ResourceStepRefTest()
         {
-            InstrumentSettings.Current.Clear();
-            ResultSettings.Current.Clear();
+            using (Session.Create(0))
+            {
+                InstrumentSettings.Current.Add(new CircDummyInst());
 
-            InstrumentSettings.Current.Add(new CircDummyInst());
+                var step1 = new ResourceStep() {Inst = InstrumentSettings.Current[0]};
+                var step2 = new ResourceStep() {Inst = step1};
 
-            var step1 = new ResourceStep() { Inst = InstrumentSettings.Current[0] };
-            var step2 = new ResourceStep() { Inst = step1 };
+                var tp = new TestPlan();
+                tp.ChildTestSteps.Add(step1);
+                tp.ChildTestSteps.Add(step2);
 
-            var tp = new TestPlan();
-            tp.ChildTestSteps.Add(step1);
-            tp.ChildTestSteps.Add(step2);
+                var run = tp.Execute();
 
-            var run = tp.Execute();
-
-            Assert.AreEqual(2, run.StepsWithPrePlanRun.Count);
-            Assert.IsFalse(run.FailedToStart);
+                Assert.AreEqual(2, run.StepsWithPrePlanRun.Count);
+                Assert.IsFalse(run.FailedToStart);
+            }
         }
 
         public class IgnoredResourceStep : TestStep

@@ -1825,7 +1825,6 @@ namespace OpenTap
         public static TimeSpan FromSeconds(double seconds)
         {
             return TimeSpan.FromTicks((long)(seconds * 1E7));
-
         }
     }
 

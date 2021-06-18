@@ -8,7 +8,6 @@ using System.Linq;
 using System.Diagnostics;
 using System.Runtime.Serialization;
 using System.Collections;
-using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
@@ -99,7 +98,7 @@ namespace OpenTap
     /// <summary>
     /// Represents a result parameter.
     /// </summary>
-    [DebuggerDisplay("{Name} = {Value}")]
+    [DebuggerDisplay("{Group} {Name} = {Value}")]
     [DataContract]
     public class ResultParameter : IParameter
     {
@@ -109,7 +108,7 @@ namespace OpenTap
         [DataMember]
         public readonly string Name;
         /// <summary>
-        /// Pretty name of the parameter.  
+        /// Group name of the parameter.
         /// </summary>
         [DataMember]
         public readonly string Group;
@@ -124,6 +123,7 @@ namespace OpenTap
         [DataMember]
         public readonly int ParentLevel;
 
+        internal (string, string) Key => (Name, Group);
         IConvertible IParameter.Value => Value;
 
         string IAttributedObject.Name => Name;
@@ -163,7 +163,6 @@ namespace OpenTap
             else
             {
                 MacroName = null;
-                IsMetaData = false;
             }
         }
         
@@ -250,7 +249,7 @@ namespace OpenTap
             
         }
 
-        object resizeLock = new object(); 
+        readonly object resizeLock = new object(); 
             
         public void Resize(int newSize)
         {
@@ -265,7 +264,7 @@ namespace OpenTap
             }
         }
         
-        public T this[int index]
+        public ref T this[int index]
         {
             get
             {
@@ -273,21 +272,7 @@ namespace OpenTap
                 {
                     var array = arrays[i];
                     if (index < array.Length)
-                        return array[index];
-                    index -= array.Length;
-                }
-                throw new IndexOutOfRangeException();
-            }
-            set
-            {
-                for(int i = 0; i < arrays.Length; i++)
-                {
-                    var array = arrays[i];
-                    if (index < array.Length)
-                    {
-                        array[index] = value;
-                        return;
-                    }
+                        return ref array[index];
                     index -= array.Length;
                 }
                 throw new IndexOutOfRangeException();
@@ -327,40 +312,50 @@ namespace OpenTap
         /// <summary>
         /// Gets the parameter with the given index.
         /// </summary>
-        /// <param name="index"></param>
         public ResultParameter this[int index] => data[index].ToResultParameter();
 
         /// <summary> Gets a ResultParameter by name. </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        public ResultParameter Find(string name)
+        public ResultParameter Find(string name) => Find(name, "");
+        
+        /// <summary> Gets a ResultParameter by name. </summary>
+        public ResultParameter Find(string name, string group)
         {
-            int idx = 0;
-            if (indexByName.TryGetValue(name, out idx) == false)
+            if (indexByName.TryGetValue((name, group), out var idx) == false)
+                return null;
+            return this[idx];
+        }
+
+        /// <summary> Gets a ResultParameter by name. </summary>
+        public ResultParameter Find((string name, string group) key)
+        {
+            if (indexByName.TryGetValue(key, out var idx) == false)
                 return null;
             return this[idx];
         }
         
-        int FindIndex(string name)
+        int FindIndex((string name, string group) key)
         {
-            if (indexByName.TryGetValue(name, out var idx))
+            if (indexByName.TryGetValue(key, out var idx))
                 return idx;
             return -1;
         }
 
-        /// <summary>
-        /// Gets the parameter with the key name.
-        /// </summary>
-        /// <param name="key"></param>
-        /// <returns></returns>
-        public IConvertible this[string key]
+        /// <summary> Gets the parameter with the key name. </summary>
+        public IConvertible this[string name, string group]
         {
-            get => Find(key)?.Value;
+            get => Find(name, group)?.Value;
             set
             {
                 int index = -1;
-                SetIndexed(key, ref index, value);
+                SetIndexed((name, group), ref index, value);
             }
+        }
+
+        /// <summary> Gets a named parameter specifying only name. This assumes that the empty group is being used. So it is the same as calling [name, ""].. </summary>
+        public IConvertible this[string name]
+        {
+            get => this[name, ""];
+            set => this[name, ""] = value;
         }
 
         static void getMetadataFromObject(object res, string nestedName, ICollection<ResultParameter> output)
@@ -479,15 +474,13 @@ namespace OpenTap
                 getMetadataFromObject(value, name + "/",output);
                 return;
             }
-            if (value == null)
-            {
-                value = "NULL";
-            }
 
             var parentName = name;
 
             IConvertible val;
-            if (value is IConvertible)
+            if (value == null)
+                val = null;
+            else if (value is IConvertible)
                 val = value as IConvertible;
             else if((val = StringConvertProvider.GetString(value)) == null)
                 val = value.ToString();
@@ -532,14 +525,20 @@ namespace OpenTap
                     continue; // pretty rare case, best to check this after other things for performance.
 
                 var display = prop.GetDisplayAttribute();
-                
+
                 if (metadataAttr != null && string.IsNullOrWhiteSpace(metadataAttr.MacroName))
-                    metadataAttr = new MetaDataAttribute(metadataAttr.PromptUser, display.Name);
+                    metadataAttr = new MetaDataAttribute(metadataAttr.PromptUser, display.Name)
+                    {
+                        Group = metadataAttr.Group,
+                        Name = metadataAttr.Name
+                    };
 
                 var name = display.Name.Trim();
                 string group = "";
 
                 if (display.Group.Length == 1) group = display.Group[0].Trim();
+                group = metadataAttr?.Group ?? group;
+                name = metadataAttr?.Name ?? name;
 
                 lst.Add((prop, group, name, metadataAttr));
             }
@@ -598,12 +597,11 @@ namespace OpenTap
         /// Returns a <see cref="ResultParameters"/> list with one entry for every setting of the inputted 
         /// TestStep.
         /// </summary>
-        internal static ResultParameters GetParams(ITestStep step, params string[] extra)
+        internal static ResultParameters GetParams(ITestStep step)
         {
             if (step == null)
                 throw new ArgumentNullException(nameof(step));
             var parameters = new List<ResultParameter>(5);
-            parameters.AddRange(extra.Select(x => new ResultParameter(x, null)));
             GetPropertiesFromObject(step, parameters);
             
             if (parameters.Count == 0)
@@ -612,17 +610,11 @@ namespace OpenTap
         }
         
         /// <summary>
-        /// Returns a <see cref="ResultParameters"/> list with one entry for every setting of the inputted 
-        /// TestStep.
-        /// </summary>
-        public static ResultParameters GetParams(ITestStep step) => GetParams(step, Array.Empty<string>());
-
-        /// <summary>
         /// Initializes a new instance of the ResultParameters class.
         /// </summary>
         public ResultParameters()
         {
-            indexByName = new Dictionary<string, int>();
+            indexByName = new Dictionary<(string, string), int>();
         }
 
         /// <summary>
@@ -654,14 +646,8 @@ namespace OpenTap
         /// </summary>
         public int Count => count;
 
-        /// <summary>
-        /// Adds a new element to the parameters. (synchronized).
-        /// </summary>
-        /// <param name="parameter"></param>
-        public void Add(ResultParameter parameter)
-        {
-            AddRange(new[] {parameter});
-        }
+        /// <summary> Adds a new element to the parameters. (synchronized). </summary>
+        public void Add(ResultParameter parameter) => AddRange(new[] {parameter}); 
 
         int count = 0;
         
@@ -671,18 +657,18 @@ namespace OpenTap
             {
                 var capacity = parameters.Count();
                 var data2 = new resultParameter[capacity];
-                var indexByName2 = new Dictionary<string, int>(capacity);
+                var indexByName2 = new Dictionary<(string, string), int>(capacity);
                 var count2 = 0;
                 foreach (var par in parameters)
                 {
                     if (par?.Name == null) continue; 
-                    if (indexByName2.TryGetValue(par.Name, out var idx))
+                    if (indexByName2.TryGetValue(par.Key, out var idx))
                     {
                         data2[idx] = par;
                     }
                     else
                     {
-                        indexByName2[par.Name] = count2;
+                        indexByName2[par.Key] = count2;
                         data2[count2] = par;
                         count2 += 1;
                     }
@@ -695,12 +681,12 @@ namespace OpenTap
                 return;
             }
             
-            Dictionary<string, int> newIndexes = null;
+            Dictionary<(string, string), int> newIndexes = null;
             List<ResultParameter> newParameters = null;
             
             foreach (var par in parameters)
             {
-                if (!indexByName.TryGetValue(par.Name, out var idx))
+                if (!indexByName.TryGetValue(par.Key, out var idx))
                     idx = -1;
 
                 if (idx >= 0)
@@ -711,11 +697,11 @@ namespace OpenTap
 
                 if (newIndexes == null)
                 {
-                    newIndexes = new Dictionary<string, int>();
+                    newIndexes = new Dictionary<(string, string), int>();
                     newParameters = new List<ResultParameter>();
                 }
 
-                if (newIndexes.TryGetValue(par.Name, out idx))
+                if (newIndexes.TryGetValue(par.Key, out idx))
                 {
                     newParameters[idx - count] = par;    
                 }
@@ -723,7 +709,7 @@ namespace OpenTap
                 {
                     int nidx = count + newParameters.Count;
                     newParameters.Add(par);
-                    newIndexes[par.Name] = nidx;
+                    newIndexes[par.Key] = nidx;
                 }   
             }
 
@@ -743,7 +729,7 @@ namespace OpenTap
             }
         }
 
-        Dictionary<string, int> indexByName;
+        Dictionary<(string, string), int> indexByName;
 
         readonly object addLock = new object();
         
@@ -769,33 +755,34 @@ namespace OpenTap
             var r = new ResultParameters
             {
                 data = new SafeArray<resultParameter>(data),
-                indexByName = new Dictionary<string, int>(indexByName)
+                indexByName = new Dictionary<(string, string), int>(indexByName)
             };
             
             return r;
         }
         
 
-        internal IConvertible GetIndexed(string verdictName, ref int verdictIndex)
+        internal IConvertible GetIndexed((string, string) index, ref int keyIndex)
         {
-            if(verdictIndex == -1)
-                verdictIndex = FindIndex(verdictName);
-            return data[verdictIndex].Value;
+            if(keyIndex == -1)
+                keyIndex = FindIndex(index);
+            return data[keyIndex].Value;
         }
 
-        internal void SetIndexed(string name, ref int index, IConvertible value)
+        internal void SetIndexed((string name, string group) key, ref int index, IConvertible value)
         {
             if(index == -1)
-                index = FindIndex(name);
+                index = FindIndex(key);
             if (index == -1)
             {
-                Add(new ResultParameter(name, value));
+                Add(new ResultParameter(key.group, key.name, value));
             }
             else
             {
                 var prev = data[index];
                 prev.Value = value;
-                prev.Name = name;
+                prev.Name = key.name;
+                prev.Group = key.group;
                 data[index] = prev;
             }
         }
@@ -807,13 +794,7 @@ namespace OpenTap
             AddRange(metadata);
         }
 
-        /// <summary>
-        /// Adds a new result parameter.
-        /// </summary>
-        /// <param name="group"></param>
-        /// <param name="name"></param>
-        /// <param name="value"></param>
-        /// <param name="metaDataAttribute"></param>
+        /// <summary> Adds a new result parameter. </summary>
         public void Add(string group, string name, IConvertible value, MetaDataAttribute metaDataAttribute)
         {
             Add(new ResultParameter(group, name, value, metaDataAttribute));
