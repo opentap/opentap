@@ -631,9 +631,7 @@ namespace OpenTap
 
         private static string GetStringIfNotNull(object obj)
         {
-            if (obj == null)
-                return null;
-            return obj.ToString();
+            return obj?.ToString();
         }
 
         private static string[] GetStringArrayIfNotNull(object obj)

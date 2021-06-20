@@ -240,6 +240,7 @@ namespace OpenTap.Package
             }
             finally
             {
+                IncrementChangeId(Target);
                 UserInput.SetInterface(currentInterface);
             }
         }
