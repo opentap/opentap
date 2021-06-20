@@ -1,11 +1,8 @@
-﻿using OpenTap.Package;
-using System;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenTap.Package.Ipc;
@@ -34,40 +31,126 @@ namespace OpenTap.Package
         /// </summary>
         public bool IsInstallationFolder => GetPackages().Any(x => x.IsSystemWide() == false);
 
+        private static Installation _current;
+        
+        /// <summary>
+        /// Get the installation of the currently running tap process
+        /// </summary>
+        public static Installation Current => _current ?? (_current = new Installation(ExecutorClient.ExeDir));
+
+        /// <summary>
+        /// Invalidate cached package list. This should only be called if changes have been made to the installation by circumventing OpenTAP APIs.
+        /// </summary>
+        public void Invalidate()
+        {
+            fileMap.Clear();
+            // Force GetPackages() to repopulate packages next time it is called
+            invalidate = true;
+        }
+
+        private bool invalidate;
+        private ConcurrentDictionary<string, PackageDef> fileMap = new ConcurrentDictionary<string, PackageDef>();
+        
+        /// <summary>
+        /// Get the installed package which provides the file specified by the string.
+        /// If multiple packages provide the file the package is chosen arbitrarily.
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns></returns>
+        public PackageDef FindPackageContainingFile(string file)
+        {
+            file = file.Replace('\\', '/');
+
+            // Fully initialize fileMap as needed whenever it is cleared
+            if (fileMap.Count == 0)
+            {
+                foreach (var package in GetPackages())
+                {
+                    foreach (var packageFile in package.Files)
+                    {
+                        var fileName = packageFile.FileName.Replace('\\', '/');
+                        fileMap.TryAdd(fileName, package);
+                    }
+                }                
+            }
+
+            if (fileMap.TryGetValue(file, out var result))
+                return result;
+            return null;
+        }
+
+        /// <summary>
+        /// Get the installed package which provides the type specified by pluginType.
+        /// If multiple packages provide the type the package is chosen arbitrarily.
+        /// </summary>
+        /// <param name="pluginType"></param>
+        /// <returns></returns>
+        public PackageDef FindPackageContainingType(ITypeData pluginType)
+        {
+            var assembly = pluginType?.AsTypeData()?.Assembly?.Location;
+            if (string.IsNullOrWhiteSpace(assembly)) return null;
+            var assemblyPath = new Uri(Path.GetDirectoryName(assembly));
+            var installPath = new Uri(ExecutorClient.ExeDir);
+            
+            // Get the path relative to the install directory
+            var relative = $"{installPath.MakeRelativeUri(assemblyPath)}/{Path.GetFileName(assembly)}";
+            // MakeRelativeUri adds a leading / -- remove it
+            relative = relative.Substring(1);
+
+            return FindPackageContainingFile(relative);
+        }
+
+        private List<PackageDef> PackageCache;
+        private long previousChangeId = -1;
+
         /// <summary>
         /// Returns package definition list of installed packages in the TAP installation defined in the constructor, and system-wide packages.
+        /// Results are cached, and Invalidate must be called if changes to the installation are made by circumventing OpenTAP APIs.
         /// </summary>
         /// <returns></returns>
         public List<PackageDef> GetPackages()
         {
-            List<PackageDef> plugins = new List<PackageDef>();
-            List<string> package_files = new List<string>();
-
-
-            // Add normal package from OpenTAP folder
-            package_files.AddRange(PackageDef.GetPackageMetadataFilesInTapInstallation(directory));
-
-            // Add system wide packages
-            package_files.AddRange(PackageDef.GetSystemWidePackages());
+            long changeId = IsolatedPackageAction.GetChangeId(directory);
             
-            foreach (var file in package_files)
+            if (changeId != previousChangeId)
             {
-                var package = installedPackageMemorizer.Invoke(file);
-                if (package != null && !plugins.Any(s => s.Name == package.Name))
-                {
-#pragma warning disable 618
-                    package.Location = file;
-#pragma warning restore 618
-                    package.PackageSource = new InstalledPackageDefSource
-                    {
-                        Installation = this,
-                        PackageDefFilePath = file
-                    };
-                    plugins.Add(package);
-                }
+                Invalidate();
             }
 
-            return plugins;
+            if (PackageCache == null || invalidate)
+            {
+                List<PackageDef> plugins = new List<PackageDef>();
+                List<string> package_files = new List<string>();
+
+                // Add normal package from OpenTAP folder
+                package_files.AddRange(PackageDef.GetPackageMetadataFilesInTapInstallation(directory));
+
+                // Add system wide packages
+                package_files.AddRange(PackageDef.GetSystemWidePackages());
+
+                foreach (var file in package_files)
+                {
+                    var package = installedPackageMemorizer.Invoke(file);
+                    if (package != null && !plugins.Any(s => s.Name == package.Name))
+                    {
+#pragma warning disable 618
+                        package.Location = file;
+#pragma warning restore 618
+                        package.PackageSource = new InstalledPackageDefSource
+                        {
+                            Installation = this,
+                            PackageDefFilePath = file
+                        };
+                        plugins.Add(package);
+                    }
+                }
+
+                previousChangeId = changeId;
+                invalidate = false;
+                PackageCache = plugins;
+            }
+
+            return PackageCache;
         }
 
         /// <summary>
