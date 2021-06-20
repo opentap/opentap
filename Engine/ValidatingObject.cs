@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Reflection;
 
 namespace OpenTap
 {
@@ -146,6 +145,7 @@ namespace OpenTap
             UserInput.NotifyChanged(this, propertyName);
         }
 
+
         #endregion
     }
     /// <summary>
@@ -254,6 +254,18 @@ namespace OpenTap
         public void Add(IsValidDelegateDefinition isValid, string errorMessage, string propertyName)
         {
             this.Add(new ValidationRule(isValid, errorMessage, propertyName));
+        }
+        
+        /// <summary>
+        /// This overload of ValidationRuleCollection.Add should not be used. This placeholder method is added to provide a warning.
+        /// </summary>
+        /// <param name="isValid">Rule checking function.</param>
+        /// <param name="errorMessage"> Error if rule checking function returns false.</param>
+        [Obsolete("No property names are specified for this validation rule. Please specify which properties are affected by this rule or explicitly add Array.Empty<string>()")]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public void Add(IsValidDelegateDefinition isValid, string errorMessage)
+        {
+            
         }
 
         internal readonly List<IMemberData> ForwardedRules = new List<IMemberData>(); 

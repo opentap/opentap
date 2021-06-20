@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Xml.Linq;
 using System.Collections;
+using System.Linq;
 
 namespace OpenTap.Plugins
 {
@@ -13,7 +14,7 @@ namespace OpenTap.Plugins
     internal class ConstResourceSerializer : TapSerializerPlugin
     {
         /// <summary> The order of this serializer. </summary>
-        public override double Order { get { return 3; } }
+        public override double Order { get; } = 3;
 
         /// <summary> Deserialization implementation. </summary>
         public override bool Deserialize( XElement element, ITypeData t, Action<object> setter)
@@ -23,7 +24,7 @@ namespace OpenTap.Plugins
                 if (element.IsEmpty) return true; // Dont do anything with a <port/>
                 var name = element.Attribute("Name");
                 if (name == null)
-                    return true;
+                    return false;
                 Serializer.Deserialize(element.Element("Device"), obj =>
                  {
                      var resource = obj as IResource;
@@ -57,19 +58,26 @@ namespace OpenTap.Plugins
             return false;
         }
 
-        /// <summary>
-        /// For avoiding recursive Serialize calls.
-        /// </summary>
-        HashSet<object> checkRentry = new HashSet<object>();
+        /// <summary> For avoiding recursive Serialize calls. </summary>
+        readonly HashSet<object> checkRentry = new HashSet<object>();
+        
         /// <summary> Serialization implementation. </summary>
         public override bool Serialize( XElement elem, object obj, ITypeData expectedType)
         {
             if (obj is IConstResourceProperty == false) return false;
-            if (checkRentry.Contains(obj)) return false;
-            checkRentry.Add(obj);
+            if (checkRentry.Add(obj) == false) return false;
+            IConstResourceProperty port = (IConstResourceProperty) obj;
+            
             try
             {
-                IConstResourceProperty port = (IConstResourceProperty)obj;
+                {
+                    // check if the currently serializing object is the class
+                    // that owns the port. In that case, don't continue. 
+                    var serializingParentObject = Serializer.SerializerStack
+                        .OfType<ObjectSerializer>().FirstOrDefault()?.Object;
+                    if (port.Device == serializingParentObject)
+                        return false;
+                }   
 
                 elem.SetAttributeValue("Name", port.Name);
                 IList settings = ComponentSettingsList.GetContainer(port.Device.GetType());
@@ -93,5 +101,4 @@ namespace OpenTap.Plugins
             }
         }
     }
-
 }

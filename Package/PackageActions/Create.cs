@@ -19,7 +19,7 @@ namespace OpenTap.Package
       
         private static readonly char[] IllegalPackageNameChars = {'"', '<', '>', '|', '\0', '\u0001', '\u0002', '\u0003', '\u0004', '\u0005', '\u0006', '\a', '\b', 
             '\t', '\n', '\v', '\f', '\r', '\u000e', '\u000f', '\u0010', '\u0011', '\u0012', '\u0013', '\u0014', '\u0015', '\u0016', '\u0017', '\u0018', 
-            '\u0019', '\u001a', '\u001b', '\u001c', '\u001d', '\u001e', '\u001f', ':', '*', '?', '\\', '/'};
+            '\u0019', '\u001a', '\u001b', '\u001c', '\u001d', '\u001e', '\u001f', ':', '*', '?', '\\'};
         
         /// <summary>
         /// The default file extension for OpenTAP packages.
@@ -143,7 +143,12 @@ namespace OpenTap.Package
                         var path = outputPath;
 
                         if (String.IsNullOrEmpty(path))
+                        {
                             path = GetRealFilePathFromName(pkg.Name, pkg.Version.ToString(), DefaultEnding);
+                            // Package names support path separators now -- avoid writing the newly created package into a nested folder and
+                            // replace the path separators with dots instead
+                            path = path.Replace('/', '.');
+                        }
 
                         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)));
 

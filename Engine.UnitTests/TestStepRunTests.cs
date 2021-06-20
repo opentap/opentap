@@ -18,7 +18,7 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void StartTimeInvalidValue()
         {
-            var attachedParameters = new List<ResultParameter> { new ResultParameter("StartTime", null) };
+            var attachedParameters = new List<ResultParameter> { new ResultParameter("", "StartTime", null) };
             var testStepRun = new TestStepRun(new DelayStep(), Guid.NewGuid(), attachedParameters);
             Assert.AreEqual(new DateTime(), testStepRun.StartTime);
         }
@@ -27,7 +27,7 @@ namespace OpenTap.Engine.UnitTests
         public void StartTimeExactDate()
         {
             var date = DateTime.ParseExact("01.01.2000 10:00", "dd.MM.yyyy hh:mm", CultureInfo.InvariantCulture);
-            var attachedParameters = new List<ResultParameter> { new ResultParameter("StartTime", date) };
+            var attachedParameters = new List<ResultParameter> { new ResultParameter("", "StartTime", date) };
             var testStepRun = new TestStepRun(new DelayStep(), Guid.NewGuid(), attachedParameters);
             Assert.AreEqual(date, testStepRun.StartTime);
         }

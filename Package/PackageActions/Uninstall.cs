@@ -26,15 +26,9 @@ namespace OpenTap.Package
         /// </summary>
         [CommandLineArgument("non-interactive", Description = "Never prompt for user input.")]
         public bool NonInteractive { get; set; } = false;
-
-        protected override int LockedExecute(CancellationToken cancellationToken)
+        
+        private int DoExecute(CancellationToken cancellationToken)
         {
-            if (Packages == null)
-                throw new Exception("No packages specified.");
-            
-            if (NonInteractive)
-                UserInput.SetInterface(new NonInteractiveUserInputInterface());
-
             if (Force == false && Packages.Any(p => p == "OpenTAP") && Target == ExecutorClient.ExeDir)
             {
                 log.Error(
@@ -85,6 +79,26 @@ namespace OpenTap.Package
             if (status == (int) ExitCodes.GeneralException)
                 return (int) PackageExitCodes.PackageUninstallError;
             return status;
+        }
+        
+        protected override int LockedExecute(CancellationToken cancellationToken)
+        {
+            if (Packages == null)
+                throw new Exception("No packages specified.");
+            
+            var currentInterface = UserInput.GetInterface();
+            if (NonInteractive)
+                UserInput.SetInterface(new NonInteractiveUserInputInterface());
+
+            try
+            {
+                return DoExecute(cancellationToken);
+            }
+            finally
+            {
+                IncrementChangeId(Target);
+                UserInput.SetInterface(currentInterface);
+            }
         }
 
         private List<string> GetPaths(PackageDef package, InstalledPackageDefSource source,

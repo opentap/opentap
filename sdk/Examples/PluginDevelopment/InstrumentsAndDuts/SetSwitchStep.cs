@@ -19,7 +19,7 @@ using OpenTap;
 
 namespace OpenTap.Plugins.PluginDevelopment
 {
-    [Display("Set Switch", Groups: new[] { "Examples", "Plugin Development", "InstrumentsAndDuts", "Connections" }, Description: "A TestStep that operates on a simulated two position switch.")]
+    [Display("Set Switch", Groups: new[] { "Examples", "Plugin Development", "Instruments And Duts", "Connections" }, Description: "A TestStep that operates on a simulated two position switch.")]
     public class SetTwoPositionSwitchStep : TestStep
     {
         public TwoPositionSwitchInstrument Switch { get; set; }

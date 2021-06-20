@@ -35,14 +35,14 @@ namespace OpenTap
         /// <summary> Currently selected interface. </summary>
         public static object Interface => inputInterface;
 
-        static IUserInputInterface inputInterface;
-        static IUserInterface userInterface;
+        static readonly SessionLocal<IUserInputInterface> _inputInterface = new SessionLocal<IUserInputInterface>(false);
+        static IUserInputInterface inputInterface => _inputInterface.Value;
+        static IUserInterface userInterface => inputInterface as IUserInterface;
         /// <summary> Sets the current user input interface. This should almost never be called from user code. </summary>
         /// <param name="inputInterface"></param>
         public static void SetInterface(IUserInputInterface inputInterface)
         {
-            UserInput.inputInterface = inputInterface;
-            UserInput.userInterface = inputInterface as IUserInterface;
+            _inputInterface.Value = inputInterface;
         }
 
         /// <summary> Call to notify the user interface that an object property has changed. </summary>
@@ -55,10 +55,7 @@ namespace OpenTap
 
         /// <summary> Gets the current user input interface. </summary>
         /// <returns></returns>
-        public static IUserInputInterface GetInterface()
-        {
-            return UserInput.inputInterface;
-        }
+        public static IUserInputInterface GetInterface() => inputInterface;
     }
 
     /// <summary> Defines a way for plugins to notify the user that a property has changed. </summary>
@@ -333,15 +330,15 @@ namespace OpenTap
         TapThread readerThread = null;
         BlockingCollection<string> lines = new BlockingCollection<string>();
         
-        static bool isLoaded = false;
+        static readonly SessionLocal<bool> isLoaded = new SessionLocal<bool>();
         
         /// <summary> Loads the CLI user input interface. Note, once it is loaded it cannot be unloaded. </summary>
         public static void Load()
         {
-            if (!isLoaded)
+            if (!isLoaded.Value)
             {
+                isLoaded.Value = true;
                 UserInput.SetInterface(new CliUserInputInterface());
-                isLoaded = true;
             }
         }
 
@@ -354,7 +351,7 @@ namespace OpenTap
         /// <returns>A disposable that must be disposed in the same thread as the caller.</returns>
         public static IDisposable AcquireUserInputLock()
         {
-            if (isLoaded && UserInput.Interface is CliUserInputInterface cli)
+            if (isLoaded.Value && UserInput.Interface is CliUserInputInterface cli)
             {
                 cli.userInputMutex.WaitOne();
                 return Utils.WithDisposable(cli.userInputMutex.ReleaseMutex);

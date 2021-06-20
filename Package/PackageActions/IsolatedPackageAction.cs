@@ -16,7 +16,7 @@ using OpenTap.Cli;
 namespace OpenTap.Package
 {
     /// <summary>
-    /// Base class for ICliActions that makes a copy of the installation to a temp dir before executing. Usefull for making changes to the installation. 
+    /// Base class for ICliActions that makes a copy of the installation to a temp dir before executing. Useful for making changes to the installation. 
     /// </summary>
     public abstract class IsolatedPackageAction : LockingPackageAction
     {
@@ -65,6 +65,36 @@ namespace OpenTap.Package
             return base.Execute(cancellationToken);
         }
 
+        private static string GetChangeFile(string target) => Path.Combine(target, "Packages", ".changeId");
+        internal static long GetChangeId(string target)
+        {
+            var filePath = GetChangeFile(target);
+            if (File.Exists(filePath))
+                if (long.TryParse(File.ReadAllText(filePath), out var changeId))
+                    return changeId;
+            return 0;
+        }
+
+        private static void EnsureDirectory(string filePath) => Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+        
+        internal static void IncrementChangeId(string target)
+        {
+            var filePath = GetChangeFile(target);
+            long changeId = GetChangeId(target);
+            changeId += 1;
+
+            try
+            {
+                EnsureDirectory(filePath);
+                File.WriteAllText(filePath, changeId.ToString());
+            }
+            catch (Exception ex)
+            {
+                log.Warning($"Failed writing Change ID to {filePath}");
+                log.Debug(ex);
+            }
+        }
+
         private static string NormalizePath(string path)
         {
             return Path.GetFullPath(new Uri(path).LocalPath)
@@ -75,7 +105,6 @@ namespace OpenTap.Package
 
         internal static void RunIsolated(string application = null, string target = null, IsolatedPackageAction isolatedAction = null)
         {
-
             using (var tpmClient = new ExecutorClient())
             {
                 var packages = new Installation(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location)).GetPackages();

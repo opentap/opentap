@@ -25,7 +25,7 @@ using System.Collections.Generic;
 
 namespace OpenTap.Plugins.PluginDevelopment
 {
-    [Display("Measurement using Connection", Groups: new[] { "Examples", "Plugin Development", "InstrumentsAndDuts", "Connections" }, 
+    [Display("Measurement using Connection", Groups: new[] { "Examples", "Plugin Development", "Instruments And Duts", "Connections" }, 
         Description: "An example that shows how a TestStep can use a connection to perform a simulated measurement.")]
     public class MeasureUsingConnectionsStep : TestStep
     {

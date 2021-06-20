@@ -16,6 +16,7 @@ using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
 using System.Threading.Tasks;
+using NuGet.Packaging;
 
 namespace OpenTap.Package
 {
@@ -730,7 +731,8 @@ namespace OpenTap.Package
             if (installationDir == null)
                 installationDir = FileSystemHelper.GetCurrentInstallationDirectory();
 
-            return String.Join("/", installationDir, PackageDef.PackageDefDirectory, name, PackageDef.PackageDefFileName); // don't use Path.Combine, as that might create \ which makes the package unable to install on linux
+            // don't use Path.Combine, as that might create \ which makes the package unable to install on linux
+            return String.Join("/", installationDir, PackageDef.PackageDefDirectory, name, PackageDef.PackageDefFileName); 
         }
 
         internal static List<string> GetPackageMetadataFilesInTapInstallation(string tapPath)
@@ -746,11 +748,8 @@ namespace OpenTap.Package
 
             if (Directory.Exists(packageDir))
             {
-                foreach (var dir in Directory.EnumerateDirectories(packageDir).Select(s => new DirectoryInfo(s).Name))
-                {
-                    if (File.Exists(GetDefaultPackageMetadataPath(dir, tapPath)))
-                        metadatas.Add(GetDefaultPackageMetadataPath(dir, tapPath));
-                }
+                var packageDefinitions = Directory.GetFiles(packageDir, "package.xml", SearchOption.AllDirectories);
+                metadatas.AddRange(packageDefinitions);
             }
             
 

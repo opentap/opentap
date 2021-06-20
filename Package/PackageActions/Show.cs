@@ -13,7 +13,7 @@ namespace OpenTap.Package
 {
 
     [Display("show", Group: "package", Description: "Show information about a package.")]
-    public class PackageShowAction : IsolatedPackageAction
+    public class PackageShowAction : LockingPackageAction
     {
         private string Description { get; set; }
         private List<Tuple<string, string>> SubTags { get; } = new List<Tuple<string, string>>();

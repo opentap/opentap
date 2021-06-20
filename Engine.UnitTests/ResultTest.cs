@@ -44,15 +44,32 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(1.0, columnA.Data.GetValue(0));
             Assert.AreEqual(2.0, columnB.Data.GetValue(0));
         }
+        
+        [Test]
+        public void TestSimpleResults2()
+        {
+            var plan = new TestPlan();
+            var step = new SimpleResultTest();
+            TypeData.GetTypeData(step).GetMember("OpenTap.Description").SetValue(step, "ASD");
+            plan.Steps.Add(step);
+
+            var rl = new RecordAllResultListener();
+            
+            plan.Execute(new []{rl});
+
+            var parameterNames = rl.Runs.Values.OfType<TestStepRun>().SelectMany(run => run.Parameters.Select(x => x.Name)).Distinct();
+            Assert.IsFalse(parameterNames.Contains("Description"));
+            Assert.IsFalse(parameterNames.Contains("Break Conditions"));
+        }
 
         [Test]
         public void TestResultMetadataSimple()
         {
-            var metadata = new ResultParameter("", "MetaData1", "Value1", new MetaDataAttribute());
+            var metadata = new ResultParameter("Test", "MetaData1", "Value1", new MetaDataAttribute());
             var plan = new TestPlan();
             var pr = new TestPlanRun(plan, new List<IResultListener>(), DateTime.Now, 0,"",false);
             pr.Parameters.Add(metadata);
-            var mt = pr.Parameters.Find(metadata.Name);
+            var mt = pr.Parameters.Find((metadata.Name, "Test"));
             Assert.IsTrue(mt.IsMetaData);
         }
         
@@ -67,11 +84,29 @@ namespace OpenTap.UnitTests
             seq.ChildTestSteps.Add(step);
             
             var rl = new SimpleResultTest2();
-            var metadata = new ResultParameter("", "MetaData1", "Value1", new MetaDataAttribute());
+            var metadata = new ResultParameter("Test", "MetaData1", "Value1", new MetaDataAttribute());
             Assert.IsTrue(metadata.IsMetaData);
             var run = plan.Execute(new[] {rl}, new[] {metadata});
-            Assert.IsTrue(run.Parameters.Find("MetaData1").IsMetaData);
+            Assert.IsTrue(run.Parameters.Find(("MetaData1", "Test")).IsMetaData);
+        }
 
+        [Test]
+        public void TestResultParameterConstructorArguments()
+        {
+            var step = new SimpleResultTest();
+            var seq = new SequenceStep();
+            var plan = new TestPlan();
+            plan.Steps.Add(seq);
+            seq.ChildTestSteps.Add(step);
+            
+            var rl = new SimpleResultTest2();
+            var planRun = plan.Execute(new[] {rl});
+            var resultParameters = new ResultParameters(planRun.Parameters);
+            var resultParameters1 = new ResultParameters(planRun.Parameters.Concat(new List<ResultParameter> {
+                //new ResultParameter("", "Duration", planRun.Duration.TotalSeconds),
+                new ResultParameter("", "Verdict", planRun.Verdict)
+            }));
+            Assert.IsTrue(resultParameters.SequenceEqual(resultParameters1));
         }
 
         class SimpleResultTest2 : ResultListener
@@ -92,7 +127,7 @@ namespace OpenTap.UnitTests
                 while (runs.TryGetValue(runid, out TestRun subRun))
                 {
                     foreach(var subparameter in subRun.Parameters.Where(parameter => parameter.IsMetaData))
-                        if (parameterList.Find(subparameter.Name) == null)
+                        if (parameterList.Find(subparameter.Key) == null)
                         {
                             parameterList.Add(subparameter);
                         }

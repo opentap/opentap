@@ -1108,7 +1108,7 @@ namespace OpenTap.Engine.UnitTests
             var planrun = plan.Execute(new[] { pl });
 
             var steprun = pl.StepRuns.First();
-            Assert.IsTrue(steprun.Parameters["ArrayValues"].ToString() == new NumberFormatter(System.Globalization.CultureInfo.CurrentCulture){UseRanges = false}.FormatRange(arrayStep.ArrayValues));
+            Assert.IsTrue(steprun.Parameters["ArrayValues", ""].ToString() == new NumberFormatter(System.Globalization.CultureInfo.CurrentCulture){UseRanges = false}.FormatRange(arrayStep.ArrayValues));
         }
 
         [Test]
@@ -1484,7 +1484,7 @@ namespace OpenTap.Engine.UnitTests
                     sem.Release();
                 });
 
-                if (!sem.WaitOne(10000))
+                if (!sem.WaitOne(100000))
                 {
                     trd.Abort();
                     Assert.Fail("Deadlock occured in test plan");
@@ -1500,7 +1500,7 @@ namespace OpenTap.Engine.UnitTests
             
             public override void OnTestPlanRunStart(TestPlanRun planRun)
             {
-                CommentWas = planRun.Parameters["Comment"]?.ToString();
+                CommentWas = planRun.Parameters["Comment", "DUT"]?.ToString();
                 SerialWas = planRun.Parameters["Serial"]?.ToString();
                 TestPlanRunStarted = true;
                 base.OnTestPlanRunStart(planRun);
@@ -1843,13 +1843,13 @@ namespace OpenTap.Engine.UnitTests
             var run = plan.Execute(new[] {pl1});
             
             var parameters = run.Parameters;
-            Assert.IsNotNull(parameters.Find("Station"));
-            Assert.IsNull(parameters.Find("Allow Metadata Prompt"));
+            Assert.IsNotNull(parameters.Find(("Station", "Operator")));
+            Assert.IsNull(parameters.Find(("Allow Metadata Prompt", "Engine")));
             var stepParameters = pl1.StepRuns.FirstOrDefault().Parameters;
-            Assert.IsNotNull(stepParameters.Find("A"));
-            Assert.IsNotNull(stepParameters.Find("Verdict"));
-            Assert.IsNotNull(stepParameters.Find("Duration"));
-            Assert.IsNull(stepParameters.Find(nameof(ManySettingsStep.Id))); // Id is not saved as Parameter
+            Assert.IsNotNull(stepParameters.Find("A", ""));
+            Assert.IsNotNull(stepParameters.Find("Verdict", ""));
+            Assert.IsNotNull(stepParameters.Find("Duration", ""));
+            Assert.IsNull(stepParameters.Find(nameof(ManySettingsStep.Id), "")); // Id is not saved as Parameter
             Assert.IsNotNull(run.TestPlanXml);
             Assert.IsNotNull(run.Hash);
         }

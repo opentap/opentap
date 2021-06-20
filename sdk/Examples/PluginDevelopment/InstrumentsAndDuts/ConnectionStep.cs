@@ -31,7 +31,7 @@ using OpenTap;
 
 namespace OpenTap.Plugins.PluginDevelopment.InstrumentsAndDuts
 {
-    [Display("Connection Usage", Groups: new[] { "Examples", "Plugin Development", "InstrumentsAndDuts" }, Description: "Example step that operates on connections.")]
+    [Display("Connection Usage", Groups: new[] { "Examples", "Plugin Development", "Instruments And Duts" }, Description: "Example step that operates on connections.")]
     public class ConnectionStep : TestStep
     {
         #region Settings

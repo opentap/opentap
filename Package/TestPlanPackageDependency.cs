@@ -19,6 +19,8 @@ namespace OpenTap.Package
     {
         static readonly XName PackageDependenciesName = "Package.Dependencies";
         static readonly XName PackageDependencyName = "Package";
+        static readonly XName TypeDependencyName = "Type";
+        static readonly XName FileDependencyName = "File";
         static readonly XName NameName = "Name";
         static readonly XName VersionName = "Version";
 
@@ -99,36 +101,50 @@ namespace OpenTap.Package
                 if (nameattr == null || versionattr == null)
                     continue;
 
-                var name = nameattr.Value;
+                var packageName = nameattr.Value;
                 var versionString = versionattr.Value;
                 if(!SemanticVersion.TryParse(versionString, out SemanticVersion version))
                 {
-                    errors.Add($"Version '{versionString}' of dependent package '{name}' could not be parsed.");
+                    errors.Add($"Version '{versionString}' of dependent package '{packageName}' could not be parsed.");
                     return false;
                 }
 
-                if (!plugins.ContainsKey(name))
+                if (!plugins.ContainsKey(packageName))
                 {
                     string legacyTapBasePackageName = "TAP Base";
-                    if (name == legacyTapBasePackageName)
+                    if (packageName == legacyTapBasePackageName)
                     {
                         Log.Warning($"The saved data depends on an older, incompatible version of OpenTAP. Migrating from OpenTAP {version} to the installed version. Please verify the test plan settings.");
                         continue;
                     }
                     else
                     {
-                        errors.Add($"Package '{name}' is required to load the test plan, but it is not installed.");
+                        errors.Add($"Package '{packageName}' is required to load the test plan, but it is not installed.");
                     }
 
                     if (UsePlatformInteraction)
                     {
-                        interactiveInstallPackage(name, version);   
+                        interactiveInstallPackage(packageName, version);   
                     }
 
                 }
-                else if (!(version.IsCompatible(plugins[name].Version)))
+                else if (!(version.IsCompatible(plugins[packageName].Version)))
                 {
-                    errors.Add($"Package '{name}' version {version} is required to load the saved data and the installed version ({plugins[name].Version}) is not compatible.");
+                    errors.Add($"Package '{packageName}' version {version} is required to load the saved data and the installed version ({plugins[packageName].Version}) is not compatible.");
+                }
+                
+                foreach (var file in pkg.Elements(FileDependencyName))
+                {
+                    var fileNameAttr = file.Attribute(NameName);
+                    if (fileNameAttr == null)
+                        continue;
+
+                    var fileName = fileNameAttr.Value;
+
+                    if (!File.Exists(fileName))
+                    {
+                        errors.Add($"File '{fileName}' from package '{packageName}' is required by the test plan, but it could not be found.");
+                    }
                 }
             }
 
@@ -166,6 +182,7 @@ namespace OpenTap.Package
         }
 
         XElement endnode;
+
         public override bool Serialize(XElement elem, object obj, ITypeData type)
         {
             if (endnode == null)
@@ -173,42 +190,65 @@ namespace OpenTap.Package
                 endnode = elem;
                 bool ok = Serializer.Serialize(elem, obj, type);
 
-                if (WritePackageDependencies) // Allow a serializer futher down the stack to disable the <Package.Dependencies> tag
+                // Allow a serializer further down the stack to disable the <Package.Dependencies> tag
+                if (WritePackageDependencies)
                 {
                     var pluginsNode = new XElement(PackageDependenciesName);
-                    var allAssemblies = Serializer.GetUsedTypes().Select(getAssemblyName).Where(x => x != null).ToHashSet(StringComparer.InvariantCultureIgnoreCase);
-                    var plugins = new Installation(Path.GetDirectoryName(PluginManager.GetOpenTapAssembly().Location)).GetPackages();
-                    
-                    List<PackageDef> packages = new List<PackageDef>();
 
-                    foreach (var plugin in plugins)
+                    var usedTypes = Serializer.GetUsedTypes().Select(t => t.AsTypeData()).Distinct().ToArray();
+                    var allFiles = Serializer.GetUsedFiles().ToArray();
+
+                    var nodes = new Dictionary<PackageDef, XElement>();
+
+                    XElement createValue(PackageDef p)
                     {
-                        foreach (var file in plugin.Files)
-                        {
-                            var filename = Path.GetFileName(file.FileName.Replace("\\", "/"));
+                        var ele = new XElement(PackageDependencyName);
+                        ele.Add(new XAttribute(NameName, p.Name));
+                        if (p.Version != null) ele.Add(new XAttribute(VersionName, p.Version));
+                        
+                        pluginsNode.Add(ele);
 
-                            if (allAssemblies.Contains(filename))
+                        return ele;
+                    }
+                    
+                    // Maybe enable this feature in a future release
+                    bool addUsedTypes = false;
+                    
+                    foreach (var typeData in usedTypes)
+                    {
+                        var source = Installation.Current.FindPackageContainingType(typeData);
+                        if (source != null)
+                        {
+                            var node = nodes.GetOrCreateValue(source, createValue);
+                            if (addUsedTypes)
                             {
-                                packages.Add(plugin);
-                                break;
+                                var typeNode = new XElement(TypeDependencyName);
+                                typeNode.Add(new XAttribute(NameName, typeData.Name));
+                                node.Add(typeNode);
                             }
                         }
                     }
 
-                    foreach (var pkg in packages)
+                    foreach (var file in allFiles)
                     {
-                        var newnode = new XElement(PackageDependencyName);
-                        newnode.Add(new XAttribute(NameName, pkg.Name));
-                        if (pkg.Version != null)
-                            newnode.Add(new XAttribute(VersionName, pkg.Version));
-                        pluginsNode.Add(newnode);
+                        var source = Installation.Current.FindPackageContainingFile(file);
+                        if (source != null)
+                        {
+                            var node = nodes.GetOrCreateValue(source, createValue);
+
+                            var fileNode = new XElement(FileDependencyName);
+                            fileNode.Add(new XAttribute(NameName, file));
+                            node.Add(fileNode);
+                        }
                     }
+
                     elem.Add(pluginsNode);
                 }
 
                 endnode = null;
                 return ok;
             }
+
             return false;
         }
     }

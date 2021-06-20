@@ -208,6 +208,153 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(listener2.Events[0].Message == msg2);
         }
 
+        public enum SessionEnum
+        {
+            Parent,
+            SessionA,
+            SessionB
+        }
+        
+        public class TestUserInterface : IUserInputInterface
+        {
+            public SessionEnum SessionEnum { get; set; }
+
+            public TestUserInterface(SessionEnum caller)
+            {
+                SessionEnum = caller;
+            }
+            void IUserInputInterface.RequestUserInput(object dataObject, TimeSpan timeout, bool modal)
+            {
+            
+            }
+        }
+        
+        void InterfaceAssert(SessionEnum expected)
+        {
+            var i = UserInput.GetInterface() as TestUserInterface;
+            Assert.IsTrue(i?.SessionEnum == expected,
+                $"User interface '{expected}' expected, but was {i?.SessionEnum.ToString() ?? "Not Set"}");
+        }
+        
+        [Test]
+        public void RedirectedUserInputTest()
+        {
+            var previousInterface = UserInput.GetInterface();
+            try
+            {
+                var parentInterface = new TestUserInterface(SessionEnum.Parent);
+                var aInterface = new TestUserInterface(SessionEnum.SessionA);
+                var bInterface = new TestUserInterface(SessionEnum.SessionB);
+
+                UserInput.SetInterface(parentInterface);
+                InterfaceAssert(SessionEnum.Parent);
+
+                // Verify the user input is correctly inherited
+                using (Session.Create())
+                {
+                    InterfaceAssert(SessionEnum.Parent);
+                    UserInput.SetInterface(aInterface);
+                    InterfaceAssert(SessionEnum.SessionA);
+                }
+
+                // Verify the user input is correctly reset
+                InterfaceAssert(SessionEnum.Parent);
+
+                // Verify the user input is correctly inherited in nested contexts
+                using (Session.Create())
+                {
+                    InterfaceAssert(SessionEnum.Parent);
+                    UserInput.SetInterface(aInterface);
+                    InterfaceAssert(SessionEnum.SessionA);
+
+                    using (Session.Create())
+                    {
+                        InterfaceAssert(SessionEnum.SessionA);
+                        UserInput.SetInterface(bInterface);
+                        InterfaceAssert(SessionEnum.SessionB);
+                    }
+                    InterfaceAssert(SessionEnum.SessionA);
+                }
+                // Verify the user input is correctly reset from nested contexts
+                InterfaceAssert(SessionEnum.Parent);
+            }
+            finally
+            {
+                UserInput.SetInterface(previousInterface);
+            }
+        }
+
+        [Test]
+        public void RedirectedUserInputParallelTest()
+        {
+            // 1: Session B sets its interface
+            // 2: Session A verifies its interface is unchanged
+            var e2 = new ManualResetEventSlim(false);
+            // 3: Session A verifies its interface changes
+            // 4: Session B verifies it still has the correct interface
+            var e4 = new ManualResetEventSlim(false);
+            // 5: Session A verifies it still has the correct interface
+            var e5 = new ManualResetEventSlim(false);
+            // 6: Session A verifies its interface has been reset to 'parent'
+            // 7: Session B verifies its interface has been reset to 'parent'
+            var e7 = new ManualResetEventSlim(false);
+            
+            var previousInterface = UserInput.GetInterface();
+            try
+            {
+                var parentInterface = new TestUserInterface(SessionEnum.Parent);
+                var aInterface = new TestUserInterface(SessionEnum.SessionA);
+                var bInterface = new TestUserInterface(SessionEnum.SessionB);
+
+                UserInput.SetInterface(parentInterface);
+                InterfaceAssert(SessionEnum.Parent);
+
+                { // Session A
+                    TapThread.Start(() =>
+                    {
+                        e2.Wait();
+                        using (Session.Create())
+                        {
+                            InterfaceAssert(SessionEnum.Parent); // 2: Session A verifies its interface is unchanged
+                            UserInput.SetInterface(aInterface);
+                            InterfaceAssert(SessionEnum.SessionA); // 3: Session A verifies its interface changes
+                            e4.Set();
+                            e5.Wait();
+                            InterfaceAssert(SessionEnum.SessionA); // 5: Session A verifies it still has the correct interface
+                        }
+
+                        InterfaceAssert(SessionEnum.Parent); // 6: Session A verifies its interface has been reset to 'parent'
+                        e7.Set();
+                    });
+                }
+
+                { // Session B
+
+                    using (Session.Create())
+                    {
+                        InterfaceAssert(SessionEnum.Parent);
+                        UserInput.SetInterface(bInterface); // 1: Session B sets its interface
+                        InterfaceAssert(SessionEnum.SessionB);
+                        e2.Set();
+                        e4.Wait();
+                        InterfaceAssert(SessionEnum.SessionB); // 4: Session B verifies it still has the correct interface
+                        e5.Set();
+                        e7.Wait();
+                    }
+                    InterfaceAssert(SessionEnum.Parent); // 7: Session B verifies its interface has been reset to 'parent'
+                }
+
+                // Verify the user input is correctly reset from nested contexts
+                InterfaceAssert(SessionEnum.Parent);
+
+            }
+            finally
+            {
+                UserInput.SetInterface(previousInterface);
+            }
+        }
+
+
         [Test]
         public void ComponentSettingSession()
         {

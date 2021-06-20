@@ -35,6 +35,8 @@ namespace OpenTap
             Parameters = new ResultParameters();
         }
 
+        internal const string GROUP = "";
+        
         int verdict_index = -1;
         /// <summary>
         /// <see cref="OpenTap.Verdict"/> resulting from the run.
@@ -45,11 +47,11 @@ namespace OpenTap
         {
             get
             {
-                var result = Parameters.GetIndexed(nameof(Verdict), ref verdict_index);
+                var result = Parameters.GetIndexed((nameof(Verdict), GROUP), ref verdict_index);
                 if (result is Verdict verdict) return verdict;
                 return (Verdict) StringConvertProvider.FromString((string)result, TypeData.FromType(typeof(Verdict)), null);
             }
-            protected internal set => Parameters.SetIndexed(nameof(Verdict), ref verdict_index, value);
+            protected internal set => Parameters.SetIndexed((nameof(Verdict), GROUP), ref verdict_index, value);
         }
 
         /// <summary> Length of time it took to run. </summary>
@@ -57,12 +59,12 @@ namespace OpenTap
         {
             get
             {
-                var param = Parameters[nameof(Duration)];   
+                var param = Parameters[nameof(Duration), GROUP];   
                 if (param is double duration)
                     return Time.FromSeconds(duration);
                 return TimeSpan.Zero;
             }
-            internal protected set => Parameters[nameof(Duration)] = value.TotalSeconds;
+            internal protected set => Parameters[nameof(Duration), GROUP] = value.TotalSeconds;
         }
 
         /// <summary>
@@ -73,14 +75,14 @@ namespace OpenTap
         public DateTime StartTime {
             get
             {
-                var param = Parameters[nameof(StartTime)];
+                var param = Parameters[nameof(StartTime), GROUP];
                 if (param is DateTime startTime)
                 {
                     return startTime;
                 }
                 return new DateTime();
             }
-            set => Parameters[nameof(StartTime)] = value;
+            set => Parameters[nameof(StartTime), GROUP] = value;
         }
         /// <summary>
         /// Time when the test started as ticks of the high resolution hardware counter. 
@@ -251,7 +253,7 @@ namespace OpenTap
             TestStepId = step.Id;
             TestStepName = step.GetFormattedName();
             TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
-            Parameters = ResultParameters.GetParams(step, nameof(Duration), nameof(StartTime));
+            Parameters = ResultParameters.GetParams(step);
             Verdict = Verdict.NotSet;
             if (attachedParameters != null) Parameters.AddRange(attachedParameters);
             Parent = parent;
@@ -262,7 +264,7 @@ namespace OpenTap
             TestStepId = step.Id;
             TestStepName = step.GetFormattedName();
             TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
-            Parameters = ResultParameters.GetParams(step, nameof(Duration), nameof(StartTime));
+            Parameters = ResultParameters.GetParams(step);
             Verdict = Verdict.NotSet;
             if (attachedParameters != null) Parameters.AddRange(attachedParameters);
             Parent = parent.Id;
@@ -385,10 +387,11 @@ namespace OpenTap
 
         /// <summary> Will throw an exception when it times out. </summary>
         /// <exception cref="TimeoutException"></exception>
-        internal TestStepRun WaitForChildStepStart(Guid childStep, int timeout)
+        internal TestStepRun WaitForChildStepStart(Guid childStep, int timeout, bool wait)
         {
             if (stepRuns.TryGetValue(childStep, out var run))
                 return run;
+            if (!wait) return null;
             
             var sem = new ManualResetEventSlim(false, 0 );
 

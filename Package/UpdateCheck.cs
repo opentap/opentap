@@ -30,6 +30,10 @@ namespace OpenTap.Package
             if (Startup && (PackageManagerSettings.Current.CheckForUpdates == false || noUpdateCheck))
                 return;
             
+            // Since we are deciding to do the update check for the parent process there is no reason to also
+            // do it for the child processes.
+            Environment.SetEnvironmentVariable("OPENTAP_NO_UPDATE_CHECK", "true");
+            
             var timer = Stopwatch.StartNew();
             List<PackageDef> updates = new List<PackageDef>();
             TraceSource log = Log.CreateSource("UpdateCheck");

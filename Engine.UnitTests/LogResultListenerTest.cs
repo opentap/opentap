@@ -81,11 +81,11 @@ namespace OpenTap.Engine.UnitTests
             var planrun = new TestPlanRun();
             planrun.StartTime = DateTime.Now;
             planrun.Duration = TimeSpan.FromSeconds(1);
-            planrun.Parameters["TestPlanName"] = "test";
+            planrun.Parameters["TestPlanName", ""] = "test";
             
             // An issue was found where first setting planrun.Parameters["Verdict"] to a string and
             // then getting it as a Verdict.
-            planrun.Parameters["Verdict"] = "Pass";
+            planrun.Parameters["Verdict", ""] = Verdict.Pass;
             Assert.AreEqual(Verdict.Pass, planrun.Verdict);
             rl.OnTestPlanRunStart(planrun);
 

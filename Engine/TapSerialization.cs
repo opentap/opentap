@@ -559,14 +559,23 @@ namespace OpenTap
         }
 
         readonly HashSet<ITypeData> registeredTypes = new HashSet<ITypeData>();
+        readonly HashSet<string> registeredFiles = new HashSet<string>();
 
-        void NotifyTypeUsed(ITypeData type)
+        internal void NotifyTypeUsed(ITypeData type)
         {
             registeredTypes.Add(type);
         }
 
-        /// <summary> Gets this TapSerializer instance has encountered until now. </summary>
+        internal void NotifyFileUsed(string file)
+        {
+            registeredFiles.Add(file);
+        }
+
+        /// <summary> Gets the types this TapSerializer instance has encountered until now. </summary>
         public IEnumerable<ITypeData> GetUsedTypes() => registeredTypes;
+
+        /// <summary> Gets the FilePath strings this instance has encountered until now. </summary>
+        public IEnumerable<string> GetUsedFiles() => registeredFiles;
 
         /// <summary> The path where the current file is being loaded from. This might be null in cases where it's being loaded from a stream.</summary>
         public string ReadPath { get; private set; }
