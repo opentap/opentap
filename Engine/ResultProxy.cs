@@ -32,7 +32,7 @@ namespace OpenTap
         /// <summary>
         /// String describing the column.
         /// </summary>
-        public string ObjectType { get; } = "OpenTap.ResultColumn";
+        public string ObjectType => ResultObjectTypes.ResultColumn;
 
         /// <summary>
         /// Helper to access a strongly typed value in the <see cref="Data"/> array.
@@ -139,9 +139,9 @@ namespace OpenTap
         /// Note, test step parameter are often attached in the result listener and does not need to be added here.
         /// </summary>
         public IParameters Parameters { get; } = ParameterCollection.Empty;
-        
 
-        string IAttributedObject.ObjectType { get; } = "OpenTap.ResultTable"; 
+
+        string IAttributedObject.ObjectType => ResultObjectTypes.ResultVector; 
 
         long IData.GetID()
         {
