@@ -26,13 +26,25 @@ namespace OpenTap.Package.UnitTests
         }
     }
 
+    [Display("Some test step using images")]
+    public class MyImageUsingTestStep : TestStep
+    {
+        public OpenTapImage Image { get; set; } = new OpenTapImage() {ImageSource = TestPlanDependencyTest.ImageReference};
+        public override void Run()
+        {
+            
+        }
+    }
+
     [TestFixture]
     public class TestPlanDependencyTest
     {
-        private string[] _files;
+        private string[] _files => new[] {ReferencedFile, ReferencedFile2, ImageReference};
         private const string os = "Windows,Linux";
         private const string version = "3.4.5";
         private const string TestPackageName = "FakePackageReferencingFile";
+        private const string ReferencedFile = "SampleFile.txt";
+        public const string ImageReference = "SomeImage.png";
         private const string ReferencedFile = "TestPlanFromPackage.TapPlan";
         private const string NotReferencedFile = "OtherFile.txt";
         private const string TestStepName = "Just a name for the step";
@@ -43,6 +55,7 @@ namespace OpenTap.Package.UnitTests
   <Files>
       <File Path=""{ReferencedFile}""/>
       <File Path=""{ReferencedFile2}""/>
+      <File Path=""{ImageReference}""/>
       <File Path=""{Path.GetFileName(typeof(MyTestStep).Assembly.Location)}""/>
   </Files>
 </Package>
@@ -57,8 +70,6 @@ namespace OpenTap.Package.UnitTests
             FileSystemHelper.EnsureDirectory(PackageXmlPath);
             if (File.Exists(PackageXmlPath))
                 File.Delete(PackageXmlPath);
-
-            _files = new string[] {ReferencedFile, ReferencedFile2};
 
             foreach (var file in _files)
             {
@@ -85,7 +96,6 @@ namespace OpenTap.Package.UnitTests
             Installation.Current.Invalidate();
         }
 
-
         /// <summary>
         /// Restore the plugins that were disabled in the setup
         /// </summary>
@@ -106,6 +116,28 @@ namespace OpenTap.Package.UnitTests
             }
         }
 
+        void VerifyDependency(string attr, string name, int count, XmlDocument document)
+        {
+            var nodes = document.SelectNodes(
+                $"/TestPlan/Package.Dependencies/Package[@Name='{TestPackageName}']/{attr}[@Name='{name}']");
+            Assert.AreEqual(count, nodes.Count);
+        }
+        
+        [Test]
+        public void TestImageDependency()
+        {
+            InstallPackage();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(new MyImageUsingTestStep());
+
+            var xml = plan.SerializeToString();
+            
+            var document = new XmlDocument();
+            document.LoadXml(xml);
+            
+            VerifyDependency("File", ImageReference, 1, document);
+        }
+
         [Test]
         public void TestPackageFileDependencies()
         {
@@ -120,13 +152,12 @@ namespace OpenTap.Package.UnitTests
             var planXml = plan.SerializeToString();
             var document = new XmlDocument();
             document.LoadXml(planXml);
-
+            
             void VerifyDependency(string attr, string name, int count)
             {
-                var nodes = document.SelectNodes(
-                    $"/TestPlan/Package.Dependencies/Package[@Name='{TestPackageName}']/{attr}[@Name='{name}']");
-                Assert.AreEqual(count, nodes.Count);
+                this.VerifyDependency(attr, name, count, document);
             }
+            
 
             // Verify warnings when files used by test steps are missing
             {

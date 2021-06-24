@@ -6,11 +6,12 @@ using System;
 using System.Collections.Generic;
 
 namespace OpenTap
+
 {
     /// <summary>
     /// Identifies a string as a file path.
     /// </summary>
-    public class FilePathAttribute : Attribute, IAnnotation
+    public class FilePathAttribute : FileResourceAttribute, IAnnotation
     {
         ///<summary>
         /// Default file extension for this file path.

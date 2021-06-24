@@ -635,6 +635,39 @@ namespace OpenTap.Plugins
             }
             return true;
         }
+
+        private List<string> GetUsedFiles(object obj)
+        {
+            var result = new List<string>();
+
+            string GetStringOrMacroString(IMemberData prop, object o)
+            {
+                if (prop.HasAttribute<XmlIgnoreAttribute>())
+                    return null;
+                object val = prop.GetValue(o);
+
+                if (val is string s)
+                    return s;
+                if (val is MacroString m)
+                    return m.ToString();
+
+                return null;
+            }
+
+            var td = TypeData.GetTypeData(obj);
+
+            var props = td.GetMembers().Where(m => m.HasAttribute<FileResourceAttribute>());
+            foreach (var prop in props)
+            {
+                var path = GetStringOrMacroString(prop, obj);
+
+                if (string.IsNullOrWhiteSpace(path) == false)
+                    result.Add(path);
+            }
+
+            return result;
+        }
+
         /// <summary>
         /// Serializes an object to XML.
         /// </summary>
@@ -646,12 +679,16 @@ namespace OpenTap.Plugins
         {
             if (obj == null)
                 return true;
-            
+
             object prevObj = Object;
             // If cycleDetectorLut already contains an element, we've been here before.
             // Note the cycleDetectorLut adds and removes the obj later if it is not already in it.
             if (!cycleDetetionSet.Add(obj))
                 throw new Exception("Cycle detected");
+            
+            foreach (var fileResource in GetUsedFiles(obj))
+                Serializer.NotifyFileUsed(fileResource);
+            
             object obj2 = obj;
             try
             {
