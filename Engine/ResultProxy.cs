@@ -32,7 +32,7 @@ namespace OpenTap
         /// <summary>
         /// String describing the column.
         /// </summary>
-        public string ObjectType => ResultObjectTypes.ResultColumn;
+        public string ObjectType { get; }
 
         /// <summary>
         /// Helper to access a strongly typed value in the <see cref="Data"/> array.
@@ -67,6 +67,7 @@ namespace OpenTap
             Data = data;
             TypeCode = Type.GetTypeCode(data.GetType().GetElementType());
             Parameters = ParameterCollection.Empty;
+            ObjectType = ResultObjectTypes.ResultColumn;
         }
 
         /// <summary> Creates a new result column with parameters attached.  </summary>
@@ -75,15 +76,16 @@ namespace OpenTap
             Parameters = new ParameterCollection(parameters);
         }
 
-        internal ResultColumn(string name, Array data, IData table, IParameters parameters) : this(name, data)
+        internal ResultColumn(string name, Array data, IData table, IParameters parameters, string ObjectType = ResultObjectTypes.ResultColumn) : this(name, data)
         {
             Parameters = parameters;
             Parent = table;
+            this.ObjectType = ObjectType;
         }
         
         internal ResultColumn WithResultTable(ResultTable table)
         {
-            return new ResultColumn(Name, Data, table, Parameters);
+            return new ResultColumn(Name, Data, table, Parameters, (this as IAttributedObject).ObjectType);
         }
 
         /// <summary>
@@ -119,7 +121,7 @@ namespace OpenTap
         /// <summary> An array containing the result columns. </summary>
         public ResultColumn[] Columns
         {
-            get => columns.ToArray();
+            get => columns;
             private set => columns = value;
         }
         /// <summary>
