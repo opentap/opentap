@@ -150,7 +150,7 @@ namespace OpenTap.Package
                 PackageCache = plugins;
             }
 
-            return PackageCache;
+            return new List<PackageDef>(PackageCache);
         }
 
         /// <summary>
