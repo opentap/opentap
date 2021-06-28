@@ -1,14 +1,11 @@
-using System.Collections.Generic;
+using System;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Xml;
-using NuGet.Packaging;
 using NUnit.Framework;
-using OpenTap.Diagnostic;
-using OpenTap.Plugins.BasicSteps;
+using OpenTap.Package;
 
-namespace OpenTap.Package.UnitTests
+namespace OpenTap.UnitTests
 {
     [Display("Some test step")]
     public class MyTestStep : TestStep
@@ -29,10 +26,39 @@ namespace OpenTap.Package.UnitTests
     [Display("Some test step using images")]
     public class MyImageUsingTestStep : TestStep
     {
-        public OpenTapImage Image { get; set; } = new OpenTapImage() {ImageSource = TestPlanDependencyTest.ImageReference};
+        public IOpenTapImage Image { get; set; } = new OpenTapImage()
+            {ImageSource = TestPlanDependencyTest.ImageReference, Description = TestPlanDependencyTest.ImageDescription};
+
         public override void Run()
         {
+
+        }
+    }
+
+    [TestFixture]
+    public class ImageAnnotationTest
+    {
+        [Test]
+        public void AnnotationTest()
+        {
+            var step = new MyImageUsingTestStep();
+            var a = AnnotationCollection.Annotate(step);
+            var mem = a.GetMember(nameof(step.Image));
+            var img = mem.Get<IImageAnnotation>();
+
+            StringAssert.AreEqualIgnoringCase(img.ImageSource, TestPlanDependencyTest.ImageReference);
+            StringAssert.AreEqualIgnoringCase(img.Description, TestPlanDependencyTest.ImageDescription);
+
+            step.Image.Description = "test1";
+            mem.Read(step.Image);
             
+
+            StringAssert.AreEqualIgnoringCase(img.Description, "test1");
+
+            (img as ImageAnnotation).Description = "test2";
+            mem.Write(step.Image);
+
+            Assert.AreEqual(step.Image.Description, "test2");
         }
     }
 
@@ -45,6 +71,7 @@ namespace OpenTap.Package.UnitTests
         private const string TestPackageName = "FakePackageReferencingFile";
         private const string ReferencedFile = "SampleFile.txt";
         public const string ImageReference = "SomeImage.png";
+        public const string ImageDescription = "SomeImage image description";
         private const string NotReferencedFile = "OtherFile.txt";
         private const string TestStepName = "Just a name for the step";
         private string ReferencedFile2 => $"Packages/{TestPackageName}/{ReferencedFile}";
@@ -63,8 +90,20 @@ namespace OpenTap.Package.UnitTests
         private string PackageXmlPath =>
             Path.Combine(ExecutorClient.ExeDir, "Packages", TestPackageName, "package.xml");
 
+        public string PreviousDirectory { get; set; }
+
+        /// <summary>
+        /// Engine unittests run in a temp directory it seems, and this test relies on the current installation
+        /// </summary>
         [SetUp]
-        public void Clear()
+        public void SetDirectory()
+        {
+            PreviousDirectory = Directory.GetCurrentDirectory();
+            Directory.SetCurrentDirectory(ExecutorClient.ExeDir);
+        }
+        
+        [SetUp]
+        public void Uninstall()
         {
             FileSystemHelper.EnsureDirectory(PackageXmlPath);
             if (File.Exists(PackageXmlPath))
@@ -76,43 +115,13 @@ namespace OpenTap.Package.UnitTests
                     File.Delete(file);
             }
             
-            // These plugins reference this UnitTest dll which causes some issues because the test
-            // requires FakePackageReferencingFile to be detected as the owner of MyTestStep
-            // We remove them while the test is running and restore them afterwards
-            var interferingPlugins = new string[] {"test1", "test2", "test3"};
-            var dir = Path.Combine(ExecutorClient.ExeDir, "Packages");
-
-            foreach (var plugin in interferingPlugins)
-            {
-                var packagXml = Path.Combine(dir, plugin, "package.xml");
-                var packageXmlBackup = packagXml + ".bad";
-                if (File.Exists(packageXmlBackup))
-                    File.Delete(packageXmlBackup);
-                if (File.Exists(packagXml))
-                    File.Move(packagXml, packageXmlBackup);
-            }
-            // Invalidate the current package cache
             Installation.Current.Invalidate();
         }
 
-        /// <summary>
-        /// Restore the plugins that were disabled in the setup
-        /// </summary>
         [TearDown]
-        public void RestoreConflictingPackages()
+        public void TearDown()
         {
-            var interferingPlugins = new string[] {"test1", "test2", "test3"};
-            var dir = Path.Combine(ExecutorClient.ExeDir, "Packages");
-
-            foreach (var plugin in interferingPlugins)
-            {
-                var packageXml = Path.Combine(dir, plugin, "package.xml");
-                var packageXmlBackup = packageXml + ".bad";
-                if (File.Exists(packageXml))
-                    File.Delete(packageXml);
-                if (File.Exists(packageXmlBackup))
-                    File.Move(packageXmlBackup, packageXml);
-            }
+            Directory.SetCurrentDirectory(PreviousDirectory);
         }
 
         void VerifyDependency(string attr, string name, int count, XmlDocument document)
@@ -121,7 +130,7 @@ namespace OpenTap.Package.UnitTests
                 $"/TestPlan/Package.Dependencies/Package[@Name='{TestPackageName}']/{attr}[@Name='{name}']");
             Assert.AreEqual(count, nodes.Count);
         }
-        
+
         [Test]
         public void TestImageDependency()
         {
@@ -130,10 +139,10 @@ namespace OpenTap.Package.UnitTests
             plan.ChildTestSteps.Add(new MyImageUsingTestStep());
 
             var xml = plan.SerializeToString();
-            
+
             var document = new XmlDocument();
             document.LoadXml(xml);
-            
+
             VerifyDependency("File", ImageReference, 1, document);
         }
 
@@ -151,12 +160,12 @@ namespace OpenTap.Package.UnitTests
             var planXml = plan.SerializeToString();
             var document = new XmlDocument();
             document.LoadXml(planXml);
-            
+
             void VerifyDependency(string attr, string name, int count)
             {
                 this.VerifyDependency(attr, name, count, document);
             }
-            
+
 
             // Verify warnings when files used by test steps are missing
             {
@@ -201,7 +210,7 @@ namespace OpenTap.Package.UnitTests
             // Verify serializer errors when required package and files are missing
             {
                 // Remove the package again
-                Clear();
+                Uninstall();
 
                 var ser = new TapSerializer();
                 ser.DeserializeFromString(planXml);
@@ -228,7 +237,8 @@ namespace OpenTap.Package.UnitTests
             File.WriteAllText(PackageXmlPath, TestPackageXml);
             foreach (var file in _files)
             {
-                File.WriteAllText(file, "test");
+                var fullPath = Path.Combine(ExecutorClient.ExeDir, file);
+                File.WriteAllText(fullPath, "test");
             }
         }
 
@@ -248,12 +258,12 @@ namespace OpenTap.Package.UnitTests
                 Installation.Current.Invalidate();
                 var p3 = Installation.Current.FindPackageContainingType(td);
                 Assert.IsNotNull(p3);
-                
+
                 StringAssert.AreEqualIgnoringCase(p3.Name, TestPackageName);
                 StringAssert.AreEqualIgnoringCase(p3.Version.ToString(), version);
             }
 
-            Clear();
+            Uninstall();
 
             // Test FindPackageContainingFile("File/Path")
             {
@@ -267,7 +277,7 @@ namespace OpenTap.Package.UnitTests
                 Installation.Current.Invalidate();
                 var p3 = Installation.Current.FindPackageContainingFile(filename);
                 Assert.IsNotNull(p3);
-                
+
                 StringAssert.AreEqualIgnoringCase(p3.Name, TestPackageName);
                 StringAssert.AreEqualIgnoringCase(p3.Version.ToString(), version);
             }

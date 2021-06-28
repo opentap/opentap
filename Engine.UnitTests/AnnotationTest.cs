@@ -33,6 +33,7 @@ namespace OpenTap.UnitTests
             var availStrings = avail.Select(x => x.Get<IStringReadOnlyValueAnnotation>().Value).ToArray();    
             Assert.IsTrue(availStrings.Contains(step.GetFormattedName()));
             Assert.IsTrue(availStrings.Contains(testPlanReference.GetFormattedName()));
+            
         }
 
         

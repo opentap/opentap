@@ -2536,8 +2536,8 @@ namespace OpenTap
                     (ColumnDisplayNameAttribute x) => annotation.Add(x),
                     (FilePathAttribute x) => annotation.Add(x),
                     (DirectoryPathAttribute x) => annotation.Add(x),
-                    (IconAnnotationAttribute x) => annotation.Add(x) 
-                    );
+                    (IconAnnotationAttribute x) => annotation.Add(x)
+                );
 
                 IconAnnotationHelper.AddParameter(annotation, mem.Member, annotation.Source);
                 
@@ -2669,7 +2669,13 @@ namespace OpenTap
                         annotation.Add(new AvailableValuesAnnotation(annotation, avail.PropertyName));
                     }
                 }
-                
+
+                if (mem2.TypeDescriptor.DescendsTo(typeof(IOpenTapImage)))
+                {
+                    var img = mem2.GetValue(annotation.Source) as IOpenTapImage;
+                    annotation.Add(new ImageAnnotation(img.ImageSource, img.Description));
+                }
+
                 if (mem2.DeclaringType.DescendsTo(typeof(ITestStep)))
                 {
 
