@@ -1,6 +1,7 @@
 Table of Contents
 =================
 
+- [Release Note - OpenTAP 9.15](ReleaseNote_OpenTAP9.15.md)
 - [Release Note - OpenTAP 9.14](ReleaseNote_OpenTAP9.14.md)
 - [Release Note - OpenTAP 9.13](ReleaseNote_OpenTAP9.13.md)
 - [Release Note - OpenTAP 9.12](ReleaseNote_OpenTAP9.12.md)
