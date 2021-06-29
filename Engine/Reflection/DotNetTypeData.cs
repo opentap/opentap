@@ -175,7 +175,7 @@ namespace OpenTap
             }
         }
 
-        bool? canCreateInstance;
+        internal bool? canCreateInstance;
         /// <summary> 
         /// returns true if an instance possibly can be created. 
         /// Accessing this property causes the underlying Assembly to be loaded if it is not already.

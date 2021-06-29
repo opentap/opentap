@@ -598,6 +598,29 @@ namespace OpenTap
                 }
             }
 
+            // Check if the type is constructable by inspecting the available constructors
+            if (plugin.canCreateInstance.HasValue == false)
+            {
+                foreach (var methodHandle in typeDef.GetMethods())
+                {
+                    var m = CurrentReader.GetMethodDefinition(methodHandle);
+                    if (CurrentReader.GetString(m.Name) != ".ctor")
+                        continue;
+
+                    var isAbstract = typeAttributes.HasFlag(TypeAttributes.Abstract);
+                    var isInterface = typeAttributes.HasFlag(TypeAttributes.Interface);
+
+                    var hasGenerics = m.GetGenericParameters().Count > 0;
+                    var hasDefaultConstructor = m.GetParameters().Count == 0;
+
+                    plugin.canCreateInstance = isAbstract == false && isInterface == false && hasGenerics == false && hasDefaultConstructor;
+
+                    // We know that the type is constructable, so we can stop searching.
+                    if (plugin.canCreateInstance == true)
+                        break;
+                }
+            }
+
             if (plugin.PluginTypes != null)
             {
                 PluginTypes.Add(plugin);
@@ -1097,12 +1120,8 @@ namespace OpenTap
                         {
                             assembly = Assembly.LoadFrom(Path.GetFullPath(this.Location));
                         }
-                        
                     }
                     
-                        
-                        
-
                     log.Debug(watch, "Loaded {0}.", this.Name);
                 }
                 catch (SystemException ex)
