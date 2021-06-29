@@ -735,11 +735,54 @@ namespace OpenTap.Package
             return String.Join("/", installationDir, PackageDef.PackageDefDirectory, name, PackageDef.PackageDefFileName); 
         }
 
+        /// <summary>
+        /// Perform a BFS search to find all package xml's that are not descendants of a .OpenTapIgnore file
+        /// </summary>
+        /// <param name="packageDir"></param>
+        /// <returns></returns>
+        private static IEnumerable<string> FindPackageDefinitions(string packageDir)
+        {
+            var queue = new Queue<string>();
+            var results = new List<string>();
+            queue.Enqueue(packageDir);
+
+            while (queue.Any())
+            {
+                var dir = queue.Dequeue();
+                try
+                {
+                    var files = Directory.GetFiles(dir, "*", SearchOption.TopDirectoryOnly);
+
+                    if (files.Any(f =>
+                        string.Equals(Path.GetFileName(f), ".OpenTapIgnore", StringComparison.InvariantCulture)))
+                        continue;
+
+                    var packageXml = files.FirstOrDefault(f =>
+                        string.Equals(Path.GetFileName(f), "package.xml", StringComparison.InvariantCulture));
+
+                    if (packageXml != null)
+                        results.Add(packageXml);
+
+                    foreach (var subdir in Directory.GetDirectories(dir))
+                        queue.Enqueue(subdir);
+
+                }
+                catch (Exception ex)
+                {
+                    log.Warning($"Failed reading content of '{dir}'.");
+                    log.Debug(ex);
+                }
+            }
+
+            return results;
+        }
+
+
         internal static List<string> GetPackageMetadataFilesInTapInstallation(string tapPath)
         {
             List<string> metadatas = new List<string>();
 
-            // this way of seaching for package.xml files will find them both in their 8.x 
+            // this way of searching for package.xml files will find them both in their 8.x 
             // location (Package Definitions/<PkgName>.package.xml) and in their new 9.x
             // location (Packages/<PkgName>/package.xml)
 
@@ -748,7 +791,7 @@ namespace OpenTap.Package
 
             if (Directory.Exists(packageDir))
             {
-                var packageDefinitions = Directory.GetFiles(packageDir, "package.xml", SearchOption.AllDirectories);
+                var packageDefinitions = FindPackageDefinitions(packageDir);
                 metadatas.AddRange(packageDefinitions);
             }
             
