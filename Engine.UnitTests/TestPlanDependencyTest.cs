@@ -23,11 +23,11 @@ namespace OpenTap.UnitTests
         }
     }
 
-    [Display("Some test step using images")]
-    public class MyImageUsingTestStep : TestStep
+    [Display("Some test step using pictures")]
+    public class MyPictureUsingTestStep : TestStep
     {
-        public IOpenTapImage Image { get; set; } = new OpenTapImage()
-            {ImageSource = TestPlanDependencyTest.ImageReference, Description = TestPlanDependencyTest.ImageDescription};
+        public IPicture Picture { get; set; } = new Picture()
+            {Source = TestPlanDependencyTest.PictureReference, Description = TestPlanDependencyTest.PictureDescription};
 
         public override void Run()
         {
@@ -38,13 +38,13 @@ namespace OpenTap.UnitTests
     [TestFixture]
     public class TestPlanDependencyTest
     {
-        private string[] _files => new[] {ReferencedFile, ReferencedFile2, ImageReference};
+        private string[] _files => new[] {ReferencedFile, ReferencedFile2, PictureReference};
         private const string os = "Windows,Linux";
         private const string version = "3.4.5";
         private const string TestPackageName = "FakePackageReferencingFile";
         private const string ReferencedFile = "SampleFile.txt";
-        public const string ImageReference = "SomeImage.png";
-        public const string ImageDescription = "SomeImage image description";
+        public const string PictureReference = "SomePicture.png";
+        public const string PictureDescription = "SomePicture description";
         private const string NotReferencedFile = "OtherFile.txt";
         private const string TestStepName = "Just a name for the step";
         private string ReferencedFile2 => $"Packages/{TestPackageName}/{ReferencedFile}";
@@ -54,7 +54,7 @@ namespace OpenTap.UnitTests
   <Files>
       <File Path=""{ReferencedFile}""/>
       <File Path=""{ReferencedFile2}""/>
-      <File Path=""{ImageReference}""/>
+      <File Path=""{PictureReference}""/>
       <File Path=""{Path.GetFileName(typeof(MyTestStep).Assembly.Location)}""/>
   </Files>
 </Package>
@@ -105,18 +105,18 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
-        public void TestImageDependency()
+        public void TestPictureDependency()
         {
             InstallPackage();
             var plan = new TestPlan();
-            plan.ChildTestSteps.Add(new MyImageUsingTestStep());
+            plan.ChildTestSteps.Add(new MyPictureUsingTestStep());
 
             var xml = plan.SerializeToString();
 
             var document = new XmlDocument();
             document.LoadXml(xml);
 
-            VerifyDependency("File", ImageReference, 1, document);
+            VerifyDependency("File", PictureReference, 1, document);
         }
 
         [Test]

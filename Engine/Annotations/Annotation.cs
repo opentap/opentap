@@ -2670,10 +2670,10 @@ namespace OpenTap
                     }
                 }
 
-                if (mem2.TypeDescriptor.DescendsTo(typeof(IOpenTapImage)))
+                if (mem2.TypeDescriptor.DescendsTo(typeof(IPicture)))
                 {
-                    var img = mem2.GetValue(annotation.Source) as IOpenTapImage;
-                    annotation.Add(new ImageAnnotation(img.ImageSource, img.Description));
+                    var img = mem2.GetValue(annotation.Source) as IPicture;
+                    annotation.Add(new ImageAnnotation(img.Source, img.Description));
                 }
 
                 if (mem2.DeclaringType.DescendsTo(typeof(ITestStep)))
