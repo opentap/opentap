@@ -175,7 +175,9 @@ namespace OpenTap
             }
         }
 
-        internal bool? canCreateInstance;
+        internal bool createInstanceSet => canCreateInstance.HasValue;
+        
+        bool? canCreateInstance;
         /// <summary> 
         /// returns true if an instance possibly can be created. 
         /// Accessing this property causes the underlying Assembly to be loaded if it is not already.
@@ -188,7 +190,8 @@ namespace OpenTap
                 var type = Load();
                 canCreateInstance = type.IsAbstract == false && type.IsInterface == false && type.ContainsGenericParameters == false && type.GetConstructor(Array.Empty<Type>()) != null;
                 return canCreateInstance.Value;
-            }       
+            }
+            internal set => canCreateInstance = value;
         }
 
         string assemblyQualifiedName;

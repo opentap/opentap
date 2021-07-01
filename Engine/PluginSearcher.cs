@@ -599,25 +599,42 @@ namespace OpenTap
             }
 
             // Check if the type is constructable by inspecting the available constructors
-            if (plugin.canCreateInstance.HasValue == false)
+            if (plugin.createInstanceSet == false)
             {
-                foreach (var methodHandle in typeDef.GetMethods())
+                // Abstract types and interfaces cannot be instantiated
+                if (typeAttributes.HasFlag(TypeAttributes.Interface) || typeAttributes.HasFlag(TypeAttributes.Abstract))
                 {
-                    var m = CurrentReader.GetMethodDefinition(methodHandle);
-                    if (CurrentReader.GetString(m.Name) != ".ctor")
-                        continue;
+                    plugin.CanCreateInstance = false;
+                }
+                else
+                {
+                    // The type can only be instantiated if it has a parameter-less constructor which does not require type arguments
+                    bool hasGenericParameters(MethodDefinition m)
+                    {
+                        return m.GetGenericParameters().Count > 0;
+                    }
 
-                    var isAbstract = typeAttributes.HasFlag(TypeAttributes.Abstract);
-                    var isInterface = typeAttributes.HasFlag(TypeAttributes.Interface);
+                    bool hasParameters(MethodDefinition m)
+                    {
+                        return m.GetParameters().Count > 0;
+                    }
+                    
+                    foreach (var methodHandle in typeDef.GetMethods())
+                    {
+                        var m = CurrentReader.GetMethodDefinition(methodHandle);
+                        if (CurrentReader.GetString(m.Name) != ".ctor")
+                            continue;
 
-                    var hasGenerics = m.GetGenericParameters().Count > 0;
-                    var hasDefaultConstructor = m.GetParameters().Count == 0;
-
-                    plugin.canCreateInstance = isAbstract == false && isInterface == false && hasGenerics == false && hasDefaultConstructor;
-
-                    // We know that the type is constructable, so we can stop searching.
-                    if (plugin.canCreateInstance == true)
+                        if (hasGenericParameters(m) || hasParameters(m))
+                        {
+                            plugin.CanCreateInstance = false;
+                            continue;
+                        }
+                        
+                        // We know that the type is constructable, so we can stop searching.
+                        plugin.CanCreateInstance = true;
                         break;
+                    }
                 }
             }
 
