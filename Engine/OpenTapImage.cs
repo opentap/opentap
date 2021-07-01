@@ -6,7 +6,7 @@ namespace OpenTap
         /// <summary>
         /// Specifies the path to the image
         /// </summary>
-        string ImageSource { get; }
+        string Source { get; }
 
         /// <summary>
         /// Specifies a description of the image
@@ -17,31 +17,31 @@ namespace OpenTap
 
     class ImageAnnotation : IImageAnnotation, IOwnedAnnotation
     {
-        public ImageAnnotation(string imageSource, string description)
+        public ImageAnnotation(string source, string description)
         {
-            ImageSource = imageSource;
+            Source = source;
             Description = description;
         }
 
-        public string ImageSource { get; set; }
+        public string Source { get; set; }
 
         public string Description { get; set; }
 
         public void Read(object source)
         {
-            if (source is IOpenTapImage img)
+            if (source is IPicture picture)
             {
-                ImageSource = img.ImageSource;
-                Description = img.Description;
+                Source = picture.Source;
+                Description = picture.Description;
             }
         }
 
         public void Write(object source)
         {
-            if (source is IOpenTapImage img)
+            if (source is IPicture picture)
             {
-                img.ImageSource = ImageSource;
-                img.Description = Description;
+                picture.Source = Source;
+                picture.Description = Description;
             }
         }
     }
@@ -49,12 +49,12 @@ namespace OpenTap
     /// <summary>
     /// Represents an image resource
     /// </summary>
-    public interface IOpenTapImage
+    public interface IPicture
     {
         /// <summary>
         /// Specifies the path to the image
         /// </summary>
-        string ImageSource { get; set; }
+        string Source { get; set; }
 
         /// <summary>
         /// Specifies a description of the image
@@ -65,14 +65,14 @@ namespace OpenTap
     /// <summary>
     /// Represents an image resource
     /// </summary>
-    public class OpenTapImage : IOpenTapImage
+    public class Picture : IPicture
     {
         /// <summary>
         /// Specifies the path to the image
         /// </summary>
         [FilePath]
         [Display("Image File")]
-        public string ImageSource { get; set; }
+        public string Source { get; set; }
 
         /// <summary>
         /// Specifies a description of the image
