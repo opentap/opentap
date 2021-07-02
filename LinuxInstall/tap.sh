@@ -1,21 +1,22 @@
 #!/bin/bash
 if [[ $(uname) == Darwin ]]; then
     # Mac uses BSD readlink which supports different flags
-    relativePath="$(readlink "$0")"
+
     # relativePath is empty if this is a regular file
     # Otherwise it is a relative path from the link to the real file
-    if [[ "$relativePath" ]]; then
+    path="$0"
+    relativePath="$(readlink "$path")"
+    # Keep looping until the file is resolved to a regular file
+    while [[ "$relativePath" ]]; do
         # File is a link; follow it
-        pushd "$(dirname $0)" >/dev/null
+        pushd "$(dirname "$path")" >/dev/null
         pushd "$(dirname "$relativePath")" >/dev/null
-        realPath="$(pwd)/tap.dll"
+        path="$(pwd)/$(basename "$0")"
         popd >/dev/null
         popd >/dev/null
-        dotnet "$realPath"
-    else
-        # File is not a link; simply execute the dll file in this location.
-        dotnet "$0.dll"
-    fi
+        relativePath="$(readlink "$path")"
+    done
+    dotnet "$path.dll"
 # We are on linux -- Use GNU Readline normally
 else
     dotnet "$(dirname "$(readlink -f "$0")")/tap.dll" "$@"
