@@ -14,6 +14,7 @@ namespace OpenTap
     {
         public static readonly OperatingSystem Windows = new OperatingSystem(nameof(Windows));
         public static readonly OperatingSystem Linux = new OperatingSystem(nameof(Linux));
+        public static readonly OperatingSystem MacOS = new OperatingSystem(nameof(MacOS));
         public static readonly OperatingSystem Unsupported = new OperatingSystem(nameof(Unsupported));
         public override string ToString() => Name;
         public string Name { get; }
@@ -34,6 +35,10 @@ namespace OpenTap
                 if (Directory.Exists("/proc/"))
                 {
                     return OperatingSystem.Linux;
+                }
+                else if (Directory.Exists("/opt")) // If /opt exists and /proc does not we are on mac
+                {
+                    return OperatingSystem.MacOS;
                 }
             }
             return OperatingSystem.Unsupported;

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Package Name="OpenTAP" xmlns="http://opentap.io/schemas/package" InfoLink="http://www.keysight.com/find/TAP" Version="$(GitVersion)" OS="Linux" Architecture="x64">
+<Package Name="OpenTAP" xmlns="http://opentap.io/schemas/package" InfoLink="http://www.keysight.com/find/TAP" Version="$(GitVersion)" OS="Linux,MacOS" Architecture="x64">
   <Description>This is the OpenTAP package that contain the most common functionality used in test automation. It controls test plan (list of test steps) execution and provides access to functionality offered by plugins. This covers logging functionality, result handling (database) and instrument communication (user-developed hardware drivers, for example). OpenTAP also includes a CLI and a plugin manager that finds and handles plugins (test steps, DUT and Instrument interfaces, etc.). 
     <Status>Released</Status>
     <Organisation>Keysight Technologies</Organisation>
@@ -34,6 +34,7 @@
     <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.linux-x64"/>
     <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.redhat"/>
     <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.ubuntu"/>
+    <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.dylib"/>
     <!-- License Texts -->
     <File Path="LICENSE.txt"  SourcePath="LICENSE.txt"/>
     <File Path="Dependencies/LibGit2Sharp.0.25.0.0/LICENSE.txt" SourcePath="libgit2sharp.license.md"  />

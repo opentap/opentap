@@ -62,6 +62,7 @@ namespace OpenTap.Package.UnitTests
 
             if (OperatingSystem.Current != OperatingSystem.Windows)
             {
+                // TODO: Is this the same on macos?
                 // // The MSBuild generator is sometimes too eager to skip steps on Linux -- make sure targets are run
                 if (File.Exists(ProjectBuildTest.OutputFile))
                     File.Delete(ProjectBuildTest.OutputFile);

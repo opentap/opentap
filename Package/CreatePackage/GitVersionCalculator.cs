@@ -144,6 +144,20 @@ namespace OpenTap.Package
                 
             }
         }
+        void macEnsureLibgit2Present()
+        {
+            string libgitfoldername = "Dependencies/LibGit2Sharp.0.25.0.0/";
+            var sourceFile = Path.Combine(PathUtils.OpenTapDir, libgitfoldername, "libgit2-4aecb64.dylib");
+            var destFile = Path.Combine(PathUtils.OpenTapDir, "libgit2-4aecb64.dylib");
+
+            try
+            {
+                File.Copy(sourceFile, destFile);
+            }
+            catch
+            {
+            }
+        }
 
         /// <summary>
         /// Instanciates a new <see cref="GitVersionCalulator"/> to work on a specified git repository.
@@ -161,6 +175,8 @@ namespace OpenTap.Package
 
             if (OperatingSystem.Current == OperatingSystem.Linux)
                 linuxEnsureLibgit2Present();
+            if (OperatingSystem.Current == OperatingSystem.MacOS)
+                macEnsureLibgit2Present();
 
             repo = new Repository(repositoryDir);
         }

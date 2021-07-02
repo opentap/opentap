@@ -79,10 +79,10 @@ namespace OpenTap.Package.UnitTests
             if (!File.Exists(Path.Combine(installDir, "Packages/OpenTAP/package.xml")))
             {
                 string opentapPackageXmlPath;
-                if (OperatingSystem.Current == OpenTap.OperatingSystem.Linux)
-                    opentapPackageXmlPath = "opentap_linux64.package.xml";
-                else
+                if (OperatingSystem.Current == OpenTap.OperatingSystem.Windows)
                     opentapPackageXmlPath = "opentap.x86.package.xml";
+                else
+                    opentapPackageXmlPath = "opentap_linux64.package.xml";
                 // Sign package is needed to create opentap
                 string packageXml = CreateOpenTapPackageXmlWithoutSignElement(opentapPackageXmlPath);
                 string createOpenTap = $"create -v {packageXml} --install -o Packages/OpenTAP.TapPackage";
@@ -101,7 +101,7 @@ namespace OpenTap.Package.UnitTests
         [TestCase(false, true, null)]                // tap package download pkg -r /tmp
         public void DownloadTest(bool useOut, bool useRepo, string outFileName)
         {
-            var depDef = new PackageDef {Name = "Pkg1", Version = SemanticVersion.Parse("1.0"), OS = "Windows,Linux"};
+            var depDef = new PackageDef {Name = "Pkg1", Version = SemanticVersion.Parse("1.0"), OS = "Windows,Linux,MacOS"};
             depDef.AddFile("Dependency.txt");
             string dep0File = DummyPackageGenerator.GeneratePackage(depDef);
 
@@ -361,7 +361,7 @@ namespace OpenTap.Package.UnitTests
             DummyPackageGenerator.InstallDummyPackage(); // We need to have "Dummy" installed before we can create a package that depends on it.
             var depDef = new PackageDef();
             depDef.Name = "Dependency";
-            depDef.OS="Windows,Linux";
+            depDef.OS="Windows,Linux,MacOS";
             depDef.Version = SemanticVersion.Parse("1.0");
             depDef.AddFile("Dependency.txt");
             depDef.Dependencies.Add(new PackageDependency("Dummy", VersionSpecifier.Parse("1.0")));
@@ -525,7 +525,7 @@ namespace OpenTap.Package.UnitTests
         {
             var def = new PackageDef();
             def.Name = "Dummy2";
-            def.OS = "Windows,Linux";
+            def.OS = "Windows,Linux,MacOS";
             def.Version = SemanticVersion.Parse("1.0");
             def.AddFile("Dummy.txt");
             def.Dependencies.Add(new PackageDependency("Missing", VersionSpecifier.Parse("1.0")));
@@ -606,7 +606,7 @@ namespace OpenTap.Package.UnitTests
             var package = new PackageDef();
             package.Name = "ExactVersionTest";
             package.Version = SemanticVersion.Parse("1.0.1");
-            package.OS = "Windows,Linux";
+            package.OS = "Windows,Linux,MacOS";
             var path = DummyPackageGenerator.GeneratePackage(package);
 
             // Install
