@@ -8,7 +8,7 @@ using System.Linq;
 using System.Threading;
 using OpenTap.Plugins.BasicSteps;
 using NUnit.Framework;
-using OpenTap;
+using OpenTap.Engine.UnitTests.TestTestSteps;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -137,6 +137,32 @@ namespace OpenTap.Engine.UnitTests
                 cancel.Cancel();
                 Assert.Fail("Test timed out");
             }
+        }
+
+        [Test]
+        public void RepeatVerdictTest()
+        {
+            var plan = new TestPlan();
+            var repeat0 = new RepeatStep { Count = 2 };
+            var repeat = new RepeatStep { Count = 2 };
+            var delay = new DelayStep();
+            var ifVerdict = new IfStep
+            {
+                Action = IfStep.IfStepAction.RunChildren,
+                InputVerdict =
+                {
+                    Step = delay, Property = TypeData.GetTypeData(delay).GetMember(nameof(delay.Verdict))
+                }
+            };
+            var setVerdict = new VerdictStep() {VerdictOutput = Verdict.Pass};
+            plan.ChildTestSteps.Add(repeat0);
+            repeat0.ChildTestSteps.Add(repeat);
+            repeat0.ChildTestSteps.Add(ifVerdict);
+            repeat.ChildTestSteps.Add(delay);
+            ifVerdict.ChildTestSteps.Add(setVerdict);
+
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, run.Verdict);
         }
     }
 
