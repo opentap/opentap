@@ -620,6 +620,36 @@ namespace OpenTap.Engine.UnitTests
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Pass, run.Verdict);
         }
+
+        class ThrowsOnValidationErrorStep : TestStep
+        {
+            public bool ValidationFails { get; set; }
+
+            public ThrowsOnValidationErrorStep()
+            {
+                Rules.Add(() => !ValidationFails, "Validation Failed", nameof(ValidationFails));
+            }
+            public override void Run()
+            {
+                ThrowOnValidationError(false);
+                UpgradeVerdict(Verdict.Pass);
+            }
+        }
+
+        [Test]
+        public void ThrowOnValidationErrorStepTest()
+        {
+            var plan = new TestPlan();
+            var step = new ThrowsOnValidationErrorStep() {ValidationFails = true};
+            plan.ChildTestSteps.Add(step);
+
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Error, run.Verdict);
+            step.ValidationFails = false;
+            var run2 = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, run2.Verdict);
+        }
+        
     }
 
     public class FormattedNameTests
