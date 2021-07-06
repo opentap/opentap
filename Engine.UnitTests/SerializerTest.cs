@@ -7,7 +7,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Configuration;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -15,11 +14,8 @@ using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
 using OpenTap.Plugins.BasicSteps;
-using OpenTap;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using System.Xml.Linq;
-using OpenTap.Plugins;
-using OpenTap.UnitTests;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -662,6 +658,62 @@ namespace OpenTap.Engine.UnitTests
 
         }
 
+        public class SimpleClass
+        {
+            public SimpleClass(object obj)
+            {
+                
+            }
+        }
+        public class UnbalancedListStep : TestStep
+        {
+            [Display("Tx Command Sequences", "A predefined list of TX command sequences to control the DUT.",
+                Order: 10.2)]
+            public IReadOnlyList<SimpleClass> ReadOnlyList { get; set; } = new List<SimpleClass> {new SimpleClass(default), new SimpleClass(default)}.AsReadOnly();
+
+            public override void Run()
+            {
+                throw new NotImplementedException();
+            }
+        }
+        
+        [Test]
+        public void DeserializeUnbalancedList()
+        {
+            using (Session.Create())
+            {
+                var trace = new EngineUnitTestUtils.TestTraceListener();
+                Log.AddListener(trace);
+
+                var plan = new TestPlan();
+                plan.ChildTestSteps.Add(new UnbalancedListStep());
+
+                var ser = new TapSerializer();
+                var planXml = ser.SerializeToString(plan);
+                CollectionAssert.IsEmpty(ser.Errors);
+
+                var currentLength = planXml.Length;
+
+                var itemElem = $"<{nameof(SimpleClass)}></{nameof(SimpleClass)}>";
+                // Remove one of the two items from the xml
+                planXml = planXml.Remove(planXml.IndexOf(itemElem, StringComparison.Ordinal), itemElem.Length);
+                
+                // Ensure an element was actually removed
+                Assert.AreEqual(currentLength - itemElem.Length, planXml.Length);
+                
+                var deserializedPlan = ser.DeserializeFromString(planXml) as TestPlan;
+
+                CollectionAssert.IsEmpty(ser.Errors);
+
+                // Deserialization should succeed even though we expect an element which was missing
+                Assert.IsTrue(
+                    deserializedPlan.ChildTestSteps.First() is UnbalancedListStep s && s.ReadOnlyList.Count == 2,
+                    "Expected list to contain 2 element.");
+                
+                Assert.AreEqual(trace.WarningMessage.Count, 1);
+                CollectionAssert.Contains(trace.WarningMessage, "Deserialized unbalanced list.");
+            }
+        }
     }
 
     [TestFixture]

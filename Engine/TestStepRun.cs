@@ -37,7 +37,7 @@ namespace OpenTap
 
         internal const string GROUP = "";
         
-        int verdict_index = -1;
+        int verdictIndex = -1;
         /// <summary>
         /// <see cref="OpenTap.Verdict"/> resulting from the run.
         /// </summary>
@@ -47,11 +47,11 @@ namespace OpenTap
         {
             get
             {
-                var result = Parameters.GetIndexed((nameof(Verdict), GROUP), ref verdict_index);
+                var result = Parameters.GetIndexed((nameof(Verdict), GROUP), ref verdictIndex);
                 if (result is Verdict verdict) return verdict;
                 return (Verdict) StringConvertProvider.FromString((string)result, TypeData.FromType(typeof(Verdict)), null);
             }
-            protected internal set => Parameters.SetIndexed((nameof(Verdict), GROUP), ref verdict_index, value);
+            protected internal set => Parameters.SetIndexed((nameof(Verdict), GROUP), ref verdictIndex, value);
         }
 
         /// <summary> Length of time it took to run. </summary>
@@ -384,7 +384,9 @@ namespace OpenTap
         internal IResultSource ResultSource;
         /// <summary> Sets the result source for this run. </summary>
         public void SetResultSource(IResultSource resultSource) => this.ResultSource = resultSource;
-
+        
+        bool isCompleted => completedEvent.IsSet;
+        
         /// <summary> Will throw an exception when it times out. </summary>
         /// <exception cref="TimeoutException"></exception>
         internal TestStepRun WaitForChildStepStart(Guid childStep, int timeout, bool wait)
@@ -392,6 +394,7 @@ namespace OpenTap
             if (stepRuns.TryGetValue(childStep, out var run))
                 return run;
             if (!wait) return null;
+            if (isCompleted) return null;
             
             var sem = new ManualResetEventSlim(false, 0 );
 

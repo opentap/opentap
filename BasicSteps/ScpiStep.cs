@@ -175,7 +175,7 @@ namespace OpenTap.Plugins.BasicSteps
     {
         [Browsable(false)]
         [XmlIgnore]
-        public override bool GeneratesOutput { get { return Action == SCPIAction.Query; } }
+        public override bool GeneratesOutput => Action == SCPIAction.Query; 
 
         [Display("Instrument", Order: 0.0, Description: "The instrument that the query is sent to.")]
         public ScpiInstrument Instrument { get; set; }
@@ -186,12 +186,12 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Command", Order: 0.2, Description: "The command or query to send to the instrument.")]
         public string Query { get; set; }
 
-        [EnabledIf("Action", SCPIAction.Query)]
+        [EnabledIf(nameof(Action), SCPIAction.Query)]
         [Display("Add to Log", Order: 0.3, Description: "If enabled the result of the query is added to the log.")]
         public bool AddToLog { get; set; }
 
-        [EnabledIf("AddToLog", true)]
-        [EnabledIf("Action", SCPIAction.Query)]
+        [EnabledIf(nameof(AddToLog), true)]
+        [EnabledIf(nameof(Action), SCPIAction.Query)]
         [Display("Log Header", Order: 0.4, Description: "This string is added to the front of the result of the query.")]
         public string LogHeader { get; set; }
         
@@ -199,10 +199,11 @@ namespace OpenTap.Plugins.BasicSteps
         {
             Action = SCPIAction.Query;
             AddToLog = true;
-            Rules.Add(() => !string.IsNullOrEmpty(Query), "Command cannot be empty.", "Query");
-            Rules.Add(() => Instrument != null, "An instrument must be selected.", "Instrument");
-            Rules.Add(() => !(Query.EndsWith("?") && Action == SCPIAction.Command), "A command cannot end with '?'", "Query");
-            Rules.Add(() => !(Query.EndsWith("?") == false && Action == SCPIAction.Query), "A query must end with '?'", "Query");
+            Rules.Add(() => !string.IsNullOrEmpty(Query), "Command cannot be empty.", nameof(Query));
+            Rules.Add(() => Instrument != null, "An instrument must be selected.", nameof(Instrument));
+            Rules.Add(() => !(Query.EndsWith("?") && Action == SCPIAction.Command), "A command cannot end with '?'", nameof(Query));
+            // Queries may contain arguments e.g 'SYST:CHAN:MOD? (@1,2)'
+            Rules.Add(() => !(Query.Contains("?") == false && Action == SCPIAction.Query), "A query must contain '?'", nameof(Query));
             Query = "*IDN?";
         }
         
