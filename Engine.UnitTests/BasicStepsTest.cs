@@ -1,4 +1,5 @@
 using NUnit.Framework;
+using OpenTap.Engine.UnitTests;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
@@ -105,6 +106,24 @@ namespace OpenTap.UnitTests
 
             Assert.AreEqual(Verdict.Pass, run.Verdict); 
             Assert.AreEqual(3, step.Iterations);
+        }
+
+        [Test]
+        public void ScpiRegexStepValidation()
+        {
+            ScpiInstrument instr = new ScpiDummyInstrument();
+            instr.Rules.Clear(); // skip validation on the instrument itself.
+            SCPIRegexStep scpiRegex = new SCPIRegexStep
+            {
+                Instrument = instr,
+                Query = "SYST:CHAN:MOD? (@1,2)", // query with arguments.
+                Action = SCPIAction.Query
+            };
+            Assert.IsTrue(string.IsNullOrEmpty(scpiRegex.Error));
+            scpiRegex.Query = "SYST:CHAN:MOD"; // Not a valid query!
+            Assert.IsFalse(string.IsNullOrEmpty(scpiRegex.Error));
+            scpiRegex.Action = SCPIAction.Command; // it is a valid command though.
+            Assert.IsTrue(string.IsNullOrEmpty(scpiRegex.Error));
         }
     }
 }
