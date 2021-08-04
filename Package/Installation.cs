@@ -89,13 +89,16 @@ namespace OpenTap.Package
         {
             var assembly = pluginType?.AsTypeData()?.Assembly?.Location;
             if (string.IsNullOrWhiteSpace(assembly)) return null;
-            var assemblyPath = new Uri(Path.GetDirectoryName(assembly));
-            var installPath = new Uri(ExecutorClient.ExeDir);
             
-            // Get the path relative to the install directory
-            var relative = $"{installPath.MakeRelativeUri(assemblyPath)}/{Path.GetFileName(assembly)}";
-            // MakeRelativeUri adds a leading / -- remove it
-            relative = relative.Substring(1);
+            var assemblyPath = Path.GetFullPath(assembly);
+            var installPath = Path.GetFullPath(ExecutorClient.ExeDir);
+
+            // The assembly must be rooted in the installation
+            if (assemblyPath.StartsWith(installPath) == false)
+                return null;
+            
+            // Get the path relative to the install directory by removing the install path + the leading '/'
+            var relative = assemblyPath.Substring(installPath.Length + 1);
 
             return FindPackageContainingFile(relative);
         }
