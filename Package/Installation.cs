@@ -59,6 +59,8 @@ namespace OpenTap.Package
         /// <returns></returns>
         public PackageDef FindPackageContainingFile(string file)
         {
+            InvalidateIfChanged();
+            
             file = file.Replace('\\', '/');
 
             // Fully initialize fileMap as needed whenever it is cleared
@@ -107,18 +109,27 @@ namespace OpenTap.Package
         private long previousChangeId = -1;
 
         /// <summary>
-        /// Returns package definition list of installed packages in the TAP installation defined in the constructor, and system-wide packages.
-        /// Results are cached, and Invalidate must be called if changes to the installation are made by circumventing OpenTAP APIs.
+        /// Invalidate caches if the installation has changed.
         /// </summary>
-        /// <returns></returns>
-        public List<PackageDef> GetPackages()
+        private void InvalidateIfChanged()
         {
             long changeId = IsolatedPackageAction.GetChangeId(directory);
             
             if (changeId != previousChangeId)
             {
                 Invalidate();
+                previousChangeId = changeId;
             }
+        }
+
+        /// <summary>
+        /// Returns package definition list of installed packages in the TAP installation defined in the constructor, and system-wide packages.
+        /// Results are cached, and Invalidate must be called if changes to the installation are made by circumventing OpenTAP APIs.
+        /// </summary>
+        /// <returns></returns>
+        public List<PackageDef> GetPackages()
+        {
+            InvalidateIfChanged();
 
             if (PackageCache == null || invalidate)
             {
@@ -148,7 +159,6 @@ namespace OpenTap.Package
                     }
                 }
 
-                previousChangeId = changeId;
                 invalidate = false;
                 PackageCache = plugins;
             }
