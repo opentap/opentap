@@ -59,6 +59,8 @@ namespace OpenTap.Package
         /// <returns></returns>
         public PackageDef FindPackageContainingFile(string file)
         {
+            InvalidateIfChanged();
+            
             file = file.Replace('\\', '/');
 
             // Fully initialize fileMap as needed whenever it is cleared
@@ -89,13 +91,16 @@ namespace OpenTap.Package
         {
             var assembly = pluginType?.AsTypeData()?.Assembly?.Location;
             if (string.IsNullOrWhiteSpace(assembly)) return null;
-            var assemblyPath = new Uri(Path.GetDirectoryName(assembly));
-            var installPath = new Uri(ExecutorClient.ExeDir);
             
-            // Get the path relative to the install directory
-            var relative = $"{installPath.MakeRelativeUri(assemblyPath)}/{Path.GetFileName(assembly)}";
-            // MakeRelativeUri adds a leading / -- remove it
-            relative = relative.Substring(1);
+            var assemblyPath = Path.GetFullPath(assembly);
+            var installPath = Path.GetFullPath(ExecutorClient.ExeDir);
+
+            // The assembly must be rooted in the installation
+            if (assemblyPath.StartsWith(installPath) == false)
+                return null;
+            
+            // Get the path relative to the install directory by removing the install path + the leading '/'
+            var relative = assemblyPath.Substring(installPath.Length + 1);
 
             return FindPackageContainingFile(relative);
         }
@@ -104,18 +109,27 @@ namespace OpenTap.Package
         private long previousChangeId = -1;
 
         /// <summary>
-        /// Returns package definition list of installed packages in the TAP installation defined in the constructor, and system-wide packages.
-        /// Results are cached, and Invalidate must be called if changes to the installation are made by circumventing OpenTAP APIs.
+        /// Invalidate caches if the installation has changed.
         /// </summary>
-        /// <returns></returns>
-        public List<PackageDef> GetPackages()
+        private void InvalidateIfChanged()
         {
             long changeId = IsolatedPackageAction.GetChangeId(directory);
             
             if (changeId != previousChangeId)
             {
                 Invalidate();
+                previousChangeId = changeId;
             }
+        }
+
+        /// <summary>
+        /// Returns package definition list of installed packages in the TAP installation defined in the constructor, and system-wide packages.
+        /// Results are cached, and Invalidate must be called if changes to the installation are made by circumventing OpenTAP APIs.
+        /// </summary>
+        /// <returns></returns>
+        public List<PackageDef> GetPackages()
+        {
+            InvalidateIfChanged();
 
             if (PackageCache == null || invalidate)
             {
@@ -145,7 +159,6 @@ namespace OpenTap.Package
                     }
                 }
 
-                previousChangeId = changeId;
                 invalidate = false;
                 PackageCache = plugins;
             }
