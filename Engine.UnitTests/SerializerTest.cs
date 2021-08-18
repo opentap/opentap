@@ -1296,6 +1296,16 @@ namespace OpenTap.Engine.UnitTests
 
         }
 
+        [Test]
+        public void HugeBigFloatTest()
+        {
+            // very huge numbers are not supported since they take a lot of time to parse.
+            Assert.Throws<FormatException>(() => new BigFloat("1e99999999")); // too huge.
+            Assert.Throws<FormatException>(() => new BigFloat("1e-99999999")); // too precise.
+            Assert.DoesNotThrow(() => new BigFloat("1e999")); // huge but ok.
+            Assert.DoesNotThrow(() => new BigFloat("1e-999")); // really precise but ok.
+        }
+
         private static bool Test<T>(T a, T b, Func<T, T, bool> test) { return test(a, b); }
         private static T Calc<T>(T a, T b, Func<T, T, T> test) { return test(a, b); }
 
