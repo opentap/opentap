@@ -1711,7 +1711,7 @@ namespace OpenTap
 
         class MemberDataSequenceStringAnnotation : IStringReadOnlyValueAnnotation
         {
-            AnnotationCollection annotations;
+            readonly AnnotationCollection annotations;
 
             public MemberDataSequenceStringAnnotation(AnnotationCollection annotations) =>
                 this.annotations = annotations;
@@ -1721,8 +1721,8 @@ namespace OpenTap
                 get
                 {
                     var seq = annotations.Get<IObjectValueAnnotation>().Value as IEnumerable;
-                    var mems = seq?.OfType<IMemberData>();
-                    if (!mems.Any()) return "None";
+                    var mems = seq?.OfType<IMemberData>() ?? Array.Empty<IMemberData>();
+                    if (mems.Any() == false) return "None";
                     return string.Join(", ", mems.Select(x => x.GetDisplayAttribute().Name));
                 }
             }
@@ -2043,7 +2043,7 @@ namespace OpenTap
                 }
             }
 
-            public string Value => string.Join(", ", Selected.Cast<IResource>().Select(s => s.Name));
+            public string Value => string.Join(", ", Selected.Cast<IResource>().Select(s => s?.Name ?? ""));
 
             AnnotationCollection annotation;
             Type baseType;
