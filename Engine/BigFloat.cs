@@ -332,19 +332,14 @@ namespace OpenTap
         internal static object Parse(string value, IFormatProvider format = null)
         {
             if (string.Equals(value, "infinity", StringComparison.InvariantCultureIgnoreCase))
-            {
                 return Infinity;
-            }
-            else if (string.Equals(value, "-infinity", StringComparison.InvariantCultureIgnoreCase))
-            {
+            if (string.Equals(value, "-infinity", StringComparison.InvariantCultureIgnoreCase))
                 return NegativeInfinity;
-            }
-            else if (string.Equals(value, "nan", StringComparison.InvariantCultureIgnoreCase))
-            {
+            if (string.Equals(value, "nan", StringComparison.InvariantCultureIgnoreCase))
                 return NaN;
-            }
-            else if (value.Contains("/"))
+            if (value.Contains("/"))
             {
+                // parse fractions: X/Y
                 var splitted = value.Split('/');
                 if (splitted.Length != 2)
                 {
@@ -354,64 +349,64 @@ namespace OpenTap
                 var denominator = BigInteger.Parse(splitted[1]);
                 return new BigFloat(numerator, denominator);
             }
-            else
-            {
-                var sep = getDigitSeparator(format);
-                int index = 0;
-                bool dotHit = false;
-                bool exp = false;
-                BigInteger sign = 1;
-                BigFloat mantissa = 0;
-                BigInteger denom = 1;
-                BigInteger nomerator = 0;
-                for (; index < value.Length; index++)
-                {
-                    var chr = value[index];
-                    if (chr == '-' && nomerator == 0 && sign == 1)
-                    {
-                        sign = -1;
-                        continue;
-                    }
-                    if (chr == sep && !dotHit && !exp)
-                    {
-                        dotHit = true;
-                        continue;
-                    }
-                    if ((chr == 'e' || chr == 'E') && !exp)
-                    {
-                        exp = true;
-                        mantissa = new BigFloat(nomerator * sign, denom);
-                        denom = 1;
-                        nomerator = 0;
-                        dotHit = false;
-                        sign = 1;
-                        continue;
-                    }
-                    if (char.IsWhiteSpace(chr)) continue;
-                    if ((chr == '+') && exp) continue;
-                    if (char.IsDigit(chr) == false)
-                        return new FormatException("Format not supported.");
-                    if (dotHit)
-                        denom *= 10;
-                    int v = (chr - '0');
-                    nomerator = nomerator * 10 + v;
-                }
-                
-                if (exp)
-                {
-                    var powerTerm = BigInteger.Pow(10, (int)(nomerator));
-                    if (sign < 0)
-                    {
-                        return mantissa * new BigFloat(1, powerTerm);
-                    }
-                    else
-                    {
-                        return mantissa * new BigFloat(powerTerm, 1);
-                    }
 
+            var sep = getDigitSeparator(format);
+            int index = 0;
+            bool dotHit = false;
+            bool exp = false;
+            BigInteger sign = 1;
+            BigFloat mantissa = 0;
+            BigInteger denom = 1;
+            BigInteger nomerator = 0;
+            for (; index < value.Length; index++)
+            {
+                var chr = value[index];
+                if (chr == '-' && nomerator == 0 && sign == 1)
+                {
+                    sign = -1;
+                    continue;
                 }
-                return new BigFloat(nomerator * sign, denom);
+                if (chr == sep && !dotHit && !exp)
+                {
+                    dotHit = true;
+                    continue;
+                }
+                if ((chr == 'e' || chr == 'E') && !exp)
+                {
+                    exp = true;
+                    mantissa = new BigFloat(nomerator * sign, denom);
+                    denom = 1;
+                    nomerator = 0;
+                    dotHit = false;
+                    sign = 1;
+                    continue;
+                }
+                if (char.IsWhiteSpace(chr)) continue;
+                if ((chr == '+') && exp) continue;
+                if (char.IsDigit(chr) == false)
+                    return new FormatException("Format not supported.");
+                if (dotHit)
+                    denom *= 10;
+                int v = (chr - '0');
+                nomerator = nomerator * 10 + v;
             }
+                
+            if (exp)
+            {
+                //The scientific format "xEy" was detected, e.g 1.5e6
+                if (nomerator > 1000)
+                {   // Extremely large numbers will cause the application to stall
+                    // the biggest number in .NET is double.Infinty: 1.7976931348623157E+308
+                    // so 1E+1000 is probably an ok max limit.
+                    throw new FormatException($"The value {value} is too huge or too precise to be presented as a number.");
+                }
+
+                var powerTerm = BigInteger.Pow(10, (int)nomerator);
+                if (sign < 0)
+                    return mantissa * new BigFloat(1, powerTerm);
+                return mantissa * new BigFloat(powerTerm, 1);
+            }
+            return new BigFloat(nomerator * sign, denom);
         }
 
         /// <summary> Big float 0. </summary>
