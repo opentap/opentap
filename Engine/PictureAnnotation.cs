@@ -1,38 +1,27 @@
 namespace OpenTap
 {
     /// <summary> Marks that the annotated object is an image. </summary>
-    public interface IImageAnnotation : IAnnotation
+    public interface IPictureAnnotation : IAnnotation
     {
         /// <summary>
         /// Specifies the path to the image
         /// </summary>
         string Source { get; }
-
-        /// <summary>
-        /// Specifies a description of the image
-        /// </summary>
-        string Description { get; }
-
     }
 
-    class ImageAnnotation : IImageAnnotation, IOwnedAnnotation
+    class PictureAnnotation : IPictureAnnotation, IOwnedAnnotation
     {
-        public ImageAnnotation(string source, string description)
+        public PictureAnnotation(string source)
         {
             Source = source;
-            Description = description;
         }
 
         public string Source { get; set; }
-
-        public string Description { get; set; }
-
         public void Read(object source)
         {
             if (source is IPicture picture)
             {
                 Source = picture.Source;
-                Description = picture.Description;
             }
         }
 
@@ -41,7 +30,6 @@ namespace OpenTap
             if (source is IPicture picture)
             {
                 picture.Source = Source;
-                picture.Description = Description;
             }
         }
     }
@@ -55,11 +43,6 @@ namespace OpenTap
         /// Specifies the path to the image
         /// </summary>
         string Source { get; set; }
-
-        /// <summary>
-        /// Specifies a description of the image
-        /// </summary>
-        string Description { get; set; }
     }
 
     /// <summary>
@@ -73,10 +56,5 @@ namespace OpenTap
         [FilePath]
         [Display("Image File")]
         public string Source { get; set; }
-
-        /// <summary>
-        /// Specifies a description of the image
-        /// </summary>
-        public string Description { get; set; }
     }
 }

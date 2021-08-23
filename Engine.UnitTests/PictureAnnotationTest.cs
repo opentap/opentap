@@ -3,7 +3,7 @@
 namespace OpenTap.UnitTests
 {
     [TestFixture]
-    public class ImageAnnotationTest
+    public class PictureAnnotationTest
     {
         [Test]
         public void AnnotationTest()
@@ -11,21 +11,21 @@ namespace OpenTap.UnitTests
             var step = new MyPictureUsingTestStep();
             var a = AnnotationCollection.Annotate(step);
             var mem = a.GetMember(nameof(step.Picture));
-            var img = mem.Get<IImageAnnotation>();
+            
+            var img = mem.Get<IPictureAnnotation>() as PictureAnnotation;
+            Assert.NotNull(img);
 
             StringAssert.AreEqualIgnoringCase(img.Source, TestPlanDependencyTest.PictureReference);
-            StringAssert.AreEqualIgnoringCase(img.Description, TestPlanDependencyTest.PictureDescription);
 
-            step.Picture.Description = "test1";
+            step.Picture.Source = "test1";
             mem.Read(step.Picture);
-            
 
-            StringAssert.AreEqualIgnoringCase(img.Description, "test1");
+            StringAssert.AreEqualIgnoringCase(img.Source, "test1");
 
-            (img as ImageAnnotation).Description = "test2";
+            img.Source = "test2";
             mem.Write(step.Picture);
 
-            Assert.AreEqual(step.Picture.Description, "test2");
+            Assert.AreEqual(img.Source, "test2");
         }
     }
 }

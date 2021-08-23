@@ -2673,7 +2673,7 @@ namespace OpenTap
                 if (mem2.TypeDescriptor.DescendsTo(typeof(IPicture)))
                 {
                     var img = mem2.GetValue(annotation.Source) as IPicture;
-                    annotation.Add(new ImageAnnotation(img.Source, img.Description));
+                    annotation.Add(new PictureAnnotation(img.Source));
                 }
 
                 if (mem2.DeclaringType.DescendsTo(typeof(ITestStep)))
