@@ -3,10 +3,10 @@
 namespace OpenTap
 {
     /// <summary>
-    /// Marking a property with the <see cref="FileResourceAttribute"/> attribute indicates that the property specifies a file.
+    /// Marking a property with the <see cref="FileDependencyAttribute"/> attribute indicates that the property specifies a file.
     /// Files specified by this property are included as dependencies during serialization.
     /// </summary>
-    public class FileResourceAttribute : Attribute
+    public class FileDependencyAttribute : Attribute
     {
         
     }

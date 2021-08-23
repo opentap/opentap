@@ -11,7 +11,7 @@ namespace OpenTap
     /// <summary>
     /// Identifies a string as a file path.
     /// </summary>
-    public class FilePathAttribute : FileResourceAttribute, IAnnotation
+    public class FilePathAttribute : FileDependencyAttribute, IAnnotation
     {
         ///<summary>
         /// Default file extension for this file path.

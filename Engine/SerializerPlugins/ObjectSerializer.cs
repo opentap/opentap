@@ -652,7 +652,7 @@ namespace OpenTap.Plugins
 
             var td = TypeData.GetTypeData(obj);
 
-            var props = td.GetMembers().Where(m => m.HasAttribute<FileResourceAttribute>());
+            var props = td.GetMembers().Where(m => m.HasAttribute<FileDependencyAttribute>());
             foreach (var prop in props)
             {
                 var path = GetStringOrMacroString(prop, obj);
