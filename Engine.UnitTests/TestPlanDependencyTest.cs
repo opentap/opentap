@@ -23,18 +23,6 @@ namespace OpenTap.UnitTests
         }
     }
 
-    [Display("Some test step using pictures")]
-    public class MyPictureUsingTestStep : TestStep
-    {
-        public IPicture Picture { get; set; } = new Picture()
-            {Source = TestPlanDependencyTest.PictureReference};
-
-        public override void Run()
-        {
-
-        }
-    }
-
     [TestFixture]
     public class TestPlanDependencyTest
     {
