@@ -2515,7 +2515,7 @@ namespace OpenTap
                     {
                         displayFound = true;
                         annotation.Add(x);
-                    }); 
+                    });
                 if(!displayFound)
                     annotation.Add(mem.Member.GetDisplayAttribute());
 
@@ -2581,6 +2581,7 @@ namespace OpenTap
                         annotation.Add(new NumberAnnotation(annotation) { NullableType = type2 });
                     }
                 }
+
                 if (type.IsNumeric())
                 {
                     annotation.Add(new NumberAnnotation(annotation));
@@ -2670,10 +2671,10 @@ namespace OpenTap
                     }
                 }
 
-                if (mem2.TypeDescriptor.DescendsTo(typeof(IPicture)))
+                if (mem2.TypeDescriptor.DescendsTo(typeof(IPicture)) &&
+                    mem2.GetValue(annotation.Source) is IPicture)
                 {
-                    var img = mem2.GetValue(annotation.Source) as IPicture;
-                    annotation.Add(new PictureAnnotation(img.Source));
+                    annotation.Add(new PictureAnnotation(annotation));
                 }
 
                 if (mem2.DeclaringType.DescendsTo(typeof(ITestStep)))
