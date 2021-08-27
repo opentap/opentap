@@ -2,10 +2,11 @@
   "runtimeOptions": {
     "framework": {
       "name": "Microsoft.NETCore.App",
-      "version": "2.1.0"
+      "version": "5.0.0"
     },
     
     "applyPatches": true,
     "rollForwardOnNoCandidateFx": 2 
   }
 }
+c

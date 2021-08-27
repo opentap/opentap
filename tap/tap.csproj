@@ -1,11 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-<Import Project="../Common.Exe.targets" />
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>tap</AssemblyName>
     <RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
     <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
     <ApplicationIcon>../Installer/Assets/opentap.ico</ApplicationIcon>
+    <TargetFramework>net5.0</TargetFramework>
   </PropertyGroup>
   
   <ItemGroup>

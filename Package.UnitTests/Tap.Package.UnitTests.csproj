@@ -1,9 +1,9 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="../Common.Exe.targets" />
+﻿<Project Sdk="Microsoft.NET.Sdk">  
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <AssemblyName>OpenTap.Package.UnitTests</AssemblyName>
     <RootNamespace>OpenTap.Package.UnitTests</RootNamespace>
+    <TargetFramework>net5.0</TargetFramework>
   </PropertyGroup>
   
   <ItemGroup>
