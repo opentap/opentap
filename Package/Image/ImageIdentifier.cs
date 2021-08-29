@@ -15,7 +15,7 @@ namespace OpenTap.Package
     /// <summary>
     /// Image that specifies a list of <see cref="PackageSpecifier"/> to install and a list of repositories to get the packages from.
     /// </summary>
-    public class Image
+    public class ImageIdentifier
     {
         internal bool Cached => cacheFileLookup.Count == Packages.Count();
 
@@ -49,7 +49,7 @@ namespace OpenTap.Package
             };
         }
 
-        internal Image(IEnumerable<IPackageIdentifier> packages, IEnumerable<string> repositories)
+        internal ImageIdentifier(IEnumerable<IPackageIdentifier> packages, IEnumerable<string> repositories)
         {
             if (packages is null)
             {
@@ -76,7 +76,7 @@ namespace OpenTap.Package
         }
 
         /// <summary>
-        /// Deploy the <see cref="Image"/> as a OpenTAP installation.
+        /// Deploy the <see cref="ImageIdentifier"/> as a OpenTAP installation.
         /// </summary>
         /// <param name="target">Directory to deploy OpenTap installation. 
         /// If the directory is already an OpenTAP installation, the installation will be modified to match the image

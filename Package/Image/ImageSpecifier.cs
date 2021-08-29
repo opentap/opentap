@@ -6,7 +6,7 @@ using System.Threading;
 namespace OpenTap.Package
 {
     /// <summary>
-    /// An <see cref="ImageSpecifier"/> defines a desired OpenTAP installation. The specifier can be resolved to an actual <see cref="Image"/> capable of being deployed to an actual OpenTAP installation.
+    /// An <see cref="ImageSpecifier"/> defines a desired OpenTAP installation. The specifier can be resolved to an actual <see cref="ImageIdentifier"/> capable of being deployed to an actual OpenTAP installation.
     /// </summary>
     public class ImageSpecifier
     {
@@ -23,8 +23,8 @@ namespace OpenTap.Package
         /// Resolve the desired packages from the specified repositores. This will check if the packages are available, compatible and can successfully be deployed as an OpenTAP installation
         /// </summary>
         /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>An <see cref="Image"/></returns>
-        public Image Resolve(CancellationToken cancellationToken)
+        /// <returns>An <see cref="ImageIdentifier"/></returns>
+        public ImageIdentifier Resolve(CancellationToken cancellationToken)
         {
             List<Exception> exceptions = new List<Exception>();
             List<IPackageRepository> repositories = Repositories.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)).ToList();
@@ -76,7 +76,7 @@ namespace OpenTap.Package
             if (cancellationToken.IsCancellationRequested)
                 throw new OperationCanceledException("Resolve operation cancelled by user");
 
-            Image image = new Image(gatheredPackages, repositories.Select(s => s.Url));
+            ImageIdentifier image = new ImageIdentifier(gatheredPackages, repositories.Select(s => s.Url));
 
             if (exceptions.Any())
                 throw new AggregateException("Image could not be resolved", exceptions);
