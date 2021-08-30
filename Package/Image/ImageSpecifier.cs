@@ -38,7 +38,7 @@ namespace OpenTap.Package
                     PackageDef package = PackageActionHelpers.FindPackage(packageReference, new List<PackageDef>(), repositories);
                     gatheredPackages.Add(package);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     exceptions.Add(new InvalidOperationException($"Unable to resolve package '{packageReference.Name}'"));
                 }
