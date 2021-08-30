@@ -8,12 +8,6 @@
     <TargetFramework>net5.0</TargetFramework>
   </PropertyGroup>
   
-  <ItemGroup>
-    <Content Include="$(SolutionDir)/Shared/tap.runtimeconfig.json">
-      <Link>tap.runtimeconfig.json</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
 
   <ItemGroup Condition="'$(IsNetStandard)'=='true'">
     
@@ -24,6 +18,14 @@
   </ItemGroup>
 
   <Target Name="RemoveDepsJson" AfterTargets="Publish">
-    <Exec Command="rm $(PublishDir)tap.deps.json" />
+    <Delete Files="$(PublishDir)tap.deps.json" />
   </Target>
+
+  <ItemGroup>
+    <Content Include="..\Shared\tap.runtimeconfig.json">
+      <Link>tap.runtimeconfig.json</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
