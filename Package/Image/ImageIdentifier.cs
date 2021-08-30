@@ -100,7 +100,15 @@ namespace OpenTap.Package
 
             List<Exception> installErrors = new List<Exception>();
             installer.Error += ex => installErrors.Add(ex);
-            var status = installer.InstallThread();
+            
+            try
+            {
+                installer.InstallThread();
+            }
+            catch (Exception ex)
+            {
+                installErrors.Add(ex);
+            }
 
             if (installErrors.Any())
                 throw new AggregateException("Image deployment failed due to failiure in installing packages", installErrors);
