@@ -1767,7 +1767,7 @@ namespace OpenTap
                 this.fac = fac;
             }
 
-            public void Read(object source)
+            public void Read(object source)     
             {
                 annotatedElements = null;
             }
