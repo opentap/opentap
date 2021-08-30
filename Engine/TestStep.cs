@@ -972,6 +972,8 @@ namespace OpenTap
             if(membersLookup.TryGetValue((targetType, sourceType), out var value))
                 return value;
             var propertyInfos = sourceType.GetMembers();
+            // if the target type is 'object' we accept any type as a value. 
+            bool anyType = Equals(TypeData.FromType(typeof(object)), targetType);
 
             List<(IMemberData, bool)> result = null;
             foreach (var prop in propertyInfos)
@@ -980,11 +982,15 @@ namespace OpenTap
                 if (prop is IParameterMemberData) continue;
                 if (prop.Readable == false) continue;
                 var td2 = prop.TypeDescriptor.AsTypeData();
-                if (td2.IsValueType && targetType.IsValueType == false) continue;
-                if (td2.IsString && targetType.IsString == false) continue;
+                if (td2 == null) continue;
+                if (!anyType)
+                {
+                    if (td2.IsValueType && targetType.IsValueType == false) continue;
+                    if (td2.IsString && targetType.IsString == false) continue;
+                }
+
                 bool hasEnabled = prop.HasAttribute<EnabledIfAttribute>();
-                if (td2.DescendsTo(typeof(IEnabled)) || td2.DescendsTo(targetType) ||
-                    td2.ElementType.DescendsTo(targetType))
+                if (td2.DescendsTo(targetType) || td2.ElementType.DescendsTo(targetType) || td2.DescendsTo(typeof(IEnabled)))
                 {
                     if (prop.HasAttribute<SettingsIgnoreAttribute>()) continue;
                     if(result == null) result = new List<(IMemberData, bool)>();

@@ -109,6 +109,36 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(resultParameters.SequenceEqual(resultParameters1));
         }
 
+        
+        class CustomResultColumn : ResultColumn, IAttributedObject
+        {
+            string IAttributedObject.ObjectType => "Limit Column";
+            public CustomResultColumn(string name, Array data) : base(name, data)
+            {
+            }
+
+            public CustomResultColumn(string name, Array data, params IParameter[] parameters) : base(name, data, parameters)
+            {
+            }
+
+            internal CustomResultColumn(string name, Array data, IData table, IParameters parameters) : base(name, data, table, parameters)
+            {
+            }
+        }
+        [Test]
+        public void TestResultTableMutability()
+        {
+            var rt = new ResultTable("Test1", new ResultColumn[]
+            {
+                new ResultColumn("X", new double[] {1, 2, 3}),
+                new CustomResultColumn("Limit", new double[] {4, 4, 4})
+            });
+            Assert.AreEqual((rt.Columns.Last() as IAttributedObject).ObjectType, "Limit Column");
+            rt.Columns[0].Data.SetValue(10.0, 0);
+            Assert.AreEqual(10.0, rt.Columns[0].Data.GetValue(0));
+        }
+        
+
         class SimpleResultTest2 : ResultListener
         {
             

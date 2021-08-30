@@ -598,7 +598,42 @@ namespace OpenTap.UnitTests
                 UserInput.SetInterface(currentUserInterface as IUserInputInterface);
             }
         }
+        
         [Test]
+        public void MenuAnnotationTest4()
+        {
+            var currentUserInterface = UserInput.Interface;
+            var menuInterface = new MenuTestUserInterface();
+            UserInput.SetInterface(menuInterface);
+            try
+            {
+                var plan = new TestPlan();
+                var sequence = new SequenceStep();
+                var step = new DelayStep();
+                plan.Steps.Add(sequence);
+                sequence.ChildTestSteps.Add(step);
+
+                {
+                    var p1 = TypeData.GetTypeData(step).GetMember(nameof(step.DelaySecs)).Parameterize(sequence, step, "A");
+                    p1.Parameterize(plan, sequence, p1.Name);
+
+                    var editParameterIcon = AnnotationCollection.Annotate(sequence).GetMember(p1.Name).Get<MenuAnnotation>().MenuItems
+                        .First(x => x.Get<IconAnnotationAttribute>().IconName == IconNames.EditParameter);
+                    
+                    menuInterface.SelectedMode = MenuTestUserInterface.Mode.TestPlan | MenuTestUserInterface.Mode.Error;
+                    menuInterface.SelectName = p1.Name;
+                    
+                    editParameterIcon.Get<IMethodAnnotation>().Invoke();
+
+                }
+            }
+            finally
+            {
+                UserInput.SetInterface(currentUserInterface as IUserInputInterface);
+            }
+        }
+
+            [Test]
         public void MenuAnnotationTest2()
         {
             var currentUserInterface = UserInput.Interface;
@@ -1488,5 +1523,33 @@ namespace OpenTap.UnitTests
                 }
             }
         }
+
+        public class SuggestedValuesObject
+        {
+            public List<int> SuggestedValues { get; set; } = new List<int> {1, 2, 3};
+            [SuggestedValues(nameof(SuggestedValues))]
+            public int SelectedValue { get; set; }
+            
+            [AvailableValues(nameof(SuggestedValues))]
+            public int SelectedValue2 { get; set; }
+        }
+
+        [Test]
+        public void SuggestedAndAvailableValuesUpdateTest()
+        {
+            // an issue was discovered that when the list of suggested values is updated, without replacing it with
+            // a new list instance the an issue occurs because the ISuggestedValueAnnotationProxy does some internal caching.
+            var obj = new SuggestedValuesObject();
+            var a = AnnotationCollection.Annotate(obj);
+            var sv = a.GetMember(nameof(obj.SelectedValue)).Get<ISuggestedValuesAnnotationProxy>();
+            var av = a.GetMember(nameof(obj.SelectedValue2)).Get<IAvailableValuesAnnotationProxy>();
+            Assert.AreEqual(3, sv.SuggestedValues.Count());
+            Assert.AreEqual(3, av.AvailableValues.Count());
+            obj.SuggestedValues.Add(4);
+            a.Read();
+            Assert.AreEqual(4, sv.SuggestedValues.Count()); // Failed initially
+            Assert.AreEqual(4, av.AvailableValues.Count());
+        }
+        
     }
 }

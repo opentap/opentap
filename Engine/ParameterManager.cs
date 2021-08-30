@@ -202,6 +202,21 @@ namespace OpenTap
                             yield return (error, error);
                             yield break;
                         }
+
+                        if (member is IParameterMemberData memberAsParameter && originalExisting is IParameterMemberData targetParameter)
+                        { 
+                            // Verify that a parameter does not get merged with another parameter that has it in its list of dependencies. (cyclic dependency).
+                            var dependencyList = Utils.FlattenHeirarchy(
+                                targetParameter.ParameterizedMembers.Select(x => x.Member)
+                                    .OfType<IParameterMemberData>(),
+                                x => x.ParameterizedMembers.Select(x2 => x2.Member).OfType<IParameterMemberData>());
+                            if (dependencyList.Contains(memberAsParameter))
+                            {
+                                var error = $"The selected scope's parameter cannot be merged with a parameterization that it depends on.";
+                                yield return (error, error);
+                                yield break;
+                            }
+                        }
                         if( cloner.CanClone(step, member.TypeDescriptor) == false)
                         {
                             var error = $"Cannot merge properties of this kind.";

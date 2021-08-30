@@ -175,6 +175,8 @@ namespace OpenTap
             }
         }
 
+        internal bool createInstanceSet => canCreateInstance.HasValue;
+        
         bool? canCreateInstance;
         /// <summary> 
         /// returns true if an instance possibly can be created. 
@@ -188,7 +190,8 @@ namespace OpenTap
                 var type = Load();
                 canCreateInstance = type.IsAbstract == false && type.IsInterface == false && type.ContainsGenericParameters == false && type.GetConstructor(Array.Empty<Type>()) != null;
                 return canCreateInstance.Value;
-            }       
+            }
+            internal set => canCreateInstance = value;
         }
 
         string assemblyQualifiedName;
