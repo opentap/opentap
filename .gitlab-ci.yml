@@ -93,7 +93,7 @@ pages:
 
 Build-Linux64:
   stage: build
-  image: microsoft/dotnet:2.1-sdk-stretch
+  image: opentapio/opentap:9.15-ubuntu18.04
   tags: [ docker, gce ]
   script: 
          - dotnet publish -c NetCore OpenTAP.sln
@@ -104,7 +104,7 @@ Build-Linux64:
 
 QuickTest: # Quick test to fail as early as possible. 
   stage: build
-  image: microsoft/dotnet:2.1-sdk-stretch
+  image: opentapio/opentap:9.15-ubuntu18.04
   tags: [ docker, gce ]
   script:
     - dotnet build -c NetCoreDebug
@@ -206,7 +206,7 @@ TestWindowsPlan:
 TestLinuxPlan:
   stage: test
   tags: [docker, gce]
-  image: mcr.microsoft.com/dotnet/core/sdk:2.1-bionic
+  image: opentapio/opentap:9.15-ubuntu18.04
   dependencies:
     - Build-Linux64
   needs:
@@ -225,9 +225,10 @@ TestLinuxPlan:
   needs:
      - Build-Linux64
   script:
+        - PATH="/bin:$PATH"
         - ln -sf $PWD/bin/Release/publish/tap /bin
         - check_exit_code () { if [ $exit_code -eq $1 ]; then echo "OK"; else echo "FAIL ($exit_code)"; false; fi }
-        - echo "tap run unit test"
+        - echo "tap run unit test"        
         - tap run -v Engine.UnitTests/TestTestPlans/testMultiReferencePlan.TapPlan --ignore-load-errors || exit_code=$?
         - check_exit_code 20
         - echo "tap sdk gitversion unit tests"
@@ -270,7 +271,7 @@ TestLinuxPlan:
 
 TestUbuntu:
   stage: test
-  image: mcr.microsoft.com/dotnet/core/sdk:2.1-bionic
+  image: opentapio/opentap:9.15-ubuntu18.04
   extends: .LinuxScript
 
 TestCentos7:
@@ -529,7 +530,7 @@ Installer-Linux:
 
 Package-Build-Deb:
   stage: installer
-  image: mcr.microsoft.com/dotnet/core/sdk:2.1-bionic
+  image: opentapio/opentap:9.15-ubuntu18.04
   tags: [ docker, gce ]
   dependencies:
     - Package-Linux
@@ -556,7 +557,7 @@ Package-Build-Deb:
 
 Test-Installer-Linux:
   stage: testinstaller
-  image: mcr.microsoft.com/dotnet/core/runtime:2.1.12-bionic
+  image: opentapio/opentap:9.15-ubuntu18.04
   tags: [ docker, gce ]
   dependencies:
     - Installer-Linux
