@@ -167,7 +167,7 @@ namespace OpenTap.Package
             foreach (var package in Packages.Cast<PackageDef>())
                 Download(package);
         }
-
+        static TraceSource log = Log.CreateSource("Download");
         private void Download(PackageDef package)
         {
             if (PackageCacheHelper.PackageIsFromCache(package))
@@ -182,6 +182,7 @@ namespace OpenTap.Package
             if (PackageCacheHelper.PackageIsFromCache(package))
                 return;
 
+            log.Info($"Downloading {package.Name} version {package.Version} from {rm.Url}");
             Directory.CreateDirectory(PackageCacheHelper.PackageCacheDirectory);
             rm.DownloadPackage(package, filename, CancellationToken.None);
 
