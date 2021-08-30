@@ -1,6 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">  
-  <PropertyGroup>
-    <OutputType>Library</OutputType>
+  <PropertyGroup>    
     <AssemblyName>OpenTap.Package.UnitTests</AssemblyName>
     <RootNamespace>OpenTap.Package.UnitTests</RootNamespace>
     <TargetFramework>net5.0</TargetFramework>
@@ -10,16 +9,20 @@
     <ProjectReference Include="..\BasicSteps\Tap.Plugins.BasicSteps.csproj" />
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
     <ProjectReference Include="..\Engine.UnitTests\Tap.Engine.UnitTests.csproj" />
-    <ProjectReference Include="..\Package\Tap.Package.csproj" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.9.0" />
+    <ProjectReference Include="..\Package\Tap.Package.csproj" />    
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="2.10.0" />
-    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
-    <PackageReference Include="Nunit" Version="3.11.0" />
-    <PackageReference Include="Nunit.ConsoleRunner" Version="3.9.0" />
-    <PackageReference Include="Nunit3TestAdapter" Version="3.12.0" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />    
     <PackageReference Include="System.CodeDom" Version="4.5.0" />
 
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.10.0" />
+    <PackageReference Include="NUnit" Version="3.13.2" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.0.0" />
+    <PackageReference Include="coverlet.collector" Version="3.0.3" />
+  </ItemGroup>
+  
   <ItemGroup>
     <None Include="../opentap*package.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
