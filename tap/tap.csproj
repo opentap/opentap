@@ -9,10 +9,10 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <None Include="$(SolutionDir)/Shared/tap.runtimeconfig.json">
+    <Content Include="$(SolutionDir)/Shared/tap.runtimeconfig.json">
       <Link>tap.runtimeconfig.json</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    </Content>
   </ItemGroup>
 
   <ItemGroup Condition="'$(IsNetStandard)'=='true'">
