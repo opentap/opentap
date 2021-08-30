@@ -647,12 +647,23 @@ namespace OpenTap
         static TestStepTypeData getStepTypeData(ITypeData subtype) =>
             dict.GetValue(subtype, x => new TestStepTypeData(x));
 
+        // memorize for reference equality.
+        static ConditionalWeakTable<ITypeData, ViaPointTypeData> viaDict =
+            new ConditionalWeakTable<ITypeData, ViaPointTypeData>();
+        static ViaPointTypeData getViaPointTypeData(ITypeData subtype) =>
+            viaDict.GetValue(subtype, x => new ViaPointTypeData(x));
+
         public ITypeData GetTypeData(string identifier, TypeDataProviderStack stack)
         {
             var subtype = stack.GetTypeData(identifier);
             if (subtype.DescendsTo(typeof(ITestStep)))
             {
                 var result = getStepTypeData(subtype);
+                return result;
+            }
+            if (subtype.DescendsTo(typeof(ViaPointReference)))
+            {
+                var result = getViaPointTypeData(subtype);
                 return result;
             }
 

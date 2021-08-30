@@ -4,23 +4,35 @@
       "commandName": "Project",
       "commandLineArgs": "package install \"Editor CE\" --no-dependencies",
       "environmentVariables": {
-        "OPENTAP_COLOR": "1"
+        "OPENTAP_COLOR": "auto"
       }
     },
     "tap (list)": {
       "commandName": "Project",
-      "commandLineArgs": "package list -v"
+      "commandLineArgs": "package list -v",
+      "environmentVariables": {
+        "OPENTAP_COLOR": "auto"
+      }
     },
     "tap (create)": {
       "commandName": "Project",
-      "commandLineArgs": "package create ..\\..\\opentap.x64.package.xml -v"
+      "commandLineArgs": "package create ..\\..\\opentap.x64.package.xml -v",
+      "environmentVariables": {
+        "OPENTAP_COLOR": "auto"
+      }
     },
     "tap (gitversion)": {
       "commandName": "Project",
-      "commandLineArgs": "sdk gitversion --dir c:\\git\\tapMerge\\ --log 20"
+      "commandLineArgs": "sdk gitversion --dir c:\\git\\tapMerge\\ --log 20",
+      "environmentVariables": {
+        "OPENTAP_COLOR": "auto"
+      }
     },
     "tap (commands)": {
-      "commandName": "Project"
+      "commandName": "Project",
+      "environmentVariables": {
+        "OPENTAP_COLOR": "auto"
+      }
     }
   }
 }
