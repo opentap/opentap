@@ -2883,8 +2883,9 @@ namespace OpenTap
                 {
                     if (annotations == null)
                     {
-                        var values = a.Get<ISuggestedValuesAnnotation>()?.SuggestedValues;
-                        prevValues = values ?? Enumerable.Empty<object>();
+                        var values = a.Get<ISuggestedValuesAnnotation>()?.SuggestedValues ?? Enumerable.Empty<object>();
+                        // the same reference of an the value may be updated, so keep a copy of the values instead of a reference.
+                        prevValues = values.OfType<object>().ToArray();
 
                         var readOnly = new ReadOnlyMemberAnnotation();
                         var lst = new List<AnnotationCollection>();
