@@ -1842,7 +1842,7 @@ namespace OpenTap
         uint user;
 
         /// <summary>
-        /// Creates a memory mapepd API.
+        /// Creates a memory mapped API.
         /// </summary>
         /// <param name="name"></param>
         public MemoryMappedApi(string name)
