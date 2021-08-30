@@ -1522,5 +1522,33 @@ namespace OpenTap.UnitTests
                 }
             }
         }
+
+        public class SuggestedValuesObject
+        {
+            public List<int> SuggestedValues { get; set; } = new List<int> {1, 2, 3};
+            [SuggestedValues(nameof(SuggestedValues))]
+            public int SelectedValue { get; set; }
+            
+            [AvailableValues(nameof(SuggestedValues))]
+            public int SelectedValue2 { get; set; }
+        }
+
+        [Test]
+        public void SuggestedAndAvailableValuesUpdateTest()
+        {
+            // an issue was discovered that when the list of suggested values is updated, without replacing it with
+            // a new list instance the an issue occurs because the ISuggestedValueAnnotationProxy does some internal caching.
+            var obj = new SuggestedValuesObject();
+            var a = AnnotationCollection.Annotate(obj);
+            var sv = a.GetMember(nameof(obj.SelectedValue)).Get<ISuggestedValuesAnnotationProxy>();
+            var av = a.GetMember(nameof(obj.SelectedValue2)).Get<IAvailableValuesAnnotationProxy>();
+            Assert.AreEqual(3, sv.SuggestedValues.Count());
+            Assert.AreEqual(3, av.AvailableValues.Count());
+            obj.SuggestedValues.Add(4);
+            a.Read();
+            Assert.AreEqual(4, sv.SuggestedValues.Count()); // Failed initially
+            Assert.AreEqual(4, av.AvailableValues.Count());
+        }
+        
     }
 }
