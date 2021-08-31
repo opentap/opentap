@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 
 namespace OpenTap
 {
+    /// <summary>
+    /// A mechanism for retrieving <see cref="IPicture"/> data with <see cref="PictureDataProvider"/>
+    /// </summary>
     public interface IPictureDataProvider
     {
         /// <summary>
@@ -76,7 +79,11 @@ namespace OpenTap
             return null;
         }
     }
+    
 
+    /// <summary>
+    /// Provide <see cref="IPicture"/> data from <see cref="IPictureDataProvider"/> implementations.
+    /// </summary>
     public static class PictureDataProvider
     {
         private static IEnumerable<IPictureDataProvider> GetProviders()
@@ -109,9 +116,24 @@ namespace OpenTap
             return default;
         }
 
+        
+        /// <summary>
+        /// Get a stream of the picture from the first <see cref="IPictureDataProvider"/> which returns a non-null.
+        /// </summary>
+        /// <param name="picture"></param>
         public static Task<Stream> GetStream(IPicture picture) => GetFirstNonDefault<Stream>(nameof(IPictureDataProvider.GetStream), picture);
 
+        /// <summary>
+        /// Get the format of the picture from the first <see cref="IPictureDataProvider"/> which returns a non-null.
+        /// </summary>
+        /// <param name="picture"></param>
         public static Task<string> GetPictureFormat(IPicture picture) => GetFirstNonDefault<string>(nameof(IPictureDataProvider.GetPictureFormat), picture);
+
+        /// <summary>
+        /// Get the name of the picture from the first <see cref="IPictureDataProvider"/> which returns a non-null.
+        /// </summary>
+        /// <param name="picture"></param>
+        /// <returns></returns>
 
         public static Task<string> GetPictureName(IPicture picture) => GetFirstNonDefault<string>(nameof(IPictureDataProvider.GetPictureName), picture);
     }
