@@ -29,6 +29,7 @@ namespace OpenTap.Package.PackageActions
 
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
+            log.Info($"Modifying installation: {Target}");
             try
             {
                 var imageString = File.ReadAllText(ImagePath);
