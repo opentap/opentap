@@ -88,19 +88,51 @@ namespace OpenTap.Package
             if (!Cached)
                 Cache();
 
+            if (cancellationToken.IsCancellationRequested)
+                throw new OperationCanceledException("Deployment operation cancelled by user");
+
+            Installation currentInstallation = new Installation(target);
+            var packagesToUninstall = currentInstallation.GetPackages().Where(s => s.Class.ToLower() != "system-wide" && !Packages.Any(p => p.Name == s.Name));
+            var modifyOrAdd = Packages.Where(s => !currentInstallation.GetPackages().Any(p => p.Name == s.Name && p.Version.ToString() == s.Version.ToString())).ToList();
+
+            if (!packagesToUninstall.Any() && !modifyOrAdd.Any())
+            {
+                log.Info($"Target installation already matches specified image");
+                return;
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+                throw new OperationCanceledException("Deployment operation cancelled by user");
+
+            if (packagesToUninstall.Any())
+                Uninstall(packagesToUninstall, target, cancellationToken);
+
+
+            if (cancellationToken.IsCancellationRequested)
+                throw new OperationCanceledException("Deployment operation cancelled by user");
+
+            if (modifyOrAdd.Any())
+                Install(modifyOrAdd, target, cancellationToken);
+
+
+        }
+
+        private void Install(List<IPackageIdentifier> modifyOrAdd, string target, CancellationToken cancellationToken)
+        {
             Installer installer = new Installer(target, cancellationToken) { DoSleep = false };
-            var toInstall = ReorderPackages(cacheFileLookup.Values.ToList());
+            List<string> paths = new List<string>();
+            foreach (var package in modifyOrAdd)
+            {
+                paths.Add(cacheFileLookup[(PackageDef)package]);
+            }
+            var toInstall = ReorderPackages(paths);
             installer.PackagePaths.Clear();
             installer.PackagePaths.AddRange(toInstall);
 
-            UninstallExisting(new Installation(target), target, installer.PackagePaths, cancellationToken);
-
-            if (cancellationToken.IsCancellationRequested)
-                throw new OperationCanceledException("Resolve operation cancelled by user");
 
             List<Exception> installErrors = new List<Exception>();
             installer.Error += ex => installErrors.Add(ex);
-            
+
             try
             {
                 installer.InstallThread();
@@ -114,24 +146,19 @@ namespace OpenTap.Package
                 throw new AggregateException("Image deployment failed due to failiure in installing packages", installErrors);
         }
 
-
-        private void UninstallExisting(Installation installation, string installationPath, List<string> packagePaths, CancellationToken cancellationToken)
+        private void Uninstall(IEnumerable<PackageDef> packagesToUninstall, string target, CancellationToken cancellationToken)
         {
+            log.Info($"Removing packages:");
+            foreach (var package in packagesToUninstall)
+                log.Info($"- {package.Name} version {package.Version} ({package.Architecture}-{package.OS})");
+
             List<Exception> uninstallErrors = new List<Exception>();
-            var installed = installation.GetPackages().Where(s => !s.IsSystemWide());
+            var newInstaller = new Installer(target, cancellationToken) { DoSleep = false };
 
-            var packages = packagePaths.Select(PackageDef.FromPackage).Select(x => x.Name).ToHashSet();
-            var existingPackages = installed.Select(x => (x.PackageSource as InstalledPackageDefSource)?.PackageDefFilePath).ToList();
-
-            if (existingPackages.Count == 0) return;
-
-            var newInstaller = new Installer(installationPath, cancellationToken) { DoSleep = false };
-
-            //newInstaller.ProgressUpdate += RaiseProgressUpdate;
             newInstaller.Error += ex => uninstallErrors.Add(ex);
             newInstaller.DoSleep = false;
 
-            newInstaller.PackagePaths.AddRange(existingPackages);
+            newInstaller.PackagePaths.AddRange(packagesToUninstall.Select(x => (x.PackageSource as InstalledPackageDefSource)?.PackageDefFilePath).ToList());
             newInstaller.UninstallThread();
 
             if (uninstallErrors.Any())
@@ -170,18 +197,26 @@ namespace OpenTap.Package
         static TraceSource log = Log.CreateSource("Download");
         private void Download(PackageDef package)
         {
-            if (PackageCacheHelper.PackageIsFromCache(package))
-                return;
-            string source = (package.PackageSource as IRepositoryPackageDefSource)?.RepositoryUrl;
-            if (source == null && package.PackageSource is FilePackageDefSource fileSource)
-                source = fileSource.PackageFilePath;
+            //if (PackageCacheHelper.PackageIsFromCache(package))
+            //    return;
+
+            //if (PackageCacheHelper.PackageIsFromCache(package))
+            //    return;
+
             var packageName = PackageActionHelpers.GetQualifiedFileName(package).Replace('/', '.');
             string filename = Path.Combine(PackageCacheHelper.PackageCacheDirectory, packageName);
 
-            IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(source);
-            if (PackageCacheHelper.PackageIsFromCache(package))
+            if (File.Exists(filename))
+            {
+                log.Info($"Package {package.Name} exists in cache: {filename}");
+                cacheFileLookup.Add(package, filename);
                 return;
+            }
 
+            string source = (package.PackageSource as IRepositoryPackageDefSource)?.RepositoryUrl;
+            if (source == null && package.PackageSource is FilePackageDefSource fileSource)
+                source = fileSource.PackageFilePath;
+            IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(source);
             log.Info($"Downloading {package.Name} version {package.Version} from {rm.Url}");
             Directory.CreateDirectory(PackageCacheHelper.PackageCacheDirectory);
             rm.DownloadPackage(package, filename, CancellationToken.None);
