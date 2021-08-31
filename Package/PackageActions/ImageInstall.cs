@@ -13,11 +13,17 @@ namespace OpenTap.Package.PackageActions
 {
     [Browsable(false)]
     [Display("install", Group: "image")]
-    public class ImageInstallAction : LockingPackageAction
+    internal class ImageInstallAction : LockingPackageAction
     {
+        /// <summary>
+        /// Path to Image file containing XML or JSON formatted Image specification
+        /// </summary>
         [UnnamedCommandLineArgument("image")]
         public string ImagePath { get; set; }
 
+        /// <summary>
+        /// Option to merge with target installation. Default is false, which means overwrite installation
+        /// </summary>
         [CommandLineArgument("merge")]
         public bool Merge { get; set; }
 
