@@ -48,9 +48,6 @@ namespace OpenTap.Image.Tests
             foreach (var specifier in imageSpecifier.Packages)
                 Assert.IsTrue(image.Packages.Any(s => s.Name == specifier.Name && s.Version.ToString() == specifier.Version.ToString()));
 
-            string precalculatedHash = "805C8B060075B7F0A76174BA90C32AEA515F6509";
-            Assert.AreEqual(precalculatedHash, image.Id);
-
             var image2 = imageSpecifier.Resolve(System.Threading.CancellationToken.None);
             Assert.AreEqual(image2.Id, image.Id);
         }
