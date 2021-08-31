@@ -197,12 +197,6 @@ namespace OpenTap.Package
         static TraceSource log = Log.CreateSource("Download");
         private void Download(PackageDef package)
         {
-            //if (PackageCacheHelper.PackageIsFromCache(package))
-            //    return;
-
-            //if (PackageCacheHelper.PackageIsFromCache(package))
-            //    return;
-
             var packageName = PackageActionHelpers.GetQualifiedFileName(package).Replace('/', '.');
             string filename = Path.Combine(PackageCacheHelper.PackageCacheDirectory, packageName);
 

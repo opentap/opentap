@@ -13,7 +13,7 @@ namespace OpenTap.Package.PackageActions
 {
     [Browsable(false)]
     [Display("install", Group: "image")]
-    internal class ImageInstallAction : LockingPackageAction
+    internal class ImageInstallAction : IsolatedPackageAction
     {
         /// <summary>
         /// Path to Image file containing XML or JSON formatted Image specification
