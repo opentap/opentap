@@ -98,7 +98,9 @@ namespace OpenTap.UnitTests
         {
             InstallPackage();
             var plan = new TestPlan();
-            plan.ChildTestSteps.Add(new MyPictureUsingTestStep());
+            var pic = new MyPictureUsingTestStep();
+            pic.Picture.Source = PictureReference;
+            plan.ChildTestSteps.Add(pic);
 
             var xml = plan.SerializeToString();
 

@@ -8,6 +8,33 @@ namespace OpenTap.UnitTests
     [TestFixture]
     public class DefaultPictureDataProviderTest
     {
+        public class TestPictureProvider : IPictureDataProvider
+        {
+            public const string Format = "Test Format";
+            public const string Name = "Test Format";
+            // Go after DefaultPictureDataProvider
+            public double Order =>
+                ((IPictureDataProvider) TypeData.FromType(typeof(DefaultPictureDataProvider)).CreateInstance()).Order +
+                1;
+            public Task<Stream> GetStream(IPicture picture)
+            {
+                var stream = new MemoryStream();
+                stream.Write(new byte[] {1,2,3,4,5,6,7,8,9,10}, 0, 10);
+                return Task.FromResult<Stream>(stream);
+            }
+
+            public Task<string> GetPictureFormat(IPicture picture)
+            {
+                return Task.FromResult(Format);
+            }
+
+            public Task<string> GetPictureName(IPicture picture)
+            {
+                return Task.FromResult(Name);
+            }
+        }
+
+
         [Test]
         public async Task TestFilePicture()
         {
@@ -61,6 +88,20 @@ namespace OpenTap.UnitTests
                     CollectionAssert.AreEqual(expectedBytes, memoryStream.ToArray());
                 }
             }
+        }
+
+        [Test]
+        public async Task TestOrder()
+        {
+            var source = "Source which does not exist";
+            var pic = new Picture() {Source = source, Description = "Non-existent"};
+            
+            Assert.AreEqual(TestPictureProvider.Format, await PictureDataProvider.GetPictureFormat(pic));
+            Assert.AreEqual(TestPictureProvider.Name, await PictureDataProvider.GetPictureName(pic));
+
+            var bytes = await PictureDataProvider.GetStream(pic) as MemoryStream;
+            CollectionAssert.AreEqual(new byte[]{1,2,3,4,5,6,7,8,9,10}, bytes.ToArray());
+
         }
     }
 }
