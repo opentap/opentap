@@ -66,9 +66,9 @@ namespace OpenTap.Package
         bool ICustomPackageAction.Execute(PackageDef package, CustomPackageActionArgs customActionArgs)
         {
             package.Files.AsParallel().ForAll(x => x.CustomData.Add(new Hash(hashFile(x.FileName))));
-            if (string.IsNullOrEmpty(package.Signature))
+            if (string.IsNullOrEmpty(package.Hash))
             {
-                package.Signature = package.ComputeSignature();
+                package.Hash = package.ComputeHash();
             }
             return true;
         }

@@ -280,13 +280,13 @@ namespace OpenTap.Package
     /// Definition of a package file. Contains basic structural information relating to packages.
     /// </summary>
     [DebuggerDisplay("{Name} ({Version})")]
-    public class PackageDef : PackageIdentifier, IPackageSignature
+    public class PackageDef : PackageIdentifier
     {
         /// <summary>
-        /// The signature or hash of the package.
+        /// The hash of the package. This is based on hashes of each payload file as well as metadata in the package definition.
         /// </summary>
         [DefaultValue(null)]
-        public string Signature { get; set; }
+        public string Hash { get; set; }
 
         /// <summary>
         /// A description of this package.
@@ -849,9 +849,8 @@ namespace OpenTap.Package
         /// Computes the hash/signature of the package based on its definition. 
         /// This method relies on hashes of each file. If those are not already part of the definition (they are normally computed when the package is created), this method will try to compute them based on files on the disk.
         /// </summary>
-        /// <param name="package">The package for which to compute a hash/signature</param>
         /// <returns>A base64 encoded SHA1 hash of relevant fields in the package definition</returns>
-        public string ComputeSignature()
+        public string ComputeHash()
         {
             using (MemoryStream str = new MemoryStream())
             using (TextWriter wtr = new StreamWriter(str))
