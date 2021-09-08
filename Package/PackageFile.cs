@@ -17,6 +17,7 @@ using System.Runtime.InteropServices;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using NuGet.Packaging;
+using System.Security.Cryptography;
 
 namespace OpenTap.Package
 {
@@ -279,8 +280,14 @@ namespace OpenTap.Package
     /// Definition of a package file. Contains basic structural information relating to packages.
     /// </summary>
     [DebuggerDisplay("{Name} ({Version})")]
-    public class PackageDef : PackageIdentifier
+    public class PackageDef : PackageIdentifier, IPackageSignature
     {
+        /// <summary>
+        /// The signature or hash of the package.
+        /// </summary>
+        [DefaultValue(null)]
+        public string Signature { get; set; }
+
         /// <summary>
         /// A description of this package.
         /// </summary>
@@ -713,6 +720,7 @@ namespace OpenTap.Package
         /// Absolute path to the directory representing the OpenTAP installation dir for system-wide packages
         /// </summary>
         public static string SystemWideInstallationDirectory { get => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Keysight", "Test Automation"); }
+
         /// <summary>
         /// File name for package definition files inside packages.
         /// </summary>
@@ -835,6 +843,44 @@ namespace OpenTap.Package
             }
 
             return metaFilePath;
+        }
+
+        /// <summary>
+        /// Computes the hash/signature of the package based on its definition. 
+        /// This method relies on hashes of each file. If those are not already part of the definition (they are normally computed when the package is created), this method will try to compute them based on files on the disk.
+        /// </summary>
+        /// <param name="package">The package for which to compute a hash/signature</param>
+        /// <returns>A base64 encoded SHA1 hash of relevant fields in the package definition</returns>
+        public string ComputeSignature()
+        {
+            using (MemoryStream str = new MemoryStream())
+            using (TextWriter wtr = new StreamWriter(str))
+            {
+                wtr.Write(this.Name);
+                wtr.Write(this.Version);
+                wtr.Write(this.OS);
+                wtr.Write(this.Architecture);
+                wtr.Write(this.Date);
+                wtr.Write(this.Description);
+                wtr.Write(string.Join("", this.Dependencies.OrderBy(d => d.Name).Select(d => d.Name + d.Version)));
+                foreach (PackageFile file in this.Files.OrderBy(f => f.FileName))
+                {
+                    FileHashPackageAction.Hash fileHash = file.CustomData.OfType<FileHashPackageAction.Hash>().FirstOrDefault();
+                    if (fileHash != null)
+                    {
+                        wtr.Write(fileHash.Value);
+                    }
+                    else if (File.Exists(file.FileName))
+                    {
+                        wtr.Write(Convert.ToBase64String(FileHashPackageAction.hashFile(file.FileName)));
+                    }
+                    else
+                        throw new Exception($"Missing hash of payload file {file.FileName} (file does not exist).");
+                }
+                var sha1 = SHA1CryptoServiceProvider.Create();
+                str.Seek(0, 0);
+                return Convert.ToBase64String(sha1.ComputeHash(str));
+            }
         }
     }
 
