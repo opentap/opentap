@@ -2460,5 +2460,62 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(1, b.XChanged);
             Assert.AreEqual(3, b.Prop.X);
         }
+
+        [Test]
+        public void TestBase64EncodeDecode()
+        {
+            var testMessage = "(SCPI:TRIG1:SEQ:AIQM:DEL:STAT) ";
+            var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(testMessage));
+            
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(new DialogStep() { Message = "(SCPI:TRIG1:SEQ:AIQM:DEL:STAT) "});
+            
+            var ser = new TapSerializer();
+            var planXml = ser.SerializeToString(plan);
+            
+            StringAssert.Contains($"<Base64>{base64}</Base64>", planXml);
+
+            var newPlan = ser.DeserializeFromString(planXml) as TestPlan;
+
+            var dialog = newPlan.ChildTestSteps.First() as DialogStep;
+            Assert.AreEqual(testMessage, dialog.Message);
+        }
+        
+        [Test]
+        public void TestBase64DecodeWithNamespace()
+        {
+            var testMessage = "(SCPI:TRIG1:SEQ:AIQM:DEL:STAT) ";
+            var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(testMessage));
+            var ns = "http://opentap.io/schemas/package";
+            var xml = $@"<?xml version=""1.0"" encoding=""utf-8""?>
+<TestPlan type=""OpenTap.TestPlan"" Locked=""false"" xmlns=""{ns}"">
+  <Steps>
+    <TestStep type=""OpenTap.Plugins.BasicSteps.DialogStep"" Version=""9.4.0-Development"" Id=""d656ee5b-e764-4c6f-be9f-e4f28bcdee13"">
+      <Message>
+        <Base64>{base64}</Base64>
+      </Message>
+      <Title>Title</Title>
+      <Buttons>OkCancel</Buttons>
+      <PositiveAnswer>NotSet</PositiveAnswer>
+      <NegativeAnswer>NotSet</NegativeAnswer>
+      <UseTimeout>false</UseTimeout>
+      <Timeout>5</Timeout>
+      <DefaultAnswer>NotSet</DefaultAnswer>
+      <Enabled>true</Enabled>
+      <Name>Dialog</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+  </Steps>
+  <BreakConditions>Inherit</BreakConditions>
+  <OpenTap.Description />
+  <Package.Dependencies />
+</TestPlan>
+";
+            var ser = new TapSerializer();
+            var plan = ser.DeserializeFromString(xml) as TestPlan;
+            var dialog = plan.ChildTestSteps.First() as DialogStep;
+            Assert.AreEqual(testMessage, dialog.Message);
+        }
     }
 }
