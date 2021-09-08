@@ -420,7 +420,11 @@ namespace OpenTap.Plugins
                     if (elem.HasElements)
                     {
                         // string contains Base64 if it has invalid XML chars.
-                        var encode = elem.Element("Base64");
+                        // elem.Element("Base64") fails if the attribute "xmlns" is set on the document.
+                        // In this case, "Base64" must be prepended with the value of xmlns in brackets.
+                        // If the namespace is not set, ns.GetName("Base64") will just evaluate to "Base64"
+                        var ns = elem.GetDefaultNamespace();
+                        var encode = elem.Element(ns.GetName("Base64"));
                         if (encode != null)
                         {
                             try
