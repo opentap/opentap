@@ -13,8 +13,8 @@
     <None Update="TestTestPlans\*.TapPlan">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Resources\TestImg.png">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    <None Include="Resources\TestImg.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 
