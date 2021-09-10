@@ -27,7 +27,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Package configuration of the Image
         /// </summary>
-        public ReadOnlyCollection<IPackageIdentifier> Packages { get; }
+        public ReadOnlyCollection<PackageDef> Packages { get; }
 
         /// <summary>
         /// Repositories to retrieve the packages from
@@ -49,7 +49,7 @@ namespace OpenTap.Package
             };
         }
 
-        internal ImageIdentifier(IEnumerable<IPackageIdentifier> packages, IEnumerable<string> repositories)
+        internal ImageIdentifier(IEnumerable<PackageDef> packages, IEnumerable<string> repositories)
         {
             if (packages is null)
             {
@@ -64,14 +64,35 @@ namespace OpenTap.Package
             var packageList = packages.OrderBy(s => s.Name).ToList();
             Id = CalculateId(packageList);
             Repositories = new ReadOnlyCollection<string>(repositories.ToArray());
-            Packages = new ReadOnlyCollection<IPackageIdentifier>(packageList);
+            Packages = new ReadOnlyCollection<PackageDef>(packageList);
         }
 
-        private string CalculateId(List<IPackageIdentifier> packageList)
+        private string CalculateId(IEnumerable<PackageDef> packageList)
         {
-            List<string> packageStrings = packageList.Select(package => $"{package.Name} {package.Version} {package.Architecture} {package.OS}").ToList();
+            List<string> packageHashes =new List<string>();
+            foreach (PackageDef pkg in packageList)
+            { 
+                if(pkg.Hash != null)
+                    packageHashes.Add(pkg.Hash);
+                else
+                {
+                    // This can happen if the package was created with OpenTAP < 9.16 that did not set the Hash property.
+                    // We can just try to compute the hash now.
+                    try
+                    {
+                        packageHashes.Add(pkg.ComputeHash());
+                    }
+                    catch
+                    {
+                        // This might happen if the PackageDef does not contain <Hash> elements for each file (for packages crated with OpenTAP < 9.5).
+                        // In this case, just use the fields from IPackageIdentifier, they should be unique in most cases.
+                        packageHashes.Add($"{pkg.Name} {pkg.Version} {pkg.Architecture} {pkg.OS}");
+                    }
+                }
+                    
+            }
             HashAlgorithm algorithm = SHA1.Create();
-            var bytes = algorithm.ComputeHash(Encoding.UTF8.GetBytes(string.Join(",", packageStrings)));
+            var bytes = algorithm.ComputeHash(Encoding.UTF8.GetBytes(string.Join(",", packageHashes)));
             return BitConverter.ToString(bytes).Replace("-", "");
         }
 
@@ -117,13 +138,13 @@ namespace OpenTap.Package
 
         }
 
-        private void Install(List<IPackageIdentifier> modifyOrAdd, string target, CancellationToken cancellationToken)
+        private void Install(IEnumerable<PackageDef> modifyOrAdd, string target, CancellationToken cancellationToken)
         {
             Installer installer = new Installer(target, cancellationToken) { DoSleep = false };
             List<string> paths = new List<string>();
             foreach (var package in modifyOrAdd)
             {
-                paths.Add(cacheFileLookup[(PackageDef)package]);
+                paths.Add(cacheFileLookup[package]);
             }
             var toInstall = ReorderPackages(paths);
             installer.PackagePaths.Clear();
@@ -191,13 +212,13 @@ namespace OpenTap.Package
         {
             if (Cached)
                 return;
-            foreach (var package in Packages.Cast<PackageDef>())
+            foreach (var package in Packages)
                 Download(package);
         }
         static TraceSource log = Log.CreateSource("Download");
         private void Download(PackageDef package)
         {
-            var packageName = PackageActionHelpers.GetQualifiedFileName(package).Replace('/', '.');
+            var packageName = PackageActionHelpers.GetQualifiedFileName(package).Replace('/', '.'); // TODO: use the hash in this name, to be able to handle cross repo name clashes.
             string filename = Path.Combine(PackageCacheHelper.PackageCacheDirectory, packageName);
 
             if (File.Exists(filename))
