@@ -33,7 +33,7 @@ namespace OpenTap.Package.UnitTests
         private const string os = "Windows,Linux";
         private const string version = "3.4.5";
         private const string TestPackageName = "FakePackageReferencingFile";
-        private const string ReferencedFile = "SampleFile.txt";
+        private const string ReferencedFile = "TestPlanFromPackage.TapPlan";
         private const string NotReferencedFile = "OtherFile.txt";
         private const string TestStepName = "Just a name for the step";
         private string ReferencedFile2 => $"Packages/{TestPackageName}/{ReferencedFile}";
@@ -240,6 +240,73 @@ namespace OpenTap.Package.UnitTests
                 
                 StringAssert.AreEqualIgnoringCase(p3.Name, TestPackageName);
                 StringAssert.AreEqualIgnoringCase(p3.Version.ToString(), version);
+            }
+        }
+        
+        public class TestResultListener : ResultListener
+        {
+            public  TestPlanRun LatestRun { get; private set; }
+            public bool WasRun { get; set; } = false;
+
+            public void Clear()
+            {
+                WasRun = false;
+                LatestRun = null;
+            }
+
+            public TestResultListener()
+            {
+            }
+
+            public override void OnTestPlanRunStart(TestPlanRun planRun)
+            {
+                LatestRun = planRun;
+                WasRun = true;
+            }
+            
+        }
+        [Test]
+        public void EnsureParameterAttached()
+        {
+            var parameterName = "Test Plan Package";
+            using (Session.Create())
+            {
+                var listener = new TestResultListener();
+                ResultSettings.Current.Add(listener);
+
+                var plan = new TestPlan();
+
+                // Plan which is not from a package
+                { 
+                    Assert.IsFalse(listener.WasRun);
+                    plan.ChildTestSteps.Add(new DelayStep());
+                    plan.Execute();
+
+                    var parameterValue = listener.LatestRun.Parameters[parameterName];
+                    Assert.IsNull(parameterValue);
+                    Assert.IsTrue(listener.WasRun);
+                }
+                
+                listener.Clear();
+                Assert.IsFalse(listener.WasRun);
+
+                // Plan which is from a package
+                {
+                    Assert.IsFalse(listener.WasRun);
+                    InstallPackage();
+                    Installation.Current.Invalidate();
+
+                    var packageDef = Installation.Current.FindPackageContainingFile(ReferencedFile);
+                    
+                    plan.Save(ReferencedFile);
+                    plan.Execute();
+
+                    Assert.IsTrue(listener.WasRun);
+
+                    var parameterValue = listener.LatestRun.Parameters[parameterName];
+                    Assert.AreEqual($"{TestPackageName}|{version}|{packageDef.ComputeHash()}", parameterValue);
+                    Assert.IsTrue(listener.WasRun);
+                }
             }
         }
     }
