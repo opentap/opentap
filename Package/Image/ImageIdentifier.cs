@@ -177,9 +177,9 @@ namespace OpenTap.Package
             newInstaller.DoSleep = false;
 
             newInstaller.PackagePaths.AddRange(packagesToUninstall.Select(x => (x.PackageSource as InstalledPackageDefSource)?.PackageDefFilePath).ToList());
-            newInstaller.UninstallThread();
+            int exitCode = newInstaller.RunCommand("uninstall", false, true);
 
-            if (uninstallErrors.Any())
+            if (uninstallErrors.Any() || exitCode != 0)
                 throw new AggregateException("Image deployment failed due to failiure in uninstalling existing packages", uninstallErrors);
         }
 
