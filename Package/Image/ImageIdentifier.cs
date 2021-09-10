@@ -106,9 +106,6 @@ namespace OpenTap.Package
         /// <param name="cancellationToken">Cancellation token</param>
         public void Deploy(string target, CancellationToken cancellationToken)
         {
-            if (!Cached)
-                Cache();
-
             if (cancellationToken.IsCancellationRequested)
                 throw new OperationCanceledException("Deployment operation cancelled by user");
 
@@ -134,8 +131,6 @@ namespace OpenTap.Package
 
             if (modifyOrAdd.Any())
                 Install(modifyOrAdd, target, cancellationToken);
-
-
         }
 
         private void Install(IEnumerable<PackageDef> modifyOrAdd, string target, CancellationToken cancellationToken)
@@ -144,6 +139,8 @@ namespace OpenTap.Package
             List<string> paths = new List<string>();
             foreach (var package in modifyOrAdd)
             {
+                if (!cacheFileLookup.ContainsKey(package))
+                    Download(package);
                 paths.Add(cacheFileLookup[package]);
             }
             var toInstall = ReorderPackages(paths);
@@ -206,7 +203,7 @@ namespace OpenTap.Package
         }
 
         /// <summary>
-        /// Cache the image packages to PackageCache. This action prepares the image to be deployed.
+        /// Download all packages to the PackageCache. This is an optional step that can speed up deploying later.
         /// </summary>
         public void Cache()
         {
@@ -215,11 +212,11 @@ namespace OpenTap.Package
             foreach (var package in Packages)
                 Download(package);
         }
+
         static TraceSource log = Log.CreateSource("Download");
         private void Download(PackageDef package)
         {
-            var packageName = PackageActionHelpers.GetQualifiedFileName(package).Replace('/', '.'); // TODO: use the hash in this name, to be able to handle cross repo name clashes.
-            string filename = Path.Combine(PackageCacheHelper.PackageCacheDirectory, packageName);
+            string filename = PackageCacheHelper.GetCacheFilePath(package);
 
             if (File.Exists(filename))
             {
@@ -233,7 +230,6 @@ namespace OpenTap.Package
                 source = fileSource.PackageFilePath;
             IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(source);
             log.Info($"Downloading {package.Name} version {package.Version} from {rm.Url}");
-            Directory.CreateDirectory(PackageCacheHelper.PackageCacheDirectory);
             rm.DownloadPackage(package, filename, CancellationToken.None);
 
             cacheFileLookup.Add(package, filename);

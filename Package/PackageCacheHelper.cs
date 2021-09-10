@@ -15,6 +15,13 @@ namespace OpenTap.Package
         {
             Directory.CreateDirectory(PackageCacheDirectory);
         }
+
+        internal static string GetCacheFilePath(PackageDef package)
+        {
+            var packageName = PackageActionHelpers.GetQualifiedFileName(package).Replace('/', '.'); // TODO: use the hash in this name, to be able to handle cross repo name clashes.
+            return Path.Combine(PackageCacheHelper.PackageCacheDirectory, packageName);
+        }
+
         internal static bool PackageIsFromCache(PackageDef package)
         {
             return (package.PackageSource as IRepositoryPackageDefSource)?.RepositoryUrl.StartsWith(PackageCacheDirectory) == true;
@@ -37,6 +44,7 @@ namespace OpenTap.Package
         internal static void ClearCache()
         {
             Directory.Delete(PackageCacheDirectory, true);
+            Directory.CreateDirectory(PackageCacheDirectory);
         }
     }
 }
