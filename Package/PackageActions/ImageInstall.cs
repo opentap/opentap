@@ -9,7 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace OpenTap.Package.PackageActions
+namespace OpenTap.Package
 {
     [Browsable(false)]
     [Display("install", Group: "image")]

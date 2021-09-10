@@ -66,7 +66,7 @@ namespace OpenTap.Image.Tests
         {
 
             string value = @"<?xml version=""1.0""?>
-<Image xmlns:xsd=""http://www.w3.org/2001/XMLSchema"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
+<Image>
   <Packages>
     <PackageSpecifier Name=""Editor"" Version=""9.9.1+ca3d0108"" OS=""Windows"" Architecture=""x64"" />
     <PackageSpecifier Name=""TUI"" Version=""any"" />
@@ -80,6 +80,10 @@ namespace OpenTap.Image.Tests
 ";
 
             var specifier = ImageSpecifier.FromString(value);
+
+            //TapSerializer tapSerializer = new TapSerializer();
+            //tapSerializer.AddSerializers(new List<ITapSerializerPlugin>() { new PackageSpecifierSerializerPlugin() });
+            //string valueReSerialized = tapSerializer.SerializeToString(specifier);
 
             Assert.True(specifier.Packages.Count == 3);
             Assert.True(specifier.Packages[0].Name == "Editor");

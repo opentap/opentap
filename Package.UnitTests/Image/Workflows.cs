@@ -175,6 +175,7 @@ namespace OpenTap.Image.Tests
         }
 
         [Test]
+        [Ignore("Can't' run on linux (no OSIntegration package available there)")]
         public void UninstallInOrder()
         {
             string temp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());

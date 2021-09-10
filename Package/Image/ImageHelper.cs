@@ -22,7 +22,7 @@ namespace OpenTap.Package
                 return ImageJsonSerializer.DeserializeImageSpecifier(value);
 
             }
-            throw new InvalidOperationException("Value could not be parsed as JSON or XML");
+            throw new FormatException("Value could not be parsed as JSON or XML");
         }
 
         static bool IsJson(this string jsonData)

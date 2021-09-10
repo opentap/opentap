@@ -20,7 +20,7 @@ namespace OpenTap.Package
         internal bool Cached => cacheFileLookup.Count == Packages.Count();
 
         /// <summary>
-        /// Image ID created from hashing of Packages
+        /// Image ID created by hashing the Packages list
         /// </summary>
         public string Id { get; }
 
@@ -37,7 +37,7 @@ namespace OpenTap.Package
         internal Dictionary<PackageDef, string> cacheFileLookup = new Dictionary<PackageDef, string>();
 
         /// <summary>
-        /// An Image is immutable, but can be converted to an <see cref="ImageSpecifier"/> which can be manipulated.
+        /// An ImageIdentifier is immutable, but can be converted to an <see cref="ImageSpecifier"/> which can be manipulated.
         /// </summary>
         /// <returns><see cref="ImageSpecifier"/></returns>
         public ImageSpecifier ToSpecifier()
@@ -99,17 +99,17 @@ namespace OpenTap.Package
         /// <summary>
         /// Deploy the <see cref="ImageIdentifier"/> as a OpenTAP installation.
         /// </summary>
-        /// <param name="target">Directory to deploy OpenTap installation. 
+        /// <param name="targetDir">Directory to deploy OpenTap installation. 
         /// If the directory is already an OpenTAP installation, the installation will be modified to match the image
         /// System-Wide packages are not removed
         /// </param>
         /// <param name="cancellationToken">Cancellation token</param>
-        public void Deploy(string target, CancellationToken cancellationToken)
+        public void Deploy(string targetDir, CancellationToken cancellationToken)
         {
             if (cancellationToken.IsCancellationRequested)
                 throw new OperationCanceledException("Deployment operation cancelled by user");
 
-            Installation currentInstallation = new Installation(target);
+            Installation currentInstallation = new Installation(targetDir);
             var packagesToUninstall = currentInstallation.GetPackages().Where(s => s.Class.ToLower() != "system-wide" && !Packages.Any(p => p.Name == s.Name));
             var modifyOrAdd = Packages.Where(s => !currentInstallation.GetPackages().Any(p => p.Name == s.Name && p.Version.ToString() == s.Version.ToString())).ToList();
 
@@ -123,14 +123,14 @@ namespace OpenTap.Package
                 throw new OperationCanceledException("Deployment operation cancelled by user");
 
             if (packagesToUninstall.Any())
-                Uninstall(packagesToUninstall, target, cancellationToken);
+                Uninstall(packagesToUninstall, targetDir, cancellationToken);
 
 
             if (cancellationToken.IsCancellationRequested)
                 throw new OperationCanceledException("Deployment operation cancelled by user");
 
             if (modifyOrAdd.Any())
-                Install(modifyOrAdd, target, cancellationToken);
+                Install(modifyOrAdd, targetDir, cancellationToken);
         }
 
         private void Install(IEnumerable<PackageDef> modifyOrAdd, string target, CancellationToken cancellationToken)
@@ -185,7 +185,7 @@ namespace OpenTap.Package
                 throw new AggregateException("Image deployment failed due to failiure in uninstalling existing packages", uninstallErrors);
         }
 
-        internal static List<PackageDef> OrderPackagesForInstallation(IEnumerable<PackageDef> packages)
+        private static List<PackageDef> OrderPackagesForInstallation(IEnumerable<PackageDef> packages)
         {
             var toInstall = new List<PackageDef>();
 
