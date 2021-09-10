@@ -25,7 +25,7 @@ namespace OpenTap.Image.Tests
 
             try
             {
-                Directory.Delete(PackageCacheHelper.PackageCacheDirectory, true);
+                PackageCacheHelper.ClearCache();
 
                 var image = specifier.Resolve(CancellationToken.None);
 
@@ -35,8 +35,7 @@ namespace OpenTap.Image.Tests
             }
             finally
             {
-                if (Directory.Exists(PackageCacheHelper.PackageCacheDirectory))
-                    Directory.Delete(PackageCacheHelper.PackageCacheDirectory, true);
+                PackageCacheHelper.ClearCache();
             }
         }
     }

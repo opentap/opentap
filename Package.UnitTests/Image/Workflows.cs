@@ -1,5 +1,6 @@
 ﻿using NUnit.Framework;
 using OpenTap.Diagnostic;
+using OpenTap.EngineUnitTestUtils;
 using OpenTap.Package;
 using System;
 using System.Collections.Generic;
@@ -165,6 +166,51 @@ namespace OpenTap.Image.Tests
                 Assert.IsTrue(packages.Any(s => s.Name == "TUI"));
                 Assert.IsTrue(packages.Any(s => s.Name == "Demonstration"));
                 Assert.IsTrue(packages.Any(s => s.Name == "SDK"));
+            }
+            finally
+            {
+                if (Directory.Exists(temp))
+                    Directory.Delete(temp, true);
+            }
+        }
+
+        [Test]
+        public void UninstallInOrder()
+        {
+            string temp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+            ImageSpecifier imageSpecifier = new ImageSpecifier();
+            imageSpecifier.Repositories = new List<string>() { "packages.opentap.io" };
+            imageSpecifier.Packages = new List<PackageSpecifier>
+            {
+                new PackageSpecifier("OpenTAP"),
+                new PackageSpecifier("OSIntegration") // This has an uninstall action that depends on OpenTAP and should be uninstalled first
+            };
+            try
+            {
+                Stopwatch stopwatch = Stopwatch.StartNew();
+                var image = imageSpecifier.Resolve(CancellationToken.None);
+                image.Deploy(temp, CancellationToken.None);
+                PackageCacheHelper.ClearCache(); // Remove downloaded packages from cache
+                Console.WriteLine($"Test installation deployed: {stopwatch.ElapsedMilliseconds} ms");
+
+                imageSpecifier.Packages.Clear();
+                stopwatch.Restart();
+                image = imageSpecifier.Resolve(CancellationToken.None);
+
+                TestTraceListener logListener = new TestTraceListener();
+                Log.AddListener(logListener);
+
+                image.Deploy(temp, CancellationToken.None);
+                Console.WriteLine($"Second deploy (uninstall): {stopwatch.ElapsedMilliseconds} ms");
+
+                var uninstallLog = logListener.allLog.ToString();
+                StringAssert.DoesNotContain("Error", uninstallLog, $"Errors in uninstall log:\n {uninstallLog}");
+
+                var installation = new Installation(temp);
+                var packages = installation.GetPackages();
+                Assert.AreEqual(0, packages.Count(), "Unexpected packages left in installation after uninstall.");
+
             }
             finally
             {

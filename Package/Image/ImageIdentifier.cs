@@ -136,16 +136,16 @@ namespace OpenTap.Package
         private void Install(IEnumerable<PackageDef> modifyOrAdd, string target, CancellationToken cancellationToken)
         {
             Installer installer = new Installer(target, cancellationToken) { DoSleep = false };
+            var packagesInOrder = OrderPackagesForInstallation(modifyOrAdd);
             List<string> paths = new List<string>();
-            foreach (var package in modifyOrAdd)
+            foreach (var package in packagesInOrder)
             {
                 if (!cacheFileLookup.ContainsKey(package))
                     Download(package);
                 paths.Add(cacheFileLookup[package]);
             }
-            var toInstall = ReorderPackages(paths);
             installer.PackagePaths.Clear();
-            installer.PackagePaths.AddRange(toInstall);
+            installer.PackagePaths.AddRange(paths);
 
 
             List<Exception> installErrors = new List<Exception>();
@@ -166,8 +166,10 @@ namespace OpenTap.Package
 
         private void Uninstall(IEnumerable<PackageDef> packagesToUninstall, string target, CancellationToken cancellationToken)
         {
+            var orderedPackagesToUninstall = OrderPackagesForInstallation(packagesToUninstall);
+            orderedPackagesToUninstall.Reverse();
             log.Info($"Removing packages:");
-            foreach (var package in packagesToUninstall)
+            foreach (var package in orderedPackagesToUninstall)
                 log.Info($"- {package.Name} version {package.Version} ({package.Architecture}-{package.OS})");
 
             List<Exception> uninstallErrors = new List<Exception>();
@@ -176,27 +178,24 @@ namespace OpenTap.Package
             newInstaller.Error += ex => uninstallErrors.Add(ex);
             newInstaller.DoSleep = false;
 
-            newInstaller.PackagePaths.AddRange(packagesToUninstall.Select(x => (x.PackageSource as InstalledPackageDefSource)?.PackageDefFilePath).ToList());
+            newInstaller.PackagePaths.AddRange(orderedPackagesToUninstall.Select(x => (x.PackageSource as InstalledPackageDefSource)?.PackageDefFilePath).ToList());
             int exitCode = newInstaller.RunCommand("uninstall", false, true);
 
             if (uninstallErrors.Any() || exitCode != 0)
                 throw new AggregateException("Image deployment failed due to failiure in uninstalling existing packages", uninstallErrors);
         }
 
-        private List<string> ReorderPackages(List<string> packagePaths)
+        internal static List<PackageDef> OrderPackagesForInstallation(IEnumerable<PackageDef> packages)
         {
-            var toInstall = new List<string>();
+            var toInstall = new List<PackageDef>();
 
-            var packages = packagePaths.ToDictionary(k => k, k => PackageDef.FromPackage(k));
+            var toBeSorted = packages.ToList();
 
-            while (packages.Count > 0)
+            while (toBeSorted.Count() > 0)
             {
-                var next = packages.FirstOrDefault(pkg => pkg.Value.Dependencies.All(dep => !packages.Values.Any(p => p.Name == dep.Name)));
-
-                if (next.Value == null) next = packages.First(); // This doesn't matter at this point
-
-                toInstall.Add(next.Key);
-                packages.Remove(next.Key);
+                var packagesWithNoRemainingDepsInList = toBeSorted.Where(pkg => pkg.Dependencies.All(dep => !toBeSorted.Any(p => p.Name == dep.Name))).ToList();
+                toInstall.AddRange(packagesWithNoRemainingDepsInList);
+                toBeSorted.RemoveAll(p => packagesWithNoRemainingDepsInList.Contains(p));
             }
 
             return toInstall;
