@@ -981,7 +981,7 @@ namespace OpenTap.Engine.UnitTests
                     select.Selected = new object[] { avail.AvailableValues.Cast<object>().First() };
                     annotation.Write(sweep);
                     annotation.Read(sweep);
-                    Assert.AreEqual(3, select.Selected.Cast<object>().Count());
+                    Assert.AreEqual(4, select.Selected.Cast<object>().Count());
 
                     Assert.AreEqual(4, avail.AvailableValues.Cast<object>().Count()); // DelayStep only has on property.
                     select.Selected = smem.Get<IAvailableValuesAnnotation>().AvailableValues;
@@ -1479,7 +1479,7 @@ namespace OpenTap.Engine.UnitTests
             var sweepMembers = swep.Get<IMembersAnnotation>().Members.First(x => x.Get<IMemberAnnotation>().Member.Name == nameof(SweepLoop.SweepMembers));
             var availableValues = sweepMembers.Get<IAvailableValuesAnnotation>().AvailableValues.OfType<IMemberData>().ToArray();
             // DelaySecs, InputVerdict, TargetVerdict, Action. -> Verify that TestStep.Name or Enabled is not in there.
-            Assert.AreEqual(4, availableValues.Length);
+            Assert.AreEqual(5, availableValues.Length);
             Assert.IsFalse(availableValues.Contains(TypeData.FromType(typeof(TestStep)).GetMember(nameof(TestStep.Name))));
             Assert.IsFalse(availableValues.Contains(TypeData.FromType(typeof(TestStep)).GetMember(nameof(TestStep.Enabled))));
             Assert.IsTrue(availableValues.Contains(TypeData.FromType(typeof(DelayStep)).GetMember(nameof(DelayStep.DelaySecs))));
