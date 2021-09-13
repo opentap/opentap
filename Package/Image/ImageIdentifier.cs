@@ -226,20 +226,14 @@ namespace OpenTap.Package
                 return;
             }
 
-            if (package.PackageSource is FileRepositoryPackageDefSource fileRepoSource)
-            {
-                if (string.Equals(Path.GetPathRoot(fileRepoSource.RepositoryUrl), Path.GetPathRoot(PackageCacheHelper.PackageCacheDirectory), StringComparison.InvariantCultureIgnoreCase))
-                    filename = fileRepoSource.PackageFilePath;
-            }
-            else if (package.PackageSource is FilePackageDefSource fileSource)
+            if (package.PackageSource is IFilePackageDefSource fileSource)
             {
                 if (string.Equals(Path.GetPathRoot(fileSource.PackageFilePath), Path.GetPathRoot(PackageCacheHelper.PackageCacheDirectory), StringComparison.InvariantCultureIgnoreCase))
                     filename = fileSource.PackageFilePath;
             }
-            else
+            else if (package.PackageSource is IRepositoryPackageDefSource repoSource)
             {
-                string source = (package.PackageSource as IRepositoryPackageDefSource)?.RepositoryUrl;
-                IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(source);
+                IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(repoSource.RepositoryUrl);
                 log.Info($"Downloading {package.Name} version {package.Version} from {rm.Url}");
                 rm.DownloadPackage(package, filename, CancellationToken.None);
             }
