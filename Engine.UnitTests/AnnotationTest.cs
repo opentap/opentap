@@ -1550,5 +1550,48 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(4, av.AvailableValues.Count());
         }
         
+        public class CountingTestStep : TestStep
+        {
+            public int TestValue { get; set; }
+            public static int Invocations = 0;
+
+            public override void Run()
+            {
+                Invocations += 1;
+            }
+        }
+
+        [Test]
+        public void ParameterizeEnabledProperty()
+        {
+            var plan = new TestPlan();
+            var loop = new SweepParameterStep();
+            var child = new CountingTestStep();
+
+            plan.ChildTestSteps.Add(loop);
+            loop.ChildTestSteps.Add(child);
+
+            foreach (var memberName in new string[]
+                {nameof(CountingTestStep.Enabled), nameof(CountingTestStep.Name), nameof(CountingTestStep.TestValue)})
+            {
+                var a = AnnotationCollection.Annotate(child);
+                var mem = a.GetMember(memberName);
+
+                var icons2 = mem.Get<MenuAnnotation>().MenuItems
+                    .ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+                icons2[IconNames.ParameterizeOnParent].First().Get<IMethodAnnotation>().Invoke();
+
+                var display = mem.Get<DisplayAttribute>();
+                var groups = display.Group.ToList();
+
+                groups.Add(display.Name);
+
+                var parameterName = string.Join(@" \ ", groups);
+                var parameter = TypeData.GetTypeData(loop).GetMember($@"Parameters \ {parameterName}");
+                Assert.NotNull(parameter, $"Member {memberName} was not parameterized.");
+            }
+
+            Assert.AreEqual(3, loop.AvailableParameters);
+        }
     }
 }
