@@ -1552,7 +1552,10 @@ namespace OpenTap.UnitTests
         
         public class CountingTestStep : TestStep
         {
-            public int TestValue { get; set; }
+            public int TestValue1 { get; set; }
+            [Unsweepable]
+            public int TestValue2 { get; set; }
+            public int TestValue3 { get; set; }
             public static int Invocations = 0;
 
             public override void Run()
@@ -1562,7 +1565,7 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
-        public void ParameterizeEnabledProperty()
+        public void VerifyUnsweepableNotSwept()
         {
             var plan = new TestPlan();
             var loop = new SweepParameterStep();
@@ -1572,7 +1575,7 @@ namespace OpenTap.UnitTests
             loop.ChildTestSteps.Add(child);
 
             foreach (var memberName in new string[]
-                {nameof(CountingTestStep.Enabled), nameof(CountingTestStep.Name), nameof(CountingTestStep.TestValue)})
+                {nameof(CountingTestStep.TestValue1), nameof(CountingTestStep.TestValue2), nameof(CountingTestStep.TestValue3)})
             {
                 var a = AnnotationCollection.Annotate(child);
                 var mem = a.GetMember(memberName);
@@ -1591,7 +1594,7 @@ namespace OpenTap.UnitTests
                 Assert.NotNull(parameter, $"Member {memberName} was not parameterized.");
             }
 
-            Assert.AreEqual(3, loop.AvailableParameters);
+            Assert.AreEqual(2, loop.AvailableParameters.Count());
         }
     }
 }
