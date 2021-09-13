@@ -44,7 +44,7 @@ namespace OpenTap.Package
         {
             return new ImageSpecifier()
             {
-                Packages = Packages.Select(s => new PackageSpecifier(s.Name, VersionSpecifier.Parse(s.Version.ToString()), s.Architecture, s.OS)).ToList(),
+                Packages = Packages.Select(s => new PackageSpecifier(s)).ToList(),
                 Repositories = Repositories.ToList()
             };
         }
@@ -69,10 +69,10 @@ namespace OpenTap.Package
 
         private string CalculateId(IEnumerable<PackageDef> packageList)
         {
-            List<string> packageHashes =new List<string>();
+            List<string> packageHashes = new List<string>();
             foreach (PackageDef pkg in packageList)
-            { 
-                if(pkg.Hash != null)
+            {
+                if (pkg.Hash != null)
                     packageHashes.Add(pkg.Hash);
                 else
                 {
@@ -89,11 +89,13 @@ namespace OpenTap.Package
                         packageHashes.Add($"{pkg.Name} {pkg.Version} {pkg.Architecture} {pkg.OS}");
                     }
                 }
-                    
+
             }
+
+
             HashAlgorithm algorithm = SHA1.Create();
             var bytes = algorithm.ComputeHash(Encoding.UTF8.GetBytes(string.Join(",", packageHashes)));
-            return BitConverter.ToString(bytes).Replace("-", "");
+            return Convert.ToBase64String(bytes);
         }
 
         /// <summary>
@@ -227,10 +229,16 @@ namespace OpenTap.Package
             string source = (package.PackageSource as IRepositoryPackageDefSource)?.RepositoryUrl;
             if (source == null && package.PackageSource is FilePackageDefSource fileSource)
                 source = fileSource.PackageFilePath;
-            IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(source);
-            log.Info($"Downloading {package.Name} version {package.Version} from {rm.Url}");
-            rm.DownloadPackage(package, filename, CancellationToken.None);
-
+            if (Path.GetPathRoot(source) == Path.GetPathRoot(PackageCacheHelper.PackageCacheDirectory))
+            {
+                filename = source;
+            }
+            else
+            {
+                IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(source);
+                log.Info($"Downloading {package.Name} version {package.Version} from {rm.Url}");
+                rm.DownloadPackage(package, filename, CancellationToken.None);
+            }
             cacheFileLookup.Add(package, filename);
         }
     }
