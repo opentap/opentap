@@ -25,7 +25,7 @@ namespace OpenTap.Package
 
             string name = jObject["Name"].Value<string>();
             VersionSpecifier version = jObject["Version"] == null ? VersionSpecifier.Parse("") : VersionSpecifier.Parse(jObject["Version"].Value<string>());
-            CpuArchitecture architecture = string.IsNullOrEmpty(jObject["Architecture"].ToString()) ? CpuArchitecture.Unspecified : (CpuArchitecture)Enum.Parse(typeof(CpuArchitecture), jObject["Architecture"].Value<string>());
+            CpuArchitecture architecture = string.IsNullOrEmpty(jObject["Architecture"]?.ToString()) ? CpuArchitecture.Unspecified : (CpuArchitecture)Enum.Parse(typeof(CpuArchitecture), jObject["Architecture"].Value<string>());
             string os = jObject["OS"] == null ? null : jObject["OS"].Value<string>();
 
             return new PackageSpecifier(name, version, architecture, os);
