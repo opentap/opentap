@@ -47,9 +47,7 @@ namespace OpenTap
         /// </summary>
         [ColumnDisplayName("", Order : -101)]
         [Display("Enabled", "Enabling/Disabling the test step decides if" +
-                            " it should be used when the test plan is executed. " +
-                            "This value should not be changed during test plan run.", Group: "Common", Order: 20000, Collapsed: true)]
-        [Unsweepable]
+                            " it should be used when the test plan is executed. ", Group: "Common", Order: 20000, Collapsed: true)]
         [NonMetaData]
         public bool Enabled
         {

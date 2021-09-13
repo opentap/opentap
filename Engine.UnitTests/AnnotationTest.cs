@@ -1575,7 +1575,7 @@ namespace OpenTap.UnitTests
             loop.ChildTestSteps.Add(child);
 
             foreach (var memberName in new string[]
-                {nameof(CountingTestStep.TestValue1), nameof(CountingTestStep.TestValue2), nameof(CountingTestStep.TestValue3)})
+                {nameof(CountingTestStep.TestValue1), nameof(CountingTestStep.TestValue2), nameof(CountingTestStep.Enabled)})
             {
                 var a = AnnotationCollection.Annotate(child);
                 var mem = a.GetMember(memberName);
