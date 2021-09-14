@@ -4,7 +4,6 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Reflection;
 using System.Threading.Tasks;
 
 namespace OpenTap
@@ -59,13 +58,15 @@ namespace OpenTap
             return source;
         }
 
-        public Task<Stream> GetStream(IPicture picture)
+        public async Task<Stream> GetStream(IPicture picture)
         {
+            if (await GetFormat(picture) == null) return null;
             var source = normalizeSource(picture.Source);
             if (Uri.TryCreate(source, UriKind.Absolute, out var uri))
             {
                 var req = WebRequest.Create(uri);
-                return req.GetResponseAsync().ContinueWith(t => t.Result.GetResponseStream());
+                var response = await req.GetResponseAsync();
+                return response.GetResponseStream();
             }
 
             return null;
@@ -78,7 +79,10 @@ namespace OpenTap
             {
                 var name = uri.Segments.LastOrDefault();
                 if (string.IsNullOrWhiteSpace(name) == false)
-                    return Task.FromResult(Path.GetExtension(name).Substring(1));
+                {
+                    var ext = Path.GetExtension(name);
+                    if (ext.StartsWith(".") && ext.Length > 1) return Task.FromResult(ext.Substring(1));
+                }
             }
 
             return null;
@@ -111,7 +115,7 @@ namespace OpenTap
 
 
         private static TraceSource log = Log.CreateSource(nameof(PictureDataExtensions));
-        private static async Task<T> GetFirst<T>(IPicture picture, Func<IPicture, IPictureDataProvider, Task<T>> func)
+        private static async Task<T> GetFirst<T>(IPicture picture, Func<IPicture, IPictureDataProvider, Task<T>> func) where T : class
         {
             foreach (var provider in GetProviders())
             {
@@ -128,7 +132,7 @@ namespace OpenTap
                 }
             }
 
-            return default;
+            return null;
         }
 
 
