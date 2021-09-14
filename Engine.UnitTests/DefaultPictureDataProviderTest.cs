@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -11,11 +12,14 @@ namespace OpenTap.UnitTests
         public class TestPictureProvider : IPictureDataProvider
         {
             public const string Format = "Test Format";
+            public const string Source = "NonFileNameSource";
+            
             // Go after DefaultPictureDataProvider
             public double Order => 999;
 
             Task<Stream> IPictureDataProvider.GetStream(IPicture picture)
             {
+                if (picture.Source != Source) return null;
                 var stream = new MemoryStream();
                 stream.Write(new byte[] {1,2,3,4,5,6,7,8,9,10}, 0, 10);
                 return Task.FromResult<Stream>(stream);
@@ -23,6 +27,7 @@ namespace OpenTap.UnitTests
 
             public Task<string> GetFormat(IPicture picture)
             {
+                if (picture.Source != Source) return null;
                 return Task.FromResult(Format);
             }
         }
@@ -51,6 +56,20 @@ namespace OpenTap.UnitTests
                     CollectionAssert.AreEqual(expectedBytes, memoryStream.ToArray());
                 }
             }
+        }
+
+        [Test]
+        public async Task TestNoFileExtension()
+        {
+            var source = "abc";
+            var content = "def";
+            if (File.Exists(source) == false)
+                File.WriteAllText(source, content);
+
+            var pic = new Picture() {Source = source, Description = "No File Extensions"};
+            
+            Assert.IsNull(await pic.GetFormat());
+            Assert.IsNull(await pic.GetStream());
         }
 
         [Test]
@@ -85,7 +104,7 @@ namespace OpenTap.UnitTests
         [Test]
         public async Task TestOrder()
         {
-            var source = "Source which does not exist";
+            var source = TestPictureProvider.Source;
             var pic = new Picture() {Source = source, Description = "Non-existent"};
             
             Assert.AreEqual(TestPictureProvider.Format, await pic.GetFormat());
