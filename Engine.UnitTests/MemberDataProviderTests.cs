@@ -983,7 +983,7 @@ namespace OpenTap.Engine.UnitTests
                     annotation.Read(sweep);
                     Assert.AreEqual(4, select.Selected.Cast<object>().Count());
 
-                    Assert.AreEqual(4, avail.AvailableValues.Cast<object>().Count()); // DelayStep only has on property.
+                    Assert.AreEqual(5, avail.AvailableValues.Cast<object>().Count()); // DelayStep only has on property.
                     select.Selected = smem.Get<IAvailableValuesAnnotation>().AvailableValues;
                     annotation.Write(sweep);
                     annotation.Read(sweep);
@@ -998,7 +998,7 @@ namespace OpenTap.Engine.UnitTests
                     collection.AnnotatedElements = collection.AnnotatedElements.Append(new_element).ToArray();
                     var new_element_members = new_element.Get<IMembersAnnotation>();
                     var members = new_element_members.Members.ToArray();
-                    Assert.AreEqual(4, members.Length);
+                    Assert.AreEqual(5, members.Length);
 
                     var enabled_element = members[0];
                     Assert.IsTrue(enabled_element.Get<IMemberAnnotation>().Member.Name == "Enabled");
@@ -1009,7 +1009,7 @@ namespace OpenTap.Engine.UnitTests
                     Assert.IsTrue(delay_value.Value.Contains("0.1 s")); // the default value for DelayStep is 0.1s.
                     delay_value.Value = "0.1 s";
 
-                    var selected_element = members[2];
+                    var selected_element = members[3]; // members[2] is Enabled which is no longer [Unsweepable]
                     var available_for_Select = selected_element.Get<IAvailableValuesAnnotationProxy>();
                     // ~Since they only have two available values in common, the list should only contain those two elements.~
                     // Actually since this behavior conflicts with Enabled<> behavior, it just has the available values from the first one.
@@ -1088,10 +1088,10 @@ namespace OpenTap.Engine.UnitTests
                 sweep.ChildTestSteps.Remove(delay3);
                 annotation.Read();
                 var av = smem.Get<IAvailableValuesAnnotation>().AvailableValues.Cast<object>().ToList();
-                Assert.AreEqual(2, av.Count); // Select All + Time Delay.
+                Assert.AreEqual(3, av.Count); // Select All + Time Delay + Enabled.
             }
         }
-[Test]
+        [Test]
         public void SweepLoopRangeCheck()
         {
             var plan = new TestPlan();
@@ -1481,7 +1481,7 @@ namespace OpenTap.Engine.UnitTests
             // DelaySecs, InputVerdict, TargetVerdict, Action. -> Verify that TestStep.Name or Enabled is not in there.
             Assert.AreEqual(5, availableValues.Length);
             Assert.IsFalse(availableValues.Contains(TypeData.FromType(typeof(TestStep)).GetMember(nameof(TestStep.Name))));
-            Assert.IsFalse(availableValues.Contains(TypeData.FromType(typeof(TestStep)).GetMember(nameof(TestStep.Enabled))));
+            Assert.IsTrue(availableValues.Contains(TypeData.FromType(typeof(TestStep)).GetMember(nameof(TestStep.Enabled))));
             Assert.IsTrue(availableValues.Contains(TypeData.FromType(typeof(DelayStep)).GetMember(nameof(DelayStep.DelaySecs))));
             Assert.IsTrue(availableValues.Contains(TypeData.FromType(typeof(IfStep)).GetMember(nameof(IfStep.InputVerdict))));
             Assert.IsTrue(availableValues.Contains(TypeData.FromType(typeof(IfStep)).GetMember(nameof(IfStep.TargetVerdict))));
