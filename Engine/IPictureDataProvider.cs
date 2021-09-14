@@ -105,7 +105,9 @@ namespace OpenTap
             
             if (cacheKey == null || types.SetEquals(cacheKey) == false)
             {
-                cache = types.Select(td => td.CreateInstance()).OfType<IPictureDataProvider>().OrderBy(p => p.Order)
+                cache = types.TrySelect(td => td.CreateInstance())
+                    .Unwrap(ex => log.Debug("Unable to load IPictureDataProvider: {0}", ex.Message))
+                    .OfType<IPictureDataProvider>().OrderBy(p => p.Order)
                     .ToArray();
                 cacheKey = types;
             }

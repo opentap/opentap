@@ -361,5 +361,17 @@ namespace OpenTap.Engine.UnitTests
             var str = Utils.BytesToReadable(number);
             Assert.AreEqual(expected, str);
         }
+        
+        [Test]
+        public void TrySelectUnwrapTest()
+        {
+            var x = new int[] { 1, 0, 3, 0 };
+            int exceptionsCaught = 0;
+            var inv = x.TrySelect(x => 1 / x).Unwrap((DivideByZeroException ex) => exceptionsCaught++).ToArray();
+            var inv2 = x.TrySelect(x => 1 / x).Unwrap((x, ex) => exceptionsCaught++).ToArray();
+            Assert.IsTrue(inv.SequenceEqual(new[] { 1, 0 }));
+            Assert.IsTrue(inv.SequenceEqual(inv2));
+            Assert.AreEqual(4, exceptionsCaught);
+        }
     }
 }
