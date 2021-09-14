@@ -85,7 +85,7 @@ namespace OpenTap
                 }
             }
 
-            return null;
+            return Task.FromResult<string>(null);
         }
     }
     
