@@ -220,12 +220,12 @@ namespace OpenTap.Package
             installer.PackagePaths.AddRange(toInstall);
 
             // Install the package
-            var status = installer.InstallThread();
+            installer.InstallThread();
 
             if (installError)
                 return (int) PackageExitCodes.PackageInstallError;
 
-            return status;
+            return 0;
         }
 
         protected override int LockedExecute(CancellationToken cancellationToken)
