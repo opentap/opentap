@@ -5,6 +5,7 @@
 using Mono.Cecil;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
@@ -26,52 +27,53 @@ namespace OpenTap.Package.SetAsmInfo
             if (version != null)
                 asm.Name.Version = version;
 
-            var fileVersionSet = false;
-            var infoVersionSet = false;
-
-            foreach (var attr in asm.CustomAttributes)
+            // Set the file version
+            if (fileVersion != null)
             {
-                if (fileVersion != null && attr.AttributeType.FullName == typeof(AssemblyFileVersionAttribute).FullName)
+                var current = asm.CustomAttributes.FirstOrDefault(c =>
+                    c.AttributeType.FullName == typeof(AssemblyFileVersionAttribute).FullName);
+                if (current != null)
                 {
-                    attr.ConstructorArguments[0] =
-                        new CustomAttributeArgument(attr.ConstructorArguments[0].Type, fileVersion.ToString());
-                    fileVersionSet = true;
+                    current.ConstructorArguments[0] = new CustomAttributeArgument(current.ConstructorArguments[0].Type, fileVersion.ToString());
                 }
-
-                if (infoVersion != null &&
-                    attr.AttributeType.FullName == typeof(AssemblyInformationalVersionAttribute).FullName)
+                else
                 {
-                    attr.ConstructorArguments[0] =
-                        new CustomAttributeArgument(attr.ConstructorArguments[0].Type, infoVersion.ToString());
-                    infoVersionSet = true;
+                    // This action is never invoked; it is used to compute a reference to this particular constructor invocation
+                    Expression<Action> expr = () => new AssemblyFileVersionAttribute("");
+                    var body = expr.Body as NewExpression;
+                    var ctorMethod = asm.MainModule.ImportReference(body.Constructor);
+                    var versionAttr = new CustomAttribute(ctorMethod);
+                    versionAttr.ConstructorArguments.Add(
+                        new CustomAttributeArgument(ctorMethod.Parameters.First().ParameterType, fileVersion.ToString()));
+                    asm.CustomAttributes.Add(versionAttr);
                 }
-            }
-
-            if (!fileVersionSet && fileVersion != null)
-            {
-                // This action is never invoked; it is used to compute a reference to this particular constructor invocation
-                Expression<Action> expr = () => new AssemblyFileVersionAttribute(version.ToString());
-                var body = expr.Body as NewExpression;
-
-                var ctorMethod = asm.MainModule.ImportReference(body.Constructor);
-                var versionAttr = new CustomAttribute(asm.MainModule.ImportReference(ctorMethod));
-                versionAttr.ConstructorArguments.Add(
-                    new CustomAttributeArgument(ctorMethod.Parameters.First().ParameterType, version.ToString()));
-                asm.CustomAttributes.Add(versionAttr);
-            }
-            if (!infoVersionSet && infoVersion != null)
-            {
-                // This action is never invoked; it is used to compute a reference to this particular constructor invocation
-                Expression<Action> expr = () => new AssemblyInformationalVersionAttribute(version.ToString());
-                var body = expr.Body as NewExpression;
-
-                var ctorMethod = asm.MainModule.ImportReference(body.Constructor);
-                var versionAttr = new CustomAttribute(asm.MainModule.ImportReference(ctorMethod));
-                versionAttr.ConstructorArguments.Add(
-                    new CustomAttributeArgument(ctorMethod.Parameters.First().ParameterType, version.ToString()));
-                asm.CustomAttributes.Add(versionAttr);
             }
             
+            // Set the semantic version
+            if (infoVersion != null)
+            {
+                var current = asm.CustomAttributes.FirstOrDefault(c =>
+                    c.AttributeType.FullName == typeof(AssemblyInformationalVersionAttribute).FullName);
+                if (current != null)
+                {
+                    current.ConstructorArguments[0] = new CustomAttributeArgument(current.ConstructorArguments[0].Type,
+                        infoVersion.ToString());
+                }
+                else
+                {
+                    // This action is never invoked; it is used to compute a reference to this particular constructor invocation
+                    Expression<Action> expr = () => new AssemblyInformationalVersionAttribute("");
+                    var body = expr.Body as NewExpression;
+                    var ctorMethod = asm.MainModule.ImportReference(body.Constructor);
+                    var versionAttr = new CustomAttribute(ctorMethod);
+                    versionAttr.ConstructorArguments.Add(
+                        new CustomAttributeArgument(ctorMethod.Parameters.First().ParameterType,
+                            infoVersion.ToString()));
+                    asm.CustomAttributes.Add(versionAttr);
+                }
+            }
+            
+
             using (var stream = File.Open(filename, FileMode.OpenOrCreate))
                 asm.Write(stream);
         }
