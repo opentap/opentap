@@ -9,6 +9,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Xml.Serialization;
 
@@ -65,6 +66,10 @@ namespace OpenTap.Package
         bool ICustomPackageAction.Execute(PackageDef package, CustomPackageActionArgs customActionArgs)
         {
             package.Files.AsParallel().ForAll(x => x.CustomData.Add(new Hash(hashFile(x.FileName))));
+            if (string.IsNullOrEmpty(package.Hash))
+            {
+                package.Hash = package.ComputeHash();
+            }
             return true;
         }
 

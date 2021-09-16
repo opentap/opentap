@@ -55,13 +55,27 @@ namespace OpenTap.Package
         /// Get the installed package which provides the file specified by the string.
         /// If multiple packages provide the file the package is chosen arbitrarily.
         /// </summary>
-        /// <param name="file"></param>
+        /// <param name="file">An absolute or relative path to the file</param>
         /// <returns></returns>
         public PackageDef FindPackageContainingFile(string file)
         {
             InvalidateIfChanged();
+
+            // Compute the absolute path in order to ensure the file exists, and normalize the path so it matches the format in package.xml files
+            var abs = Path.GetFullPath(file);
+
+            var installDir = ExecutorClient.ExeDir;
+
+            // abs must be contained within installDir
+            if (abs.Length <= installDir.Length)
+                return null;
             
-            file = file.Replace('\\', '/');
+            // Ensure the file is in a subdirectory of the installation. Otherwise it is not contained in a package.
+            if (!abs.StartsWith(installDir))
+                return null;
+
+            // Compute the relative path and normalize directory separators
+            var relative = abs.Substring(installDir.Length + 1).Replace('\\', '/');
 
             // Fully initialize fileMap as needed whenever it is cleared
             if (fileMap.Count == 0)
@@ -76,7 +90,7 @@ namespace OpenTap.Package
                 }                
             }
 
-            if (fileMap.TryGetValue(file, out var result))
+            if (fileMap.TryGetValue(relative, out var result))
                 return result;
             return null;
         }
