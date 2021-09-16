@@ -99,10 +99,24 @@ namespace OpenTap.Package
             string versionString = null;
             using (GitVersionCalulator calc = new GitVersionCalulator(RepoPath))
             {
-                if (String.IsNullOrEmpty(Sha))
-                    versionString = calc.GetVersion().ToString(FieldCount);
-                else
-                    versionString = calc.GetVersion(Sha).ToString(FieldCount);
+                try
+                {
+                    if (String.IsNullOrEmpty(Sha))
+                        versionString = calc.GetVersion().ToString(FieldCount);
+                    else
+                        versionString = calc.GetVersion(Sha).ToString(FieldCount);
+                }
+                catch (Exception ex)
+                {
+                    if (ex.Message.Contains("object not found - no match for id"))
+                    {
+                        throw new ExitCodeException((int) ExitCodes.GeneralException,
+                            "Failed getting git version because the repository history is incomplete.\n" +
+                            "Please ensure that the repository has a full version history (git fetch --unshallow).\n" +
+                            "If this is occurring on a gitlab runner, ensure 'Git shallow clone' is set to 0.");
+                    }
+                    throw;
+                }
             }
             if (!String.IsNullOrEmpty(ReplaceFile))
             {
