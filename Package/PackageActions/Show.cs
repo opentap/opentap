@@ -271,7 +271,10 @@ namespace OpenTap.Package
 
             if (package.Dependencies.Count > 0)
             {
-                AddWritePair("Dependencies", string.Join(Environment.NewLine, package.Dependencies.Select(x => x.Name)));
+                var pad = package.Dependencies.Select(x => x.Name.Length).Max();
+                var aligned = package.Dependencies.Select(pkg => $"{pkg.Name.PadRight(pad)} - {pkg.Version}");
+                
+                AddWritePair("Dependencies", string.Join(Environment.NewLine, aligned));
             }
 
             foreach (var (key, value) in SubTags)
