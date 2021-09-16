@@ -274,115 +274,7 @@ namespace OpenTap.Package.SetAsmInfo
                 }
             }
         }
-
-        private static byte ParseHex(string data)
-        {
-            return Convert.ToByte(data, 16);
-        }
-
-        private static string ParseString(byte[] dataBytes)
-        {
-            if (dataBytes.Length < 5) throw new Exception("Invalid string while parsing assembly attribute.");
-
-            if (BitConverter.ToUInt16(dataBytes, 0) != 1) throw new Exception("Invalid string while parsing assembly attribute.");
-
-            int pos = 2;
-            Func<byte> ReadByte = () =>
-            {
-                return dataBytes[pos++];
-            };
-
-            // Read compressed uint32
-            Func<uint> ReadCompressed = () =>
-            {
-                byte first = ReadByte();
-                if ((first & 0x80) == 0)
-                    return first;
-
-                if ((first & 0x40) == 0)
-                    return ((uint)(first & ~0x80) << 8)
-                        | ReadByte();
-
-                return ((uint)(first & ~0xc0) << 24)
-                    | (uint)ReadByte() << 16
-                    | (uint)ReadByte() << 8
-                    | ReadByte();
-            };
-
-            var len = ReadCompressed();
-
-            if (len == 0) return "";
-
-            return System.Text.Encoding.UTF8.GetString(dataBytes, pos, (int)len);
-        }
-
-        private static string EncodeStr(string data)
-        {
-            var bytes = System.Text.Encoding.UTF8.GetBytes(data);
-
-            var ms = new MemoryStream();
-
-            Action<byte> WriteByte = ms.WriteByte;
-
-            Action<UInt32> WriteCompressedUInt32 = value =>
-            {
-                if (value < 0x80)
-                    WriteByte((byte)value);
-                else if (value < 0x4000)
-                {
-                    WriteByte((byte)(0x80 | (value >> 8)));
-                    WriteByte((byte)(value & 0xff));
-                }
-                else
-                {
-                    WriteByte((byte)((value >> 24) | 0xc0));
-                    WriteByte((byte)((value >> 16) & 0xff));
-                    WriteByte((byte)((value >> 8) & 0xff));
-                    WriteByte((byte)(value & 0xff));
-                }
-            };
-
-            Action<UInt16> WriteUInt16 = value =>
-            {
-                WriteByte((byte)value);
-                WriteByte((byte)(value >> 8));
-            };
-
-            WriteUInt16(1); // Start indicator
-            WriteCompressedUInt32((UInt32)bytes.Length);
-            ms.Write(bytes, 0, bytes.Length);
-            WriteUInt16(0); // End indicator
-
-            return string.Join(" ", ms.ToArray().Select(x => x.ToString("X2")));
-        }
-
-        private static string AddOrReplaceAttribute(string data, string attribute, string replace)
-        {
-            Regex replaceAttributeRegex = new Regex(@"(?<name>.custom[\s]+instance[\s]+void[\s]+[^=]*" + attribute + @"[^.]*\.ctor\(string\)[^(]*)(?<content>\(((?<data>[^)/]*)?(//[^\n]*\n?)?)*\)[\s]*(//[^\n]*)?)", RegexOptions.Multiline);
-            Regex insertAttributeRegex = new Regex(@"\.assembly\s+(?!extern)(?:.|\n)*?\{");
-            
-            // If the attribute does not exist, we need to add it.
-            if (replaceAttributeRegex.IsMatch(data) == false)
-            {
-                data = insertAttributeRegex.Replace(data, m => m.Value + Environment.NewLine + 
-                        $"  .custom instance void ['mscorlib']'System.Reflection'.'{attribute}'::.ctor(string) =  ({EncodeStr(replace)}) // Attribute automatically added by OpenTAP.{Environment.NewLine}");
-            }
-            else // If the attribute exists, just replace it.
-                data = replaceAttributeRegex.Replace(data, match => string.Format("{0} ({1})", match.Groups["name"].Value, EncodeStr(replace)), 1);
-
-            return data;
-        }
-
-        static Regex r = new Regex(@"(?<data>.assembly\s*'[^{]*\{((?<BR>\{)|(?<-BR>\})|[^{}]*)+.ver\s*)(?<version>[^\r\n]*)", RegexOptions.Compiled | RegexOptions.Multiline);
-
-        private static string ReplaceAssemblyVersion(string data, Version version)
-        {
-            return r.Replace(data, ma =>
-            {
-                return ma.Groups["data"].Value + string.Format("{0}:{1}:{2}:{3}", version.Major, version.Minor, version.Build, version.Revision);
-            }, 1);
-        }
-
+        
         public static void SetInfo(string filename, Version version, Version fileVersion, SemanticVersion infoVersion)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -569,8 +461,7 @@ namespace OpenTap.Package.SetAsmInfo
 
                 if (found != null)
                     return AssemblyDefinition.ReadAssembly(found.Location, customParameters);
-                else
-                    return base.Resolve(name, parameters);
+                return base.Resolve(name, parameters);
             }
         }
     }
