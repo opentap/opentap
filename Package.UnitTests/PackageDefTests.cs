@@ -106,7 +106,7 @@ namespace OpenTap.Package.UnitTests
         {
             string inputFilename = "Packages/test2/package.xml";
             PackageDef pkg = PackageDefExt.FromInputXml(inputFilename,Directory.GetCurrentDirectory());
-            
+
             Assert.AreEqual("Test Step",pkg.Files?.FirstOrDefault()?.Plugins?.FirstOrDefault(p => p.Type == typeof(IfStep).FullName)?.BaseType);
             Assert.AreEqual(pkg.Files?.FirstOrDefault()?.Plugins.FirstOrDefault(p => p.Type == typeof(GenericScpiInstrument).FullName)?.BaseType, "Instrument");
         }
@@ -198,7 +198,6 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
-        [Platform(Exclude="Unix,Linux,MacOsX")]
         public void CreatePackageVersioningMono()
         {
             var tmpFile = Path.GetTempFileName();
@@ -210,7 +209,7 @@ namespace OpenTap.Package.UnitTests
             Assert.AreEqual(1, asm.GetName().Version.Major, "Wrong major");
             Assert.AreEqual(2, asm.GetName().Version.Minor, "Wrong minor");
             Assert.AreEqual(3, asm.GetName().Version.Build, "Wrong build");
-            
+
             Assert.AreEqual("4.5.6", asm.GetCustomAttribute<AssemblyFileVersionAttribute>().Version, "File version");
             Assert.AreEqual("0.1.2", asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion, "Informational version");
 
@@ -377,7 +376,7 @@ namespace OpenTap.Package.UnitTests
             }
             string inputContent = File.ReadAllText(inputFilename);
             // check that the package now contains the new XML Schema URL
-            StringAssert.Contains("xmlns=\"http://opentap.io/schemas/package\"", outputFileContent); 
+            StringAssert.Contains("xmlns=\"http://opentap.io/schemas/package\"", outputFileContent);
         }
 
         [Test]
@@ -430,7 +429,7 @@ namespace OpenTap.Package.UnitTests
                     outputFileContent = reader.ReadToEnd();
                 }
             }
-            
+
             StringAssert.Contains("<PackageDependency Package=\"Test1\" Version=\"^1.2", outputFileContent);   // the Test2 package is a release version, so it should have 2 version numbers specified
             //StringAssert.Contains("<PackageDependency Package=\"Test2\" Version=\"1.2.3", outputFileContent); // the Test2 package is from an integration branch, so it should have 3 version numbers specified
             StringAssert.Contains("<PackageDependency Package=\"OpenTAP\"", outputFileContent);
@@ -444,16 +443,16 @@ namespace OpenTap.Package.UnitTests
         public void findDependencies_SharedAssemblyReference()
         {
             // tap package create X --package-dir C:\MyPackages
-            
+
             string PackageInstallDir = "C:\\MyPackages\\";
             var inst = new Installation(Directory.GetCurrentDirectory());
 
             if (PackageInstallDir != null)
                 inst = new Installation(PackageInstallDir);
             if (inst.GetPackages().Count() == 0)
-                inst = new Installation(System.IO.Path.GetDirectoryName(typeof(TestPlan).Assembly.Location));    
-            
-            
+                inst = new Installation(System.IO.Path.GetDirectoryName(typeof(TestPlan).Assembly.Location));
+
+
             var pkgs = inst.GetPackages();
             string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
 <Package Name='Test3' xmlns ='http://opentap.io/schemas/package'>
@@ -656,7 +655,7 @@ namespace OpenTap.Package.UnitTests
 </Package>
 ".Replace("__BASICSTEPS_DLL__", Path.GetFileName(typeof(DelayStep).Assembly.Location));
             string pkgName = "BasicSteps.xml";
-            
+
             try
             {
                 if (File.Exists(pkgName))
@@ -713,7 +712,7 @@ namespace OpenTap.Package.UnitTests
         [DeploymentItem("XSeries.2.3.0.9b084a8.TapPlugin")]
         public void DublicateAssemblies()
         {
-            // This test creates assemblies to test some complicated behaviour related to 
+            // This test creates assemblies to test some complicated behaviour related to
             // creating plugin packages.
 
             var pkgpath = "XSeries.2.3.0.9b084a8.TapPlugin";
@@ -741,7 +740,7 @@ namespace OpenTap.Package.UnitTests
             CompilerParameters parameters = new CompilerParameters();
             parameters.ReferencedAssemblies.Add("System.dll");
             parameters.ReferencedAssemblies.Add("TapPlugin.XSignalAnalyzer.dll");
-            
+
             parameters.ReferencedAssemblies.Add("Keysight.Tap.Engine.dll");
             parameters.GenerateInMemory = false;
             parameters.GenerateExecutable = false;

@@ -274,8 +274,8 @@ namespace OpenTap.Package.SetAsmInfo
                 }
             }
         }
-        
-        public static void SetInfo(string filename, Version version, Version fileVersion, SemanticVersion infoVersion)
+
+        private static void SetFileVersion1(string filename, SemanticVersion infoVersion, Version fileVersion)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -331,6 +331,16 @@ namespace OpenTap.Package.SetAsmInfo
                     throw new Exception($"Error while updating version information for '{filename}'", ex);
                 }
             }
+        }
+
+        private static void SetFileVersion2(string filename, SemanticVersion infoVersion, Version fileVersion)
+        {
+            PEVersionWriter.Parse(filename, infoVersion, fileVersion);
+        }
+
+        public static void SetInfo(string filename, Version version, Version fileVersion, SemanticVersion infoVersion)
+        {
+            SetFileVersion2(filename, infoVersion, fileVersion);
 
             var resolver = new TapMonoResolver();
             bool anyWritten = false;
