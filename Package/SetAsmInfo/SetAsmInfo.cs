@@ -335,7 +335,7 @@ namespace OpenTap.Package.SetAsmInfo
 
         private static void SetFileVersion2(string filename, SemanticVersion infoVersion, Version fileVersion)
         {
-            PEVersionWriter.Parse(filename, infoVersion, fileVersion);
+            PEVersionWriter.SetVersionInfo(filename, infoVersion, fileVersion);
         }
 
         public static void SetInfo(string filename, Version version, Version fileVersion, SemanticVersion infoVersion)

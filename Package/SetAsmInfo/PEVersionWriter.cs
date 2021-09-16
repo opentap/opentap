@@ -5,19 +5,21 @@ using System.Text;
 
 namespace OpenTap.Package.SetAsmInfo
 {
-    public class PEVersionWriter
+    internal class PEVersionWriter
     {
         private static TraceSource log = Log.CreateSource(nameof(PEVersionWriter));
 
         private const string ProductVersion = "ProductVersion";
         private const string FileVersion = "FileVersion";
-        private static void ParseResource(byte[] file, int offset, SemanticVersion infoVersion, Version fileVersion)
+        private static void SetResourceVersion(byte[] file, int offset, SemanticVersion infoVersion, Version fileVersion)
         {
             var section = file.Skip(offset).Take(40).ToArray();
             var sizeOfSection = BitConverter.ToInt32(section, 16);
             var pointerToRawData = BitConverter.ToInt32(section, 20);
 
             var resourceTable = file.Skip(pointerToRawData).Take(sizeOfSection).ToArray();
+
+            var rsrcString = Encoding.Unicode.GetString(resourceTable);
 
             var nNameEntries = BitConverter.ToInt16(resourceTable, 12);
             var nIdEntries = BitConverter.ToInt16(resourceTable, 14);
@@ -80,7 +82,7 @@ namespace OpenTap.Package.SetAsmInfo
                 }
             }
         }
-        public static void Parse(string filename, SemanticVersion infoVersion, Version fileVersion)
+        public static void SetVersionInfo(string filename, SemanticVersion infoVersion, Version fileVersion)
         {
             var bytes = File.ReadAllBytes(filename);
             var offset = BitConverter.ToInt32(bytes, 0x3c);
@@ -135,7 +137,7 @@ namespace OpenTap.Package.SetAsmInfo
 
                 if (sectionName == ".rsrc")
                 {
-                    ParseResource(bytes, thisSectionOffset, infoVersion, fileVersion);
+                    SetResourceVersion(bytes, thisSectionOffset, infoVersion, fileVersion);
                     File.WriteAllBytes(filename, bytes);
                     return;
                 }

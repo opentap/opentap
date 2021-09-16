@@ -219,6 +219,27 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
+        public void TestPEWriter()
+        {
+            var tmpFile = Path.GetTempFileName();
+            File.Copy("OpenTap.dll", tmpFile, true);
+            
+            var fileVersion = new Version("4.5.6");
+            var productVersion = SemanticVersion.Parse("0.1.2");
+            SetAsmInfo.PEVersionWriter.SetVersionInfo(tmpFile, productVersion, fileVersion);
+            
+            Assert.AreEqual("4.5.6", FileVersionInfo.GetVersionInfo(tmpFile).FileVersion, "GetVersionInfo().FileVersion");
+            Assert.AreEqual("0.1.2", FileVersionInfo.GetVersionInfo(tmpFile).ProductVersion, "GetVersionInfo().ProductVersion");
+            
+            fileVersion = new Version("7.8.9");
+            productVersion = SemanticVersion.Parse("0.1.2-beta.hello-world-123");
+            SetAsmInfo.PEVersionWriter.SetVersionInfo(tmpFile, productVersion, fileVersion);
+            
+            Assert.AreEqual("7.8.9", FileVersionInfo.GetVersionInfo(tmpFile).FileVersion, "GetVersionInfo().FileVersion");
+            Assert.AreEqual("0.1.2-beta.hello-world-123", FileVersionInfo.GetVersionInfo(tmpFile).ProductVersion, "GetVersionInfo().ProductVersion");
+        }
+
+        [Test]
         public void CreatePackageDepVersions()
         {
             var tmp = Path.GetTempFileName();
@@ -705,59 +726,7 @@ namespace OpenTap.Package.UnitTests
             ), "Generated OpenTAP package file not found");
         }
 
-        /* XSeries not compiled for TAP 5.0.
         [Test]
-        [DeploymentItem("package3.xml")]
-        [DeploymentItem("Keysight.TapPlugin.ResultListener.SqlDatabase.dll")]
-        [DeploymentItem("XSeries.2.3.0.9b084a8.TapPlugin")]
-        public void DublicateAssemblies()
-        {
-            // This test creates assemblies to test some complicated behaviour related to
-            // creating plugin packages.
-
-            var pkgpath = "XSeries.2.3.0.9b084a8.TapPlugin";
-            var files = PluginInstaller.FilesInPackage(pkgpath);
-            using (ZipPackage zip =(ZipPackage)ZipPackage.Open(pkgpath, FileMode.Open, FileAccess.Read, FileShare.Read))
-            {
-                foreach (var part in zip.GetParts())
-                {
-                    try
-                    {
-                        string filePath = part.Uri.OriginalString.TrimStart('/');
-                        EnsureDirectory(filePath);
-                        using (var str = File.Create(filePath))
-                        {
-                            part.GetStream().CopyTo(str);
-                        }
-                    }
-                    catch
-                    {
-
-                    }
-                }
-            }
-            CSharpCodeProvider provider = new CSharpCodeProvider();
-            CompilerParameters parameters = new CompilerParameters();
-            parameters.ReferencedAssemblies.Add("System.dll");
-            parameters.ReferencedAssemblies.Add("TapPlugin.XSignalAnalyzer.dll");
-
-            parameters.ReferencedAssemblies.Add("Keysight.Tap.Engine.dll");
-            parameters.GenerateInMemory = false;
-            parameters.GenerateExecutable = false;
-            parameters.OutputAssembly = "test1.dll";
-            var asmv = "[assembly: System.Reflection.AssemblyInformationalVersionAttribute(\"CAL10604_DVT10603.2.f2d1ee5\")]\n";
-            CompilerResults results = provider.CompileAssemblyFromSource(parameters, asmv + "public class Instr1:TapPlugin.XSignalAnalyzer.XsaCore {}");
-            parameters.OutputAssembly = "test2.dll";
-            parameters.ReferencedAssemblies.Add("TapPlugin.XSignalSource.dll");
-            parameters.ReferencedAssemblies.Remove("TapPlugin.XSignalAnalyzer.dll");
-            CompilerResults results2 = provider.CompileAssemblyFromSource(parameters, asmv + "public class Instr2:TapPlugin.XSignalSource.XsgCore {}");
-            var pkg = PackageDefExt.FromXmlFile("package3.xml", verbose: true);
-            Assert.AreEqual(1, pkg.Dependencies.Count);
-            Assert.AreEqual("XSeries", pkg.Dependencies.First().PackageName);
-        }*/
-
-        [Test]
-        [Platform(Exclude="Unix,Linux,MacOsX")]
         public void TestSetAssemblyInfo()
         {
             File.Copy("Packages/SetAsmInfoTest.dll", "SetAsmInfoTest.dll", true);
