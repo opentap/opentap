@@ -685,7 +685,8 @@ namespace OpenTap.Package.UnitTests
             {
                 exitCode = p.ExitCode;
             }
-            return output.ToString();
+            lock (lockObj)
+                return output.ToString();
         }
     }
 }
