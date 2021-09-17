@@ -4,6 +4,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
+using System.Xml;
+using System.Xml.Linq;
 
 namespace OpenTap
 {
@@ -33,7 +36,7 @@ namespace OpenTap
             foreach (var componentSetting in setting)
                 componentSetting.InvokeInvalidate();
         }
-        
+
         public void InvalidateAllSettings()
         {
             var cachedComponentSettings = objectCache.GetResults()
@@ -97,7 +100,7 @@ namespace OpenTap
             using (var str = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.ReadWrite))
             {
                 using (var xmlWriter =
-                    System.Xml.XmlWriter.Create(str, new System.Xml.XmlWriterSettings {Indent = true}))
+                    System.Xml.XmlWriter.Create(str, new System.Xml.XmlWriterSettings { Indent = true }))
                     new TapSerializer().Serialize(xmlWriter, setting);
             }
 
@@ -154,6 +157,34 @@ namespace OpenTap
             return objectCache.Invoke(settingsType);
         }
 
+
+        public void SetCurrent(Stream xmlFileStream)
+        {
+            xmlFileStream.Position = 0;
+            using (var mem = new MemoryStream())
+            {
+                xmlFileStream.CopyTo(mem);
+                mem.Position = 0;
+                try
+                {
+                    var doc = XDocument.Load(mem);
+                    if (doc.Root.Attribute("type") is null)
+                    {
+                        mem.Position = 0;
+                        throw new InvalidDataException($"Stream does not contain valid ComponentSettings. Unable to determine ComponentSettings type from root attribute. Content: {Encoding.UTF8.GetString(mem.ToArray())}");
+                    }
+                    ITypeData typedata = TypeData.GetTypeData(doc.Root.Attribute(TapSerializer.typeName).Value);
+                    xmlCache[typedata.AsTypeData().Type] = mem.ToArray();
+                    Invalidate(typedata.AsTypeData().Type);
+                }
+                catch (XmlException ex)
+                {
+                    mem.Position = 0;
+                    throw new InvalidDataException($"Stream does not contain valid ComponentSettings. Unable to parse XML. Content: {Encoding.UTF8.GetString(mem.ToArray())}", ex);
+                }
+            }
+        }
+
         public ComponentSettings GetCurrentFromCache(Type settingsType) =>
             objectCache.GetCached(settingsType);
 
@@ -165,7 +196,7 @@ namespace OpenTap
         public ComponentSettings Load(Type settingsType)
         {
             xmlCache.TryGetValue(settingsType, out byte[] cachedXml);
-            
+
             string path = GetSaveFilePath(settingsType);
             Stopwatch timer = Stopwatch.StartNew();
 
@@ -178,14 +209,14 @@ namespace OpenTap
                     if (cachedXml != null)
                         reader = new MemoryStream(cachedXml);
                     else reader = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                    
+
                     using (var str = reader)
                     {
                         var serializer = new TapSerializer();
                         lock (flushQueues)
                             flushQueues.Enqueue(serializer);
-                        settings = (ComponentSettings) serializer.Deserialize(str, false,
-                            TypeData.FromType(settingsType), path:path);
+                        settings = (ComponentSettings)serializer.Deserialize(str, false,
+                            TypeData.FromType(settingsType), path: path);
                     }
                 }
                 catch (Exception ex) when (ex.InnerException is System.ComponentModel.LicenseException lex)
@@ -216,7 +247,7 @@ namespace OpenTap
             {
                 try
                 {
-                    settings = (ComponentSettings) Activator.CreateInstance(settingsType);
+                    settings = (ComponentSettings)Activator.CreateInstance(settingsType);
                 }
                 catch (TargetInvocationException ex)
                 {
@@ -274,7 +305,7 @@ namespace OpenTap
             groupDir[groupName] = profileName;
             InvalidateAllSettings();
         }
-        
+
         readonly Dictionary<Type, byte[]> xmlCache = new Dictionary<Type, byte[]>();
 
         public ComponentSettingsContext Clone()
@@ -290,7 +321,7 @@ namespace OpenTap
             {
                 mem.Seek(0, SeekOrigin.Begin);
                 mem.SetLength(0);
-                
+
                 serializer.Serialize(mem, setting);
                 session.xmlCache[setting.GetType()] = mem.ToArray();
             }

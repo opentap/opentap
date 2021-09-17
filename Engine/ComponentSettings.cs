@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Collections;
+using System.IO;
 
 namespace OpenTap
 {
@@ -602,7 +603,15 @@ namespace OpenTap
         /// <returns>Returns the loaded components settings. Null if it was not able to load the settings type.</returns>
         public static ComponentSettings GetCurrent(Type settingsType) =>
             context.GetCurrent(settingsType);
-        
+
+        /// <summary>
+        /// Sets current settings for a component setting based on a stream of the file contents of a ComponentSettings XML file.
+        /// </summary>
+        /// <param name="xmlFileStream">The component settings stream to be set</param>
+        /// <returns></returns>
+        public static void SetCurrent(Stream xmlFileStream) =>
+            context.SetCurrent(xmlFileStream);
+
         /// <summary>
         /// Gets current settings for a specified component. This is either an instance of the settings class previously loaded, or a new instance loaded from the associated file.
         /// </summary>
