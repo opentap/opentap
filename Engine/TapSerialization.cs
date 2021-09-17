@@ -322,7 +322,7 @@ namespace OpenTap
             return Deserialize(element, setter, t != null ? TypeData.FromType(t) : null);
         }
 
-        static readonly XName typeName = "type";
+        internal static readonly XName typeName = "type";
         
         /// <summary>
         /// Deserializes an object from XML.
