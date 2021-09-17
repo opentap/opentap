@@ -91,8 +91,17 @@ namespace OpenTap.Package
             if (element.IsEmpty)
                 element.Value = ""; // little hack to ensure that the element is not created empty. (leading to null values).
 
-            var plugins = new Installation(Path.GetDirectoryName(Assembly.GetAssembly(typeof(PluginManager)).Location)).GetPackages().ToDictionary(x => x.Name);
+            var plugins = new Dictionary<string, PackageDef>();
+            foreach (var package in new Installation( Path.GetDirectoryName(Assembly.GetAssembly(typeof(PluginManager)).Location)).GetPackages())
+            {
+                if (package.Name == null)
+                {
+                    Log.Error("Package name is null. {0}", package.Location);
+                    continue;
+                }
 
+                plugins[package.Name] = package;
+            }
             List<string> errors = new List<string>();
             foreach (var pkg in dep.Elements(PackageDependencyName))
             {
