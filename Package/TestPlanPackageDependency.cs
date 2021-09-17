@@ -96,7 +96,7 @@ namespace OpenTap.Package
             {
                 if (package.Name == null)
                 {
-                    Log.Error("Package name is null. {0}", package.Location);
+                    Log.Error("Package name is null. {0}", package.PackageSource);
                     continue;
                 }
 

@@ -27,6 +27,8 @@ namespace OpenTap.Package
         /// The file path of the .TapPackage the package definition is loaded from.
         /// </summary>
         public string PackageFilePath { get; set; }
+
+        public override string ToString() => PackageFilePath;
     }
 
     /// <summary>
@@ -38,6 +40,7 @@ namespace OpenTap.Package
         /// The repository the package is sourced.
         /// </summary>
         string RepositoryUrl { get; set; }
+        
     }
 
     /// <summary>
@@ -53,6 +56,9 @@ namespace OpenTap.Package
         /// The repository the package is sourced.
         /// </summary>
         public string RepositoryUrl { get; set; }
+        
+        
+        public override string ToString() => RepositoryUrl;
     }
 
     /// <summary>
