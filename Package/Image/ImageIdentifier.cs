@@ -112,8 +112,10 @@ namespace OpenTap.Package
                 throw new OperationCanceledException("Deployment operation cancelled by user");
 
             Installation currentInstallation = new Installation(targetDir);
-            var packagesToUninstall = currentInstallation.GetPackages().Where(s => s.Class.ToLower() != "system-wide" && !Packages.Any(p => p.Name == s.Name));
             var modifyOrAdd = Packages.Where(s => !currentInstallation.GetPackages().Any(p => p.Name == s.Name && p.Version.ToString() == s.Version.ToString())).ToList();
+            var packagesToUninstall = currentInstallation.GetPackages().Where(s => s.Class.ToLower() != "system-wide" && !Packages.Any(p => p.Name == s.Name));
+            packagesToUninstall = packagesToUninstall.Concat(modifyOrAdd.Where(s => currentInstallation.GetPackages().Any(p => p.Name == s.Name)));
+
 
             if (!packagesToUninstall.Any() && !modifyOrAdd.Any())
             {
