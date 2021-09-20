@@ -70,6 +70,11 @@ namespace OpenTap.Cli
                     description = attr.Description;
                 }
                 
+                if (ap.AllOptions.Contains(attr.Name))
+                {
+                    var prevOption = ap.AllOptions.GetOrDefault(attr.Name);
+                    throw new Exception($"The '{action} --{attr.Name}' option to '{attr.Description}' overloads the '--{attr.Name}' common option to '{prevOption.Description}'");
+                }
                 var arg = ap.AllOptions.Add(attr.Name, attr.ShortName == null ? '\0' : attr.ShortName.FirstOrDefault(), needsArg, description);
                 arg.IsVisible = attr.Visible;
                 argToProp.Add(arg.LongName, prop);
