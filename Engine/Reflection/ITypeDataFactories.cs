@@ -137,11 +137,11 @@ namespace OpenTap
         /// <summary> Get the type info of an object. </summary>
         public static ITypeData GetTypeData(object obj)
         {
+            if (obj == null) return NullTypeData.Instance;
             var cache = TypeDataCache.Current;
             if (cache != null && cache.TryGetValue(obj, out var cachedValue))
                 return cachedValue;
             checkCacheValidity();
-            if (obj == null) return FromType(typeof(object));
             var resolver = new TypeDataProviderStack();
             var result = resolver.GetTypeData(obj);
             if (result == null)

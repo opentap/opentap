@@ -404,6 +404,31 @@ namespace OpenTap.UnitTests
             }
         }
 
+        public class NullPropertyStep : TestStep
+        {
+            public string NormallyNull { get; set; }
+            public override void Run() => UpgradeVerdict(Verdict.Pass);
+        }
+
+        [Test] 
+        public void SweepLoopNullValueProperty()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepParameterStep();
+            var step = new NullPropertyStep();
+            plan.ChildTestSteps.Add(sweep);
+            sweep.ChildTestSteps.Add(step);
+            
+            TypeData.GetTypeData(step).GetMember(nameof(step.NormallyNull)).Parameterize(sweep, step, nameof(step.NormallyNull));
+            
+            var row = new SweepRow {Loop = sweep};
+            row.Values[nameof(step.NormallyNull)] = null;
+            sweep.SweepValues.Add(new SweepRow{Loop = sweep});
+
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, run.Verdict);
+        }
+
 
         public class Unclonable
         {
