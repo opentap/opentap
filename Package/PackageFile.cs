@@ -608,7 +608,7 @@ namespace OpenTap.Package
                         using (var outstream = File.Create(part.FullName))
                         {
                             var task = instream.CopyToAsync(outstream, 4096, TapThread.Current.AbortToken);
-                            ConsoleUtils.PrintProgressTillEnd(task, "Decompressing", () => outstream.Position, () => part.Length);
+                            ConsoleUtils.PrintProgressTillEnd(task, $"Decompressing {path}", () => outstream.Position, () => part.Length);
                         }
                         
                         var package = FromPackage(part.FullName);
