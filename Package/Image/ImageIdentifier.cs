@@ -112,10 +112,18 @@ namespace OpenTap.Package
                 throw new OperationCanceledException("Deployment operation cancelled by user");
 
             Installation currentInstallation = new Installation(targetDir);
-            var modifyOrAdd = Packages.Where(s => !currentInstallation.GetPackages().Any(p => p.Name == s.Name && p.Version.ToString() == s.Version.ToString())).ToList();
-            var packagesToUninstall = currentInstallation.GetPackages().Where(s => s.Class.ToLower() != "system-wide" && !Packages.Any(p => p.Name == s.Name));
-            packagesToUninstall = packagesToUninstall.Concat(modifyOrAdd.Where(s => currentInstallation.GetPackages().Any(p => p.Name == s.Name)));
+            var currentPackages = currentInstallation.GetPackages();
+            var modifyOrAdd = Packages.Where(s => !currentPackages.Any(p => p.Name == s.Name && p.Version.ToString() == s.Version.ToString())).ToList();
 
+            var packagesToUninstall = currentPackages.Where(pack => !Packages.Any(p => p.Name == pack.Name) && pack.Class.ToLower() != "system-wide").ToList(); // Uninstall installed packages which are not part of image
+            foreach (var package in packagesToUninstall)
+                log.Debug($"Removing {package.Name}, as it's not part of the new installation");
+            
+            var versionMismatch = currentPackages.Where(pack => Packages.Any(p => p.Name == pack.Name && p.Version.ToString() != pack.Version.ToString() && pack.Class.ToLower() != "system-wide")).ToList(); // Uninstall installed packages where we're deploying another version
+            foreach (var package in versionMismatch)
+                log.Debug($"Removing {package.Name}, as we're deploying a new version of this package");
+
+            packagesToUninstall.AddRange(versionMismatch);
 
             if (!packagesToUninstall.Any() && !modifyOrAdd.Any())
             {
