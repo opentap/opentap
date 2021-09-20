@@ -654,7 +654,8 @@ namespace OpenTap.Package.UnitTests
         private static string RunPackageCliWrapped(string args, out int exitCode, string workingDir, string fileName = null)
         {
             if (fileName == null) fileName = Path.GetFileName(Path.Combine(Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location), "tap"));
-            var startinfo = new ProcessStartInfo
+            var p = new Process();
+            p.StartInfo = new ProcessStartInfo
             {
                 FileName = fileName,
                 WorkingDirectory = workingDir,
@@ -663,13 +664,14 @@ namespace OpenTap.Package.UnitTests
                 RedirectStandardError = true,
                 UseShellExecute = false
             };
-            var p = Process.Start(startinfo);
 
             StringBuilder output = new StringBuilder();
             var lockObj = new object();
 
             p.OutputDataReceived += (s, e) => { if (e.Data != null) lock (lockObj) output.AppendLine(e.Data); };
             p.ErrorDataReceived += (s, e) => { if (e.Data != null) lock (lockObj) output.AppendLine(e.Data); };
+
+            p.Start();
 
             p.BeginErrorReadLine();
             p.BeginOutputReadLine();
@@ -684,8 +686,10 @@ namespace OpenTap.Package.UnitTests
             else
             {
                 exitCode = p.ExitCode;
+                p.WaitForExit(); // The WaitForExit(int) overload called earlier does not wait for output processing to complete, this one does.
             }
-            return output.ToString();
+            lock (lockObj)
+                return output.ToString();
         }
     }
 }
