@@ -292,6 +292,7 @@ namespace OpenTap
             Abort(null);
         }
 
+        static TraceSource log =Log.CreateSource("Thread");
         /// <summary>
         /// Aborts the execution of this current instance of the <see cref="TapThread">TapThread</see> with a
         /// specified reason.
@@ -299,9 +300,16 @@ namespace OpenTap
         /// </summary>
         internal void Abort(string reason)
         {
-            //if (CanAbort == false)
-            //    throw new Exception("Cannot abort Thread");
-            abortTokenSource.Cancel();
+            try
+            {
+                abortTokenSource.Cancel(false);
+            }
+            catch(Exception e)
+            {
+                log.Error("Errors occured while aborting thread.");
+                log.Debug(e);
+            }
+
             if (Current.AbortToken.IsCancellationRequested)
             {
                 // Check if the aborted thread is the current thread or a parent of it.
