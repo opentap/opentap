@@ -26,6 +26,7 @@
       <Timeout>0</Timeout>
       <AddToLog>true</AddToLog>
       <LogHeader />
+      <CheckExitCode>true</CheckExitCode>
       <RegularExpressionPattern>
         <Value>(.*)</Value>
         <IsEnabled>false</IsEnabled>

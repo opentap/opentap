@@ -160,7 +160,7 @@ namespace OpenTap.Image.Tests
                 Assert.IsTrue(File.Exists(PackageCacheHelper.GetCacheFilePath(image.Packages.First(p => p.Name == "SDK"))));
 
                 var installation = new Installation(temp);
-                var packages = installation.GetPackages();
+                var packages = installation.GetPackages().Where(s => s.Class != "system-wide").ToList();
                 Assert.AreEqual(4, packages.Count, "Unexpected number of packages in installation.");
                 Assert.IsTrue(packages.Any(s => s.Name == "OpenTAP"));
                 Assert.IsTrue(packages.Any(s => s.Name == "TUI"));
@@ -175,9 +175,10 @@ namespace OpenTap.Image.Tests
         }
 
         [Test]
-        [Ignore("Can't' run on linux (no OSIntegration package available there)")]
         public void UninstallInOrder()
         {
+            if (OperatingSystem.Current != OperatingSystem.Windows)
+                return; // Can't' run on linux (no OSIntegration package available there)
             string temp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
             ImageSpecifier imageSpecifier = new ImageSpecifier();
@@ -209,7 +210,7 @@ namespace OpenTap.Image.Tests
                 StringAssert.DoesNotContain("Error", uninstallLog, $"Errors in uninstall log:\n {uninstallLog}");
 
                 var installation = new Installation(temp);
-                var packages = installation.GetPackages();
+                var packages = installation.GetPackages().Where(s => s.Class != "system-wide");
                 Assert.AreEqual(0, packages.Count(), "Unexpected packages left in installation after uninstall.");
 
             }
