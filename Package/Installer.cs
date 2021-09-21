@@ -75,11 +75,15 @@ namespace OpenTap.Package
 
                         progressPercent += 30 / PackagePaths.Count();
 
-                        if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) && PackagePaths.Last() != fileName)
+                        if (ExecutorClient.IsRunningIsolated) 
                         {
-                            log.Info(timer, $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
-                            PluginManager.DirectoriesToSearch.Add(TapDir);
-                            PluginManager.SearchAsync();
+                            // Only load installed assemblies if we're running isolated. 
+                            if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) && PackagePaths.Last() != fileName)
+                            {
+                                log.Info(timer, $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
+                                PluginManager.DirectoriesToSearch.Add(TapDir);
+                                PluginManager.SearchAsync();
+                            }
                         }
                     }
                     catch
@@ -134,11 +138,14 @@ namespace OpenTap.Package
                         WaitForPackageFilesFree(TapDir, PackagePaths);
                     }
 
-                    catch
+                    catch (Exception ex)
                     {
                         log.Warning("Uninstall stopped while waiting for package files to become unlocked.");
                         if (!force)
+                        {
+                            OnError(ex);
                             throw;
+                        }
                     }
                 }
 
