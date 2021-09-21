@@ -4,6 +4,7 @@
     <OutputType>Library</OutputType>
     <AssemblyName>OpenTap.UnitTests</AssemblyName>
     <RootNamespace>OpenTap.UnitTests</RootNamespace>
+      <LangVersion>8.0</LangVersion>
   </PropertyGroup>
   
   <ItemGroup>
@@ -11,6 +12,9 @@
     <None Remove="LegacyResultSettings.xml" />
     <None Update="TestTestPlans\*.TapPlan">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Resources\TestImg.png">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
 

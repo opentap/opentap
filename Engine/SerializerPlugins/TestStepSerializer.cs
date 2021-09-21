@@ -75,18 +75,6 @@ namespace OpenTap.Plugins
             }
         }
 
-        private string GetStringOrMacroString(IMemberData prop, object o)
-        {
-            object val = prop.GetValue(o);
-
-            if (val is string s)
-                return s;
-            if (val is MacroString m)
-                return m.ToString();
-            
-            return null;
-        }
-        
         /// <summary> Deserialization implementation. </summary>
         public override bool Deserialize( XElement elem, ITypeData t, Action<object> setResult)
         {
@@ -143,25 +131,8 @@ namespace OpenTap.Plugins
         /// <summary> Serialization implementation. </summary>
         public override bool Serialize( XElement elem, object obj, ITypeData expectedType)
         {
-            // Notify the serializer of files and types used by this test step so the
-            // test plan dependency serializer knows what packages a test plan depends on.
-            void AddUsedFiles()
-            {
-                var td = TypeData.GetTypeData(obj);
-                Serializer.NotifyTypeUsed(td.AsTypeData());
-                var props = td.GetMembers().Where(m => m.HasAttribute<FilePathAttribute>());
-                foreach (var prop in props)
-                {
-                    var path = GetStringOrMacroString(prop, obj);
-
-                    if (string.IsNullOrWhiteSpace(path) == false)
-                        Serializer.NotifyFileUsed(path);
-                }
-            }
-            
             if (false == obj is ITestStep) return false;
             
-            AddUsedFiles();
             var objp = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
 
             if(objp != null && objp.Object != null)
