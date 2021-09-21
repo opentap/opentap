@@ -118,6 +118,12 @@ namespace OpenTap.Package
             var packagesToUninstall = currentPackages.Where(pack => !Packages.Any(p => p.Name == pack.Name) && pack.Class.ToLower() != "system-wide").ToList(); // Uninstall installed packages which are not part of image
             var versionMismatch = currentPackages.Where(pack => Packages.Any(p => p.Name == pack.Name && p.Version != pack.Version)).ToList(); // Uninstall installed packages where we're deploying another version
 
+            if (!packagesToUninstall.Any() && !modifyOrAdd.Any())
+            {
+                log.Info($"Target installation is already up to date.");
+                return;
+            }
+
             if (!currentPackages.Any())
                 log.Info($"Deploying installation in {targetDir}:");
             else
@@ -131,12 +137,6 @@ namespace OpenTap.Package
                 log.Info($"- Installing {package.Name} version {package.Version}");
 
             packagesToUninstall.AddRange(versionMismatch);
-
-            if (!packagesToUninstall.Any() && !modifyOrAdd.Any())
-            {
-                log.Info($"Target installation already matches specified image");
-                return;
-            }
 
             if (cancellationToken.IsCancellationRequested)
                 throw new OperationCanceledException("Deployment operation cancelled by user");
