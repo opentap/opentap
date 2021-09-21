@@ -175,9 +175,10 @@ namespace OpenTap.Image.Tests
         }
 
         [Test]
-        [Ignore("Can't' run on linux (no OSIntegration package available there)")]
         public void UninstallInOrder()
         {
+            if (OperatingSystem.Current != OperatingSystem.Windows)
+                return; // Can't' run on linux (no OSIntegration package available there)
             string temp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
             ImageSpecifier imageSpecifier = new ImageSpecifier();

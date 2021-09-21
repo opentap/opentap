@@ -75,14 +75,20 @@ namespace OpenTap.Package
 
                         progressPercent += 30 / PackagePaths.Count();
 
-                        if (ExecutorClient.IsRunningIsolated) 
+                        if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) && PackagePaths.Last() != fileName)
                         {
-                            // Only load installed assemblies if we're running isolated. 
-                            if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) && PackagePaths.Last() != fileName)
+                            var newPlugins = pkg.Files.SelectMany(s => s.Plugins.Select(t => t)).Where(t => t.BaseType == nameof(ICustomPackageData));
+                            if (newPlugins.Any(np => TypeData.GetTypeData(np.Name) == null))  // Only search again, if the new plugins are not already loaded.
                             {
-                                log.Info(timer, $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
-                                PluginManager.DirectoriesToSearch.Add(TapDir);
-                                PluginManager.SearchAsync();
+                                if (ExecutorClient.IsRunningIsolated)
+                                {
+                                    // Only load installed assemblies if we're running isolated. 
+                                    log.Info(timer, $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
+                                    PluginManager.DirectoriesToSearch.Add(TapDir);
+                                    PluginManager.SearchAsync();
+                                }
+                                else
+                                    log.Warning($"Package '{pkg.Name}' contains possibly relevant plugins for next package installations, but these will not be loaded.");
                             }
                         }
                     }
