@@ -367,10 +367,10 @@ namespace OpenTap.Engine.UnitTests
         {
             var x = new int[] { 1, 0, 3, 0 };
             int exceptionsCaught = 0;
-            var inv = x.TrySelect(x => 1 / x).Unwrap((DivideByZeroException ex) => exceptionsCaught++).ToArray();
-            var inv2 = x.TrySelect(x => 1 / x).Unwrap((x, ex) => exceptionsCaught++).ToArray();
-            Assert.IsTrue(inv.SequenceEqual(new[] { 1, 0 }));
-            Assert.IsTrue(inv.SequenceEqual(inv2));
+            var inv1 = x.TrySelect(x => 1 / x, (e, x) => exceptionsCaught++).ToArray();
+            var inv2 = x.TrySelect(x => 1 / x, e => exceptionsCaught++).ToArray();
+            Assert.IsTrue(inv1.SequenceEqual(new[] { 1, 0 }));
+            Assert.IsTrue(inv1.SequenceEqual(inv2));
             Assert.AreEqual(4, exceptionsCaught);
         }
     }
