@@ -4,6 +4,7 @@ using System.Linq;
 using System.Xml;
 using NUnit.Framework;
 using OpenTap.Package;
+using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
 {
@@ -31,9 +32,7 @@ namespace OpenTap.UnitTests
         private const string version = "3.4.5";
         private const string TestPackageName = "FakePackageReferencingFile";
         private const string ReferencedFile = "TestPlanFromPackage.TapPlan";
-        private const string ReferencedFile = "SampleFile.txt";
         public const string PictureReference = "SomePicture.png";
-        public const string PictureDescription = "SomePicture description";
         private const string NotReferencedFile = "OtherFile.txt";
         private const string TestStepName = "Just a name for the step";
         private string ReferencedFile2 => $"Packages/{TestPackageName}/{ReferencedFile}";
