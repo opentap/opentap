@@ -21,10 +21,12 @@ namespace OpenTap
             /// <summary>
             /// Directional RF connection from Port1 to Port2.
             /// </summary>
+            [Display("From 1 to 2", "The signal in this connection flows from port 1 to port 2.")]
             FROM_1_TO_2,
             /// <summary>
             /// Directional RF connection from Port2 to Port1.
             /// </summary>
+            [Display("From 2 to 1", "The signal in this connection flows from port 2 to port 1.")]
             FROM_2_TO_1
         };
 
