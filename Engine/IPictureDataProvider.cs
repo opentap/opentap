@@ -105,8 +105,7 @@ namespace OpenTap
             
             if (cacheKey == null || types.SetEquals(cacheKey) == false)
             {
-                cache = types.TrySelect(td => td.CreateInstance())
-                    .Unwrap(ex => log.Debug("Unable to load IPictureDataProvider: {0}", ex.Message))
+                cache = types.TrySelect(td => td.CreateInstance(), ex => log.Debug("Unable to load IPictureDataProvider: {0}", ex.Message))
                     .OfType<IPictureDataProvider>().OrderBy(p => p.Order)
                     .ToArray();
                 cacheKey = types;
@@ -114,7 +113,6 @@ namespace OpenTap
 
             return cache;
         }
-
 
         private static TraceSource log = Log.CreateSource(nameof(PictureDataExtensions));
         private static async Task<T> GetFirst<T>(IPicture picture, Func<IPicture, IPictureDataProvider, Task<T>> func) where T : class
