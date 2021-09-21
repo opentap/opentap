@@ -116,12 +116,19 @@ namespace OpenTap.Package
             var modifyOrAdd = Packages.Where(s => !currentPackages.Any(p => p.Name == s.Name && p.Version.ToString() == s.Version.ToString())).ToList();
 
             var packagesToUninstall = currentPackages.Where(pack => !Packages.Any(p => p.Name == pack.Name) && pack.Class.ToLower() != "system-wide").ToList(); // Uninstall installed packages which are not part of image
+            var versionMismatch = currentPackages.Where(pack => Packages.Any(p => p.Name == pack.Name && p.Version != pack.Version)).ToList(); // Uninstall installed packages where we're deploying another version
+
+            if (!currentPackages.Any())
+                log.Info($"Deploying installation in {targetDir}:");
+            else
+                log.Info($"Modifying installation in {targetDir}:");
+
             foreach (var package in packagesToUninstall)
-                log.Debug($"Removing {package.Name}, as it's not part of the new installation");
-            
-            var versionMismatch = currentPackages.Where(pack => Packages.Any(p => p.Name == pack.Name && p.Version.ToString() != pack.Version.ToString() && pack.Class.ToLower() != "system-wide")).ToList(); // Uninstall installed packages where we're deploying another version
+                log.Info($"- Removing {package.Name} version {package.Version} ({package.Architecture}-{package.OS})");
             foreach (var package in versionMismatch)
-                log.Debug($"Removing {package.Name}, as we're deploying a new version of this package");
+                log.Info($"- Modfying {package.Name} version {package.Version} to {Packages.FirstOrDefault(s => s.Name == package.Name).Version}");
+            foreach (var package in modifyOrAdd.Except(packagesToUninstall))
+                log.Info($"- Installing {package.Name} version {package.Version}");
 
             packagesToUninstall.AddRange(versionMismatch);
 
@@ -180,9 +187,6 @@ namespace OpenTap.Package
         {
             var orderedPackagesToUninstall = OrderPackagesForInstallation(packagesToUninstall);
             orderedPackagesToUninstall.Reverse();
-            log.Info($"Removing packages:");
-            foreach (var package in orderedPackagesToUninstall)
-                log.Info($"- {package.Name} version {package.Version} ({package.Architecture}-{package.OS})");
 
             List<Exception> uninstallErrors = new List<Exception>();
             var newInstaller = new Installer(target, cancellationToken) { DoSleep = false };
