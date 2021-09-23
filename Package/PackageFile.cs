@@ -681,7 +681,7 @@ namespace OpenTap.Package
             XmlReaderSettings settings = new XmlReaderSettings();
             settings.Schemas = GetXmlSchema();
             settings.ValidationType = ValidationType.Schema;
-            List<XmlSchemaException> errors = new List<XmlSchemaException>();
+            
             settings.ValidationEventHandler += (sender, e) =>
             {
                 throw new InvalidDataException("Line " + e.Exception.LineNumber + ": " + e.Exception.Message);
