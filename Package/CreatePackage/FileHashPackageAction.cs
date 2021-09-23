@@ -16,7 +16,7 @@ using System.Xml.Serialization;
 namespace OpenTap.Package
 {
     /// <summary> SHA1 hashes the files of a TapPackage and includes it in the package.xml file. </summary>
-    class FileHashPackageAction : ICustomPackageAction
+    internal class FileHashPackageAction : ICustomPackageAction
     {
         static TraceSource log = Log.CreateSource("Verify");
 
@@ -33,7 +33,7 @@ namespace OpenTap.Package
                 using (var fstr = File.OpenRead(file))
                     return sha1.ComputeHash(fstr);
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 log.Error("{0}", e.Message);
                 log.Debug(e);
@@ -44,24 +44,48 @@ namespace OpenTap.Package
         public class Hash : ICustomPackageData
         {
             /// <summary> Creates a new instance of Hash. </summary>
-            public Hash(byte[] hash) => Value = Convert.ToBase64String(hash);
+            public Hash(byte[] hash)
+            {
+                Value = BitConverter.ToString(hash).Replace("-", "");
+            }
             /// <summary> Creates a new instance of Hash. </summary>
             public Hash() => Value = "";
             /// <summary> The Base64 converted hash value. </summary>
             [XmlText]
             public string Value { get; set; }
+            byte[] GetBytes()
+            {
+                if (Value.Length == 40)
+                    return StringToByteArray(Value);
+                else if (Value.Length == 28)
+                    return Convert.FromBase64String(Value);
+                else
+                    throw new FormatException("Value should be a hex or base64 encoded SHA1 hash");
+            }
 
             /// <summary> Compares two hashes and returns true if they are the same. </summary>
             public override bool Equals(object obj)
             {
-                if(obj is Hash hsh)
-                    return hsh.Value == Value;
+                if (obj is Hash hsh)
+                {
+                    return hsh.GetBytes().SequenceEqual(this.GetBytes());
+                }
+
                 return false;
             }
 
             /// <summary> Custom GetHashCode implementation. </summary>
             public override int GetHashCode() => -1937169414 + EqualityComparer<string>.Default.GetHashCode(Value);
         }
+
+        public static byte[] StringToByteArray(string hex)
+        {
+            return Enumerable.Range(0, hex.Length)
+                             .Where(x => x % 2 == 0)
+                             .Select(x => Convert.ToByte(hex.Substring(x, 2), 16))
+                             .ToArray();
+        }
+
 
         bool ICustomPackageAction.Execute(PackageDef package, CustomPackageActionArgs customActionArgs)
         {
@@ -98,13 +122,13 @@ namespace OpenTap.Package
             foreach (var file in pkg.Files)
             {
                 var filename = Path.GetFileName(file.FileName);
-                if (pkg.Name == "OpenTAP" &&  (filename == "tap.exe" || filename == "tap" || filename == "tap.dll"))
+                if (pkg.Name == "OpenTAP" && (filename == "tap.exe" || filename == "tap" || filename == "tap.dll"))
                 {
                     log.Debug("Skipping {0}.", filename);
                     continue;
                 }
                 var hash = file.CustomData.OfType<FileHashPackageAction.Hash>().FirstOrDefault();
-                if(hash == null)
+                if (hash == null)
                 {
                     // hash not calculated for this package:
                     brokenFiles.Add((file, "is missing checksum information."));
@@ -113,7 +137,7 @@ namespace OpenTap.Package
                 else
                 {
                     // Make file.FileName Linux friendly
-                    if(file.FileName.Contains('\\'))
+                    if (file.FileName.Contains('\\'))
                     {
                         string repl = file.FileName.Replace('\\', '/');
                         log.Debug("Replacing '\\' with '/' in {0}", file.FileName);
@@ -173,18 +197,18 @@ namespace OpenTap.Package
             var packages = installation.GetPackages();
             if (string.IsNullOrEmpty(Package))
             {
-                foreach(var package in packages)
+                foreach (var package in packages)
                     verifyPackage(package);
             }
             else
             {
                 var pkg = packages.FirstOrDefault(p => p.Name == Package);
-                if(pkg == null)
+                if (pkg == null)
                 {
                     log.Error("Unable to locate package '{0}'", Package);
                     log.Info("Installed packages: {0}", string.Join(", ", packages.Select(x => x.Name)));
                     return (int)PackageExitCodes.InvalidPackageName;
-                }  
+                }
                 verifyPackage(pkg);
             }
             return exitCode;
@@ -193,12 +217,12 @@ namespace OpenTap.Package
         public static List<(PackageDef Package, PackageFile File, PackageDef OffendingPackage)> CalculatePackageInstallConflicts(IEnumerable<PackageDef> installedPackages, IEnumerable<PackageDef> newPackages)
         {
             var conflicts = new List<(PackageDef, PackageFile, PackageDef)>();
-            var allFiles = installedPackages.SelectMany(pkg => pkg.Files. Select(file => (pkg, file)))
+            var allFiles = installedPackages.SelectMany(pkg => pkg.Files.Select(file => (pkg, file)))
                 .ToLookup(x => x.file.FileName, StringComparer.CurrentCultureIgnoreCase);
-            
+
             foreach (var package in newPackages)
             {
-                var possibleConflicts=  getConflictedFiles(allFiles, package);
+                var possibleConflicts = getConflictedFiles(allFiles, package);
                 conflicts.AddRange(possibleConflicts
                     // remove conflicts that came from the same package name. These may be overwritten.
                     .Where(x => x.Item1.Name != package.Name)
@@ -209,8 +233,8 @@ namespace OpenTap.Package
 
             return conflicts;
         }
-        
-        static IEnumerable<(PackageDef, PackageFile)> getConflictedFiles(ILookup<string,(PackageDef, PackageFile)> installedFilesLookup, PackageDef package)
+
+        static IEnumerable<(PackageDef, PackageFile)> getConflictedFiles(ILookup<string, (PackageDef, PackageFile)> installedFilesLookup, PackageDef package)
         {
             var conflictedFiles = new List<(PackageDef, PackageFile)>();
             foreach (var file in package.Files)
@@ -219,7 +243,7 @@ namespace OpenTap.Package
                 {
                     var hash1 = installedFile.Item2.CustomData.OfType<FileHashPackageAction.Hash>().FirstOrDefault();
                     // Hash information does not exist. Lets just ignore it then.
-                    if (hash1 == null) continue; 
+                    if (hash1 == null) continue;
                     var hash = file.CustomData.OfType<FileHashPackageAction.Hash>().FirstOrDefault();
                     // Hash information does not exist. Lets just ignore it then.
                     // We also cannot compare the binary files, because they might not have been downloaded yet.

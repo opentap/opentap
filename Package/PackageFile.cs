@@ -876,9 +876,11 @@ namespace OpenTap.Package
                     else
                         throw new Exception($"Missing hash of payload file {file.FileName} (file does not exist).");
                 }
-                var sha1 = SHA1CryptoServiceProvider.Create();
+
                 str.Seek(0, 0);
-                return Convert.ToBase64String(sha1.ComputeHash(str));
+                HashAlgorithm algorithm = SHA1.Create();
+                var bytes = algorithm.ComputeHash(str);
+                return BitConverter.ToString(bytes).Replace("-", "");
             }
         }
     }

@@ -95,7 +95,7 @@ namespace OpenTap.Package
 
             HashAlgorithm algorithm = SHA1.Create();
             var bytes = algorithm.ComputeHash(Encoding.UTF8.GetBytes(string.Join(",", packageHashes)));
-            return Convert.ToBase64String(bytes);
+            return BitConverter.ToString(bytes).Replace("-", "");
         }
 
         /// <summary>
