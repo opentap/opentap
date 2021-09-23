@@ -483,7 +483,8 @@ namespace OpenTap
             
             
             TestPlanName = plan.Name;
-            Parameters["TestPlanPath", ""] = plan.Path;
+            if(plan.Path != null)
+                Parameters["TestPlanPath", ""] = plan.Path;
             this.plan = plan;
         }
 
