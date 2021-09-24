@@ -59,6 +59,8 @@ namespace OpenTap.Package
                     return StringToByteArray(Value);
                 else if (Value.Length == 28)
                     return Convert.FromBase64String(Value);
+                else if (Value.Length == 0)
+                    return Array.Empty<byte>();
                 else
                     throw new FormatException("Value should be a hex or base64 encoded SHA1 hash");
             }
