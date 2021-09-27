@@ -91,7 +91,14 @@ namespace OpenTap.Plugins.BasicSteps
             var abortRegistration = TapThread.Current.AbortToken.Register(() =>
             {
                 Log.Debug("Ending process '{0}'.", Application);
-                process.Kill();
+                try
+                {  // process.Kill may throw if it has already exited.
+                    process.Kill();
+                }
+                catch(Exception ex)
+                {
+                    Log.Warning("Caught exception when killing process. {0}", ex.Message);
+                }
             });
 
             if (WaitForEnd)
