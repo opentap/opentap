@@ -2517,5 +2517,16 @@ namespace OpenTap.Engine.UnitTests
             var dialog = plan.ChildTestSteps.First() as DialogStep;
             Assert.AreEqual(testMessage, dialog.Message);
         }
+
+        [Test]
+        public void TestSerializeProcessStepWithNullDefaultValue()
+        {
+            // When DefaulValue is used and the property value is null an exception was thrown.
+            var plan = new TestPlan();
+            var step = new ProcessStep {LogHeader = null};
+            plan.ChildTestSteps.Add(step);
+            plan.SerializeToString(true);
+        }
+        
     }
 }
