@@ -223,6 +223,52 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
+        public void SweepLoopRange3Test()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepParameterRangeStep();
+            plan.ChildTestSteps.Add(sweep);
+            
+            var a = AnnotationCollection.Annotate(sweep).GetMember(nameof(sweep.SweepStep));
+            var menu = a.Get<MenuAnnotation>();
+            Assert.IsNotNull(menu);
+            var icons = menu.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+            var parameterize = icons[IconNames.ParameterizeOnTestPlan].First();
+
+            Assert.IsTrue(parameterize.Get<EnabledIfAnnotation>().IsEnabled);
+            Assert.AreEqual(0, plan.ExternalParameters.Entries.Count);
+            parameterize.Get<IMethodAnnotation>().Invoke();
+            Assert.AreEqual(1, plan.ExternalParameters.Entries.Count);
+
+            sweep.SweepBehavior = SweepBehavior.Linear;
+            sweep.SweepStart = 1;
+            sweep.SweepEnd = 101;
+
+            var param = plan.ExternalParameters.Entries.First();
+            { // Parameterized value updates SweepPoints
+                param.Value = 1;
+                Assert.AreEqual(101, sweep.SweepPoints);
+                param.Value = 2;
+                Assert.AreEqual(51, sweep.SweepPoints);
+                param.Value = 4;
+                Assert.AreEqual(26, sweep.SweepPoints);
+                param.Value = 8;
+                Assert.AreEqual(13, sweep.SweepPoints);
+            }
+
+            { // SweepPoints updates parameterized value
+                sweep.SweepPoints = 2;
+                Assert.AreEqual(100, param.Value);
+                sweep.SweepPoints = 3;
+                Assert.AreEqual(50, param.Value);
+                sweep.SweepPoints = 5;
+                Assert.AreEqual(25, param.Value);
+                sweep.SweepPoints = 6;
+                Assert.AreEqual(20, param.Value);
+            }
+        }
+
+        [Test]
         public void SweepLoop2Test()
         {
             var plan = new TestPlan();
@@ -402,6 +448,31 @@ namespace OpenTap.UnitTests
             {
                 Assert.AreEqual(ex.Message, "No values selected to sweep");
             }
+        }
+
+        public class NullPropertyStep : TestStep
+        {
+            public string NormallyNull { get; set; }
+            public override void Run() => UpgradeVerdict(Verdict.Pass);
+        }
+
+        [Test] 
+        public void SweepLoopNullValueProperty()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepParameterStep();
+            var step = new NullPropertyStep();
+            plan.ChildTestSteps.Add(sweep);
+            sweep.ChildTestSteps.Add(step);
+            
+            TypeData.GetTypeData(step).GetMember(nameof(step.NormallyNull)).Parameterize(sweep, step, nameof(step.NormallyNull));
+            
+            var row = new SweepRow {Loop = sweep};
+            row.Values[nameof(step.NormallyNull)] = null;
+            sweep.SweepValues.Add(new SweepRow{Loop = sweep});
+
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, run.Verdict);
         }
 
 

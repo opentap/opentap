@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using NUnit.Framework;
+using OpenTap.Engine.UnitTests;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using OpenTap.Plugins.BasicSteps;
 
@@ -33,6 +34,7 @@ namespace OpenTap.UnitTests
             var availStrings = avail.Select(x => x.Get<IStringReadOnlyValueAnnotation>().Value).ToArray();    
             Assert.IsTrue(availStrings.Contains(step.GetFormattedName()));
             Assert.IsTrue(availStrings.Contains(testPlanReference.GetFormattedName()));
+            
         }
 
         
@@ -597,7 +599,42 @@ namespace OpenTap.UnitTests
                 UserInput.SetInterface(currentUserInterface as IUserInputInterface);
             }
         }
+        
         [Test]
+        public void MenuAnnotationTest4()
+        {
+            var currentUserInterface = UserInput.Interface;
+            var menuInterface = new MenuTestUserInterface();
+            UserInput.SetInterface(menuInterface);
+            try
+            {
+                var plan = new TestPlan();
+                var sequence = new SequenceStep();
+                var step = new DelayStep();
+                plan.Steps.Add(sequence);
+                sequence.ChildTestSteps.Add(step);
+
+                {
+                    var p1 = TypeData.GetTypeData(step).GetMember(nameof(step.DelaySecs)).Parameterize(sequence, step, "A");
+                    p1.Parameterize(plan, sequence, p1.Name);
+
+                    var editParameterIcon = AnnotationCollection.Annotate(sequence).GetMember(p1.Name).Get<MenuAnnotation>().MenuItems
+                        .First(x => x.Get<IconAnnotationAttribute>().IconName == IconNames.EditParameter);
+                    
+                    menuInterface.SelectedMode = MenuTestUserInterface.Mode.TestPlan | MenuTestUserInterface.Mode.Error;
+                    menuInterface.SelectName = p1.Name;
+                    
+                    editParameterIcon.Get<IMethodAnnotation>().Invoke();
+
+                }
+            }
+            finally
+            {
+                UserInput.SetInterface(currentUserInterface as IUserInputInterface);
+            }
+        }
+
+            [Test]
         public void MenuAnnotationTest2()
         {
             var currentUserInterface = UserInput.Interface;
@@ -1485,6 +1522,64 @@ namespace OpenTap.UnitTests
                     mem.Write();
                     Assert.AreEqual(i + 1, col.AnnotatedElements.Count());
                 }
+            }
+        }
+
+        public class SuggestedValuesObject
+        {
+            public List<int> SuggestedValues { get; set; } = new List<int> {1, 2, 3};
+            [SuggestedValues(nameof(SuggestedValues))]
+            public int SelectedValue { get; set; }
+            
+            [AvailableValues(nameof(SuggestedValues))]
+            public int SelectedValue2 { get; set; }
+        }
+
+        [Test]
+        public void SuggestedAndAvailableValuesUpdateTest()
+        {
+            // an issue was discovered that when the list of suggested values is updated, without replacing it with
+            // a new list instance the an issue occurs because the ISuggestedValueAnnotationProxy does some internal caching.
+            var obj = new SuggestedValuesObject();
+            var a = AnnotationCollection.Annotate(obj);
+            var sv = a.GetMember(nameof(obj.SelectedValue)).Get<ISuggestedValuesAnnotationProxy>();
+            var av = a.GetMember(nameof(obj.SelectedValue2)).Get<IAvailableValuesAnnotationProxy>();
+            Assert.AreEqual(3, sv.SuggestedValues.Count());
+            Assert.AreEqual(3, av.AvailableValues.Count());
+            obj.SuggestedValues.Add(4);
+            a.Read();
+            Assert.AreEqual(4, sv.SuggestedValues.Count()); // Failed initially
+            Assert.AreEqual(4, av.AvailableValues.Count());
+        }
+
+        public class InstrumentStep : TestStep
+        {
+            public IInstrument Instrument { get; set; }
+            public override void Run()
+            {
+            }
+        }
+
+        [Test]
+        public void TestSetStringResourceTest()
+        {
+            using (Session.Create(SessionOptions.OverlayComponentSettings))
+            {
+                var step = new InstrumentStep();
+                var instrument = new DummyInstrument() { Name = "Instr" };
+                InstrumentSettings.Current.Add(instrument);
+                
+                var a = AnnotationCollection.Annotate(step);
+                var instr = a.GetMember(nameof(step.Instrument));
+                var strval = instr.Get<IStringValueAnnotation>();
+                var current = strval.Value;
+                Assert.AreNotEqual(instrument.Name, current); // this should be null or some other default value.
+                strval.Value = instrument.Name;
+                a.Write();
+                a.Read();
+                var next = strval.Value;
+                Assert.AreEqual(instrument, step.Instrument);
+                Assert.AreEqual(instrument.Name, next);
             }
         }
     }

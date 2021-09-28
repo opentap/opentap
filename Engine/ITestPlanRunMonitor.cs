@@ -29,7 +29,7 @@ namespace OpenTap
         /// These are ComponentSettings instances that inherits from ITestPlanRunMonitor.
         /// </summary>
         /// <returns></returns>
-        static public ITestPlanRunMonitor[] GetCurrent()
+        public static ITestPlanRunMonitor[] GetCurrent()
         {
             return PluginManager.GetPlugins<ComponentSettings>()
                 .Where(settings => settings.DescendsTo(typeof(ITestPlanRunMonitor)))

@@ -38,7 +38,6 @@
     <File Path="Packages/SDK/Examples/PluginDevelopment/InstrumentsAndDuts/*.cs"/>
     <File Path="Packages/SDK/Examples/PluginDevelopment/Properties/*"/>
     <File Path="Packages/SDK/Examples/PluginDevelopment/ResultListeners/*.cs"/>
-    <File Path="Packages/SDK/Examples/PluginDevelopment/TestSteps/DynamicStep.cs"/>
     <File Path="Packages/SDK/Examples/PluginDevelopment/TestSteps/Attributes/*.cs"/>
     <File Path="Packages/SDK/Examples/PluginDevelopment/TestSteps/InputOutput/*.cs"/>
     <File Path="Packages/SDK/Examples/PluginDevelopment/TestSteps/ParentChild/*.cs"/>

@@ -16,6 +16,7 @@ namespace OpenTap
     /// <summary> Represents a .NET type. </summary>
     public partial class TypeData : ITypeData
     {
+
         /// <summary> Creates a string value of this.</summary>
         public override string ToString() => Name;
 
@@ -98,8 +99,8 @@ namespace OpenTap
         }
 
         bool isValueType;
-        /// <summary> Cached IsValueType for speeding up annotation. </summary>
-        internal bool IsValueType
+        /// <summary> gets if the type is a value-type. (see Type.IsValueType)</summary>
+        public bool IsValueType
         {
             get
             {
@@ -175,6 +176,8 @@ namespace OpenTap
             }
         }
 
+        internal bool createInstanceSet => canCreateInstance.HasValue;
+        
         bool? canCreateInstance;
         /// <summary> 
         /// returns true if an instance possibly can be created. 
@@ -188,7 +191,8 @@ namespace OpenTap
                 var type = Load();
                 canCreateInstance = type.IsAbstract == false && type.IsInterface == false && type.ContainsGenericParameters == false && type.GetConstructor(Array.Empty<Type>()) != null;
                 return canCreateInstance.Value;
-            }       
+            }
+            internal set => canCreateInstance = value;
         }
 
         string assemblyQualifiedName;

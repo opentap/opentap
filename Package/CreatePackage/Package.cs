@@ -11,7 +11,10 @@ using System.Reflection;
 using System.Diagnostics;
 using Tap.Shared;
 using System.Runtime.InteropServices;
+using System.Xml;
+using System.Xml.Linq;
 using System.Xml.Serialization;
+using System.Xml.XPath;
 using OpenTap.Cli;
 
 namespace OpenTap.Package
@@ -186,6 +189,9 @@ namespace OpenTap.Package
 
             pkgDef.findDependencies(excludeAdd, assemblies);
 
+            if (exceptions.Count > 0)
+                throw new AggregateException("Conflicting dependencies", exceptions);
+
             return pkgDef;
         }
 
@@ -293,7 +299,7 @@ namespace OpenTap.Package
             // Find "pre-processor funcions"
             match = Regex.Match(text, @"(.*)(?:\$\()(.*?),(.*)(?:\))(.*)"); // With text = "Rolf$(ConvertFourValue,1.0.0.69)Asger", this regex should return 4 matching groups: "Rolf", "ConvertFourValue", "1.0.0.69" and "Asger".
 
-            if (match == null || match.Groups.Count < 4 || !match.Groups[2].Success || !match.Groups[3].Success)
+            if (match.Groups.Count < 4 || !match.Groups[2].Success || !match.Groups[3].Success)
                 return text;
 
             var plugins = PluginManager.GetPlugins<IVersionTryConverter>().Concat(PluginManager.GetPlugins<IVersionConverter>());

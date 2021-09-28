@@ -24,8 +24,6 @@ namespace OpenTap.Plugins.BasicSteps
         
         [Display("Step Size",  Group:"Sweep", Order: 1, Description: "The value to be increased or decreased between every iteration of the sweep.")]
         [EnabledIf(nameof(SweepBehavior), SweepBehavior.Linear, HideIfDisabled = true)]
-        [XmlIgnore] // this is inferred from the other properties and should not be set by the serializer
-        [Browsable(true)]
         public decimal SweepStep {
             get
             {

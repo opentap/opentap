@@ -27,6 +27,9 @@ namespace OpenTap.UnitTests
                 Log.Flush();
                 Assert.AreEqual(Verdict.NotSet, run.Verdict);
                 Assert.IsTrue(logListener.ErrorMessage.Count == 0);
+                Assert.IsNull(run.Parameters["TestPlanPath"]);
+                Assert.IsNull(run.Parameters.Find("TestPlanPath"));
+
             }
             finally
             {

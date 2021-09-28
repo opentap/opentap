@@ -13,7 +13,7 @@ namespace OpenTap
     /// <summary>
     /// A <see cref="Connection"/> that has an RF cable loss parameter.
     /// </summary>
-    [Display("RF Connection", "Directionless RF connection modeled as a set of cable loss points with frequency and loss values.")]
+    [Display("RF Connection", "Directionless RF connection modeled as a set of cable loss points with frequency and loss values.", "Basic Connections")]
     public class RfConnection : Connection
     {
         /// <summary>
@@ -40,19 +40,19 @@ namespace OpenTap
             [Unit("dB")]
             public double Loss { get; set; }
 
+            static readonly UnitAttribute frequencyUnit = typeof(CableLossPoint).GetProperty(nameof(Frequency)).GetAttribute<UnitAttribute>();
+            static readonly UnitAttribute lossUnit = typeof(CableLossPoint).GetProperty(nameof(Loss)).GetAttribute<UnitAttribute>();
+
             /// <summary>
             /// Prints the loss point, e.g "10dB @ 100kHz".
             /// </summary>
             /// <returns></returns>
             public override string ToString()
             {
-                UnitAttribute attr = GetType().GetProperty("Frequency").GetAttribute<UnitAttribute>();
-                var freqParser = new NumberFormatter(CultureInfo.CurrentCulture, attr) { IsCompact = true };
+                var freqParser = new NumberFormatter(CultureInfo.CurrentCulture, frequencyUnit) { IsCompact = true };
+                var lossParser = new NumberFormatter(CultureInfo.CurrentCulture, lossUnit) { IsCompact = true };
 
-                UnitAttribute attr2 = GetType().GetProperty("Loss").GetAttribute<UnitAttribute>();
-                var lossParser = new NumberFormatter(CultureInfo.CurrentCulture, attr2) { IsCompact = true };
-
-                return string.Format("{0} @{1}", lossParser.FormatNumber(Loss), freqParser.FormatNumber(Frequency));
+                return $"{lossParser.FormatNumber(Loss)} @{freqParser.FormatNumber(Frequency)}";
             }
         }
 
@@ -91,8 +91,8 @@ namespace OpenTap
         public double GetInterpolatedCableLoss(double frequency)
         {
             CableLoss = CableLoss.OrderBy(loss => loss.Frequency).ToList();
-            CableLossPoint below = CableLoss.Where(loss => loss.Frequency < frequency || (Math.Abs(loss.Frequency - frequency) < double.Epsilon)).LastOrDefault(); //Check for below, or if value exists.
-            CableLossPoint above = CableLoss.Where(loss => loss.Frequency > frequency).FirstOrDefault();
+            CableLossPoint below = CableLoss.LastOrDefault(loss => loss.Frequency < frequency || (Math.Abs(loss.Frequency - frequency) < double.Epsilon)); //Check for below, or if value exists.
+            CableLossPoint above = CableLoss.FirstOrDefault(loss => loss.Frequency > frequency);
 
             if (below != null && above != null)
             {

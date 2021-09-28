@@ -21,9 +21,9 @@ namespace OpenTap.Package
         private static readonly TraceSource log = Log.CreateSource("GitVersion");
 
         /// <summary>
-        /// Represents the --log command line argument which prints git log for the last n commits including version numbers for each commit.
+        /// Represents the --gitlog command line argument which prints git log for the last n commits including version numbers for each commit.
         /// </summary>
-        [CommandLineArgument("log",     Description = "Print the git log for the last <arg> commits including their semantic version number.")]
+        [CommandLineArgument("gitlog",     Description = "Print the git log for the last <arg> commits including their semantic version number.")]
         public string PrintLog { get; set; }
 
         /// <summary>
@@ -33,9 +33,9 @@ namespace OpenTap.Package
         public string Sha { get; set; }
 
         /// <summary>
-        /// Represents the --replace command line argument which causes this command to replace all occurrences of $(GitVersion) in the specified file. Cannot be used together with --log.
+        /// Represents the --replace command line argument which causes this command to replace all occurrences of $(GitVersion) in the specified file. Cannot be used together with --gitlog.
         /// </summary>
-        [CommandLineArgument("replace", Description = "Replace all occurrences of $(GitVersion) in the specified file\nwith the calculated semantic version number. It cannot be used with --log.")]
+        [CommandLineArgument("replace", Description = "Replace all occurrences of $(GitVersion) in the specified file\nwith the calculated semantic version number. It cannot be used with --gitlog.")]
         public string ReplaceFile { get; set; }
 
         /// <summary>
@@ -99,10 +99,24 @@ namespace OpenTap.Package
             string versionString = null;
             using (GitVersionCalulator calc = new GitVersionCalulator(RepoPath))
             {
-                if (String.IsNullOrEmpty(Sha))
-                    versionString = calc.GetVersion().ToString(FieldCount);
-                else
-                    versionString = calc.GetVersion(Sha).ToString(FieldCount);
+                try
+                {
+                    if (String.IsNullOrEmpty(Sha))
+                        versionString = calc.GetVersion().ToString(FieldCount);
+                    else
+                        versionString = calc.GetVersion(Sha).ToString(FieldCount);
+                }
+                catch (Exception ex)
+                {
+                    if (ex.Message.Contains("object not found - no match for id"))
+                    {
+                        throw new ExitCodeException((int) ExitCodes.GeneralException,
+                            "Failed getting git version because the repository history is incomplete.\n" +
+                            "Please ensure that the repository has a full version history (git fetch --unshallow).\n" +
+                            "If this is occurring on a gitlab runner, ensure 'Git shallow clone' is set to 0.");
+                    }
+                    throw;
+                }
             }
             if (!String.IsNullOrEmpty(ReplaceFile))
             {

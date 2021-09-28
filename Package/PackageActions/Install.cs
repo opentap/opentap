@@ -128,9 +128,9 @@ namespace OpenTap.Package
 
                         PackageIdentifier pid = new PackageIdentifier(pkg, Version, Architecture, OS);
                         var installedPackage = targetInstallation.GetPackages().FirstOrDefault(p => p.Name == pid.Name);
-                        if (installedPackage != null && pid.Version.CompareTo(installedPackage.Version) == 0)
+                        if (installedPackage != null && pid.Version.Equals(installedPackage.Version))
                         {
-                            log.Info($"Package '{pid.Name}' is already installed.");
+                            log.Info($"Package '{pid.Name}' '{installedPackage.Version}' is already installed.");
                             return (int) ExitCodes.Success;
                         }
                     }
@@ -220,12 +220,12 @@ namespace OpenTap.Package
             installer.PackagePaths.AddRange(toInstall);
 
             // Install the package
-            var status = installer.InstallThread();
+            installer.InstallThread();
 
             if (installError)
                 return (int) PackageExitCodes.PackageInstallError;
 
-            return status;
+            return 0;
         }
 
         protected override int LockedExecute(CancellationToken cancellationToken)

@@ -114,6 +114,9 @@ namespace OpenTap.Engine.UnitTests
         [CommandLineArgument("run-long-plan-with-references", Description = "Expected time ~32s")]
         public bool LongPlanWithReferences { get; set; }
         
+        [CommandLineArgument("serialize-deserialize-long-plan", Description = "Expected time ~13s")]
+        public bool SerializeDeserializeLongPlan { get; set; }
+
         [CommandLineArgument("hide-steps")]
         public bool HideSteps { get; set; }
         
@@ -256,7 +259,25 @@ namespace OpenTap.Engine.UnitTests
 
 
             }
-            
+
+            if (SerializeDeserializeLongPlan)
+            {
+                var testplan = new TestPlan();
+                for (var i = 0; i < 100000; i++)
+                    testplan.Steps.Add(new LogStep());
+                var sw = Stopwatch.StartNew();
+
+                var iterations = Iterations == -1 ? 1 : Iterations;
+                for (var i = 0; i < iterations; i++)
+                {
+                    var serializer = new TapSerializer();
+                    var planXml = serializer.SerializeToString(testplan);
+                    testplan = (TestPlan) serializer.DeserializeFromString(planXml);
+                }
+
+                Console.WriteLine("Serialize/Deserialize long plan took {0}ms in total.", sw.ElapsedMilliseconds);
+            }
+
             if (Parameterize)
             {
                 
