@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 
 namespace OpenTap.Package
 {
@@ -6,6 +7,7 @@ namespace OpenTap.Package
     // hook to know when a TestPlanRun is started, besides creating a result listener. 
     // Since this component setting is internal, it will not show up in the GUI, but it is detected by the engine
     // since the 'PluginAssembly' attribute is used in this assembly. 
+    [Browsable(false)]
     internal class TestPlanRunPackageParameterMonitor : ComponentSettings, ITestPlanRunMonitor
     {
         private static TraceSource log = Log.CreateSource(nameof(TestPlanRunPackageParameterMonitor));
