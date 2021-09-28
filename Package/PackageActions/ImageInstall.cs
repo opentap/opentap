@@ -27,10 +27,19 @@ namespace OpenTap.Package
         [CommandLineArgument("merge")]
         public bool Merge { get; set; }
 
+        /// <summary>
+        /// Never prompt for user input.
+        /// </summary>
+        [CommandLineArgument("non-interactive", Description = "Never prompt for user input.")]
+        public bool NonInteractive { get; set; } = false;
+
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
             try
             {
+                if (NonInteractive)
+                    UserInput.SetInterface(new NonInteractiveUserInputInterface());
+                
                 var imageString = File.ReadAllText(ImagePath);
                 var image = ImageSpecifier.FromString(imageString);
                 if (Merge)
