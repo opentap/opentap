@@ -61,6 +61,24 @@ namespace OpenTap.Package
         {
             InvalidateIfChanged();
 
+            try
+            {
+                var invalid = Path.GetInvalidPathChars();
+                if (file.Any(ch => invalid.Contains(ch))) return null;
+                var name = Path.GetFileName(file);
+                invalid = Path.GetInvalidFileNameChars();
+                if (name.Any(ch => invalid.Contains(ch))) return null;
+                // The path API is not 100% consistent. In some circumstances 'GetFullPath' will
+                // still throw even if there are no illegal characters in the filename or path name.
+                _ = Path.GetFullPath(file);
+            }
+            catch
+            {
+                // This means the filename is invalid on some way not covered by Path.GetInvalidPathChars.
+                // This is fine, and it definitely means the file is not contained in a package
+                return null;
+            }
+
             // Compute the absolute path in order to ensure the file exists, and normalize the path so it matches the format in package.xml files
             var abs = Path.GetFullPath(file);
 
