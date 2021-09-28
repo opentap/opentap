@@ -1,8 +1,8 @@
-using System;
 using System.IO;
 using System.Linq;
 using System.Xml;
 using NUnit.Framework;
+using OpenTap.EngineUnitTestUtils;
 using OpenTap.Package;
 using OpenTap.Plugins.BasicSteps;
 
@@ -108,6 +108,19 @@ namespace OpenTap.UnitTests
 
             VerifyDependency("File", PictureReference, 1, document);
         }
+
+        [Test]
+        public void TestFindInvalidPath()
+        {
+            var file = new string(Path.GetInvalidFileNameChars());
+            var a = Installation.Current.FindPackageContainingFile(file);
+            Assert.IsNull(a);
+
+            var file2 = "abc/def : ghi.txt";
+            var b = Installation.Current.FindPackageContainingFile(file2);
+            Assert.IsNull(b);
+        }
+
 
         [Test]
         public void TestPackageFileDependencies()
