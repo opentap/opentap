@@ -261,17 +261,16 @@ namespace OpenTap.Package
                         log.Warning("- " + process.ProcessName);
                 }
 
-                log.Warning(Environment.NewLine + "Waiting for files to become unlocked...");
-
                 var tries = 0;
                 const int maxTries = 10;
                 var delaySeconds = 3;
                 var noninteractive = UserInput.GetInterface() is NonInteractiveUserInputInterface;
+                var inUseString = BuildString(filesInUse);
+                if (noninteractive)
+                    log.Warning(inUseString);
 
                 while (isPackageFilesInUse(tapDir, packagePaths, exclude))
                 {
-                    var inUseString = BuildString(filesInUse);
-
                     var req = new AbortOrRetryRequest(inUseString) {Response = AbortOrRetryResponse.Abort};
                     UserInput.Request(req, waitForFilesTimeout, true);
 
@@ -290,6 +289,7 @@ namespace OpenTap.Package
                     }
 
                     filesInUse = GetFilesInUse(tapDir, packagePaths);
+                    inUseString = BuildString(filesInUse);
                 }
             }
         }
