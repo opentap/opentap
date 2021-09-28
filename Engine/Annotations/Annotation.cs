@@ -1962,19 +1962,33 @@ namespace OpenTap
 
         class ResourceAnnotation : IAvailableValuesAnnotation, IStringValueAnnotation, ICopyStringValueAnnotation
         {
-            public IEnumerable AvailableValues => ComponentSettingsList.GetContainer(basetype).Cast<object>().Where(x => x.GetType().DescendsTo(basetype));
+            readonly Type baseType;
+            readonly AnnotationCollection a;
+            
+            public IEnumerable AvailableValues => ComponentSettingsList.GetContainer(baseType).Cast<object>().Where(x => x.GetType().DescendsTo(baseType));
+            
+            string IStringReadOnlyValueAnnotation.Value => (a.Get<IObjectValueAnnotation>()?.Value as IResource)?.ToString();
 
             public string Value
             {
                 get => (a.Get<IObjectValueAnnotation>()?.Value as IResource)?.ToString();
-                set => throw new NotSupportedException("Resource annotation cannot convert from a string");
+                set
+                {
+                    var values = AvailableValues.OfType<IResource>();
+                    var resource = values.FirstOrDefault(x => x.Name == value) ?? values.FirstOrDefault(x => x.ToString() == value);
+                    if(resource == null)
+                        throw new FormatException("Unknown resource: " + value ?? "");
+                    var objectValue = a.Get<IObjectValueAnnotation>();
+                    if (objectValue != null)
+                        objectValue.Value = resource;
+                    else 
+                        throw new Exception("Cannot set resource value");
+                } 
             }
 
-            Type basetype;
-            AnnotationCollection a;
             public ResourceAnnotation(AnnotationCollection a, Type lowerstType)
             {
-                this.basetype = lowerstType;
+                baseType = lowerstType;
                 this.a = a;
             }
         }
