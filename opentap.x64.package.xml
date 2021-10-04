@@ -8,18 +8,29 @@
     <Owner>OpenTAP</Owner>
     <Files>
         <File Path="OpenTap.dll">
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc"/>
         </File>
         <File Path="Packages/OpenTAP/OpenTap.Cli.dll">
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc"/>
         </File>
         <File Path="OpenTap.Package.dll">
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc"/>
         </File>
         <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" SourcePath="OpenTap.Plugins.BasicSteps.dll">
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc"/>
         </File>
         <File Path="tap.exe">
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc"/>
         </File>
         <File Path="Dependencies/System.Runtime.InteropServices.RuntimeInformation.4.0.2.0/System.Runtime.InteropServices.RuntimeInformation.dll"
               SourcePath="System.Runtime.InteropServices.RuntimeInformation.dll"/>
         <File Path="Dependencies/LibGit2Sharp.0.25.0.0/git2-4aecb64.dll" SourcePath="lib/win32/x64/git2-4aecb64.dll"/>
+        <File Path="OpenTapApiReference.chm" SourcePath="../../Help/OpenTapApiReference.chm"/>    
 
         <!-- License Texts -->
         <File Path="LICENSE.txt" SourcePath="../../LICENSE.txt"/>
