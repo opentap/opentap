@@ -18,7 +18,7 @@ namespace OpenTap.Diagnostic
         internal class LogBuffer
         {
             /// <summary> How many log messages to make room for in the buffer.  </summary>
-            const int Capacity = 1024 * 8; 
+            const int Capacity = 1024 * 16; 
 
             public LogBuffer Next = null;
 
@@ -116,8 +116,19 @@ namespace OpenTap.Diagnostic
         }
 
         readonly object lck = new object();
+
+        /// <summary> Prevent too much data from being written to the buffer.</summary>
+        void maybeWaitForProcessing()
+        {
+            // Check Capacity for the size of each buffer.
+            // if there are more than 4 x Capacity we wait for them to be processed.
+            while (_first?.Next?.Next?.Next?.Next != null)
+                TapThread.Sleep(10);
+        }
+        
         public void Enqueue(string source, string message, long time, long duration, int eventType)
         {
+            maybeWaitForProcessing();
             Interlocked.Increment(ref _postedMessages);
 
             while (true)
@@ -143,6 +154,7 @@ namespace OpenTap.Diagnostic
         }
         public void Enqueue(Event evt)
         {
+            maybeWaitForProcessing();
             Interlocked.Increment(ref _postedMessages);
 
             while (true)
