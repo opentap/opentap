@@ -1,31 +1,33 @@
 ## Contribute to OpenTAP
 
-Thank you for your interest in contributing to OpenTAP. Contributions includes feature enhancement request, issue reporting, bug fixing...
+Thank you for your interest in contributing to OpenTAP. Contributions include feature enhancement requests, issue reporting, bug fixes, etc.
 
-This guide details how to contribute to OpenTAP in a way that is efficient for everyone.
+This guide contains details on how to contribute to OpenTAP in a way that makes it most efficient for everyone.
 
-## Contributor license agreement
+## Contributor License Agreement
 
-OpenTAP requires contributors to sign a contribution license agreement (CLA). 
-You can find the CLA [here](https://www.opentap.io/docs/OpenTAP%20Contributor%20License%20Agreement%20v2.pdf).
-The CLA can be signed by an individual or a company. For companies, please add the company name and have a legal authorized representative endorsing the document.
+OpenTAP requires contributors to sign a Contribution License Agreement (CLA), which can be downloaded from [here](https://www.opentap.io/docs/OpenTAP%20Contributor%20License%20Agreement%20v2.pdf).
+The CLA can be signed either by an individual or a company. For companies, please be sure to include the company name and have a legal authorized representative endorse the document.
 
-*  By submitting code as an individual you agree to the individual contributor license agreement.
+* By submitting code as an **individual** you agree to the individual contributor license agreement.
 
-*  By submitting code as an entity you agree to the corporate contributor license agreement.
+* By submitting code as a **company/entity** you agree to the corporate contributor license agreement.
 
-Send the signed CLA to [CLA@opentap.io](mailto:CLA@opentap.io) together with your Gitlab username and email address, and we will promote you to a developer role in the OpenTAP project.
+Sign the CLA and forward it to [CLA@opentap.io](mailto:CLA@opentap.io) along with your GitLab username and your e-mail address. Once received, we will promote you to a Developer role in the OpenTAP project.
 
-## Contibuting Code   
-   
-Once you have signed the CLA and have been added to the project, we welcome merge requests with fixes and improvements to OpenTAP code or documentation.
+**Note:** Making minor fixes, such a correcting typos and editing non-critical information, can be accepted from anyone without a formal CLA in place. All other issues will require a CLA to be signed and submitted.
 
-In the issue tracker, the label `Accepting Merge Requests` denotes issues that we agree is a good idea and would really like merge requests for, but other improvements are also most welcome.
+## Contibuting Code
 
-Issues labeled `To be Discussed` needs futher discussion. Try to resolve these discussions, and get the label removed, before starting to work on these issues.
+Once you have signed the CLA and have been added to the project, we will accept merge requests containing fixes and enhancements to OpenTAP code and/or documentation.
 
-Once you have identified an issue:   
-1. Assign it to yourself   
-2. Create a new branch using the Gitlab recommended syntax: issueNumber-issue-description   
-3. Commit changes   
-4. Open a Merge Request on the master branch at https://gitlab.com/OpenTAP/opentap
+In the issue tracker, the label `Accepting Merge Requests` indicates that we agree that the issue is valid and we are open to accepting Merge Requests (other enhancements are also welcome).
+
+Issues labeled `To be Discussed` require futher discussion. Do your best to resolve these discussions, and get the label removed, before starting to work on these issues.
+
+Once you have identified an issue:
+
+1. Assign it to yourself
+2. Create a new branch using the GitLab recommended syntax: issueNumber-issue-description
+3. Commit changes
+4. Open a Merge Request on the master branch at <https://gitlab.com/OpenTAP/opentap>
