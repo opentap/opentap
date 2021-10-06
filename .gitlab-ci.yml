@@ -276,7 +276,6 @@ TestUbuntu:
 
 TestCentos7:
   stage: test
-  when: manual # Disabled until we get an upgraded centos docker image. -> lets encrypt certificate needs an upgrade.
   image: 
     name: stefanholst0/dotnet-21-centos7-root:latest
     entrypoint: [ "" ]
