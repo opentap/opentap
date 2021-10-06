@@ -35,28 +35,35 @@ namespace OpenTap.Package
 
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
+            if (NonInteractive)
+                UserInput.SetInterface(new NonInteractiveUserInputInterface());
+            
+            var imageString = File.ReadAllText(ImagePath);
+            var image = ImageSpecifier.FromString(imageString);
+            if (Merge)
+            {
+                var installation = new Installation(Target);
+                image.OnResolve += args =>
+                {
+                    return installation.GetPackages().FirstOrDefault(p => p.Name == args.PackageSpecifier.Name && args.PackageSpecifier.Version.IsCompatible(p.Version));
+                };
+                image.Packages.AddRange(installation.GetPackages().Select(p => new PackageSpecifier(p)));
+            }
+
+            ImageIdentifier imageIdentifier = null;
             try
             {
-                if (NonInteractive)
-                    UserInput.SetInterface(new NonInteractiveUserInputInterface());
-                
-                var imageString = File.ReadAllText(ImagePath);
-                var image = ImageSpecifier.FromString(imageString);
-                if (Merge)
-                {
-                    var installation = new Installation(Target);
-                    image.Packages.AddRange(installation.GetPackages().Select(p => new PackageSpecifier(p)));
-                }
-                var imageIdentifier = image.Resolve(cancellationToken);
-                imageIdentifier.Deploy(Target, cancellationToken);
-                return 0;
+                imageIdentifier = image.Resolve(cancellationToken);
             }
             catch (AggregateException e)
             {
                 foreach (var innerException in e.InnerExceptions)
                     log.Error(innerException.Message);
-                throw;
+                throw new ExitCodeException((int)PackageExitCodes.PackageDependencyError, "Resulting installation has package dependencies issues. Please fix existing installation and try again.");
             }
+            
+            imageIdentifier.Deploy(Target, cancellationToken);
+            return 0;
         }
     }
 }
