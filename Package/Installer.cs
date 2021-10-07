@@ -77,9 +77,19 @@ namespace OpenTap.Package
 
                         if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) && PackagePaths.Last() != fileName)
                         {
-                            log.Info(timer, $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
-                            PluginManager.DirectoriesToSearch.Add(TapDir);
-                            PluginManager.SearchAsync();
+                            var newPlugins = pkg.Files.SelectMany(s => s.Plugins.Select(t => t)).Where(t => t.BaseType == nameof(ICustomPackageData));
+                            if (newPlugins.Any(np => TypeData.GetTypeData(np.Name) == null))  // Only search again, if the new plugins are not already loaded.
+                            {
+                                if (ExecutorClient.IsRunningIsolated)
+                                {
+                                    // Only load installed assemblies if we're running isolated. 
+                                    log.Info(timer, $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
+                                    PluginManager.DirectoriesToSearch.Add(TapDir);
+                                    PluginManager.SearchAsync();
+                                }
+                                else
+                                    log.Warning($"Package '{pkg.Name}' contains possibly relevant plugins for next package installations, but these will not be loaded.");
+                            }
                         }
                     }
                     catch
@@ -134,11 +144,14 @@ namespace OpenTap.Package
                         WaitForPackageFilesFree(TapDir, PackagePaths);
                     }
 
-                    catch
+                    catch (Exception ex)
                     {
                         log.Warning("Uninstall stopped while waiting for package files to become unlocked.");
                         if (!force)
+                        {
+                            OnError(ex);
                             throw;
+                        }
                     }
                 }
 
@@ -248,17 +261,16 @@ namespace OpenTap.Package
                         log.Warning("- " + process.ProcessName);
                 }
 
-                log.Warning(Environment.NewLine + "Waiting for files to become unlocked...");
-
                 var tries = 0;
                 const int maxTries = 10;
                 var delaySeconds = 3;
                 var noninteractive = UserInput.GetInterface() is NonInteractiveUserInputInterface;
+                var inUseString = BuildString(filesInUse);
+                if (noninteractive)
+                    log.Warning(inUseString);
 
                 while (isPackageFilesInUse(tapDir, packagePaths, exclude))
                 {
-                    var inUseString = BuildString(filesInUse);
-
                     var req = new AbortOrRetryRequest(inUseString) {Response = AbortOrRetryResponse.Abort};
                     UserInput.Request(req, waitForFilesTimeout, true);
 
@@ -277,6 +289,7 @@ namespace OpenTap.Package
                     }
 
                     filesInUse = GetFilesInUse(tapDir, packagePaths);
+                    inUseString = BuildString(filesInUse);
                 }
             }
         }

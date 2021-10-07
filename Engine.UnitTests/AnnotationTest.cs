@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Serialization;
 using NUnit.Framework;
+using OpenTap.Engine.UnitTests;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using OpenTap.Plugins.BasicSteps;
 
@@ -33,6 +34,7 @@ namespace OpenTap.UnitTests
             var availStrings = avail.Select(x => x.Get<IStringReadOnlyValueAnnotation>().Value).ToArray();    
             Assert.IsTrue(availStrings.Contains(step.GetFormattedName()));
             Assert.IsTrue(availStrings.Contains(testPlanReference.GetFormattedName()));
+            
         }
 
         
@@ -1549,6 +1551,36 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(4, sv.SuggestedValues.Count()); // Failed initially
             Assert.AreEqual(4, av.AvailableValues.Count());
         }
-        
+
+        public class InstrumentStep : TestStep
+        {
+            public IInstrument Instrument { get; set; }
+            public override void Run()
+            {
+            }
+        }
+
+        [Test]
+        public void TestSetStringResourceTest()
+        {
+            using (Session.Create(SessionOptions.OverlayComponentSettings))
+            {
+                var step = new InstrumentStep();
+                var instrument = new DummyInstrument() { Name = "Instr" };
+                InstrumentSettings.Current.Add(instrument);
+                
+                var a = AnnotationCollection.Annotate(step);
+                var instr = a.GetMember(nameof(step.Instrument));
+                var strval = instr.Get<IStringValueAnnotation>();
+                var current = strval.Value;
+                Assert.AreNotEqual(instrument.Name, current); // this should be null or some other default value.
+                strval.Value = instrument.Name;
+                a.Write();
+                a.Read();
+                var next = strval.Value;
+                Assert.AreEqual(instrument, step.Instrument);
+                Assert.AreEqual(instrument.Name, next);
+            }
+        }
     }
 }

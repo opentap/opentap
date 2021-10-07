@@ -33,6 +33,8 @@ namespace OpenTap.Package
             // Since we are deciding to do the update check for the parent process there is no reason to also
             // do it for the child processes.
             Environment.SetEnvironmentVariable("OPENTAP_NO_UPDATE_CHECK", "true");
+            string noUpdateMessageEnv = Environment.GetEnvironmentVariable("OPENTAP_NO_UPDATE_MESSAGE");
+            bool noUpdateMessage = noUpdateMessageEnv == "true" || noUpdateMessageEnv == "1";
             
             var timer = Stopwatch.StartNew();
             List<PackageDef> updates = new List<PackageDef>();
@@ -49,11 +51,17 @@ namespace OpenTap.Package
                 }
                 catch (Exception ex)
                 {
-
-                    log.Warning("Update check against {0} failed. See debug messages for details.", repo.Url);
+                    if (noUpdateMessage)
+                        log.Debug("Update check against {0} failed. See debug messages for details.", repo.Url);
+                    else
+                        log.Warning("Update check against {0} failed. See debug messages for details.", repo.Url);
                     log.Debug(ex);
                 }
             });
+            
+            if (noUpdateMessage)
+                return;
+            
             using (CliUserInputInterface.AcquireUserInputLock())
             {
                 if (updates.Any())

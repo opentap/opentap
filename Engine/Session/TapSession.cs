@@ -108,7 +108,7 @@ namespace OpenTap
         static Session()
         {
             // TapThread needs a RootSession to start, so the first time, the TapThread cannot be set.
-            RootSession = new Session(SessionOptions.None, true);
+            RootSession = new Session(Guid.NewGuid(), SessionOptions.None, true);
             RootSession.threadContext = TapThread.Current;
         }
         
@@ -132,15 +132,16 @@ namespace OpenTap
         /// <summary>
         /// Gets the session ID for this session.
         /// </summary>
-        public Guid Id { get; } = Guid.NewGuid();
+        public Guid Id { get; }
 
         /// <summary>
         /// Gets the flags used to create/start this session.
         /// </summary>
         public SessionOptions Options { get; }
 
-        Session(SessionOptions options, bool rootSession = false)
+        Session(Guid id, SessionOptions options, bool rootSession = false)
         {
+            Id = id;
             Options = options;
             if (!rootSession)
             {
@@ -181,10 +182,11 @@ namespace OpenTap
 
         /// <summary> Creates a new session in the current <see cref="TapThread"/> context. The session lasts until the TapTread ends, or Dispose is called on the returned Session object.</summary>
         /// <param name="options">Flags selected from the SessionOptions enum to customize the behavior of the session.</param>
+        /// <param name="id">Option to specify the ID of the Session</param>
         /// <returns> A disposable Session object. </returns>
-        public static Session Create(SessionOptions options = SessionOptions.OverlayComponentSettings | SessionOptions.RedirectLogging)
+        public static Session Create(SessionOptions options = SessionOptions.OverlayComponentSettings | SessionOptions.RedirectLogging, Guid? id = null)
         {
-            var session = new Session(options);
+            var session = new Session(id.HasValue ? id.Value : Guid.NewGuid(), options);
             session.disposables.Push(TapThread.UsingThreadContext(session.DisposeSessionLocals));
             session.Activate();
             return session;
@@ -195,7 +197,7 @@ namespace OpenTap
         /// </summary>
         public static void Start(Action action, SessionOptions options = SessionOptions.OverlayComponentSettings | SessionOptions.RedirectLogging)
         {
-            var session = new Session(options);
+            var session = new Session(Guid.NewGuid(), options);
             TapThread.Start(() =>
             {
                 try

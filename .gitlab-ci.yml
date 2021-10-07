@@ -233,7 +233,7 @@ TestLinuxPlan:
         - check_exit_code 20
         - echo "tap sdk gitversion unit tests"
         - tap sdk gitversion -v       # verify that gitversion works.
-        - tap sdk gitversion --log 10 # verify that gitversion log works.
+        - tap sdk gitversion --gitlog 10 # verify that gitversion gitlog works.
         - echo "tap package create/verify unit tests"
         - tap package verify -v || exit_code=$?
         - check_exit_code 31
@@ -589,7 +589,7 @@ TestIsolated:
 # Stage: publish                            #
 #############################################
 
-.PublishPackage:
+PublishPackages:
   stage: publish
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
   tags: [ docker, windows ]
@@ -601,26 +601,14 @@ TestIsolated:
      - Package-Windows32
      - Package-Linux
      - Package-SDK
+  only:
+    - tags
+    - /^release.*$/
+    - master
   script:
       - cd bin/Release
       - ./tap package install -f PackagePublish --version beta
       - ./tap package publish -r http://packages.opentap.io -k $PUBLIC_REPO_PASS ../../*.TapPackage
-
-PublishPackages-Release:
-  extends: .PublishPackage
-  only:
-    - tags
-
-PublishPackages-RC:
-  extends: .PublishPackage
-  only:
-    - /^release.*$/
-
-PublishPackages-Beta:
-  extends: .PublishPackage
-  only:
-    - master
-  when: manual
 
 Publish-Nuget:
   stage: publish
@@ -633,13 +621,8 @@ Publish-Nuget:
   only:
     - tags
     - /^release.*$/
-  script: nuget push OpenTAP.*.nupkg $NUGET_KEY -NonInteractive -Source https://api.nuget.org/v3/index.json
-
-Publish-Nuget-Manuel:
-  extends: Publish-Nuget
-  only:
     - master
-  when: manual
+  script: nuget push OpenTAP.*.nupkg $NUGET_KEY -NonInteractive -Source https://api.nuget.org/v3/index.json
 
 .DockerLinuxBuild:
   image: 

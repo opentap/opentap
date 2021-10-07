@@ -128,9 +128,9 @@ namespace OpenTap.Package
 
                         PackageIdentifier pid = new PackageIdentifier(pkg, Version, Architecture, OS);
                         var installedPackage = targetInstallation.GetPackages().FirstOrDefault(p => p.Name == pid.Name);
-                        if (installedPackage != null && pid.Version.CompareTo(installedPackage.Version) == 0)
+                        if (installedPackage != null && pid.Version.Equals(installedPackage.Version))
                         {
-                            log.Info($"Package '{pid.Name}' is already installed.");
+                            log.Info($"Package '{pid.Name}' '{installedPackage.Version}' is already installed.");
                             return (int) ExitCodes.Success;
                         }
                     }
