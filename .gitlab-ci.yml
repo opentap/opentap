@@ -268,12 +268,13 @@ TestUbuntu:
   image: mcr.microsoft.com/dotnet/sdk:5.0-focal
   extends: .LinuxScript
 
-TestCentos7:
-  stage: test
-  image: 
-    name: stefanholst0/dotnet-21-centos7-root:latest
-    entrypoint: [ "" ]
-  extends: .LinuxScript
+# We need a centos
+# TestCentos7:
+#   stage: test
+#   image:
+#     name: stefanholst0/dotnet-21-centos7-root:latest
+#     entrypoint: [ "" ]
+#   extends: .LinuxScript
 
 # TestUbuntuPackaged:
 #   image: buildpack-deps:bionic
