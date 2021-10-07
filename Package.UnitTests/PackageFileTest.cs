@@ -6,6 +6,9 @@ using NUnit.Framework;
 using System.IO;
 using System.Text;
 using OpenTap.Package;
+using static OpenTap.Package.FileHashPackageAction;
+using System;
+using System.Security.Cryptography;
 
 namespace OpenTap.Package.UnitTests
 {
@@ -25,6 +28,21 @@ namespace OpenTap.Package.UnitTests
             Assert.AreEqual("Tap", package.Dependencies[0].Name);
             Assert.AreEqual(package.Files.Count, 2);
             Assert.IsNotNull(package.Description);
+        }
+
+        [Test]
+        public void CompareFileHashes()
+        {
+            string testString = "This is a test string";
+            using (MemoryStream memory = new MemoryStream(Encoding.UTF8.GetBytes(testString)))
+            {
+                var bytes = SHA1.Create().ComputeHash(memory);
+                var oldHash = new Hash(bytes); // Old hash format - base64 encoded
+                oldHash.Value = Convert.ToBase64String(bytes);
+                var newHash = new Hash(bytes); // New hash format - hex encoded string
+                Assert.AreEqual(oldHash, newHash);
+                Assert.AreEqual(newHash, oldHash);
+            }
         }
     }
 }

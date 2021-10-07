@@ -37,7 +37,7 @@ namespace OpenTap.Plugins
                 var defaultAttr = elem.Attribute(ObjectSerializer.DefaultValue);
                 if (defaultAttr != null)
                 {
-                    if (object.Equals(defaultAttr.Value, obj.ToString()) && elem.Attributes().Count() == 1)
+                    if (object.Equals(defaultAttr.Value, obj?.ToString()) && elem.Attributes().Count() == 1)
                     {
                         // To remove this case since default value is same as specified value 
                         // <TimeDelay HasDefaultValue="True">0.1</TimeDelay>.

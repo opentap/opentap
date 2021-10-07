@@ -140,8 +140,13 @@ namespace OpenTap
                 post_group = Array.Empty<string>();
             }
 
-            var groups = pre_group1.Concat(pre_name == null ? Array.Empty<string>() : new[] {pre_name}).Concat(post_group)
-                .ToArray();
+            string[] prefixGroups;
+            if (embed.PrefixPropertyName == false && string.IsNullOrWhiteSpace(pre_name))
+                prefixGroups = Array.Empty<string>();
+            else
+                prefixGroups = new[] {pre_name};
+
+            var groups = pre_group1.Concat(prefixGroups).Concat(post_group).ToArray();
 
             
             double order = -10000;

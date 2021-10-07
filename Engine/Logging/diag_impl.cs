@@ -70,7 +70,7 @@ namespace OpenTap.Diagnostic
             return new LogContext(false);
         }
 
-        readonly AutoResetEvent evt = new AutoResetEvent(false);
+        readonly AutoResetEvent newEventOccured = new AutoResetEvent(false);
 
         void ProcessLog()
         {
@@ -78,7 +78,7 @@ namespace OpenTap.Diagnostic
             Event[] bunch = new Event[0];
             while (isDisposed == false)
             {
-                evt.WaitOne();
+                newEventOccured.WaitOne();
                 flushBarrier.WaitOne(100); // let things queue up unless flush is called.
                 int count = LogQueue.DequeueBunch(ref bunch);
 
@@ -154,13 +154,14 @@ namespace OpenTap.Diagnostic
             long posted = LogQueue.PostedMessages;
 
             flushBarrier.Set();
-            evt.Set();
+            newEventOccured.Set();
 
             if (timeoutMs == 0)
             {
                 while (((processedMessages - posted)) < 0)
                 {
                     Thread.Yield();
+                    newEventOccured.Set();
                     flushBarrier.Set();
                 }
                 return true;
@@ -172,6 +173,7 @@ namespace OpenTap.Diagnostic
                 while ((processedMessages - posted) < 0 && sw.ElapsedMilliseconds < timeoutMs)
                 {
                     Thread.Yield();
+                    newEventOccured.Set();
                     flushBarrier.Set();
                 }
 
@@ -189,7 +191,7 @@ namespace OpenTap.Diagnostic
         {
             Flush();
             isDisposed = true;
-            evt.Set();
+            newEventOccured.Set();
             flushBarrier.Set();
         }
 
@@ -227,7 +229,7 @@ namespace OpenTap.Diagnostic
             {
                 injectEvent(evt);
             }
-            this.evt.Set();
+            this.newEventOccured.Set();
         }
 
         internal class LogInjector

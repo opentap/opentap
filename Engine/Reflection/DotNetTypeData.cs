@@ -16,6 +16,7 @@ namespace OpenTap
     /// <summary> Represents a .NET type. </summary>
     public partial class TypeData : ITypeData
     {
+
         /// <summary> Creates a string value of this.</summary>
         public override string ToString() => Name;
 
@@ -98,8 +99,8 @@ namespace OpenTap
         }
 
         bool isValueType;
-        /// <summary> Cached IsValueType for speeding up annotation. </summary>
-        internal bool IsValueType
+        /// <summary> gets if the type is a value-type. (see Type.IsValueType)</summary>
+        public bool IsValueType
         {
             get
             {

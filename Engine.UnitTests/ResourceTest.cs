@@ -53,6 +53,24 @@ namespace OpenTap.UnitTests
                 }
             }
         }
+
+        [Test]
+        public void TestNoConnectResource([Values(true, false)] bool resourceEnabled)
+        {
+            using (Session.Create())
+            {
+                var dummyInstr = new OpenCrash();
+                InstrumentSettings.Current.Add(dummyInstr);
+                var step = new ResourceTestStep {MyTestResource = dummyInstr, ResourceEnabled = resourceEnabled};
+                var plan = new TestPlan();
+                plan.Steps.Add(step);
+                var run = plan.Execute();
+                if(resourceEnabled)
+                    Assert.AreEqual(Verdict.Error, run.Verdict);
+                else
+                    Assert.AreEqual(Verdict.NotSet, run.Verdict);
+            }
+        }
         
         [AllowAnyChild]
         public class IgnoredResourceStep : TestStep

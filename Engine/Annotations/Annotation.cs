@@ -1767,7 +1767,7 @@ namespace OpenTap
                 this.fac = fac;
             }
 
-            public void Read(object source)
+            public void Read(object source)     
             {
                 annotatedElements = null;
             }
@@ -1962,19 +1962,33 @@ namespace OpenTap
 
         class ResourceAnnotation : IAvailableValuesAnnotation, IStringValueAnnotation, ICopyStringValueAnnotation
         {
-            public IEnumerable AvailableValues => ComponentSettingsList.GetContainer(basetype).Cast<object>().Where(x => x.GetType().DescendsTo(basetype));
+            readonly Type baseType;
+            readonly AnnotationCollection a;
+            
+            public IEnumerable AvailableValues => ComponentSettingsList.GetContainer(baseType).Cast<object>().Where(x => x.GetType().DescendsTo(baseType));
+            
+            string IStringReadOnlyValueAnnotation.Value => (a.Get<IObjectValueAnnotation>()?.Value as IResource)?.ToString();
 
             public string Value
             {
                 get => (a.Get<IObjectValueAnnotation>()?.Value as IResource)?.ToString();
-                set => throw new NotSupportedException("Resource annotation cannot convert from a string");
+                set
+                {
+                    var values = AvailableValues.OfType<IResource>();
+                    var resource = values.FirstOrDefault(x => x.Name == value) ?? values.FirstOrDefault(x => x.ToString() == value);
+                    if(resource == null)
+                        throw new FormatException("Unknown resource: " + value ?? "");
+                    var objectValue = a.Get<IObjectValueAnnotation>();
+                    if (objectValue != null)
+                        objectValue.Value = resource;
+                    else 
+                        throw new Exception("Cannot set resource value");
+                } 
             }
 
-            Type basetype;
-            AnnotationCollection a;
             public ResourceAnnotation(AnnotationCollection a, Type lowerstType)
             {
-                this.basetype = lowerstType;
+                baseType = lowerstType;
                 this.a = a;
             }
         }
@@ -2515,7 +2529,7 @@ namespace OpenTap
                     {
                         displayFound = true;
                         annotation.Add(x);
-                    }); 
+                    });
                 if(!displayFound)
                     annotation.Add(mem.Member.GetDisplayAttribute());
 
@@ -2536,8 +2550,8 @@ namespace OpenTap
                     (ColumnDisplayNameAttribute x) => annotation.Add(x),
                     (FilePathAttribute x) => annotation.Add(x),
                     (DirectoryPathAttribute x) => annotation.Add(x),
-                    (IconAnnotationAttribute x) => annotation.Add(x) 
-                    );
+                    (IconAnnotationAttribute x) => annotation.Add(x)
+                );
 
                 IconAnnotationHelper.AddParameter(annotation, mem.Member, annotation.Source);
                 
@@ -2581,6 +2595,7 @@ namespace OpenTap
                         annotation.Add(new NumberAnnotation(annotation) { NullableType = type2 });
                     }
                 }
+
                 if (type.IsNumeric())
                 {
                     annotation.Add(new NumberAnnotation(annotation));
@@ -2669,7 +2684,13 @@ namespace OpenTap
                         annotation.Add(new AvailableValuesAnnotation(annotation, avail.PropertyName));
                     }
                 }
-                
+
+                if (mem2.TypeDescriptor.DescendsTo(typeof(IPicture)) &&
+                    mem2.GetValue(annotation.Source) is IPicture)
+                {
+                    annotation.Add(new PictureAnnotation(annotation));
+                }
+
                 if (mem2.DeclaringType.DescendsTo(typeof(ITestStep)))
                 {
 
@@ -2883,8 +2904,9 @@ namespace OpenTap
                 {
                     if (annotations == null)
                     {
-                        var values = a.Get<ISuggestedValuesAnnotation>()?.SuggestedValues;
-                        prevValues = values ?? Enumerable.Empty<object>();
+                        var values = a.Get<ISuggestedValuesAnnotation>()?.SuggestedValues ?? Enumerable.Empty<object>();
+                        // the same reference of an the value may be updated, so keep a copy of the values instead of a reference.
+                        prevValues = values.OfType<object>().ToArray();
 
                         var readOnly = new ReadOnlyMemberAnnotation();
                         var lst = new List<AnnotationCollection>();

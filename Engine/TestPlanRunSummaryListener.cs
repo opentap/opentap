@@ -18,9 +18,33 @@ namespace OpenTap
     {
         const int stepRunLimit = 10000;
 
+        // Avoid holding on to references to TestStepRuns (fat objects) and only store the information 
+        // we need.
+        struct TestStepRunData
+        {
+            public readonly Guid Parent;
+            public readonly Guid Id;
+            public readonly Verdict Verdict;
+            public readonly string TestStepName;
+            public readonly TimeSpan Duration;
+            TestStepRunData(TestStepRun run)
+            {
+                Parent = run.Parent;
+                Verdict = run.Verdict;
+                Id = run.Id;
+                TestStepName = run.TestStepName;
+                Duration = run.Duration;
+            }
+
+            public static TestStepRunData FromTestStepRun(TestStepRun run)
+            {
+                return new TestStepRunData(run);
+            }
+        }
+
         // null when stepRunLimit is exceeded.
         // parent run to child run.
-        Dictionary<Guid, TestStepRun> stepRuns = new Dictionary<Guid, TestStepRun>();
+        Dictionary<Guid, TestStepRunData> stepRuns = new Dictionary<Guid, TestStepRunData>();
 
         TestPlanRun planRun;
 
@@ -37,7 +61,7 @@ namespace OpenTap
         /// <param name="planRun"></param>
         public override void OnTestPlanRunStart(TestPlanRun planRun)
         {
-            stepRuns = new Dictionary<Guid, TestStepRun>();
+            stepRuns = new Dictionary<Guid, TestStepRunData>();
             this.planRun = planRun;
         }
 
@@ -49,7 +73,7 @@ namespace OpenTap
                 throw new ArgumentNullException("stepRun");
             base.OnTestStepRunStart(stepRun);
             if (stepRuns == null) return;
-            stepRuns[stepRun.Id] = stepRun;
+            stepRuns[stepRun.Id] = TestStepRunData.FromTestStepRun(stepRun);
             if (stepRuns.Count > stepRunLimit)
             {
                 stepRuns = null;
@@ -63,17 +87,17 @@ namespace OpenTap
                 throw new ArgumentNullException("stepRun");
             base.OnTestStepRunCompleted(stepRun);
             if (stepRuns == null) return;
-            stepRuns[stepRun.Id] = stepRun;
+            stepRuns[stepRun.Id] = TestStepRunData.FromTestStepRun(stepRun);
             if (stepRuns.Count > stepRunLimit)
             {
                 stepRuns = null;
             }
         }
 
-        int stepRunIndent(TestStepRun stepRun)
+        int stepRunIndent(TestStepRunData stepRun)
         {
             int indent = 0;
-            TestStepRun p = stepRun;
+            TestStepRunData p = stepRun;
 
             while (stepRuns.ContainsKey(p.Parent))
             {
@@ -84,7 +108,7 @@ namespace OpenTap
             return indent;
         }
 
-        void printSummary(TestStepRun run, int maxIndent, int idx, ILookup<Guid, TestStepRun> lookup)
+        void printSummary(TestStepRunData run, int maxIndent, int idx, ILookup<Guid, TestStepRunData> lookup)
         {
             int indentcnt = stepRunIndent(run);
             string indent = new String(' ', indentcnt * 2);
@@ -96,7 +120,7 @@ namespace OpenTap
             summaryLog.Info("{4} {0,-43} {5}{1,5:0} {7,-4}{2,-7}", name, timeString, v, idx, indent, inverseIndent, 0, unit);
 
             int idx2 = 0;
-            foreach (TestStepRun run2 in lookup[run.Id])
+            foreach (TestStepRunData run2 in lookup[run.Id])
                 printSummary(run2, maxIndent, idx2, lookup);
         }
 
@@ -109,7 +133,7 @@ namespace OpenTap
         {
             if (planRun == null) return; //Something very wrong happened. In this case the use will be informed of an error anyway.
             bool hasOtherVerdict = planRun.Verdict != Verdict.Pass && planRun.Verdict != Verdict.NotSet;
-            ILookup<Guid, TestStepRun> parentLookup = null;
+            ILookup<Guid, TestStepRunData> parentLookup = null;
             int maxIndent = 0;
             if (stepRuns != null)
             {
@@ -124,7 +148,7 @@ namespace OpenTap
             int maxVerdictLength = hasOtherVerdict ? planRun.Verdict.ToString().Length : 0;
             if (stepRuns != null)
             {
-                foreach(TestStepRun run in parentLookup[planRun.Id])
+                foreach(TestStepRunData run in parentLookup[planRun.Id])
                 {
                     int max = getMaxVerdictLength(run, maxVerdictLength, parentLookup);
                     if (max > maxVerdictLength)
@@ -158,7 +182,7 @@ namespace OpenTap
             if (stepRuns != null)
             {
                 int idx = 0;
-                foreach (TestStepRun run in parentLookup[planRun.Id])
+                foreach (TestStepRunData run in parentLookup[planRun.Id])
                     printSummary(run, maxIndent, idx, parentLookup);
             }
             else
@@ -176,10 +200,10 @@ namespace OpenTap
             }
         }
 
-        private int getMaxVerdictLength(TestStepRun run, int maxVerdictLength, ILookup<Guid, TestStepRun> lookup)
+        int getMaxVerdictLength(TestStepRunData run, int maxVerdictLength, ILookup<Guid, TestStepRunData> lookup)
         {
             int maxLength = run.Verdict != Verdict.NotSet ? run.Verdict.ToString().Length : 0;
-            foreach(TestStepRun run2 in lookup[run.Id])
+            foreach(TestStepRunData run2 in lookup[run.Id])
             {
                 int max = getMaxVerdictLength(run2, maxLength, lookup);
                 if (max > maxLength)

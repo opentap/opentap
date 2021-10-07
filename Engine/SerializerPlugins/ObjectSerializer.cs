@@ -420,7 +420,11 @@ namespace OpenTap.Plugins
                     if (elem.HasElements)
                     {
                         // string contains Base64 if it has invalid XML chars.
-                        var encode = elem.Element("Base64");
+                        // elem.Element("Base64") fails if the attribute "xmlns" is set on the document.
+                        // In this case, "Base64" must be prepended with the value of xmlns in brackets.
+                        // If the namespace is not set, ns.GetName("Base64") will just evaluate to "Base64"
+                        var ns = elem.GetDefaultNamespace();
+                        var encode = elem.Element(ns.GetName("Base64"));
                         if (encode != null)
                         {
                             try
@@ -631,6 +635,39 @@ namespace OpenTap.Plugins
             }
             return true;
         }
+
+        private List<string> GetUsedFiles(object obj)
+        {
+            var result = new List<string>();
+
+            string GetStringOrMacroString(IMemberData prop, object o)
+            {
+                if (prop.HasAttribute<XmlIgnoreAttribute>())
+                    return null;
+                object val = prop.GetValue(o);
+
+                if (val is string s)
+                    return s;
+                if (val is MacroString m)
+                    return m.ToString();
+
+                return null;
+            }
+
+            var td = TypeData.GetTypeData(obj);
+
+            var props = td.GetMembers().Where(m => m.HasAttribute<FileDependencyAttribute>());
+            foreach (var prop in props)
+            {
+                var path = GetStringOrMacroString(prop, obj);
+
+                if (string.IsNullOrWhiteSpace(path) == false)
+                    result.Add(path);
+            }
+
+            return result;
+        }
+
         /// <summary>
         /// Serializes an object to XML.
         /// </summary>
@@ -642,12 +679,16 @@ namespace OpenTap.Plugins
         {
             if (obj == null)
                 return true;
-            
+
             object prevObj = Object;
             // If cycleDetectorLut already contains an element, we've been here before.
             // Note the cycleDetectorLut adds and removes the obj later if it is not already in it.
             if (!cycleDetetionSet.Add(obj))
                 throw new Exception("Cycle detected");
+            
+            foreach (var fileResource in GetUsedFiles(obj))
+                Serializer.NotifyFileUsed(fileResource);
+            
             object obj2 = obj;
             try
             {

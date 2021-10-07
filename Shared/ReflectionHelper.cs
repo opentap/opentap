@@ -1813,6 +1813,29 @@ namespace OpenTap
             Array.Resize(ref array, array.Length + appendage.Length);
             Array.Copy(appendage, 0, array, preLen, appendage.Length);
         }
+        
+        public static IEnumerable<T2> TrySelect<T, T2>(this IEnumerable<T> src, Func<T, T2> f,
+            Action<Exception, T> handler) => src.TrySelect<T, T2, Exception>(f, handler);
+        public static IEnumerable<T2> TrySelect<T, T2>(this IEnumerable<T> src, Func<T,T2> f,
+            Action<Exception> handler) => src.TrySelect<T, T2, Exception>(f, (e,v) => handler(e));
+        
+        public static IEnumerable<T2> TrySelect<T, T2, T3>(this IEnumerable<T> src, Func<T, T2> f, Action<T3, T> handler) where T3: Exception
+        {
+            foreach (var x in src)
+            {
+                T2 y;
+                try
+                {
+                    y = f(x);
+                }
+                catch(T3 e)
+                {
+                    handler(e, x);
+                    continue;
+                }
+                yield return y;
+            }
+        }
     }
 
     internal class Time

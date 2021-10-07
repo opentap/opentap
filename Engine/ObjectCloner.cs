@@ -26,10 +26,8 @@ namespace OpenTap
         {
             this.value = value;
             typeOfValue = TypeData.GetTypeData(value);
-            if (typeOfValue.AsTypeData().IsValueType || value == null || value is string)
-            {
+            if (value == null || value is string || (typeOfValue.AsTypeData()?.IsValueType ?? false))
                 valueType = true;
-            }       
         }
 
         public bool CanClone(object context, ITypeData targetType = null)

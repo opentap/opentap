@@ -10,7 +10,7 @@ namespace OpenTap
     /// <summary>
     /// A directional <see cref="Connection"/> that has an RF cable loss parameter.
     /// </summary>
-    [Display("Directional RF Connection", "Directional RF connection modeled as a set of cable loss points with frequency and loss values and a direction.")]
+    [Display("Directional RF Connection", "Directional RF connection modeled as a set of cable loss points with frequency and loss values and a direction.", "Basic Connections")]
     public class DirectionalRfConnection : RfConnection
     {
         /// <summary>
@@ -21,10 +21,12 @@ namespace OpenTap
             /// <summary>
             /// Directional RF connection from Port1 to Port2.
             /// </summary>
+            [Display("From 1 to 2", "The signal in this connection flows from port 1 to port 2.")]
             FROM_1_TO_2,
             /// <summary>
             /// Directional RF connection from Port2 to Port1.
             /// </summary>
+            [Display("From 2 to 1", "The signal in this connection flows from port 2 to port 1.")]
             FROM_2_TO_1
         };
 
