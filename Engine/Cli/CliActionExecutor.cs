@@ -342,6 +342,12 @@ namespace OpenTap.Cli
             }
             catch (Exception ex)
             {
+                if (ex is AggregateException aex)
+                {
+                    foreach (var innerException in aex.InnerExceptions)
+                        log.Error(innerException.Message);
+                }
+                
                 log.Error("A CliAction has thrown an exception: " + ex.Message);
                 log.Debug(ex);
                 return (int)ExitCodes.GeneralException;
