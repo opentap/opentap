@@ -72,16 +72,29 @@ namespace OpenTap.Cli
                     description = attr.Description;
                 }
 
-                if (ap.AllOptions.Contains(attr.Name))
+                Argument fromAttr(CommandLineArgumentAttribute a)
                 {
-                    if (overrides.Add(attr.Name))
-                        log.Debug($"The CLI option '--{attr.Name}' from '{action}' overrides a common CLI option from OpenTAP.");
+                    return new Argument(a.Name, a.ShortName.FirstOrDefault(), needsArg);
                 }
 
-                if (!string.IsNullOrWhiteSpace(attr.ShortName) && ap.AllOptions.Any(opt => opt.Value?.ShortName == attr.ShortName[0]))
+                if (ap.AllOptions.Contains(attr.Name))
                 {
+                    ap.AllOptions[attr.Name] = fromAttr(attr);
                     if (overrides.Add(attr.Name))
-                        log.Debug($"The CLI option '-{attr.ShortName}' from '{action}' overrides a common CLI option from OpenTAP.");
+                        log.Debug(
+                            $"The CLI option '--{attr.Name}' from '{action}' overrides a common CLI option from OpenTAP.");
+                }
+
+                if (!string.IsNullOrWhiteSpace(attr.ShortName))
+                {
+                    var overriden = ap.AllOptions.FirstOrDefault(opt => opt.Value?.ShortName == attr.ShortName[0]);
+                    if (overriden.Value != null)
+                    {
+                        ap.AllOptions[overriden.Value.LongName] = fromAttr(attr);
+                        if (overrides.Add(overriden.Value.LongName))
+                            log.Debug(
+                                $"The CLI option '-{attr.ShortName}' from '{action}' overrides the common CLI option '--{overriden.Value.LongName}' from OpenTAP.");
+                    }
                 }
 
                 var arg = ap.AllOptions.Add(attr.Name, attr.ShortName?.FirstOrDefault() ?? '\0', needsArg, description);
