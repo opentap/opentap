@@ -10,6 +10,7 @@ New Features:
 - Add Support for Including Dependencies from .xml Files in package.xml [#724](https://gitlab.com/OpenTAP/opentap/issues/724)
 - Implement Image Functionality [#732](https://gitlab.com/OpenTAP/opentap/issues/732)
 - Test Plan Package as Test Plan Run Parameter [#745](https://gitlab.com/OpenTAP/opentap/issues/745)
+- Support a list of expected exit codes for action steps [#778](https://gitlab.com/OpenTAP/opentap/issues/778)
 
 
 Usability Improvements: 
