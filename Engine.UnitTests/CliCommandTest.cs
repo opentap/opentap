@@ -39,12 +39,16 @@ namespace OpenTap.UnitTests
         }
     }
     
-    [Display("action", Groups: new[] { "test" }, Description:"Runs TestAction2")]
+    [Display("action2", Groups: new[] { "test" }, Description:"Runs TestAction2")]
     public class TestAction2 : ICliAction
     {
+        [CommandLineArgument("other", Description = "Some option which does not override a common option", ShortName = "o")]
+        public bool Other { get; set; }
+        [CommandLineArgument("quiet", Description = "Some option which overrides a common option", ShortName = "h")]
+        public string Quiet { get; set; }
         public int Execute(CancellationToken cancellationToken)
         {
-            Console.WriteLine("Executed action 2");
+            Console.WriteLine($"Executed action 2 with 'Quiet = {Quiet}'.");
             return (int)ExitCodes.Success;
         }
     }

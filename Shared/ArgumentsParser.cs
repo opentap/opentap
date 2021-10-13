@@ -49,14 +49,12 @@ namespace OpenTap.Cli
                 st = st.Substring(0, idx);
             }
             opt.FoundOption = options
-                .Where(o => o.Value.CompareTo(st))
-                .FirstOrDefault().Value;
+                .FirstOrDefault(o => o.Value.CompareTo(st)).Value;
 
             if (opt.FoundOption == null)
             {
                 opt.FoundOption = AllOptions
-                        .Where(o => o.Value.CompareTo(st))
-                        .FirstOrDefault().Value;
+                    .FirstOrDefault(o => o.Value.CompareTo(st)).Value;
             }
 
             if (opt.FoundOption == null)
