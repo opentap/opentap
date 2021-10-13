@@ -180,7 +180,7 @@ namespace OpenTap.Package
             }
 
             if (installErrors.Any())
-                throw new AggregateException("Image deployment failed due to failiure in installing packages", installErrors);
+                throw new AggregateException("Image deployment failed to install packages.", installErrors);
         }
 
         private void Uninstall(IEnumerable<PackageDef> packagesToUninstall, string target, CancellationToken cancellationToken)
@@ -198,7 +198,7 @@ namespace OpenTap.Package
             int exitCode = newInstaller.RunCommand("uninstall", false, true);
 
             if (uninstallErrors.Any() || exitCode != 0)
-                throw new AggregateException("Image deployment failed due to failiure in uninstalling existing packages", uninstallErrors);
+                throw new AggregateException("Image deployment failed to uninstall existing packages.", uninstallErrors);
         }
 
         private static List<PackageDef> OrderPackagesForInstallation(IEnumerable<PackageDef> packages)
@@ -242,8 +242,8 @@ namespace OpenTap.Package
 
             if (package.PackageSource is IFilePackageDefSource fileSource)
             {
-                if (string.Equals(Path.GetPathRoot(fileSource.PackageFilePath), Path.GetPathRoot(PackageCacheHelper.PackageCacheDirectory), StringComparison.InvariantCultureIgnoreCase))
-                    filename = fileSource.PackageFilePath;
+                if (string.Equals(Path.GetPathRoot(fileSource.PackageFilePath), Path.GetPathRoot(PackageCacheHelper.PackageCacheDirectory), StringComparison.InvariantCultureIgnoreCase) && string.IsNullOrEmpty(fileSource.PackageFilePath) == false)
+                    File.Copy(fileSource.PackageFilePath, filename);
             }
             else if (package.PackageSource is IRepositoryPackageDefSource repoSource)
             {
