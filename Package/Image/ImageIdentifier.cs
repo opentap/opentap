@@ -180,7 +180,7 @@ namespace OpenTap.Package
             }
 
             if (installErrors.Any())
-                throw new AggregateException("Image deployment failed due to failure in installing packages", installErrors);
+                throw new AggregateException("Image deployment failed to install packages.", installErrors);
         }
 
         private void Uninstall(IEnumerable<PackageDef> packagesToUninstall, string target, CancellationToken cancellationToken)
@@ -198,7 +198,7 @@ namespace OpenTap.Package
             int exitCode = newInstaller.RunCommand("uninstall", false, true);
 
             if (uninstallErrors.Any() || exitCode != 0)
-                throw new AggregateException("Image deployment failed due to failiure in uninstalling existing packages", uninstallErrors);
+                throw new AggregateException("Image deployment failed to uninstall existing packages.", uninstallErrors);
         }
 
         private static List<PackageDef> OrderPackagesForInstallation(IEnumerable<PackageDef> packages)

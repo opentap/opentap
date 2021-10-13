@@ -21,9 +21,9 @@ namespace OpenTap.Package
         private static readonly TraceSource log = Log.CreateSource("GitVersion");
 
         /// <summary>
-        /// Represents the --gitlog command line argument which prints git log for the last n commits including version numbers for each commit.
+        /// Represents the --log command line argument which prints git log for the last n commits including version numbers for each commit.
         /// </summary>
-        [CommandLineArgument("gitlog",     Description = "Print the git log for the last <arg> commits including their semantic version number.")]
+        [CommandLineArgument("log",     Description = "Print the git log for the last <arg> commits including their semantic version number.")]
         public string PrintLog { get; set; }
 
         /// <summary>
