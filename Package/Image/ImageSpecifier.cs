@@ -18,6 +18,10 @@ namespace OpenTap.Package
         /// OpenTAP repositories to fetch the desired packages from
         /// </summary>
         public List<string> Repositories { get; set; } = new List<string>();
+        
+        internal delegate PackageDef ResolveDelegate(ImageSpecifierResolveArgs args);
+
+        internal event ResolveDelegate OnResolve;
 
         /// <summary>
         /// Resolve the desired packages from the specified repositores. This will check if the packages are available, compatible and can successfully be deployed as an OpenTAP installation
@@ -29,18 +33,36 @@ namespace OpenTap.Package
             List<Exception> exceptions = new List<Exception>();
             List<IPackageRepository> repositories = Repositories.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)).ToList();
             List<PackageDef> gatheredPackages = new List<PackageDef>();
-            foreach (var packageReference in Packages)
+
+            // Check if all package only specify compatible oss
+            var oss = Packages.Select(p => p.OS).Distinct().Where(o => string.IsNullOrEmpty(o) == false && o.Contains(",") == false).ToList();
+            if (oss.Count > 1)
+                throw new InvalidOperationException("Unable to resolve image. Image specifies multiple operating systems.");
+            var os = oss.FirstOrDefault() ?? OperatingSystem.Current.Name;
+            
+            // Check if all package only specify compatible architectures
+            var archs = Packages.Select(p => p.Architecture).Distinct()
+                                                .Where(a => a != CpuArchitecture.Unspecified && a != CpuArchitecture.AnyCPU).ToList();
+            if (archs.Count > 1)
+                throw new InvalidOperationException("Unable to resolve image. Image specifies multiple architectures.");
+            var arch = archs.Any() ? archs[0] : ArchitectureHelper.GuessBaseArchitecture;
+            
+            foreach (var specifier in Packages)
             {
                 if (cancellationToken.IsCancellationRequested)
                     throw new OperationCanceledException("Resolve operation cancelled by user");
                 try
                 {
-                    PackageDef package = PackageActionHelpers.FindPackage(packageReference, new List<PackageDef>(), repositories);
+                    PackageDef package = PackageActionHelpers.FindPackage(new PackageSpecifier(specifier.Name, specifier.Version, arch, os), new List<PackageDef>(), repositories);
                     gatheredPackages.Add(package);
                 }
                 catch (Exception)
                 {
-                    exceptions.Add(new InvalidOperationException($"Unable to resolve package '{packageReference.Name}'"));
+                    PackageDef package = OnResolve?.Invoke(new ImageSpecifierResolveArgs(this, specifier));
+                    if (package != null)
+                        gatheredPackages.Add(package);
+                    else
+                        exceptions.Add(new InvalidOperationException($"Unable to resolve package '{specifier.Name}'"));
                 }
             }
             if (cancellationToken.IsCancellationRequested)
@@ -91,6 +113,18 @@ namespace OpenTap.Package
         public static ImageSpecifier FromString(string value)
         {
             return ImageHelper.GetImageFromString(value);
+        }
+    }
+
+    class ImageSpecifierResolveArgs
+    {
+        public ImageSpecifier ImageSpecifier { get; set; }
+        public PackageSpecifier PackageSpecifier { get; set; }
+
+        public ImageSpecifierResolveArgs(ImageSpecifier ImageSpecifier, PackageSpecifier PackageSpecifier)
+        {
+            this.ImageSpecifier = ImageSpecifier;
+            this.PackageSpecifier = PackageSpecifier;
         }
     }
 }

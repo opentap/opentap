@@ -800,8 +800,4 @@ namespace OpenTap
             Add(new ResultParameter(group, name, value, metaDataAttribute));
         }
     }
-    class NonMetaDataAttribute : Attribute
-    {
-        
-    }
 }

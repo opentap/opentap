@@ -175,9 +175,20 @@ namespace OpenTap.Package
 
                     p.WaitForExit();
 
-                    if (p.ExitCode != 0)
-                        throw new Exception($"Failed to run {step.ActionName} step {stepName}. Exitcode: {p.ExitCode}");
-                    log.Info(sw, $"Succesfully ran {step.ActionName} step  {stepName}.");
+                    if (step.ExpectedExitCodes != "*")
+                    {
+                        var expectedExitCodes = step.ExpectedExitCodes.Split(',').TrySelect(int.Parse,
+                                (_, stringValue) => log.Error($"Failed to parse string '{stringValue}' as an integer."))
+                            .ToHashSet();
+
+                        if (expectedExitCodes.Count == 0)
+                            expectedExitCodes.Add(0);
+
+                        if (!expectedExitCodes.Contains(p.ExitCode))
+                            throw new Exception($"Failed to run {step.ActionName} step {stepName}. Unexpected exitcode: {p.ExitCode}");
+                    }
+
+                    log.Info(sw, $"Succesfully ran {step.ActionName} step  {stepName}. {(p.ExitCode != 0 ? $"Exitcode: {p.ExitCode}" : "")}");
                 }
                 catch (Exception e)
                 {

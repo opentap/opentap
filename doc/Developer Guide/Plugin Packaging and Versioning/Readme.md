@@ -453,7 +453,7 @@ version = 1.0.1
 # Uncomment to change the default.
 #beta branch = integration
 
-# When specified multiple times later sprcifications of "beta branch" will only be tried
+# When specified multiple times later specifications of "beta branch" will only be tried
 # if earlier ones did not match any branches in the git repository
 #beta branch = develop
 #beta branch = dev

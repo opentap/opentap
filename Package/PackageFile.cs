@@ -220,6 +220,12 @@ namespace OpenTap.Package
         public string ExeFile { get; set; }
 
         /// <summary>
+        /// A comma separated list of expected exit code integers. Default is "0".
+        /// </summary>
+        [XmlAttribute(nameof(ExpectedExitCodes))]
+        public string ExpectedExitCodes { get; set; } = "0";
+
+        /// <summary>
         /// Arguments to the exe file.
         /// </summary>
         [XmlAttribute("Arguments")]
