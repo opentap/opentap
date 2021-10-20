@@ -23,8 +23,7 @@
         <SetAssemblyInfo Attributes="Version"/>
         <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
-    <File Path="tap.exe" >
-        <SetAssemblyInfo Attributes="Version"/>
+    <File Path="tap.exe">
         <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
     <File Path="LICENSE.txt"  SourcePath="../../LICENSE.txt"/>

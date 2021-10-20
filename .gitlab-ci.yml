@@ -119,6 +119,7 @@ QuickTest: # Quick test to fail as early as possible.
     - dotnet build tap/tap.csproj -c Release
     - get-content ./bin/Release/tap.runtimeconfig.json
     - Remove-Item -recurse "bin\Release\Packages"
+    - cp ".\bin\Release\runtimes\win-$($env:PlatformTarget)\native\git2-4aecb64.dll" bin\Release
   artifacts:
     expire_in: 1 week
     paths:

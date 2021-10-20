@@ -24,7 +24,6 @@
             <Sign Certificate="Keysight Technologies, Inc"/>
         </File>
         <File Path="tap.exe">
-            <SetAssemblyInfo Attributes="Version"/>
             <Sign Certificate="Keysight Technologies, Inc"/>
         </File>
         <File Path="Dependencies/System.Runtime.InteropServices.RuntimeInformation.4.0.2.0/System.Runtime.InteropServices.RuntimeInformation.dll"
