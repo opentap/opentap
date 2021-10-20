@@ -338,7 +338,7 @@ Package-Windows64:
          - cd bin/Release
          - .\tap.exe package install -f "/repo/Sign.TapPackage"
          - $version=$(./tap sdk gitversion)
-         - cmd /C ".\tap.exe package create -v ../../opentap.$Architecture.package.xml -o ../../OpenTAP.$version.$Architecture.Windows.TapPackage"
+         - .\tap.exe package create -v ../../opentap.$Architecture.package.xml -o ../../OpenTAP.$version.$Architecture.Windows.TapPackage
   artifacts:
     when: on_success
     expire_in: 1 day
@@ -370,10 +370,8 @@ Package-Linux:
          - if (!$PROTECTED_BRANCH) { Set-Content .\opentap_linux64.package.xml  -Value (get-content .\opentap_linux64.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
          - mv bin\Release\publish bin\linux-x64
          - pushd bin\linux-x64\
-         - ../Release/tap package download --os Linux --architecture x64 -f -r $env:PACKAGE_REPO_URL -t . Demonstration
-         - mv "Demonstration*.TapPackage" "Demonstration.TapPackage"
          - ../Release/tap package install -f "/repo/Sign.TapPackage"
-         - cmd /C "..\Release\tap package create -v ../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage"
+         - ..\Release\tap package create -v ../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage
          - $version=$(..\Release\tap sdk gitversion)
          - cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.$version.Linux.TapPackage
   artifacts:
