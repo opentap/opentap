@@ -93,7 +93,7 @@ pages:
 
 Build-Linux64:
   stage: build
-  image: mcr.microsoft.com/dotnet/sdk:5.0-buster-slim
+  image: mcr.microsoft.com/dotnet/sdk:6.0-buster-slim
   tags: [ docker, gce ]
   script: 
          - dotnet publish -c Release OpenTAP.sln
@@ -104,7 +104,7 @@ Build-Linux64:
 
 QuickTest: # Quick test to fail as early as possible. 
   stage: build
-  image: mcr.microsoft.com/dotnet/sdk:5.0-buster-slim
+  image: mcr.microsoft.com/dotnet/sdk:6.0-buster-slim
   tags: [ docker, gce ]
   script:
     - dotnet build
@@ -112,7 +112,7 @@ QuickTest: # Quick test to fail as early as possible.
 
 .BuildWindows:
   stage: build
-  image: mcr.microsoft.com/dotnet/sdk:5.0-windowsservercore-ltsc2019
+  image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   script:
     - dotnet build -c Release
@@ -151,7 +151,7 @@ WarningTest:
 # Gets bin directory from the builddrop location and runs unit tests in Tap.Engine.dll
 TestEngine:
   stage: test
-  image: mcr.microsoft.com/dotnet/sdk:5.0-windowsservercore-ltsc2019
+  image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   dependencies:
      - Build-x86
@@ -170,7 +170,7 @@ TestEngine:
 # Can't run on docker, as a unit test is using dotfuscator
 TestPackage:
   stage: test
-  image: mcr.microsoft.com/dotnet/sdk:5.0-windowsservercore-ltsc2019
+  image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   dependencies:
      - Build-x86
@@ -188,7 +188,7 @@ TestPackage:
 
 TestWindowsPlan:
   stage: test
-  image: mcr.microsoft.com/dotnet/sdk:5.0-windowsservercore-ltsc2019
+  image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   dependencies:
     - Build-x86
@@ -200,7 +200,7 @@ TestWindowsPlan:
 TestLinuxPlan:
   stage: test
   tags: [docker, gce]
-  image: mcr.microsoft.com/dotnet/sdk:5.0-focal
+  image: mcr.microsoft.com/dotnet/sdk:6.0-focal
   dependencies:
     - Build-Linux64
   needs:
@@ -265,7 +265,7 @@ TestLinuxPlan:
 
 TestUbuntu:
   stage: test
-  image: mcr.microsoft.com/dotnet/sdk:5.0-focal
+  image: mcr.microsoft.com/dotnet/sdk:6.0-focal
   extends: .LinuxScript
 
 TestCentos7:
@@ -321,7 +321,7 @@ TestCentos7:
 
 Package-Windows64:
   stage: package
-  image: registry.gitlab.com/opentap/buildrunners/signrunner:latest
+  image: registry.gitlab.com/opentap/buildrunners/signrunner:net6
   tags: [ docker, windows ]
   variables: 
     ErrorActionPreference: stop
@@ -384,7 +384,7 @@ Package-Linux:
     
 Package-SDK:
   stage: package
-  image: mcr.microsoft.com/dotnet/sdk:5.0-windowsservercore-ltsc2019
+  image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   dependencies:
      - Build-x86
@@ -424,7 +424,7 @@ Package-SDK:
 
 Package-NuGet:
   stage: installer
-  image: mcr.microsoft.com/dotnet/sdk:5.0-windowsservercore-ltsc2019
+  image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   dependencies:
     - Build-x64
@@ -498,7 +498,7 @@ Installer-Windows:
 
 Installer-Linux:
   stage: installer
-  image: mcr.microsoft.com/dotnet/sdk:5.0-windowsservercore-ltsc2019
+  image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   dependencies:
      - Package-Linux
@@ -524,7 +524,7 @@ Installer-Linux:
 
 Package-Build-Deb:
   stage: installer
-  image: mcr.microsoft.com/dotnet/sdk:5.0-focal
+  image: mcr.microsoft.com/dotnet/sdk:6.0-focal
   tags: [ docker, gce ]
   dependencies:
     - Package-Linux
@@ -551,7 +551,7 @@ Package-Build-Deb:
 
 Test-Installer-Linux:
   stage: testinstaller
-  image: mcr.microsoft.com/dotnet/runtime:5.0-focal
+  image: mcr.microsoft.com/dotnet/runtime:6.0-focal
   tags: [ docker, gce ]
   dependencies:
     - Installer-Linux
@@ -585,7 +585,7 @@ TestIsolated:
 
 PublishPackages:
   stage: publish
-  image: mcr.microsoft.com/dotnet/sdk:5.0-windowsservercore-ltsc2019
+  image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   variables:
     GIT_STRATEGY: none
