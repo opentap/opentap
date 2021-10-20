@@ -268,12 +268,13 @@ TestUbuntu:
   image: mcr.microsoft.com/dotnet/sdk:6.0-focal
   extends: .LinuxScript
 
-TestCentos7:
-  stage: test
-  image:
-    name: stefanholst0/dotnet-50-centos7-root:latest
-    entrypoint: [ "" ]
-  extends: .LinuxScript
+# Need a dotnet-60-centos7-root image
+# TestCentos7:
+#   stage: test
+#   image:
+#     name: stefanholst0/dotnet-50-centos7-root:latest
+#     entrypoint: [ "" ]
+#   extends: .LinuxScript
 
 # TestUbuntuPackaged:
 #   image: buildpack-deps:bionic
@@ -357,7 +358,7 @@ Package-Windows32:
 
 Package-Linux:
   stage: package
-  image: registry.gitlab.com/opentap/buildrunners/signrunner:latest
+  image: registry.gitlab.com/opentap/buildrunners/signrunner:net6
   tags: [ docker, windows ]
   dependencies:
      - Build-x86
