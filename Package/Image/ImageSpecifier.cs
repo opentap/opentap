@@ -24,28 +24,33 @@ namespace OpenTap.Package
         internal event ResolveDelegate OnResolve;
 
         /// <summary>
-        /// Resolve the desired packages from the specified repositores. This will check if the packages are available, compatible and can successfully be deployed as an OpenTAP installation
+        /// Resolve the desired packages from the specified repositories. This will check if the packages are available, compatible and can successfully be deployed as an OpenTAP installation
         /// </summary>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>An <see cref="ImageIdentifier"/></returns>
         public ImageIdentifier Resolve(CancellationToken cancellationToken)
         {
             List<Exception> exceptions = new List<Exception>();
-            List<IPackageRepository> repositories = Repositories.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)).ToList();
+            List<IPackageRepository> repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
             List<PackageDef> gatheredPackages = new List<PackageDef>();
 
             // Check if all package only specify compatible oss
             var oss = Packages.Select(p => p.OS).Distinct().Where(o => string.IsNullOrEmpty(o) == false && o.Contains(",") == false).ToList();
-            if (oss.Count > 1)
-                throw new InvalidOperationException("Unable to resolve image. Image specifies multiple operating systems.");
-            var os = oss.FirstOrDefault() ?? OperatingSystem.Current.Name;
+            var openTapPackage = Packages.FirstOrDefault(p => p.Name == "OpenTAP"); 
+            string os;
+            if (oss.Count != 1)
+                os = openTapPackage?.OS ?? OperatingSystem.Current.Name;
+            else
+                os = oss[0];
             
             // Check if all package only specify compatible architectures
             var archs = Packages.Select(p => p.Architecture).Distinct()
                                                 .Where(a => a != CpuArchitecture.Unspecified && a != CpuArchitecture.AnyCPU).ToList();
-            if (archs.Count > 1)
-                throw new InvalidOperationException("Unable to resolve image. Image specifies multiple architectures.");
-            var arch = archs.Any() ? archs[0] : ArchitectureHelper.GuessBaseArchitecture;
+            CpuArchitecture arch;
+            if (archs.Count != 1)
+                arch = openTapPackage?.Architecture ?? ArchitectureHelper.GuessBaseArchitecture;
+            else
+                arch = archs[0];
             
             foreach (var specifier in Packages)
             {
