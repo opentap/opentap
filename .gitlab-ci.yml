@@ -93,7 +93,7 @@ pages:
 
 Build-Linux64:
   stage: build
-  image: mcr.microsoft.com/dotnet/sdk:6.0-buster-slim
+  image: mcr.microsoft.com/dotnet/sdk:6.0-bullseye-slim
   tags: [ docker, gce ]
   script: 
          - dotnet publish -c Release OpenTAP.sln
@@ -104,7 +104,7 @@ Build-Linux64:
 
 QuickTest: # Quick test to fail as early as possible. 
   stage: build
-  image: mcr.microsoft.com/dotnet/sdk:6.0-buster-slim
+  image: mcr.microsoft.com/dotnet/sdk:6.0-bullseye-slim
   tags: [ docker, gce ]
   script:
     - dotnet build
