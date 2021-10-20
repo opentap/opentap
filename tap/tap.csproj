@@ -7,19 +7,13 @@
     <ApplicationIcon>../Installer/Assets/opentap.ico</ApplicationIcon>
     <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
-  
 
   <ItemGroup Condition="'$(IsNetStandard)'=='true'">
-    
-    <None Include="$(SolutionDir)/LinuxInstall/tap.sh">
-      <Link>tap</Link>
+    <Content Include="..\LinuxInstall\tap.sh">
+      <Link>tap.sh</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    </Content>
   </ItemGroup>
-
-  <Target Name="RemoveDepsJson" AfterTargets="Publish">
-    <Delete Files="$(PublishDir)tap.deps.json" />
-  </Target>
 
   <ItemGroup>
     <Content Include="..\Shared\tap.runtimeconfig.json">
