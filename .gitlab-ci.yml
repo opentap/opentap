@@ -336,6 +336,7 @@ Package-Windows64:
   script:
          - if (!$PROTECTED_BRANCH) { Set-Content .\opentap.$Architecture.package.xml  -Value (get-content .\opentap.$Architecture.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
          - cd bin/Release
+         - cp .\runtimes\win-x64\native\git2-4aecb64.dll .
          - .\tap.exe package install -f "/repo/Sign.TapPackage"
          - $version=$(./tap sdk gitversion)
          - .\tap.exe package create -v ../../opentap.$Architecture.package.xml -o ../../OpenTAP.$version.$Architecture.Windows.TapPackage
@@ -397,6 +398,7 @@ Package-SDK:
   script:
          - Set-Content .\opentap.x86.package.xml  -Value (get-content .\opentap.x86.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch)
          - cd bin/Release
+         - cp .\runtimes\win-x64\native\git2-4aecb64.dll .
          - .\tap.exe package create ../../opentap.x86.package.xml --install -v
          - Copy-Item "../../sdk/Examples" "Packages/SDK/Examples" -Recurse
          - Copy-Item "../../Package/PackageSchema.xsd" "Packages/SDK/PackageSchema.xsd"
