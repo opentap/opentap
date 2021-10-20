@@ -371,6 +371,7 @@ Package-Linux:
          - mv bin\Release\publish bin\linux-x64
          - pushd bin\linux-x64\
          - ../Release/tap package install -f "/repo/Sign.TapPackage"
+         - cp .\runtimes\win-x64\native\git2-4aecb64.dll .
          - ..\Release\tap package create -v ../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage
          - $version=$(..\Release\tap sdk gitversion)
          - cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.$version.Linux.TapPackage
