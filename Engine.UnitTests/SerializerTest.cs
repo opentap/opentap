@@ -1328,7 +1328,6 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
-        [Ignore("Slight behavior change in .net6.0 causes this to fail.")]
         public void BigFloatOps()
         {
             var values = new[] { 0, 1, -1, 2, -2, double.NaN, double.NegativeInfinity, double.PositiveInfinity };
