@@ -119,8 +119,8 @@ QuickTest: # Quick test to fail as early as possible.
     - dotnet build -c Release
     - Push-Location ./tap/Properties
     # We cannot disassemble netcore .exe files. Generate an AssemblyInfo.cs file with the correct version instead.
-    - $AssemblyVersion = "`"$(../bin/Release/tap sdk gitversion --fields 3).0`""
-    - $GitVersion = "`"$(../bin/Release/tap sdk gitversion)`""
+    - $AssemblyVersion = "`"$(../../bin/Release/tap sdk gitversion --fields 3).0`""
+    - $GitVersion = "`"$(../../bin/Release/tap sdk gitversion)`""
     - $AssemblyInfoFile = (Get-Content AssemblyInfo.cs.Template)
     - $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyVersion"', $AssemblyVersion
     - $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyFileVersion"', $AssemblyVersion
