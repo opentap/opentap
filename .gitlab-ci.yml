@@ -184,9 +184,9 @@ TestPackage:
   image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   dependencies:
-     - Build-x86
+     - Build-x64
   needs:
-     - Build-x86
+     - Build-x64
   script:
          - $ErrorActionPreference = "Stop"
          - copy-item -r "Package.UnitTests/Packages" bin/Release
