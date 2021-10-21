@@ -115,10 +115,12 @@ QuickTest: # Quick test to fail as early as possible.
   image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   script:
+    # We need to build twice because 'gitversion' requires tap..
+    - dotnet build -c Release
     - Push-Location ./tap/Properties
     # We cannot disassemble netcore .exe files. Generate an AssemblyInfo.cs file with the correct version instead.
-    - $AssemblyVersion = "`"$(tap sdk gitversion --fields 3).0`""
-    - $GitVersion = "`"$(tap sdk gitversion)`""
+    - $AssemblyVersion = "`"$(../bin/Release/tap sdk gitversion --fields 3).0`""
+    - $GitVersion = "`"$(../bin/Release/tap sdk gitversion)`""
     - $AssemblyInfoFile = (Get-Content AssemblyInfo.cs.Template)
     - $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyVersion"', $AssemblyVersion
     - $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyFileVersion"', $AssemblyVersion
