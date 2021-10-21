@@ -45,7 +45,7 @@ sudo apt install libc6-dev libunwind8 curl git -y
 This should install the needed dependencies. Once these are installed, you can build OpenTAP using these commands:
 
 ```sh
-dotnet build
+dotnet build -c Release
 dotnet publish -c Release
 dotnet publish -c Release tap/tap.csproj
 ```
