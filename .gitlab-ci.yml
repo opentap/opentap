@@ -117,10 +117,11 @@ QuickTest: # Quick test to fail as early as possible.
   script:
     # We need to build twice because 'gitversion' requires tap..
     - dotnet build -c Release
-    - Push-Location ./tap/Properties
+    - cp bin\Release\runtimes\win-x64\native\git2-4aecb64.dll bin\Release
     # We cannot disassemble netcore .exe files. Generate an AssemblyInfo.cs file with the correct version instead.
-    - $AssemblyVersion = "`"$(../../bin/Release/tap sdk gitversion --fields 3).0`""
-    - $GitVersion = "`"$(../../bin/Release/tap sdk gitversion)`""
+    - $AssemblyVersion = "`"$(bin/Release/tap sdk gitversion --fields 3).0`""
+    - $GitVersion = "`"$(bin/Release/tap sdk gitversion)`""
+    - Push-Location ./tap/Properties
     - $AssemblyInfoFile = (Get-Content AssemblyInfo.cs.Template)
     - $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyVersion"', $AssemblyVersion
     - $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyFileVersion"', $AssemblyVersion
@@ -132,7 +133,6 @@ QuickTest: # Quick test to fail as early as possible.
     - dotnet build tap/tap.csproj -c Release
     - get-content ./bin/Release/tap.runtimeconfig.json
     - Remove-Item -recurse "bin\Release\Packages"
-    - cp ".\bin\Release\runtimes\win-$($env:PlatformTarget)\native\git2-4aecb64.dll" bin\Release
   artifacts:
     expire_in: 1 week
     paths:
