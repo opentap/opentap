@@ -8,7 +8,7 @@
     <TargetFramework>net6.0</TargetFramework>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(IsNetStandard)'=='true'">
+  <ItemGroup>
     <Content Include="..\LinuxInstall\tap.sh">
       <Link>tap.sh</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

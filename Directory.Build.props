@@ -9,7 +9,6 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <Platforms>x86;x64;AnyCPU</Platforms>
     <IsDebug>false</IsDebug>
-    <IsNetStandard>true</IsNetStandard>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
