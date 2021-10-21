@@ -115,6 +115,16 @@ QuickTest: # Quick test to fail as early as possible.
   image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   script:
+    - Push-Location ./tap/Properties
+    # We cannot disassemble netcore .exe files. Generate an AssemblyInfo.cs file with the correct version instead.
+    - $AssemblyVersion = "`"$(tap sdk gitversion --fields 3).0`""
+    - $GitVersion = "`"$(tap sdk gitversion)`""
+    - $AssemblyInfoFile = (Get-Content AssemblyInfo.cs.Template)
+    - $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyVersion"', $AssemblyVersion
+    - $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyFileVersion"', $AssemblyVersion
+    - $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyInformationalVersion"', $GitVersion
+    - $AssemblyInfoFile | Set-Content AssemblyInfo.cs
+    - Pop-Location
     - dotnet build -c Release
     - dotnet build tap/tap.csproj -c Release
     - get-content ./bin/Release/tap.runtimeconfig.json
