@@ -8,6 +8,8 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <IsDebug>false</IsDebug>
+    <!-- Setting PlatformTarget from an environment variable will not work if it is not defined in the .csproj -->
+    <PlatformTarget Condition="'$(PlatformTarget)' == ''">x64</PlatformTarget>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
