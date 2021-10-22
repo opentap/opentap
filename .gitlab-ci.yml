@@ -136,7 +136,7 @@ QuickTest: # Quick test to fail as early as possible.
     - cat AssemblyInfo.cs
     - Pop-Location
     # We need to ensure all intermediate build files are removed when targeting a new architecture
-    - Remove-Item -Recurse -Force ./bin/Release
+    - Move-Item ./bin/Release ./bin/Releasex64
     - Get-ChildItem -Directory obj -Recurse | Remove-Item -Recurse -Force
     # Now we actually build for the target architecture.
     - $env:PlatformTarget = $actualTarget
@@ -148,6 +148,7 @@ QuickTest: # Quick test to fail as early as possible.
     expire_in: 1 week
     paths:
        - bin/Release/
+       - bin/Releasex64/
 
 Build-x86:
   stage: build
@@ -361,11 +362,12 @@ Package-Windows64:
      - Doc-API
   script:
          - if (!$PROTECTED_BRANCH) { Set-Content .\opentap.$Architecture.package.xml  -Value (get-content .\opentap.$Architecture.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
-         - cd bin/Release
+         - cd bin/Releasex64
          - cp .\runtimes\win-x64\native\git2-4aecb64.dll .
          - .\tap.exe package install -f "/repo/Sign.TapPackage"
          - $version=$(./tap sdk gitversion)
-         - .\tap.exe package create -v ../../opentap.$Architecture.package.xml -o ../../OpenTAP.$version.$Architecture.Windows.TapPackage
+         - cd ../Release
+         - ..\Releasex64\tap.exe package create -v ../../opentap.$Architecture.package.xml -o ../../OpenTAP.$version.$Architecture.Windows.TapPackage
   artifacts:
     when: on_success
     expire_in: 1 day
