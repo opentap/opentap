@@ -115,10 +115,16 @@ QuickTest: # Quick test to fail as early as possible.
   image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   script:
+    # We cannot set the version of dotnet core .exe files because it is not supported by Cecil (yet?)
+    # This is because they are not actually PE files, but a small archive which wraps a PE file.
+    # Generate an AssemblyInfo.cs file with the correct version instead.
     # We need to build twice because 'gitversion' requires tap..
+    - $actualTarget = $env:PlatformTarget
+    # Netcore apps require that the 32-bit runtime is used to run a 32-bit app (though targetting that runtime is not a problem)
+    # There is no 32-bit windows server .NET6 docker image. Target x64 first to get access to gitversion.
+    - $env:PlatformTarget = "x64"
     - dotnet build -c Release
     - cp bin\Release\runtimes\win-x64\native\git2-4aecb64.dll bin\Release
-    # We cannot disassemble netcore .exe files. Generate an AssemblyInfo.cs file with the correct version instead.
     - $AssemblyVersion = "`"$(bin/Release/tap sdk gitversion --fields 3).0`""
     - $GitVersion = "`"$(bin/Release/tap sdk gitversion)`""
     - Push-Location ./tap/Properties
@@ -129,6 +135,11 @@ QuickTest: # Quick test to fail as early as possible.
     - $AssemblyInfoFile | Set-Content AssemblyInfo.cs
     - cat AssemblyInfo.cs
     - Pop-Location
+    # We need to ensure all intermediate build files are removed when targeting a new architecture
+    - Remove-Item -Recurse -Force ./bin/Release
+    - Get-ChildItem -Directory obj -Recurse | Remove-Item -Recurse -Force
+    # Now we actually build for the target architecture.
+    - $env:PlatformTarget = $actualTarget
     - dotnet build -c Release
     - dotnet build tap/tap.csproj -c Release
     - get-content ./bin/Release/tap.runtimeconfig.json
@@ -168,9 +179,9 @@ TestEngine:
   image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   dependencies:
-     - Build-x86
+     - Build-x64
   needs:
-     - Build-x86
+     - Build-x64
   script:
          - $ErrorActionPreference = "Stop"
          - dotnet vstest bin/Release/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000
@@ -192,7 +203,8 @@ TestPackage:
      - Build-x64
   script:
          - $ErrorActionPreference = "Stop"
-         - copy-item -r "Package.UnitTests/Packages" bin/Release
+         - Copy-Item -r "Package.UnitTests/Packages" bin/Release
+         - Copy-Item .\bin\Release\runtimes\win-x64\native\git2-4aecb64.dll .\bin\Release
          - dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
   artifacts:
     when: always
@@ -205,9 +217,9 @@ TestWindowsPlan:
   image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   dependencies:
-    - Build-x86
+    - Build-x64
   needs:
-    - Build-x86
+    - Build-x64
   script:
     - bin/Release/tap.exe run tests/regression.TapPlan --verbose
 
@@ -376,10 +388,10 @@ Package-Linux:
   image: registry.gitlab.com/opentap/buildrunners/signrunner:net6
   tags: [ docker, windows ]
   dependencies:
-     - Build-x86
+     - Build-x64
      - Build-Linux64
   needs:
-     - Build-x86
+     - Build-x64
      - Build-Linux64
   script:
          - if (!$PROTECTED_BRANCH) { Set-Content .\opentap_linux64.package.xml  -Value (get-content .\opentap_linux64.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
@@ -402,11 +414,11 @@ Package-SDK:
   image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   dependencies:
-     - Build-x86
+     - Build-x64
      - Build-DevGuide
      - Doc-API
   needs:
-     - Build-x86
+     - Build-x64
      - Build-DevGuide
      - Doc-API
   script:
