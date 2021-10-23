@@ -138,7 +138,7 @@ QuickTest: # Quick test to fail as early as possible.
     - Get-ChildItem -Directory obj -Recurse | Remove-Item -Recurse -Force
     # Now we actually build for the target architecture.
     - dotnet build -c Release /p:Platform=$Architecture
-    - dotnet build tap/tap.csproj -c Release
+    - dotnet build tap/tap.csproj -c Release /p:Platform=$Architecture
     - get-content ./bin/Release/tap.runtimeconfig.json
     - Remove-Item -recurse "bin\Release\Packages"
   artifacts:
@@ -161,8 +161,9 @@ Build-x64:
 
 WarningTest:
   stage: build
+  variables:
+    Architecture: x86
   before_script:
-    - $env:PlatformTarget = "x86"
     - $env:TreatWarningsAsErrors="true"
   extends: .BuildWindows
 
