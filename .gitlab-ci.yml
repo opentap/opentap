@@ -119,11 +119,9 @@ QuickTest: # Quick test to fail as early as possible.
     # This is because they are not actually PE files, but a small archive which wraps a PE file.
     # Generate an AssemblyInfo.cs file with the correct version instead.
     # We need to build twice because 'gitversion' requires tap..
-    - $actualTarget = $env:PlatformTarget
     # Netcore apps require that the 32-bit runtime is used to run a 32-bit app (though targetting that runtime is not a problem)
     # There is no 32-bit windows server .NET6 docker image. Target x64 first to get access to gitversion.
-    - $env:PlatformTarget = "x64"
-    - dotnet build -c Release
+    - dotnet build -c Release /p:Platform=x64
     - cp bin\Release\runtimes\win-x64\native\git2-4aecb64.dll bin\Release
     - $AssemblyVersion = "`"$(bin/Release/tap sdk gitversion --fields 3).0`""
     - $GitVersion = "`"$(bin/Release/tap sdk gitversion)`""
@@ -139,8 +137,7 @@ QuickTest: # Quick test to fail as early as possible.
     - Move-Item ./bin/Release ./bin/Releasex64
     - Get-ChildItem -Directory obj -Recurse | Remove-Item -Recurse -Force
     # Now we actually build for the target architecture.
-    - $env:PlatformTarget = $actualTarget
-    - dotnet build -c Release
+    - dotnet build -c Release /p:Platform=$env:PlatformTarget
     - dotnet build tap/tap.csproj -c Release
     - get-content ./bin/Release/tap.runtimeconfig.json
     - Remove-Item -recurse "bin\Release\Packages"
