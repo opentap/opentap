@@ -150,6 +150,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
     public class AddAssemblyReferencesFromPackage : Task
     {
         private XElement _document;
+        private BuildVariableExpander _expander;
 
         internal XElement Document
         {
@@ -246,15 +247,20 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 writer.WriteLine("</Project>");
             }
         }
+
+        private string OutDir => _expander.ExpandBuildVariables("$(OutDir)");
         
         private void WriteItemGroup(IEnumerable<string> assembliesInPackage)
         {
             Result.AppendLine("  <ItemGroup>");
 
+            var outDir = Path.GetFullPath(OutDir);
+
             foreach (var asmPath in assembliesInPackage)
             {
+                var fullPath = Path.Combine(outDir, asmPath).Replace("\\", "/");
                 Result.AppendLine($"    <Reference Include=\"{Path.GetFileNameWithoutExtension(asmPath)}\">");
-                Result.AppendLine($"      <HintPath>$(OutDir){asmPath.Replace("/", "\\")}</HintPath>");
+                Result.AppendLine($"      <HintPath>{fullPath}</HintPath>");
                 Result.AppendLine("    </Reference>");
             }
 
@@ -263,6 +269,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
         public override bool Execute()
         {
+            _expander = new BuildVariableExpander(SourceFile);
             if (OpenTapPackagesToReference == null || OpenTapPackagesToReference.Length == 0)
             {   // This happens when a .csproj file does not specify any OpenTapPackageReferences -- simply ignore it
                 Write(); // write an "empty" file in this case, so msbuild does not think that the task failed, and re runs it endlessly
