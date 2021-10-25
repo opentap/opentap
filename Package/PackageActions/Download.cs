@@ -116,7 +116,10 @@ namespace OpenTap.Package
                         destinationDir = new FileInfo(OutputPath).DirectoryName;
                         Directory.CreateDirectory(destinationDir);
 
-                        var firstPackage = Packages?.FirstOrDefault();
+                        // In this case, 'OutputPath' is a specific filename. If we are downloading multiple packages,
+                        // this should be the filename of the first package specified. After this file is downloaded,
+                        // the rest of the packages to be downloaded, if any, will be processed normally.
+                        var firstPackage = Packages?.FirstOrDefault() ?? PackageReferences?.FirstOrDefault()?.Name;
                         if (firstPackage != null)
                         {
                             var package = PackagesToDownload.First(p =>
