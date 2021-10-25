@@ -20,7 +20,7 @@ namespace OpenTap.Package
         internal bool Cached => cacheFileLookup.Count == Packages.Count();
 
         /// <summary>
-        /// Image ID created by hashing the Packages list
+        /// Image ID created by hashing the <see cref="Packages"/> list
         /// </summary>
         public string Id { get; }
 
@@ -37,7 +37,7 @@ namespace OpenTap.Package
         internal Dictionary<PackageDef, string> cacheFileLookup = new Dictionary<PackageDef, string>();
 
         /// <summary>
-        /// An ImageIdentifier is immutable, but can be converted to an <see cref="ImageSpecifier"/> which can be manipulated.
+        /// An <see cref="ImageIdentifier"/> is immutable, but can be converted to an <see cref="ImageSpecifier"/> which is mutable.
         /// </summary>
         /// <returns><see cref="ImageSpecifier"/></returns>
         public ImageSpecifier ToSpecifier()

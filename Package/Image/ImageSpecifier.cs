@@ -6,7 +6,8 @@ using System.Threading;
 namespace OpenTap.Package
 {
     /// <summary>
-    /// An <see cref="ImageSpecifier"/> defines a desired OpenTAP installation. The specifier can be resolved to an actual <see cref="ImageIdentifier"/> capable of being deployed to an actual OpenTAP installation.
+    /// An <see cref="ImageSpecifier"/> defines an OpenTAP installation. The specifier can be resolved to an
+    /// <see cref="ImageIdentifier"/> which can be deployed to an actual OpenTAP installation.
     /// </summary>
     public class ImageSpecifier
     {
@@ -24,7 +25,7 @@ namespace OpenTap.Package
         internal event ResolveDelegate OnResolve;
 
         /// <summary>
-        /// Resolve the desired packages from the specified repositores. This will check if the packages are available, compatible and can successfully be deployed as an OpenTAP installation
+        /// Resolve the desired packages from the specified repositories. This will check if the packages are available, compatible and can successfully be deployed as an OpenTAP installation
         /// </summary>
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>An <see cref="ImageIdentifier"/></returns>
