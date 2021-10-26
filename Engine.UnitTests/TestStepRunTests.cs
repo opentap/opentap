@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using NUnit.Framework;
@@ -30,6 +30,27 @@ namespace OpenTap.Engine.UnitTests
             var attachedParameters = new List<ResultParameter> { new ResultParameter("", "StartTime", date) };
             var testStepRun = new TestStepRun(new DelayStep(), Guid.NewGuid(), attachedParameters);
             Assert.AreEqual(date, testStepRun.StartTime);
+        }
+        
+        
+        class MockPlanRun : TestPlanRun
+        {
+            public MockPlanRun(ResultParameters baseRun) 
+                : base(new TestPlan(), Array.Empty<IResultListener>(), DateTime.Now, 0, "")
+            {
+                   Parameters = baseRun; // this used to cause trouble.
+                Id = Guid.NewGuid();
+            }
+        }
+
+        [Test]
+        public void SetMockPlanVerdict()
+        {
+            var pr = new MockPlanRun(new ResultParameters(){new ResultParameter("A", 5),new ResultParameter("B", 5)});
+            Assert.AreEqual(Verdict.NotSet, pr.Verdict);
+            Assert.AreEqual(5, pr.Parameters["A"]);
+            pr.Verdict = Verdict.Fail;
+            Assert.AreEqual(Verdict.Fail, pr.Verdict);
         }
     }
 }
