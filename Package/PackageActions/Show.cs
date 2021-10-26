@@ -139,8 +139,24 @@ namespace OpenTap.Package
                 }
             }
 
+            bool isMatch(PackageDef p)
+            {
+                // Return true if a contains b
+                bool safeContains(string a, string b, StringComparison comparer = StringComparison.OrdinalIgnoreCase)
+                {
+                    if (string.IsNullOrWhiteSpace(b)) return true;
+                    if (string.IsNullOrWhiteSpace(a)) return false;
+                    return a.IndexOf(b, comparer) >= 0;
+                }
+
+                if (safeContains(p.OS, OS) == false) return false;
+                if (safeContains(p.Architecture.ToString(), Architecture.ToString()) == false) return false;
+
+                return p.Name == Name && versionSpec.IsCompatible(p.Version);
+            }
+
             // a currently installed package
-            package = targetInstallation.GetPackages().FirstOrDefault(p => p.Name == Name && versionSpec.IsCompatible(p.Version));
+            package = targetInstallation.GetPackages().FirstOrDefault(isMatch);
             if (package != null)
                 return package;
 
