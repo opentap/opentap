@@ -766,6 +766,8 @@ namespace OpenTap
         {
             if(keyIndex == -1)
                 keyIndex = FindIndex(index);
+            if (keyIndex == -1)
+                return null;
             return data[keyIndex].Value;
         }
 
