@@ -58,14 +58,14 @@ namespace OpenTap.Package.UnitTests
             "test package for testing that forward and backwards slashes are handled correctly in package names";
 
         [Test]
-        public void SlashTests()
+        public void SlashTests([Values(true, false)] bool usePackageReference)
         {
             if (Directory.Exists(dir1))
                 Directory.Delete(dir1, true);
             
             CreateTestPackage();
             VerifyPackageContent();
-            DownloadPackage();
+            DownloadPackage(usePackageReference);
             InstallPackage();
             VerifyInstalled();
             UninstallPackage();
@@ -105,7 +105,7 @@ namespace OpenTap.Package.UnitTests
         }
         
 
-        public void DownloadPackage()
+        public void DownloadPackage(bool usePackageReference)
         {
             var outputPath = "DownloadedPackage.TapPackage";
             if (File.Exists(outputPath))
@@ -114,10 +114,19 @@ namespace OpenTap.Package.UnitTests
             var download = new PackageDownloadAction()
             {
                 ForceInstall = true,
-                Packages = new[] {FullName},
                 Repository = new[] { Directory.GetCurrentDirectory() },
                 OutputPath = outputPath
             };
+
+            if (usePackageReference)
+            {
+                download.PackageReferences = new[] { new PackageSpecifier(FullName, VersionSpecifier.Any) };
+            }
+            else
+            {
+                download.Packages = new[] { FullName };
+            }
+
             Assert.AreEqual(0, download.Execute(CancellationToken.None));
             FileAssert.Exists(outputPath);
             FileAssert.Exists(Path.Combine(PackageCache, outputPath));

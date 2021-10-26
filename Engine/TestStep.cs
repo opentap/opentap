@@ -8,6 +8,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -965,7 +966,9 @@ namespace OpenTap
             }
         }
 
-        static Dictionary<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]> membersLookup = new Dictionary<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]>();
+        // this dictionary may be accessed by multiple threads, so it is best to use ConcurrentDictionary.
+        static readonly ConcurrentDictionary<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]> 
+            membersLookup = new ConcurrentDictionary<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]>();
 
         static (IMemberData, bool hasEnabledAttribute)[] getSettingsLookup(TypeData targetType, ITypeData sourceType)
         {
