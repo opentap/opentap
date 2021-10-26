@@ -25,7 +25,13 @@
   <xs:element name="Package">
     <xs:complexType>
       <xs:all>
-
+        <xs:element name="Variables" minOccurs="0" maxOccurs="1">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:any minOccurs="0" maxOccurs="unbounded" processContents="skip"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
         <xs:element name="Description" minOccurs="0" maxOccurs="1">
           <xs:complexType mixed="true">
             <xs:sequence>
@@ -109,18 +115,8 @@
       <xs:attribute name="LicenseRequired" type="xs:string"/>
       <xs:attribute name="Date" type="xs:string"/>
       <xs:attribute name="OS" type="xs:string"/>
-      <xs:attribute name="Architecture" use="optional" default="AnyCPU">
-        <xs:simpleType>
-          <xs:restriction base="xs:string">
-            <xs:enumeration value="AnyCPU"/>
-            <xs:enumeration value="x86"/>
-            <xs:enumeration value="x64"/>
-            <xs:enumeration value="arm"/>
-            <xs:enumeration value="arm64"/>
-          </xs:restriction>
-        </xs:simpleType>
-      </xs:attribute>
-      <xs:attribute name="FileType" type="xs:string" default="tappackage"/>
+      <xs:attribute name="Architecture" use="optional" default="AnyCPU" type="xs:string"/>
+      <xs:attribute name="FileType" type="xs:string" default="TapPackage"/>
       <xs:attribute name="Class" type="xs:string" default="package"/>
       <xs:attribute name="Group" type="xs:string"/>
       <xs:attribute name="Tags" type="xs:string"/>
