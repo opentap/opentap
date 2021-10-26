@@ -47,9 +47,15 @@ namespace OpenTap
         {
             get
             {
-                var result = Parameters.GetIndexed((nameof(Verdict), GROUP), ref verdictIndex);
-                if (result is Verdict verdict) return verdict;
-                return (Verdict) StringConvertProvider.FromString((string)result, TypeData.FromType(typeof(Verdict)), null);
+                switch ( Parameters.GetIndexed((nameof(Verdict), GROUP), ref verdictIndex))
+                {
+                    case Verdict verdict:
+                        return verdict;
+                    case string r:
+                        return (Verdict) StringConvertProvider.FromString(r, TypeData.FromType(typeof(Verdict)), null);
+                    default:
+                        return Verdict.NotSet; // unexpected, but let's not fail.
+                }
             }
             protected internal set => Parameters.SetIndexed((nameof(Verdict), GROUP), ref verdictIndex, value);
         }
@@ -82,7 +88,7 @@ namespace OpenTap
                 }
                 return new DateTime();
             }
-            set => Parameters[nameof(StartTime), GROUP] = value;
+            set => Parameters[nameof(StartTime), GROUP] = value;    
         }
         /// <summary>
         /// Time when the test started as ticks of the high resolution hardware counter. 
@@ -91,12 +97,23 @@ namespace OpenTap
         [DataMember]
         public long StartTimeStamp { get; protected set; }
 
+        ResultParameters parameters;
+        
         /// <summary>
         /// A list of parameters associated with this run that can be used by <see cref="ResultListener"/>. 
         /// </summary>
         [DataMember]
-        public ResultParameters Parameters { get; protected set; }
-
+        public ResultParameters Parameters
+        {
+            get => parameters;
+            protected set
+            {
+                if (ReferenceEquals(parameters, value)) return;
+                parameters = value;
+                verdictIndex = -1;
+            }
+        }
+        
         /// <summary>
         /// Upgrades <see cref="Verdict"/>.
         /// </summary>
