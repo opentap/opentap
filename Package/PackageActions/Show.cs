@@ -144,12 +144,11 @@ namespace OpenTap.Package
                 // Return true if a contains b
                 bool safeContains(string a, string b, StringComparison comparer = StringComparison.OrdinalIgnoreCase)
                 {
-                    if (string.IsNullOrWhiteSpace(b)) return true;
-                    if (string.IsNullOrWhiteSpace(a)) return false;
+                    if (a == null || b == null) return false;
                     return a.IndexOf(b, comparer) >= 0;
                 }
 
-                if (safeContains(p.OS, OS) == false) return false;
+                if (safeContains(p.OS ?? "", OS ?? "") == false) return false;
                 if (safeContains(p.Architecture.ToString(), Architecture.ToString()) == false) return false;
 
                 return p.Name == Name && versionSpec.IsCompatible(p.Version);
