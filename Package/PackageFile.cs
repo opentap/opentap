@@ -500,35 +500,27 @@ namespace OpenTap.Package
 
             bool evaluateCondition(string condition)
             {
+                if (string.IsNullOrWhiteSpace(condition)) return false;
                 try
                 {
-                    if (string.IsNullOrWhiteSpace(condition)) return false;
+                    condition = condition.Trim();
 
-                    // var op = condition.IndexOf("==", StringComparison.Ordinal);
-                    // if (op == -1)
-                    //     op = condition.IndexOf("!=", StringComparison.Ordinal);
-                    // if (op == -1)
-                    // {
-                    //     if (condition.IndexOf("true", StringComparison.OrdinalIgnoreCase) >= 0) return true;
-                    //     if (condition.IndexOf("false", StringComparison.OrdinalIgnoreCase) >= 0) return false;
-                    //     log.Error($"Error in condition '{condition}'. It should be either true, false, or of the form 'a'=='b'.");
-                    // }
+                    if (condition.Equals("True", StringComparison.OrdinalIgnoreCase)) return true;
+                    if (condition.Equals("False", StringComparison.OrdinalIgnoreCase)) return false;
 
-                    var lhs = condition.IndexOf("'", 1, StringComparison.Ordinal) + 1;
-                    var rhs = condition.IndexOf("'", lhs, StringComparison.Ordinal);
+                    var parts = condition.Split(new string[] { "==", "!=" }, StringSplitOptions.None)
+                        .Select(p => p.Trim()).ToArray();
 
-                    var lhsString = condition.Substring(0, lhs);
-                    var rhsString = condition.Substring(rhs);
-
-                    var operatorString = condition.Substring(lhs, rhs - lhs);
-
-                    var operatorMap = new Dictionary<string, Func<bool>>
+                    if (parts.Length != 2)
                     {
-                        ["=="] = () => lhsString == rhsString,
-                        ["!="] = () => lhsString != rhsString,
-                    };
+                        log.Error(
+                            $"Error in condition '{condition}'. Several checks detected. A condition must be either true, false, or of the form a==b.");
+                        return false;
+                    }
 
-                    return operatorMap[operatorString.Trim()].Invoke();
+                    var isEquals = condition.IndexOf("==", StringComparison.Ordinal) >= 0;
+                    var areEqual = parts[0].Equals(parts[1], StringComparison.Ordinal);
+                    return isEquals == areEqual;
                 }
                 catch
                 {
