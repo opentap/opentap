@@ -465,7 +465,6 @@ namespace OpenTap.Package
             var re = new Regex(@"\$\((.*?)\)", RegexOptions.Compiled);
             var variables = Environment.GetEnvironmentVariables();
             var ns = root.GetDefaultNamespace();
-            var pgkVariables = root.Element(ns.GetName("Variables"));
 
             string expand(string str)
             {
@@ -490,12 +489,14 @@ namespace OpenTap.Package
                 return sb.ToString();
             }
 
-            foreach (var variable in pgkVariables.Descendants())
+            if (root.Element(ns.GetName("Variables")) is XElement pgkVariables)
             {
-                variables[variable.Name.LocalName] = expand(variable.Value);
+                foreach (var variable in pgkVariables.Descendants())
+                {
+                    variables[variable.Name.LocalName] = expand(variable.Value);
+                }
+                pgkVariables.Remove();
             }
-
-            pgkVariables.Remove();
 
             bool evaluateCondition(string condition)
             {
