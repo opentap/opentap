@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace OpenTap
 {
-    internal class ParameterMemberAnnotator : IAnnotator
+    class ParameterMemberAnnotator : IAnnotator
     {
         public double Priority => 20;
         class SubAvailable : IAvailableValuesAnnotation
@@ -32,11 +32,15 @@ namespace OpenTap
 
         class SubMember : IOwnedAnnotation
         {
-            AnnotationCollection sub;
+            readonly AnnotationCollection sub;
+            readonly bool bigList;
+            readonly IParameterMemberData param;
 
-            public SubMember(AnnotationCollection sub)
+            public SubMember(AnnotationCollection sub, bool bigList, IParameterMemberData param)
             {
                 this.sub = sub;
+                this.bigList = bigList;
+                this.param = param;
             }
             public void Read(object source)
             {
@@ -46,6 +50,8 @@ namespace OpenTap
             public void Write(object source)
             {
                 sub.Write();
+                if (bigList) // for big lists, we try to copy the values.
+                    param.SetValue(source, param.GetValue(source));
             }
         }
 
@@ -54,10 +60,15 @@ namespace OpenTap
         {
             var member = annotation.Get<IMemberAnnotation>()?.Member as IParameterMemberData;
             if (member == null) return;
-
-            var items = member.ParameterizedMembers.Select(x => x.Item1).ToArray();
+            // if the list is really huge, the next operations will be quite complex.
+            // if we assume that the elements are simple in nature, we can regain that performance
+            // by only merging a subset of them and then just copy the values for the rest of the objects.
+            bool bigList = member.ParameterizedMembers.Count() > 100;
+            
+            var items = member.ParameterizedMembers.Select(x => x.Item1).Take(100).ToArray();
+            
             var subannotation = AnnotationCollection.Annotate(items.Length == 1 ? items[0] : items);
-            annotation.Add(new SubMember(subannotation));
+            annotation.Add(new SubMember(subannotation, bigList, member));
             var subMembers = subannotation.Get<IMembersAnnotation>();
             var firstmem = member.ParameterizedMembers.First().Item2;
             var thismember = subMembers.Members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member == firstmem);

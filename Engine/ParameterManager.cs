@@ -594,7 +594,7 @@ namespace OpenTap
         // then we can do it a lot faster.
         static readonly ConditionalWeakTable<ITestStepParent, ChangeId> recordedChangeIds = new ConditionalWeakTable<ITestStepParent, ChangeId>();
 
-        public static bool CheckParameterSanity(ITestStepParent step, IMemberData[] parameters)
+        public static bool CheckParameterSanity(ITestStepParent step, ICollection<IMemberData> parameters)
         {
             if (parameterSanityCheckDelayed) return true;
             foreach (var elem in parameters)
@@ -608,11 +608,11 @@ namespace OpenTap
         /// <summary>
         /// Verify that source of a declared parameter on a parent also exists in the step hierarchy.
         /// </summary>
-        public static bool checkParameterSanity(ITestStepParent step, IMemberData[] parameters)
+        public static bool checkParameterSanity(ITestStepParent step, ICollection<IMemberData> parameters)
         {
             bool isSane = true;
             var changeid = recordedChangeIds.GetValue(step, x => new ChangeId());
-            foreach (var _item in parameters)
+            foreach (var _item in parameters.ToArray())
             {
                 if (_item is ParameterMemberData item)
                 {

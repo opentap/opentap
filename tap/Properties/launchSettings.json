@@ -25,6 +25,10 @@
     "tap (run)": {
       "commandName": "Project",
       "commandLineArgs": "run ../../tests/RepeatOutputCompare.TapPlan"
+    },
+    "tap (profile)": {
+      "commandName": "Project",
+      "commandLineArgs": "profile --test OpenTap.UnitTests.ResourceTest.EnabledIfResourceWarningTest"
     }
   }
 }

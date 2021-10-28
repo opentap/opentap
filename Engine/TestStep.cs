@@ -507,7 +507,7 @@ namespace OpenTap
         // Implementing this interface will make setting and getting descriptions faster.
         string IDescriptionProvider.Description { get; set; }
         // Implementing this interface will make setting and getting dynamic members faster.
-        IMemberData[] IDynamicMembersProvider.DynamicMembers { get; set; }
+        IDictionary<string, IMemberData> IDynamicMembersProvider.DynamicMembers { get; set; }
 
         InputOutputRelation[] IInputOutputRelations.Inputs { get; set; }
         InputOutputRelation[] IInputOutputRelations.Outputs { get; set; }
