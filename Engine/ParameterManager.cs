@@ -594,13 +594,20 @@ namespace OpenTap
         // then we can do it a lot faster.
         static readonly ConditionalWeakTable<ITestStepParent, ChangeId> recordedChangeIds = new ConditionalWeakTable<ITestStepParent, ChangeId>();
 
-        public static bool CheckParameterSanity(ITestStepParent step, ICollection<IMemberData> parameters)
+        public static bool CheckParameterSanity(ParameterMemberData parameter, bool overrideCache = false)
+        {
+            if (parameter.Target is ITestStepParent par)
+                return CheckParameterSanity(par, new IMemberData[] {parameter}, overrideCache);
+            return false;
+        }
+        
+        public static bool CheckParameterSanity(ITestStepParent step, ICollection<IMemberData> parameters, bool overrideCache = false)
         {
             if (parameterSanityCheckDelayed) return true;
             foreach (var elem in parameters)
             {
                 if (elem is ParameterMemberData)
-                    return checkParameterSanity(step, parameters);
+                    return checkParameterSanity(step, parameters, overrideCache);
             }
             return true;
         }
@@ -608,7 +615,7 @@ namespace OpenTap
         /// <summary>
         /// Verify that source of a declared parameter on a parent also exists in the step hierarchy.
         /// </summary>
-        public static bool checkParameterSanity(ITestStepParent step, ICollection<IMemberData> parameters)
+        public static bool checkParameterSanity(ITestStepParent step, ICollection<IMemberData> parameters, bool overrideCache = false)
         {
             bool isSane = true;
             var changeid = recordedChangeIds.GetValue(step, x => new ChangeId());
@@ -617,7 +624,7 @@ namespace OpenTap
                 if (_item is ParameterMemberData item)
                 {
                     
-                    if (changeid.Value == step.ChildTestSteps.ChangeId && item.AnyDynamicMembers == false)
+                    if (changeid.Value == step.ChildTestSteps.ChangeId && item.AnyDynamicMembers == false && !overrideCache)
                     {
                         continue;
                     }
@@ -630,7 +637,7 @@ namespace OpenTap
                         bool unparented = false;
                         var subparent = src.Parent;
 
-                        if (changeid.Value != step.ChildTestSteps.ChangeId)
+                        if (changeid.Value != step.ChildTestSteps.ChangeId || overrideCache)
                         {                            
                             // Multiple situations possible.
                             // 1. the step is no longer a child of the parent to which it has parameterized a setting.

@@ -361,13 +361,28 @@ namespace OpenTap
             if(source == null) throw new ArgumentNullException(nameof(source));
             if(name == null) throw new ArgumentNullException(nameof(name));
             if(name.Length == 0) throw new ArgumentException("Cannot be an empty string.", nameof(name));
-            
-            if (IsParameterized(member, source)) throw new Exception("the member is already parameterized");
             { // Verify that the member belongs to the type.   
                 var sourceType = TypeData.GetTypeData(source);
                 if (!sourceType.GetMembers().Contains(member))
                     throw new ArgumentException("The member does not belong to the source object type");
             }
+            if (IsParameterized(member, source))
+            {
+                bool bad = true;
+                if (source is IParameterizedMembersCache cache)
+                {
+                    // this is a rare case that can occur if a test step has been
+                    // in two different test plans and the old parameters are lingering in the old plan.
+                    // in this case try to fix the parameterized state by 
+                    // checking for parameter sanity.
+                    var param = cache.GetParameterFor(member) as ParameterMemberData;
+                    ParameterManager.CheckParameterSanity(param, true);
+                    bad = IsParameterized(member, source);
+                }
+                if(bad)
+                    throw new Exception("the member is already parameterized");
+            }
+            
             if (member.HasAttribute<UnparameterizableAttribute>())
                 throw new ArgumentException("Member cannot be parameterized", nameof(member));
             
