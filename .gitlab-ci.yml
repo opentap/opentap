@@ -387,7 +387,7 @@ Package-Linux:
     paths:
        - OpenTAP.*.Linux.TapPackage
 
-    
+
 Package-SDK:
   stage: package
   image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
@@ -472,6 +472,53 @@ Package-NuGet:
     expire_in: 1 week
     paths:
       - "*.nupkg"
+
+# Diff the public API of the generated OpenTAP package against the public API of some ancestor following this logic:
+# Version 9.16.0-beta should compare against the latest 9.15 release version
+# Version 9.16.1-beta should compare against the 9.16.0 release version
+# An RC should behave the same as a beta
+# A release version should behave the same as an RC or a beta
+# Any other prerelease version should compare to the beta that it branched out from
+# e.g. alpha 9.16.1-alpha.23.4-feature-branch should compare against 9.16.1-beta.23
+.Package-Diff:
+  stage: package
+  tags: [docker, gce]
+  image: opentapio/opentap:9.16-ubuntu18.04
+  allow_failure: true
+  variables:
+    OPENTAP_NO_UPDATE_CHECK: 1
+  script:
+    - mv OpenTAP.*.TapPackage OpenTAP.TapPackage
+    - tap package install "Package Diff" --version any
+    - tap package diff OpenTAP.TapPackage
+    - mv ./*.html diff.html
+  artifacts:
+    expire_in: 1 week
+    when: always
+    paths:
+      - diff.html
+    expose_as: 'Public API Diff'
+
+Package-Diff-Windows-x64:
+  dependencies:
+    - Package-Windows64
+  needs:
+    - Package-Windows64
+  extends: .Package-Diff
+
+Package-Diff-Windows-x86:
+  dependencies:
+    - Package-Windows32
+  needs:
+    - Package-Windows32
+  extends: .Package-Diff
+
+Package-Diff-Linux:
+  dependencies:
+    - Package-Linux
+  needs:
+    - Package-Linux
+  extends: .Package-Diff
 
 Installer-Windows:
   stage: installer
