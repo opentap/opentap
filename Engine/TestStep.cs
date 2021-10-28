@@ -526,7 +526,12 @@ namespace OpenTap
                 parameterizations.Remove(mem);
         }
 
-        IParameterMemberData IParameterizedMembersCache.GetParameterFor(IMemberData mem) => parameterizations[mem];
+        IParameterMemberData IParameterizedMembersCache.GetParameterFor(IMemberData mem)
+        {
+            if (parameterizations.TryGetValue(mem, out var r))
+                return r;
+            return null;
+        }
     }
 
     /// <summary>
