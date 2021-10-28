@@ -459,127 +459,20 @@ namespace OpenTap.Package
             return (PackageDef)serializer.Deserialize(stream, type: TypeData.FromType(typeof(PackageDef)));
         }
 
-        private static Regex variableRegex = new Regex(@"\$\((.*?)\)", RegexOptions.Compiled);
-        static void expandVariables(XElement root)
-        {
-            { // Return immediately if the element does not contain variables to expand (excluding GitVersion)
-                var matches = variableRegex.Matches(root.ToString());
-                var usesVariables = false;
-                foreach (Match match in matches)
-                {
-                    var matchName = match.Groups[1].Value;
-                    if (matchName == "GitVersion") continue;
-                    usesVariables = true;
-                    break;
-                }
-
-                if (!usesVariables) return;
-            }
-
-            var originalContent = root.ToString();
-            var variables = Environment.GetEnvironmentVariables();
-            var ns = root.GetDefaultNamespace();
-
-            string expand(string str)
-            {
-                var sb = new StringBuilder();
-
-                var currentIndex = 0;
-                foreach (Match match in variableRegex.Matches(str))
-                {
-                    sb.Append(str.Substring(currentIndex, match.Index - currentIndex));
-                    currentIndex = match.Index + match.Length;
-
-                    if (match.Groups.Count < 2) continue;
-                    var matchName = match.Groups[1].Value;
-                    // $(GitVersion) has a special meaning in package.xml files
-                    if (matchName == "GitVersion") continue;
-                    if (variables.Contains(matchName))
-                        sb.Append(variables[matchName]);
-                }
-
-                sb.Append(str.Substring(currentIndex));
-
-                return sb.ToString();
-            }
-
-            if (root.Element(ns.GetName("Variables")) is XElement pgkVariables)
-            {
-                foreach (var variable in pgkVariables.Descendants())
-                {
-                    variables[variable.Name.LocalName] = expand(variable.Value);
-                }
-                pgkVariables.Remove();
-            }
-
-            bool evaluateCondition(string condition)
-            {
-                if (string.IsNullOrWhiteSpace(condition)) return false;
-                try
-                {
-                    condition = condition.Trim();
-
-                    if (condition.Equals("True", StringComparison.OrdinalIgnoreCase)) return true;
-                    if (condition.Equals("False", StringComparison.OrdinalIgnoreCase)) return false;
-
-                    var parts = condition.Split(new string[] { "==", "!=" }, StringSplitOptions.None)
-                        .Select(p => p.Trim()).ToArray();
-
-                    if (parts.Length != 2)
-                    {
-                        log.Error(
-                            $"Error in condition '{condition}'. Several checks detected. A condition must be either true, false, or of the form a==b.");
-                        return false;
-                    }
-
-                    var isEquals = condition.IndexOf("==", StringComparison.Ordinal) >= 0;
-                    var areEqual = parts[0].Equals(parts[1], StringComparison.Ordinal);
-                    return isEquals == areEqual;
-                }
-                catch
-                {
-                    log.Error($"Error during parsing of condition '{condition}'.");
-                    return false;
-                }
-            }
-
-            void expandRecursive(XElement ele)
-            {
-                foreach (var node in ele.Nodes())
-                {
-                    if (node is XText t)
-                        t.Value = expand(t.Value);
-                }
-                foreach (var attribute in ele.Attributes())
-                {
-                    attribute.Value = expand(attribute.Value);
-                }
-
-                if (ele.Attribute("Condition") is XAttribute cond)
-                {
-                    // Remove the element if the condition evaluates to false
-                    if (evaluateCondition(cond.Value) == false)
-                        ele.Remove();
-                    // Otherwise just remove the condition
-                    else
-                        cond.Remove();
-                }
-
-                foreach (var desc in ele.Elements())
-                {
-                    expandRecursive(desc);
-                }
-            }
-
-            expandRecursive(root);
-
-            var newContent = root.ToString();
-        }
-
         static Stream ConvertXml(Stream stream)
         {
             var root = XElement.Load(stream);
-            expandVariables(root);
+
+            try
+            {
+                var expander = new XmlEvaluater(root);
+                root = expander.Evaluate();
+            }
+            catch (Exception ex)
+            {
+                log.Debug($"Unexpected error while evaluating package xml. Continuing in spite of errors.");
+                log.Debug(ex);
+            }
 
             var xns = root.GetDefaultNamespace();
             var filesElement = root.Element(xns.GetName("Files"));
