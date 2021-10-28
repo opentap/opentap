@@ -444,7 +444,7 @@ namespace OpenTap
         internal void UnregisterParameter(IMemberData member, object source)
         {
             lock (registeredParameters)
-                registeredParameters.Add((member, source));
+                registeredParameters.Remove((member, source));
         }
 
         internal bool IsRegistered(IMemberData member, object source)

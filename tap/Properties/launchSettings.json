@@ -28,7 +28,7 @@
     },
     "tap (profile)": {
       "commandName": "Project",
-      "commandLineArgs": "profile --test OpenTap.UnitTests.ResourceTest.EnabledIfResourceWarningTest"
+      "commandLineArgs": "profile --test OpenTap.UnitTests.ScopeParametersTest.TestIsParameterized"
     }
   }
 }

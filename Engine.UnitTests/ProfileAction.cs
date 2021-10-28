@@ -73,20 +73,20 @@ namespace OpenTap.Engine.UnitTests
                 }
                 var td2 = td.AsTypeData().Type;
                 var obj = td.CreateInstance();
-                
-                var methods = methodName == null ? td2.GetMethods() : new []{td2.GetMethod(methodName)};
+
+                var methods = methodName == null ? td2.GetMethods() : new[] {td2.GetMethod(methodName)};
                 foreach (var method in methods)
                 {
                     var paramCount = method.GetParameters().Count();
                     if (paramCount == 0)
                     {
                         var sw = Stopwatch.StartNew();
-                        for(int i = 0; i < it ;i++)
+                        for (int i = 0; i < it; i++)
                             method.Invoke(obj, Array.Empty<object>());
-                        Console.WriteLine("{0}x{1}: : {0},", method, it, sw.ElapsedMilliseconds);
+                        Console.WriteLine("{0}x{1}: : {2} ms,", method, it, sw.ElapsedMilliseconds);
                     }
                 }
-                }
+            }
             if (ProfileTimeSpanToString)
             {
                 StringBuilder sb =new StringBuilder();
