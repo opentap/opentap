@@ -459,10 +459,24 @@ namespace OpenTap.Package
             return (PackageDef)serializer.Deserialize(stream, type: TypeData.FromType(typeof(PackageDef)));
         }
 
+        private static Regex variableRegex = new Regex(@"\$\((.*?)\)", RegexOptions.Compiled);
         static void expandVariables(XElement root)
         {
+            { // Return immediately if the element does not contain variables to expand (excluding GitVersion)
+                var matches = variableRegex.Matches(root.ToString());
+                var usesVariables = false;
+                foreach (Match match in matches)
+                {
+                    var matchName = match.Groups[1].Value;
+                    if (matchName == "GitVersion") continue;
+                    usesVariables = true;
+                    break;
+                }
+
+                if (!usesVariables) return;
+            }
+
             var originalContent = root.ToString();
-            var re = new Regex(@"\$\((.*?)\)", RegexOptions.Compiled);
             var variables = Environment.GetEnvironmentVariables();
             var ns = root.GetDefaultNamespace();
 
@@ -471,7 +485,7 @@ namespace OpenTap.Package
                 var sb = new StringBuilder();
 
                 var currentIndex = 0;
-                foreach (Match match in re.Matches(str))
+                foreach (Match match in variableRegex.Matches(str))
                 {
                     sb.Append(str.Substring(currentIndex, match.Index - currentIndex));
                     currentIndex = match.Index + match.Length;
@@ -565,20 +579,19 @@ namespace OpenTap.Package
         static Stream ConvertXml(Stream stream)
         {
             var root = XElement.Load(stream);
-            if (false)
-                expandVariables(root);
+            expandVariables(root);
 
             var xns = root.GetDefaultNamespace();
-            var filesElement = root.Element(xns + "Files");
+            var filesElement = root.Element(xns.GetName("Files"));
             if (filesElement != null)
             {
-                var fileElements = filesElement.Elements(xns + "File");
+                var fileElements = filesElement.Elements(xns.GetName("File"));
                 foreach (var file in fileElements)
                 {
-                    var plugins = file.Element(xns + "Plugins");
+                    var plugins = file.Element(xns.GetName("Plugins"));
                     if (plugins == null) continue;
 
-                    var pluginElements = plugins.Elements(xns + "Plugin");
+                    var pluginElements = plugins.Elements(xns.GetName("Plugin"));
                     foreach (var plugin in pluginElements)
                     {
                         if (!plugin.HasElements && !plugin.IsEmpty)
@@ -643,11 +656,11 @@ namespace OpenTap.Package
             {
                 using (Stream str = new MemoryStream())
                 {
-                    if (node is XElement)
+                    if (node is XElement nodeElement)
                     {
-                        (node as XElement).Save(str);
+                        nodeElement.Save(str);
                         str.Seek(0, 0);
-                        var package = PackageDef.FromXml(str);
+                        var package = FromXml(str);
                         if (package != null)
                         {
                             lock (packages)
