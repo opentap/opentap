@@ -565,7 +565,8 @@ namespace OpenTap.Package
         static Stream ConvertXml(Stream stream)
         {
             var root = XElement.Load(stream);
-            expandVariables(root);
+            if (false)
+                expandVariables(root);
 
             var xns = root.GetDefaultNamespace();
             var filesElement = root.Element(xns + "Files");

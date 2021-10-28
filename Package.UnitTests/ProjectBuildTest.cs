@@ -57,12 +57,14 @@ namespace OpenTap.Package.UnitTests
         
         public (string Stdout, string Stderr, int ExitCode) Build()
         {
-            using (var writer = new StreamWriter(Path.Combine(ProjectBuildTest.WorkingDirectory, Filename)))
-                writer.Write(this.ToString());            
+            var csprojFile = Path.Combine(ProjectBuildTest.WorkingDirectory, Filename);
+            if (File.Exists(csprojFile))
+                File.Delete(csprojFile);
+            File.WriteAllText(csprojFile, ToString());
 
             if (OperatingSystem.Current != OperatingSystem.Windows)
             {
-                // // The MSBuild generator is sometimes too eager to skip steps on Linux -- make sure targets are run
+                // The MSBuild generator is sometimes too eager to skip steps on Linux -- make sure targets are run
                 if (File.Exists(ProjectBuildTest.OutputFile))
                     File.Delete(ProjectBuildTest.OutputFile);
             }
@@ -168,7 +170,7 @@ namespace OpenTap.Package.UnitTests
 
             var result = csProj.Build();
 
-            if (OpenTap.OperatingSystem.Current == OperatingSystem.Windows)
+            if (OperatingSystem.Current == OperatingSystem.Windows)
             {
 
                 int lineNo =
