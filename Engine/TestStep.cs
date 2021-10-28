@@ -27,7 +27,7 @@ namespace OpenTap
     [ComVisible(true)]
     [Guid("d0b06600-7bac-47fb-9251-f834e420623f")]
     public abstract class TestStep : ValidatingObject, ITestStep, IBreakConditionProvider, IDescriptionProvider, 
-        IDynamicMembersProvider, IInputOutputRelations
+        IDynamicMembersProvider, IInputOutputRelations, IParameterizedMembersCache
     {
         #region Properties
         /// <summary>
@@ -511,6 +511,22 @@ namespace OpenTap
 
         InputOutputRelation[] IInputOutputRelations.Inputs { get; set; }
         InputOutputRelation[] IInputOutputRelations.Outputs { get; set; }
+
+        readonly Dictionary<IMemberData, IParameterMemberData> parameterizations =
+            new Dictionary<IMemberData, IParameterMemberData>();
+        void IParameterizedMembersCache.RegisterParameterizedMember(IMemberData mem, IParameterMemberData memberData)
+        {
+            lock (parameterizations)
+                parameterizations.Add(mem, memberData);
+        }
+
+        void IParameterizedMembersCache.UnregisterParameterizedMember(IMemberData mem, IParameterMemberData memberData)
+        {
+            lock (parameterizations)
+                parameterizations.Remove(mem);
+        }
+
+        IParameterMemberData IParameterizedMembersCache.GetParameterFor(IMemberData mem) => parameterizations[mem];
     }
 
     /// <summary>

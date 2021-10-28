@@ -67,7 +67,7 @@ namespace OpenTap.Engine.UnitTests
                 string methodName = null;
                 if (td == null)
                 {
-                    var names = Test.Split(".");
+                    var names = Test.Split('.');
                     methodName = names.Last();
                     td = TypeData.GetTypeData(string.Join(".", names.Take(names.Length - 1)));
                 }

@@ -12,6 +12,7 @@ namespace OpenTap
     {
         IDictionary<string, IMemberData> DynamicMembers { get; set; }
     }
+    
 
     /// <summary>  Extensions for parameter operations. </summary>
     public static class ParameterExtensions
@@ -329,6 +330,28 @@ namespace OpenTap
 
             return null;
         }
+
+        static void registerParameter(IMemberData member, object source, ParameterMemberData parameter)
+        {
+            if (source is IParameterizedMembersCache cache)
+                cache.RegisterParameterizedMember(member, parameter);
+            else
+                GetPlanFor(source)?.RegisterParameter(member, source);
+        }
+        static void unregisterParameter(IMemberData member, object source, ParameterMemberData parameter)
+        {
+            if (source is IParameterizedMembersCache cache)
+                cache.UnregisterParameterizedMember(member, parameter);
+            else
+                GetPlanFor(source)?.UnregisterParameter(member, source);
+        }
+
+        static bool isRegisteredParameter(IMemberData member, object source)
+        {
+            if (source is IParameterizedMembersCache cache)
+                return cache.GetParameterFor(member) != null;
+            return GetPlanFor(source)?.IsRegistered(member, source) ?? false;
+        }
         
         
         public static ParameterMemberData ParameterizeMember(object target, IMemberData member, object source, string name)
@@ -339,7 +362,7 @@ namespace OpenTap
             if(name == null) throw new ArgumentNullException(nameof(name));
             if(name.Length == 0) throw new ArgumentException("Cannot be an empty string.", nameof(name));
             
-            if (IsParameterized(member, source)) throw new Exception("selection is already parameterized");
+            if (IsParameterized(member, source)) throw new Exception("the member is already parameterized");
             { // Verify that the member belongs to the type.   
                 var sourceType = TypeData.GetTypeData(source);
                 if (!sourceType.GetMembers().Contains(member))
@@ -358,14 +381,14 @@ namespace OpenTap
                     var newMember = new ParameterMemberData(target, source, member, name);
 
                     AddDynamicMember(target, newMember);
-                    GetPlanFor(source)?.RegisterParameter(member, source);
+                    registerParameter(member, source, newMember);
                     return newMember;
                 }
 
                 if (existingMember is ParameterMemberData fw)
                 {
                     fw.AddAdditionalMember(source, member);
-                    GetPlanFor(source)?.RegisterParameter(member, source);
+                    registerParameter(member, source, fw);
                     return fw;
                 }
 
@@ -379,16 +402,16 @@ namespace OpenTap
             if (parameterMember == null)
                 throw new Exception($"Member {parameterMember.Name} is not a forwarded member.");
             parameterMember.RemoveMember(member, source);
-            GetPlanFor(source)?.UnregisterParameter(member, source);
+            unregisterParameter(member, source , parameterMember);
         }
 
         /// <summary>
         /// Returns true if the member/object combination is parameterized. Note, this only work if they are child steps of a test plan.
         /// </summary>
-        public static bool IsParameterized(IMemberData member, object obj) => GetPlanFor(obj)?.IsRegistered(member, obj) ?? false;
+        public static bool IsParameterized(IMemberData member, object obj) => isRegisteredParameter(member, obj);
     }
 
-    internal class DynamicMemberTypeDataProvider : IStackedTypeDataProvider
+    class DynamicMemberTypeDataProvider : IStackedTypeDataProvider
     {
         class BreakConditionDynamicMember : DynamicMember
         {

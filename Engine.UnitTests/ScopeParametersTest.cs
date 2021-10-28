@@ -26,15 +26,13 @@ namespace OpenTap.UnitTests
             Assert.IsFalse(DynamicMember.IsParameterized(member, diag));
             Assert.IsFalse(DynamicMember.IsParameterized(member, diag2));
             
-            member.Parameterize(scope, diag, parameterName);
+            var param = member.Parameterize(scope, diag, parameterName);
             member.Parameterize(scope, diag2, parameterName);
             Assert.IsTrue(DynamicMember.IsParameterized(member, diag));
             Assert.IsTrue(DynamicMember.IsParameterized(member, diag2));
             plan.ChildTestSteps.Remove(scope);
             TypeData.GetTypeData(scope).GetMembers();
-            // technically these are still parameterized.
-            //Assert.IsFalse(DynamicMember.IsParameterized(member, diag));
-            //Assert.IsFalse(DynamicMember.IsParameterized(member, diag2));
+            DynamicMember.UnparameterizeMember(param, member, diag);
         }
 
         [Test]
