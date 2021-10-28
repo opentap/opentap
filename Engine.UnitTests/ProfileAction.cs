@@ -81,7 +81,7 @@ namespace OpenTap.Engine.UnitTests
                     if (paramCount == 0)
                     {
                         var sw = Stopwatch.StartNew();
-                        for (int i = 0; i < it; i++)
+                        for (int i = 0; i < it; i++)    
                             method.Invoke(obj, Array.Empty<object>());
                         Console.WriteLine("{0}x{1}: : {2} ms,", method, it, sw.ElapsedMilliseconds);
                     }

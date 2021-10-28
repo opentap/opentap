@@ -378,8 +378,8 @@ namespace OpenTap
             if (parameterMember == null) throw new ArgumentNullException(nameof(parameterMember));
             if (parameterMember == null)
                 throw new Exception($"Member {parameterMember.Name} is not a forwarded member.");
-            if (parameterMember.RemoveMember(member, source))
-                GetPlanFor(source)?.UnregisterParameter(member, source);
+            parameterMember.RemoveMember(member, source);
+            GetPlanFor(source)?.UnregisterParameter(member, source);
         }
 
         /// <summary>
