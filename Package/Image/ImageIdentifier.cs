@@ -113,8 +113,9 @@ namespace OpenTap.Package
 
             Installation currentInstallation = new Installation(targetDir);
             var currentPackages = currentInstallation.GetPackages();
-            var modifyOrAdd = Packages.Where(s => !currentPackages.Any(p => p.Name == s.Name && p.Version.ToString() == s.Version.ToString())).ToList();
-
+            
+            var skippedPackages = Packages.Where(s => currentPackages.Any(p => p.Name == s.Name && p.Version.ToString() == s.Version.ToString())).ToHashSet();
+            var modifyOrAdd = Packages.Where(s => !skippedPackages.Contains(s)).ToList();
             var packagesToUninstall = currentPackages.Where(pack => !Packages.Any(p => p.Name == pack.Name) && pack.Class.ToLower() != "system-wide").ToList(); // Uninstall installed packages which are not part of image
             var versionMismatch = currentPackages.Where(pack => Packages.Any(p => p.Name == pack.Name && p.Version != pack.Version)).ToList(); // Uninstall installed packages where we're deploying another version
 
@@ -128,11 +129,13 @@ namespace OpenTap.Package
                 log.Info($"Deploying installation in {targetDir}:");
             else
                 log.Info($"Modifying installation in {targetDir}:");
-
+            
+            foreach(var package in skippedPackages)
+                log.Info($"- Skipping {package.Name} version {package.Version} ({package.Architecture}-{package.OS}) - Already installed.");
             foreach (var package in packagesToUninstall)
                 log.Info($"- Removing {package.Name} version {package.Version} ({package.Architecture}-{package.OS})");
             foreach (var package in versionMismatch)
-                log.Info($"- Modfying {package.Name} version {package.Version} to {Packages.FirstOrDefault(s => s.Name == package.Name).Version}");
+                log.Info($"- Modifying {package.Name} version {package.Version} to {Packages.FirstOrDefault(s => s.Name == package.Name).Version}");
             foreach (var package in modifyOrAdd.Except(packagesToUninstall))
                 log.Info($"- Installing {package.Name} version {package.Version}");
 
@@ -143,7 +146,6 @@ namespace OpenTap.Package
 
             if (packagesToUninstall.Any())
                 Uninstall(packagesToUninstall, targetDir, cancellationToken);
-
 
             if (cancellationToken.IsCancellationRequested)
                 throw new OperationCanceledException("Deployment operation cancelled by user");
