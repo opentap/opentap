@@ -112,9 +112,6 @@
     <None Update="Packages/SetAsmInfoTest.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Packages\Dynamic.Package.xml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Keysight\Tap\" />
