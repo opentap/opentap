@@ -59,7 +59,7 @@ namespace OpenTap.Package
         public XElement Evaluate()
         {
             // Return immediately if there is nothing to expand to expand
-            // if (hasVariables(Root.ToString()) == false) return Root;
+            if (hasVariables(Root.ToString()) == false) return Root;
 
             InitVariables();
             ExpandNodeRecursive(Root);
