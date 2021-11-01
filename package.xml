@@ -9,6 +9,7 @@
         <Platform>Windows</Platform>
         <Sign>true</Sign>
         <Debug>false</Debug>
+        <IncludePdb>false</IncludePdb>
     </Variables>
     <SourceUrl>https://gitlab.com/OpenTAP/opentap</SourceUrl>
     <Owner>OpenTAP</Owner>
@@ -91,7 +92,7 @@
               SourcePath="newtonsoft_mit_license.txt"/>
     </Files>
     <!--  PDB Files  -->
-    <Files Condition="$(Debug)">
+    <Files Condition="$(IncludePdb)">
         <File Path="**/**/*.pdb"/>
     </Files>
     <PackageActionExtensions Condition="$(Platform) != Windows">

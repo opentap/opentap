@@ -82,6 +82,7 @@ namespace OpenTap.Package.UnitTests
                 Environment.SetEnvironmentVariable("Platform", OperatingSystem.Current == OperatingSystem.Windows ? "Windows" : "Linux");
                 Environment.SetEnvironmentVariable("Architecture", OperatingSystem.Current == OperatingSystem.Windows ? "x86" : "x64");
                 Environment.SetEnvironmentVariable("Sign", "0");
+                Environment.SetEnvironmentVariable("Debug", "0");
 
                 // Sign package is needed to create opentap
                 string createOpenTap = $"create -v {opentapPackageXmlPath} --install -o Packages/OpenTAP.TapPackage";
@@ -627,25 +628,6 @@ namespace OpenTap.Package.UnitTests
         private static string RunPackageCli(string args, out int exitCode, string workingDir = null)
         {
             return RunPackageCliWrapped(args, out exitCode, workingDir);
-        }
-
-        private static string CreateOpenTapPackageXmlWithoutSignElement(string v)
-        {
-            string fakeOpenTap = "fakeOpentap.xml";
-            using (StreamWriter fsWrite = new StreamWriter(fakeOpenTap, false))
-            {
-                using (StreamReader fsRead = new StreamReader(v))
-                {
-                    while (!fsRead.EndOfStream)
-                    {
-                        string line = fsRead.ReadLine();
-                        if (!line.Contains("<Sign") && !line.Contains(".chm"))
-                            fsWrite.WriteLine(line);
-                    }
-
-                }
-            }
-            return fakeOpenTap;
         }
 
         private static string RunPackageCliWrapped(string args, out int exitCode, string workingDir, string fileName = null)
