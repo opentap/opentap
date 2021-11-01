@@ -462,6 +462,15 @@ namespace OpenTap.Package
         static Stream ConvertXml(Stream stream)
         {
             var root = XElement.Load(stream);
+            try
+            {
+                root = new XmlEvaluator(root).Evaluate();
+            }
+            catch (Exception ex)
+            {
+                log.Debug($"Unexpected error while evaluating package xml. Continuing in spite of errors.");
+                log.Debug(ex);
+            }
 
             var xns = root.GetDefaultNamespace();
             var filesElement = root.Element(xns.GetName("Files"));

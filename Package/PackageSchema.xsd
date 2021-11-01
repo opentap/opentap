@@ -20,11 +20,12 @@
     <xs:attribute name="Path" type="xs:string" use="required"/>
     <xs:attribute name="LicenseRequired" type="xs:string"/>
     <xs:attribute name="SourcePath" type="xs:string"/>
+    <xs:attribute name="Condition" type="xs:string"/>
   </xs:complexType>
   
   <xs:element name="Package">
     <xs:complexType>
-      <xs:all>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
         <xs:element name="Variables" minOccurs="0" maxOccurs="1">
           <xs:complexType>
             <xs:sequence>
@@ -45,36 +46,41 @@
           </xs:complexType>
         </xs:element>
         
-        <xs:element name="Dependencies" minOccurs="0" maxOccurs="1">
+        <xs:element name="Dependencies" minOccurs="0" maxOccurs="unbounded">
           <xs:complexType>
             <xs:sequence>
               <xs:element name="Package" minOccurs="0" maxOccurs="unbounded">
                 <xs:complexType>
                   <xs:attribute name="Name" type="xs:string" use="required"/>
                   <xs:attribute name="Version" type="xs:string" />
+                  <xs:attribute name="Condition" type="xs:string"/>
                 </xs:complexType>
               </xs:element>
               <xs:element name="PackageDependency" minOccurs="0" maxOccurs="unbounded">
                 <xs:complexType>
                   <xs:attribute name="Package" type="xs:string" use="required"/>
                   <xs:attribute name="Version" type="xs:string" />
+                  <xs:attribute name="Condition" type="xs:string"/>
                 </xs:complexType>
               </xs:element>
             </xs:sequence>
+            <xs:attribute name="Condition" type="xs:string"/>
           </xs:complexType>
         </xs:element>
         
         <xs:element name="Repository" minOccurs="0" maxOccurs="1">
           <xs:complexType>
             <xs:attribute name="Url" type="xs:string" use="required"/>
+            <xs:attribute name="Condition" type="xs:string"/>
           </xs:complexType>
         </xs:element>
 
-        <xs:element name="Files" minOccurs="0" maxOccurs="1">
+        <xs:element name="Files" minOccurs="0" maxOccurs="unbounded">
           <xs:complexType>
             <xs:sequence>
               <xs:element name="File" minOccurs="0" maxOccurs="unbounded" type="FileType" />
             </xs:sequence>
+            <xs:attribute name="Condition" type="xs:string"/>
           </xs:complexType>
         </xs:element>
 
@@ -83,6 +89,7 @@
             <xs:sequence>
               <xs:element name="ActionStep" minOccurs="0" maxOccurs="unbounded">
                 <xs:complexType>
+                  <xs:attribute name="Condition" type="xs:string"/>
                   <xs:attribute name="ExeFile" type="xs:string" use="required"/>
                   <xs:attribute name="ExpectedExitCodes" type="xs:string" use="optional"/>
                   <xs:attribute name="Arguments" type="xs:string" use="optional"/>
@@ -92,6 +99,7 @@
                 </xs:complexType>
               </xs:element>
             </xs:sequence>
+            <xs:attribute name="Condition" type="xs:string"/>
           </xs:complexType>
         </xs:element>
 
@@ -100,7 +108,7 @@
             <xs:sequence>
               <xs:any maxOccurs="unbounded" processContents="skip"/>
             </xs:sequence>
-            <xs:anyAttribute processContents="skip"/>
+            <xs:attribute name="Condition" type="xs:string"/>
           </xs:complexType>
         </xs:element>
 
@@ -108,7 +116,7 @@
         <xs:element name="SourceUrl" type="xs:string" minOccurs="0"/>
         <xs:element name="SourceLicense" type="xs:string" minOccurs="0"/>
         
-      </xs:all>
+      </xs:choice>
       <xs:attribute name="Name" type="xs:string" use ="required"/>
       <xs:attribute name="Version" type="xs:string"/>
       <xs:attribute name="InfoLink" type="xs:string"/>

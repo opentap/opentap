@@ -21,8 +21,9 @@ namespace OpenTap.Package
             Root = new XElement(root);
         }
 
-        bool hasVariables(string s)
+        bool hasVariablesOrConditions(string s)
         {
+            if (s.Contains("Condition")) return true;
             var matches = variableRegex.Matches(s);
             var usesVariables = false;
             foreach (Match match in matches)
@@ -46,7 +47,10 @@ namespace OpenTap.Package
             {
                 foreach (var variable in pgkVariables.Descendants())
                 {
-                    Variables[variable.Name.LocalName] = ExpandVariables(variable.Value);
+                    var k = variable.Name.LocalName;
+                    // Let environment variables override file local variables
+                    if (Variables.Contains(k)) continue;
+                    Variables[k] = ExpandVariables(variable.Value);
                 }
 
                 pgkVariables.Remove();
@@ -79,7 +83,7 @@ namespace OpenTap.Package
         public XElement Evaluate()
         {
             // Return immediately if there is nothing to expand to expand
-            if (hasVariables(Root.ToString()) == false) return Root;
+            if (hasVariablesOrConditions(Root.ToString()) == false) return Root;
 
             InitVariables();
             ExpandNodeRecursive(Root);

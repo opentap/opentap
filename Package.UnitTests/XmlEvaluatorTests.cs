@@ -9,7 +9,7 @@ namespace OpenTap.Package.UnitTests
     public class XmlEvaluatorTests
     {
         [Test]
-        public void TestEvaluateXml()
+        public void TestEvaluateXml([Values(true, false)] bool sign)
         {
             const string platform = "Windows";
             const string arch = "TestArch";
@@ -26,6 +26,7 @@ namespace OpenTap.Package.UnitTests
     <Owner>{owner}</Owner>
     <PackageName>{packageName}</PackageName>
     <SourceUrl>{sourceUrl}</SourceUrl>
+    <Sign>{sign}</Sign>
   </Variables>
   <SourceUrl Condition=""$(Platform) == Windows"">$(SourceUrl)</SourceUrl>
   <Owner Condition=""$(Platform) == Linux"">$(Owner)</Owner>
@@ -39,7 +40,9 @@ namespace OpenTap.Package.UnitTests
     <File Condition=""0"" Path=""AlsoWrongFile""/>
   </Files>
   <Files Condition=""b == b"">
-    <File Condition=""1"" Path=""AlsoCorrectFile""/>
+    <File Condition=""1"" Path=""AlsoCorrectFile"">
+      <Sign Certificate=""Some Cert"" Condition=""$(Sign)""/>
+    </File>    
   </Files>
 
 
@@ -78,7 +81,10 @@ namespace OpenTap.Package.UnitTests
             var files = expanded.Elements().Where(e => e.Name.LocalName == "Files").ToArray();
             Assert.AreEqual(2, files[0].Nodes().Count());
             Assert.AreEqual("CorrectFile", files[0].Elements().First().Attribute("Path").Value);
-            Assert.AreEqual("AlsoCorrectFile", files[0].Elements().Last().Attribute("Path").Value);
+            var file2 = files[0].Elements().ToArray()[1];
+            Assert.AreEqual("AlsoCorrectFile", file2.Attribute("Path").Value);
+            var hasSign = file2.Element(ns.GetName("Sign")) != null;
+            Assert.AreEqual(sign, hasSign);
 
             Assert.AreEqual("$(PackageName)",original.Attribute("Name").Value);
             Assert.AreEqual(packageName,expanded.Attribute("Name").Value);
