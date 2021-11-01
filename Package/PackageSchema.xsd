@@ -108,7 +108,7 @@
             <xs:sequence>
               <xs:any maxOccurs="unbounded" processContents="skip"/>
             </xs:sequence>
-            <xs:attribute name="Condition" type="xs:string"/>
+            <xs:anyAttribute processContents="skip"/>
           </xs:complexType>
         </xs:element>
 
