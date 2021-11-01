@@ -95,8 +95,8 @@ Build-Linux64:
   stage: build
   image: opentapio/opentap:9.15-ubuntu18.04
   tags: [ docker, gce ]
-  script: 
-         - dotnet publish -c NetCore OpenTAP.sln
+  script:
+      - dotnet publish -c NetCore OpenTAP.sln
   artifacts:
     expire_in: 1 week
     paths:
@@ -490,8 +490,7 @@ Package-NuGet:
   script:
     - mv OpenTAP.*.TapPackage OpenTAP.TapPackage
     - tap package install "Package Diff" --version any
-    - tap package diff OpenTAP.TapPackage
-    - mv ./*.html diff.html
+    - tap package diff OpenTAP.TapPackage -o diff
   artifacts:
     expire_in: 1 week
     when: always
