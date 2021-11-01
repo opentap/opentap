@@ -51,6 +51,25 @@ namespace OpenTap.Package
                 pgkVariables.Remove();
             }
         }
+
+        private void MergeDuplicateElements(XElement elem)
+        {
+            var remaining = elem.Elements().GroupBy(e => e.Name.LocalName);
+            foreach (var rem in remaining)
+            {
+                var main = rem.First();
+                var rest = rem.Skip(1).ToArray();
+
+                foreach (var dup in rest)
+                {
+                    foreach (var child in dup.Elements().ToArray())
+                    {
+                        main.Add(new XElement(child));
+                    }
+                    dup.Remove();
+                }
+            }
+        }
         /// <summary>
         /// Evaluate all variables of the from $(VarName) -> VarNameValue in the <see cref="Root"/> document.
         /// Evaluate all Conditions of the form 'Condition="Some-Condition-Expression"'
@@ -63,6 +82,7 @@ namespace OpenTap.Package
 
             InitVariables();
             ExpandNodeRecursive(Root);
+            MergeDuplicateElements(Root);
 
             return Root;
         }

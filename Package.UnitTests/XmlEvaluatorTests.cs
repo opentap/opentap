@@ -38,6 +38,10 @@ namespace OpenTap.Package.UnitTests
   <Files Condition=""b == b"">
     <File Condition=""0"" Path=""AlsoWrongFile""/>
   </Files>
+  <Files Condition=""b == b"">
+    <File Condition=""1"" Path=""AlsoCorrectFile""/>
+  </Files>
+
 
   <PackageActionExtensions Condition=""'$(Platform)'  !=   'Windows'"">
     <ActionStep ExeFile=""tap.exe"" ActionName=""install""/>
@@ -68,12 +72,13 @@ namespace OpenTap.Package.UnitTests
             assertRemoved("PackageActionExtensions");
             assertRemoved("Owner");
 
-            Assert.AreEqual(3, original.Elements().Count(e => e.Name.LocalName == "Files"));
-            Assert.AreEqual(2, expanded.Elements().Count(e => e.Name.LocalName == "Files"));
+            Assert.AreEqual(4, original.Elements().Count(e => e.Name.LocalName == "Files"));
+            Assert.AreEqual(1, expanded.Elements().Count(e => e.Name.LocalName == "Files"));
 
             var files = expanded.Elements().Where(e => e.Name.LocalName == "Files").ToArray();
-            Assert.AreEqual(1, files[0].Nodes().Count());
-            Assert.AreEqual(0, files[1].Nodes().Count());
+            Assert.AreEqual(2, files[0].Nodes().Count());
+            Assert.AreEqual("CorrectFile", files[0].Elements().First().Attribute("Path").Value);
+            Assert.AreEqual("AlsoCorrectFile", files[0].Elements().Last().Attribute("Path").Value);
 
             Assert.AreEqual("$(PackageName)",original.Attribute("Name").Value);
             Assert.AreEqual(packageName,expanded.Attribute("Name").Value);
