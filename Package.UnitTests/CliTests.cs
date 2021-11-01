@@ -78,17 +78,15 @@ namespace OpenTap.Package.UnitTests
             string installDir = Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location);
             if (!File.Exists(Path.Combine(installDir, "Packages/OpenTAP/package.xml")))
             {
-                string opentapPackageXmlPath;
-                if (OperatingSystem.Current == OpenTap.OperatingSystem.Linux)
-                    opentapPackageXmlPath = "opentap_linux64.package.xml";
-                else
-                    opentapPackageXmlPath = "opentap.x86.package.xml";
+                var opentapPackageXmlPath = "package.xml";
+                Environment.SetEnvironmentVariable("Platform", OperatingSystem.Current == OperatingSystem.Windows ? "Windows" : "Linux");
+                Environment.SetEnvironmentVariable("Architecture", OperatingSystem.Current == OperatingSystem.Windows ? "x86" : "x64");
+                Environment.SetEnvironmentVariable("Sign", "0");
+
                 // Sign package is needed to create opentap
-                string packageXml = CreateOpenTapPackageXmlWithoutSignElement(opentapPackageXmlPath);
-                string createOpenTap = $"create -v {packageXml} --install -o Packages/OpenTAP.TapPackage";
+                string createOpenTap = $"create -v {opentapPackageXmlPath} --install -o Packages/OpenTAP.TapPackage";
                 string output = RunPackageCliWrapped(createOpenTap, out int exitCode, installDir);
                 Assert.AreEqual(0, exitCode, "Error creating OpenTAP package. Log:\n" + output);
-                File.Delete(packageXml);
             }
         }
 
