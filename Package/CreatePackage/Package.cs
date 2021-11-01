@@ -11,10 +11,7 @@ using System.Reflection;
 using System.Diagnostics;
 using Tap.Shared;
 using System.Runtime.InteropServices;
-using System.Xml;
-using System.Xml.Linq;
 using System.Xml.Serialization;
-using System.Xml.XPath;
 using OpenTap.Cli;
 
 namespace OpenTap.Package
@@ -123,6 +120,16 @@ namespace OpenTap.Package
         /// <returns></returns>
         public static PackageDef FromInputXml(string xmlFilePath, string projectDir)
         {
+            try
+            {
+                xmlFilePath = XmlEvaluator.FromFile(xmlFilePath);
+            }
+            catch (Exception ex)
+            {
+                log.Debug($"Unexpected error while evaluating package xml. Continuing in spite of errors.");
+                log.Debug(ex);
+            }
+
             PackageDef.ValidateXml(xmlFilePath);
             var pkgDef = PackageDef.FromXml(xmlFilePath);
             if(pkgDef.Files.Any(f => f.HasCustomData<UseVersionData>() && f.HasCustomData<SetAssemblyInfoData>()))

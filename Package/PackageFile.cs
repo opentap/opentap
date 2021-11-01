@@ -463,17 +463,6 @@ namespace OpenTap.Package
         {
             var root = XElement.Load(stream);
 
-            try
-            {
-                var expander = new XmlEvaluator(root);
-                root = expander.Evaluate();
-            }
-            catch (Exception ex)
-            {
-                log.Debug($"Unexpected error while evaluating package xml. Continuing in spite of errors.");
-                log.Debug(ex);
-            }
-
             var xns = root.GetDefaultNamespace();
             var filesElement = root.Element(xns.GetName("Files"));
             if (filesElement != null)

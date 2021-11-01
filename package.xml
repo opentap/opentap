@@ -33,7 +33,7 @@
               SourcePath="System.Runtime.InteropServices.RuntimeInformation.dll"/>
     </Files>
     <!-- Windows only files -->    
-    </Files Condition="$(OS) == Windows"
+    <Files Condition="$(OS) == Windows">
         <File Condition="$(OS) == Windows" Path="tap.exe">
             <SetAssemblyInfo Attributes="Version"/>
             <Sign Certificate="Keysight Technologies, Inc"/>
@@ -42,8 +42,9 @@
         <File Path="OpenTapApiReference.chm" 
               SourcePath="../../Help/OpenTapApiReference.chm"/>
         </File>
+    </Files>
     <!-- NetCore only files -->
-    </Files Condition="$(OS) != Windows">        
+    <Files Condition="$(OS) != Windows">        
         <File Path="tap.dll">
             <SetAssemblyInfo Attributes="Version"/>
             <Sign Certificate="Keysight Technologies, Inc"/>
@@ -55,7 +56,7 @@
         <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.ubuntu"/>
     </Files>
     <!-- License Texts -->
-    </Files>        
+    <Files>        
         <File Path="LICENSE.txt" 
               SourcePath="../../LICENSE.txt"/>
         <File Path="Dependencies/LibGit2Sharp.0.25.0.0/LICENSE.txt" 

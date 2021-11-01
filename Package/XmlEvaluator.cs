@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -175,6 +176,19 @@ namespace OpenTap.Package
                 log.Error($"Error during parsing of condition '{condition}'.");
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Expand the XML of the content of the file and return a file containing the evaluated content
+        /// </summary>
+        /// <param name="xmlFilePath"></param>
+        /// <returns></returns>
+        public static string FromFile(string xmlFilePath)
+        {
+            var elem = XElement.Load(xmlFilePath);
+            var expanded = Path.GetTempFileName();
+            new XmlEvaluator(elem).Evaluate().Save(expanded);
+            return expanded;
         }
     }
 }
