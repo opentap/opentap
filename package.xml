@@ -60,8 +60,7 @@
     </Files>
     <!-- License Texts -->
     <Files>        
-        <File Path="LICENSE.txt" 
-              SourcePath="../../LICENSE.txt"/>
+        <File Path="LICENSE.txt" />
         <File Path="Dependencies/LibGit2Sharp.0.25.0.0/LICENSE.txt" 
               SourcePath="libgit2sharp.license.md"/>
         <File Path="Dependencies/Mono.Cecil.0.10.1.0/LICENSE.txt" 
@@ -89,7 +88,11 @@
         <File Path="Dependencies/DotNet.Glob.3.0.1.0/LICENSE.txt" 
               SourcePath="Dotnet.Glob.License.txt"/>
         <File Path="Dependencies/Newtonsoft.Json.12.0.0.0/LICENSE.txt"
-              SourcePath="../../Installer/Assets/newtonsoft_mit_license.txt"/>
+              SourcePath="newtonsoft_mit_license.txt"/>
+    </Files>
+    <!--  PDB Files  -->
+    <Files Condition="$(Debug)">
+        <File Path="**/**/*.pdb"/>
     </Files>
     <PackageActionExtensions Condition="$(Platform) != Windows">
         <ActionStep ActionName="install" ExeFile="chmod" Arguments="+x tap"  />
