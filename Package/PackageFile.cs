@@ -465,7 +465,7 @@ namespace OpenTap.Package
 
             try
             {
-                var expander = new XmlEvaluater(root);
+                var expander = new XmlEvaluator(root);
                 root = expander.Evaluate();
             }
             catch (Exception ex)

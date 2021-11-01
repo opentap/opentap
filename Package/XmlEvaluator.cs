@@ -7,14 +7,14 @@ using System.Xml.Linq;
 
 namespace OpenTap.Package
 {
-    internal class XmlEvaluater
+    internal class XmlEvaluator
     {
-        private static TraceSource log = Log.CreateSource(nameof(XmlEvaluater));
+        private static TraceSource log = Log.CreateSource(nameof(XmlEvaluator));
         private static Regex variableRegex = new Regex(@"\$\((.*?)\)", RegexOptions.Compiled);
         private XElement Root { get; }
         private IDictionary Variables { get; set; }
 
-        public XmlEvaluater(XElement root)
+        public XmlEvaluator(XElement root)
         {
             // Create a deep copy of the source element
             Root = new XElement(root);
@@ -59,7 +59,7 @@ namespace OpenTap.Package
         public XElement Evaluate()
         {
             // Return immediately if there is nothing to expand to expand
-            if (hasVariables(Root.ToString()) == false) return Root;
+            // if (hasVariables(Root.ToString()) == false) return Root;
 
             InitVariables();
             ExpandNodeRecursive(Root);
@@ -69,12 +69,15 @@ namespace OpenTap.Package
 
         private void ExpandNodeRecursive(XElement ele)
         {
-            foreach (var node in ele.Nodes())
+            var nodes = ele.Nodes().ToArray();
+            foreach (var node in nodes)
             {
                 if (node is XText t) t.Value = ExpandVariables(t.Value);
             }
 
-            foreach (var attribute in ele.Attributes())
+            var attrs = ele.Attributes().ToArray();
+
+            foreach (var attribute in attrs)
             {
                 attribute.Value = ExpandVariables(attribute.Value);
             }
@@ -89,7 +92,9 @@ namespace OpenTap.Package
                     cond.Remove();
             }
 
-            foreach (var desc in ele.Elements())
+            var elements = ele.Elements().ToArray();
+
+            foreach (var desc in elements)
             {
                 ExpandNodeRecursive(desc);
             }
@@ -108,7 +113,11 @@ namespace OpenTap.Package
                 if (match.Groups.Count < 2) continue;
                 var matchName = match.Groups[1].Value;
                 // $(GitVersion) has a special meaning in package.xml files
-                if (matchName == "GitVersion") continue;
+                if (matchName == "GitVersion")
+                {
+                    sb.Append("$(GitVersion)");
+                    continue;
+                }
                 if (Variables.Contains(matchName)) sb.Append(Variables[matchName]);
             }
 
