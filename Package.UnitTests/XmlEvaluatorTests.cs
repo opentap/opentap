@@ -18,18 +18,17 @@ namespace OpenTap.Package.UnitTests
             const string sourceUrl = "Some Source Url";
 
             var xmlString = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
-<Package Name=""$(PackageName)"" Version=""$(GitVersion)"" OS=""$(Platform)"" Architecture=""$(Architecture)"">
+<Package Name=""$(PackageName)"" Version=""$(GitVersion)"" OS=""$(PlatformVar)"" Architecture=""$(ArchitectureVar)"">
   <Variables>
-    <Platform>{platform}</Platform>
-    <Architecture>{arch}</Architecture>
-    <Configuration>$(Platform)-$(Architecture)</Configuration>
+    <PlatformVar>{platform}</PlatformVar>
+    <ArchitectureVar>{arch}</ArchitectureVar>
     <Owner>{owner}</Owner>
     <PackageName>{packageName}</PackageName>
     <SourceUrl>{sourceUrl}</SourceUrl>
-    <Sign>{sign}</Sign>
+    <SignVar>{sign}</SignVar>
   </Variables>
-  <SourceUrl Condition=""$(Platform) == Windows"">$(SourceUrl)</SourceUrl>
-  <Owner Condition=""$(Platform) == Linux"">$(Owner)</Owner>
+  <SourceUrl Condition=""$(PlatformVar) == Windows"">$(SourceUrl)</SourceUrl>
+  <Owner Condition=""$(PlatformVar) == Linux"">$(Owner)</Owner>
   <Files Condition=""a == b"">
     <File Path=""WrongFile""/>
   </Files>
@@ -41,12 +40,12 @@ namespace OpenTap.Package.UnitTests
   </Files>
   <Files Condition=""b == b"">
     <File Condition=""1"" Path=""AlsoCorrectFile"">
-      <Sign Certificate=""Some Cert"" Condition=""$(Sign)""/>
+      <Sign Certificate=""Some Cert"" Condition=""$(SignVar)""/>
     </File>    
   </Files>
 
 
-  <PackageActionExtensions Condition=""'$(Platform)'  !=   'Windows'"">
+  <PackageActionExtensions Condition=""'$(PlatformVar)'  !=   'Windows'"">
     <ActionStep ExeFile=""tap.exe"" ActionName=""install""/>
   </PackageActionExtensions>
 </Package>
@@ -88,7 +87,7 @@ namespace OpenTap.Package.UnitTests
 
             Assert.AreEqual("$(PackageName)",original.Attribute("Name").Value);
             Assert.AreEqual(packageName,expanded.Attribute("Name").Value);
-            Assert.AreEqual("$(Architecture)",original.Attribute("Architecture").Value);
+            Assert.AreEqual("$(ArchitectureVar)",original.Attribute("Architecture").Value);
             Assert.AreEqual(arch,expanded.Attribute("Architecture").Value);
         }
     }
