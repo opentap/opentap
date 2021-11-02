@@ -40,12 +40,12 @@ namespace OpenTap.Package.UnitTests
   </Files>
   <Files Condition=""b == b"">
     <File Condition=""1"" Path=""AlsoCorrectFile"">
-      <Sign Certificate=""Some Cert"" Condition=""$(SignVar)""/>
+      <Sign Certificate=""Some Cert"" Condition=""'$(SignVar)' == tRuE""/>
     </File>    
   </Files>
 
 
-  <PackageActionExtensions Condition=""'$(PlatformVar)'  !=   'Windows'"">
+  <PackageActionExtensions Condition=""'$(PlatformVar)'  !=   Windows"">
     <ActionStep ExeFile=""tap.exe"" ActionName=""install""/>
   </PackageActionExtensions>
 </Package>

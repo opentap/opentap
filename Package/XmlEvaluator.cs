@@ -57,7 +57,7 @@ namespace OpenTap.Package
             }
         }
 
-        private void MergeDuplicateElements(XElement elem)
+        private static void MergeDuplicateElements(XElement elem)
         {
             var remaining = elem.Elements().GroupBy(e => e.Name.LocalName);
             foreach (var rem in remaining)
@@ -153,14 +153,33 @@ namespace OpenTap.Package
 
         private bool EvaluateCondition(string condition)
         {
+            string normalize(string str)
+            {
+                // Trim leading and trailing space
+                str = str.Trim();
+
+                // Remove one level of quotes if present
+                if ((str[0] == '\'' || str[0] == '"') && str.First() == str.Last())
+                    str = str.Substring(1, str.Length - 2);
+
+                // Condition="true == 1" should evaluate to true
+                if (str.Equals("True", StringComparison.OrdinalIgnoreCase)) return "1";
+                // Condition="0 == false" should evaluate to true
+                if (str.Equals("False", StringComparison.OrdinalIgnoreCase)) return "0";
+                return str;
+            }
+
             if (string.IsNullOrWhiteSpace(condition)) return false;
             try
             {
+                { // Check if the condition is a literal
+                    var norm = normalize(condition);
+
+                    if (norm.Equals("1")) return true;
+                    if (norm.Equals("0")) return false;
+                }
+
                 condition = condition.Trim();
-
-                if (condition.Equals("True",  StringComparison.OrdinalIgnoreCase) || condition.Equals("1")) return true;
-                if (condition.Equals("False", StringComparison.OrdinalIgnoreCase) || condition.Equals("0")) return false;
-
                 var parts = condition.Split(new string[] { "==", "!=" }, StringSplitOptions.None)
                     .Select(p => p.Trim())
                     .ToArray();
@@ -171,8 +190,11 @@ namespace OpenTap.Package
                     return false;
                 }
 
+                var lhs = normalize(parts[0]);
+                var rhs = normalize(parts[1]);
+
                 var isEquals = condition.IndexOf("==", StringComparison.Ordinal) >= 0;
-                var areEqual = parts[0].Equals(parts[1], StringComparison.Ordinal);
+                var areEqual = lhs.Equals(rhs, StringComparison.Ordinal);
                 return isEquals == areEqual;
             }
             catch
