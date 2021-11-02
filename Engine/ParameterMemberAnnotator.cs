@@ -66,8 +66,13 @@ namespace OpenTap
             bool bigList = member.ParameterizedMembers.Count() > 100;
             
             var items = member.ParameterizedMembers.Select(x => x.Item1).Take(100).ToArray();
-            
-            var subannotation = AnnotationCollection.Annotate(items.Length == 1 ? items[0] : items);
+            var cache = annotation.Get<AnnotationCache>(true);
+            if (cache == null)
+            {
+                cache = new AnnotationCache();
+                annotation.ParentAnnotation.Add(cache);
+            }
+            var subannotation = cache?.Annotate(items) ?? AnnotationCollection.Annotate(items.Length == 1 ? items[0] : items);
             annotation.Add(new SubMember(subannotation, bigList, member));
             var subMembers = subannotation.Get<IMembersAnnotation>();
             var firstmem = member.ParameterizedMembers.First().Item2;
