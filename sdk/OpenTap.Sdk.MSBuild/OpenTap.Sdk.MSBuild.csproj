@@ -2,9 +2,16 @@
   <PropertyGroup>
     <AssemblyName>Keysight.OpenTap.Sdk.MSBuild</AssemblyName>
     <RootNamespace>Keysight.OpenTap.Sdk.MSBuild</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+  </PropertyGroup>
+
+  
+  <PropertyGroup>    
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <TargetFramework>net6.0</TargetFramework>
     <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
     <TargetFrameworkVersion></TargetFrameworkVersion>
   </PropertyGroup>
@@ -13,6 +20,7 @@
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="16.0.461" />
     <PackageReference Include="Microsoft.Build" Version="16.0.461" />
     <PackageReference Include="DotNet.Glob" Version="3.0.1" />
+    <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
   </ItemGroup>
   
   <ItemGroup>

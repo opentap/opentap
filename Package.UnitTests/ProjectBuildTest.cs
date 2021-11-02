@@ -116,6 +116,30 @@ namespace OpenTap.Package.UnitTests
         public string TargetsFile { get; }
 
         private static string FileRepository => Path.Combine(Directory.GetCurrentDirectory(), "TapPackages");
+        private static string PackagesDir => Path.Combine(Directory.GetCurrentDirectory(), "Packages");
+        private static string PackagesBackupDir => Path.Combine(Directory.GetCurrentDirectory(), "Packages2");
+
+        [OneTimeSetUp]
+        public void OneTimeSetup()
+        {
+            // Because the .csproj package install logic is now using OpenTAP images, it will fail to resolve images if any installed packages
+            // cannot be found. This is because we need to use the merge option, and this requires adding all currently installed packages to the image.
+            // Specifically, this causes issues here because the OpenTAP install used during testing has lots of bogus packages 'installed' by having some
+            // package.xml written, even thogh no tap package installs.
+            // For this reason, we need to clear the currently installed packages while running this suite of tests. They are restored during the tear down.
+            Directory.Move(PackagesDir, PackagesBackupDir);
+            Directory.CreateDirectory(PackagesDir);
+            Directory.CreateDirectory(Path.Combine(PackagesDir, "OpenTAP"));
+            File.Copy(Path.Combine(PackagesBackupDir, "OpenTAP", "package.xml"), Path.Combine(PackagesDir, "OpenTAP", "package.xml"));
+        }
+
+        [OneTimeTearDown]
+        public void OneTimeTearDown()
+        {
+            // Restore the packages that were removed during the setup
+            Directory.Delete(PackagesDir, true);
+            Directory.Move(PackagesBackupDir, PackagesDir);
+        }
         
         public ProjectBuildTest()
         {

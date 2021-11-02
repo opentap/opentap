@@ -94,9 +94,16 @@ namespace OpenTap
                     {
                         if (existing.Contains(searcherType)) continue;
 
-                        var searcher = (ITypeDataSearcher) searcherType.CreateInstance(Array.Empty<object>());
-                        searchTasks.Add(TapThread.StartAwaitable(searcher.Search));
-                        searchers.Add(searcher);
+                        try
+                        {
+                            var searcher = (ITypeDataSearcher)searcherType.CreateInstance(Array.Empty<object>());
+                            searchTasks.Add(TapThread.StartAwaitable(searcher.Search));
+                            searchers.Add(searcher);
+                        }
+                        catch
+                        {
+                            log.Debug($"Error instantiating type searcher '{searcherType}'.");
+                        }
                     }
                 }
                 try
