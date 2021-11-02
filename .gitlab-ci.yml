@@ -512,8 +512,7 @@ Package-NuGet:
   script:
     - mv OpenTAP.*.TapPackage OpenTAP.TapPackage
     - tap package install "Package Diff" --version any
-    - tap package diff OpenTAP.TapPackage
-    - mv ./*.html diff.html
+    - tap package diff OpenTAP.TapPackage -o diff
   artifacts:
     expire_in: 1 week
     when: always
