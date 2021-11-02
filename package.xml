@@ -5,10 +5,14 @@
         <Organisation>Keysight Technologies</Organisation>
     </Description>
     <Variables>
-        <Architecture>x64</Architecture>      
+        <!-- We include some native dependencies based on the platform and architecture, notably libgitsharp -->
+        <Architecture>x64</Architecture>
         <Platform>Windows</Platform>
+        <!--Set 'Sign' to false to disable Signing elements. This is useful for local debug builds -->
         <Sign>true</Sign>
+        <!-- When debug is enabled, the .chm documentation file will not be included -->
         <Debug>false</Debug>
+        <!-- When IncludePdb is set to true, all .pdb files will be included by a glob expression -->
         <IncludePdb>false</IncludePdb>
     </Variables>
     <SourceUrl>https://gitlab.com/OpenTAP/opentap</SourceUrl>
