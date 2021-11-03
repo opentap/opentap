@@ -3,26 +3,25 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.Loader;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
 using Microsoft.Build.Framework;
+using OpenTap;
+using OpenTap.Diagnostic;
+using OpenTap.Package;
 
 namespace Keysight.OpenTap.Sdk.MSBuild
 {
     internal class OpenTapImageInstaller : IDisposable
     {
-        private Assembly OpenTAP;
-        private Assembly Package;
-        private AssemblyLoadContext ctx;
         public string TapDir { get; set; }
 
         /// <summary>
         /// This object represents a trace listener of the type EventTraceListener from the <see cref="OpenTAP"/> assembly
         /// </summary>
-        private object traceListener;
-        void onEvent<T>(IEnumerable<T> events)
+        private EventTraceListener traceListener;
+        void onEvent(IEnumerable<Event> events)
         {
             var logLevelMap = new Dictionary<int, string>()
             {
@@ -39,29 +38,22 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
             foreach (var evt in events)
             {
-                var t = typeof(T);
+                if (mutedSources.Contains(evt.Source)) continue;
 
-                var source = t.GetField("Source").GetValue(evt).ToString();
-                if (mutedSources.Contains(source)) continue;
-
-                var Message = t.GetField("Message").GetValue(evt).ToString();
-
-                var severity = (int)t.GetField("EventType").GetValue(evt);
-                var logLevel = logLevelMap[severity];
-
-                switch (logLevel)
+                var msg = $"{evt.Source} : {evt.Message}";
+                switch (logLevelMap[evt.EventType])
                 {
                     case "Error":
-                        OnError?.Invoke($"{source} : {Message}");
+                        OnError?.Invoke(msg);
                         break;
                     case "Warning":
-                        OnWarning?.Invoke($"{source} : {Message}");
+                        OnWarning?.Invoke(msg);
                         break;
                     case "Information":
-                        OnInfo?.Invoke($"{source} : {Message}");
+                        OnInfo?.Invoke(msg);
                         break;
                     case "Debug":
-                        OnDebug?.Invoke($"{source} : {Message}");
+                        OnDebug?.Invoke(msg);
                         break;
                 }
             }
@@ -73,67 +65,14 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         /// <exception cref="Exception"></exception>
         void attachTraceListener()
         {
-            var traceListenerType = OpenTAP.ExportedTypes.FirstOrDefault(t => t.Name == "EventTraceListener");
-            if (traceListenerType == null) throw new Exception(reflectionException);
-
-            traceListener = Activator.CreateInstance(traceListenerType, Array.Empty<object>());
-            var evtType = traceListenerType.GetEvent("MessageLogged");
-            var delegateType = evtType.EventHandlerType;
-
-            var onEventMethodInfo =
-                this.GetType().GetMethod(nameof(onEvent), BindingFlags.Instance | BindingFlags.NonPublic);
-            var eventType = OpenTAP.ExportedTypes.FirstOrDefault(t => t.FullName == "OpenTap.Diagnostic.Event");
-            var genericInstance = onEventMethodInfo.MakeGenericMethod(eventType);
-
-            var d = Delegate.CreateDelegate(delegateType, this, genericInstance);
-            var addHandler = evtType.GetAddMethod();
-            addHandler.Invoke(traceListener, new object[] { d });
-
-            var iLogListenerType = OpenTAP.ExportedTypes.FirstOrDefault(t => t.Name == "ILogListener");
-            var logType = OpenTAP.ExportedTypes.FirstOrDefault(t => t.Name == "Log");
-            var addListener = logType.GetMethod("AddListener", BindingFlags.Public | BindingFlags.Static,
-                new[] { iLogListenerType });
-            addListener.Invoke(null, new[] { traceListener });
-        }
-
-        /// <summary>
-        /// Detach the trace listener again when it's no longer needed. This is called during dispose.
-        /// </summary>
-        void detachTraceListener()
-        {
-            var iLogListenerType = OpenTAP.ExportedTypes.FirstOrDefault(t => t.Name == "ILogListener");
-            var logType = OpenTAP.ExportedTypes.FirstOrDefault(t => t.Name == "Log");
-            var removeListener = logType.GetMethod("RemoveListener", BindingFlags.Public | BindingFlags.Static,
-                new[] { iLogListenerType });
-            removeListener.Invoke(null, new[] { traceListener });
-        }
-
-        private Assembly loadInMemory(string assemblyPath)
-        {
-            var ms = new MemoryStream();
-            using (var fs = File.OpenRead(assemblyPath))
-                fs.CopyTo(ms);
-            ms.Seek(0, SeekOrigin.Begin);
-            return ctx.LoadFromStream(ms);
+            traceListener = new EventTraceListener();
+            traceListener.MessageLogged += onEvent;
+            Log.AddListener(traceListener);
         }
 
         public OpenTapImageInstaller(string tapDir)
         {
             TapDir = tapDir;
-            ctx = new AssemblyLoadContext(nameof(OpenTapImageInstaller), true);
-            // OpenTap.dll needs to be loaded for OpenTap.Package.dll to work since AssemblyLoadContext does not attempt to resolve this dependency
-            var openTapDll = Path.Combine(tapDir, "OpenTap.dll");
-            var openTapPackageDll = Path.Combine(tapDir, "OpenTap.Package.dll");
-            // var openTapCliDll = Path.Combine(tapDir, "Packages/OpenTAP/OpenTap.Cli.dll");
-            // var openTapBasicStepsDll = Path.Combine(tapDir, "Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll");
-
-            if (File.Exists(openTapDll) == false || File.Exists(openTapPackageDll) == false)
-                throw new Exception(
-                    $"Could not find OpenTAP dlls in the output directory. You likely need to restore the solution..");
-            OpenTAP = ctx.LoadFromAssemblyPath(openTapDll);
-            Package = ctx.LoadFromAssemblyPath(openTapPackageDll);
-            // ctx.LoadFromAssemblyPath(openTapCliDll);
-            // ctx.LoadFromAssemblyPath(openTapBasicStepsDll);
             attachTraceListener();
         }
 
@@ -144,28 +83,12 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         /// </summary>
         /// <param name="image">Image specifier</param>
         /// <returns></returns>
-        private object ResolveImage(string image)
+        private ImageIdentifier ResolveImage(string image)
         {
             try
             {
-                var imageSpecifierType = Package.GetExportedTypes().FirstOrDefault(t => t.Name == "ImageSpecifier");
-                if (imageSpecifierType == null)
-                    throw new Exception(reflectionException);
-
-                var parseMethod = imageSpecifierType.GetMethod("FromString", BindingFlags.Public | BindingFlags.Static, new[] { typeof(string) });
-                if (parseMethod == null)
-                    throw new Exception(reflectionException);
-
-                var imageSpecifier = parseMethod.Invoke(null, new object[] { image });
-                if (imageSpecifier == null)
-                    throw new Exception(reflectionException);
-
-                var imageIdentifierMethod = imageSpecifier.GetType().GetMethod("Resolve",
-                        BindingFlags.Instance | BindingFlags.Public, new[] { typeof(CancellationToken) });
-                if (imageIdentifierMethod == null)
-                    throw new Exception(reflectionException);
-
-                var imageIdentifier = imageIdentifierMethod.Invoke(imageSpecifier, new object[] { CancellationToken.None });
+                var imageSpecifier = ImageSpecifier.FromString(image);
+                var imageIdentifier = imageSpecifier.Resolve(CancellationToken.None);
                 return imageIdentifier;
             }
             catch (TargetInvocationException ex)
@@ -191,18 +114,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 try
                 {
                     var imageIdentifier = ResolveImage(imageString);
-                    var deployMethod = imageIdentifier.GetType().GetMethod("Deploy",
-                        BindingFlags.Public | BindingFlags.Instance,
-                        new[] { typeof(string), typeof(CancellationToken) });
-                    if (deployMethod == null)
-                    {
-                        OnError(reflectionException);
-                        success = false;
-                    }
-                    else
-                    {
-                        deployMethod.Invoke(imageIdentifier, new object[] { TapDir, CancellationToken.None });
-                    }
+                    imageIdentifier.Deploy(TapDir, CancellationToken.None);
                 }
                 catch (AggregateException aex)
                 {
@@ -223,7 +135,10 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             finally
             {
                 if (success == false)
-                    OnError?.Invoke($"Failed to resolve image:\n{imageString}");
+                {
+                    OnError?.Invoke($"Failed to resolve image.");
+                    OnDebug?.Invoke($"{string.Join('\n', imageString)}");
+                }
             }
 
             return success;
@@ -266,8 +181,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
         public void Dispose()
         {
-            detachTraceListener();
-            ctx.Unload();
+            Log.RemoveListener(traceListener);
         }
 
         private List<PackageObj> installedPackages = null;
@@ -275,18 +189,8 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         {
             if (installedPackages == null)
             {
-                var installationType = Package.ExportedTypes.FirstOrDefault(t => t.Name == "Installation");
-                if (installationType == null)
-                    throw new Exception(reflectionException);
-
-                var installation = Activator.CreateInstance(installationType, TapDir);
-
-                var getPackagesMethod = installationType.GetMethod("GetPackages",
-                    BindingFlags.Public | BindingFlags.Instance, Array.Empty<Type>());
-                if (getPackagesMethod == null)
-                    throw new Exception(reflectionException);
-
-                var packages = getPackagesMethod.Invoke(installation, Array.Empty<object>());
+                var installation = new Installation(TapDir);
+                var packages = installation.GetPackages();
 
                 var result = new List<PackageObj>();
 

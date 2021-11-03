@@ -5,7 +5,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net6</TargetFramework>
   </PropertyGroup>
 
   
@@ -28,6 +28,10 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-
+  
+  <ItemGroup>
+    <ProjectReference Include="..\..\Engine\Tap.Engine.csproj" />
+    <ProjectReference Include="..\..\Package\Tap.Package.csproj" />
+  </ItemGroup>
 
 </Project>

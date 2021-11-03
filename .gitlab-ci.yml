@@ -472,7 +472,7 @@ Package-NuGet:
     - Move-Item OpenTAP.*.Linux.TapPackage OpenTAP.Linux.zip
 
     - Move-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
-    - Move-Item ./bin/Release/DotNet.Glob.dll ./nuget/build    
+    - Move-Item ./bin/Release/DotNet.Glob.dll ./nuget/build
     - ./bin/Release/tap package install ./OpenTap.x64.zip -t ./nuget/build/payload -f
     # package.xml, tap.dll, and tap.runtimeconfig.json of an installation should always come from 
     # one of the Runtime directories. Delete it from the payload directory.
