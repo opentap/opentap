@@ -42,11 +42,20 @@ namespace OpenTap.Plugins.BasicSteps
             this.Message = Message;
         }
 
+        [Browsable(false)]
+        public bool PictureEnabled => Picture != null;
+
+        [Layout(LayoutMode.FullRow)]
+        [Display("Picture", Order: 1)]
+        [EnabledIf(nameof(PictureEnabled), HideIfDisabled = true)]
+        public Picture Picture { get; set; }
+
         // implementing Name of IDisplayAnnotation explicitly.
         public string Name { get;}
 
         [Layout(LayoutMode.FullRow, rowHeight: 2)]
         [Browsable(true)]
+        [Display("Message", Order: 2)]
         public string Message { get; }
 
         [Browsable(false)]
@@ -99,6 +108,7 @@ namespace OpenTap.Plugins.BasicSteps
         public bool UseTimeout { get; set; }
 
         double timeout = 5;
+
         [EnabledIf("UseTimeout", true)]
         [Unit("s")]
         [Display("Timeout", "After this time the dialog will return the default answer.", Group: "Timeout", Order: 2, Collapsed: true)]
@@ -110,13 +120,36 @@ namespace OpenTap.Plugins.BasicSteps
                 if (value >= 0)
                     timeout = value;
                 else throw new Exception("Timeout must be greater than 0 seconds.");
-                
+
             }
         }
 
-        [EnabledIf("UseTimeout", true)]
-        [Display("Default Verdict", "The verdict the step will have if timeout is reached", Group: "Timeout", Order: 2, Collapsed: true)]
+        [EnabledIf(nameof(UseTimeout), true)]
+        [Display("Default Verdict", "The verdict the step will have if timeout is reached", Group: "Timeout", Order: 1, Collapsed: true)]
         public Verdict DefaultAnswer { get; set; }
+
+        [Display("Use Picture", "The dialog will include a picture if the environment supports it.", "Picture", Order: 0, Collapsed: true)]
+        public bool UsePicture { get; set; }
+
+        [EnabledIf(nameof(UsePicture), HideIfDisabled = true)]
+        public Picture Picture { get; } = new Picture();
+
+        [Display("Source", "The source of the picture. Can be a URL or a file path.", "Picture", Order: 2, Collapsed: true)]
+        [FilePath(FilePathAttribute.BehaviorChoice.Open)]
+        [EnabledIf(nameof(UsePicture), HideIfDisabled = true)]
+        public string PictureSource
+        {
+            get => Picture.Source;
+            set => Picture.Source = value;
+        }
+
+        [Display("Description", "A description of the picture", "Picture", Order: 3, Collapsed: true)]
+        [EnabledIf(nameof(UsePicture), HideIfDisabled = true)]
+        public string PictureDescription
+        {
+            get => Picture.Description;
+            set => Picture.Description = value;
+        }
 
         public DialogStep()
         {
@@ -130,7 +163,7 @@ namespace OpenTap.Plugins.BasicSteps
         public override void Run()
         {
             Verdict answer = DefaultAnswer;
-            var req = new DialogRequest(Title, Message) { Buttons = Buttons };
+            var req = new DialogRequest(Title, Message) { Buttons = Buttons, Picture = UsePicture ? Picture : null };
             try
             {
                 var timeout = TimeSpan.FromSeconds(Timeout);
