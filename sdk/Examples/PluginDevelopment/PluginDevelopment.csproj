@@ -41,4 +41,10 @@
     <PackageReference Include="System.IO.Packaging" Version="4.7.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="GUI\P7000A.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
