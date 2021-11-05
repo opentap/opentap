@@ -308,7 +308,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Tries to install a plugin from 'path', throws an exception on error.
         /// </summary>
-        internal static PackageDef InstallPluginPackage(string target, string path, bool unpackOnly = false)
+        internal static PackageDef InstallPluginPackage(string target, string path, CancellationToken cancellationToken, bool unpackOnly = false)
         {
             checkExtension(path);
             checkFileExists(path);
@@ -324,7 +324,11 @@ namespace OpenTap.Package
                     var bundleFiles = UnpackPackage(path, tempDir);
 
                     foreach (var file in bundleFiles)
+                    {
+                        if (cancellationToken.IsCancellationRequested)
+                            throw new OperationCanceledException("Operation cancelled by user.");
                         UnpackPackage(file, destination);
+                    }
                 }
                 else
                     UnpackPackage(path, destination);
@@ -335,6 +339,9 @@ namespace OpenTap.Package
                 tryUninstall(path, package, target);
                 throw new Exception($"Failed to install package '{path}'.", e);
             }
+
+            if (cancellationToken.IsCancellationRequested)
+                throw new OperationCanceledException("Operation cancelled by user.");
 
             if (unpackOnly)
             {

@@ -16,6 +16,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
     internal class OpenTapImageInstaller : IDisposable
     {
         public string TapDir { get; set; }
+        public CancellationToken CancellationToken { get; set; }
 
         /// <summary>
         /// This object represents a trace listener of the type EventTraceListener from the <see cref="OpenTAP"/> assembly
@@ -33,7 +34,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
             var mutedSources = new HashSet<string>()
             {
-                "Searcher", "PluginManager", "TypeDataProvider", "Resolver"
+                "Searcher", "PluginManager", "TypeDataProvider", "Resolver", "Serializer"
             };
 
             foreach (var evt in events)
@@ -70,33 +71,11 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             Log.AddListener(traceListener);
         }
 
-        public OpenTapImageInstaller(string tapDir)
+        public OpenTapImageInstaller(string tapDir, CancellationToken cancellationToken)
         {
+            CancellationToken = cancellationToken;
             TapDir = tapDir;
             attachTraceListener();
-        }
-
-        private string reflectionException = $"Error during reflection. This is likely a bug.";
-
-        /// <summary>
-        /// Takes an image specifier and returns an image identifier
-        /// </summary>
-        /// <param name="image">Image specifier</param>
-        /// <returns></returns>
-        private ImageIdentifier ResolveImage(string image)
-        {
-            try
-            {
-                var imageSpecifier = ImageSpecifier.FromString(image);
-                var imageIdentifier = imageSpecifier.Resolve(CancellationToken.None);
-                return imageIdentifier;
-            }
-            catch (TargetInvocationException ex)
-            {
-                // TargetInvocationException is not very helpful and usually just wraps the actual exception
-                if (ex.InnerException != null) throw ex.InnerException;
-                throw;
-            }
         }
 
         /// <summary>
@@ -109,12 +88,14 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         {
             bool success = true;
             var imageString = CreateJsonImageSpecifier(packagesToInstall);
+            OnDebug?.Invoke($"Trying to deploy '{imageString.Replace('\n', ' ')}'");
             try
             {
                 try
                 {
-                    var imageIdentifier = ResolveImage(imageString);
-                    imageIdentifier.Deploy(TapDir, CancellationToken.None);
+                    var imageSpecifier = ImageSpecifier.FromString(imageString);
+                    var imageIdentifier = imageSpecifier.Resolve(CancellationToken);
+                    imageIdentifier.Deploy(TapDir, CancellationToken);
                 }
                 catch (AggregateException aex)
                 {

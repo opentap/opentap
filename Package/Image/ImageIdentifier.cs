@@ -1,14 +1,11 @@
-using OpenTap.Package;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
-using Tap.Shared;
 
 namespace OpenTap.Package
 {
@@ -214,7 +211,7 @@ namespace OpenTap.Package
             foreach (var package in packagesInOrder)
             {
                 if (!cacheFileLookup.ContainsKey(package))
-                    Download(package);
+                    Download(package, cancellationToken);
                 paths.Add(cacheFileLookup[package]);
             }
             installer.PackagePaths.Clear();
@@ -279,11 +276,42 @@ namespace OpenTap.Package
             if (Cached)
                 return;
             foreach (var package in Packages)
-                Download(package);
+                Download(package, CancellationToken.None);
         }
 
         static TraceSource log = Log.CreateSource("Download");
-        private void Download(PackageDef package)
+
+        /// <summary>
+        /// Copy the file in small chunks and check for cancellations
+        /// </summary>
+        /// <param name="inFile"></param>
+        /// <param name="outFile"></param>
+        /// <param name="cancellationToken"></param>
+        /// <exception cref="OperationCanceledException"></exception>
+        private void CopyFileCancellable(string inFile, string outFile, CancellationToken cancellationToken)
+        {
+            using (var inStream = File.OpenRead(inFile))
+            {
+                using (var outStream = File.OpenWrite(outFile))
+                {
+                    var buffer = new byte[1024];
+                    int bytesRead;
+
+                    while ((bytesRead = inStream.Read(buffer, 0, buffer.Length)) > 0)
+                    {
+                        outStream.Write(buffer, 0, bytesRead);
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            outStream.Dispose();
+                            File.Delete(outFile);
+                            throw new OperationCanceledException("Operation cancelled by user.");
+                        }
+                    }
+                }
+            }
+        }
+
+        private void Download(PackageDef package, CancellationToken cancellationToken)
         {
             string filename = PackageCacheHelper.GetCacheFilePath(package);
 
@@ -296,14 +324,19 @@ namespace OpenTap.Package
 
             if (package.PackageSource is IFilePackageDefSource fileSource)
             {
-                if (string.Equals(Path.GetPathRoot(fileSource.PackageFilePath), Path.GetPathRoot(PackageCacheHelper.PackageCacheDirectory), StringComparison.InvariantCultureIgnoreCase) && string.IsNullOrEmpty(fileSource.PackageFilePath) == false)
-                    File.Copy(fileSource.PackageFilePath, filename);
+                if (string.Equals(Path.GetPathRoot(fileSource.PackageFilePath),
+                        Path.GetPathRoot(PackageCacheHelper.PackageCacheDirectory),
+                        StringComparison.InvariantCultureIgnoreCase) &&
+                    string.IsNullOrEmpty(fileSource.PackageFilePath) == false)
+                {
+                    CopyFileCancellable(fileSource.PackageFilePath, filename, cancellationToken);
+                }
             }
             else if (package.PackageSource is IRepositoryPackageDefSource repoSource)
             {
                 IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(repoSource.RepositoryUrl);
                 log.Info($"Downloading {package.Name} version {package.Version} from {rm.Url}");
-                rm.DownloadPackage(package, filename, CancellationToken.None);
+                rm.DownloadPackage(package, filename, cancellationToken);
             }
             cacheFileLookup.Add(package, filename);
         }

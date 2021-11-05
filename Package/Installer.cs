@@ -51,9 +51,6 @@ namespace OpenTap.Package
 
         internal void InstallThread()
         {
-            if (cancellationToken.IsCancellationRequested)
-                throw new OperationCanceledException();
-
             try
             {
                 WaitForPackageFilesFree(TapDir, PackagePaths);
@@ -64,12 +61,15 @@ namespace OpenTap.Package
                 OnProgressUpdate(progressPercent, "Installing packages.");
                 foreach (string fileName in PackagePaths)
                 {
+                    if (cancellationToken.IsCancellationRequested)
+                        throw new OperationCanceledException("Operation cancelled by user.");
+
                     try
                     {
                         log.Info($"Installing {fileName}");
                         OnProgressUpdate(progressPercent, "Installing " + Path.GetFileNameWithoutExtension(fileName));
                         Stopwatch timer = Stopwatch.StartNew();
-                        PackageDef pkg = PluginInstaller.InstallPluginPackage(TapDir, fileName, UnpackOnly);
+                        PackageDef pkg = PluginInstaller.InstallPluginPackage(TapDir, fileName, cancellationToken, UnpackOnly);
 
                         log.Info(timer, "Installed " + pkg.Name + " version " + pkg.Version);
 
@@ -91,6 +91,11 @@ namespace OpenTap.Package
                                     log.Warning($"Package '{pkg.Name}' contains possibly relevant plugins for next package installations, but these will not be loaded.");
                             }
                         }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Don't intercept this
+                        throw;
                     }
                     catch
                     {
@@ -271,6 +276,9 @@ namespace OpenTap.Package
 
                 while (isPackageFilesInUse(tapDir, packagePaths, exclude))
                 {
+                    if (cancellationToken.IsCancellationRequested)
+                        throw new OperationCanceledException("Operation cancelled by user.");
+
                     var req = new AbortOrRetryRequest(inUseString) {Response = AbortOrRetryResponse.Abort};
                     UserInput.Request(req, waitForFilesTimeout, true);
 

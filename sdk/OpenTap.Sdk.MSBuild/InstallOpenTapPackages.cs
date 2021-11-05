@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
 using System.Xml;
 using System.Xml.Linq;
 using Microsoft.Build.Framework;
@@ -15,13 +16,13 @@ namespace Keysight.OpenTap.Sdk.MSBuild
     /// MSBuild Task to help install packages. This task is invoked when using 'OpenTapPackageReference' and 'AdditionalOpenTapPackages' in .csproj files
     /// </summary>
     [Serializable]
-    public class InstallOpenTapPackages : Task
+    public class InstallOpenTapPackages : Task, ICancelableTask
     {
         /// <summary>
         /// Full qualified path to the .csproj file for which packages are being installed
         /// </summary>
         public string SourceFile { get; set; }
-        
+
         /// <summary>
         /// Array of packages to install, including version and repository
         /// </summary>
@@ -31,7 +32,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         /// The build directory containing 'tap.exe' and 'OpenTAP.dll'
         /// </summary>
         public string TapDir { get; set; }
-        
+
         /// <summary>
         /// The target platform defined in msbuild
         /// </summary>
@@ -45,7 +46,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             {
                 if (_document != null)
                     return _document;
-                
+
                 var expander = new BuildVariableExpander(SourceFile);
                 // Expand all the build variables in the document to accurately identify which element corresponds to 'item'
                 _document = XElement.Parse(expander.ExpandBuildVariables(File.ReadAllText(SourceFile)),
@@ -53,7 +54,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 return _document;
             }
         }
-        
+
         private int[] GetLineNum(ITaskItem item)
         {
             var lines = new List<int>();
@@ -134,9 +135,16 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             }
         }
 
+        private CancellationTokenSource cts = new CancellationTokenSource();
+
+        public void Cancel()
+        {
+            cts.Cancel();
+        }
+
         private bool InstallPackages()
         {
-            using (var installer = new OpenTapImageInstaller(TapDir))
+            using (var installer = new OpenTapImageInstaller(TapDir, cts.Token))
             {
                 installer.OnError += err =>
                 {
