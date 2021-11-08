@@ -29,6 +29,11 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         public ITaskItem[] PackagesToInstall { get; set; }
 
         /// <summary>
+        /// Array of package repositories to resolve packages from
+        /// </summary>
+        public ITaskItem[] Repositories { get; set; }
+
+        /// <summary>
         /// The build directory containing 'tap.exe' and 'OpenTAP.dll'
         /// </summary>
         public string TapDir { get; set; }
@@ -166,9 +171,19 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 installer.OnDebug += debug => Log.LogMessage(MessageImportance.Low, debug);
                 installer.OnWarning += warn => Log.LogWarning(warn);
 
+                var repos = Repositories.SelectMany(r =>
+                        r.ItemSpec.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                    .ToList();
+
+                repos.AddRange(PackagesToInstall.Select(p => p.GetMetadata("Repository"))
+                    .Where(m => string.IsNullOrWhiteSpace(m) == false));
+
+                if (!repos.Any(r => r.Contains("packages.opentap.io", StringComparison.OrdinalIgnoreCase)))
+                    repos.Add("packages.opentap.io");
+
                 try
                 {
-                    return installer.InstallImage(PackagesToInstall);
+                    return installer.InstallImage(PackagesToInstall, repos.Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
                 }
                 catch (Exception ex)
                 {

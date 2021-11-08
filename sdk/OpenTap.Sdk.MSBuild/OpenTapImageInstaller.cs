@@ -85,11 +85,12 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         /// and deploys it to the output directory.
         /// </summary>
         /// <param name="packagesToInstall"></param>
+        /// <param name="repositories"></param>
         /// <returns></returns>
-        public bool InstallImage(ITaskItem[] packagesToInstall)
+        public bool InstallImage(ITaskItem[] packagesToInstall, string[] repositories)
         {
             bool success = true;
-            var imageString = CreateJsonImageSpecifier(packagesToInstall);
+            var imageString = CreateJsonImageSpecifier(packagesToInstall, repositories);
             OnDebug?.Invoke($"Trying to deploy '{imageString.Replace('\n', ' ')}'");
 
             bool isCompatible(IPackageIdentifier actual, PackageSpecifier specifier)
@@ -151,20 +152,17 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         private PackageDef[] InstalledPackages;
 
         /// <summary>
-        /// Convert the <see cref="ITaskItem[]"/> to a JSON image specifier
+        /// Convert the <see cref="ITaskItem"/> to a JSON image specifier
         /// </summary>
         /// <param name="taskItems"></param>
+        /// <param name="repositories"></param>
         /// <returns></returns>
-        private string CreateJsonImageSpecifier(ITaskItem[] taskItems)
+        private string CreateJsonImageSpecifier(ITaskItem[] taskItems, string[] repositories)
         {
             // OpenTAP should not be installed or updated through these package elements.
             // The version should only be managed through a NuGet <PackageReference/> tag.
             taskItems = taskItems.Where(t => t.ItemSpec != "OpenTAP").ToArray();
-            var repositories = taskItems.Select(i => i.GetMetadata("Repository"))
-                                        .Where(r => string.IsNullOrWhiteSpace(r) == false).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             // packages.opentap.io is required for images to resolve in some cases. There's no harm in adding it.
-            if (repositories.Any(r => r.IndexOf("packages.opentap.io", StringComparison.OrdinalIgnoreCase) > 0) == false)
-                repositories.Add("packages.opentap.io");
 
             PackageSpecifier toPackageSpec(ITaskItem i)
             {
