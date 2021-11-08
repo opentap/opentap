@@ -110,37 +110,42 @@ namespace OpenTap.Package.UnitTests
     
     public class ProjectBuildTest
     {
+        #region Broken test packages that should be disabled temporarily
+        private string packagesDir =>
+            Path.Combine(Path.GetDirectoryName(typeof(ProjectBuildTest).Assembly.Location), "Packages");
+        private string missingDep1 => Path.Combine(packagesDir, "CheckDependencies_MissingDep", "package.xml");
+        private string missingDep2 => Path.Combine(packagesDir, "CheckDependencies_MissingDep", "_package.xml");
+        private string allDeps1 => Path.Combine(packagesDir, "CheckDependencies_AllDepsInstalled ", "package.xml");
+        private string allDeps2 => Path.Combine(packagesDir, "CheckDependencies_AllDepsInstalled ", "_package.xml");
+
+        [OneTimeSetUp]
+        public void SetUp()
+        {
+            if (File.Exists(missingDep1))
+                File.Move(missingDep1, missingDep2, true);
+            if (File.Exists(allDeps1))
+                File.Move(allDeps1, allDeps2, true);
+
+        }
+
+        [OneTimeTearDown]
+        public void TearDown()
+        {
+            if (File.Exists(missingDep2))
+                File.Move(missingDep2, missingDep1, true);
+            if (File.Exists(allDeps2))
+                File.Move(allDeps2, allDeps1, true);
+        }
+
+        #endregion
+
         // Current directory is assumed to be the OutputFolder containing tap.exe etc.
         public string WorkingDirectory { get; }
         public string OutputFile => Path.Combine(WorkingDirectory, "obj", "test.opentap.g.props");
         public string TargetsFile { get; }
 
         private static string FileRepository => Path.Combine(Directory.GetCurrentDirectory(), "TapPackages");
-        private static string PackagesDir => Path.Combine(Directory.GetCurrentDirectory(), "Packages");
-        private static string PackagesBackupDir => Path.Combine(Directory.GetCurrentDirectory(), "Packages2");
 
-        [OneTimeSetUp]
-        public void OneTimeSetup()
-        {
-            // Because the .csproj package install logic is now using OpenTAP images, it will fail to resolve images if any installed packages
-            // cannot be found. This is because we need to use the merge option, and this requires adding all currently installed packages to the image.
-            // Specifically, this causes issues here because the OpenTAP install used during testing has lots of bogus packages 'installed' by having some
-            // package.xml written, even thogh no tap package installs.
-            // For this reason, we need to clear the currently installed packages while running this suite of tests. They are restored during the tear down.
-            Directory.Move(PackagesDir, PackagesBackupDir);
-            Directory.CreateDirectory(PackagesDir);
-            Directory.CreateDirectory(Path.Combine(PackagesDir, "OpenTAP"));
-            File.Copy(Path.Combine(PackagesBackupDir, "OpenTAP", "package.xml"), Path.Combine(PackagesDir, "OpenTAP", "package.xml"));
-        }
-
-        [OneTimeTearDown]
-        public void OneTimeTearDown()
-        {
-            // Restore the packages that were removed during the setup
-            Directory.Delete(PackagesDir, true);
-            Directory.Move(PackagesBackupDir, PackagesDir);
-        }
-        
         public ProjectBuildTest()
         {
             WorkingDirectory = Path.Combine(Directory.GetCurrentDirectory(), "buildTestDir");
@@ -202,10 +207,6 @@ namespace OpenTap.Package.UnitTests
                 StringAssert.Contains($"test.csproj({lineNo}): warning OpenTAP Reference: Duplicate entry detected.",
                     result.Stdout);
 
-                // Verify PlatformTarget is used
-                StringAssert.Contains(
-                    $@" package install --dependencies ""MyPlugin4"" -r ""{FileRepository}"" --non-interactive",
-                    result.Stdout);
                 StringAssert.Contains("Got 1 OpenTapPackageReference targets.", result.Stdout);
                 StringAssert.Contains("MyPlugin4 Include=\"**\" Exclude=\"Dependencies/**\"", result.Stdout);
                 StringAssert.Contains("Skipped duplicate entries", result.Stdout);
@@ -238,9 +239,7 @@ namespace OpenTap.Package.UnitTests
 ");
 
             var result = csProj.Build();
-            
-            StringAssert.Contains(@"package install --dependencies ""MyPlugin4""", result.Stdout);
-            StringAssert.Contains(@"package install --dependencies ""MyPlugin5""", result.Stdout);
+
             StringAssert.Contains("Got 2 OpenTapPackageReference targets.", result.Stdout);
             StringAssert.Contains("MyPlugin4 Include=\"**\" Exclude=\"Dependencies/**\"", result.Stdout);
             StringAssert.Contains("MyPlugin5 Include=\"**\" Exclude=\"Dependencies/**\"", result.Stdout);
@@ -269,9 +268,7 @@ namespace OpenTap.Package.UnitTests
 ");
 
             var result = csProj.Build();
-            
-            StringAssert.Contains(@"package install --dependencies ""MyPlugin4""", result.Stdout);
-            StringAssert.Contains(@"package install --dependencies ""MyPlugin5""", result.Stdout);
+
             StringAssert.Contains("Got 2 OpenTapPackageReference targets.", result.Stdout);
             StringAssert.Contains("MyPlugin4 Include=\"test1,test2\" Exclude=\"test3,test4\"", result.Stdout);
             StringAssert.Contains("MyPlugin5 Include=\"test1,test2\" Exclude=\"test3,test4\"", result.Stdout);
@@ -311,8 +308,6 @@ namespace OpenTap.Package.UnitTests
             StringAssert.Contains($"test.csproj({index1}): warning OpenTAP Reference: No references added from package 'MyPlugin5'", result.Stdout);
             StringAssert.Contains($"test.csproj({index2}): warning OpenTAP Reference: No references added from package 'MyPlugin4'", result.Stdout);
 
-            StringAssert.Contains(@"package install --dependencies ""MyPlugin4""", result.Stdout);
-            StringAssert.Contains(@"package install --dependencies ""MyPlugin5""", result.Stdout);
             StringAssert.Contains("Got 2 OpenTapPackageReference targets.", result.Stdout);
             StringAssert.Contains("MyPlugin4 Include=\"test1,test2\" Exclude=\"test3,test4\"", result.Stdout);
             StringAssert.Contains("MyPlugin5 Include=\"test5,test6\" Exclude=\"test7,test8\"", result.Stdout);
@@ -334,12 +329,10 @@ namespace OpenTap.Package.UnitTests
     </ItemGroup>
             ");
             var result = csProj.Build();
-            
-            StringAssert.Contains(@"package install --dependencies ""Visual Studio SDK""", result.Stdout);
+
             StringAssert.Contains("Got 1 OpenTapPackageReference targets.", result.Stdout);
             StringAssert.Contains(@"Visual Studio SDK Include=""**"" Exclude=""**/*Install**,**stdole**""",
                 result.Stdout);
-            StringAssert.Contains("Installed Visual Studio SDK version 1.0.12+79946776", result.Stdout);
 
             Assert.AreEqual(result.ExitCode, 0);
 
@@ -370,14 +363,10 @@ namespace OpenTap.Package.UnitTests
             ");
             
             var result = csProj.Build();
-            
+
             // Verify environment variable is set
             StringAssert.Contains("Skipping OS Integration (OPENTAP_DEBUG_INSTALL environment variable is set).", result.Stdout);
-            
-            StringAssert.Contains(
-                $@"package install --dependencies ""OSIntegration"" -r ""packages.opentap.io"" --non-interactive",
-                result.Stdout);
-            Assert.AreEqual(result.ExitCode, 0);
+            Assert.AreEqual(0, result.ExitCode, result.Stdout);
             Assert.True(File.Exists(OutputFile));
         }
 
@@ -388,27 +377,18 @@ namespace OpenTap.Package.UnitTests
             csProj.PropertyGroups.Add($@"
 <PropertyGroup>
 <Version1>1.2.3</Version1>
-<Version2>2.3.4</Version2>
 </PropertyGroup>
 ");
             csProj.ItemGroups.Add($@"
 <ItemGroup>
 <AdditionalOpenTapPackage Include=""Bad Package"" Version=""$(Version1)"" />
 </ItemGroup>
-
-<ItemGroup>
-<AdditionalOpenTapPackage Include=""Bad Package"" Version=""$(Version2)"" />
-</ItemGroup>
 ");
             var result = csProj.Build().Stdout;
 
             var index1 = csProj.GetLineNo($"(Version1)");
-            var index2 = csProj.GetLineNo($"(Version2)");
-            
-            // These assertions verify that $(Version1) and $(Version2) are correctly expanded to '1.2.3' and '2.3.4' in the build task
-            // If they are not correctly expanded, the correct line numbers for those two elements cannot be determined
-            StringAssert.Contains($"test.csproj({index1}): error OpenTAP Install: Failed to install package 'Bad Package'.", result);
-            StringAssert.Contains($"test.csproj({index2}): error OpenTAP Install: Failed to install package 'Bad Package'.", result);
+
+            StringAssert.Contains($"test.csproj({index1}): error OpenTAP Install: Unable to resolve package 'Bad Package'.", result);
         }
     }
 }

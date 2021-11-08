@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -105,8 +104,8 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 var imageSpecifier = ImageSpecifier.FromString(imageString);
                 var installed = InstalledPackages;
 
-                imageSpecifier.OnResolve += args =>
-                    installed.FirstOrDefault(i => isCompatible(i, args.PackageSpecifier));
+                imageSpecifier.OnResolve +=
+                    args => installed.FirstOrDefault(i => isCompatible(i, args.PackageSpecifier));
 
                 var imageIdentifier = imageSpecifier.Resolve(CancellationToken);
                 imageIdentifier.Deploy(TapDir, CancellationToken);
@@ -167,7 +166,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             if (repositories.Any(r => r.IndexOf("packages.opentap.io", StringComparison.OrdinalIgnoreCase) > 0) == false)
                 repositories.Add("packages.opentap.io");
 
-            PackageSpecifier fromTaskItem(ITaskItem i)
+            PackageSpecifier toPackageSpec(ITaskItem i)
             {
                 var name = i.ItemSpec;
                 var versionString = i.GetMetadata("Version");
@@ -183,15 +182,15 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 return new PackageSpecifier(name, version, arch, os);
             }
 
-            var items = taskItems.Select(fromTaskItem).ToList();
+            var packageSpecs = taskItems.Select(toPackageSpec).ToList();
 
             // Currently installed packages should be merged with the requested packages
             var installed = InstalledPackages;
             foreach (var pkg in installed)
             {
                 // .csproj elements should always take precedence over installed packages.
-                if (items.Any(i => i.Name == pkg.Name) == false)
-                    items.Add(new PackageSpecifier(pkg.Name, VersionSpecifier.Parse(pkg.Version.ToString()),
+                if (packageSpecs.Any(i => i.Name == pkg.Name) == false)
+                    packageSpecs.Add(new PackageSpecifier(pkg.Name, VersionSpecifier.Parse(pkg.Version.ToString()),
                         pkg.Architecture, pkg.OS));
             }
 
@@ -202,14 +201,14 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
                 { // Write Packages element
                     w.WriteStartArray("Packages");
-                    foreach (var item in items)
+                    foreach (var spec in packageSpecs)
                     {
                         w.WriteStartObject();
-                        w.WriteString("Name", item.Name);
-                        w.WriteString(nameof(item.Version), item.Version.ToString());
-                        if (string.IsNullOrWhiteSpace(item.OS) == false)
-                            w.WriteString(nameof(item.OS), item.OS);
-                        w.WriteString(nameof(item.Architecture), item.Architecture.ToString());
+                        w.WriteString("Name", spec.Name);
+                        w.WriteString(nameof(spec.Version), spec.Version.ToString());
+                        if (string.IsNullOrWhiteSpace(spec.OS) == false)
+                            w.WriteString(nameof(spec.OS), spec.OS);
+                        w.WriteString(nameof(spec.Architecture), spec.Architecture.ToString());
                         w.WriteEndObject();
                     }
 
