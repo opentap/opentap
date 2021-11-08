@@ -75,6 +75,9 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         {
             CancellationToken = cancellationToken;
             TapDir = tapDir;
+            var targetInstall = new Installation(TapDir);
+            InstalledPackages = targetInstall.GetPackages()
+                .Where(p => p.Class.Equals("system-wide", StringComparison.OrdinalIgnoreCase) == false).ToArray();
             attachTraceListener();
         }
 
@@ -89,29 +92,39 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             bool success = true;
             var imageString = CreateJsonImageSpecifier(packagesToInstall);
             OnDebug?.Invoke($"Trying to deploy '{imageString.Replace('\n', ' ')}'");
+
+            bool isCompatible(IPackageIdentifier actual, PackageSpecifier specifier)
+            {
+                // Returns true if 'actual' is compatible with 'specifier'.
+                return specifier.Name == actual.Name && specifier.Version.IsCompatible(actual.Version) &&
+                       actual.IsPlatformCompatible(specifier.Architecture, specifier.OS);
+            }
+
             try
             {
-                try
-                {
-                    var imageSpecifier = ImageSpecifier.FromString(imageString);
-                    var imageIdentifier = imageSpecifier.Resolve(CancellationToken);
-                    imageIdentifier.Deploy(TapDir, CancellationToken);
-                }
-                catch (AggregateException aex)
-                {
-                    OnError?.Invoke(aex.Message);
-                    foreach (var ex in aex.InnerExceptions)
-                    {
-                        OnError?.Invoke(ex.Message);
-                    }
+                var imageSpecifier = ImageSpecifier.FromString(imageString);
+                var installed = InstalledPackages;
 
-                    success = false;
-                }
-                catch (Exception ex)
+                imageSpecifier.OnResolve += args =>
+                    installed.FirstOrDefault(i => isCompatible(i, args.PackageSpecifier));
+
+                var imageIdentifier = imageSpecifier.Resolve(CancellationToken);
+                imageIdentifier.Deploy(TapDir, CancellationToken);
+            }
+            catch (AggregateException aex)
+            {
+                OnError?.Invoke(aex.Message);
+                foreach (var ex in aex.InnerExceptions)
                 {
                     OnError?.Invoke(ex.Message);
-                    success = false;
                 }
+
+                success = false;
+            }
+            catch (Exception ex)
+            {
+                OnError?.Invoke(ex.Message);
+                success = false;
             }
             finally
             {
@@ -125,35 +138,6 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             return success;
         }
 
-        class PackageObj
-        {
-            public string Name { get; set; }
-            public string Version { get; set; }
-            public string OS { get; set; }
-            public string Architecture { get; set; }
-        }
-
-        /// <summary>
-        /// Reflect the properties of an obj assumed to be a package specifier of some sort
-        /// and return a <see cref="PackageObj"/> object.
-        /// </summary>
-        /// <param name="obj"></param>
-        /// <returns></returns>
-        PackageObj fromPackageDefObj(object obj)
-        {
-            var t = obj.GetType();
-            var name = t.GetProperty("Name")?.GetValue(obj) as string;
-            var version = t.GetProperty("Version")?.GetValue(obj)?.ToString();
-            var architecture = t.GetProperty("Architecture")?.GetValue(obj)?.ToString();
-            var os = t.GetProperty("OS")?.GetValue(obj) as string;
-
-            var pkg = new PackageObj()
-            {
-                Name = name, Version = version, Architecture = architecture, OS = os
-            };
-
-            return pkg;
-        }
 
         public Action<string> OnDebug;
         public Action<string> OnInfo;
@@ -165,27 +149,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             Log.RemoveListener(traceListener);
         }
 
-        private List<PackageObj> installedPackages = null;
-        private List<PackageObj> getInstalledPackages()
-        {
-            if (installedPackages == null)
-            {
-                var installation = new Installation(TapDir);
-                var packages = installation.GetPackages();
-
-                var result = new List<PackageObj>();
-
-                if (packages is IEnumerable<object> e)
-                {
-                    result = e.Select(fromPackageDefObj).ToList();
-                }
-
-                installedPackages = result;
-            }
-
-            return installedPackages;
-
-        }
+        private PackageDef[] InstalledPackages;
 
         /// <summary>
         /// Convert the <see cref="ITaskItem[]"/> to a JSON image specifier
@@ -203,21 +167,32 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             if (repositories.Any(r => r.IndexOf("packages.opentap.io", StringComparison.OrdinalIgnoreCase) > 0) == false)
                 repositories.Add("packages.opentap.io");
 
-            var items = taskItems.Select(i => new PackageObj()
+            PackageSpecifier fromTaskItem(ITaskItem i)
             {
-                Name = i.ItemSpec,
-                Version = i.GetMetadata("Version"),
-                OS = i.GetMetadata("OS"),
-                Architecture = i.GetMetadata("Architecture")
-            }).ToList();
+                var name = i.ItemSpec;
+                var versionString = i.GetMetadata("Version");
+                var archString = i.GetMetadata("Architecture");
+                var os = i.GetMetadata("OS");
+
+                if (Enum.TryParse(archString, out CpuArchitecture arch) == false)
+                    arch = CpuArchitecture.Unspecified;
+
+                if (VersionSpecifier.TryParse(versionString, out var version) == false)
+                    version = VersionSpecifier.Any;
+
+                return new PackageSpecifier(name, version, arch, os);
+            }
+
+            var items = taskItems.Select(fromTaskItem).ToList();
 
             // Currently installed packages should be merged with the requested packages
-            var installed = getInstalledPackages();
+            var installed = InstalledPackages;
             foreach (var pkg in installed)
             {
                 // .csproj elements should always take precedence over installed packages.
                 if (items.Any(i => i.Name == pkg.Name) == false)
-                    items.Add(pkg);
+                    items.Add(new PackageSpecifier(pkg.Name, VersionSpecifier.Parse(pkg.Version.ToString()),
+                        pkg.Architecture, pkg.OS));
             }
 
             var ms = new MemoryStream();
@@ -231,14 +206,10 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                     {
                         w.WriteStartObject();
                         w.WriteString("Name", item.Name);
-
-                        if (string.IsNullOrWhiteSpace(item.Version) == false)
-                            w.WriteString(nameof(item.Version), item.Version);
+                        w.WriteString(nameof(item.Version), item.Version.ToString());
                         if (string.IsNullOrWhiteSpace(item.OS) == false)
                             w.WriteString(nameof(item.OS), item.OS);
-                        if (string.IsNullOrWhiteSpace(item.Architecture) == false)
-                            w.WriteString(nameof(item.Architecture), item.Architecture);
-
+                        w.WriteString(nameof(item.Architecture), item.Architecture.ToString());
                         w.WriteEndObject();
                     }
 

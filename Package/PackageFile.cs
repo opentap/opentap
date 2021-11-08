@@ -379,7 +379,7 @@ namespace OpenTap.Package
 
         internal bool IsSystemWide()
         {
-            return Class.ToLower() == "system-wide";
+            return Class.Equals("system-wide", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>
