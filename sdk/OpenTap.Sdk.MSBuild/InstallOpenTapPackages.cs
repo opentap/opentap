@@ -171,9 +171,9 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 installer.OnDebug += debug => Log.LogMessage(MessageImportance.Low, debug);
                 installer.OnWarning += warn => Log.LogWarning(warn);
 
-                var repos = Repositories.SelectMany(r =>
+                var repos = Repositories?.SelectMany(r =>
                         r.ItemSpec.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                    .ToList();
+                    .ToList() ?? new List<string>();
 
                 repos.AddRange(PackagesToInstall.Select(p => p.GetMetadata("Repository"))
                     .Where(m => string.IsNullOrWhiteSpace(m) == false));
