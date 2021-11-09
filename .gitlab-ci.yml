@@ -204,6 +204,9 @@ TestPackage:
          - $ErrorActionPreference = "Stop"
          - Copy-Item -r "Package.UnitTests/Packages" bin/Release
          - Copy-Item .\bin\Release\runtimes\win-x64\native\git2-4aecb64.dll .\bin\Release
+         - Push-Location bin\Release
+         - .\tap package create ..\..\Package.UnitTests\opentap.debug.xml --install
+         - Pop-Location
          - dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
   artifacts:
     when: always
