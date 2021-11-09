@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -8,19 +7,51 @@ using System.Xml.Linq;
 
 namespace OpenTap.Package
 {
-    internal class XmlEvaluator
+    /// <summary>
+    /// The <see cref="XmlEvaluator"/> class can expand variables of the form $(VarName) -> VarNameValue
+    /// in an XML document. It reads the current environment variables, and optionally document-local variables set in
+    /// a <Variables/> element as a child of the root element. A variable will be expanded exactly once either if it is
+    /// an XMLText element, or if it appears as text in an attribute.
+    /// (e.g. <SomeElement Attr1="$(abc)">abc $(def) ghi</SomeElement> will expand $(abc) and $(def))
+    /// A variable will only be expanded once. If $(abc) -> "$(def)", then the expansion of $(abc) will not be expanded.
+    /// Additionally, 'Conditions' are supported. Conditions are attributes on elements. If the condition evaluates to
+    /// false, the element containing the condition is removed from the document. If the condition is true, the
+    /// condition itself is removed. A condition takes the form Condition="$(abc)" or Condition="$(abc) == $(def)" or
+    /// Condition="$(abc) != $(def)". A condition is true if it has the value '1' or 'true', or if the comparison operator evaluates to true.
+    /// </summary>
+    public class XmlEvaluator
     {
-        private static TraceSource log = Log.CreateSource(nameof(XmlEvaluator));
-        private static Regex variableRegex = new Regex(@"\$\((.*?)\)", RegexOptions.Compiled);
-        private XElement Root { get; }
-        private IDictionary Variables { get; set; }
-
+        /// <summary>
+        /// Initializes a new instance of the <see cref="XmlEvaluator"/> class from an <see cref="XElement"/> object.
+        /// </summary>
+        /// <param name="root"></param>
         public XmlEvaluator(XElement root)
         {
             // Create a deep copy of the source element
             Root = new XElement(root);
         }
 
+        /// <summary>
+        /// Evaluate all variables of the form $(VarName) -> VarNameValue in the <see cref="Root"/> document.
+        /// Evaluate all Conditions of the form 'Condition="Some-Condition-Expression"'
+        /// Removes the node which contains the condition if it evaluates to false. Otherwise it removes the condition itself.
+        /// </summary>
+        public XElement Evaluate()
+        {
+            // Return immediately if there is nothing to expand to expand
+            if (hasVariablesOrConditions(Root.ToString()) == false) return Root;
+
+            InitVariables();
+            ExpandNodeRecursive(Root);
+            MergeDuplicateElements(Root);
+
+            return Root;
+        }
+
+        static TraceSource log = Log.CreateSource(nameof(XmlEvaluator));
+        static Regex variableRegex = new Regex(@"\$\((.*?)\)", RegexOptions.Compiled);
+        XElement Root { get; }
+        IDictionary Variables { get; set; }
         bool hasVariablesOrConditions(string s)
         {
             if (s.Contains("Condition")) return true;
@@ -57,7 +88,7 @@ namespace OpenTap.Package
             }
         }
 
-        private static void MergeDuplicateElements(XElement elem)
+        static void MergeDuplicateElements(XElement elem)
         {
             var remaining = elem.Elements().GroupBy(e => e.Name.LocalName);
             foreach (var rem in remaining)
@@ -75,24 +106,8 @@ namespace OpenTap.Package
                 }
             }
         }
-        /// <summary>
-        /// Evaluate all variables of the from $(VarName) -> VarNameValue in the <see cref="Root"/> document.
-        /// Evaluate all Conditions of the form 'Condition="Some-Condition-Expression"'
-        /// Removes the node which contains the condition if it evaluates to false. Otherwise it removes the condition itself.
-        /// </summary>
-        public XElement Evaluate()
-        {
-            // Return immediately if there is nothing to expand to expand
-            if (hasVariablesOrConditions(Root.ToString()) == false) return Root;
 
-            InitVariables();
-            ExpandNodeRecursive(Root);
-            MergeDuplicateElements(Root);
-
-            return Root;
-        }
-
-        private void ExpandNodeRecursive(XElement ele)
+        void ExpandNodeRecursive(XElement ele)
         {
             var nodes = ele.Nodes().ToArray();
             foreach (var node in nodes)
@@ -125,7 +140,7 @@ namespace OpenTap.Package
             }
         }
 
-        private string ExpandVariables(string str)
+        string ExpandVariables(string str)
         {
             var sb = new StringBuilder();
 
@@ -151,7 +166,7 @@ namespace OpenTap.Package
             return sb.ToString();
         }
 
-        private bool EvaluateCondition(string condition)
+        bool EvaluateCondition(string condition)
         {
             string normalize(string str)
             {
@@ -175,6 +190,7 @@ namespace OpenTap.Package
                 { // Check if the condition is a literal
                     var norm = normalize(condition);
 
+                    if (string.IsNullOrWhiteSpace(norm)) return false;
                     if (norm.Equals("1")) return true;
                     if (norm.Equals("0")) return false;
                 }
@@ -186,7 +202,7 @@ namespace OpenTap.Package
 
                 if (parts.Length != 2)
                 {
-                    log.Error($"Error in condition '{condition}'. Several checks detected. A condition must be either true, false, or of the form a==b.");
+                    log.Error($"Error in condition '{condition}'. A condition must be either true, false, 1, 0, or of the form a==b.");
                     return false;
                 }
 
@@ -202,19 +218,6 @@ namespace OpenTap.Package
                 log.Error($"Error during parsing of condition '{condition}'.");
                 return false;
             }
-        }
-
-        /// <summary>
-        /// Expand the XML of the content of the file and return a file containing the evaluated content
-        /// </summary>
-        /// <param name="xmlFilePath"></param>
-        /// <returns></returns>
-        public static string FromFile(string xmlFilePath)
-        {
-            var elem = XElement.Load(xmlFilePath);
-            var expanded = Path.GetTempFileName();
-            new XmlEvaluator(elem).Evaluate().Save(expanded);
-            return expanded;
         }
     }
 }

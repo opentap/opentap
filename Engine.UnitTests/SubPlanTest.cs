@@ -171,6 +171,7 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
+        [Retry(3)]
         public void RedirectedLogTest2()
         {
             var listener = new MemoryTraceListener();

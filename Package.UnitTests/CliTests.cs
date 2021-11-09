@@ -82,7 +82,7 @@ namespace OpenTap.Package.UnitTests
                 Environment.SetEnvironmentVariable("Platform", OperatingSystem.Current == OperatingSystem.Windows ? "Windows" : "Linux");
                 Environment.SetEnvironmentVariable("Architecture", OperatingSystem.Current == OperatingSystem.Windows ? "x86" : "x64");
                 Environment.SetEnvironmentVariable("Sign", "0");
-                Environment.SetEnvironmentVariable("Debug", "0");
+                Environment.SetEnvironmentVariable("Debug", "1");
 
                 // Sign package is needed to create opentap
                 string createOpenTap = $"create -v {opentapPackageXmlPath} --install -o Packages/OpenTAP.TapPackage";
