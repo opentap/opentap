@@ -2152,30 +2152,35 @@ namespace OpenTap
     /// <summary> Invoke an action after a timeout, unless canceled. </summary>
     class TimeoutOperation : IDisposable
     {
+        /// <summary> Estimate of how long it takes for the user to loose patience.</summary>
+        static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);
+        
         TimeoutOperation(TimeSpan timeout, Action action)
         {
             this.timeout = timeout;
             this.action = action;
             tokenSource = new CancellationTokenSource(timeout);
         }
-        Action action;
-        TimeSpan timeout;
-        /// <summary> Estimate of how long it takes for the user to loose patience.</summary>
-        static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);
-
-        CancellationTokenSource tokenSource;
-        bool isCompleted = false;
+        readonly Action action;
+        readonly TimeSpan timeout;
+        readonly CancellationTokenSource tokenSource;
+        
+        bool isCompleted;
         void wait()
         {
             try
             {
-                if (!tokenSource.IsCancellationRequested && WaitHandle.WaitTimeout == WaitHandle.WaitAny(new WaitHandle[] { tokenSource.Token.WaitHandle, TapThread.Current.AbortToken.WaitHandle }, timeout))
+                var token = tokenSource.Token;
+                if (!token.IsCancellationRequested && WaitHandle.WaitTimeout == WaitHandle.WaitAny(new [] { token.WaitHandle, TapThread.Current.AbortToken.WaitHandle }, timeout))
                     action();
             }
             finally
             {
-                tokenSource.Dispose();
-                isCompleted = true;
+                lock (tokenSource)
+                {
+                    tokenSource.Dispose();
+                    isCompleted = true;
+                }
             }
         }
 
@@ -2205,8 +2210,11 @@ namespace OpenTap
         {
             try
             {
-                if (!isCompleted)
-                    tokenSource.Cancel();
+                lock (tokenSource)
+                {
+                    if (!isCompleted)
+                        tokenSource.Cancel();
+                }
             }
             catch (ObjectDisposedException)
             {
