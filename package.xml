@@ -4,7 +4,7 @@
         <Status>Released</Status>
         <Organisation>Keysight Technologies</Organisation>
     </Description>
-    <Variables>
+    <PropertyGroup>
         <!-- We include some native dependencies based on the platform and architecture, notably libgitsharp -->
         <Architecture>x64</Architecture>
         <Platform>Windows</Platform>
@@ -14,7 +14,7 @@
         <Debug>false</Debug>
         <!-- When IncludePdb is set to true, all .pdb files will be included by a glob expression -->
         <IncludePdb>false</IncludePdb>
-    </Variables>
+    </PropertyGroup>
     <SourceUrl>https://gitlab.com/OpenTAP/opentap</SourceUrl>
     <Owner>OpenTAP</Owner>
     <!-- Common files  -->

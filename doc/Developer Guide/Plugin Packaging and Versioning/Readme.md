@@ -498,42 +498,42 @@ This command can also be useful if you need the same version number elsewhere in
 The version can be set manually, e.g. `Version="1.0.2"`. The version **must** follow the [semantic versioning format.](https://semver.org/)
 
 ## Advanced Packaging
-As a plugin grows in complexity, special care is needed when targetting multiple platforms and architectures. 
+As a plugin grows in complexity, special care is needed when targeting multiple platforms and architectures. 
 
 > For example, when shipping native binaries, different binaries must be shipped for different platforms. 
 
 Although these package definitions are often nearly identical for each 
-platform or architecture, these subtle differences nonetheless required different *package definitions* for each target (or build-time modification). 
+platform or architecture, these subtle differences nonetheless require different *package definitions* for each target (or build-time modification). 
 
-Both of these solutions hurt the maintainability of the package definition. This process is made easy with **Variables** and **Conditions**.
+Both of these solutions hurt the maintainability of the package definition. This process is made easy with **Properties** and **Conditions**.
 
-### The Variables element
-The **Variables** element is placed as a child of the **Package** element, and can be used to define file-scoped variables. A variable will be 
-expanded exactly once either if it appears as text inside an element, or inside an attribute.
+### The PropertyGroup Element
+The **PropertyGroup** element is placed as a child of the **Package** element, and can be used to define file-scoped properties. A property will be 
+expanded exactly once if it appears as text inside an element or an attribute.
 
 > &lt;SomeElement Attr1="$(abc)"&gt;abc $(def) ghi&lt;/SomeElement&gt; will expand $(abc) and $(def)
 > &lt;$(XmlElement)&gt;&lt;/$(XmlElement)&gt; will not expand, and is invalid XML.
 
-A variable will be expanded exactly once. If `$(abc)` expands to the string `"$(def)"`, then $(def) will not be expanded.
+> A variable will be expanded exactly once. E.g. if `$(abc)` expands to the string `"$(def)"`, then $(def) will not be expanded.
 
-> Tip: Although **Variables** appears a a child of the **Package** element, variables can still be used in **Package** attributes.
+> Tip: Although **PropertyGroup** appears a a child of the **Package** element, properties can still be used in **Package** attributes.
 > The following `package.xml` example will correctly set the package architecture and OS.
 
 ```xml
 <Package OS="$(Platform)" Architecture="$(Architecture)">
-    <Variables>
+    <PropertyGroup>
         <Architecture>x64</Architecture>
         <Platform>Windows</Platform>
-    </Variables>
+    </PropertyGroup>
 </Package>
 ```
 
-If an *Environment* variable is defined with the same name as a *file-local* variable, then the *Environment* variable will take precedence.
-Values from the *Variables* element can be considered *default* values, but can be overriden at *package create* time.
+If an *Environment* variable is defined with the same name as a *file-local* property, then the *Environment* variable will take precedence.
+Values from the **PropertyGroup** element can be considered *default* values, but can be overriden during `package create`.
 
 > **Note** the $(GitVersion) variable has a special meaning, and cannot be overriden.
 
-### The Condition attribute
+### The Condition Attribute
 The **Condition** attribute can be placed on any XML element except the root **Package** element. A condition can take two forms;
 an equality comparison, or a literal value:
 
@@ -547,9 +547,8 @@ the **Element** containing the condition is removed.
 
 When a literal value is used, it is considered *true* if the value is `true` or `1`, and *false* if the value is `false`, `0` or empty (not case sensitive). 
 
-#### Condition examples
-> This table demonstrates the general behavior of conditions.<br>
-> Assume `$(a) = 1` and `$(b) = 2`
+#### Condition Examples
+This table demonstrates the general behavior of conditions. Assume `$(a) = 1` and `$(b) = 2`
 
 | **Condition** | **Value** | **Result** |
 | ----  | -------- | -- |
@@ -564,13 +563,13 @@ When a literal value is used, it is considered *true* if the value is `true` or 
 | **$(a) != $(b)** | **true** | The **Element** containing **Condition** is removed from the document
 
 
-### Variables and Conditions Example
-> Consider this example (which is an excerpt from the OpenTAP package definition) for a real world use case.
-> Some elements have been omitted for brevity
+### PropertyGroup and Conditions Example
+Consider this example (which is an excerpt from the OpenTAP package definition) for a real world use case.
+Some elements have been omitted for brevity
 
 ```xml
 <Package Version="$(GitVersion)" OS="$(Platform)" Architecture="$(Architecture)" Name="OpenTAP" >
-    <Variables>
+    <PropertyGroup>
         <!-- We include some native dependencies based on the platform and architecture, notably libgitsharp -->
         <Architecture>x64</Architecture>
         <Platform>Windows</Platform>
@@ -580,7 +579,7 @@ When a literal value is used, it is considered *true* if the value is `true` or 
         <Debug>false</Debug>
         <!-- When IncludePdb is set to true, all .pdb files will be included by a glob expression -->
         <IncludePdb>false</IncludePdb>
-    </Variables>
+    </PropertyGroup>
     <!-- Common files  -->
     <Files>        
         <File Path="OpenTap.dll">
@@ -626,11 +625,11 @@ When a literal value is used, it is considered *true* if the value is `true` or 
 </Package>
 ```
 
-Here we use several variables for targetting different architectures and platforms with a single package definition.
+Here we use several properties for targeting different architectures and platforms with a single package definition.
 
 1. We bundle different versions of the native binary `LibGit2Sharp` depending on platform and architecture. 
-2. We use a `Sign` variable in order to easily disable signing when building in debug environments without signing capabilities.
-3. We use the `IncludePdb` variable in order to create debug packages with debugging symbols.
+2. We use the `Sign` property in order to easily disable signing when building in debug environments without signing capabilities.
+3. We use the `IncludePdb` property in order to create debug packages with debugging symbols.
 4. We run `chmod +x tap` after the package has been installed on non-windows platforms
 
 After evaluating this package definition, we get the following definition:
@@ -665,8 +664,8 @@ After evaluating this package definition, we get the following definition:
 </Package>
 ```
 
-1. Notice that the **Variables** element, and all the **Condition** attributes have been removed. 
-2. Notice that all the **Files** elements have been merged into a single element (though the old comments are still there).
+1. Notice that the **PropertyGroup** element, and all the **Condition** attributes have been removed. 
+2. Notice that all the **Files** elements have been merged into a single element (though the comments are still there).
 
 Leveraging this solution, we can now create an OpenTAP package for Windows-x86, Windows-x64, and Linux-x64 in a few easy steps:
 

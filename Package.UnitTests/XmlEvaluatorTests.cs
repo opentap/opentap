@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Xml.Linq;
 using NUnit.Framework;
+using OpenTap.Package.XmlEvaulation;
 
 namespace OpenTap.Package.UnitTests
 {
@@ -19,14 +20,14 @@ namespace OpenTap.Package.UnitTests
 
             var xmlString = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <Package Name=""$(PackageName)"" Version=""$(GitVersion)"" OS=""$(PlatformVar)"" Architecture=""$(ArchitectureVar)"">
-  <Variables>
+  <PropertyGroup>
     <PlatformVar>{platform}</PlatformVar>
     <ArchitectureVar>{arch}</ArchitectureVar>
     <Owner>{owner}</Owner>
     <PackageName>{packageName}</PackageName>
     <SourceUrl>{sourceUrl}</SourceUrl>
     <SignVar>{sign}</SignVar>
-  </Variables>
+  </PropertyGroup>
   <SourceUrl Condition=""$(PlatformVar) == Windows"">$(SourceUrl)</SourceUrl>
   <Owner Condition=""$(PlatformVar) == Linux"">$(Owner)</Owner>
   <Files Condition=""a == b"">
@@ -70,7 +71,7 @@ namespace OpenTap.Package.UnitTests
             }
 
             // This element should have been removed
-            assertRemoved("Variables");
+            assertRemoved("PropertyGroup");
             assertRemoved("PackageActionExtensions");
             assertRemoved("Owner");
 

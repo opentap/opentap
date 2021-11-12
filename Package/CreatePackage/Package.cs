@@ -13,6 +13,7 @@ using Tap.Shared;
 using System.Runtime.InteropServices;
 using System.Xml.Serialization;
 using OpenTap.Cli;
+using OpenTap.Package.XmlEvaulation;
 
 namespace OpenTap.Package
 {
@@ -120,6 +121,20 @@ namespace OpenTap.Package
         /// <returns></returns>
         public static PackageDef FromInputXml(string xmlFilePath, string projectDir)
         {
+            try
+            {
+                var evaluator = new XmlEvaluator(xmlFilePath, projectDir);
+                var xmlDoc = evaluator.Evaluate();
+                var evaluated = Path.GetTempFileName();
+                xmlDoc.Save(evaluated);
+                xmlFilePath = evaluated;
+            }
+            catch (Exception ex)
+            {
+                log.Debug($"Unexpected error while evaluating package xml. Continuing in spite of errors.");
+                log.Debug(ex);
+            }
+
             PackageDef.ValidateXml(xmlFilePath);
             var pkgDef = PackageDef.FromXml(xmlFilePath);
             if(pkgDef.Files.Any(f => f.HasCustomData<UseVersionData>() && f.HasCustomData<SetAssemblyInfoData>()))
@@ -631,7 +646,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Creates a *.TapPackage file from the definition in this PackageDef.
         /// </summary>
-        static public void CreatePackage(this PackageDef pkg, FileStream str)
+        public static void CreatePackage(this PackageDef pkg, FileStream str)
         {
             foreach (PackageFile file in pkg.Files)
             {
