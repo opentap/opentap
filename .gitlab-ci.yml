@@ -647,10 +647,6 @@ PublishPackages:
      - Package-Windows32
      - Package-Linux
      - Package-SDK
-  only:
-    - tags
-    - /^release.*$/
-    - master
   script:
       - cd bin/Release
       - ./tap package install -f PackagePublish --version beta
