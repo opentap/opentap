@@ -792,11 +792,11 @@ namespace OpenTap
                 }
 
                 var sources = annotatedElements;
-                var mems = sources.Select(x => x.Get<IMembersAnnotation>()?.Members.ToArray() ?? Array.Empty<AnnotationCollection>()).ToArray();
+                var mems = sources.Select(x => x.Get<IMembersAnnotation>()?.Members ?? Array.Empty<AnnotationCollection>()).ToArray();
                 if (mems.Length == 0) return Array.Empty<AnnotationCollection>();
                 Dictionary<string, AnnotationCollection>[] dicts = mems.Select(x =>
                 {
-                    var dict = new Dictionary<string, AnnotationCollection>(x.Length);
+                    var dict = new Dictionary<string, AnnotationCollection>();
                     foreach (var d in x)
                     {
                         if (d.Get<IHideOnMultiSelectAnnotation>() != null)
@@ -3348,18 +3348,18 @@ namespace OpenTap
         public void Read(object source)
         {
             this.source = source;
-            foreach (var annotation in Annotations)
-            {
-                if (annotation is IOwnedAnnotation owned)
-                    owned.Read(source);
-            }
+            Read();
         }
 
         /// <summary> Updates the annotation based on that last specified source object. </summary>
         public void Read()
         {
-            if (source != null)
-                Read(source);
+            if (source == null) return;
+            foreach (var annotation in Annotations)
+            {
+                if (annotation is IOwnedAnnotation owned)
+                    owned.Read(source);
+            }
         }
 
         /// <summary> Writes the annotation data to the last specified source object. </summary>
@@ -3478,6 +3478,10 @@ namespace OpenTap
         /// <returns></returns>
         public AnnotationCollection AnnotateSub(ITypeData reflect, object obj, params IAnnotation[] extraAnnotations)
         {
+            var cache = Get<AnnotationCache>();
+            if (cache?.GetCached(obj) is AnnotationCollection cached)
+                return cached;
+            
             var annotation = new AnnotationCollection { ParentAnnotation = this, ExtraAnnotations = extraAnnotations ?? Array.Empty<IAnnotation>() };
 
             annotation.AddRange(extraAnnotations);
@@ -3487,6 +3491,7 @@ namespace OpenTap
             resolver.Iterate(annotation);
             if (obj != null)
                 annotation.Read(obj);
+            cache?.Register(annotation);
             return annotation;
         }
 
