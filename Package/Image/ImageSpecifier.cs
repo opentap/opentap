@@ -47,6 +47,16 @@ namespace OpenTap.Package
             // Check if all package only specify compatible architectures
             var archs = Packages.Select(p => p.Architecture).Distinct()
                                                 .Where(a => a != CpuArchitecture.Unspecified && a != CpuArchitecture.AnyCPU).ToList();
+
+            // Check if same package is specified in multiple versions:
+            var versionAmbiguities = Packages.GroupBy(s => s.Name).Where(g => g.Count() > 1);
+            foreach(var va in versionAmbiguities)
+            {
+                var versions = va.SelectValues(p => p.Version);
+
+            }
+
+
             CpuArchitecture arch;
             if (archs.Count != 1)
                 arch = openTapPackage?.Architecture ?? ArchitectureHelper.GuessBaseArchitecture;

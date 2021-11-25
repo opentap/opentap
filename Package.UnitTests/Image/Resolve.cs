@@ -93,5 +93,52 @@ namespace OpenTap.Image.Tests
                 Assert.AreEqual(1, ex.InnerExceptions.Count());
             }
         }
+
+        // two conflicting major versions of the same plugin should just refuse to resolve
+        [TestCase("REST-API", "2.4.0", "1.10.5", "error")]
+
+        // two different minor versions should reslove to a version semantically compatible with both.
+        // We should pick the lowest compatible minor version, to keep the resolution result as stable as possible.  
+        [TestCase("OpenTAP","9.10","9.11","9.11")]
+
+        // In the context of image resolution, ^ means "latest compatible version" in the same way it does for `tap packages install`
+        [TestCase("OpenTAP", "^9.10", null, "latest")]
+
+        // When one of two conflicting minor versions specifies ^, but the other specifies a later minor, take the later minor,
+        // but do not move all the way to the latest version to keep the resolution result as stable as possible.
+        [TestCase("OpenTAP", "^9.10", "9.11", "9.11")]
+        [TestCase("OpenTAP", "9.10", "^9.11", "9.11")]
+        [TestCase("OpenTAP", "9.10", "^9.10", "9.10")]
+        
+        // Same version specified twice
+        [TestCase("OpenTAP", "9.10", "9.10", "9.10")]
+        public void ResolveVersionConflicts(string packageName, string firstVersion, string secondVersion, string resultingVersion)
+        {
+            ImageSpecifier imageSpecifier = new ImageSpecifier();
+            imageSpecifier.Repositories = new List<string>() { "packages.opentap.io" };
+            imageSpecifier.Packages.Add(new PackageSpecifier(packageName, VersionSpecifier.Parse(firstVersion)));
+            if(secondVersion != null)
+                imageSpecifier.Packages.Add(new PackageSpecifier(packageName, VersionSpecifier.Parse(secondVersion)));
+            try
+            {
+                var image = imageSpecifier.Resolve(System.Threading.CancellationToken.None);
+                if (resultingVersion is null || resultingVersion == "error")
+                    Assert.Fail("This should fail to resolve");
+                if (resultingVersion == "latest")
+                {
+                    var latest = new HttpPackageRepository("packages.opentap.io").GetPackageVersions(packageName).Select(v => v.Version).Where(v => v.PreRelease == null).Distinct().ToList();
+                    StringAssert.StartsWith(latest.First().ToString(), image.Packages.First(p => p.Name == packageName).Version.ToString());
+                }
+                else
+                    StringAssert.StartsWith(resultingVersion, image.Packages.First(p => p.Name == packageName).Version.ToString());
+            }
+            catch (AggregateException ex)
+            {
+                if (resultingVersion is null || resultingVersion == "error")
+                    Assert.AreEqual(1, ex.InnerExceptions.Count());
+                else
+                    throw;
+            }
+        }
     }
 }
