@@ -698,7 +698,7 @@ namespace OpenTap
         public string Value
         {
             get => annotation.Get<IObjectValueAnnotation>().Value?.ToString();
-            set => annotation.Get<IObjectValueAnnotation>().Value = parseBool((string)value);
+            set => annotation.Get<IObjectValueAnnotation>().Value = parseBool(value);
         }
 
     }
@@ -716,10 +716,21 @@ namespace OpenTap
         {
             get
             {
-                var values = merged.Select(x => (x.Get<IStringValueAnnotation>()?.Value ?? x.Get<IObjectValueAnnotation>().Value)).Distinct().Take(2).ToArray();
-                if (values.Length != 1) return null;
-
-                return merged.Select(x => x.Get<IObjectValueAnnotation>().Value).FirstOrDefault();
+                if (merged.Count == 0) return null;
+                // this getter is performance critical. Avoid doing any allocations or unnessesary operations here.
+                var first = merged[0];
+                object selectedValue = first.Get<IObjectValueAnnotation>().Value;
+                if (selectedValue != null)
+                {
+                    for (int i = 1; i < merged.Count; i++)
+                    {
+                        var x = merged[i];
+                        var thisVal = x.Get<IObjectValueAnnotation>().Value;
+                        if (Equals(selectedValue, thisVal) == false)
+                            return null;
+                    }
+                }
+                return selectedValue;
             }
             set
             {
@@ -1069,14 +1080,19 @@ namespace OpenTap
             }
         }
 
-        public MemberValueAnnotation(AnnotationCollection annotation)
+        public MemberValueAnnotation(AnnotationCollection annotation, IMemberAnnotation mem = null)
         {
             this.annotation = annotation;
+            memberCache = mem;
         }
+
+        // often the member annotation is know at 'annotate' time, so it is better to cache it here.
+        // this section of the code is also performance-critical.
+        IMemberAnnotation memberCache;
         void read()
         {
             if (annotation.Source == null) return;
-            var m = annotation.Get<IMemberAnnotation>();
+            var m = memberCache ?? (memberCache = annotation.Get<IMemberAnnotation>());
             isParameter = m.Member is IParameterMemberData;
             try
             {
@@ -1098,7 +1114,7 @@ namespace OpenTap
         {
             if (annotation.Source == null) return;
             
-            var m = annotation.Get<IMemberAnnotation>();
+            var m = memberCache ?? (memberCache = annotation.Get<IMemberAnnotation>());
             if (m.Member.Writable == false) return;
             
             if (wasSet == false && !isParameter) return;
@@ -3416,7 +3432,8 @@ namespace OpenTap
 
             if (member is IMemberData mem)
             {
-                annotation.Add(new MemberAnnotation(mem), new MemberValueAnnotation(annotation));
+                var memberAnnotation = new MemberAnnotation(mem);
+                annotation.Add(memberAnnotation, new MemberValueAnnotation(annotation, memberAnnotation));
             }
             annotation.AddRange(extraAnnotations);
             var resolver = new AnnotationResolver();
