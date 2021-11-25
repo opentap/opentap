@@ -11,7 +11,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
-using System.Xml.XPath;
 using DotNet.Globbing;
 using DotNet.Globbing.Token;
 using Microsoft.Build.Framework;
@@ -248,19 +247,69 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             }
         }
 
-        private string OutDir => _expander.ExpandBuildVariables("$(OutDir)");
-        
+        string[] pathSeparators = { "\\", "/" };
+
+        private string _outDir;
+        private string OutDir
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(_outDir))
+                {
+                    _outDir = _expander.ExpandBuildVariables("$(OutDir)");
+                }
+                return _outDir;
+            }
+        }
+
+        private bool? _appendSeparator;
+
+        /// <summary>
+        /// A path separator should be added if the expansion of '$(OutDir)' does not end with a separator
+        /// </summary>
+        private bool AppendSeparator
+        {
+            get
+            {
+                if (_appendSeparator == null)
+                    _appendSeparator = pathSeparators.Contains(OutDir.Last().ToString()) == false;
+                return _appendSeparator.Value;
+            }
+        }
+
+        private string _separator;
+
+        /// <summary>
+        /// Get the preferred path separator, based on what is used in the expansion of '$(OutDir)'.
+        /// This is necessary because dotnet core throws up in certain circumstances when path separators are repeatedly flipped
+        /// </summary>
+        private string Separator
+        {
+            get
+            {
+                if (string.IsNullOrWhiteSpace(_separator))
+                {
+                    var separatorCharIndex = pathSeparators.Max(OutDir.LastIndexOf);
+                    _separator = separatorCharIndex > -1 ? OutDir[separatorCharIndex].ToString() : "/";
+                }
+                return _separator;
+            }
+        }
+
         private void WriteItemGroup(IEnumerable<string> assembliesInPackage)
         {
             Result.AppendLine("  <ItemGroup>");
 
-            var outDir = Path.GetFullPath(OutDir);
+            var outDir = "$(OutDir)";
+            if (AppendSeparator) outDir += Separator;
 
             foreach (var asmPath in assembliesInPackage)
             {
-                var fullPath = Path.Combine(outDir, asmPath).Replace("\\", "/");
+                // Replace all path separators the preferred path separator based on '$(OutDir)'.
+                var asm = asmPath.Replace("/", Separator).Replace("\\", Separator);
+
                 Result.AppendLine($"    <Reference Include=\"{Path.GetFileNameWithoutExtension(asmPath)}\">");
-                Result.AppendLine($"      <HintPath>{fullPath}</HintPath>");
+                Result.AppendLine($"      <HintPath>{outDir}{asm}</HintPath>");
                 Result.AppendLine("    </Reference>");
             }
 
