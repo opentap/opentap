@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Diagnostics;
 using System.Linq;
 using NUnit.Framework;
-using NUnit.Framework.Constraints;
 using OpenTap.Engine.UnitTests;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using OpenTap.Plugins.BasicSteps;
@@ -14,6 +11,29 @@ namespace OpenTap.UnitTests
     [TestFixture]
     public class ScopeParametersTest
     {
+        [Test]
+        public void TestIsParameterized()
+        {
+            var plan = new TestPlan();
+            var diag = new DialogStep() {UseTimeout = true};
+            var diag2 = new DialogStep();
+            var scope = new SequenceStep();
+            plan.ChildTestSteps.Add(scope);
+            string parameterName = "Scope\"" + DisplayAttribute.GroupSeparator + "Title"; // name intentionally weird to mess with the serializer.
+            scope.ChildTestSteps.Add(diag);
+            scope.ChildTestSteps.Add(diag2);
+            var member = TypeData.GetTypeData(diag).GetMember("Title");
+            Assert.IsFalse(DynamicMember.IsParameterized(member, diag));
+            Assert.IsFalse(DynamicMember.IsParameterized(member, diag2));
+            
+            var param = member.Parameterize(scope, diag, parameterName);
+            member.Parameterize(scope, diag2, parameterName);
+            Assert.IsTrue(DynamicMember.IsParameterized(member, diag));
+            Assert.IsTrue(DynamicMember.IsParameterized(member, diag2));
+            plan.ChildTestSteps.Remove(scope);
+            TypeData.GetTypeData(scope).GetMembers();
+            DynamicMember.UnparameterizeMember(param, member, diag);
+        }
 
         [Test]
         public void ScopeStepTest()

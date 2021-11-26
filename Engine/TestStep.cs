@@ -27,7 +27,7 @@ namespace OpenTap
     [ComVisible(true)]
     [Guid("d0b06600-7bac-47fb-9251-f834e420623f")]
     public abstract class TestStep : ValidatingObject, ITestStep, IBreakConditionProvider, IDescriptionProvider, 
-        IDynamicMembersProvider, IInputOutputRelations
+        IDynamicMembersProvider, IInputOutputRelations, IParameterizedMembersCache
     {
         #region Properties
         /// <summary>
@@ -507,10 +507,31 @@ namespace OpenTap
         // Implementing this interface will make setting and getting descriptions faster.
         string IDescriptionProvider.Description { get; set; }
         // Implementing this interface will make setting and getting dynamic members faster.
-        IMemberData[] IDynamicMembersProvider.DynamicMembers { get; set; }
+        IDictionary<string, IMemberData> IDynamicMembersProvider.DynamicMembers { get; set; }
 
         InputOutputRelation[] IInputOutputRelations.Inputs { get; set; }
         InputOutputRelation[] IInputOutputRelations.Outputs { get; set; }
+
+        readonly Dictionary<IMemberData, IParameterMemberData> parameterizations =
+            new Dictionary<IMemberData, IParameterMemberData>();
+        void IParameterizedMembersCache.RegisterParameterizedMember(IMemberData mem, IParameterMemberData memberData)
+        {
+            lock (parameterizations)
+                parameterizations.Add(mem, memberData);
+        }
+
+        void IParameterizedMembersCache.UnregisterParameterizedMember(IMemberData mem, IParameterMemberData memberData)
+        {
+            lock (parameterizations)
+                parameterizations.Remove(mem);
+        }
+
+        IParameterMemberData IParameterizedMembersCache.GetParameterFor(IMemberData mem)
+        {
+            if (parameterizations.TryGetValue(mem, out var r))
+                return r;
+            return null;
+        }
     }
 
     /// <summary>
