@@ -128,6 +128,8 @@ namespace OpenTap.Package
 
         internal static string NormalizeRepoUrl(string path)
         {
+            if(path == null)
+                return null;
             if (Uri.IsWellFormedUriString(path, UriKind.Relative) && Directory.Exists(path) || Regex.IsMatch(path ?? "", @"^([A-Z|a-z]:)?(\\|/)"))
             {
                 if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
