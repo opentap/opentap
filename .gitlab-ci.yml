@@ -296,7 +296,7 @@ TestUbuntu:
 TestCentos7:
   stage: test
   image:
-    name: stefanholst0/dotnet-60-centos7-root:latest
+    name: stefanholst0/dotnet-60-centos7-root:custom
     entrypoint: [ "" ]
   extends: .LinuxScript
 
