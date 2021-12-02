@@ -14,9 +14,10 @@ namespace OpenTap.Plugins
         /// <summary> The order of this serializer. </summary>
         public override double Order { get { return 1; } }
 
-        HashSet<XElement> currentNode = new HashSet<XElement>();
+        readonly HashSet<XElement> currentNode = new HashSet<XElement>();
         internal TestPlan Plan { get; private set; }
 
+        readonly ITypeData testPlanType = TypeData.FromType(typeof(TestPlan));
         /// <summary>
         /// Deserializes a test plan from XML.
         /// </summary>
@@ -26,10 +27,11 @@ namespace OpenTap.Plugins
         /// <returns></returns>
         public override bool Deserialize(XElement element, ITypeData _t, Action<object> setter)
         {
-            if (_t.IsA(typeof(TestPlan)) == false)
+            if (_t.DirectInheritsFrom(testPlanType) == false)
                 return false;
             var prevPlan = Plan;
-            Plan = new TestPlan { Path = Serializer.ReadPath };
+            Plan = (TestPlan)_t.CreateInstance();
+            Plan.Path = Serializer.ReadPath;
             try
             {
                 return TryDeserializeObject(element, _t, setter, Plan);
@@ -38,7 +40,6 @@ namespace OpenTap.Plugins
             {
                 Plan = prevPlan;
             }
-
         }
 
         /// <summary>
