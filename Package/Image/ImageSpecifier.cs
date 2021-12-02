@@ -31,93 +31,15 @@ namespace OpenTap.Package
         /// <returns>An <see cref="ImageIdentifier"/></returns>
         public ImageIdentifier Resolve(CancellationToken cancellationToken)
         {
-            List<Exception> exceptions = new List<Exception>();
             List<IPackageRepository> repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
-            List<PackageDef> gatheredPackages = new List<PackageDef>();
 
-            // Check if all package only specify compatible oss
-            var oss = Packages.Select(p => p.OS).Distinct().Where(o => string.IsNullOrEmpty(o) == false && o.Contains(",") == false).ToList();
-            var openTapPackage = Packages.FirstOrDefault(p => p.Name == "OpenTAP"); 
-            string os;
-            if (oss.Count != 1)
-                os = openTapPackage?.OS ?? OperatingSystem.Current.Name;
-            else
-                os = oss[0];
-            
-            // Check if all package only specify compatible architectures
-            var archs = Packages.Select(p => p.Architecture).Distinct()
-                                                .Where(a => a != CpuArchitecture.Unspecified && a != CpuArchitecture.AnyCPU).ToList();
+            DependencyResolver resolver = new DependencyResolver(Packages, repositories, cancellationToken);
 
-            // Check if same package is specified in multiple versions:
-            var versionAmbiguities = Packages.GroupBy(s => s.Name).Where(g => g.Count() > 1);
-            foreach(var va in versionAmbiguities)
-            {
-                var versions = va.SelectValues(p => p.Version);
+            if (resolver.DependencyIssues.Any())
+                throw new AggregateException("Image could not be resolved", resolver.DependencyIssues);
+          
+            ImageIdentifier image = new ImageIdentifier(resolver.Dependencies, repositories.Select(s => s.Url));
 
-            }
-
-
-            CpuArchitecture arch;
-            if (archs.Count != 1)
-                arch = openTapPackage?.Architecture ?? ArchitectureHelper.GuessBaseArchitecture;
-            else
-                arch = archs[0];
-            
-            foreach (var specifier in Packages)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                    throw new OperationCanceledException("Resolve operation cancelled by user");
-                try
-                {
-                    PackageDef package = PackageActionHelpers.FindPackage(new PackageSpecifier(specifier.Name, specifier.Version, arch, os), new List<PackageDef>(), repositories);
-                    gatheredPackages.Add(package);
-                }
-                catch (Exception)
-                {
-                    PackageDef package = OnResolve?.Invoke(new ImageSpecifierResolveArgs(this, specifier));
-                    if (package != null)
-                        gatheredPackages.Add(package);
-                    else
-                        exceptions.Add(new InvalidOperationException($"Unable to resolve package '{specifier.Name}'"));
-                }
-            }
-            if (cancellationToken.IsCancellationRequested)
-                throw new OperationCanceledException("Resolve operation cancelled by user");
-
-            DependencyResolver dependencyResolver = new DependencyResolver(new Dictionary<string, PackageDef>(), gatheredPackages, repositories);
-            if (dependencyResolver.UnknownDependencies.Any())
-            {
-                foreach (var dep in dependencyResolver.UnknownDependencies)
-                {
-                    string message = string.Format("A package dependency named '{0}' with a version compatible with {1} could not be found in any repository.", dep.Name, dep.Version);
-                    exceptions.Add(new InvalidOperationException(message));
-                }
-            }
-
-            gatheredPackages = dependencyResolver.Dependencies;
-
-            // Group packages by name in order to find conflicting versions
-            var gatheredPackagesGrouped = gatheredPackages.GroupBy(s => s.Name)
-                                            .Select(x => x.OrderByDescending(g => g.Version));
-            foreach (var package in gatheredPackagesGrouped)
-            {
-                if (package.Select(x => x.Version.Major).Distinct().Count() > 1)
-                    exceptions.Add(new InvalidOperationException($"{package.FirstOrDefault().Name} is resolved to multiple packages with different major versions which conflicts"));
-            }
-
-
-            // If there is no errors, only pick the highest versions of each resolved package
-            if (!exceptions.Any())
-                gatheredPackages = gatheredPackages.GroupBy(s => s.Name)
-                                            .Select(x => x.OrderByDescending(g => g.Version).FirstOrDefault()).ToList();
-
-            if (cancellationToken.IsCancellationRequested)
-                throw new OperationCanceledException("Resolve operation cancelled by user");
-
-            ImageIdentifier image = new ImageIdentifier(gatheredPackages, repositories.Select(s => s.Url));
-
-            if (exceptions.Any())
-                throw new AggregateException("Image could not be resolved", exceptions);
             return image;
         }
 

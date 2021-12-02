@@ -29,8 +29,8 @@ namespace OpenTap.Package
         /// <summary>
         /// Search parameters that specify an exact or a version compatible match to the given package/identifier.
         /// </summary>
-        public PackageSpecifier(IPackageIdentifier package, VersionMatchBehavior versionMatchBehavior = VersionMatchBehavior.Exact) 
-            : this(package.Name, new VersionSpecifier(package.Version, versionMatchBehavior),package.Architecture, package.OS)
+        public PackageSpecifier(IPackageIdentifier package, VersionMatchBehavior versionMatchBehavior = VersionMatchBehavior.Exact)
+            : this(package.Name, new VersionSpecifier(package.Version, versionMatchBehavior), package.Architecture, package.OS)
         {
         }
 
@@ -59,7 +59,7 @@ namespace OpenTap.Package
     /// Specifies parts of a semantic version. This is used in <see cref="PackageSpecifier"/> to represent the part of a <see cref="SemanticVersion"/> to search for.
     /// E.g. the VersionSpecifier "9.0" may match the semantic version "9.0.4+abcdef" and also "9.1.x" if <see cref="MatchBehavior"/> is set to "Compatible".
     /// </summary>
-    public class VersionSpecifier
+    public class VersionSpecifier : IComparable
     {
         /// <summary>
         /// The VersionSpecifier that will match any version. VersionSpecifier.Any.IsCompatible always returns true.
@@ -107,6 +107,8 @@ namespace OpenTap.Package
             PreRelease = prerelease;
             BuildMetadata = buildMetadata;
             MatchBehavior = matchBehavior;
+            if (Major == null || Minor == null || Patch == null)
+                MatchBehavior = VersionMatchBehavior.Compatible;
         }
 
         /// <summary>
@@ -118,7 +120,7 @@ namespace OpenTap.Package
 
         static Regex parser = new Regex(@"^(?<compatible>\^)?((?<major>\d+)(\.(?<minor>\d+)(\.(?<patch>\d+))?)?)?(-(?<prerelease>([a-zA-Z0-9-\.]+)))?(\+(?<metadata>[a-zA-Z0-9-\.]+))?$", RegexOptions.Compiled);
         static Regex semVerPrereleaseChars = new Regex(@"^[a-zA-Z0-9-\.]+$", RegexOptions.Compiled);
-        
+
         /// <summary>
         /// Parses a string as a VersionSpecifier.
         /// </summary>
@@ -164,7 +166,7 @@ namespace OpenTap.Package
                 return ver;
             throw new FormatException($"The string '{version}' is not a valid version specifier.");
         }
-       
+
         /// <summary>
         /// Converts this value to a string. This string can be parsed by <see cref="Parse(string)"/> and <see cref="TryParse(string, out VersionSpecifier)"/>.
         /// </summary>
@@ -185,7 +187,7 @@ namespace OpenTap.Package
                 formatter.Append('.');
                 formatter.Append(Minor);
             }
-            
+
             if (Patch.HasValue)
             {
                 formatter.Append('.');
@@ -201,7 +203,7 @@ namespace OpenTap.Package
                 formatter.Append('+');
                 formatter.Append(BuildMetadata);
             }
-            
+
             return formatter.ToString();
         }
 
@@ -228,7 +230,7 @@ namespace OpenTap.Package
 
             if (Major.HasValue)
                 formatter.Append(Major);
-            
+
             if (Minor.HasValue && fieldCount >= 2)
             {
                 formatter.Append('.');
@@ -260,18 +262,56 @@ namespace OpenTap.Package
         /// <returns></returns>
         public bool IsCompatible(SemanticVersion actualVersion)
         {
-            if (ReferenceEquals(this,VersionSpecifier.Any))
+            if (ReferenceEquals(this, VersionSpecifier.Any))
                 return true; // this is just a small performance shortcut. The below logic would have given the same result.
 
             if (MatchBehavior == VersionMatchBehavior.Exact)
                 return MatchExact(actualVersion);
             if (MatchBehavior.HasFlag(VersionMatchBehavior.Compatible))
                 return MatchCompatible(actualVersion);
-            
+
+            return false;
+        }
+
+        /// <summary>
+        /// Compatibility comparison that returns true if the given version can fulfil this specification. I.e. 'actualVersion' can replace 'this' in every respect.
+        /// </summary>
+        /// <param name="actualVersion"></param>
+        /// <returns></returns>
+        public bool IsCompatible(VersionSpecifier actualVersion)
+        {
+            if (ReferenceEquals(this, VersionSpecifier.Any))
+                return true; // this is just a small performance shortcut. The below logic would have given the same result.
+
+            if (MatchBehavior == VersionMatchBehavior.Exact)
+                return MatchExact(actualVersion);
+            if (MatchBehavior.HasFlag(VersionMatchBehavior.Compatible))
+                return MatchCompatible(actualVersion);
+
             return false;
         }
 
         private bool MatchExact(SemanticVersion actualVersion)
+        {
+            if (actualVersion == null)
+                return false;
+            if (Major.HasValue && Major.Value != actualVersion.Major)
+                return false;
+            if (Minor.HasValue && Minor.Value != actualVersion.Minor)
+                return false;
+            if (Patch.HasValue && Patch.Value != actualVersion.Patch)
+                return false;
+            if (MatchBehavior.HasFlag(VersionMatchBehavior.AnyPrerelease))
+                return true;
+            if (PreRelease != actualVersion.PreRelease)
+                return false;
+            if (string.IsNullOrEmpty(BuildMetadata) == false && BuildMetadata != actualVersion.BuildMetadata)
+                return false;
+            return true;
+        }
+
+
+        private bool MatchExact(VersionSpecifier actualVersion)
         {
             if (actualVersion == null)
                 return false;
@@ -301,7 +341,28 @@ namespace OpenTap.Package
             if (Minor.HasValue && Minor.Value == actualVersion.Minor)
                 if (Patch.HasValue && Patch.Value > actualVersion.Patch)
                     return false;
-                
+
+
+            if (MatchBehavior.HasFlag(VersionMatchBehavior.AnyPrerelease))
+                return true;
+
+            if (0 < new SemanticVersion(0, 0, 0, PreRelease, null).CompareTo(new SemanticVersion(0, 0, 0, actualVersion.PreRelease, null)))
+                return false;
+            return true;
+        }
+
+        private bool MatchCompatible(VersionSpecifier actualVersion)
+        {
+            if (actualVersion == null)
+                return true;
+            if (Major.HasValue && Major.Value != actualVersion.Major)
+                return false;
+            if (Minor.HasValue && Minor.Value > actualVersion.Minor)
+                return false;
+            if (Minor.HasValue && Minor.Value == actualVersion.Minor)
+                if (Patch.HasValue && Patch.Value > actualVersion.Patch)
+                    return false;
+
 
             if (MatchBehavior.HasFlag(VersionMatchBehavior.AnyPrerelease))
                 return true;
@@ -339,6 +400,65 @@ namespace OpenTap.Package
                 return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Returns -1 if obj is greater than this version, 0 if they are the same, and 1 if this is greater than obj
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
+        public int CompareTo(object obj)
+        {
+            if (!(obj is VersionSpecifier))
+                throw new ArgumentException("Object is not a TapVersion");
+
+            VersionSpecifier other = (VersionSpecifier)obj;
+            if (Major > other.Major) return 1;
+            if (Major < other.Major) return -1;
+            if (Minor.HasValue && !other.Minor.HasValue || Minor > other.Minor) return 1;
+            if (!Minor.HasValue && other.Minor.HasValue ||  Minor < other.Minor) return -1;
+            if (Patch.HasValue && !other.Patch.HasValue || Patch > other.Patch) return 1;
+            if (!Patch.HasValue && other.Patch.HasValue || Patch < other.Patch) return -1;
+
+            return ComparePreRelease(PreRelease, other.PreRelease);
+        }
+
+        private static int ComparePreRelease(string p1, string p2)
+        {
+            if (p1 == p2) return 0;
+
+            if (string.IsNullOrEmpty(p1) && string.IsNullOrEmpty(p2)) return 0;
+            if (string.IsNullOrEmpty(p1)) return 1;
+            if (string.IsNullOrEmpty(p2)) return -1;
+
+            var identifiers1 = p1.Split('.');
+            var identifiers2 = p2.Split('.');
+
+            for (int i = 0; i < Math.Min(identifiers1.Length, identifiers2.Length); i++)
+            {
+                var id1 = identifiers1[i];
+                var id2 = identifiers2[i];
+
+                int v1, v2;
+
+                if (int.TryParse(id1, out v1) && int.TryParse(id2, out v2))
+                {
+                    if (v1 != v2)
+                        return v1.CompareTo(v2);
+                }
+                else
+                {
+                    var res = string.Compare(id1, id2);
+
+                    if (res != 0)
+                        return res;
+                }
+            }
+
+            if (identifiers1.Length > identifiers2.Length) return 1;
+            if (identifiers1.Length < identifiers2.Length) return -1;
+
+            return 0;
         }
 
         /// <summary>

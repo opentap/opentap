@@ -2,6 +2,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -31,6 +32,9 @@ namespace OpenTap.Package
         /// </summary>
         public List<PackageDependency> UnknownDependencies = new List<PackageDependency>();
 
+        public List<Exception> DependencyIssues = new List<Exception>();
+
+        private List<ResolvedPackage> IntermediateDependencies = new List<ResolvedPackage>();
 
         private TraceSource log = Log.CreateSource("DependencyResolver");
         /// <summary>
@@ -54,6 +58,59 @@ namespace OpenTap.Package
             resolve(repositories, packages);
         }
 
+        internal DependencyResolver(List<PackageSpecifier> packageSpecifiers, List<IPackageRepository> repositories, CancellationToken cancellationToken)
+        {
+            CheckCompatibility(packageSpecifiers);
+            if (DependencyIssues.Any())
+                return;
+            InstalledPackages = new Dictionary<string, PackageDef>();
+            foreach (var specifier in packageSpecifiers)
+                GetDependenciesRecursive(repositories, new PackageDependency(specifier.Name, specifier.Version), ArchitectureHelper.GuessBaseArchitecture, OperatingSystem.Current.Name);
+
+            Dependencies.AddRange(IntermediateDependencies.Select(s => s.PackageDef));
+        }
+
+        private void CheckCompatibility(List<PackageSpecifier> packages)
+        {
+            var oss = packages.Select(p => p.OS).Distinct().Where(o => string.IsNullOrEmpty(o) == false && o.Contains(",") == false).ToList();
+            var openTapPackage = packages.FirstOrDefault(p => p.Name == "OpenTAP");
+            string os;
+            if (oss.Count != 1)
+                os = openTapPackage?.OS ?? OperatingSystem.Current.Name;
+            else
+                os = oss[0];
+
+            // Check if all package only specify compatible architectures
+            var archs = packages.Select(p => p.Architecture).Distinct()
+                                                .Where(a => a != CpuArchitecture.Unspecified && a != CpuArchitecture.AnyCPU).ToList();
+
+            CpuArchitecture arch;
+            if (archs.Count != 1)
+                arch = openTapPackage?.Architecture ?? ArchitectureHelper.GuessBaseArchitecture;
+            else
+                arch = archs[0];
+
+            // Check if same package is specified in multiple versions:
+            var versionAmbiguities = packages.GroupBy(s => s.Name).Where(g => g.Count() > 1);
+            foreach (var va in versionAmbiguities)
+            {
+                var versions = va.SelectValues(p => p.Version).ToList();
+                for (int i = 0; i < versions.Count; i++)
+                {
+                    for (int j = i; j < versions.Count; j++)
+                    {
+                        if (i == j)
+                            continue; // Do not compare versions with themselves
+                        if (!versions[i].IsCompatible(versions[j]))
+                            DependencyIssues.Add(new InvalidOperationException($"Specified versions of package '{va.Key}' are not compatible: {versions[i]} - {versions[j]}"));
+                    }
+                }
+                var highest = va.OrderByDescending(g => g.Version).FirstOrDefault();
+                packages.RemoveAll(s => s.Name == va.Key);
+                packages.Add(highest);
+            }
+        }
+
         private void resolve(List<IPackageRepository> repositories, IEnumerable<PackageDef> packages)
         {
             var firstleveldependencies = packages.SelectMany(pkg => pkg.Dependencies.Select(dep => new { Dependency = dep, Architecture = pkg.Architecture, OS = pkg.OS }));
@@ -66,22 +123,29 @@ namespace OpenTap.Package
 
         private void GetDependenciesRecursive(List<IPackageRepository> repositories, PackageDependency dependency, CpuArchitecture packageArchitecture, string OS)
         {
-            if (Dependencies.Any(p => (p.Name == dependency.Name) &&
-                dependency.Version.IsCompatible(p.Version) &&
-                ArchitectureHelper.PluginsCompatible(p.Architecture, packageArchitecture)))
+            if (IntermediateDependencies.Any(p => (p.PackageDef.Name == dependency.Name) &&
+                dependency.Version.IsCompatible(p.PackageDef.Version) &&
+                ArchitectureHelper.PluginsCompatible(p.PackageDef.Architecture, packageArchitecture)))
                 return;
             PackageDef depPkg = GetPackageDefFromInstallation(dependency.Name, dependency.Version);
             if (depPkg == null)
             {
                 depPkg = GetPackageDefFromRepo(repositories, dependency.Name, dependency.Version);
-                MissingDependencies.Add(depPkg);
+                MissingDependencies.Add(depPkg); // Todo: Don't add missing dependencies here, let's calculate that all in the end. The dependency here might be replaced later.
             }
             if (depPkg == null)
             {
                 UnknownDependencies.Add(dependency);
                 return;
             }
-            Dependencies.Add(depPkg);
+            // We found a new dependency, replace the old which we already determined was not compatible
+            if (IntermediateDependencies.FirstOrDefault(p => p.PackageDependency.Name == depPkg.Name) is ResolvedPackage previouslyResolved)
+            {
+                IntermediateDependencies.RemoveIf(p => p.PackageDependency.Name == depPkg.Name);
+                if (!previouslyResolved.PackageDependency.Version.IsCompatible(dependency.Version))
+                    DependencyIssues.Add(new InvalidOperationException($"Versions of package '{depPkg.Name}' are not compatible: {depPkg.Version} - {previouslyResolved.PackageDependency.Version}"));
+            }
+            IntermediateDependencies.Add(new ResolvedPackage(dependency, depPkg));
             foreach (var nextLevelDep in depPkg.Dependencies)
             {
                 GetDependenciesRecursive(repositories, nextLevelDep, packageArchitecture, OS);
@@ -94,7 +158,7 @@ namespace OpenTap.Package
         {
             if (name.ToLower().EndsWith(".tappackage"))
                 name = Path.GetFileNameWithoutExtension(name);
-            if(InstalledPackages.ContainsKey(name))
+            if (InstalledPackages.ContainsKey(name))
             {
                 PackageDef package = InstalledPackages[name];
                 // Check that the installed package is compatible with the required package
@@ -110,7 +174,7 @@ namespace OpenTap.Package
                 name = Path.GetFileNameWithoutExtension(name);
 
             var specifier = new PackageSpecifier(name, version, CpuArchitecture.Unspecified, OperatingSystem.Current.ToString());
-            var packages =  PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, specifier, InstalledPackages.Values.ToArray());
+            var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, specifier, InstalledPackages.Values.ToArray());
 
             if (packages.Any() == false)
             {
@@ -118,8 +182,25 @@ namespace OpenTap.Package
                 if (packages.Any())
                     log.Warning($"Unable to find a version of '{name}' package compatible with currently installed packages. Some installed packages may be upgraded.");
             }
+            if(version.Minor is null)
+                return packages.OrderByDescending(pkg => pkg.Version).FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture));
 
-            return packages.OrderByDescending(pkg => pkg.Version).FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture));
+            if (version.Patch is null)
+                return packages.OrderByDescending(pkg => pkg.Version).Where(s => s.Version.Minor == version.Minor).FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture));
+
+            return packages.OrderBy(pkg => pkg.Version).FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture));
         }
+    }
+
+    internal class ResolvedPackage
+    {
+        public ResolvedPackage(PackageDependency packageDependency, PackageDef packageDef)
+        {
+            PackageDependency = packageDependency ?? throw new ArgumentNullException(nameof(packageDependency));
+            PackageDef = packageDef ?? throw new ArgumentNullException(nameof(packageDef));
+        }
+        internal PackageDependency PackageDependency { get; set; }
+        internal PackageDef PackageDef { get; set; }
+        List<ResolvedPackage> ResolvedPackages { get; set; } = new List<ResolvedPackage>();
     }
 }

@@ -101,30 +101,39 @@ namespace OpenTap.Image.Tests
 
         // two different minor versions should reslove to a version semantically compatible with both.
         // We should pick the lowest compatible minor version, to keep the resolution result as stable as possible.  
-        [TestCase("OpenTAP","9.10","9.11","9.11")]
+        [TestCase("OpenTAP", "9.10", "9.11", "error")]
 
-        // In the context of image resolution, ^ means "latest compatible version" in the same way it does for `tap packages install`
-        [TestCase("OpenTAP", "^9.10", null, "latest")]
+        // In the context of image resolution, ^ means "This or compatible version"
+        [TestCase("OpenTAP", "^9.10", null, "9.10.1")]
+        [TestCase("OpenTAP", "9", null, "latest")]
 
         // When one of two conflicting minor versions specifies ^, but the other specifies a later minor, take the later minor,
         // but do not move all the way to the latest version to keep the resolution result as stable as possible.
         [TestCase("OpenTAP", "^9.10", "9.11", "9.11")]
-        [TestCase("OpenTAP", "9.10", "^9.11", "9.11")]
+        [TestCase("OpenTAP", "9.10", "^9.11", "error")]
         [TestCase("OpenTAP", "9.10", "^9.10", "9.10")]
-        
+
         // Same version specified twice
         [TestCase("OpenTAP", "9.10", "9.10", "9.10")]
+
+        // Specifying not-exact & exact versions should equal the exact version they have same preceding elements
+        [TestCase("OpenTAP", "9.13", "9.13.1", "9.13.1")]
+        [TestCase("OpenTAP", "9", "9.13.1", "9.13.1")]
+
+        // Specifying not-exact & exact versions should error when they do not have same preceding elements
+        [TestCase("OpenTAP", "9.14", "9.13.1", "error")]
+
         public void ResolveVersionConflicts(string packageName, string firstVersion, string secondVersion, string resultingVersion)
         {
             PackageRepositoryHelpers.RegisterRepository(new MockRepository("mock://localhost"));
             ImageSpecifier imageSpecifier = new ImageSpecifier();
             imageSpecifier.Repositories = new List<string>() { "mock://localhost" };
             imageSpecifier.Packages.Add(new PackageSpecifier(packageName, VersionSpecifier.Parse(firstVersion)));
-            if(secondVersion != null)
+            if (secondVersion != null)
                 imageSpecifier.Packages.Add(new PackageSpecifier(packageName, VersionSpecifier.Parse(secondVersion)));
             try
             {
-                var image = imageSpecifier.Resolve(System.Threading.CancellationToken.None);
+                var image = imageSpecifier.Resolve(CancellationToken.None);
                 if (resultingVersion is null || resultingVersion == "error")
                     Assert.Fail("This should fail to resolve");
                 if (resultingVersion == "latest")
@@ -144,16 +153,47 @@ namespace OpenTap.Image.Tests
                     throw;
             }
         }
-        
+
+        [TestCase("OpenTAP", "9.10.0", "Demonstration", "9.2.0", "error", "error")]
+        [TestCase("OpenTAP", "9.10.0", "ExactDependency", "1.0.0", "error", "error")]
+        [TestCase("OpenTAP", "9.13.1", "ExactDependency", "1.0.0", "9.13.1", "1.0.0")]
+        [TestCase("OpenTAP", "9.13", "ExactDependency", "1.0.0", "9.13.1", "1.0.0")]
+
+        public void ResolvePackages(string package1, string package1version, string package2, string package2version, string resultingVersion1, string resultingVersion2)
+        {
+            PackageRepositoryHelpers.RegisterRepository(new MockRepository("mock://localhost"));
+            ImageSpecifier imageSpecifier = new ImageSpecifier();
+            imageSpecifier.Repositories = new List<string>() { "mock://localhost" };
+            imageSpecifier.Packages.Add(new PackageSpecifier(package1, VersionSpecifier.Parse(package1version)));
+            imageSpecifier.Packages.Add(new PackageSpecifier(package2, VersionSpecifier.Parse(package2version)));
+            try
+            {
+                var image = imageSpecifier.Resolve(CancellationToken.None);
+                if (resultingVersion1 is null || resultingVersion1 == "error")
+                    Assert.Fail("This should fail to resolve");
+
+                StringAssert.StartsWith(resultingVersion1, image.Packages.First(p => p.Name == package1).Version.ToString());
+                StringAssert.StartsWith(resultingVersion2, image.Packages.First(p => p.Name == package2).Version.ToString());
+            }
+            catch (AggregateException ex)
+            {
+                if (resultingVersion1 is null || resultingVersion1 == "error")
+                    Assert.AreEqual(1, ex.InnerExceptions.Count());
+                else
+                    throw;
+            }
+        }
+
+
         [Test]
         public void ResolveDependencyVersionConflicts()
         {
             PackageRepositoryHelpers.RegisterRepository(new MockRepository("mock://localhost"));
             ImageSpecifier imageSpecifier = new ImageSpecifier();
             imageSpecifier.Repositories.Add("mock://localhost");
-            
+
             // these might come from a KS8500 Station Image definition
-            imageSpecifier.Packages.Add("OpenTAP","9.10");
+            imageSpecifier.Packages.Add("OpenTAP", "9.10");
             imageSpecifier.Packages.Add("Demonstration", "9.1");
 
             imageSpecifier.Packages.Add("MyDemoTestPlan", "1.0.0"); // this depends on Demo ^9.0.2
@@ -161,10 +201,10 @@ namespace OpenTap.Image.Tests
             var image = imageSpecifier.Resolve(System.Threading.CancellationToken.None);
 
             // Make sure we got version 9.1, even when the repo contained 9.2
-            StringAssert.StartsWith("9.1",image.Packages.First(p => p.Name == "Demonstration").Version.ToString());
+            StringAssert.StartsWith("9.1", image.Packages.First(p => p.Name == "Demonstration").Version.ToString());
         }
 
-        
+
         static List<IPackageRepository> repos = new List<IPackageRepository>
         {
             new MockRepository("hej"),
@@ -183,18 +223,15 @@ namespace OpenTap.Image.Tests
 
             var spec = new PackageSpecifier("OpenTAP", VersionSpecifier.Parse("^9.10"));
             var pkgs = repo.GetPackages(spec);
-            Assert.AreEqual(1, pkgs.Select(p => p.Version).Distinct().Count());
-            Assert.AreEqual(latestReleaseVersion, pkgs.First().Version);
+            Assert.AreEqual(latestReleaseVersion, pkgs.Last().Version);
 
             var spec2 = new PackageSpecifier("OpenTAP", VersionSpecifier.Parse("^9.10-beta"));
             var pkgs2 = repo.GetPackages(spec2);
-            Assert.AreEqual(1, pkgs2.Select(p => p.Version).Distinct().Count());
-            Assert.AreEqual(latestVersion, pkgs2.First().Version);
+            Assert.AreEqual(latestVersion, pkgs2.Last().Version);
 
             var spec3 = new PackageSpecifier("OpenTAP", VersionSpecifier.Parse("beta"));
             var pkgs3 = repo.GetPackages(spec3);
-            Assert.AreEqual(1, pkgs3.Select(p => p.Version).Distinct().Count());
-            Assert.AreEqual(latestVersion, pkgs3.First().Version);
+            Assert.AreEqual(latestVersion, pkgs3.Last().Version);
         }
 
 
@@ -219,13 +256,16 @@ namespace OpenTap.Image.Tests
                     DefinePackage("OpenTAP","9.13.0"),
                     DefinePackage("OpenTAP","9.13.1"),
                     DefinePackage("OpenTAP","9.13.2-beta.1"),
-                    DefinePackage("Demonstration", "9.0.0", ("OpenTAP", "^9.9")),
-                    DefinePackage("Demonstration", "9.0.1", ("OpenTAP", "^9.10")),
-                    DefinePackage("Demonstration", "9.0.2", ("OpenTAP", "^9.11")),
-                    DefinePackage("Demonstration", "9.1.0", ("OpenTAP", "^9.12")),
-                    DefinePackage("Demonstration", "9.2.0", ("OpenTAP", "^9.12")),
+                    DefinePackage("OpenTAP","9.13.2"),
+                    DefinePackage("OpenTAP","9.14.0"),
+                    DefinePackage("Demonstration", "9.0.0", ("OpenTAP", "^9.9.0")),
+                    DefinePackage("Demonstration", "9.0.1", ("OpenTAP", "^9.10.0")),
+                    DefinePackage("Demonstration", "9.0.2", ("OpenTAP", "^9.11.0")),
+                    DefinePackage("Demonstration", "9.1.0", ("OpenTAP", "^9.12.0")),
+                    DefinePackage("Demonstration", "9.2.0", ("OpenTAP", "^9.12.0")),
                     DefinePackage("MyDemoTestPlan", "1.0.0", ("OpenTAP", "^9.12.1"), ("Demonstration", "^9.0.2")),
                     DefinePackage("MyDemoTestPlan", "1.1.0", ("OpenTAP", "^9.13.1"), ("Demonstration", "^9.0.2")),
+                    DefinePackage("ExactDependency", "1.0.0", ("OpenTAP", "9.13.1")),
                 };
             }
 
@@ -257,15 +297,16 @@ namespace OpenTap.Image.Tests
             public PackageDef[] GetPackages(PackageSpecifier package, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
             {
                 return AllPackages.Where(p => p.Name == package.Name)
-                                  .GroupBy(p => p.Version)
-                                  .OrderByDescending(g => g.Key)
-                                  .FirstOrDefault(g => package.Version.IsCompatible(g.Key)).ToArray();
+                    .Where(s => package.Version.IsCompatible(s.Version)).ToArray();
+                                  //.GroupBy(p => p.Version)
+                                  //.OrderBy(g => g.Key)
+                                  //.FirstOrDefault(g => package.Version.IsCompatible(g.Key)).ToArray();
             }
 
             public PackageVersion[] GetPackageVersions(string packageName, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
             {
                 return AllPackages.Where(p => p.Name == packageName)
-                                  .Select(p => new PackageVersion(p.Name,p.Version,p.OS,p.Architecture,p.Date,new List<string>()))
+                                  .Select(p => new PackageVersion(p.Name, p.Version, p.OS, p.Architecture, p.Date, new List<string>()))
                                   .OrderByDescending(p => p.Version)
                                   .ToArray();
             }
