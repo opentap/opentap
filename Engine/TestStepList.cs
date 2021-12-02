@@ -171,7 +171,7 @@ namespace OpenTap
                 throw new ArgumentNullException("childType");
             // if the parent is a TestPlan or the parent specifies "AllowAnyChild", then OK
             bool parentAllowsAnyChild = parentType.HasAttribute<AllowAnyChildAttribute>();
-            if (parentType == typeof(TestPlan) || parentAllowsAnyChild)
+            if (parentAllowsAnyChild)
             {
                 if (!childType.HasAttribute<AllowAsChildInAttribute>())
                 {

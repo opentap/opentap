@@ -18,6 +18,7 @@ namespace OpenTap
     /// <summary>
     /// Class containing a test plan.
     /// </summary>
+    [AllowAnyChild] 
     public partial class TestPlan : INotifyPropertyChanged, ITestStepParent
     {
         internal static readonly TraceSource Log = OpenTap.Log.CreateSource(nameof(TestPlan));        
