@@ -2527,6 +2527,29 @@ namespace OpenTap.Engine.UnitTests
             plan.ChildTestSteps.Add(step);
             plan.SerializeToString(true);
         }
-        
+
+        /// <summary> This class just inhertis from test plan </summary>
+        public class TestPlanTest2 : TestPlan
+        {
+            
+        }
+
+        /// <summary>
+        /// A problem existed where if inheriting from TestPlan,
+        /// Name was not set to the right value after deserializing from a stream.
+        /// </summary>
+        [Test]
+        public void TestSerializeInheritTestPlan()
+        {
+            var tp = new TestPlanTest2();
+            // this once threw an exception because of an error in ChildTestSteps.Add.
+            tp.ChildTestSteps.Add(new DelayStep());
+            var str = new MemoryStream();
+            tp.Save(str);
+            str.Seek(0, SeekOrigin.Begin);
+            tp = (TestPlanTest2)TestPlan.Load(str, "testplantest2.TapPlan");
+            // before the fix, this would be set "Untitled"
+            Assert.AreEqual(tp.Name, "testplantest2");
+        }
     }
 }
