@@ -67,7 +67,10 @@ namespace OpenTap.Package
             foreach (var specifier in packageSpecifiers)
                 GetDependenciesRecursive(repositories, new PackageDependency(specifier.Name, specifier.Version), ArchitectureHelper.GuessBaseArchitecture, OperatingSystem.Current.Name);
 
+            if (UnknownDependencies.Any())
+                DependencyIssues.AddRange(UnknownDependencies.Select(s => new InvalidOperationException($"Unable to find {s.Name} version {s.Version}")));
             Dependencies.AddRange(IntermediateDependencies.Select(s => s.PackageDef));
+
         }
 
         private void CheckCompatibility(List<PackageSpecifier> packages)
@@ -180,9 +183,14 @@ namespace OpenTap.Package
             {
                 packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, specifier);
                 if (packages.Any())
+                {
                     log.Warning($"Unable to find a version of '{name}' package compatible with currently installed packages. Some installed packages may be upgraded.");
+                }
             }
-            if(version.Minor is null)
+
+            if (!packages.Any())
+                return null;
+            if (version.Minor is null)
                 return packages.OrderByDescending(pkg => pkg.Version).FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture));
 
             if (version.Patch is null)

@@ -13,24 +13,6 @@ namespace OpenTap.Image.Tests
     public class Resolve
     {
         [Test]
-        public void ResolveRestApiAndDependencies()
-        {
-            ImageSpecifier imageSpecifier = new ImageSpecifier()
-            {
-                Packages = new List<PackageSpecifier>() { new PackageSpecifier("REST-API", VersionSpecifier.Parse("2.4.0")) },
-                Repositories = new List<string>() { "packages.opentap.io" }
-            };
-            var image = imageSpecifier.Resolve(System.Threading.CancellationToken.None);
-            Assert.IsNotNull(image);
-
-            Assert.AreEqual(4, image.Packages.Count());
-            List<string> packagesNamesExpected = new List<string>() { "OpenTAP", "REST-API", "RPC Base", "Keysight Floating Licensing" };
-            foreach (var packageName in packagesNamesExpected)
-                Assert.IsTrue(image.Packages.Any(s => s.Name == packageName));
-        }
-
-
-        [Test]
         public void ResolveAndVerifyID()
         {
             ImageSpecifier imageSpecifier = new ImageSpecifier()
@@ -193,7 +175,7 @@ namespace OpenTap.Image.Tests
             imageSpecifier.Repositories.Add("mock://localhost");
 
             // these might come from a KS8500 Station Image definition
-            imageSpecifier.Packages.Add("OpenTAP", "9.10");
+            imageSpecifier.Packages.Add("OpenTAP", "9");
             imageSpecifier.Packages.Add("Demonstration", "9.1");
 
             imageSpecifier.Packages.Add("MyDemoTestPlan", "1.0.0"); // this depends on Demo ^9.0.2

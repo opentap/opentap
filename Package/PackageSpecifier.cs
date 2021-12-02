@@ -107,8 +107,6 @@ namespace OpenTap.Package
             PreRelease = prerelease;
             BuildMetadata = buildMetadata;
             MatchBehavior = matchBehavior;
-            if (Major == null || Minor == null || Patch == null)
-                MatchBehavior = VersionMatchBehavior.Compatible;
         }
 
         /// <summary>
