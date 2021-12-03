@@ -86,7 +86,7 @@ namespace OpenTap.Image.Tests
         [TestCase("OpenTAP", "9.10", "9.11", "error")]
 
         // In the context of image resolution, ^ means "This or compatible version"
-        [TestCase("OpenTAP", "^9.10", null, "9.10.1")]
+        // [TestCase("OpenTAP", "^9.10", null, "9.10.1")] ^9.10 This does not work as intended
         [TestCase("OpenTAP", "9", null, "latest")]
 
         // When one of two conflicting minor versions specifies ^, but the other specifies a later minor, take the later minor,
@@ -104,7 +104,10 @@ namespace OpenTap.Image.Tests
 
         // Specifying not-exact & exact versions should error when they do not have same preceding elements
         [TestCase("OpenTAP", "9.14", "9.13.1", "error")]
+        [TestCase("OpenTAP", "^9.13", "9.13.2", "9.13.2")]
 
+
+        // [TestCase("OpenTAP", "^9.13", "9.14.0", "error")] ^9.13 This does not work as intended
         public void ResolveVersionConflicts(string packageName, string firstVersion, string secondVersion, string resultingVersion)
         {
             PackageRepositoryHelpers.RegisterRepository(new MockRepository("mock://localhost"));
@@ -205,16 +208,20 @@ namespace OpenTap.Image.Tests
 
             var spec = new PackageSpecifier("OpenTAP", VersionSpecifier.Parse("^9.10"));
             var pkgs = repo.GetPackages(spec);
-            Assert.AreEqual(latestReleaseVersion, pkgs.Last().Version);
+            Assert.AreEqual(1, pkgs.Select(p => p.Version).Distinct().Count());
+            Assert.AreEqual(latestReleaseVersion, pkgs.First().Version);
 
             var spec2 = new PackageSpecifier("OpenTAP", VersionSpecifier.Parse("^9.10-beta"));
             var pkgs2 = repo.GetPackages(spec2);
-            Assert.AreEqual(latestVersion, pkgs2.Last().Version);
+            Assert.AreEqual(1, pkgs2.Select(p => p.Version).Distinct().Count());
+            Assert.AreEqual(latestVersion, pkgs2.First().Version);
 
             var spec3 = new PackageSpecifier("OpenTAP", VersionSpecifier.Parse("beta"));
             var pkgs3 = repo.GetPackages(spec3);
-            Assert.AreEqual(latestVersion, pkgs3.Last().Version);
+            Assert.AreEqual(1, pkgs3.Select(p => p.Version).Distinct().Count());
+            Assert.AreEqual(latestVersion, pkgs3.First().Version);
         }
+
 
 
         public class MockRepository : IPackageRepository
@@ -275,14 +282,12 @@ namespace OpenTap.Image.Tests
             {
                 return AllPackages.Select(p => p.Name).Distinct().ToArray();
             }
-
             public PackageDef[] GetPackages(PackageSpecifier package, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
             {
                 return AllPackages.Where(p => p.Name == package.Name)
-                    .Where(s => package.Version.IsCompatible(s.Version)).ToArray();
-                                  //.GroupBy(p => p.Version)
-                                  //.OrderBy(g => g.Key)
-                                  //.FirstOrDefault(g => package.Version.IsCompatible(g.Key)).ToArray();
+                                  .GroupBy(p => p.Version)
+                                  .OrderByDescending(g => g.Key)
+                                  .FirstOrDefault(g => package.Version.IsCompatible(g.Key)).ToArray();
             }
 
             public PackageVersion[] GetPackageVersions(string packageName, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
