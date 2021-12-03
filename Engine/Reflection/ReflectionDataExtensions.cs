@@ -21,6 +21,14 @@ namespace OpenTap
             return type.CreateInstance(Array.Empty<object>());
         }
 
+        /// <summary>
+        /// Creates an instance of this type using the default constructor.
+        /// </summary>
+        public static T CreateInstance<T>(this ITypeData type)
+        {
+            return (T)CreateInstance(type);
+        }
+
         /// <summary> returns true if 'type' is a descendant of 'basetype'. </summary>
         /// <param name="type"></param>
         /// <param name="basetype"></param>
