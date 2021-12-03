@@ -106,6 +106,7 @@ namespace OpenTap.Image.Tests
         [TestCase("OpenTAP", "9.14", "9.13.1", "error")]
         [TestCase("OpenTAP", "^9.13", "9.13.2", "9.13.2")]
 
+        [TestCase("Cyclic", "1.0.0", null, "1.0.0")]
 
         // [TestCase("OpenTAP", "^9.13", "9.14.0", "error")] ^9.13 This does not work as intended
         public void ResolveVersionConflicts(string packageName, string firstVersion, string secondVersion, string resultingVersion)
@@ -143,6 +144,7 @@ namespace OpenTap.Image.Tests
         [TestCase("OpenTAP", "9.10.0", "ExactDependency", "1.0.0", "error", "error")]
         [TestCase("OpenTAP", "9.13.1", "ExactDependency", "1.0.0", "9.13.1", "1.0.0")]
         [TestCase("OpenTAP", "9.13", "ExactDependency", "1.0.0", "9.13.1", "1.0.0")]
+        [TestCase("Cyclic", "1.0.0", "Cyclic2", "1.0.0", "1.0.0", "1.0.0")]
 
         public void ResolvePackages(string package1, string package1version, string package2, string package2version, string resultingVersion1, string resultingVersion2)
         {
@@ -255,6 +257,8 @@ namespace OpenTap.Image.Tests
                     DefinePackage("MyDemoTestPlan", "1.0.0", ("OpenTAP", "^9.12.1"), ("Demonstration", "^9.0.2")),
                     DefinePackage("MyDemoTestPlan", "1.1.0", ("OpenTAP", "^9.13.1"), ("Demonstration", "^9.0.2")),
                     DefinePackage("ExactDependency", "1.0.0", ("OpenTAP", "9.13.1")),
+                    DefinePackage("Cyclic", "1.0.0", ("Cyclic2", "1.0.0")),
+                    DefinePackage("Cyclic2", "1.0.0", ("Cyclic", "1.0.0")),
                 };
             }
 
