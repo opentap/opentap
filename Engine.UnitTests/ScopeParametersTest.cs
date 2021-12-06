@@ -713,5 +713,48 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual(iterations, step2.Instruments.Count());
             }
         }
+
+        [Test]
+        public void DynamicMemberNullTest()
+        {
+            var plan = new TestPlan();
+            
+            var seq = new SequenceStep();
+            plan.ChildTestSteps.Add(seq);
+            var log = new LogStep();
+            seq.ChildTestSteps.Add(log);
+            var seqType1 = TypeData.GetTypeData(seq);
+            var mems1 = seqType1.GetMembers().ToArray();
+            var logType = TypeData.GetTypeData(log);
+            var param = logType.GetMember(nameof(log.LogMessage)).Parameterize(seq, log, "log1");
+            var seqType2 = TypeData.GetTypeData(seq);
+            var mems2 = seqType2.GetMembers().ToArray();
+            logType.GetMember(nameof(log.LogMessage)).Unparameterize(param, log);
+            
+            // previously, this getter threw an exception, since seqType2 had changed compared to seqType1
+            // a coding error inside getDynamicStep caused that.
+            var mems3 = seqType2.GetMembers().ToArray();
+            Assert.IsTrue(mems1.Length == mems2.Length - 1); // mems1 + parameter.
+            Assert.IsTrue(mems1.Length == mems3.Length); // parameter was removed.
+        }
+
+        [Test]
+        public void DynamicMemberNullTest2()
+        {
+            var plan = new TestPlan();
+            var seq = new SequenceStep();
+            plan.ChildTestSteps.Add(seq);
+            var log = new LogStep();
+            seq.ChildTestSteps.Add(log);
+            var logType = TypeData.GetTypeData(log);
+            var param = logType.GetMember(nameof(log.LogMessage)).Parameterize(seq, log, "log1");
+            var param2 = param.Parameterize(plan, seq, "log2");
+            seq.ChildTestSteps.Clear();
+            using (ParameterManager.WithSanityCheckDelayed(true))
+            {
+                var m2 = TypeData.GetTypeData(plan).GetMember(param2.Name);
+                Assert.IsNull(m2);
+            }
+        }
     }
 }
