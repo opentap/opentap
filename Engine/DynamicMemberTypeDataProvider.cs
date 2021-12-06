@@ -528,6 +528,8 @@ namespace OpenTap
             IDictionary<string,IMemberData> getDynamicMembers()
             {
                 var dynamicMembers = (IDictionary<string,IMemberData>)TestStepTypeData.DynamicMembers.GetValue(target);
+                // dynamicMembers can be null after the last element is removed.
+                if(dynamicMembers == null) return EmptyDictionary<string, IMemberData>.Instance;
                 if (target is ITestStepParent step)
                 {
                     // if it is a test step type, check that the parameters declared on a parent step
