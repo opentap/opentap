@@ -713,5 +713,26 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual(iterations, step2.Instruments.Count());
             }
         }
+
+        [Test]
+        public void DynamicMemberNullTest()
+        {
+            var seq = new SequenceStep();
+            var log = new LogStep();
+            seq.ChildTestSteps.Add(log);
+            var seqType1 = TypeData.GetTypeData(seq);
+            var mems1 = seqType1.GetMembers().ToArray();
+            var logType = TypeData.GetTypeData(log);
+            var param = logType.GetMember(nameof(log.LogMessage)).Parameterize(seq, log, "log1");
+            var seqType2 = TypeData.GetTypeData(seq);
+            var mems2 = seqType2.GetMembers().ToArray();
+            logType.GetMember(nameof(log.LogMessage)).Unparameterize(param, log);
+            
+            // previously, this getter threw an exception, since seqType2 had changed compared to seqType1
+            // a coding error inside getDynamicStep caused that.
+            var mems3 = seqType2.GetMembers().ToArray();
+            Assert.IsTrue(mems1.Length == mems2.Length - 1); // mems1 + parameter.
+            Assert.IsTrue(mems1.Length == mems3.Length); // parameter was removed.
+        }
     }
 }
