@@ -86,17 +86,23 @@ namespace OpenTap.Image.Tests
         [TestCase("OpenTAP", "9.10", "9.11", "error")]
 
         // In the context of image resolution, ^ means "This or compatible version"
-        // [TestCase("OpenTAP", "^9.10", null, "9.10.1")] ^9.10 This does not work as intended
+        [TestCase("OpenTAP", "^9.10", null, "9.10.1")] //^9.10 This does not work as intended
         [TestCase("OpenTAP", "9", null, "latest")]
 
         // When one of two conflicting minor versions specifies ^, but the other specifies a later minor, take the later minor,
         // but do not move all the way to the latest version to keep the resolution result as stable as possible.
         [TestCase("OpenTAP", "^9.10", "9.11", "9.11")]
+        [TestCase("OpenTAP", "9.11", "^9.10", "9.11")]
         [TestCase("OpenTAP", "9.10", "^9.11", "error")]
         [TestCase("OpenTAP", "9.10", "^9.10", "9.10")]
 
         // Same version specified twice
-        [TestCase("OpenTAP", "9.10", "9.10", "9.10")]
+        [TestCase("OpenTAP", "9.10", "9.10", "9.10.1")]
+        [TestCase("OpenTAP", "9.10.0", "9.10.0", "9.10.0")]
+
+        // don't trip if there is no exact specification
+        [TestCase("OpenTAP", "^9.10", "^9.10", "9.10.1")]
+        [TestCase("OpenTAP", "^9.10.0", "^9.10.0", "9.10.0")]
 
         // Specifying not-exact & exact versions should equal the exact version they have same preceding elements
         [TestCase("OpenTAP", "9.13", "9.13.1", "9.13.1")]
@@ -134,6 +140,35 @@ namespace OpenTap.Image.Tests
             catch (AggregateException ex)
             {
                 if (resultingVersion is null || resultingVersion == "error")
+                    Assert.AreEqual(1, ex.InnerExceptions.Count());
+                else
+                    throw;
+            }
+        }
+
+        [TestCase("OpenTAP", "Native", CpuArchitecture.AnyCPU, CpuArchitecture.x86, CpuArchitecture.x86)]
+        //[TestCase("Native", "Native2", CpuArchitecture.x64, CpuArchitecture.x86, null)] // We are more tolorant, and resolve this to ArchitectureHelper.GuessBaseArchitecture
+        [TestCase("Native", "Native2", CpuArchitecture.x64, CpuArchitecture.Unspecified, CpuArchitecture.x64)]
+        [TestCase("Native", "Native2", CpuArchitecture.x86, CpuArchitecture.Unspecified, CpuArchitecture.x86)]
+        [TestCase("Native", "Native2", CpuArchitecture.Unspecified, CpuArchitecture.x86, CpuArchitecture.x86)]
+        [TestCase("Native", "Native2", CpuArchitecture.Unspecified, CpuArchitecture.x64, CpuArchitecture.x64)]
+        public void ResolveArchConflicts(string packageName1, string packageName2, CpuArchitecture firstArch, CpuArchitecture secondArch, CpuArchitecture? resultingArch)
+        {
+            PackageRepositoryHelpers.RegisterRepository(new MockRepository("mock://localhost"));
+            ImageSpecifier imageSpecifier = new ImageSpecifier();
+            imageSpecifier.Repositories = new List<string>() { "mock://localhost" };
+            imageSpecifier.Packages.Add(new PackageSpecifier(packageName1, VersionSpecifier.Any, firstArch));
+            imageSpecifier.Packages.Add(new PackageSpecifier(packageName2, VersionSpecifier.Any, secondArch));
+            try
+            {
+                var image = imageSpecifier.Resolve(CancellationToken.None);
+                if (!resultingArch.HasValue)
+                    Assert.Fail($"This should fail to resolve, but resolved to {String.Join(",", image.Packages.Select(p => p.Architecture))}");
+                Assert.IsTrue(image.Packages.All(p => p.Architecture == CpuArchitecture.AnyCPU || p.Architecture == resultingArch.Value), $"Package archs was {String.Join(", ", image.Packages.Select(p => p.Architecture))}");
+            }
+            catch (AggregateException ex)
+            {
+                if (!resultingArch.HasValue)
                     Assert.AreEqual(1, ex.InnerExceptions.Count());
                 else
                     throw;
@@ -249,25 +284,35 @@ namespace OpenTap.Image.Tests
                     DefinePackage("OpenTAP","9.13.2-beta.1"),
                     DefinePackage("OpenTAP","9.13.2"),
                     DefinePackage("OpenTAP","9.14.0"),
-                    DefinePackage("Demonstration", "9.0.0", ("OpenTAP", "^9.9.0")),
-                    DefinePackage("Demonstration", "9.0.1", ("OpenTAP", "^9.10.0")),
-                    DefinePackage("Demonstration", "9.0.2", ("OpenTAP", "^9.11.0")),
-                    DefinePackage("Demonstration", "9.1.0", ("OpenTAP", "^9.12.0")),
-                    DefinePackage("Demonstration", "9.2.0", ("OpenTAP", "^9.12.0")),
-                    DefinePackage("MyDemoTestPlan", "1.0.0", ("OpenTAP", "^9.12.1"), ("Demonstration", "^9.0.2")),
-                    DefinePackage("MyDemoTestPlan", "1.1.0", ("OpenTAP", "^9.13.1"), ("Demonstration", "^9.0.2")),
-                    DefinePackage("ExactDependency", "1.0.0", ("OpenTAP", "9.13.1")),
-                    DefinePackage("Cyclic", "1.0.0", ("Cyclic2", "1.0.0")),
-                    DefinePackage("Cyclic2", "1.0.0", ("Cyclic", "1.0.0")),
+                    DefinePackage("Demonstration",  "9.0.0", CpuArchitecture.AnyCPU, "windows", ("OpenTAP", "^9.9.0")),
+                    DefinePackage("Demonstration",  "9.0.1", CpuArchitecture.AnyCPU, "windows", ("OpenTAP", "^9.10.0")),
+                    DefinePackage("Demonstration",  "9.0.2", CpuArchitecture.AnyCPU, "windows", ("OpenTAP", "^9.11.0")),
+                    DefinePackage("Demonstration",  "9.1.0", CpuArchitecture.AnyCPU, "windows", ("OpenTAP", "^9.12.0")),
+                    DefinePackage("Demonstration",  "9.2.0", CpuArchitecture.AnyCPU, "windows", ("OpenTAP", "^9.12.0")),
+                    DefinePackage("MyDemoTestPlan", "1.0.0", CpuArchitecture.AnyCPU, "windows", ("OpenTAP", "^9.12.1"), ("Demonstration", "^9.0.2")),
+                    DefinePackage("MyDemoTestPlan", "1.1.0", CpuArchitecture.AnyCPU, "windows", ("OpenTAP", "^9.13.1"), ("Demonstration", "^9.0.2")),
+                    DefinePackage("ExactDependency","1.0.0", CpuArchitecture.AnyCPU, "windows", ("OpenTAP", "9.13.1")),
+                    DefinePackage("Cyclic",         "1.0.0", CpuArchitecture.AnyCPU, "windows", ("Cyclic2", "1.0.0")),
+                    DefinePackage("Cyclic2",        "1.0.0", CpuArchitecture.AnyCPU, "windows", ("Cyclic", "1.0.0")),
+                    DefinePackage("Native",         "1.0.0", CpuArchitecture.x86,    "windows"),
+                    DefinePackage("Native",         "1.0.0", CpuArchitecture.x64,    "windows"),
+                    DefinePackage("Native",         "1.0.0", CpuArchitecture.x86,    "linux"),
+                    DefinePackage("Native",         "1.0.0", CpuArchitecture.x64,    "linux"),
+                    DefinePackage("Native2",        "1.0.0", CpuArchitecture.x86,    "windows"),
+                    DefinePackage("Native2",        "1.0.0", CpuArchitecture.x64,    "windows"),
+                    DefinePackage("Native2",        "1.0.0", CpuArchitecture.x86,    "linux"),
+                    DefinePackage("Native2",        "1.0.0", CpuArchitecture.x64,    "linux"),
                 };
             }
 
-            private PackageDef DefinePackage(string name, string version, params (string name, string version)[] dependencies)
+            private PackageDef DefinePackage(string name, string version, CpuArchitecture arch = CpuArchitecture.AnyCPU, string os = "windows", params (string name, string version)[] dependencies)
             {
                 return new PackageDef
                 {
                     Name = name,
                     Version = SemanticVersion.Parse(version),
+                    Architecture = arch,
+                    OS = os,
                     Dependencies = dependencies.Select(d => new PackageDependency(d.name, VersionSpecifier.Parse(d.version))).ToList()
                 };
             }
@@ -288,10 +333,10 @@ namespace OpenTap.Image.Tests
             }
             public PackageDef[] GetPackages(PackageSpecifier package, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
             {
-                return AllPackages.Where(p => p.Name == package.Name)
+                var list = AllPackages.Where(p => p.Name == package.Name)
                                   .GroupBy(p => p.Version)
-                                  .OrderByDescending(g => g.Key)
-                                  .FirstOrDefault(g => package.Version.IsCompatible(g.Key)).ToArray();
+                                  .OrderByDescending(g => g.Key).ToList();
+                return list.FirstOrDefault(g => package.Version.IsCompatible(g.Key)).ToArray();
             }
 
             public PackageVersion[] GetPackageVersions(string packageName, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)

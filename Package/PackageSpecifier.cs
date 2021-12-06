@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -13,6 +14,7 @@ namespace OpenTap.Package
     /// <summary>
     /// Holds search parameters that specifies a range of packages in the OpenTAP package system.
     /// </summary>
+    [DebuggerDisplay("{Name} ({Version.ToString()})")]
     public class PackageSpecifier
     {
         /// <summary>

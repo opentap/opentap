@@ -62,11 +62,11 @@ namespace OpenTap.Package
 
         internal DependencyResolver(List<PackageSpecifier> packageSpecifiers, List<IPackageRepository> repositories, CancellationToken cancellationToken)
         {
-            CheckCompatibility(packageSpecifiers);
+            var alignedSpecifiers = CheckCompatibility(packageSpecifiers);
             if (DependencyIssues.Any())
                 return;
             InstalledPackages = new Dictionary<string, PackageDef>();
-            foreach (var specifier in packageSpecifiers)
+            foreach (var specifier in alignedSpecifiers)
                 ResolveDependenciesRecursive(repositories, specifier, Tree);
 
             Finish();
@@ -103,7 +103,11 @@ namespace OpenTap.Package
             MissingDependencies = Dependencies.Where(s => !InstalledPackages.Any(p => p.Key == s.Name)).ToList();
         }
 
-        private void CheckCompatibility(List<PackageSpecifier> packages)
+        /// <summary>
+        /// Checks package version, architecture and OS specifications for compatibility, and returns a new distilled set of compatible specifications if possible.
+        /// </summary>
+        /// <param name="packages"></param>
+        private IEnumerable<PackageSpecifier> CheckCompatibility(IEnumerable<PackageSpecifier> packages)
         {
             var oss = packages.Select(p => p.OS).Distinct().Where(o => string.IsNullOrEmpty(o) == false && o.Contains(",") == false).ToList();
             var openTapPackage = packages.FirstOrDefault(p => p.Name == "OpenTAP");
@@ -123,25 +127,30 @@ namespace OpenTap.Package
             else
                 arch = archs[0];
 
-            // Check if same package is specified in multiple versions:
-            var versionAmbiguities = packages.GroupBy(s => s.Name).Where(g => g.Count() > 1);
-            foreach (var va in versionAmbiguities)
+            Dictionary<string, PackageSpecifier> selectedSpecifiers = new Dictionary<string, PackageSpecifier>();
+            foreach (var p in packages)
             {
-                var versions = va.SelectValues(p => p.Version).ToList();
-                for (int i = 0; i < versions.Count; i++)
+                if (selectedSpecifiers.TryGetValue(p.Name, out var s))
                 {
-                    for (int j = i; j < versions.Count; j++)
+                    if (p.Version.IsSatisfiedBy(s.Version))
                     {
-                        if (i == j)
-                            continue; // Do not compare versions with themselves
-                        if (!versions[i].IsCompatible(versions[j]))
-                            DependencyIssues.Add(new InvalidOperationException($"Specified versions of package '{va.Key}' are not compatible: {versions[i]} - {versions[j]}"));
+                        // the already selected package can be used in place of this
+                        continue;
                     }
+                    else if (s.Version.IsSatisfiedBy(p.Version))
+                    {
+                        // this package can satisfy the already selected specification, update to use this instead.
+                        selectedSpecifiers[p.Name] = new PackageSpecifier(p.Name, p.Version, arch, os);
+                    }
+                    else
+                        DependencyIssues.Add(new InvalidOperationException($"Specified versions of package '{p.Name}' are not compatible: {p.Version} - {s.Version}"));
                 }
-                var highest = va.OrderByDescending(g => g.Version).FirstOrDefault();
-                packages.RemoveAll(s => s.Name == va.Key);
-                packages.Add(highest);
+                else
+                {
+                    selectedSpecifiers.Add(p.Name, new PackageSpecifier(p.Name, p.Version, arch, os));
+                }
             }
+            return selectedSpecifiers.Values;
         }
 
         private void resolve(List<IPackageRepository> repositories, IEnumerable<PackageDef> packages)
@@ -174,7 +183,7 @@ namespace OpenTap.Package
             PackageDef depPkg = GetPackageDefFromInstallation(dependency.Name, dependency.Version);
             if (depPkg == null)
             {
-                depPkg = GetPackageDefFromRepo(repositories, dependency.Name, dependency.Version);
+                depPkg = GetPackageDefFromRepo(repositories, dependency);
                 //MissingDependencies.Add(depPkg); // Todo: Don't add missing dependencies here, let's calculate that all in the end. The dependency here might be replaced later.
             }
             if (depPkg == null)
@@ -234,17 +243,18 @@ namespace OpenTap.Package
             return null;
         }
 
-        private PackageDef GetPackageDefFromRepo(List<IPackageRepository> repositories, string name, VersionSpecifier version)
+        private PackageDef GetPackageDefFromRepo(List<IPackageRepository> repositories, PackageSpecifier spec)
         {
+            var name = spec.Name;
             if (name.ToLower().EndsWith(".tappackage"))
                 name = Path.GetFileNameWithoutExtension(name);
 
-            var specifier = new PackageSpecifier(name, version, CpuArchitecture.Unspecified, OperatingSystem.Current.ToString());
-            var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, specifier, InstalledPackages.Values.ToArray());
+            //var specifier = new PackageSpecifier(name, version, CpuArchitecture.Unspecified, OperatingSystem.Current.ToString());
+            IEnumerable<PackageDef> packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, spec, InstalledPackages.Values.ToArray());
 
             if (packages.Any() == false)
             {
-                packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, specifier);
+                packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, spec);
                 if (packages.Any())
                 {
                     log.Warning($"Unable to find a version of '{name}' package compatible with currently installed packages. Some installed packages may be upgraded.");
@@ -253,13 +263,27 @@ namespace OpenTap.Package
 
             if (!packages.Any())
                 return null;
-            if (version.Minor is null)
-                return packages.OrderByDescending(pkg => pkg.Version).FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture));
 
-            if (version.Patch is null)
-                return packages.OrderByDescending(pkg => pkg.Version).Where(s => s.Version.Minor == version.Minor).FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture));
+            // if the version is not fully specified, or it is a compatible version, don't rely on
+            // the repo to pick the correct version, instead ask for all versions and pick one here
+            if (spec.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible) || spec.Version.Minor is null || spec.Version.Patch is null)
+            {
+                var allVersions =PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, spec.Name, InstalledPackages.Values.ToArray())
+                                                         .Select(p => p.Version).Distinct();
+                if (spec.Version.Minor != null)
+                    allVersions = allVersions.Where(v => v.Minor == spec.Version.Minor);
+                if (spec.Version.Patch != null)
+                    allVersions = allVersions.Where(v => v.Patch == spec.Version.Patch);
+                SemanticVersion ver = allVersions.OrderByDescending(v => v).FirstOrDefault();
+                var exactSpec = new PackageSpecifier(name, new VersionSpecifier(ver, VersionMatchBehavior.Exact), spec.Architecture, spec.OS);
+                packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, exactSpec);
+            }
 
-            return packages.OrderBy(pkg => pkg.Version).FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture));
+            var selected = packages.FirstOrDefault(p => p.IsPlatformCompatible(spec.Architecture,spec.OS));
+            if (selected is null)
+                return packages.FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture)); // fallback to old behavior
+            else
+                return selected;
         }
     }
 
@@ -304,6 +328,14 @@ namespace OpenTap.Package
                    spec.Version.IsCompatible(pkg.Version) &&
                    (spec.Architecture is CpuArchitecture.Unspecified ||
                    ArchitectureHelper.PluginsCompatible(pkg.Architecture, spec.Architecture)); // TODO: Should we check OS?
+        }
+
+        /// <summary>
+        /// Returns true if this specifier can be satisfied by the given version. Really the same behavior as VersionSpecifier.IsCompatible, just with a better name.
+        /// </summary>
+        public static bool IsSatisfiedBy(this VersionSpecifier spec, VersionSpecifier other)
+        {
+            return spec.IsCompatible(other);
         }
     }
 }
