@@ -1143,8 +1143,9 @@ namespace OpenTap
             public string Content;
         }
         
-        static Dictionary<ITypeData, Dictionary<string, IMemberData>> formatterLutCache 
-            = new Dictionary<ITypeData, Dictionary<string, IMemberData>>();
+        // note: this should probably be a conditional weak table to avoid leaking exotic transient ITypeData values.
+        static readonly ConcurrentDictionary<ITypeData, Dictionary<string, IMemberData>> formatterLutCache 
+            = new ConcurrentDictionary<ITypeData, Dictionary<string, IMemberData>>();
         
         /// <summary> Takes the name of step and replaces {} tokens with the value of properties. </summary>
         public static string GetFormattedName(this ITestStep step)
