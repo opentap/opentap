@@ -67,7 +67,7 @@ namespace OpenTap.Package
             InstalledPackages = new Dictionary<string, PackageDef>();
             TreeRoot = DependencyTreeNode.CreateRoot();
             foreach (var specifier in alignedSpecifiers)
-                ResolveDependenciesRecursive(repositories, specifier, TreeRoot);
+                ResolveDependenciesRecursive(repositories, specifier, TreeRoot, cancellationToken);
 
             CategorizeResolvedPackages();
         }
@@ -182,13 +182,16 @@ namespace OpenTap.Package
                 foreach (var dep in pkg.Dependencies)
                 {
                     var spec = new PackageSpecifier(dep.Name, dep.Version, pkg.Architecture, pkg.OS);
-                    ResolveDependenciesRecursive(repositories, spec, node);
+                    ResolveDependenciesRecursive(repositories, spec, node, CancellationToken.None);
                 }
             }
         }
 
-        private void ResolveDependenciesRecursive(List<IPackageRepository> repositories, PackageSpecifier dependency, DependencyTreeNode parent)
+        private void ResolveDependenciesRecursive(List<IPackageRepository> repositories, PackageSpecifier dependency, DependencyTreeNode parent, CancellationToken cancellationToken)
         {
+            if(cancellationToken.IsCancellationRequested)
+                throw new OperationCanceledException("Operation cancelled by user.");
+
             string indent = new string(' ', parent.WalkParents().Count() * 2);
             // Can this dependency be satisfied by something that is already in the tree?
             DependencyTreeNode node = TreeRoot.WalkChildren().FirstOrDefault(n => dependency.IsCompatible(n.Package));
@@ -220,7 +223,7 @@ namespace OpenTap.Package
             foreach (var nextLevelDep in depPkg.Dependencies)
             {
                 var spec = new PackageSpecifier(nextLevelDep.Name, nextLevelDep.Version, dependency.Architecture, dependency.OS);
-                ResolveDependenciesRecursive(repositories, spec, newNode);
+                ResolveDependenciesRecursive(repositories, spec, newNode, cancellationToken);
             }
         }
 
