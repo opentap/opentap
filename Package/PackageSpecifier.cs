@@ -69,28 +69,28 @@ namespace OpenTap.Package
         public static readonly VersionSpecifier Any = new VersionSpecifier(null, null, null, null, null, VersionMatchBehavior.Compatible | VersionMatchBehavior.AnyPrerelease);
 
         /// <summary>
-        /// Major version. When not null, <see cref="IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a Major version different from this.
+        /// Major version. When not null, <see cref="SemanticVersion.IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a Major version different from this.
         /// </summary>
         public readonly int? Major;
         /// <summary>
-        /// Minor version. When not null, <see cref="IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a Minor version less than this (with <see cref="VersionMatchBehavior.Compatible"/>) or different from this (with <see cref="VersionMatchBehavior.Exact"/>).
+        /// Minor version. When not null, <see cref="SemanticVersion.IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a Minor version less than this (with <see cref="VersionMatchBehavior.Compatible"/>) or different from this (with <see cref="VersionMatchBehavior.Exact"/>).
         /// </summary>
         public readonly int? Minor;
         /// <summary>
-        /// Patch version. When not null, <see cref="IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a Patch version different from this if <see cref="MatchBehavior"/> is <see cref="VersionMatchBehavior.Exact"/>.
+        /// Patch version. When not null, <see cref="SemanticVersion.IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a Patch version different from this if <see cref="MatchBehavior"/> is <see cref="VersionMatchBehavior.Exact"/>.
         /// </summary>
         public readonly int? Patch;
         /// <summary>
-        /// PreRelease identifier. <see cref="IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a PreRelease less than this (with <see cref="VersionMatchBehavior.Compatible"/>) or different from this (with <see cref="VersionMatchBehavior.Exact"/>).
+        /// PreRelease identifier. <see cref="SemanticVersion.IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a PreRelease less than this (with <see cref="VersionMatchBehavior.Compatible"/>) or different from this (with <see cref="VersionMatchBehavior.Exact"/>).
         /// </summary>
         public readonly string PreRelease;
         /// <summary>
-        /// BuildMetadata identifier. When not null, <see cref="IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a BuildMetadata different from this if <see cref="MatchBehavior"/> is <see cref="VersionMatchBehavior.Exact"/>.
+        /// BuildMetadata identifier. When not null, <see cref="SemanticVersion.IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a BuildMetadata different from this if <see cref="MatchBehavior"/> is <see cref="VersionMatchBehavior.Exact"/>.
         /// </summary>
         public readonly string BuildMetadata;
 
         /// <summary>
-        /// The way matching is done. This affects the behavior of <see cref="IsCompatible(SemanticVersion)"/>.
+        /// The way matching is done. This affects the behavior of <see cref="SemanticVersion.IsCompatible(SemanticVersion)"/>.
         /// </summary>
         public readonly VersionMatchBehavior MatchBehavior;
         /// <summary>

@@ -15,6 +15,10 @@ namespace OpenTap.Package
     public class Installation
     {
         static TraceSource log = Log.CreateSource("Installation");
+
+        /// <summary>
+        /// Path to the installation
+        /// </summary>
         public string Directory { get; }
 
         /// <summary>

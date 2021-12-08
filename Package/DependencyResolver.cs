@@ -31,6 +31,9 @@ namespace OpenTap.Package
         /// </summary>
         public List<PackageDependency> UnknownDependencies = new List<PackageDependency>();
 
+        /// <summary>
+        /// List of dependency issues as exceptions. This can for example be version mismatches.
+        /// </summary>
         public List<Exception> DependencyIssues = new List<Exception>();
         internal List<string> resolutionTree = new List<string>();
 
@@ -72,6 +75,10 @@ namespace OpenTap.Package
             CategorizeResolvedPackages();
         }
 
+        /// <summary>
+        /// Returns the resolved dependency tree
+        /// </summary>
+        /// <returns>Multi line dependency tree string</returns>
         public string GetPrintableDependencyTree()
         {
             return string.Join(Environment.NewLine, resolutionTree);
