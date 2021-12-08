@@ -20,10 +20,6 @@ namespace OpenTap.Package
         /// </summary>
         public List<string> Repositories { get; set; } = new List<string>();
         
-        internal delegate PackageDef ResolveDelegate(ImageSpecifierResolveArgs args);
-
-        internal event ResolveDelegate OnResolve;
-
         /// <summary>
         /// Resolve the desired packages from the specified repositories. This will check if the packages are available, compatible and can successfully be deployed as an OpenTAP installation
         /// </summary>
@@ -36,7 +32,7 @@ namespace OpenTap.Package
             DependencyResolver resolver = new DependencyResolver(Packages, repositories, cancellationToken);
 
             if (resolver.DependencyIssues.Any())
-                throw new AggregateException("Image could not be resolved", resolver.DependencyIssues);
+                throw new AggregateException($"OpenTAP packages could not be resolved", resolver.DependencyIssues);
           
             ImageIdentifier image = new ImageIdentifier(resolver.Dependencies, repositories.Select(s => s.Url));
 

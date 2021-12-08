@@ -113,7 +113,7 @@ namespace OpenTap.Package
 
             Installation currentInstallation = new Installation(targetDir);
             var currentPackages = currentInstallation.GetPackages();
-            
+
             var skippedPackages = Packages.Where(s => currentPackages.Any(p => p.Name == s.Name && p.Version.ToString() == s.Version.ToString())).ToHashSet();
             var modifyOrAdd = Packages.Where(s => !skippedPackages.Contains(s)).ToList();
             var packagesToUninstall = currentPackages.Where(pack => !Packages.Any(p => p.Name == pack.Name) && pack.Class.ToLower() != "system-wide").ToList(); // Uninstall installed packages which are not part of image
@@ -129,8 +129,8 @@ namespace OpenTap.Package
                 log.Info($"Deploying installation in {targetDir}:");
             else
                 log.Info($"Modifying installation in {targetDir}:");
-            
-            foreach(var package in skippedPackages)
+
+            foreach (var package in skippedPackages)
                 log.Info($"- Skipping {package.Name} version {package.Version} ({package.Architecture}-{package.OS}) - Already installed.");
             foreach (var package in packagesToUninstall)
                 log.Info($"- Removing {package.Name} version {package.Version} ({package.Architecture}-{package.OS})");
@@ -152,6 +152,58 @@ namespace OpenTap.Package
 
             if (modifyOrAdd.Any())
                 Install(modifyOrAdd, targetDir, cancellationToken);
+        }
+
+        /// <summary>
+        /// Deploy the <see cref="ImageIdentifier"/> as an upgrade to an existing OpenTAP installation.
+        /// </summary>
+        /// <param name="installation">Installation to deploy OpenTap image onto.
+        /// Image packages which are not present in the current installation will be installed.
+        /// The existing packages in the installation will get upgraded if the image packages are higher versions.
+        /// The existing packages in the installation which are not in the image, will be left untouched.
+        /// This can cause existing installed packages to have incompatible dependencies.
+        /// To detect issues prior to deployment, use the DependencyAnalyzer
+        /// </param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        public void Deploy(Installation installation, CancellationToken cancellationToken)
+        {
+            var currentPackages = installation.GetPackages().Where(s => s.Class != "system-wide").ToList();
+
+            var upgrade = Packages.Where(s => currentPackages.Any(p => s.Name == p.Name && !s.Version.IsCompatible(p.Version))).ToList();
+            var add = Packages.Where(s => !currentPackages.Any(p => s.Name == p.Name)).ToList();
+
+            if (!add.Any() && !upgrade.Any())
+            {
+                log.Info($"Target installation is already up to date.");
+                return;
+            }
+
+            if (!currentPackages.Any())
+                log.Info($"Deploying installation in {installation.Directory}:");
+            else
+                log.Info($"Modifying installation in {installation.Directory}:");
+
+            foreach (var package in upgrade)
+                log.Info($"- Modifying {package.Name} version {package.Version} to {Packages.FirstOrDefault(s => s.Name == package.Name).Version}");
+            foreach (var package in add)
+                log.Info($"- Installing {package.Name} version {package.Version}");
+
+            var packagesToUninstall = currentPackages.Where(s => upgrade.Any(p => s.Name == p.Name));
+
+            if (cancellationToken.IsCancellationRequested)
+                throw new OperationCanceledException("Deployment operation cancelled by user");
+
+            if (packagesToUninstall.Any())
+                Uninstall(packagesToUninstall, installation.Directory, cancellationToken);
+
+            if (cancellationToken.IsCancellationRequested)
+                throw new OperationCanceledException("Deployment operation cancelled by user");
+
+            var modifyOrAdd = add;
+            modifyOrAdd.AddRange(upgrade);
+
+            if (modifyOrAdd.Any())
+                Install(modifyOrAdd, installation.Directory, cancellationToken);
         }
 
         private void Install(IEnumerable<PackageDef> modifyOrAdd, string target, CancellationToken cancellationToken)

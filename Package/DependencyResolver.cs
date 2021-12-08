@@ -7,9 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace OpenTap.Package
 {
@@ -34,8 +32,8 @@ namespace OpenTap.Package
         public List<PackageDependency> UnknownDependencies = new List<PackageDependency>();
 
         public List<Exception> DependencyIssues = new List<Exception>();
+        internal List<string> resolutionTree = new List<string>();
 
-        //private List<DependencyTreeNode> Tree = new List<DependencyTreeNode>();
         internal DependencyTreeNode TreeRoot;
         private TraceSource log = Log.CreateSource("DependencyResolver");
         /// <summary>
@@ -51,14 +49,14 @@ namespace OpenTap.Package
                 InstalledPackages[pkg.Name] = pkg;
 
             resolve(repositories, packages);
-            Finish();
+            CategorizeResolvedPackages();
         }
 
         internal DependencyResolver(Dictionary<string, PackageDef> installedPackages, IEnumerable<PackageDef> packages, List<IPackageRepository> repositories)
         {
             InstalledPackages = installedPackages;
             resolve(repositories, packages);
-            Finish();
+            CategorizeResolvedPackages();
         }
 
         internal DependencyResolver(List<PackageSpecifier> packageSpecifiers, List<IPackageRepository> repositories, CancellationToken cancellationToken)
@@ -71,38 +69,58 @@ namespace OpenTap.Package
             foreach (var specifier in alignedSpecifiers)
                 ResolveDependenciesRecursive(repositories, specifier, TreeRoot);
 
-            Finish();
+            CategorizeResolvedPackages();
         }
 
-
-        private void Finish()
+        public string GetPrintableDependencyTree()
         {
-            // Populate UnknownDependencies, Dependencies & DependencyIssues
-            var versionAmbiguities = TreeRoot.WalkChildren().GroupBy(s => s.Package.Name).Where(g => g.Count() > 1);
-            foreach (var va in versionAmbiguities)
-            {
-                var versions = va.SelectValues(p => p.VersionRequirement).ToList();
-                for (int i = 0; i < versions.Count; i++)
-                {
-                    for (int j = i; j < versions.Count; j++)
-                    {
-                        if (i == j)
-                            continue; // Do not compare versions with themselves
-                        if (!versions[i].IsCompatible(versions[j]))
-                            DependencyIssues.Add(new InvalidOperationException($"Specified versions of package '{va.Key}' are not compatible: {versions[i]} - {versions[j]}"));
-                    }
-                }
-                var highest = va.OrderByDescending(g => g.VersionRequirement).FirstOrDefault();
-                Dependencies.Add(highest.Package);
-            }
-            var rest = TreeRoot.WalkChildren().Where(s => !Dependencies.Any(p => p.Name == s.Package.Name)).Select(s => s.Package);
-            if (rest.Any())
-                Dependencies.AddRange(rest);
+            return string.Join(Environment.NewLine, resolutionTree);
+        }
 
-            if (UnknownDependencies.Any())
-                DependencyIssues.AddRange(UnknownDependencies.Select(s => new InvalidOperationException($"Unable to find {s.Name} version {s.Version}")));
+        /// <summary>
+        /// Populates Dependencies, UnknownDependencies and DependencyIssues based on resolved dependency tree
+        /// </summary>
+        private void CategorizeResolvedPackages()
+        {
+            Dictionary<string, DependencyTreeNode> selectedNodes = new Dictionary<string, DependencyTreeNode>();
+            foreach (var p in TreeRoot.WalkChildren())
+            {
+                if (selectedNodes.TryGetValue(p.PackageSpecifier.Name, out var s))
+                {
+                    if (p.PackageSpecifier.Version.IsSatisfiedBy(s.PackageSpecifier.Version))
+                    {
+                        // the already selected package can be used in place of this
+                        continue;
+                    }
+                    else if (s.PackageSpecifier.Version.IsSatisfiedBy(p.PackageSpecifier.Version))
+                    {
+                        // this package can satisfy the already selected specification, update to use this instead.
+                        selectedNodes[p.PackageSpecifier.Name] = p;
+                    }
+                    else
+                        DependencyIssues.Add(new InvalidOperationException($"Specified versions of package '{p.PackageSpecifier.Name}' are not compatible: {p.PackageSpecifier.Version} - {s.PackageSpecifier.Version}"));
+                }
+                else
+                {
+                    selectedNodes.Add(p.PackageSpecifier.Name, p);
+                }
+            }
+
+            Dependencies = selectedNodes.Values.Where(p => p.Package != null).Select(s => s.Package).ToList();
+            UnknownDependencies = selectedNodes.Values.Where(s => s.Package == null).Select(p => new PackageDependency(p.PackageSpecifier.Name, p.PackageSpecifier.Version)).ToList();
 
             MissingDependencies = Dependencies.Where(s => !InstalledPackages.Any(p => p.Key == s.Name)).ToList();
+
+            if (UnknownDependencies.Any())
+            {
+                foreach (var dep in UnknownDependencies)
+                {
+                    string err = $"Unable to find package '{dep.Name}'";
+                    if (!string.IsNullOrEmpty(dep.Version.ToString()))
+                        err += $" version {dep.Version}";
+                    DependencyIssues.Add(new InvalidOperationException(err));
+                }
+            }
         }
 
         /// <summary>
@@ -157,13 +175,10 @@ namespace OpenTap.Package
 
         private void resolve(List<IPackageRepository> repositories, IEnumerable<PackageDef> packages)
         {
-            Dependencies.AddRange(packages);
-
-
             TreeRoot = DependencyTreeNode.CreateRoot();
             foreach (var pkg in packages)
             {
-                var node = TreeRoot.AddChild(pkg, new VersionSpecifier(pkg.Version, VersionMatchBehavior.Compatible));
+                var node = TreeRoot.AddChild(pkg, new PackageSpecifier(pkg, VersionMatchBehavior.Compatible));
                 foreach (var dep in pkg.Dependencies)
                 {
                     var spec = new PackageSpecifier(dep.Name, dep.Version, pkg.Architecture, pkg.OS);
@@ -174,6 +189,7 @@ namespace OpenTap.Package
 
         private void ResolveDependenciesRecursive(List<IPackageRepository> repositories, PackageSpecifier dependency, DependencyTreeNode parent)
         {
+            string indent = new string(' ', parent.WalkParents().Count() * 2);
             // Can this dependency be satisfied by something that is already in the tree?
             DependencyTreeNode node = TreeRoot.WalkChildren().FirstOrDefault(n => dependency.IsCompatible(n.Package));
             if (node != null)
@@ -183,28 +199,24 @@ namespace OpenTap.Package
                     return;// throw new InvalidOperationException("Cyclic dependencies not supported.");
 
                 node.AddParent(parent);
+                resolutionTree.Add($"{indent}{dependency.Name} version {dependency.Version} resolved to {node.Package.Version}");
                 return;
             }
 
             PackageDef depPkg = GetPackageDefFromInstallation(dependency.Name, dependency.Version);
             if (depPkg == null)
-            {
                 depPkg = GetPackageDefFromRepo(repositories, dependency);
-                //MissingDependencies.Add(depPkg); // Todo: Don't add missing dependencies here, let's calculate that all in the end. The dependency here might be replaced later.
-            }
+
+            var newNode = parent.AddChild(depPkg, dependency);
+
+            if (depPkg != null)
+                resolutionTree.Add($"{indent}{dependency.Name} version {dependency.Version} resolved to {depPkg.Version}");
+            else
+                resolutionTree.Add($"{indent}{dependency.Name} version {dependency.Version} was unable to be resolved");
+
             if (depPkg == null)
-            {
-                UnknownDependencies.Add(new PackageDependency(dependency.Name, dependency.Version));
                 return;
-            }
-            // We found a new dependency, replace the old which we already determined was not compatible
-            //if (Tree.FirstOrDefault(p => p.Package.Name == depPkg.Name) is DependencyTreeNode previouslyResolved)
-            //{
-            //    Tree.RemoveIf(p => p.Package.Name == depPkg.Name);
-            //    if (!previouslyResolved.VersionRequirement.IsCompatible(dependency.Version))
-            //        DependencyIssues.Add(new InvalidOperationException($"Versions of package '{depPkg.Name}' are not compatible: {depPkg.Version} - {previouslyResolved.PackageDependency.Version}"));
-            //}
-            var newNode = parent.AddChild(depPkg, dependency.Version);
+
             foreach (var nextLevelDep in depPkg.Dependencies)
             {
                 var spec = new PackageSpecifier(nextLevelDep.Name, nextLevelDep.Version, dependency.Architecture, dependency.OS);
@@ -253,7 +265,7 @@ namespace OpenTap.Package
             // the repo to pick the correct version, instead ask for all versions and pick one here
             if (spec.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible) || spec.Version.Minor is null || spec.Version.Patch is null)
             {
-                var allVersions =PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, spec.Name, InstalledPackages.Values.ToArray())
+                var allVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, spec.Name, InstalledPackages.Values.ToArray())
                                                          .Select(p => p.Version).Distinct();
                 if (spec.Version.Minor != null)
                     allVersions = allVersions.Where(v => v.Minor == spec.Version.Minor);
@@ -264,7 +276,7 @@ namespace OpenTap.Package
                 packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, exactSpec);
             }
 
-            var selected = packages.FirstOrDefault(p => p.IsPlatformCompatible(spec.Architecture,spec.OS));
+            var selected = packages.FirstOrDefault(p => p.IsPlatformCompatible(spec.Architecture, spec.OS));
             if (selected is null)
                 return packages.FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture)); // fallback to old behavior
             else
@@ -273,17 +285,17 @@ namespace OpenTap.Package
     }
 
     [DebuggerDisplay("Node: {ToString()}")]
-    internal class DependencyTreeNode 
+    internal class DependencyTreeNode
     {
-        private DependencyTreeNode(PackageDef packageDef, VersionSpecifier versionReq)
+        private DependencyTreeNode(PackageDef packageDef, PackageSpecifier packageSpecifier)
         {
-            VersionRequirement = versionReq ?? throw new ArgumentNullException(nameof(versionReq));
-            Package = packageDef ?? throw new ArgumentNullException(nameof(packageDef));
+            PackageSpecifier = packageSpecifier ?? throw new ArgumentNullException(nameof(packageSpecifier));
+            Package = packageDef;
         }
         /// <summary>
         /// The requirement of the version of this package. This is the highest requirement of the requirements of all the parent nodes
         /// </summary>
-        public VersionSpecifier VersionRequirement { get; }
+        public PackageSpecifier PackageSpecifier { get; }
 
         /// <summary>
         /// The package that this node represents (the dependency was resolved to this package)
@@ -317,9 +329,9 @@ namespace OpenTap.Package
         /// </summary>
         internal IEnumerable<DependencyTreeNode> ChildNodes => childNodes;
         internal List<DependencyTreeNode> childNodes = new List<DependencyTreeNode>();
-        internal DependencyTreeNode AddChild(PackageDef packageDef, VersionSpecifier versionReq)
+        internal DependencyTreeNode AddChild(PackageDef packageDef, PackageSpecifier packageSpecifier)
         {
-            var childNode = new DependencyTreeNode(packageDef, versionReq);
+            var childNode = new DependencyTreeNode(packageDef, packageSpecifier);
             childNode.parentNodes.Add(this);
             childNodes.Add(childNode);
             return childNode;
