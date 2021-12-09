@@ -343,8 +343,8 @@ namespace OpenTap.Package.UnitTests
                 Assert.AreEqual(0, exitCode, "Unexpected exit code");
                 StringAssert.Contains("Dummy", output);
                 StringAssert.Contains("Dependency", output);
-                Assert.IsTrue(File.Exists("Dependency.txt"));
                 Assert.IsTrue(File.Exists("Dummy.txt"));
+                Assert.IsTrue(File.Exists("Dependency.txt"));
             }
             finally
             {

@@ -113,11 +113,11 @@ namespace OpenTap.Package
                 }
             }
 
-            Dependencies = selectedNodes.Values.Where(p => p.Package != null).Select(s => s.Package).ToList();
+            Dependencies = selectedNodes.Values.Where(p => p.Package != null && !InstalledPackages.Any(s => s.Value == p.Package)).Select(s => s.Package).ToList();
             UnknownDependencies = selectedNodes.Values.Where(s => s.Package == null).Select(p => new PackageDependency(p.PackageSpecifier.Name, p.PackageSpecifier.Version)).ToList();
 
             // A dependency is only "missing" if it is not installed and has to be downloaded from a repository
-            MissingDependencies = Dependencies.Where(s => !InstalledPackages.Any(p => p.Key == s.Name) && s.PackageSource is IRepositoryPackageDefSource).ToList();
+            MissingDependencies = Dependencies.Where(s => !InstalledPackages.Any(p => p.Key == s.Name && s.Version == p.Value.Version) && !(s.PackageSource is FilePackageDefSource)).ToList();
 
             if (UnknownDependencies.Any())
             {

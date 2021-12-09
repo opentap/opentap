@@ -333,7 +333,11 @@ namespace OpenTap.Package
                 }
             }
 
-            return gatheredPackages;
+            foreach(var dependency in resolver.Dependencies)
+                if(!gatheredPackages.Contains(dependency))
+                    gatheredPackages.Add(dependency);
+
+            return gatheredPackages.ToList();
         }
 
         internal static List<string> DownloadPackages(string destinationDir, List<PackageDef> PackagesToDownload, List<string> filenames = null, Action<int, string> progressUpdate = null)
