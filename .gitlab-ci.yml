@@ -242,10 +242,10 @@ TestLinuxPlan:
         - sed -i -e '/SourcePath/ s!dotnet_library_license.txt!.\\dotnet_library_license.txt!' opentap_linux64.package.xml
         - cd bin/Release/publish
         - rm -rf Packages/*
-        - tap package create --install ../../../opentap_linux64.package.xml -o OpenTAP.TapPackage
+        - tap package create --install ../../../opentap_linux64.package.xml -o OpenTAP.TapPackage -v
         - tap | grep Interface
         - mkdir ../test
-        - tap package install OpenTAP.TapPackage --target ../test
+        - tap package install OpenTAP.TapPackage --target ../test -v
         - cd ../test
         - ./tap | grep Interface
         - sed -i '/File Path/ s!Dependencies/!Dependencies\\!' Packages/OpenTAP/package.xml
