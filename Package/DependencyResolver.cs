@@ -22,7 +22,7 @@ namespace OpenTap.Package
         public List<PackageDef> Dependencies = new List<PackageDef>();
 
         /// <summary>
-        /// List of the dependencies to the specified packages that are currently not installed
+        /// List of the dependencies to the specified packages that are currently not installed and has to be downloaded from a repository
         /// </summary>
         public List<PackageDef> MissingDependencies = new List<PackageDef>();
 
@@ -116,7 +116,8 @@ namespace OpenTap.Package
             Dependencies = selectedNodes.Values.Where(p => p.Package != null).Select(s => s.Package).ToList();
             UnknownDependencies = selectedNodes.Values.Where(s => s.Package == null).Select(p => new PackageDependency(p.PackageSpecifier.Name, p.PackageSpecifier.Version)).ToList();
 
-            MissingDependencies = Dependencies.Where(s => !InstalledPackages.Any(p => p.Key == s.Name)).ToList();
+            // A dependency is only "missing" if it is not installed and has to be downloaded from a repository
+            MissingDependencies = Dependencies.Where(s => !InstalledPackages.Any(p => p.Key == s.Name) && s.PackageSource is IRepositoryPackageDefSource).ToList();
 
             if (UnknownDependencies.Any())
             {
