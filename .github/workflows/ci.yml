@@ -3,24 +3,56 @@ name: CI
 on: [push]
 
 jobs:
-  Build-Linux64:
+  GetVersion:
     runs-on: ubuntu-latest
+    # Map a step output to a job output
+    outputs:
+      AssemblyVersion: ${{ steps.asmVer.outputs.ver }}
+      GitVersion: ${{ steps.gitVer.outputs.ver }}
+    steps:
+      - name: Install OpenTAP
+        run: |
+          wget -O opentap.tar https://www.opentap.io/docs/OpenTAP.9.16.2+f3c96b9f.tar
+          tar -xf opentap.tar
+          chmod u+x INSTALL.sh
+          echo 'y' | ./INSTALL.sh
+          ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: tap sdk gitversion --fields 3
+        id: asmVer
+        run: echo ::set-output name=ver::`tap sdk gitversion --fields 3`
+      - name: tap sdk gitversion
+        id: gitVer
+        run: echo ::set-output name=ver::$(tap sdk gitversion)
+      - run: $HOME/bin/tap sdk gitversion
+      - run: echo $(tap sdk gitversion)
+      - name: Print
+        run: echo ${{ steps.gitVer.outputs.ver }}
 
+  ##############
+  ### BUILDS ###
+  ##############
+  Build-Linux:
+    runs-on: ubuntu-latest
     container:
       #image: mcr.microsoft.com/dotnet/sdk:6.0-bullseye-slim
       image: mcr.microsoft.com/dotnet/sdk:6.0-focal
-
     steps:
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - name: Restore dependencies
-        run: dotnet restore
+      # - name: Restore dependencies
+      #   run: dotnet restore -c Release OpenTAP.sln
+      # - name: Build
+      #   run: dotnet build --no-restore -c Release OpenTAP.sln
+      # - name: Test
+      #   run: dotnet test --no-build --verbosity normal
       - name: Build
-        run: dotnet build --no-restore
-      - name: Test
-        run: dotnet test --no-build --verbosity normal
+        run: dotnet publish -c Release OpenTAP.sln
       - name: Upload binaries
         uses: actions/upload-artifact@v2
         with:
@@ -28,13 +60,12 @@ jobs:
           path: |
             bin/Release/publish/*
 
-  Build-Win64:
+  Build-Win:
     runs-on: windows-2019
-
     strategy:
       matrix:
         Architecture: [x86, x64]
-
+    needs: GetVersion
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -52,10 +83,8 @@ jobs:
         # Netcore apps require that the 32-bit runtime is used to run a 32-bit app (though targetting that runtime is not a problem)
         # There is no 32-bit windows server .NET6 docker image. Target x64 first to get access to gitversion.
         run: |
-          dotnet build -c Release /p:Platform=x64
-          cp bin\Release\runtimes\win-x64\native\git2-4aecb64.dll bin\Release
-          $AssemblyVersion = "`"$(bin/Release/tap sdk gitversion --fields 3).0`""
-          $GitVersion = "`"$(bin/Release/tap sdk gitversion)`""
+          $AssemblyVersion = "`"${{needs.GetVersion.outputs.AssemblyVersion}}.0`""
+          $GitVersion = "`"${{needs.GetVersion.outputs.GitVersion}}`""
           Push-Location ./tap/Properties
           $AssemblyInfoFile = (Get-Content AssemblyInfo.cs.Template)
           $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyVersion"', $AssemblyVersion
@@ -64,9 +93,6 @@ jobs:
           $AssemblyInfoFile | Set-Content AssemblyInfo.cs
           cat AssemblyInfo.cs
           Pop-Location
-          # We need to ensure all intermediate build files are removed when targeting a new architecture
-          Move-Item ./bin/Release ./bin/Releasex64
-          Get-ChildItem -Directory obj -Recurse | Remove-Item -Recurse -Force
       - name: Build
         # Now we actually build for the target architecture.
         run: |
@@ -81,3 +107,53 @@ jobs:
           path: |
             bin/Release/*
             bin/Release64/*
+
+  ##############
+  ### TESTS ###
+  ##############
+  TestEngine:
+    runs-on: windows-2022
+    needs: Build-Win
+    steps:
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x86-bin
+          path: bin/
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Test
+        run: |
+          $ErrorActionPreference = "Stop"
+          dotnet vstest bin/Release/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000
+      - uses: actions/upload-artifact@v2
+        with:
+          name: win-testresults
+          path: |
+            TestResult.xml
+  TestPackage:
+    runs-on: windows-2022
+    needs: Build-Win
+    steps:
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x86-bin
+          path: bin/
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Test
+        run: |
+          $ErrorActionPreference = "Stop"
+          Copy-Item -r "Package.UnitTests/Packages" bin/Release
+          Copy-Item .\bin\Release\runtimes\win-x64\native\git2-4aecb64.dll .\bin\Release
+          dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
+      - uses: actions/upload-artifact@v2
+        with:
+          name: win-testresults
+          path: |
+            TestResult.xml
