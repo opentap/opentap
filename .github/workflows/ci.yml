@@ -1,0 +1,79 @@
+name: CI
+
+on: [push]
+
+jobs:
+  Build-Linux64:
+    runs-on: ubuntu-latest
+
+    container:
+      #image: mcr.microsoft.com/dotnet/sdk:6.0-bullseye-slim
+      image: mcr.microsoft.com/dotnet/sdk:6.0-focal
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Restore dependencies
+        run: dotnet restore
+      - name: Build
+        run: dotnet build --no-restore
+      - name: Test
+        run: dotnet test --no-build --verbosity normal
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: linux-x64-bin
+          path: |
+            bin/Release/publish/*
+
+  Build-Win64:
+    runs-on: windows-2019
+
+    strategy:
+      matrix:
+        Architecture: [x86, x64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 6.0.x
+      - name: Stamp Version
+        # We cannot set the version of dotnet core .exe files because it is not supported by Cecil (yet?)
+        # This is because they are not actually PE files, but a small archive which wraps a PE file.
+        # Generate an AssemblyInfo.cs file with the correct version instead.
+        # We need to build twice because 'gitversion' requires tap..
+        # Netcore apps require that the 32-bit runtime is used to run a 32-bit app (though targetting that runtime is not a problem)
+        # There is no 32-bit windows server .NET6 docker image. Target x64 first to get access to gitversion.
+        run: |
+          dotnet build -c Release /p:Platform=x64
+          cp bin\Release\runtimes\win-x64\native\git2-4aecb64.dll bin\Release
+          $AssemblyVersion = "`"$(bin/Release/tap sdk gitversion --fields 3).0`""
+          $GitVersion = "`"$(bin/Release/tap sdk gitversion)`""
+          Push-Location ./tap/Properties
+          $AssemblyInfoFile = (Get-Content AssemblyInfo.cs.Template)
+          $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyVersion"', $AssemblyVersion
+          $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyFileVersion"', $AssemblyVersion
+          $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyInformationalVersion"', $GitVersion
+          $AssemblyInfoFile | Set-Content AssemblyInfo.cs
+          cat AssemblyInfo.cs
+          Pop-Location
+          # We need to ensure all intermediate build files are removed when targeting a new architecture
+          Move-Item ./bin/Release ./bin/Releasex64
+          Get-ChildItem -Directory obj -Recurse | Remove-Item -Recurse -Force
+      - name: Build
+        # Now we actually build for the target architecture.
+        run: |
+          dotnet build -c Release /p:Platform=${{ matrix.Architecture }}
+          dotnet build tap/tap.csproj -c Release /p:Platform=${{ matrix.Architecture }}
+          get-content ./bin/Release/tap.runtimeconfig.json
+          Remove-Item -recurse "bin\Release\Packages"
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: win-${{ matrix.Architecture }}-bin
+          path: |
+            bin/Release/*
+            bin/Release64/*
