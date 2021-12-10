@@ -228,33 +228,6 @@ namespace OpenTap.Image.Tests
             StringAssert.StartsWith("9.1", image.Packages.First(p => p.Name == "Demonstration").Version.ToString());
         }
 
-        [Test]
-        public void DependencyResolverTree()
-        {
-            var packages = new List<PackageSpecifier>();
-
-            // these might come from a KS8500 Station Image definition
-            //packages.Add("OpenTAP", "9");
-            //packages.Add("Demonstration", "9.1");
-
-            packages.Add("MyDemoTestPlan", "1.0.0"); // this depends on Demo ^9.0.2
-
-            var repositories = new List<IPackageRepository> { new MockRepository("mock://localhost") };
-
-            DependencyResolver resolver = new DependencyResolver(packages, repositories, CancellationToken.None);
-
-            var myPlanNode = resolver.TreeRoot.ChildNodes.FirstOrDefault(n => n.Package.Name == "MyDemoTestPlan");
-            Assert.IsNotNull(myPlanNode);
-            var demoNode = myPlanNode.ChildNodes.FirstOrDefault(n => n.Package.Name == "Demonstration");
-            Assert.IsNotNull(demoNode);
-            Assert.AreEqual(1, demoNode.ParentNodes.Count());
-            Assert.AreEqual(myPlanNode, demoNode.ParentNodes.First());
-            var openTapNode = demoNode.ChildNodes.FirstOrDefault(n => n.Package.Name == "OpenTAP");
-            Assert.IsNotNull(openTapNode);
-            Assert.AreEqual(2, openTapNode.ParentNodes.Count());
-            string resolved = resolver.GetPrintableDependencyTree();
-            TestContext.WriteLine(resolved);
-        }
 
         [Test]
         public void TreeWithMissing()

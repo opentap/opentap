@@ -207,13 +207,13 @@ namespace OpenTap.Package
                 }
             }
 
-            foreach (var packageReference in packages)
+            foreach (var packageSpecifier in packages)
             {
                 var installedPackages = installation.GetPackages();
                 Stopwatch timer = Stopwatch.StartNew();
-                if (File.Exists(packageReference.Name))
+                if (File.Exists(packageSpecifier.Name))
                 {
-                    var package = PackageDef.FromPackage(packageReference.Name);
+                    var package = PackageDef.FromPackage(packageSpecifier.Name);
 
                     if (noDowngrade)
                     {
@@ -226,11 +226,11 @@ namespace OpenTap.Package
                     }
 
                     gatheredPackages.Add(package);
-                    log.Debug(timer, "Found package {0} locally.", packageReference.Name);
+                    log.Debug(timer, "Found package {0} locally.", packageSpecifier.Name);
                 }
                 else
                 {
-                    PackageDef package = FindPackage(packageReference, new List<PackageDef>(), repositories);
+                    PackageDef package = FindPackage(packageSpecifier, new List<PackageDef>(), repositories);
 
                     if (noDowngrade)
                     {
