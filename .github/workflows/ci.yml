@@ -233,7 +233,6 @@ jobs:
           path: bin/Release/
       - name: Test
         run: |
-          locale-gen en_US.UTF-8
           mv bin/Release/publish/* bin/Release
           bin/Release/tap run tests/regression.TapPlan --verbose
 
