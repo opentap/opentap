@@ -35,6 +35,49 @@ jobs:
   ##############
   ### BUILDS ###
   ##############
+  Build-DevGuide:
+    runs-on: ubuntu-latest
+    container:
+      image: registry.gitlab.com/opentap/buildrunners/documentationgeneration:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - run: tap generate-pdf "doc/Developer Guide/Readme.md" --toc --skip-first-file --out "sdk/Examples/OpenTAP Developer Guide.pdf" --frontpage "doc/Developer Guide/Frontpage.html" --frontpage-file "doc/Developer Guide/Frontpage.png"
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: doc-devguide
+          retention-days: 5
+          path: |
+            sdk/Examples/OpenTAP Developer Guide.pdf
+
+  Build-ApiDoc:
+    runs-on: ubuntu-latest
+    container:
+      image: registry.gitlab.com/opentap/buildrunners/doxygen:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - run: |
+          mkdir Help API
+          ver=$(grep ^version .gitversion | sed 's/version[ ]*=[ ]*//' | cut -d. -f 1-2)
+          sed -i "s/\$(GitVersion)/$ver/" "doc/API Documentation/Doxyfile"
+          rootdir=`pwd`
+          cd "doc/API Documentation"
+          doxygen Doxyfile
+          cd apiref/html
+          chmcmd index.hhp
+          mv OpenTapApiReference.chm $rootdir/Help/
+          cp -r . $rootdir/API/
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: doc-api
+          retention-days: 5
+          path: |
+            Help/OpenTapApiReference.chm
+            API
+
   Build-Linux:
     runs-on: ubuntu-latest
     container:
@@ -57,6 +100,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: linux-x64-bin
+          retention-days: 5
           path: |
             bin/Release/publish/*
 
@@ -97,6 +141,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: win-${{ matrix.Architecture }}-bin
+          retention-days: 5
           path: |
             bin/Release/*
 
@@ -182,3 +227,58 @@ jobs:
           path: bin/
       - name: Test
         run: bin/tap.exe run tests/regression.TapPlan --verbose
+
+  ###############
+  ### Package ###
+  ###############
+  Package-SDK:
+    runs-on: windows-2022
+    needs:
+      - Build-Win
+      - Build-DevGuide
+      - Build-ApiDoc
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x64-bin
+          path: bin/Release/
+      - name: Download Developer Guide
+        uses: actions/download-artifact@v2
+        with:
+          name: doc-devguide
+          path: /sdk/Examples/
+      - name: Download API Reference
+        uses: actions/download-artifact@v2
+        with:
+          name: doc-api
+          path: /
+      - name: Test
+        run: |
+          Set-Content .\opentap.x86.package.xml  -Value (get-content .\opentap.x86.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch)
+          cd bin/Release
+          cp .\runtimes\win-x64\native\git2-4aecb64.dll .
+          .\tap.exe package create ../../opentap.x86.package.xml --install -v
+          Copy-Item "../../sdk/Examples" "Packages/SDK/Examples" -Recurse
+          Copy-Item "../../Package/PackageSchema.xsd" "Packages/SDK/PackageSchema.xsd"
+          cd Packages/SDK/Examples
+          $doc = New-Object System.Xml.XmlDataDocument
+          $doc.PreserveWhitespace=1
+          $doc.Load("$pwd/Directory.Build.props")
+          $ele = $doc.GetElementsByTagName("PropertyGroup") | Where-Object { $_.GetElementsByTagName("GitVersion").Count -gt 0 }
+          $doc.FirstChild.RemoveChild($ele) # First Child is the Project element
+          $doc.Save("$pwd/Directory.Build.props")
+          cd ../../..
+          ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/Directory.Build.props"
+          ./tap package create -v ../../sdk/sdk.package.xml
+          Move-Item "*.TapPackage" "../.."
+      - uses: actions/upload-artifact@v2
+        with:
+          name: package-sdk
+          retention-days: 14
+          path: |
+            SDK.*.TapPackage
