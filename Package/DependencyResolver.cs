@@ -215,11 +215,11 @@ namespace OpenTap.Package
             {
                 try
                 {
-                    resolvedDependency = GetPackageDefFromRepo(repositories, packageSpecifier);
+                    resolvedDependency = GetPackageDefFromRepo(repositories, packageSpecifier, InstalledPackages.Values.ToList());
                 }
                 catch (Exception ex)
                 {
-                    //resolutionTree.Add(ex.Message);
+                    DependencyIssues.Add(ex);
                 }
             }
 
@@ -244,38 +244,80 @@ namespace OpenTap.Package
             return InstalledPackages.Values.FirstOrDefault(s => specifier.IsCompatible(s));
         }
 
-        private PackageDef GetPackageDefFromRepo(List<IPackageRepository> repositories, PackageSpecifier spec)
+        internal static PackageDef GetPackageDefFromRepo(List<IPackageRepository> repositories, PackageSpecifier packageSpecifier, List<PackageDef> installedPackages)
         {
-            IEnumerable<PackageDef> packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, spec, InstalledPackages.Values.ToArray());
+            IEnumerable<PackageDef> packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageSpecifier, installedPackages.ToArray());
 
             if (packages.Any() == false)
-            {
-                packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, spec);
-                if (packages.Any())
-                {
-                    log.Warning($"Unable to find a version of '{spec.Name}' package compatible with currently installed packages. Some installed packages may be upgraded.");
-                }
-            }
+                packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageSpecifier);
 
             if (!packages.Any())
-                return null;
+            {
+                var compatibleVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageSpecifier.Name, installedPackages.ToArray());
+                var versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageSpecifier.Name);
+
+                // Any packages compatible with opentap and platform
+                var filteredVersions = compatibleVersions.Where(v => v.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS)).ToList();
+                if (filteredVersions.Any())
+                {
+                    // if the specified version exist, don't say it could not be found. 
+                    if (versions.Any(v => packageSpecifier.Version.IsCompatible(v.Version)))
+                        throw new InvalidOperationException($"Package '{packageSpecifier.Name}' matching version '{packageSpecifier.Version}' is not compatible. Latest compatible version is '{filteredVersions.FirstOrDefault().Version}'.");
+                    else
+                        throw new InvalidOperationException($"Package '{packageSpecifier.Name}' matching version '{packageSpecifier.Version}' could not be found. Latest compatible version is '{filteredVersions.FirstOrDefault().Version}'.");
+                }
+
+                // Any compatible with platform but not opentap
+                filteredVersions = versions.Where(v => v.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS)).ToList();
+                if (filteredVersions.Any() && installedPackages.Any())
+                {
+                    var opentapPackage = installedPackages.First();
+                    throw new InvalidOperationException($"Package '{packageSpecifier.Name}' does not exist in a version compatible with '{opentapPackage.Name}' version '{opentapPackage.Version}'.");
+                }
+
+                // Any compatible with opentap but not platform
+                if (compatibleVersions.Any())
+                {
+                    if (packageSpecifier.Version != VersionSpecifier.Any || packageSpecifier.OS != null || packageSpecifier.Architecture != CpuArchitecture.Unspecified)
+                        throw new InvalidOperationException(string.Format("No '{0}' package {1} was found.", packageSpecifier.Name, string.Join(" and ",
+                                new string[] {
+                                    packageSpecifier.Version != VersionSpecifier.Any ? $"compatible with version '{packageSpecifier.Version}'": null,
+                                    packageSpecifier.OS != null ? $"compatible with '{packageSpecifier.OS}' operating system" : null,
+                                    packageSpecifier.Architecture != CpuArchitecture.Unspecified ? $"with '{packageSpecifier.Architecture}' architecture" : null
+                            }.Where(x => x != null).ToArray())));
+                    else
+                        throw new InvalidOperationException($"Package '{packageSpecifier.Name}' does not exist in a version compatible with this OS and architecture.");
+                }
+
+                // Any version
+                if (versions.Any())
+                {
+                    var opentapPackage = installedPackages.FirstOrDefault();
+                    if (opentapPackage != null)
+                        throw new InvalidOperationException($"Package '{packageSpecifier.Name}' does not exist in a version compatible with this OS, architecture and '{opentapPackage.Name}' version '{opentapPackage.Version}'.");
+                    else
+                        throw new InvalidOperationException($"Package '{packageSpecifier.Name}' does not exist in a version compatible with this OS and architecture.");
+                }
+
+                throw new InvalidOperationException($"Package '{packageSpecifier.Name}' could not be found in any repository.");
+            }
 
             // if the version is not fully specified, or it is a compatible version, don't rely on
             // the repo to pick the correct version, instead ask for all versions and pick one here
-            if (spec.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible) || spec.Version.Minor is null || spec.Version.Patch is null)
+            if (packageSpecifier.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible) || packageSpecifier.Version.Minor is null || packageSpecifier.Version.Patch is null)
             {
-                var allVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, spec.Name, InstalledPackages.Values.ToArray())
+                var allVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageSpecifier.Name, installedPackages.ToArray())
                                                          .Select(p => p.Version).Distinct();
-                if (spec.Version.Minor != null)
-                    allVersions = allVersions.Where(v => v.Minor == spec.Version.Minor);
-                if (spec.Version.Patch != null)
-                    allVersions = allVersions.Where(v => v.Patch == spec.Version.Patch);
+                if (packageSpecifier.Version.Minor != null)
+                    allVersions = allVersions.Where(v => v.Minor == packageSpecifier.Version.Minor);
+                if (packageSpecifier.Version.Patch != null)
+                    allVersions = allVersions.Where(v => v.Patch == packageSpecifier.Version.Patch);
                 SemanticVersion ver = allVersions.OrderByDescending(v => v).FirstOrDefault();
-                var exactSpec = new PackageSpecifier(spec.Name, new VersionSpecifier(ver, VersionMatchBehavior.Exact), spec.Architecture, spec.OS);
+                var exactSpec = new PackageSpecifier(packageSpecifier.Name, new VersionSpecifier(ver, VersionMatchBehavior.Exact), packageSpecifier.Architecture, packageSpecifier.OS);
                 packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, exactSpec);
             }
 
-            var selected = packages.FirstOrDefault(p => p.IsPlatformCompatible(spec.Architecture, spec.OS));
+            var selected = packages.FirstOrDefault(p => p.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS));
             if (selected is null)
                 return packages.FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture)); // fallback to old behavior
             else
