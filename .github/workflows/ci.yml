@@ -39,6 +39,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: registry.gitlab.com/opentap/buildrunners/documentationgeneration:latest
+      credentials:
+        username: github
+        password: ${{ secrets.GITLAB_REGISTRY_TOKEN}}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -55,6 +58,9 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: registry.gitlab.com/opentap/buildrunners/doxygen:latest
+      credentials:
+        username: github
+        password: ${{ secrets.GITLAB_REGISTRY_TOKEN}}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -208,9 +214,9 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: win-x64-bin
-          path: bin/
+          path: bin/Release/
       - name: Test
-        run: bin/tap.exe run tests/regression.TapPlan --verbose
+        run: bin/Release/tap.exe run tests/regression.TapPlan --verbose
 
   TestLinuxPlan:
     runs-on: ubuntu-20.04
@@ -224,9 +230,9 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: linux-x64-bin
-          path: bin/
+          path: bin/Release/
       - name: Test
-        run: bin/tap.exe run tests/regression.TapPlan --verbose
+        run: bin/Release/tap.exe run tests/regression.TapPlan --verbose
 
   ###############
   ### Package ###
