@@ -291,7 +291,8 @@ namespace OpenTap.Package
                     foreach (var package in resolver.MissingDependencies)
                     {
                         log.Debug($"Adding dependency {package.Name} {package.Version}");
-                        gatheredPackages.Insert(0, package);
+                        if (!gatheredPackages.Contains(package))
+                            gatheredPackages.Insert(0, package);
                     }
                 }
                 else if (askToIncludeDependencies)
@@ -312,7 +313,8 @@ namespace OpenTap.Package
 
                         if ((res != null) && res.Response == DepResponse.Add)
                         {
-                            gatheredPackages.Insert(0, pkg);
+                            if (!gatheredPackages.Contains(pkg))
+                                gatheredPackages.Insert(0, pkg);
                         }
                         else
                             log.Debug("Ignoring dependent package {0} at users request.", pkg.Name);
