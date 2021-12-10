@@ -41,7 +41,6 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
-        [Ignore("Flaky")]
         public void RunParseTest()
         {
             var setVerdict = new OpenTap.Engine.UnitTests.TestTestSteps.VerdictStep();

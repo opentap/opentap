@@ -15,7 +15,7 @@ namespace OpenTap.Package
 {
     internal static class PackageActionHelpers
     {
-        readonly static TraceSource log =  OpenTap.Log.CreateSource("PackageAction");
+        readonly static TraceSource log = OpenTap.Log.CreateSource("PackageAction");
 
         private enum DepResponse
         {
@@ -128,7 +128,7 @@ namespace OpenTap.Package
 
         internal static string NormalizeRepoUrl(string path)
         {
-            if(path == null)
+            if (path == null)
                 return null;
             if (Uri.IsWellFormedUriString(path, UriKind.Relative) && Directory.Exists(path) || Regex.IsMatch(path ?? "", @"^([A-Z|a-z]:)?(\\|/)"))
             {
@@ -140,14 +140,14 @@ namespace OpenTap.Package
                     return Path.GetFullPath(path)
                                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             }
-            else if(path.StartsWith("http"))
+            else if (path.StartsWith("http"))
                 return path.ToUpperInvariant();
             else
-                return String.Format("http://{0}",path).ToUpperInvariant();
+                return String.Format("http://{0}", path).ToUpperInvariant();
 
         }
 
-        internal static List<PackageDef> GatherPackagesAndDependencyDefs(Installation installation, PackageSpecifier[] pkgRefs, string[] packageNames, string Version, CpuArchitecture arch, string OS, List<IPackageRepository> repositories, 
+        internal static List<PackageDef> GatherPackagesAndDependencyDefs(Installation installation, PackageSpecifier[] pkgRefs, string[] packageNames, string Version, CpuArchitecture arch, string OS, List<IPackageRepository> repositories,
             bool force, bool includeDependencies, bool ignoreDependencies, bool askToIncludeDependencies, bool noDowngrade)
         {
             List<PackageDef> gatheredPackages = new List<PackageDef>();
@@ -224,7 +224,7 @@ namespace OpenTap.Package
                             continue;
                         }
                     }
-                    
+
                     gatheredPackages.Add(package);
                     log.Debug(timer, "Found package {0} locally.", packageReference.Name);
                 }
@@ -256,39 +256,26 @@ namespace OpenTap.Package
                 // If we are just installing bundles, we can assume that dependencies should also be installed
                 includeDependencies = true;
             }
-            
+
+            if (force || ignoreDependencies)
+            {
+                if (force)
+                    log.Info($"Ignoring potential depencencies (--force option specified).");
+                else
+                    log.Info($"Ignoring potential depencencies (--no-dependencies option specified).");
+                return gatheredPackages.ToList();
+            }
+
             log.Debug("Resolving dependencies.");
             var resolver = new DependencyResolver(installation, gatheredPackages, repositories);
-            if(ignoreDependencies)
-            {
-                if(resolver.UnknownDependencies.Any() || resolver.MissingDependencies.Any())
-                    log.Info($"Ignoring depencencies (--no-dependencies option specified).");
-            }
-            if (force)
-            {
-                // this it for compatibility with old 9.11 behavior (--force means don't ask for dependencies).
-                if (resolver.UnknownDependencies.Any() || resolver.MissingDependencies.Any())
-                    log.Info($"Ignoring depencencies (--force option specified).");
-            }
-            else if (resolver.UnknownDependencies.Any())
+
+            if (resolver.UnknownDependencies.Any())
             {
                 foreach (var dep in resolver.UnknownDependencies)
-                {
-                    string message = string.Format("A package dependency named '{0}' with a version compatible with {1} could not be found in any repository.", dep.Name, dep.Version);
+                    log.Error($"A package dependency named '{dep.Name}' with a version compatible with {dep.Version} could not be found in any repository.");
 
-                    if (force)
-                    {
-                        log.Warning(message);
-                        log.Warning("Continuing without downloading dependencies. Plugins will likely not work as expected.", dep.Name);
-                    }
-                    else
-                        log.Error(message);
-                }
-                if (!force)
-                {
-                    log.Info("To download package dependencies despite the conflicts, use the --force option.");
-                    return null;
-                }
+                log.Info("To download package dependencies despite the conflicts, use the --force option.");
+                return null;
             }
             else if (resolver.MissingDependencies.Any())
             {
@@ -333,8 +320,8 @@ namespace OpenTap.Package
                 }
             }
 
-            foreach(var dependency in resolver.Dependencies)
-                if(!gatheredPackages.Contains(dependency))
+            foreach (var dependency in resolver.Dependencies)
+                if (!gatheredPackages.Contains(dependency))
                     gatheredPackages.Add(dependency);
 
             return gatheredPackages.ToList();
@@ -343,13 +330,13 @@ namespace OpenTap.Package
         internal static List<string> DownloadPackages(string destinationDir, List<PackageDef> PackagesToDownload, List<string> filenames = null, Action<int, string> progressUpdate = null)
         {
             progressUpdate = progressUpdate ?? ((i, s) => { });
-            
+
             List<string> downloadedPackages = new List<string>();
 
-            for(int i = 0; i < PackagesToDownload.Count; i++)
+            for (int i = 0; i < PackagesToDownload.Count; i++)
             {
                 Stopwatch timer = Stopwatch.StartNew();
-                
+
                 var pkg = PackagesToDownload[i];
                 // Package names can contain slashes and backslashes -- avoid creating subdirectories when downloading packages
                 var packageName = GetQualifiedFileName(pkg).Replace('/', '.');
@@ -363,12 +350,12 @@ namespace OpenTap.Package
                 void innerProgress(string header, long pos, long len)
                 {
                     var downloadProgress = 100.0 * pos / len;
-                    
+
                     var thisProgress = downloadProgress / PackagesToDownload.Count;
                     var otherProgress = (100.0 * i1) / PackagesToDownload.Count;
 
                     var progress = thisProgress + otherProgress;
-                    
+
                     var progressString = $"({downloadProgress:0.00}% | {Utils.BytesToReadable(pos)} of {Utils.BytesToReadable(len)})";
                     progressUpdate((int)progress, $"Downloading '{pkg}' {progressString}");
                 }
@@ -389,12 +376,12 @@ namespace OpenTap.Package
                         log.Warning("Could not open OpenTAP Package. Redownloading package.", e);
                         File.Delete(filename);
                     }
-                    
+
                     if (existingPkg != null)
                     {
                         if (existingPkg.Version == pkg.Version && existingPkg.OS == pkg.OS && existingPkg.Architecture == pkg.Architecture)
                         {
-                            if(!PackageCacheHelper.PackageIsFromCache(existingPkg))
+                            if (!PackageCacheHelper.PackageIsFromCache(existingPkg))
                                 log.Info("Package '{0}' already exists in '{1}'.", pkg.Name, destinationDir);
                             else
                                 log.Info("Package '{0}' already exists in cache '{1}'.", pkg.Name, destinationDir);
@@ -409,7 +396,7 @@ namespace OpenTap.Package
                         string source = (pkg.PackageSource as IRepositoryPackageDefSource)?.RepositoryUrl;
                         if (source == null && pkg.PackageSource is FilePackageDefSource fileSource)
                             source = fileSource.PackageFilePath;
-                        
+
                         IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(source);
                         if (rm is IPackageDownloadProgress r)
                         {
@@ -436,10 +423,10 @@ namespace OpenTap.Package
                 }
 
                 downloadedPackages.Add(filename);
-                float progress_f = (float) (i + 1) / PackagesToDownload.Count;
+                float progress_f = (float)(i + 1) / PackagesToDownload.Count;
                 progressUpdate((int)(progress_f * 100), $"Acquired '{pkg}'.");
             }
-            
+
             progressUpdate(100, "Finished downloading packages.");
 
             return downloadedPackages;
