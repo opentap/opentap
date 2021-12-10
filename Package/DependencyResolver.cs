@@ -17,17 +17,17 @@ namespace OpenTap.Package
     public class DependencyResolver
     {
         /// <summary>
-        /// List of all the dependencies to the specified packages
+        /// List of all the dependencies including the specified packages
         /// </summary>
         public List<PackageDef> Dependencies = new List<PackageDef>();
 
         /// <summary>
-        /// List of the dependencies to the specified packages that are currently not installed and has to be downloaded from a repository
+        /// List of the dependencies that are currently not installed and has to be downloaded from a repository
         /// </summary>
         public List<PackageDef> MissingDependencies = new List<PackageDef>();
 
         /// <summary>
-        /// List of the dependencies to the specified packages that could not be found in the package repositories
+        /// List of the dependencies that could not be found in the package repositories
         /// </summary>
         public List<PackageDependency> UnknownDependencies = new List<PackageDependency>();
 
