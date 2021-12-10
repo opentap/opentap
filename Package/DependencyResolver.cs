@@ -121,17 +121,6 @@ namespace OpenTap.Package
 
             // A dependency is only "missing" if it is not installed and has to be downloaded from a repository
             MissingDependencies = Dependencies.Where(s => !InstalledPackages.Any(p => p.Key == s.Name && s.Version == p.Value.Version) && !(s.PackageSource is FilePackageDefSource)).ToList();
-
-            if (UnknownDependencies.Any())
-            {
-                foreach (var dep in UnknownDependencies)
-                {
-                    string err = $"Unable to find package '{dep.Name}'";
-                    if (!string.IsNullOrEmpty(dep.Version.ToString()))
-                        err += $" version {dep.Version}";
-                    DependencyIssues.Add(new InvalidOperationException(err));
-                }
-            }
         }
 
         /// <summary>
