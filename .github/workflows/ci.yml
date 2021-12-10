@@ -76,12 +76,6 @@ jobs:
         with:
           dotnet-version: 6.0.x
       - name: Stamp Version
-        # We cannot set the version of dotnet core .exe files because it is not supported by Cecil (yet?)
-        # This is because they are not actually PE files, but a small archive which wraps a PE file.
-        # Generate an AssemblyInfo.cs file with the correct version instead.
-        # We need to build twice because 'gitversion' requires tap..
-        # Netcore apps require that the 32-bit runtime is used to run a 32-bit app (though targetting that runtime is not a problem)
-        # There is no 32-bit windows server .NET6 docker image. Target x64 first to get access to gitversion.
         run: |
           $AssemblyVersion = "`"${{needs.GetVersion.outputs.AssemblyVersion}}.0`""
           $GitVersion = "`"${{needs.GetVersion.outputs.GitVersion}}`""
@@ -94,7 +88,6 @@ jobs:
           cat AssemblyInfo.cs
           Pop-Location
       - name: Build
-        # Now we actually build for the target architecture.
         run: |
           dotnet build -c Release /p:Platform=${{ matrix.Architecture }}
           dotnet build tap/tap.csproj -c Release /p:Platform=${{ matrix.Architecture }}
@@ -106,7 +99,6 @@ jobs:
           name: win-${{ matrix.Architecture }}-bin
           path: |
             bin/Release/*
-            bin/Release64/*
 
   ##############
   ### TESTS ###
@@ -115,45 +107,78 @@ jobs:
     runs-on: windows-2022
     needs: Build-Win
     steps:
-      - name: Download binaries
-        uses: actions/download-artifact@v2
-        with:
-          name: win-x86-bin
-          path: bin/
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x64-bin
+          path: bin/
       - name: Test
         run: |
           $ErrorActionPreference = "Stop"
-          dotnet vstest bin/Release/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000
+          dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000
       - uses: actions/upload-artifact@v2
         with:
           name: win-testresults
           path: |
             TestResult.xml
+
   TestPackage:
     runs-on: windows-2022
     needs: Build-Win
     steps:
-      - name: Download binaries
-        uses: actions/download-artifact@v2
-        with:
-          name: win-x86-bin
-          path: bin/
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x64-bin
+          path: bin/
       - name: Test
         run: |
           $ErrorActionPreference = "Stop"
-          Copy-Item -r "Package.UnitTests/Packages" bin/Release
-          Copy-Item .\bin\Release\runtimes\win-x64\native\git2-4aecb64.dll .\bin\Release
-          dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
+          Copy-Item -r "Package.UnitTests/Packages" bin
+          Copy-Item .\bin\runtimes\win-x64\native\git2-4aecb64.dll .\bin
+          dotnet vstest bin/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
       - uses: actions/upload-artifact@v2
         with:
           name: win-testresults
           path: |
             TestResult.xml
+
+  TestWindowsPlan:
+    runs-on: windows-2022
+    needs: Build-Win
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x64-bin
+          path: bin/
+      - name: Test
+        run: bin/tap.exe run tests/regression.TapPlan --verbose
+
+  TestLinuxPlan:
+    runs-on: ubuntu-20.04
+    needs: Build-Win
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-x64-bin
+          path: bin/
+      - name: Test
+        run: bin/tap.exe run tests/regression.TapPlan --verbose
