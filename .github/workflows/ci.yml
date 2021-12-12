@@ -232,9 +232,7 @@ jobs:
           name: linux-x64-bin
           path: bin/Release/
       - name: Test
-        run: |
-          mv bin/Release/publish/* bin/Release
-          bin/Release/tap run tests/regression.TapPlan --verbose
+        run: bin/Release/tap run tests/regression.TapPlan --verbose
 
   ###############
   ### Package ###
