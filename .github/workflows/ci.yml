@@ -268,7 +268,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: doc-api
-          path: /
+          path: .
       - name: Copy Signing tools
         run: aws s3 cp s3://ks-github-runner-tools/sign.1.3.0.TapPackage ./sign.TapPackage
         env:
@@ -310,13 +310,13 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: doc-devguide
-          path: /sdk/Examples/
+          path: sdk/Examples/
       - name: Download API Reference
         uses: actions/download-artifact@v2
         with:
           name: doc-api
-          path: /
-      - name: Test
+          path: .
+      - name: Package
         run: |
           Set-Content .\opentap.x86.package.xml  -Value (get-content .\opentap.x86.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch)
           cd bin/Release
