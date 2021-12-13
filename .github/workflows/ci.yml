@@ -83,14 +83,22 @@ jobs:
           chmcmd index.hhp
           mv OpenTapApiReference.chm $rootdir/Help/
           cp -r . $rootdir/API/
-      - name: Upload binaries
+      - name: Upload binaries (CHM)
         uses: actions/upload-artifact@v2
         with:
-          name: doc-api
+          name: doc-api-chm
           retention-days: 5
           path: |
             Help/OpenTapApiReference.chm
             API
+      - name: Upload binaries (HTML)
+        uses: actions/upload-artifact@v2
+        with:
+          name: doc-api-html
+          retention-days: 5
+          path: |
+            API
+
 
   Build-Linux:
     runs-on: ubuntu-latest
@@ -240,7 +248,10 @@ jobs:
           name: linux-x64-bin
           path: bin/Release/
       - name: Test
-        run: bin/Release/tap run tests/regression.TapPlan --verbose
+        run: |
+          ls -l bin/Release/
+          chmod +x bin/Release/tap
+          bin/Release/tap run tests/regression.TapPlan --verbose
 
   ###############
   ### Package ###
@@ -267,7 +278,7 @@ jobs:
       - name: Download API Reference
         uses: actions/download-artifact@v2
         with:
-          name: doc-api
+          name: doc-api-chm
           path: .
       - name: Copy Signing tools
         run: aws s3 cp s3://ks-github-runner-tools/sign.1.3.0.TapPackage ./sign.TapPackage --region eu-central-1
@@ -276,13 +287,13 @@ jobs:
           AWS_SECRET_ACCESS_KEY : ${{ secrets.S3_SECRET }}
       - name: Package
         run: |
-         - if (!$PROTECTED_BRANCH) { Set-Content .\opentap.${{ matrix.Architecture }}.package.xml  -Value (get-content .\opentap.${{ matrix.Architecture }}.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
-         - cd bin/Release
-         - cp .\runtimes\win-${{ matrix.Architecture }}\native\git2-4aecb64.dll .
-         - .\tap.exe package install -f sign.TapPackage
-         - $version=$(./tap sdk gitversion)
-         - cd ../Release
-         - ..\Release\tap.exe package create -v ../../opentap.${{ matrix.Architecture }}.package.xml -o ../../OpenTAP.$version.${{ matrix.Architecture }}.Windows.TapPackage
+         if (!$PROTECTED_BRANCH) { Set-Content .\opentap.${{ matrix.Architecture }}.package.xml  -Value (get-content .\opentap.${{ matrix.Architecture }}.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
+         cd bin/Release
+         cp .\runtimes\win-${{ matrix.Architecture }}\native\git2-4aecb64.dll .
+         .\tap.exe package install -f sign.TapPackage
+         $version=$(./tap sdk gitversion)
+         cd ../Release
+         ..\Release\tap.exe package create -v ../../opentap.${{ matrix.Architecture }}.package.xml -o ../../OpenTAP.$version.${{ matrix.Architecture }}.Windows.TapPackage
       - uses: actions/upload-artifact@v2
         with:
           name: win-${{ matrix.Architecture }}-package
@@ -314,7 +325,7 @@ jobs:
       - name: Download API Reference
         uses: actions/download-artifact@v2
         with:
-          name: doc-api
+          name: doc-api-chm
           path: .
       - name: Package
         run: |
