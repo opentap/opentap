@@ -57,19 +57,19 @@ jobs:
   Build-ApiDoc:
     runs-on: ubuntu-latest
     container:
-      image: registry.gitlab.com/opentap/buildrunners/doxygen:latest
+      image: registry.gitlab.com/opentap/buildrunners/doxygen:alpine
       credentials:
         username: github
         password: ${{ secrets.GITLAB_REGISTRY_TOKEN}}
     steps:
-      - name: Update git
-        run: |
-          apt-get update
-          apt-get install python-software-properties software-properties-common
-          add-apt-repository ppa:git-core/ppa -y
-          apt-get update
-          apt-get install git -y
-          git --version
+      # - name: Update git
+      #   run: |
+      #     apt-get update
+      #     apt-get install python-software-properties software-properties-common
+      #     add-apt-repository ppa:git-core/ppa -y
+      #     apt-get update
+      #     apt-get install git -y
+      #     git --version
       - name: Checkout
         uses: actions/checkout@v2
       - run: |
