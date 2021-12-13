@@ -270,12 +270,10 @@ jobs:
           name: doc-api
           path: /
       - name: Copy Signing tools
-        uses: prewk/s3-cp-action@v2
-        with:
-          aws_access_key_id: ${{ secrets.S3_KEY_ID }}
-          aws_secret_access_key: ${{ secrets.S3_SECRET }}
-          source: 's3://ks-github-runner-tools/sign.1.3.0.TapPackage'
-          dest: './sign.TapPackage'
+        run: aws s3 cp s3://ks-github-runner-tools/sign.1.3.0.TapPackage ./sign.TapPackage
+        env:
+          AWS_ACCESS_KEY_ID : ${{ secrets.S3_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY : ${{ secrets.S3_SECRET }}
       - name: Package
         run: |
          - if (!$PROTECTED_BRANCH) { Set-Content .\opentap.${{ matrix.Architecture }}.package.xml  -Value (get-content .\opentap.${{ matrix.Architecture }}.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
