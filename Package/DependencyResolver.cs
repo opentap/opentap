@@ -39,6 +39,7 @@ namespace OpenTap.Package
         private TraceSource log = Log.CreateSource("DependencyResolver");
 
         DependencyGraph graph = new DependencyGraph();
+        internal int ResolveDependencyCount = 0;
 
         /// <summary>
         /// Instantiates a new dependency resolver.
@@ -65,70 +66,45 @@ namespace OpenTap.Package
 
         internal DependencyResolver(List<PackageSpecifier> packageSpecifiers, List<IPackageRepository> repositories, CancellationToken cancellationToken)
         {
-            var alignedSpecifiers = CheckCompatibility(packageSpecifiers);
-            if (DependencyIssues.Any())
-                return;
             InstalledPackages = new Dictionary<string, PackageDef>();
 
-            foreach (var specifier in alignedSpecifiers)
-                ResolveDependenciesRecursive(repositories, specifier, null, cancellationToken);
+            foreach (var specifier in packageSpecifiers)
+                graph.AddEdge(DependencyGraph.Root, DependencyGraph.Unresolved, specifier);
+
+            resolveGraph(graph, repositories, cancellationToken);
 
             CategorizeResolvedPackages();
         }
 
-        /// <summary>
-        /// Returns the resolved dependency tree
-        /// </summary>
-        /// <returns>Multi line dependency tree string</returns>
-        public string GetPrintableDependencyTree()
+        private void resolveGraph(DependencyGraph graph, List<IPackageRepository> repositories, CancellationToken cancellationToken)
         {
-            return graph.Traverse();
-        }
+            AlignArchAndOS(graph);
 
-        /// <summary>
-        /// Populates Dependencies, UnknownDependencies and DependencyIssues based on resolved dependency tree
-        /// </summary>
-        private void CategorizeResolvedPackages()
-        {
-            Dictionary<string, DependencyEdge> selectedNodes = new Dictionary<string, DependencyEdge>();
-
-            foreach (var edge in graph.GetEdges())
+            bool unresolvedExists = true;
+            while (unresolvedExists)
             {
-                if (selectedNodes.TryGetValue(edge.PackageSpecifier.Name, out var s))
+                var edges = graph.TraverseEdges()
+                    .Where(s => s.To == DependencyGraph.Unresolved && s.PackageSpecifier.Name != "OpenTAP")
+                    .GroupBy(s => s.PackageSpecifier.Name);
+
+                if (!edges.Any())
                 {
-                    if (edge.PackageSpecifier.Version.IsSatisfiedBy(s.PackageSpecifier.Version))
-                    {
-                        // the already selected package can be used in place of this
-                        continue;
-                    }
-                    else if (s.PackageSpecifier.Version.IsSatisfiedBy(edge.PackageSpecifier.Version))
-                    {
-                        // this package can satisfy the already selected specification, update to use this instead.
-                        selectedNodes[edge.PackageSpecifier.Name] = edge;
-                    }
-                    else
-                        DependencyIssues.Add(new InvalidOperationException($"Specified versions of package '{edge.PackageSpecifier.Name}' are not compatible: {edge.PackageSpecifier.Version} - {s.PackageSpecifier.Version}"));
+                    unresolvedExists = false;
+                    break;
                 }
-                else
-                {
-                    selectedNodes.Add(edge.PackageSpecifier.Name, edge);
-                }
+
+                var chosenEdges = edges.First().ToList();
+                resolveEdge(chosenEdges, repositories, cancellationToken);
             }
 
-
-            Dependencies = selectedNodes.Values.Where(p => p.To != null && !InstalledPackages.Any(s => s.Value == p.To)).Select(s => s.To).ToList();
-            UnknownDependencies = selectedNodes.Values.Where(s => s.To == null).Select(p => new PackageDependency(p.PackageSpecifier.Name, p.PackageSpecifier.Version)).ToList();
-
-            // A dependency is only "missing" if it is not installed and has to be downloaded from a repository
-            MissingDependencies = Dependencies.Where(s => !InstalledPackages.Any(p => p.Key == s.Name && s.Version == p.Value.Version) && !(s.PackageSource is FilePackageDefSource)).ToList();
+            var openTapEdges = graph.TraverseEdges().Where(s => s.PackageSpecifier.Name == "OpenTAP").ToList();
+            resolveEdge(openTapEdges, repositories, cancellationToken);
         }
 
-        /// <summary>
-        /// Checks package version, architecture and OS specifications for compatibility, and returns a new distilled set of compatible specifications if possible.
-        /// </summary>
-        /// <param name="packages"></param>
-        private IEnumerable<PackageSpecifier> CheckCompatibility(IEnumerable<PackageSpecifier> packages)
+        private void AlignArchAndOS(DependencyGraph graph)
         {
+            var edges = graph.TraverseEdges();
+            var packages = edges.Select(s => s.PackageSpecifier);
             var oss = packages.Select(p => p.OS).Distinct().Where(o => string.IsNullOrEmpty(o) == false && o.Contains(",") == false).ToList();
             var openTapPackage = packages.FirstOrDefault(p => p.Name == "OpenTAP");
             string os;
@@ -146,48 +122,56 @@ namespace OpenTap.Package
                 arch = openTapPackage?.Architecture ?? ArchitectureHelper.GuessBaseArchitecture;
             else
                 arch = archs[0];
+            foreach (var edge in edges)
+            {
+                if (edge.PackageSpecifier.Architecture != arch || edge.PackageSpecifier.OS != os)
+                    edge.PackageSpecifier = new PackageSpecifier(edge.PackageSpecifier.Name, edge.PackageSpecifier.Version, arch, os);
+            }
+        }
 
-            Dictionary<string, PackageSpecifier> selectedSpecifiers = new Dictionary<string, PackageSpecifier>();
+        private void resolveEdge(List<DependencyEdge> edges, List<IPackageRepository> repositories, CancellationToken cancellationToken)
+        {
+            var versions = AlignVersions(edges.Select(s => s.PackageSpecifier).ToList());
+            foreach (var specifier in versions)
+            {
+                ResolveDependency(specifier, edges.Where(s => s.PackageSpecifier.Version.IsSatisfiedBy(specifier.Version)).ToList(), repositories, cancellationToken);
+            }
+        }
+
+        private List<PackageSpecifier> AlignVersions(List<PackageSpecifier> packages)
+        {
+            if (packages.Count == 1)
+                return packages;
+
+            List<PackageSpecifier> specifiers = new List<PackageSpecifier>();
             foreach (var p in packages)
             {
-                if (selectedSpecifiers.TryGetValue(p.Name, out var s))
+                if (!specifiers.Any())
                 {
-                    if (p.Version.IsSatisfiedBy(s.Version))
+                    specifiers.Add(p);
+                    continue;
+                }
+                for (int i = 0; i < specifiers.Count; i++)
+                {
+                    if (p.Version.IsSatisfiedBy(specifiers[i].Version))
                     {
                         // the already selected package can be used in place of this
                         continue;
                     }
-                    else if (s.Version.IsSatisfiedBy(p.Version))
+                    else if (specifiers[i].Version.IsSatisfiedBy(p.Version))
                     {
                         // this package can satisfy the already selected specification, update to use this instead.
-                        selectedSpecifiers[p.Name] = new PackageSpecifier(p.Name, p.Version, arch, os);
+                        specifiers[i] = p;
                     }
                     else
-                        DependencyIssues.Add(new InvalidOperationException($"Specified versions of package '{p.Name}' are not compatible: {p.Version} - {s.Version}"));
-                }
-                else
-                {
-                    selectedSpecifiers.Add(p.Name, new PackageSpecifier(p.Name, p.Version, arch, os));
+                        specifiers.Add(p);
+
                 }
             }
-            return selectedSpecifiers.Values;
+            return specifiers;
         }
 
-        private void resolve(List<IPackageRepository> repositories, IEnumerable<PackageDef> packages)
-        {
-            foreach (var pkg in packages)
-            {
-                graph.AddVertex(pkg); //TreeRoot.AddChild(pkg, new PackageSpecifier(pkg, VersionMatchBehavior.Compatible));
-                graph.AddDependency(null, pkg, new PackageSpecifier(pkg, VersionMatchBehavior.Exact));
-                foreach (var dep in pkg.Dependencies)
-                {
-                    var spec = new PackageSpecifier(dep.Name, dep.Version, pkg.Architecture, pkg.OS);
-                    ResolveDependenciesRecursive(repositories, spec, pkg, CancellationToken.None);
-                }
-            }
-        }
-
-        private void ResolveDependenciesRecursive(List<IPackageRepository> repositories, PackageSpecifier packageSpecifier, PackageDef parent, CancellationToken cancellationToken)
+        private void ResolveDependency(PackageSpecifier packageSpecifier, List<DependencyEdge> current, List<IPackageRepository> repositories, CancellationToken cancellationToken)
         {
             if (cancellationToken.IsCancellationRequested)
                 throw new OperationCanceledException("Operation cancelled by user.");
@@ -195,7 +179,8 @@ namespace OpenTap.Package
             PackageDef alreadyExisting = graph.GetPackages().FirstOrDefault(n => packageSpecifier.IsCompatible(n));
             if (alreadyExisting != null)
             {
-                graph.AddDependency(parent, alreadyExisting, packageSpecifier);
+                foreach (var edge in current)
+                    edge.To = alreadyExisting;
                 return;
             }
 
@@ -204,6 +189,7 @@ namespace OpenTap.Package
             {
                 try
                 {
+                    ResolveDependencyCount++;
                     resolvedDependency = GetPackageDefFromRepo(repositories, packageSpecifier, InstalledPackages.Values.ToList());
                 }
                 catch (Exception ex)
@@ -212,18 +198,77 @@ namespace OpenTap.Package
                 }
             }
 
-            if (resolvedDependency != null)
-                graph.AddVertex(resolvedDependency);
-            graph.AddDependency(parent, resolvedDependency, packageSpecifier);
-
-            if (resolvedDependency == null)
+            if (resolvedDependency is null)
+            {
+                foreach (var edge in current)
+                    edge.To = DependencyGraph.Unknown;
                 return;
+            }
+
+            // We did not find any compatible packages already in the graph, but if the latest resolved satisfies any already in the graph, let's switch them out.
+            IEnumerable<DependencyEdge> alreadyPresentEdges = graph.TraverseEdges().Where(s => s.To.Name == packageSpecifier.Name);
+            if (alreadyPresentEdges.Any())
+            {
+                foreach (var presentEdge in alreadyPresentEdges)
+                {
+                    if (presentEdge.PackageSpecifier.Version.IsSatisfiedBy(packageSpecifier.Version))
+                        presentEdge.To = resolvedDependency;
+                }
+            }
+            graph.AddVertex(resolvedDependency);
+
+            foreach (var edge in current)
+                edge.To = resolvedDependency;
 
             foreach (var nextLevelDep in resolvedDependency.Dependencies)
             {
                 var spec = new PackageSpecifier(nextLevelDep.Name, nextLevelDep.Version, packageSpecifier.Architecture, packageSpecifier.OS);
-                ResolveDependenciesRecursive(repositories, spec, resolvedDependency, cancellationToken);
+                graph.AddEdge(resolvedDependency, DependencyGraph.Unresolved, spec);
             }
+        }
+
+        /// <summary>
+        /// Returns the resolved dependency tree
+        /// </summary>
+        /// <returns>Multi line dependency tree string</returns>
+        public string GetPrintableDependencyTree()
+        {
+            return graph.Traverse();
+        }
+
+        /// <summary>
+        /// Populates Dependencies, UnknownDependencies and DependencyIssues based on resolved dependency tree
+        /// </summary>
+        private void CategorizeResolvedPackages()
+        {
+            var traversedEdges = graph.TraverseEdges();
+            Dependencies = traversedEdges.Where(p => !(p.To is UnknownVertex) && !InstalledPackages.Any(s => s.Value == p.To)).Select(s => s.To).Distinct().ToList();
+            UnknownDependencies = traversedEdges.Where(s => s.To is UnknownVertex).Select(p => new PackageDependency(p.PackageSpecifier.Name, p.PackageSpecifier.Version)).Distinct().ToList();
+
+            // A dependency is only "missing" if it is not installed and has to be downloaded from a repository
+            MissingDependencies = Dependencies.Where(s => !InstalledPackages.Any(p => p.Key == s.Name && s.Version == p.Value.Version) && !(s.PackageSource is FilePackageDefSource)).ToList();
+
+            var multipleVersions = traversedEdges.Where(p => !(p.To is UnknownVertex)).Select(s => s.To).Distinct().GroupBy(x => x.Name);
+            foreach (var grp in multipleVersions)
+            {
+                if (grp.Count() > 1)
+                    DependencyIssues.Add(new InvalidOperationException($"Resolved versions of package '{grp.Key}' are not compatible: {string.Join(", ", grp.SelectValues(s => s.Version))}"));
+            }
+        }
+
+        private void resolve(List<IPackageRepository> repositories, IEnumerable<PackageDef> packages)
+        {
+            foreach (var pkg in packages)
+            {
+                graph.AddVertex(pkg);
+                graph.AddEdge(DependencyGraph.Root, pkg, new PackageSpecifier(pkg, VersionMatchBehavior.Exact));
+                foreach (var dep in pkg.Dependencies)
+                {
+                    var spec = new PackageSpecifier(dep.Name, dep.Version, pkg.Architecture, pkg.OS);
+                    graph.AddEdge(pkg, DependencyGraph.Unresolved, spec);
+                }
+            }
+            resolveGraph(graph, repositories, CancellationToken.None);
         }
 
         private Dictionary<string, PackageDef> InstalledPackages;
@@ -316,6 +361,9 @@ namespace OpenTap.Package
 
     internal class DependencyGraph
     {
+        internal static RootVertex Root = new RootVertex();
+        internal static UnresolvedVertex Unresolved = new UnresolvedVertex();
+        internal static UnknownVertex Unknown = new UnknownVertex();
         private readonly List<PackageDef> vertices = new List<PackageDef>();
         private readonly List<DependencyEdge> edges = new List<DependencyEdge>();
         public void AddVertex(PackageDef vertex)
@@ -327,18 +375,14 @@ namespace OpenTap.Package
         {
             return vertices;
         }
-        internal List<DependencyEdge> GetEdges()
-        {
-            return edges;
-        }
 
-        public void AddDependency(PackageDef from, PackageDef to, PackageSpecifier packageSpecifier)
+        public void AddEdge(PackageDef from, PackageDef to, PackageSpecifier packageSpecifier)
         {
             if (from != null && !vertices.Contains(from))
                 AddVertex(from);
             if (to != null && !vertices.Contains(to))
                 AddVertex(to);
-            edges.Add(new DependencyEdge(from, to, packageSpecifier));
+            edges.Add(new DependencyEdge(from, to, packageSpecifier, this));
         }
 
         internal IEnumerable<DependencyEdge> GetDependencyEdges(PackageDef package)
@@ -350,45 +394,94 @@ namespace OpenTap.Package
         {
             List<string> dependencyTree = new List<string>();
 
-            var root = edges.Where(s => s.From == null);
+            var rootEdges = edges.Where(s => s.From == Root);
 
-            foreach (var package in root)
+            foreach (var edge in rootEdges)
             {
-                traverse(package, dependencyTree, 0);
+                traverse(edge, dependencyTree, 0, new List<PackageDef>());
             }
 
             return string.Join(Environment.NewLine, dependencyTree.ToArray());
         }
 
-        private void traverse(DependencyEdge edge, List<string> dependencyTree, int v)
+        private void traverse(DependencyEdge edge, List<string> dependencyTree, int v, List<PackageDef> packageDefs)
         {
-            if (edge.To is null)
+            if (edge.To is UnknownVertex)
             {
                 dependencyTree.Add($"{new string(' ', v * 2)}{edge.PackageSpecifier.Name} version {edge.PackageSpecifier.Version} was unable to be resolved");
                 return;
             }
 
             dependencyTree.Add($"{new string(' ', v * 2)}{edge.PackageSpecifier.Name} version {edge.PackageSpecifier.Version} resolved to {edge.To.Version}");
-            foreach (var dependency in GetDependencyEdges(edge.To))//  graph[edge.Dependency])
+            v = v + 1;
+            packageDefs.Add(edge.To);
+            foreach (var dependency in GetDependencyEdges(edge.To))
             {
-                traverse(dependency, dependencyTree, v++);
+                if (!packageDefs.Contains(dependency.To))
+                    traverse(dependency, dependencyTree, v, packageDefs);
             }
         }
+
+        internal IEnumerable<DependencyEdge> TraverseEdges()
+        {
+            var visited = new HashSet<DependencyEdge>();
+            var queue = new Queue<DependencyEdge>();
+            foreach (var edge in edges.Where(s => s.From == Root))
+                queue.Enqueue(edge);
+
+
+            while (queue.Any())
+            {
+                var current = queue.Dequeue();
+                visited.Add(current);
+                yield return current;
+                foreach (var edge in edges.Where(s => !visited.Contains(s) && s.From == current.To))
+                {
+                    queue.Enqueue(edge);
+                }
+            }
+        }
+
+        private IEnumerable<DependencyEdge> find(DependencyEdge root, string name)
+        {
+            if (root.To.Name == name)
+                yield return root;
+            if (root.From.Name == name)
+                yield return root;
+        }
+    }
+    internal class RootVertex : PackageDef
+    {
+
     }
 
-    [DebuggerDisplay("Edge: {from.Name} needs {packageSpecifier.Version.ToString()}, resolved {To.Version.ToString()}")]
+    internal class UnresolvedVertex : PackageDef
+    {
+
+    }
+
+    internal class UnknownVertex : PackageDef
+    {
+
+    }
+
+    [DebuggerDisplay("Edge: {From?.Name ?? 'Root'}: {PackageSpecifier.Name} needs {PackageSpecifier.Version.ToString()}, resolved {To.Version.ToString()}")]
     internal class DependencyEdge
     {
-        public DependencyEdge(PackageDef from, PackageDef to, PackageSpecifier packageSpecifier)
+        private readonly DependencyGraph dependencyGraph;
+        private PackageDef to;
+
+        public DependencyEdge(PackageDef from, PackageDef to, PackageSpecifier packageSpecifier, DependencyGraph dependencyGraph)
         {
             PackageSpecifier = packageSpecifier;
+            this.dependencyGraph = dependencyGraph;
             From = from;
             To = to;
         }
 
         public PackageSpecifier PackageSpecifier { get; set; }
         public PackageDef From { get; set; }
-        public PackageDef To { get; set; }
+        public PackageDef To { get => to; set { to = value; } }
     }
 
 
