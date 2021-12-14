@@ -303,6 +303,49 @@ jobs:
           path: |
             OpenTAP.*.Windows.TapPackage
 
+  Package-Linux:
+    runs-on: windows-2022
+    environment: sign
+    needs:
+      - Build-Linux
+      - Build-ApiDoc
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Download x64 binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-x64-bin
+          path: bin/Release/
+      - name: Download API Reference
+        uses: actions/download-artifact@v2
+        with:
+          name: doc-api-chm
+          path: Help/
+      - name: Copy Signing tools
+        run: aws s3 cp s3://ks-github-runner-tools/sign.1.3.0.TapPackage ./sign.TapPackage --region eu-central-1
+        env:
+          AWS_ACCESS_KEY_ID : ${{ secrets.S3_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY : ${{ secrets.S3_SECRET }}
+      - name: Package
+        run: |
+         if (!$PROTECTED_BRANCH) { Set-Content .\opentap_linux64.package.xml  -Value (get-content .\opentap_linux64.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
+         mv bin\Release\publish bin\linux-x64
+         pushd bin\linux-x64\ 
+         ../Release/tap package install -f "/repo/Sign.TapPackage"
+         cp .\runtimes\win-x64\native\git2-4aecb64.dll .
+         ..\Release\tap package create -v ../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage
+         $version=$(..\Release\tap sdk gitversion)
+         cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.$version.Linux.TapPackage
+      - uses: actions/upload-artifact@v2
+        with:
+          name: Linux-x64-package
+          retention-days: 14
+          path: |
+            OpenTAP.*.Linux.TapPackage
+
   Package-SDK:
     runs-on: windows-2022
     needs:
