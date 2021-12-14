@@ -62,14 +62,6 @@ jobs:
         username: github
         password: ${{ secrets.GITLAB_REGISTRY_TOKEN}}
     steps:
-      # - name: Update git
-      #   run: |
-      #     apt-get update
-      #     apt-get install python-software-properties software-properties-common
-      #     add-apt-repository ppa:git-core/ppa -y
-      #     apt-get update
-      #     apt-get install git -y
-      #     git --version
       - name: Checkout
         uses: actions/checkout@v2
       - run: |
@@ -132,12 +124,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      # - name: Setup .NET
-      #   uses: actions/setup-dotnet@v1
-      #   with:
-      #     dotnet-version: 6.0.x
       - name: Stamp Version
         run: |
           $AssemblyVersion = "`"${{needs.GetVersion.outputs.AssemblyVersion}}.0`""
@@ -289,7 +275,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY : ${{ secrets.S3_SECRET }}
       - name: Package
         run: |
-         if (!$PROTECTED_BRANCH) { Set-Content .\opentap.${{ matrix.Architecture }}.package.xml  -Value (get-content .\opentap.${{ matrix.Architecture }}.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
+         if (!$GITHUB_REF_PROTECTED) { Set-Content .\opentap.${{ matrix.Architecture }}.package.xml  -Value (get-content .\opentap.${{ matrix.Architecture }}.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
          cd bin/Release-x64
          cp .\runtimes\win-x64\native\git2-4aecb64.dll .
          .\tap.exe package install -f sign.TapPackage
@@ -337,7 +323,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY : ${{ secrets.S3_SECRET }}
       - name: Package
         run: |
-         if (!$PROTECTED_BRANCH) { Set-Content .\opentap_linux64.package.xml  -Value (get-content .\opentap_linux64.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
+         if (!$GITHUB_REF_PROTECTED) { Set-Content .\opentap_linux64.package.xml  -Value (get-content .\opentap_linux64.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
          pushd bin\linux-x64\ 
          ../Release/tap package install -f "/repo/Sign.TapPackage"
          cp .\runtimes\win-x64\native\git2-4aecb64.dll .
@@ -564,3 +550,51 @@ jobs:
         run: |
           $HOME/bin/tap -h
           $HOME/bin/tap package list -v
+
+  Docker-Linux:
+    runs-on: ubuntu-20.04
+    container:
+      image: gcr.io/kaniko-project/executor:debug
+    needs:
+      - Package-Linux
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Download Linux package
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-x64-package
+          path: .
+      - name: Docker
+        run: |
+          mv OpenTAP.*.Linux.TapPackage docker/Linux/OpenTAP.Linux.TapPackage
+          cd docker/Linux
+          echo "{\"auths\":{\"https://index.docker.io/v1/\":{\"username\":\"$DOCKER_USER\", \"password\":\"$DOCKER_PASS\"}}}" > /kaniko/.docker/config.json
+          /kaniko/executor --context=$CI_PROJECT_DIR/docker/Linux --target=$target --dockerfile=Dockerfile --destination=opentapio/opentap:$version-ubuntu18.04
+
+  Package-Deb:
+    runs-on: ubuntu-20.04
+    needs:
+      - Package-Linux
+    steps:
+      - name: Download Linux package
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-x64-package
+          path: .
+      - name: Install Unzip
+        run: |
+          apt update
+          apt install unzip -y
+      - run: |
+          pushd LinuxInstall/package
+          mv ../../OpenTAP*.TapPackage OpenTAP.TapPackage
+          pushd Debian
+          bash create-deb
+      - uses: actions/upload-artifact@v2
+        with:
+          name: package-deb
+          retention-days: 14
+          path: LinuxInstall/package/Debian/OpenTAP.deb   
