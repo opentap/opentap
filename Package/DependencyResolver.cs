@@ -395,32 +395,34 @@ namespace OpenTap.Package
         internal string Traverse()
         {
             List<string> dependencyTree = new List<string>();
-
+            dependencyTree.Add("digraph {");
             var rootEdges = edges.Where(s => s.From == Root);
 
             foreach (var edge in rootEdges)
             {
-                traverse(edge, dependencyTree, 0, new List<PackageDef>());
+                traverse(edge, dependencyTree, new List<PackageDef>());
             }
+            dependencyTree.Add("}");
 
             return string.Join(Environment.NewLine, dependencyTree.ToArray());
         }
 
-        private void traverse(DependencyEdge edge, List<string> dependencyTree, int v, List<PackageDef> packageDefs)
+        private void traverse(DependencyEdge edge, List<string> dependencyTree, List<PackageDef> packageDefs)
         {
+            string from = edge.From == Root ? "Start" : $"{edge.From.Name} {edge.From.Version};";
+            string to = edge.To == Unknown ? $"{edge.PackageSpecifier.Name}" : $"{edge.To.Name} {edge.To.Version};";
+            dependencyTree.Add($"\"{from}\" -> \"{to}\" [ label = \"{edge.PackageSpecifier.Version}\" ];");
+
             if (edge.To is UnknownVertex)
             {
-                dependencyTree.Add($"{new string(' ', v * 2)}{edge.PackageSpecifier.Name} version {edge.PackageSpecifier.Version} was unable to be resolved");
+                dependencyTree.Add($"{edge.PackageSpecifier.Name}[color=red];");
                 return;
             }
-
-            dependencyTree.Add($"{new string(' ', v * 2)}{edge.PackageSpecifier.Name} version {edge.PackageSpecifier.Version} resolved to {edge.To.Version}");
-            v = v + 1;
             packageDefs.Add(edge.To);
             foreach (var dependency in TraverseEdges().Where(s => s.From == edge.To))
             {
                 if (!packageDefs.Contains(dependency.To))
-                    traverse(dependency, dependencyTree, v, packageDefs);
+                    traverse(dependency, dependencyTree, packageDefs);
             }
         }
 

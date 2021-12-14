@@ -246,8 +246,6 @@ namespace OpenTap.Image.Tests
             string resolved = resolver.GetPrintableDependencyTree();
             var unknownLine = resolved.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(p => p.Contains("Unknown"));
             Assert.IsNotNull(unknownLine);
-            Assert.AreEqual(4, repository.ResolveCount);
-            Assert.IsTrue(unknownLine.Contains("unable to be resolved"));
             TestContext.WriteLine(resolved);
         }
 
