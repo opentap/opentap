@@ -238,14 +238,15 @@ namespace OpenTap.Image.Tests
             packages.Add("MyDemoTestPlan", "1.0.0"); // this depends on Demo ^9.0.2
             packages.Add("Unknown", "1.0.0"); // this does not exist
 
-            var repositories = new List<IPackageRepository> { new MockRepository("mock://localhost") };
+            MockRepository repository = new MockRepository("mock://localhost");
+            var repositories = new List<IPackageRepository> { repository };
 
             DependencyResolver resolver = new DependencyResolver(packages, repositories, CancellationToken.None);
 
             string resolved = resolver.GetPrintableDependencyTree();
             var unknownLine = resolved.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(p => p.Contains("Unknown"));
             Assert.IsNotNull(unknownLine);
-            Assert.AreEqual(4, resolver.ResolveDependencyCount);
+            Assert.AreEqual(4, repository.ResolveCount);
             Assert.IsTrue(unknownLine.Contains("unable to be resolved"));
             TestContext.WriteLine(resolved);
         }
