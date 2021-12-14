@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     # Map a step output to a job output
     outputs:
-      AssemblyVersion: ${{ steps.asmVer.outputs.ver }}
+      ShortVersion: ${{ steps.asmVer.outputs.ver }}
       GitVersion: ${{ steps.gitVer.outputs.ver }}
     steps:
       - name: Install OpenTAP
@@ -126,7 +126,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Stamp Version
         run: |
-          $AssemblyVersion = "`"${{needs.GetVersion.outputs.AssemblyVersion}}.0`""
+          $AssemblyVersion = "`"${{needs.GetVersion.outputs.ShortVersion}}.0`""
           $GitVersion = "`"${{needs.GetVersion.outputs.GitVersion}}`""
           Push-Location ./tap/Properties
           $AssemblyInfoFile = (Get-Content AssemblyInfo.cs.Template)
@@ -553,13 +553,16 @@ jobs:
 
   Docker-Linux:
     runs-on: ubuntu-20.04
-    container:
-      image: gcr.io/kaniko-project/executor:debug
     strategy:
       matrix:
-        Target: [production, development]
+        include:
+         - target: production
+           tag-suffix: "-slim"
+         - target: development
+           tag-suffix: ""
     needs:
       - Package-Linux
+      - GetVersion
     steps:
       - name: Download Linux package
         uses: actions/download-artifact@v2
@@ -570,13 +573,23 @@ jobs:
         run: |
           mv OpenTAP.*.Linux.TapPackage docker/Linux/OpenTAP.Linux.TapPackage
           cd docker/Linux
+          echo "::set-env name=TAG_NAME::alpha"
+      - name: Set tag (beta)
+        if: github.ref != 'refs/heads/main'
+        run: echo "::set-env name=TAG_NAME::beta"
+      - name: Set tag (rc)
+        if: contains(github.ref, 'refs/heads/release')
+        run: echo "::set-env name=TAG_NAME::rc"
+      - name: Set tag (release)
+        if: contains(github.ref, 'refs/tags/v')
+        run: echo "::set-env name=TAG_NAME::${{needs.GetVersion.outputs.ShortVersion}}"
       - uses: aevea/action-kaniko@master
         with:
           image: opentapio/opentap
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
-          target: ${{ matrix.Target }}
-          tag: $version-ubuntu18.04-2
+          target: ${{ matrix.target }}
+          tag: ${{env.TAG_NAME}}-bionic${{ matrix.tag-suffix }}
       
   Package-Deb:
     runs-on: ubuntu-20.04
