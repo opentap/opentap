@@ -30,7 +30,7 @@ namespace OpenTap.Image.Tests
             DependencyResolver resolver = new DependencyResolver(specifiers, repositories, CancellationToken.None);
 
 
-            string resolved = resolver.GetPrintableDependencyTree();
+            string resolved = resolver.GetDotNotation("Image");
             TestContext.WriteLine(resolved);
             TestContext.WriteLine($"Resolve count: {mockRepository.ResolveCount}");
 

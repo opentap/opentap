@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 
 namespace OpenTap.Package
@@ -228,9 +229,9 @@ namespace OpenTap.Package
         /// Returns the resolved dependency tree
         /// </summary>
         /// <returns>Multi line dependency tree string</returns>
-        internal string GetPrintableDependencyTree()
+        internal string GetDotNotation(string rootName)
         {
-            return graph.Traverse();
+            return graph.CreateDotNotation(rootName);
         }
 
         /// <summary>
@@ -389,40 +390,45 @@ namespace OpenTap.Package
                 AddVertex(from);
             if (to != null && !vertices.Contains(to))
                 AddVertex(to);
+            var newEdge = new DependencyEdge(from, to, packageSpecifier);
             edges.Add(new DependencyEdge(from, to, packageSpecifier));
         }
 
-        internal string Traverse()
+        internal string CreateDotNotation(string rootName)
         {
-            List<string> dependencyTree = new List<string>();
-            dependencyTree.Add("digraph {");
             var rootEdges = edges.Where(s => s.From == Root);
 
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.Append("digraph{");
+            List<DependencyEdge> visited = new List<DependencyEdge>();
             foreach (var edge in rootEdges)
             {
-                traverse(edge, dependencyTree, new List<PackageDef>());
+                visited.Add(edge);
+                createDotNotation(edge, stringBuilder, visited, rootName);
             }
-            dependencyTree.Add("}");
+            stringBuilder.Append("}");
 
-            return string.Join(Environment.NewLine, dependencyTree.ToArray());
+            return string.Join(Environment.NewLine, stringBuilder.ToString());
         }
 
-        private void traverse(DependencyEdge edge, List<string> dependencyTree, List<PackageDef> packageDefs)
+        private void createDotNotation(DependencyEdge edge, StringBuilder stringBuilder, List<DependencyEdge> visited, string rootName)
         {
-            string from = edge.From == Root ? "Start" : $"{edge.From.Name} {edge.From.Version};";
-            string to = edge.To == Unknown ? $"{edge.PackageSpecifier.Name}" : $"{edge.To.Name} {edge.To.Version};";
-            dependencyTree.Add($"\"{from}\" -> \"{to}\" [ label = \"{edge.PackageSpecifier.Version}\" ];");
+            string from = edge.From == Root ? rootName : $"{edge.From.Name} {edge.From.Version}";
+            string to = edge.To == Unknown ? $"{edge.PackageSpecifier.Name}" : $"{edge.To.Name} {edge.To.Version}";
+            stringBuilder.Append($"\"{from}\" -> \"{to}\" [ label = \"{edge.PackageSpecifier.Version}\" ];");
 
             if (edge.To is UnknownVertex)
             {
-                dependencyTree.Add($"{edge.PackageSpecifier.Name}[color=red];");
+                stringBuilder.Append($"\"{edge.PackageSpecifier.Name}\"[color=red];");
                 return;
             }
-            packageDefs.Add(edge.To);
-            foreach (var dependency in TraverseEdges().Where(s => s.From == edge.To))
+            foreach (var dependency in TraverseEdges().Where(s => s.From == edge.To).Distinct())
             {
-                if (!packageDefs.Contains(dependency.To))
-                    traverse(dependency, dependencyTree, packageDefs);
+                if (!visited.Contains(dependency))
+                {
+                    visited.Add(dependency);
+                    createDotNotation(dependency, stringBuilder, visited, rootName);
+                }
             }
         }
 

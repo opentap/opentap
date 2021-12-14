@@ -243,7 +243,7 @@ namespace OpenTap.Image.Tests
 
             DependencyResolver resolver = new DependencyResolver(packages, repositories, CancellationToken.None);
 
-            string resolved = resolver.GetPrintableDependencyTree();
+            string resolved = resolver.GetDotNotation("Image");
             var unknownLine = resolved.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(p => p.Contains("Unknown"));
             Assert.IsNotNull(unknownLine);
             TestContext.WriteLine(resolved);

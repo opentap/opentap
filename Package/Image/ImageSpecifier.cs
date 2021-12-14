@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading;
 
 namespace OpenTap.Package
@@ -11,6 +12,7 @@ namespace OpenTap.Package
     /// </summary>
     public class ImageSpecifier
     {
+        static TraceSource log = Log.CreateSource("ImageResolution");
         /// <summary>
         /// Desired packages in the installation
         /// </summary>
@@ -19,7 +21,7 @@ namespace OpenTap.Package
         /// OpenTAP repositories to fetch the desired packages from
         /// </summary>
         public List<string> Repositories { get; set; } = new List<string>();
-        
+
         /// <summary>
         /// Resolve the desired packages from the specified repositories. This will check if the packages are available, compatible and can successfully be deployed as an OpenTAP installation
         /// </summary>
@@ -31,9 +33,12 @@ namespace OpenTap.Package
 
             DependencyResolver resolver = new DependencyResolver(Packages, repositories, cancellationToken);
 
+            log.Debug($"https://quickchart.io/graphviz?graph={WebUtility.UrlEncode(resolver.GetDotNotation("Image"))}");
+            log.Flush();
+
             if (resolver.DependencyIssues.Any())
                 throw new AggregateException($"OpenTAP packages could not be resolved", resolver.DependencyIssues);
-          
+
             ImageIdentifier image = new ImageIdentifier(resolver.Dependencies, repositories.Select(s => s.Url));
 
             return image;
