@@ -22,7 +22,7 @@ namespace OpenTap.Package
         public List<PackageDef> Dependencies = new List<PackageDef>();
 
         /// <summary>
-        /// List of the dependencies that are currently not installed and has to be downloaded from a repository
+        /// List of the dependencies that are currently not installed
         /// </summary>
         public List<PackageDef> MissingDependencies = new List<PackageDef>();
 
@@ -135,6 +135,7 @@ namespace OpenTap.Package
         private void resolveEdge(List<DependencyEdge> edges, List<IPackageRepository> repositories, CancellationToken cancellationToken)
         {
             var versions = AlignVersions(edges.Select(s => s.PackageSpecifier).ToList());
+
             foreach (var specifier in versions)
             {
                 ResolveDependency(specifier, edges.Where(s => s.PackageSpecifier.Version.IsSatisfiedBy(specifier.Version)).ToList(), repositories, cancellationToken);
@@ -234,7 +235,7 @@ namespace OpenTap.Package
         /// Returns the resolved dependency tree
         /// </summary>
         /// <returns>Multi line dependency tree string</returns>
-        public string GetPrintableDependencyTree()
+        internal string GetPrintableDependencyTree()
         {
             return graph.Traverse();
         }
@@ -249,7 +250,7 @@ namespace OpenTap.Package
             UnknownDependencies = traversedEdges.Where(s => s.To is UnknownVertex).Select(p => new PackageDependency(p.PackageSpecifier.Name, p.PackageSpecifier.Version)).Distinct().ToList();
 
             // A dependency is only "missing" if it is not installed and has to be downloaded from a repository
-            MissingDependencies = Dependencies.Where(s => !InstalledPackages.Any(p => p.Key == s.Name && s.Version == p.Value.Version) && !(s.PackageSource is FilePackageDefSource)).ToList();
+            MissingDependencies = Dependencies.Where(s => !InstalledPackages.Any(p => p.Key == s.Name && s.Version == p.Value.Version)).ToList();
 
             var multipleVersions = traversedEdges.Where(p => !(p.To is UnknownVertex)).Select(s => s.To).Distinct().GroupBy(x => x.Name);
             foreach (var grp in multipleVersions)
@@ -263,7 +264,6 @@ namespace OpenTap.Package
         {
             foreach (var pkg in packages)
             {
-                graph.AddVertex(pkg);
                 graph.AddEdge(DependencyGraph.Root, pkg, new PackageSpecifier(pkg, VersionMatchBehavior.Exact));
                 foreach (var dep in pkg.Dependencies)
                 {
@@ -384,13 +384,19 @@ namespace OpenTap.Package
             return vertices;
         }
 
+        /// <summary>
+        /// Add an edge between vertices. If the vertices used in the edge is not null, they will be added as vertices.
+        /// </summary>
+        /// <param name="from"></param>
+        /// <param name="to"></param>
+        /// <param name="packageSpecifier"></param>
         public void AddEdge(PackageDef from, PackageDef to, PackageSpecifier packageSpecifier)
         {
             if (from != null && !vertices.Contains(from))
                 AddVertex(from);
             if (to != null && !vertices.Contains(to))
                 AddVertex(to);
-            edges.Add(new DependencyEdge(from, to, packageSpecifier, this));
+            edges.Add(new DependencyEdge(from, to, packageSpecifier));
         }
 
         internal string Traverse()
@@ -460,16 +466,14 @@ namespace OpenTap.Package
 
     }
 
-    [DebuggerDisplay("Edge: {From?.Name ?? 'Root'}: {PackageSpecifier.Name} needs {PackageSpecifier.Version.ToString()}, resolved {To.Version.ToString()}")]
+    [DebuggerDisplay("Edge: {PackageSpecifier.Name} needs {PackageSpecifier.Version.ToString()}, resolved {To.Version.ToString()}")]
     internal class DependencyEdge
     {
-        private readonly DependencyGraph dependencyGraph;
         private PackageDef to;
 
-        public DependencyEdge(PackageDef from, PackageDef to, PackageSpecifier packageSpecifier, DependencyGraph dependencyGraph)
+        public DependencyEdge(PackageDef from, PackageDef to, PackageSpecifier packageSpecifier)
         {
             PackageSpecifier = packageSpecifier;
-            this.dependencyGraph = dependencyGraph;
             From = from;
             To = to;
         }

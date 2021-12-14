@@ -202,6 +202,8 @@ namespace OpenTap.Package
             log.Debug("Resolving dependencies.");
             var resolver = new DependencyResolver(installation, gatheredPackages, repositories);
 
+            var actualMissingDependencies = resolver.MissingDependencies.Where(s => !gatheredPackages.Any(p => s.Name == p.Name));
+
             if (resolver.UnknownDependencies.Any())
             {
                 foreach (var dep in resolver.UnknownDependencies)
@@ -210,18 +212,18 @@ namespace OpenTap.Package
                 log.Info("To download package dependencies despite the conflicts, use the --force option.");
                 return null;
             }
-            else if (resolver.MissingDependencies.Any())
+            else if (actualMissingDependencies.Any())
             {
                 if (includeDependencies == false)
                 {
                     var dependencies = string.Join(", ",
-                        resolver.MissingDependencies.Select(d => $"{d.Name} {d.Version}"));
+                        actualMissingDependencies.Select(d => $"{d.Name} {d.Version}"));
                     log.Info($"Use '--dependencies' to include {dependencies}.");
                 }
 
                 if (includeDependencies)
                 {
-                    foreach (var package in resolver.MissingDependencies)
+                    foreach (var package in actualMissingDependencies)
                     {
                         log.Debug($"Adding dependency {package.Name} {package.Version}");
                         if (!gatheredPackages.Contains(package))
@@ -232,7 +234,7 @@ namespace OpenTap.Package
                 {
                     var pkgs = new List<DepRequest>();
 
-                    foreach (var package in resolver.MissingDependencies)
+                    foreach (var package in actualMissingDependencies)
                     {
                         // Handle each package at a time.
                         DepRequest req = null;
@@ -240,7 +242,7 @@ namespace OpenTap.Package
                         UserInput.Request(req, true);
                     }
 
-                    foreach (var pkg in resolver.MissingDependencies)
+                    foreach (var pkg in actualMissingDependencies)
                     {
                         var res = pkgs.FirstOrDefault(r => r.PackageName == pkg.Name);
 
