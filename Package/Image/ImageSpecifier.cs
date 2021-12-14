@@ -36,7 +36,7 @@ namespace OpenTap.Package
 
             log.Debug($"https://quickchart.io/graphviz?graph={WebUtility.UrlEncode(resolver.GetDotNotation("Image"))}");
             log.Flush();
-            log.Warning("TEST");
+
             if (resolver.DependencyIssues.Any())
                 throw new AggregateException($"OpenTAP packages could not be resolved", resolver.DependencyIssues);
 
