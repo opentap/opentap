@@ -12,6 +12,7 @@ namespace OpenTap.Image.Tests
     {
         public string Url { get; private set; }
         readonly List<PackageDef> AllPackages;
+        internal int ResolveCount = 0;
 
 
         public MockRepository(string url)
@@ -80,6 +81,7 @@ namespace OpenTap.Image.Tests
         }
         public PackageDef[] GetPackages(PackageSpecifier package, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
+            ResolveCount++;
             var list = AllPackages.Where(p => p.Name == package.Name)
                               .GroupBy(p => p.Version)
                               .OrderByDescending(g => g.Key).ToList();

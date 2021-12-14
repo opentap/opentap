@@ -39,12 +39,6 @@ namespace OpenTap.Package
         DependencyGraph graph = new DependencyGraph();
 
         /// <summary>
-        /// Amount of times that the dependency resolver had to ask the respositories for a package
-        /// Asking the repository is considered costly performance-wise and this should be done as few times as possible
-        /// </summary>
-        internal int ResolveDependencyCount = 0;
-
-        /// <summary>
         /// Instantiates a new dependency resolver.
         /// </summary>
         /// <param name="packages">The packages to resolve dependencies for.</param>
@@ -193,7 +187,6 @@ namespace OpenTap.Package
             {
                 try
                 {
-                    ResolveDependencyCount++;
                     resolvedDependency = GetPackageDefFromRepo(repositories, packageSpecifier, InstalledPackages.Values.ToList());
                 }
                 catch (Exception ex)

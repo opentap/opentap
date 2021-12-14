@@ -20,7 +20,8 @@ namespace OpenTap.Image.Tests
 
         public void ResolveDependencies(string package1, string package1version, string package2, string package2version, string resultingVersion1, string resultingVersion2)
         {
-            PackageRepositoryHelpers.RegisterRepository(new MockRepository("mock://localhost"));
+            MockRepository mockRepository = new MockRepository("mock://localhost");
+            PackageRepositoryHelpers.RegisterRepository(mockRepository);
             List<IPackageRepository> repositories = new List<IPackageRepository>() { PackageRepositoryHelpers.DetermineRepositoryType("mock://localhost") };
 
             List<PackageSpecifier> specifiers = new List<PackageSpecifier>();
@@ -31,7 +32,7 @@ namespace OpenTap.Image.Tests
 
             string resolved = resolver.GetPrintableDependencyTree();
             TestContext.WriteLine(resolved);
-            TestContext.WriteLine($"Resolve count: {resolver.ResolveDependencyCount}");
+            TestContext.WriteLine($"Resolve count: {mockRepository.ResolveCount}");
 
             if (resultingVersion1 is null || resultingVersion1 == "error")
                 Assert.IsTrue(resolver.DependencyIssues.Any());
