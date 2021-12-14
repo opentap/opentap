@@ -317,8 +317,13 @@ jobs:
       - name: Download x64 binaries
         uses: actions/download-artifact@v2
         with:
-          name: linux-x64-bin
+          name: win-x64-bin
           path: bin/Release/
+      - name: Download linux binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-x64-bin
+          path: bin/linux-x64/
       - name: Download API Reference
         uses: actions/download-artifact@v2
         with:
@@ -332,7 +337,6 @@ jobs:
       - name: Package
         run: |
          if (!$PROTECTED_BRANCH) { Set-Content .\opentap_linux64.package.xml  -Value (get-content .\opentap_linux64.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
-         mv bin\Release\publish bin\linux-x64
          pushd bin\linux-x64\ 
          ../Release/tap package install -f "/repo/Sign.TapPackage"
          cp .\runtimes\win-x64\native\git2-4aecb64.dll .
@@ -397,3 +401,81 @@ jobs:
           retention-days: 14
           path: |
             SDK.*.TapPackage
+
+  Package-NuGet:
+    runs-on: windows-2022
+    environment: sign
+    strategy:
+      matrix:
+        Architecture: [x86, x64]
+    needs:
+      - Build-Win
+      - Package-Win
+      - Package-Linux
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x64-bin
+          path: bin/Releasex64/
+      - name: Download x86 package
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x86-package
+          path: .
+      - name: Download x64 package
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x64-package
+          path: .
+      - name: Download Linux package
+        uses: actions/download-artifact@v2
+        with:
+          name: Linux-x64-package
+          path: .
+      - name: Copy Signing tools
+        run: aws s3 cp s3://ks-github-runner-tools/sign.1.3.0.TapPackage ./sign.TapPackage --region eu-central-1
+        env:
+          AWS_ACCESS_KEY_ID : ${{ secrets.S3_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY : ${{ secrets.S3_SECRET }}
+      - name: Package
+        run: |
+          ./bin/Releasex64/tap sdk gitversion --replace ./nuget/OpenTAP.nuspec --fields 4
+          New-Item -Force ./nuget/build/payload -ItemType Directory | Out-Null
+          # Expand-Archive will only extract .zip extensions    
+          Move-Item OpenTAP.*.x86.Windows.TapPackage OpenTAP.x86.zip 
+          Move-Item OpenTAP.*.x64.Windows.TapPackage OpenTAP.x64.zip
+          Move-Item OpenTAP.*.Linux.TapPackage OpenTAP.Linux.zip
+
+          Move-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
+          Move-Item ./bin/Release/DotNet.Glob.dll ./nuget/build    
+          ./bin/Release/tap package install ./OpenTap.x64.zip -t ./nuget/build/payload -f
+          # package.xml, tap.dll, and tap.runtimeconfig.json of an installation should always come from 
+          # one of the Runtime directories. Delete it from the payload directory.
+          Remove-Item ./nuget/build/payload/Packages/OpenTAP/package.xml
+          Remove-Item ./nuget/build/payload/tap.dll
+          Remove-Item ./nuget/build/payload/tap.runtimeconfig.json
+          
+          Move-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload
+          Move-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
+          Push-Location ./nuget/build/payload
+          Remove-Item tap.exe
+          Remove-Item ./Dependencies/LibGit2Sharp.0.25.0.0/git2*.dll
+          Pop-Location
+          Expand-Archive OpenTAP.x64.zip win-x64
+          Expand-Archive OpenTAP.x86.zip win-x86
+          Expand-Archive OpenTAP.Linux.zip linux-x64
+          ./nuget/NugetPackager.ps1
+          cd ./nuget    
+          Invoke-WebRequest -Method Get -Uri "https://dist.nuget.org/win-x86-commandline/v5.7.1/nuget.exe" -OutFile nuget.exe
+          .\nuget pack OpenTAP.nuspec -OutputDirectory ../
+      - uses: actions/upload-artifact@v2
+        with:
+          name: nuget-package
+          retention-days: 14
+          path: |
+            *.nupkg
