@@ -419,11 +419,13 @@ jobs:
           path: .
       - name: Install OpenTAP
         run: |
+          cd $RUNNER_TEMP
           wget -O opentap.tar https://www.opentap.io/docs/OpenTAP.9.16.2+f3c96b9f.tar
           tar -xf opentap.tar
           chmod u+x INSTALL.sh
           echo 'y' | ./INSTALL.sh
           ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
+          cd -
       - name: Diff Package
         run: |
           mv OpenTAP.*.TapPackage OpenTAP.TapPackage
@@ -474,7 +476,8 @@ jobs:
           AWS_SECRET_ACCESS_KEY : ${{ secrets.S3_SECRET }}
       - name: Package
         run: |
-          ./bin/Releasex64/tap sdk gitversion --replace ./nuget/OpenTAP.nuspec --fields 4
+          cp bin\Release\runtimes\win-x64\native\git2-4aecb64.dll bin\Release
+          ./bin/Release/tap sdk gitversion --replace ./nuget/OpenTAP.nuspec --fields 4
           New-Item -Force ./nuget/build/payload -ItemType Directory | Out-Null
           # Expand-Archive will only extract .zip extensions    
           Move-Item OpenTAP.*.x86.Windows.TapPackage OpenTAP.x86.zip 
