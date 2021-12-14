@@ -124,6 +124,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - uses: actions/cache@v1
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }} #hash of project files
+          restore-keys: ${{ runner.os }}-nuget-
       - name: Stamp Version
         run: |
           $AssemblyVersion = "`"${{needs.GetVersion.outputs.ShortVersion}}.0`""
@@ -564,6 +569,8 @@ jobs:
       - Package-Linux
       - GetVersion
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
       - name: Download Linux package
         uses: actions/download-artifact@v2
         with:
@@ -573,16 +580,16 @@ jobs:
         run: |
           mv OpenTAP.*.Linux.TapPackage docker/Linux/OpenTAP.Linux.TapPackage
           cd docker/Linux
-          echo "::set-env name=TAG_NAME::alpha"
+          echo "TAG_NAME=alpha" >> $GITHUB_ENV
       - name: Set tag (beta)
         if: github.ref != 'refs/heads/main'
-        run: echo "::set-env name=TAG_NAME::beta"
+        run: echo "TAG_NAME=beta" >> $GITHUB_ENV
       - name: Set tag (rc)
         if: contains(github.ref, 'refs/heads/release')
-        run: echo "::set-env name=TAG_NAME::rc"
+        run: echo "TAG_NAME=rc" >> $GITHUB_ENV
       - name: Set tag (release)
         if: contains(github.ref, 'refs/tags/v')
-        run: echo "::set-env name=TAG_NAME::${{needs.GetVersion.outputs.ShortVersion}}"
+        run: echo "TAG_NAME=${{needs.GetVersion.outputs.ShortVersion}}" >> $GITHUB_ENV
       - uses: aevea/action-kaniko@master
         with:
           image: opentapio/opentap
@@ -598,6 +605,8 @@ jobs:
     needs:
       - Package-Linux
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
       - name: Download Linux package
         uses: actions/download-artifact@v2
         with:
@@ -608,9 +617,9 @@ jobs:
           apt update
           apt install unzip -y
       - run: |
-          pushd LinuxInstall/package
+          cd  LinuxInstall/package
           mv ../../OpenTAP*.TapPackage OpenTAP.TapPackage
-          pushd Debian
+          cd Debian
           bash create-deb
       - uses: actions/upload-artifact@v2
         with:
