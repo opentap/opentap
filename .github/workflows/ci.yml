@@ -346,7 +346,7 @@ jobs:
          cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.$version.Linux.TapPackage
       - uses: actions/upload-artifact@v2
         with:
-          name: Linux-x64-package
+          name: linux-x64-package
           retention-days: 14
           path: |
             OpenTAP.*.Linux.TapPackage
@@ -453,7 +453,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: win-x64-bin
-          path: bin/Releasex64/
+          path: bin/Release/
       - name: Download x86 package
         uses: actions/download-artifact@v2
         with:
@@ -467,7 +467,7 @@ jobs:
       - name: Download Linux package
         uses: actions/download-artifact@v2
         with:
-          name: Linux-x64-package
+          name: linux-x64-package
           path: .
       - name: Copy Signing tools
         run: aws s3 cp s3://ks-github-runner-tools/sign.1.3.0.TapPackage ./sign.TapPackage --region eu-central-1
