@@ -36,9 +36,12 @@ namespace OpenTap.Package
         /// </summary>
         public List<Exception> DependencyIssues = new List<Exception>();
 
-        private TraceSource log = Log.CreateSource("DependencyResolver");
-
         DependencyGraph graph = new DependencyGraph();
+
+        /// <summary>
+        /// Amount of times that the dependency resolver had to ask the respositories for a package
+        /// Asking the repository is considered costly performance-wise and this should be done as few times as possible
+        /// </summary>
         internal int ResolveDependencyCount = 0;
 
         /// <summary>
@@ -359,6 +362,11 @@ namespace OpenTap.Package
         }
     }
 
+
+    /// <summary>
+    /// Dependency Graph structure. PackageDefs are vertices and edges between vertices are defined as PackageDef references to both vertices along with a PackageSpecifer
+    /// defining the requirement of the 'From' vertex.
+    /// </summary>
     internal class DependencyGraph
     {
         internal static RootVertex Root = new RootVertex();
@@ -383,11 +391,6 @@ namespace OpenTap.Package
             if (to != null && !vertices.Contains(to))
                 AddVertex(to);
             edges.Add(new DependencyEdge(from, to, packageSpecifier, this));
-        }
-
-        internal IEnumerable<DependencyEdge> GetDependencyEdges(PackageDef package)
-        {
-            return edges.Where(s => s.From == package);
         }
 
         internal string Traverse()
@@ -415,7 +418,7 @@ namespace OpenTap.Package
             dependencyTree.Add($"{new string(' ', v * 2)}{edge.PackageSpecifier.Name} version {edge.PackageSpecifier.Version} resolved to {edge.To.Version}");
             v = v + 1;
             packageDefs.Add(edge.To);
-            foreach (var dependency in GetDependencyEdges(edge.To))
+            foreach (var dependency in TraverseEdges().Where(s => s.From == edge.To))
             {
                 if (!packageDefs.Contains(dependency.To))
                     traverse(dependency, dependencyTree, v, packageDefs);
@@ -440,14 +443,6 @@ namespace OpenTap.Package
                     queue.Enqueue(edge);
                 }
             }
-        }
-
-        private IEnumerable<DependencyEdge> find(DependencyEdge root, string name)
-        {
-            if (root.To.Name == name)
-                yield return root;
-            if (root.From.Name == name)
-                yield return root;
         }
     }
     internal class RootVertex : PackageDef
