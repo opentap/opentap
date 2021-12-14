@@ -539,3 +539,28 @@ jobs:
           name: installer-linux
           retention-days: 14
           path: OpenTAP.tar   
+
+  Test-Installer-Linux:
+    runs-on: ubuntu-20.04
+    container:
+      image: mcr.microsoft.com/dotnet/runtime:6.0-focal
+    needs:
+      - Installer-Linux
+    steps:
+      - name: Download Linux Installer
+        uses: actions/download-artifact@v2
+        with:
+          name: installer-linux
+      - name: Install Unzip
+        run: |
+          apt update
+          apt install unzip -y
+      - name: Install OpenTAP
+        run: |
+          tar xf OpenTAP.tar
+          chmod +x ./INSTALL.sh
+          echo 'y' | ./INSTALL.sh
+      - name: Test OpenTAP
+        run: |
+          $HOME/bin/tap -h
+          $HOME/bin/tap package list -v
