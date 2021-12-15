@@ -584,10 +584,9 @@ jobs:
         with:
           name: linux-x64-package
           path: .
-      - name: Docker
+      - name: Prepare
         run: |
           mv OpenTAP.*.Linux.TapPackage docker/Linux/OpenTAP.Linux.TapPackage
-          cd docker/Linux
           echo "TAG_NAME=alpha" >> $GITHUB_ENV
       - name: Set tag (beta)
         if: github.ref != 'refs/heads/main'
@@ -598,13 +597,15 @@ jobs:
       - name: Set tag (release)
         if: contains(github.ref, 'refs/tags/v')
         run: echo "TAG_NAME=${{needs.GetVersion.outputs.ShortVersion}}" >> $GITHUB_ENV
-      - uses: aevea/action-kaniko@master
+      - name: Docker Build
+        uses: aevea/action-kaniko@master
         with:
           image: opentapio/opentap
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
           target: ${{ matrix.target }}
           tag: ${{env.TAG_NAME}}-bionic${{ matrix.tag-suffix }}
+          path: docker/Linux
       
   Package-Deb:
     runs-on: ubuntu-20.04
