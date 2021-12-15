@@ -121,10 +121,13 @@ jobs:
       matrix:
         Architecture: [x86, x64]
     needs: GetVersion
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: true
     steps:
       - name: Checkout
         uses: actions/checkout@v2
       - uses: actions/cache@v1
+        id: cache
         with:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }} #hash of project files
@@ -141,10 +144,14 @@ jobs:
           $AssemblyInfoFile | Set-Content AssemblyInfo.cs
           cat AssemblyInfo.cs
           Pop-Location
+      - name: Restore
+        if: steps.cache.outputs.cache-hit != true
+        run: |
+          dotnet Restore -c Release /p:Platform=${{ matrix.Architecture }}
       - name: Build
         run: |
-          dotnet build -c Release /p:Platform=${{ matrix.Architecture }}
-          dotnet build tap/tap.csproj -c Release /p:Platform=${{ matrix.Architecture }}
+          dotnet build --no-restore -c Release /p:Platform=${{ matrix.Architecture }}
+          dotnet build --no-restore tap/tap.csproj -c Release /p:Platform=${{ matrix.Architecture }}
           get-content ./bin/Release/tap.runtimeconfig.json
           Remove-Item -recurse "bin\Release\Packages"
       - name: Upload binaries
