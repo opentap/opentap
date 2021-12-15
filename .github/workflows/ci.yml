@@ -281,7 +281,14 @@ jobs:
         with:
           name: doc-api-chm
           path: Help/
+      - name: Caching Signing tools
+        uses: actions/cache@v2
+        id: cache
+        with:
+          path: ./sign.TapPackage
+          key: ${{ runner.os }}-signpackage-1.3.0 }}
       - name: Copy Signing tools
+        if: steps.cache.outputs.cache-hit != true
         run: aws s3 cp s3://ks-github-runner-tools/sign.1.3.0.TapPackage ./sign.TapPackage --region eu-central-1
         env:
           AWS_ACCESS_KEY_ID : ${{ secrets.S3_KEY_ID }}
@@ -329,7 +336,14 @@ jobs:
         with:
           name: doc-api-chm
           path: Help/
+      - name: Caching Signing tools
+        uses: actions/cache@v2
+        id: cache
+        with:
+          path: ./sign.TapPackage
+          key: ${{ runner.os }}-signpackage-1.3.0 }}
       - name: Copy Signing tools
+        if: steps.cache.outputs.cache-hit != true
         run: aws s3 cp s3://ks-github-runner-tools/sign.1.3.0.TapPackage ./sign.TapPackage --region eu-central-1
         env:
           AWS_ACCESS_KEY_ID : ${{ secrets.S3_KEY_ID }}
