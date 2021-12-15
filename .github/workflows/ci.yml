@@ -558,6 +558,7 @@ jobs:
 
   Docker-Linux:
     runs-on: ubuntu-20.04
+    environment: sign
     strategy:
       matrix:
         include:
