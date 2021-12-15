@@ -146,7 +146,7 @@ jobs:
           cat AssemblyInfo.cs
           Pop-Location
       - name: Restore
-        if: steps.cache.outputs.cache-hit != 'true'
+        #if: steps.cache.outputs.cache-hit != 'true'
         run: |
           dotnet restore
       - name: Build
