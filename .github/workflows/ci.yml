@@ -93,7 +93,6 @@ jobs:
           retention-days: 5
           path: API
 
-
   Build-Linux:
     runs-on: ubuntu-latest
     container:
@@ -294,17 +293,17 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: aws s3 cp s3://ks-github-runner-tools/sign.1.3.0.TapPackage ./sign.TapPackage --region eu-central-1
         env:
-          AWS_ACCESS_KEY_ID : ${{ secrets.S3_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY : ${{ secrets.S3_SECRET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.S3_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET }}
       - name: Package
         run: |
-         if (!$GITHUB_REF_PROTECTED) { Set-Content .\opentap.${{ matrix.Architecture }}.package.xml  -Value (get-content .\opentap.${{ matrix.Architecture }}.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
-         cd bin/Release-x64
-         cp .\runtimes\win-x64\native\git2-4aecb64.dll .
-         .\tap.exe package install -f sign.TapPackage
-         $version=$(./tap sdk gitversion)
-         cd ../Release-${{ matrix.Architecture }}
-         ..\Release-x64\tap.exe package create -v ../../opentap.${{ matrix.Architecture }}.package.xml -o ../../OpenTAP.$version.${{ matrix.Architecture }}.Windows.TapPackage
+          if (!$GITHUB_REF_PROTECTED) { Set-Content .\opentap.${{ matrix.Architecture }}.package.xml  -Value (get-content .\opentap.${{ matrix.Architecture }}.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
+          cd bin/Release-x64
+          cp .\runtimes\win-x64\native\git2-4aecb64.dll .
+          .\tap.exe package install -f sign.TapPackage
+          $version=$(./tap sdk gitversion)
+          cd ../Release-${{ matrix.Architecture }}
+          ..\Release-x64\tap.exe package create -v ../../opentap.${{ matrix.Architecture }}.package.xml -o ../../OpenTAP.$version.${{ matrix.Architecture }}.Windows.TapPackage
       - uses: actions/upload-artifact@v2
         with:
           name: win-${{ matrix.Architecture }}-package
@@ -349,17 +348,17 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: aws s3 cp s3://ks-github-runner-tools/sign.1.3.0.TapPackage ./sign.TapPackage --region eu-central-1
         env:
-          AWS_ACCESS_KEY_ID : ${{ secrets.S3_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY : ${{ secrets.S3_SECRET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.S3_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET }}
       - name: Package
         run: |
-         if (!$GITHUB_REF_PROTECTED) { Set-Content .\opentap_linux64.package.xml  -Value (get-content .\opentap_linux64.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
-         pushd bin\linux-x64\ 
-         ../Release/tap package install -f "/repo/Sign.TapPackage"
-         cp .\runtimes\win-x64\native\git2-4aecb64.dll .
-         ..\Release\tap package create -v ../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage
-         $version=$(..\Release\tap sdk gitversion)
-         cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.$version.Linux.TapPackage
+          if (!$GITHUB_REF_PROTECTED) { Set-Content .\opentap_linux64.package.xml  -Value (get-content .\opentap_linux64.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
+          pushd bin\linux-x64\ 
+          ../Release/tap package install -f "/repo/Sign.TapPackage"
+          cp .\runtimes\win-x64\native\git2-4aecb64.dll .
+          ..\Release\tap package create -v -c ../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage
+          $version=$(..\Release\tap sdk gitversion)
+          cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.$version.Linux.TapPackage
       - uses: actions/upload-artifact@v2
         with:
           name: linux-x64-package
@@ -502,7 +501,7 @@ jobs:
           Remove-Item ./nuget/build/payload/Packages/OpenTAP/package.xml
           Remove-Item ./nuget/build/payload/tap.dll
           Remove-Item ./nuget/build/payload/tap.runtimeconfig.json
-          
+
           Move-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload
           Move-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
           Push-Location ./nuget/build/payload
@@ -539,22 +538,22 @@ jobs:
           path: .
       - name: Package
         run: |
-         Invoke-WebRequest https://netcologne.dl.sourceforge.net/project/gnuwin32/tar/1.13-1/tar-1.13-1-bin.exe -Outfile tarsetup.exe
-         Start-process .\tarsetup.exe -NoNewWindow -Wait -ArgumentList "/SILENT"
+          Invoke-WebRequest https://netcologne.dl.sourceforge.net/project/gnuwin32/tar/1.13-1/tar-1.13-1-bin.exe -Outfile tarsetup.exe
+          Start-process .\tarsetup.exe -NoNewWindow -Wait -ArgumentList "/SILENT"
 
-         $path=(get-item -path "./").Fullname
-         $str=[IO.File]::ReadAllText($path + "/LinuxInstall/INSTALL.sh") -replace "`r`n", "`n"
-         ([IO.File]::WriteAllText($path + "/INSTALL.sh", $str))
+          $path=(get-item -path "./").Fullname
+          $str=[IO.File]::ReadAllText($path + "/LinuxInstall/INSTALL.sh") -replace "`r`n", "`n"
+          ([IO.File]::WriteAllText($path + "/INSTALL.sh", $str))
 
-         $str=[IO.File]::ReadAllText($path + "/LinuxInstall/README") -replace "`r`n", "`n"
-         ([IO.File]::WriteAllText($path + "/README", $str))
+          $str=[IO.File]::ReadAllText($path + "/LinuxInstall/README") -replace "`r`n", "`n"
+          ([IO.File]::WriteAllText($path + "/README", $str))
 
-         cmd /C '"C:\Program Files (x86)\GnuWin32\bin\tar.exe" -cf "OpenTAP.tar" OpenTAP.*.Linux.TapPackage INSTALL.sh README'
+          cmd /C '"C:\Program Files (x86)\GnuWin32\bin\tar.exe" -cf "OpenTAP.tar" OpenTAP.*.Linux.TapPackage INSTALL.sh README'
       - uses: actions/upload-artifact@v2
         with:
           name: installer-linux
           retention-days: 14
-          path: OpenTAP.tar   
+          path: OpenTAP.tar
 
   Test-Installer-Linux:
     runs-on: ubuntu-20.04
@@ -579,7 +578,7 @@ jobs:
       - name: Test OpenTAP
         run: |
           $HOME/bin/tap -h
-          $HOME/bin/tap package list -v
+          $HOME/bin/tap package list -v -c
 
   Docker-Linux:
     runs-on: ubuntu-20.04
@@ -587,10 +586,10 @@ jobs:
     strategy:
       matrix:
         include:
-         - target: production
-           tag-suffix: "-slim"
-         - target: development
-           tag-suffix: ""
+          - target: production
+            tag-suffix: "-slim"
+          - target: development
+            tag-suffix: ""
     needs:
       - Package-Linux
       - GetVersion
@@ -624,7 +623,7 @@ jobs:
           target: ${{ matrix.target }}
           tag: ${{env.TAG_NAME}}-bionic${{ matrix.tag-suffix }}
           path: docker/Linux
-      
+
   Package-Deb:
     runs-on: ubuntu-20.04
     container:
@@ -654,4 +653,4 @@ jobs:
         with:
           name: package-deb
           retention-days: 14
-          path: LinuxInstall/package/Debian/OpenTAP.deb   
+          path: LinuxInstall/package/Debian/OpenTAP.deb
