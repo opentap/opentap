@@ -277,18 +277,22 @@ namespace OpenTap.Package
 
         internal static PackageDef GetPackageDefFromRepo(List<IPackageRepository> repositories, PackageSpecifier packageSpecifier, List<PackageDef> installedPackages)
         {
-            if (packageSpecifier.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible) || packageSpecifier.Version.Minor is null || packageSpecifier.Version.Patch is null)
+            if (packageSpecifier.Version.Minor is null || packageSpecifier.Version.Patch is null)
             {
-                // Don't trust the package repo to get the right version
-                // Package repo will return latest for compatible or non-exact versions
-                if (packageSpecifier.Version.Minor is null || packageSpecifier.Version.Patch is null)
-                    return GetLatestCompatible(repositories, packageSpecifier, installedPackages);
-                else
-                    return GetLowestCompatible(repositories, packageSpecifier, installedPackages);
+                return GetLatestCompatible(repositories, packageSpecifier, installedPackages);
             }
             else
             {
+                PackageSpecifier temp = packageSpecifier;
+
+                if (packageSpecifier.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible)) {
+                    VersionSpecifier spec = new VersionSpecifier(packageSpecifier.Version.Major, packageSpecifier.Version.Minor, packageSpecifier.Version.Patch, packageSpecifier.Version.PreRelease, packageSpecifier.Version.BuildMetadata, VersionMatchBehavior.Exact);
+                    packageSpecifier = new PackageSpecifier(packageSpecifier.Name, spec, packageSpecifier.Architecture, packageSpecifier.OS);
+                }
                 IEnumerable<PackageDef> packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageSpecifier, installedPackages.ToArray());
+
+                if (!packages.Any() && temp.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible))
+                    return GetLowestCompatible(repositories, temp, installedPackages);
 
                 if (!packages.Any())
                     packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageSpecifier);
@@ -361,8 +365,8 @@ namespace OpenTap.Package
             allVersions = allVersions.Where(v => v.Major == packageSpecifier.Version.Major).Where(p => packageSpecifier.Version.IsCompatible(p));
             SemanticVersion ver = null;
 
-            if (allVersions.Any(s => s.Patch == packageSpecifier.Version.Patch && packageSpecifier.Version.PreRelease != null && s.PreRelease == packageSpecifier.Version.PreRelease))
-                ver = allVersions.FirstOrDefault(s => s.Patch == packageSpecifier.Version.Patch && packageSpecifier.Version.PreRelease != null && s.PreRelease == packageSpecifier.Version.PreRelease);
+            if (allVersions.FirstOrDefault(s => s.Minor == packageSpecifier.Version.Minor && s.Patch == packageSpecifier.Version.Patch && s.PreRelease == packageSpecifier.Version.PreRelease) is SemanticVersion semanticVersion)
+                ver = semanticVersion;
             else
                 ver = allVersions.OrderBy(v => v).FirstOrDefault();
             var exactSpec = new PackageSpecifier(packageSpecifier.Name, new VersionSpecifier(ver, VersionMatchBehavior.Exact), packageSpecifier.Architecture, packageSpecifier.OS);
@@ -379,7 +383,7 @@ namespace OpenTap.Package
         {
             var allVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageSpecifier.Name, installedPackages.ToArray())
                                          .Select(p => p.Version).Distinct();
-            allVersions = allVersions.Where(v => v.Major == packageSpecifier.Version.Minor);
+            allVersions = allVersions.Where(v => v.Major == packageSpecifier.Version.Major);
             if (packageSpecifier.Version.Minor != null)
                 allVersions = allVersions.Where(p => p.Minor == packageSpecifier.Version.Minor);
             SemanticVersion ver = allVersions.OrderByDescending(v => v).FirstOrDefault();
@@ -428,7 +432,6 @@ namespace OpenTap.Package
                 AddVertex(from);
             if (to != null && !vertices.Contains(to))
                 AddVertex(to);
-            var newEdge = new DependencyEdge(from, to, packageSpecifier);
             edges.Add(new DependencyEdge(from, to, packageSpecifier));
         }
 
@@ -461,7 +464,8 @@ namespace OpenTap.Package
 
             if (edge.To is UnknownVertex)
             {
-                if (!unknownWritten.Contains(edge.PackageSpecifier.Name)) { 
+                if (!unknownWritten.Contains(edge.PackageSpecifier.Name))
+                {
                     stringBuilder.Append($"\"{edge.PackageSpecifier.Name}\"[color=red];");
                     unknownWritten.Add(edge.PackageSpecifier.Name);
                 }

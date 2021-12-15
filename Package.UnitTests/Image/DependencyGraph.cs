@@ -17,7 +17,8 @@ namespace OpenTap.Image.Tests
         [TestCase("OpenTAP", "9.13.1", "ExactDependency", "1.0.0", "9.13.1", "1.0.0")]
         [TestCase("OpenTAP", "9.13", "ExactDependency", "1.0.0", "9.13.1", "1.0.0")]
         [TestCase("Cyclic", "1.0.0", "Cyclic2", "1.0.0", "1.0.0", "1.0.0")]
-
+        [TestCase("OpenTAP", "9.13", "ExactDependency", "^1.0.0", "9.13.1", "1.0.0")]
+        [TestCase("OpenTAP", "^9.10.0", "Demonstration", "^9.0.3", "9.12.0", "9.1.0")]
         public void ResolveDependencies(string package1, string package1version, string package2, string package2version, string resultingVersion1, string resultingVersion2)
         {
             MockRepository mockRepository = new MockRepository("mock://localhost");

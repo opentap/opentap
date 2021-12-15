@@ -77,6 +77,7 @@ namespace OpenTap.Image.Tests
 
         public string[] GetPackageNames(CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
+            ResolveCount++;
             return AllPackages.Select(p => p.Name).Distinct().ToArray();
         }
         public PackageDef[] GetPackages(PackageSpecifier package, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
@@ -90,6 +91,7 @@ namespace OpenTap.Image.Tests
 
         public PackageVersion[] GetPackageVersions(string packageName, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
+            ResolveCount++;
             return AllPackages.Where(p => p.Name == packageName)
                               .Select(p => new PackageVersion(p.Name, p.Version, p.OS, p.Architecture, p.Date, new List<string>()))
                               .OrderByDescending(p => p.Version)
