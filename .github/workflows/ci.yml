@@ -3,9 +3,10 @@ name: CI
 on: [push]
 
 env:
-  OPENTAP_COLOR: auto
+  OPENTAP_COLOR: always
   OPENTAP_NO_UPDATE_CHECK: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_CONSOLE_ANSI_COLOR: true
 
 jobs:
   GetVersion:
@@ -203,13 +204,13 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: win-x64-bin
-          path: bin/
+          path: bin/Release
       - name: Test
         run: |
           $ErrorActionPreference = "Stop"
           Copy-Item -r "Package.UnitTests/Packages" bin
-          Copy-Item .\bin\runtimes\win-x64\native\git2-4aecb64.dll .\bin
-          dotnet vstest bin/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
+          Copy-Item .\bin\Release\runtimes\win-x64\native\git2-4aecb64.dll .\bin\Release
+          dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
       - uses: actions/upload-artifact@v2
         with:
           name: win-testresults
