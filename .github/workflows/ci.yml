@@ -234,12 +234,12 @@ jobs:
 
   TestLinuxPlan:
     runs-on: ubuntu-20.04
-    needs: Build-Win
+    container: mcr.microsoft.com/dotnet/sdk:6.0-focal
+
+    needs: Build-Linux
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
       - name: Download binaries
         uses: actions/download-artifact@v2
         with:
@@ -250,6 +250,8 @@ jobs:
           ls -l bin/Release/
           chmod +x bin/Release/tap
           bin/Release/tap run tests/regression.TapPlan --verbose
+        env:
+          OPENTAP_COLOR: always
 
   ###############
   ### Package ###
