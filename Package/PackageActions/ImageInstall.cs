@@ -38,6 +38,9 @@ namespace OpenTap.Package
             if (NonInteractive)
                 UserInput.SetInterface(new NonInteractiveUserInputInterface());
 
+            if (Force)
+                log.Warning($"Using --force does not force an image installation");
+
             var imageString = File.ReadAllText(ImagePath);
             var image = ImageSpecifier.FromString(imageString);
 
