@@ -1,54 +1,57 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <AssemblyName>OpenTap</AssemblyName>
-    <RootNamespace>OpenTap</RootNamespace>
-  </PropertyGroup>
-  
-  <PropertyGroup Condition="'$(IsDebug)'!='true'">
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>  
-    <DocumentationFile>$(OutputPath)\OpenTap.xml</DocumentationFile>    
-  </PropertyGroup>
+	<PropertyGroup>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<AssemblyName>OpenTap</AssemblyName>
+		<RootNamespace>OpenTap</RootNamespace>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
-    <PackageReference Include="System.Collections.Immutable" Version="1.5.0" />
-    <PackageReference Include="System.Reflection.Metadata" Version="1.6.0" />
-    <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
-    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.1" />
-    <PackageReference Include="System.ValueTuple" Version="4.5.0" />
-    <PackageReference Include="Microsoft.CodeAnalysis" Version="2.10">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="2.10" PrivateAssets="all" />
-  </ItemGroup>
+	<PropertyGroup Condition="'$(IsDebug)'!='true'">
+		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+		<DocumentationFile>$(OutputPath)\OpenTap.xml</DocumentationFile>
+	</PropertyGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
+		<PackageReference Include="System.Collections.Immutable" Version="1.5.0" />
+		<PackageReference Include="System.Reflection.Metadata" Version="1.6.0" />
+		<PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
+		<PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.1" />
+		<PackageReference Include="System.ValueTuple" Version="4.5.0" />
+		<PackageReference Include="Microsoft.CodeAnalysis" Version="2.10">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="2.10" PrivateAssets="all" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Properties\" />
-    <None Include="../Installer/Assets/dotnet_library_license.txt">
-       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="../Installer/Assets/dotnet_mit_license.txt">
-       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="../Installer/Assets/libgit2sharp.license.md">
-       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="../Installer/Assets/Mono.Cecil.License.txt">
-       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="../Installer/Assets/Dotnet.Glob.License.txt">
-       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="../Installer/Assets/newtonsoft_mit_license.txt">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="..\LICENSE.txt">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+	<ItemGroup>
+		<Folder Include="Properties\" />
+		<None Include="../Installer/Assets/dotnet_library_license.txt">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Include="../Installer/Assets/dotnet_mit_license.txt">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Include="../Installer/Assets/libgit2sharp.license.md">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Include="../Installer/Assets/Mono.Cecil.License.txt">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Include="../Installer/Assets/Dotnet.Glob.License.txt">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Include="../Installer/Assets/newtonsoft_mit_license.txt">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Include="..\LICENSE.txt">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<Content Include="..\opentap.x64.package.xml">
+			<Link>Packages\OpenTAP\package.xml</Link>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
 
-  <Import Project="..\Shared\Tap.Shared.projitems" Label="Shared" />
+	<Import Project="..\Shared\Tap.Shared.projitems" Label="Shared" />
 
 </Project>
