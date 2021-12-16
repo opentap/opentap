@@ -243,9 +243,13 @@ jobs:
         with:
           name: linux-x64-bin
           path: bin/Release/
+      - name: Set locale
+        run: |
+          apt-get update
+          apt-get install locales
+          locale-gen en_US.UTF-8
       - name: Test
         run: |
-          ls -l bin/Release/
           chmod +x bin/Release/tap
           bin/Release/tap run tests/regression.TapPlan --verbose --color
 
