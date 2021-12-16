@@ -3,7 +3,7 @@ name: CI
 on: [push]
 
 env:
-  OPENTAP_COLOR: always
+  #OPENTAP_COLOR: auto # github messes with the "auto" detection (i.e. it has no effect), and "always" breaks a lot of things
   OPENTAP_NO_UPDATE_CHECK: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_CONSOLE_ANSI_COLOR: true
@@ -250,9 +250,7 @@ jobs:
         run: |
           ls -l bin/Release/
           chmod +x bin/Release/tap
-          bin/Release/tap run tests/regression.TapPlan --verbose
-        env:
-          OPENTAP_COLOR: always
+          bin/Release/tap run tests/regression.TapPlan --verbose --color
 
   ###############
   ### Package ###
