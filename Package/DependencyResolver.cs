@@ -76,6 +76,7 @@ namespace OpenTap.Package
 
         private void resolveGraph(DependencyGraph graph, List<IPackageRepository> repositories, CancellationToken cancellationToken)
         {
+            Debugger.Launch();
             AlignArchAndOS(graph);
 
             bool unresolvedExists = true;
@@ -116,8 +117,12 @@ namespace OpenTap.Package
                                                 .Where(a => a != CpuArchitecture.Unspecified && a != CpuArchitecture.AnyCPU).ToList();
 
             CpuArchitecture arch;
-            if (archs.Count != 1)
-                arch = openTapPackage?.Architecture ?? ArchitectureHelper.GuessBaseArchitecture;
+            if (archs.Count != 1) { 
+                if(openTapPackage?.Architecture != null && openTapPackage.Architecture != CpuArchitecture.Unspecified)
+                    arch = openTapPackage.Architecture;
+                else
+                    arch = ArchitectureHelper.GuessBaseArchitecture;
+            }
             else
                 arch = archs[0];
             foreach (var edge in edges)
