@@ -208,7 +208,7 @@ jobs:
       - name: Test
         run: |
           $ErrorActionPreference = "Stop"
-          Copy-Item -r "Package.UnitTests/Packages" bin
+          Copy-Item -r "Package.UnitTests/Packages" bin/Release
           Copy-Item .\bin\Release\runtimes\win-x64\native\git2-4aecb64.dll .\bin\Release
           dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
       - uses: actions/upload-artifact@v2
