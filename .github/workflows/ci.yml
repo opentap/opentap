@@ -4,6 +4,7 @@ on: [push]
 
 env:
   #OPENTAP_COLOR: auto # github messes with the "auto" detection (i.e. it has no effect), and "always" breaks a lot of things
+  OPENTAP_ANSI_COLORS: true
   OPENTAP_NO_UPDATE_CHECK: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_CONSOLE_ANSI_COLOR: true
@@ -360,8 +361,6 @@ jobs:
           ..\Release\tap package create -v -c ../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage
           $version=$(..\Release\tap sdk gitversion)
           cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.$version.Linux.TapPackage
-        env:
-          OPENTAP_ANSI_COLORS: 1
       - uses: actions/upload-artifact@v2
         with:
           name: linux-x64-package
