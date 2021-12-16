@@ -8,8 +8,8 @@ namespace OpenTap.Package
 {
     internal static class PackageCacheHelper
     {
-        public static string PackageCacheDirectory { get; private set; } = Path.Combine(ExecutorClient.ExeDir, "PackageCache");
-        readonly static TraceSource log =  OpenTap.Log.CreateSource("PackageCache");
+        public static string PackageCacheDirectory { get; private set; } = Path.Combine(Path.GetTempPath(), "OpenTapPackageCache");
+        readonly static TraceSource log =  Log.CreateSource("PackageCache");
 
         static PackageCacheHelper()
         {

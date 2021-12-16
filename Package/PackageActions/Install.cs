@@ -194,7 +194,7 @@ namespace OpenTap.Package
                 // We divide the progress by 2 in the progress update because we assume downloading the packages
                 // accounts for half the installation progress. So when all the packages have finished downloading,
                 // we have finished 10 + (100/2)% of the installation process.
-
+                
                 var downloadedPackageFiles = PackageActionHelpers.DownloadPackages(
                     PackageCacheHelper.PackageCacheDirectory, packagesToInstall,
                     progressUpdate: (progress, msg) => RaiseProgressUpdate(10 + progress / 2, msg));
