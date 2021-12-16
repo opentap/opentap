@@ -360,6 +360,8 @@ jobs:
           ..\Release\tap package create -v -c ../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage
           $version=$(..\Release\tap sdk gitversion)
           cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.$version.Linux.TapPackage
+        env:
+          OPENTAP_ANSI_COLORS: 1
       - uses: actions/upload-artifact@v2
         with:
           name: linux-x64-package
