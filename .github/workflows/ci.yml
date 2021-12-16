@@ -647,7 +647,7 @@ jobs:
           apt update
           apt install unzip -y
       - name: Create Debian Package
-      - run: |
+        run: |
           cd  LinuxInstall/package
           mv ../../OpenTAP*.TapPackage OpenTAP.TapPackage
           cd Debian
