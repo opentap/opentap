@@ -76,7 +76,6 @@ namespace OpenTap.Package
 
         private void resolveGraph(DependencyGraph graph, List<IPackageRepository> repositories, CancellationToken cancellationToken)
         {
-            Debugger.Launch();
             AlignArchAndOS(graph);
 
             bool unresolvedExists = true;
