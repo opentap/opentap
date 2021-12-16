@@ -34,10 +34,6 @@ jobs:
       - name: tap sdk gitversion
         id: gitVer
         run: echo ::set-output name=ver::$(tap sdk gitversion)
-      - run: $HOME/bin/tap sdk gitversion
-      - run: echo $(tap sdk gitversion)
-      - name: Print
-        run: echo ${{ steps.gitVer.outputs.ver }}
 
   ##############
   ### BUILDS ###
@@ -232,7 +228,7 @@ jobs:
           name: win-x64-bin
           path: bin/Release/
       - name: Test
-        run: bin/Release/tap.exe run tests/regression.TapPlan --verbose
+        run: bin/Release/tap.exe run tests/regression.TapPlan --verbose --color
 
   TestLinuxPlan:
     runs-on: ubuntu-20.04
@@ -305,7 +301,7 @@ jobs:
           .\tap.exe package install -f sign.TapPackage
           $version=$(./tap sdk gitversion)
           cd ../Release-${{ matrix.Architecture }}
-          ..\Release-x64\tap.exe package create -v ../../opentap.${{ matrix.Architecture }}.package.xml -o ../../OpenTAP.$version.${{ matrix.Architecture }}.Windows.TapPackage
+          ..\Release-x64\tap.exe package create -v -c ../../opentap.${{ matrix.Architecture }}.package.xml -o ../../OpenTAP.$version.${{ matrix.Architecture }}.Windows.TapPackage
       - uses: actions/upload-artifact@v2
         with:
           name: win-${{ matrix.Architecture }}-package
@@ -399,7 +395,7 @@ jobs:
           Set-Content .\opentap.x86.package.xml  -Value (get-content .\opentap.x86.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch)
           cd bin/Release
           cp .\runtimes\win-x64\native\git2-4aecb64.dll .
-          .\tap.exe package create ../../opentap.x86.package.xml --install -v
+          .\tap.exe package create ../../opentap.x86.package.xml --install -v -c
           Copy-Item "../../sdk/Examples" "Packages/SDK/Examples" -Recurse
           Copy-Item "../../Package/PackageSchema.xsd" "Packages/SDK/PackageSchema.xsd"
           cd Packages/SDK/Examples
@@ -411,7 +407,7 @@ jobs:
           $doc.Save("$pwd/Directory.Build.props")
           cd ../../..
           ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/Directory.Build.props"
-          ./tap package create -v ../../sdk/sdk.package.xml
+          ./tap package create -v -c ../../sdk/sdk.package.xml
           Move-Item "*.TapPackage" "../.."
       - uses: actions/upload-artifact@v2
         with:
@@ -646,6 +642,7 @@ jobs:
         run: |
           apt update
           apt install unzip -y
+      - name: Create Debian Package
       - run: |
           cd  LinuxInstall/package
           mv ../../OpenTAP*.TapPackage OpenTAP.TapPackage
