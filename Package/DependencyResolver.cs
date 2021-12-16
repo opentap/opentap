@@ -455,12 +455,12 @@ namespace OpenTap.Package
 
         private void createDotNotation(DependencyEdge edge, StringBuilder stringBuilder, List<DependencyEdge> visited, string rootName, List<string> unknownWritten)
         {
-            string from = edge.From == Root ? rootName : $"{edge.From.Name} {edge.From.Version}";
-            string to = edge.To == Unknown ? $"{edge.PackageSpecifier.Name}" : $"{edge.To.Name} {edge.To.Version}";
+            string from = edge.From == Root ? rootName : $"{edge.From.Name}\n{edge.From.Version.ToString(4)}";
+            string to = edge.To == Unknown ? $"{edge.PackageSpecifier.Name}" : $"{edge.To.Name}\n{edge.To.Version.ToString(4)}";
             if (edge.To != Unknown && !edge.PackageSpecifier.IsCompatible(edge.To))
-                stringBuilder.Append($"\"{from}\" -> \"{to}\" [label=\"{edge.PackageSpecifier.Version}\",color=red];");
+                stringBuilder.Append($"\"{from}\" -> \"{to}\" [label=\"{edge.PackageSpecifier.Version.ToString(4)}\",color=red];");
             else
-                stringBuilder.Append($"\"{from}\" -> \"{to}\" [label=\"{edge.PackageSpecifier.Version}\"];");
+                stringBuilder.Append($"\"{from}\" -> \"{to}\" [label=\"{edge.PackageSpecifier.Version.ToString(4)}\"];");
 
             if (edge.To is UnknownVertex)
             {
