@@ -34,11 +34,12 @@ namespace OpenTap.Package
 
             DependencyResolver resolver = new DependencyResolver(Packages, repositories, cancellationToken);
 
-            log.Debug($"https://quickchart.io/graphviz?graph={WebUtility.UrlEncode(resolver.GetDotNotation("Image"))}");
+            string dotGraph = resolver.GetDotNotation("Image");
+            log.Debug($"https://quickchart.io/graphviz?graph={WebUtility.UrlEncode(dotGraph)}");
             log.Flush();
 
             if (resolver.DependencyIssues.Any())
-                throw new AggregateException($"OpenTAP packages could not be resolved", resolver.DependencyIssues);
+                throw new ImageResolveException(dotGraph, $"OpenTAP packages could not be resolved", resolver.DependencyIssues);
 
             ImageIdentifier image = new ImageIdentifier(resolver.Dependencies, repositories.Select(s => s.Url));
 
@@ -66,5 +67,15 @@ namespace OpenTap.Package
             this.ImageSpecifier = ImageSpecifier;
             this.PackageSpecifier = PackageSpecifier;
         }
+    }
+
+    public class ImageResolveException : AggregateException
+    {
+        public ImageResolveException(string dotGraph, string message, List<Exception> dependencyIssues) : base(message, dependencyIssues)
+        {
+            DotGraph = dotGraph;
+        }
+        public string DotGraph { get; private set; }
+
     }
 }
