@@ -149,7 +149,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
     public class AddAssemblyReferencesFromPackage : Task
     {
         private XElement _document;
-        private BuildVariableExpander _expander;
+        private BuildVariableExpander Expander { get; set; }
 
         internal XElement Document
         {
@@ -247,69 +247,27 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             }
         }
 
-        string[] pathSeparators = { "\\", "/" };
-
-        private string _outDir;
-        private string OutDir
-        {
-            get
-            {
-                if (string.IsNullOrWhiteSpace(_outDir))
-                {
-                    _outDir = _expander.ExpandBuildVariables("$(OutDir)");
-                }
-                return _outDir;
-            }
-        }
-
-        private bool? _appendSeparator;
-
-        /// <summary>
-        /// A path separator should be added if the expansion of '$(OutDir)' does not end with a separator
-        /// </summary>
-        private bool AppendSeparator
-        {
-            get
-            {
-                if (_appendSeparator == null)
-                    _appendSeparator = pathSeparators.Contains(OutDir.Last().ToString()) == false;
-                return _appendSeparator.Value;
-            }
-        }
-
-        private string _separator;
-
         /// <summary>
         /// Get the preferred path separator, based on what is used in the expansion of '$(OutDir)'.
         /// This is necessary because dotnet core throws up in certain circumstances when path separators are repeatedly flipped
         /// </summary>
-        private string Separator
-        {
-            get
-            {
-                if (string.IsNullOrWhiteSpace(_separator))
-                {
-                    var separatorCharIndex = pathSeparators.Max(OutDir.LastIndexOf);
-                    _separator = separatorCharIndex > -1 ? OutDir[separatorCharIndex].ToString() : "/";
-                }
-                return _separator;
-            }
-        }
+        private string Separator { get; set; }
+        private bool ShouldAppendSeparator { get; set; }
 
         private void WriteItemGroup(IEnumerable<string> assembliesInPackage)
         {
             Result.AppendLine("  <ItemGroup>");
 
-            var outDir = "$(OutDir)";
-            if (AppendSeparator) outDir += Separator;
+            var OutDir = "$(OutDir)";
+            if (ShouldAppendSeparator) OutDir += Separator;
 
             foreach (var asmPath in assembliesInPackage)
             {
                 // Replace all path separators the preferred path separator based on '$(OutDir)'.
-                var asm = asmPath.Replace("/", Separator).Replace("\\", Separator);
+                var asm = Separator == "\\" ? asmPath.Replace("/", Separator) : asmPath.Replace("\\", Separator);
 
                 Result.AppendLine($"    <Reference Include=\"{Path.GetFileNameWithoutExtension(asmPath)}\">");
-                Result.AppendLine($"      <HintPath>{outDir}{asm}</HintPath>");
+                Result.AppendLine($"      <HintPath>{OutDir}{asm}</HintPath>");
                 Result.AppendLine("    </Reference>");
             }
 
@@ -318,12 +276,28 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
         public override bool Execute()
         {
-            _expander = new BuildVariableExpander(SourceFile);
             if (OpenTapPackagesToReference == null || OpenTapPackagesToReference.Length == 0)
             {   // This happens when a .csproj file does not specify any OpenTapPackageReferences -- simply ignore it
                 Write(); // write an "empty" file in this case, so msbuild does not think that the task failed, and re runs it endlessly
                 Log.LogMessage("Got 0 OpenTapPackageReference targets.");
                 return true;
+            }
+
+
+            // Compute some values related to path separators in the generated props file
+            {
+                Expander = new BuildVariableExpander(SourceFile);
+                string[] pathSeparators = { "\\", "/" };
+                var outDir = Expander.ExpandBuildVariables("$(OutDir)");
+                // A separator should be appended if '$(OutDir)' does not end with a path separator already
+                ShouldAppendSeparator = pathSeparators.Contains(outDir.Last().ToString()) == false;
+                if (ShouldAppendSeparator)
+                {
+                    // If it does not end with a path separator, use the last path separator in '$(OutDir)' as the separator.
+                    var separatorCharIndex = pathSeparators.Max(outDir.LastIndexOf);
+                    Separator = separatorCharIndex > -1 ? outDir[separatorCharIndex].ToString() : "/";
+                }
+                else Separator = "/";
             }
             
             if (TargetMsBuildFile == null)
