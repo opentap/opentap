@@ -64,7 +64,7 @@ namespace OpenTap.Plugins.PluginDevelopment.GUI
         /// </summary>
         public Picture Picture { get; } = new Picture()
         {
-            Source = "Packages/Plugin Development/P7000A.png",
+            Source = "Packages/SDK/Examples/PluginDevelopment.Gui/GUI/P7000A.png",
             Description = "Your base station cables should be plugged in like this."
         };
 

@@ -16,6 +16,5 @@ $(GitVersion) - Gets the version from Git in the recommended format Major.Minor.
     <File Path="Packages/Plugin Development/OpenTap.Plugins.PluginDevelopment.dll">
     	<SetAssemblyInfo Attributes="Version"/>
     </File>
-    <File SourcePath="GUI/P7000A.png" Path="Packages/Plugin Development/P7000A.png"/>
   </Files>
 </Package>
