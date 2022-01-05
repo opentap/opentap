@@ -2685,8 +2685,7 @@ namespace OpenTap
                     }
                 }
 
-                if (mem2.TypeDescriptor.DescendsTo(typeof(IPicture)) &&
-                    mem2.GetValue(annotation.Source) is IPicture)
+                if (mem2.TypeDescriptor.DescendsTo(typeof(IPicture)))
                 {
                     annotation.Add(new PictureAnnotation(annotation));
                 }

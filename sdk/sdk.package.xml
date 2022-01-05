@@ -47,7 +47,7 @@
     <File Path="Packages/SDK/Examples/PluginDevelopment.Gui/PluginDevelopment.Gui.csproj"/>
     <File Path="Packages/SDK/Examples/PluginDevelopment.Gui/Properties/*"/>
     <File Path="Packages/SDK/Examples/PluginDevelopment.Gui/GUI/*.cs"/>
-    <File Path="Packages/SDK/Examples/PluginDevelopment.Gui/GUI/P7000A.png" SourcePath="GUI/P7000A.png"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment/GUI/SomeInstrument.png"/>
     <File Path="Packages/SDK/Examples/TestPlanExecution/BuildTestPlan.Api/BuildTestPlan.Api.csproj"/>
     <File Path="Packages/SDK/Examples/TestPlanExecution/BuildTestPlan.Api/Program.cs"/>
     <File Path="Packages/SDK/Examples/TestPlanExecution/BuildTestPlan.Api/Properties/AssemblyInfo.cs"/>

@@ -9,9 +9,9 @@ namespace OpenTap.Plugins.PluginDevelopment.GUI
     {
         enum ResponseEnum
         {
-            [Display("This looks right!")]
+            [Display("I pressed the button, proceed!")]
             Yes,
-            [Display("Something is wrong..")]
+            [Display("Something is wrong, abort!")]
             No
         }
 
@@ -56,7 +56,7 @@ namespace OpenTap.Plugins.PluginDevelopment.GUI
             }
         }
 
-        public string Question { get; set; } = "Is this instrument configured correctly?";
+        public string Question { get; set; } = "Press the button labeled 'A' in the figure.";
 
         /// <summary>
         /// Instantiate an OpenTAP picture with some default picture
@@ -64,8 +64,8 @@ namespace OpenTap.Plugins.PluginDevelopment.GUI
         /// </summary>
         public Picture Picture { get; } = new Picture()
         {
-            Source = "Packages/SDK/Examples/PluginDevelopment.Gui/GUI/P7000A.png",
-            Description = "Your base station cables should be plugged in like this."
+            Source = "Packages/SDK/Examples/PluginDevelopment.Gui/GUI/SomeInstrument.png",
+            Description = "The instrument we are controlling."
         };
 
         /// <summary>
