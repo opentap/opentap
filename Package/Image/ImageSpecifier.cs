@@ -69,12 +69,19 @@ namespace OpenTap.Package
         }
     }
 
+    /// <summary>
+    /// Exception thrown when ImageSpecifier.Resolve fails. The exception contains a dependency graph specified Dot notation.
+    /// </summary>
     public class ImageResolveException : AggregateException
     {
-        public ImageResolveException(string dotGraph, string message, List<Exception> dependencyIssues) : base(message, dependencyIssues)
+        internal ImageResolveException(string dotGraph, string message, List<Exception> dependencyIssues) : base(message, dependencyIssues)
         {
             DotGraph = dotGraph;
         }
+
+        /// <summary>
+        /// Dependency graph specified in Dot notation
+        /// </summary>
         public string DotGraph { get; private set; }
 
     }
