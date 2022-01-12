@@ -202,7 +202,7 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
-        [Platform(Exclude="Unix,Linux,MacOsX")]
+        [Ignore("This is not supported in dotnet core")]
         public void SameAssemblyDifferentVersions2()
         {
             Directory.CreateDirectory("Test1");

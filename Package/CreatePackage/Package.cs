@@ -712,11 +712,7 @@ namespace OpenTap.Package
             if (!features.Any())
                 return;
             var timer = Stopwatch.StartNew();
-            SetAsmInfo.UpdateMethod updateMethod;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                updateMethod = SetAsmInfo.UpdateMethod.ILDasm;
-            else
-                updateMethod = SetAsmInfo.UpdateMethod.Mono;
+
             foreach (var file in files)
             {
                 if (!file.HasCustomData<SetAssemblyInfoData>())
@@ -755,10 +751,10 @@ namespace OpenTap.Package
                     fVersionShort = new Version(version.ToString(3));
                 }
 
-                SetAsmInfo.SetAsmInfo.SetInfo(file.FileName, fVersionShort, fVersionShort, fVersion, updateMethod);
+                SetAsmInfo.SetAsmInfo.SetInfo(file.FileName, fVersionShort, fVersionShort, fVersion);
                 file.RemoveCustomData<SetAssemblyInfoData>();
             }
-            log.Info(timer,"Updated assembly version info using {0} method.", updateMethod);
+            log.Info(timer,"Updated assembly version info using Mono method.");
         }
 
         /// <summary>

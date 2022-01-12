@@ -1335,17 +1335,27 @@ namespace OpenTap.Engine.UnitTests
 
             for (int i = 0; i < values.Length; i++)
             {
-                Assert.AreEqual((-values[i]).ToString(), (-bigValues[i]).ToString(), "-{0}", values[i]);
-                Assert.AreEqual(Math.Abs(values[i]).ToString(), bigValues[i].Abs().ToString(), "abs({0})", values[i]);
-                Assert.AreEqual(Math.Round(values[i]).ToString(), bigValues[i].Round().ToString(), "round({0})", values[i]);
+                // Bumping to .NET6 has brought some slight behavior change to double.ToString().
+                // (-0).ToString() now returns "-0" instead of "0". This test has been modified
+                // to ensure we retain the old BigFloat tostring behavior.
+                string toString(double d)
+                {
+                    var str = d.ToString();
+                    if (str == "-0") return "0";
+                    return str;
+                }
+
+                Assert.AreEqual(toString(-values[i]), (-bigValues[i]).ToString(), "-{0}", values[i]);
+                Assert.AreEqual(toString(Math.Abs(values[i])), bigValues[i].Abs().ToString(), "abs({0})", values[i]);
+                Assert.AreEqual(toString(Math.Round(values[i])), bigValues[i].Round().ToString(), "round({0})", values[i]);
                 Assert.AreEqual((int)values[i], (int)bigValues[i], "(int){0}", values[i]);
 
                 for (int i2 = 0; i2 < values.Length; i2++)
                 {
-                    Assert.AreEqual(Calc(values[i], values[i2], (a, b) => a + b).ToString(), Calc(bigValues[i], bigValues[i2], (a, b) => a + b).ToString(), "{0} + {1}", values[i], values[i2]);
-                    Assert.AreEqual(Calc(values[i], values[i2], (a, b) => a - b).ToString(), Calc(bigValues[i], bigValues[i2], (a, b) => a - b).ToString(), "{0} - {1}", values[i], values[i2]);
-                    Assert.AreEqual(Calc(values[i], values[i2], (a, b) => a * b).ToString(), Calc(bigValues[i], bigValues[i2], (a, b) => a * b).ToString(), "{0} * {1}", values[i], values[i2]);
-                    Assert.AreEqual(Calc(values[i], values[i2], (a, b) => a / b).ToString(), Calc(bigValues[i], bigValues[i2], (a, b) => a / b).ToString(), "{0} / {1}", values[i], values[i2]);
+                    Assert.AreEqual(toString(Calc(values[i], values[i2], (a, b) => a + b)), Calc(bigValues[i], bigValues[i2], (a, b) => a + b).ToString(), "{0} + {1}", values[i], values[i2]);
+                    Assert.AreEqual(toString(Calc(values[i], values[i2], (a, b) => a - b)), Calc(bigValues[i], bigValues[i2], (a, b) => a - b).ToString(), "{0} - {1}", values[i], values[i2]);
+                    Assert.AreEqual(toString(Calc(values[i], values[i2], (a, b) => a * b)), Calc(bigValues[i], bigValues[i2], (a, b) => a * b).ToString(), "{0} * {1}", values[i], values[i2]);
+                    Assert.AreEqual(toString(Calc(values[i], values[i2], (a, b) => a / b)), Calc(bigValues[i], bigValues[i2], (a, b) => a / b).ToString(), "{0} / {1}", values[i], values[i2]);
                 }
             }
         }
