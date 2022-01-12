@@ -801,5 +801,51 @@ namespace OpenTap.Package.UnitTests
             SetAsmInfo.SetAsmInfo.SetInfo(fileName, Version.Parse("1.2.3.4"), Version.Parse("2.3.4.5"), SemanticVersion.Parse("3.4.5-test"));
             Assert.IsTrue(ReadAssemblyVersionStep.GetVersion(fileName)?.Equals(SemanticVersion.Parse("3.4.5-test")), "Assembly version was not updated correctly.");
         }
+
+        [Test]
+        public void TestOpenTapIgnore()
+        {
+            var ignoreFile = ".OpenTapIgnore";
+
+            var ignored = new string[]
+            {
+                $@"package/subdir/AllIgnored/{ignoreFile}",
+                $@"package/subdir/AllIgnored/subdir/random.txt",
+                $@"package/subdir/AllIgnored/subdir2/random.txt",
+                $@"package/subdir/ignored/{ignoreFile}",
+            };
+
+            var included = new string[]
+            {
+                @"package/subdir/included/random.txt",
+                @"package/otherDir/random.txt",
+                @"package/otherDir/subdir/random.txt",
+                @"package/random.txt",
+            };
+
+            var files = ignored.Concat(included);
+
+            foreach (var file in files)
+            {
+                EnsureDirectory(file);
+                File.Create(file);
+            }
+
+            // Run this block twice to ensure the cache does not end up marking included folders as ignored or the opposite
+            for (int i = 0; i < 2; i++)
+            {
+                foreach (var path in included)
+                {
+                    var dir = Path.GetDirectoryName(path);
+                    Assert.IsFalse(PackageDefExt.directoryIgnored(dir), $"{dir} should be included.");
+                }
+                
+                foreach (var path in ignored)
+                {
+                    var dir = Path.GetDirectoryName(path);
+                    Assert.IsTrue(PackageDefExt.directoryIgnored(dir), $"{dir} should be ignored.");
+                }
+            }            
+        }
     }
 }

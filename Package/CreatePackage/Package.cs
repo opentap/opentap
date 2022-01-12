@@ -469,6 +469,45 @@ namespace OpenTap.Package
             public void Clear(PackageDef pkg) => packageAssemblies.Invalidate(pkg);
         }
         
+        /// <summary>
+        /// Cache of ignored directories to avoid repeated file system traversals
+        /// </summary>
+        internal static readonly Dictionary<string, bool> ignoredDirectories = new Dictionary<string, bool>();
+
+        /// <summary>
+        /// Check if the directory 'dir' or any of it's ancestor directories contains a '.OpenTapIgnore' file.
+        /// Stop recursion when the OpenTAP install root dir is reached.
+        /// </summary>
+        /// <param name="dir"></param>
+        /// <returns></returns>
+        internal static bool directoryIgnored(string dir)
+        {
+            if (ignoredDirectories.ContainsKey(dir))
+                return ignoredDirectories[dir];
+
+            bool ignoreThis = File.Exists(Path.Combine(dir, ".OpenTapIgnore"));
+            if (ignoreThis)
+            {
+                log.Debug($"Ignoring '{dir}' because it contains '.OpenTapIgnore'.");
+                ignoredDirectories[dir] = true;
+                return true;
+            }
+            
+            bool IsTapDir = File.Exists(Path.Combine(dir, "OpenTap.dll"));
+            // Avoid recursion outside of the root OpenTAP install directory
+            if (IsTapDir)
+            {
+                ignoredDirectories[dir] = false;
+                return false;
+            }
+            
+            // Recurse into parent directory
+            var dInfo = new DirectoryInfo(dir);
+            bool ignoreParent = dInfo.Parent != null && directoryIgnored(dInfo.Parent.FullName);
+            ignoredDirectories[dir] = ignoreParent;
+            return ignoreParent;
+        }
+        
         internal static void findDependencies(this PackageDef pkg, List<string> excludeAdd, List<AssemblyData> searchedFiles)
         {
             var searcher = new PackageAssemblyCache(searchedFiles);
@@ -592,7 +631,7 @@ namespace OpenTap.Package
                         foreach (var unknown in dependentAssemblyNames)
                         {
                             var foundAsms = searchedFiles.Where(asm => (asm.Name == unknown.Name) && OpenTap.Utils.Compatible(asm.Version, unknown.Version)).ToList();
-                            var foundAsm = foundAsms.FirstOrDefault();
+                            var foundAsm = foundAsms.FirstOrDefault(x => directoryIgnored(Path.GetDirectoryName(x.Location)) == false);
 
                             if (foundAsm != null)
                             {
