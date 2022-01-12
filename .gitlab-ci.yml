@@ -459,7 +459,7 @@ Package-NuGet:
     - Move-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
     - Push-Location ./nuget/build/payload
     - Remove-Item tap.exe
-    - Remove-Item ./Dependencies/LibGit2Sharp.0.25.0.0/git2*.dll
+    - Remove-Item ./Dependencies/LibGit2Sharp.0.27.0.0/git2*.dll
     - Pop-Location
     - Expand-Archive OpenTAP.x64.zip win-x64
     - Expand-Archive OpenTAP.x86.zip win-x86
