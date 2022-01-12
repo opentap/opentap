@@ -34,7 +34,7 @@
     <File Path="Dependencies/LibGit2Sharp.0.25.0.0/git2-4aecb64.dll" SourcePath="runtimes/win-x86/native/git2-4aecb64.dll"  />
     <File Path="Dependencies/LibGit2Sharp.0.25.0.0/LICENSE.txt" SourcePath="libgit2sharp.license.md"  />
 
-    <File Path="Dependencies/Mono.Cecil.0.11.4.0/LICENSE.txt" SourcePath="Mono.Cecil.License.txt"  />
+    <File Path="Dependencies/Mono.Cecil.0.10.1.0/LICENSE.txt" SourcePath="Mono.Cecil.License.txt"  />
     <File Path="Dependencies/System.Runtime.InteropServices.RuntimeInformation.4.0.2.0/System.Runtime.InteropServices.RuntimeInformation.dll"  SourcePath="System.Runtime.InteropServices.RuntimeInformation.dll"/>
     <File Path="OpenTapApiReference.chm"                                            SourcePath="../../Help/OpenTapApiReference.chm"/>
 
