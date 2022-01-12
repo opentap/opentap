@@ -553,7 +553,8 @@ namespace OpenTap.Package
         /// </summary>
         public static bool IsSatisfiedBy(this VersionSpecifier spec, VersionSpecifier other)
         {
-            return spec.IsCompatible(other);
+            SemanticVersion semanticVersion = new SemanticVersion(other.Major ?? 0, other.Minor ?? 0, other.Patch ?? 0, other.PreRelease, other.BuildMetadata);
+            return spec.IsCompatible(semanticVersion);
         }
     }
 }

@@ -273,24 +273,6 @@ namespace OpenTap.Package
             return false;
         }
 
-        /// <summary>
-        /// Compatibility comparison that returns true if the given version can fulfil this specification. I.e. 'actualVersion' can replace 'this' in every respect.
-        /// </summary>
-        /// <param name="actualVersion"></param>
-        /// <returns></returns>
-        public bool IsCompatible(VersionSpecifier actualVersion)
-        {
-            if (ReferenceEquals(this, VersionSpecifier.Any))
-                return true; // this is just a small performance shortcut. The below logic would have given the same result.
-
-            if (MatchBehavior == VersionMatchBehavior.Exact)
-                return MatchExact(actualVersion);
-            if (MatchBehavior.HasFlag(VersionMatchBehavior.Compatible))
-                return MatchCompatible(actualVersion);
-
-            return false;
-        }
-
         private bool MatchExact(SemanticVersion actualVersion)
         {
             if (actualVersion == null)
@@ -310,48 +292,7 @@ namespace OpenTap.Package
             return true;
         }
 
-
-        private bool MatchExact(VersionSpecifier actualVersion)
-        {
-            if (actualVersion == null)
-                return false;
-            if (Major.HasValue && Major.Value != actualVersion.Major)
-                return false;
-            if (Minor.HasValue && Minor.Value != actualVersion.Minor)
-                return false;
-            if (Patch.HasValue && Patch.Value != actualVersion.Patch)
-                return false;
-            if (MatchBehavior.HasFlag(VersionMatchBehavior.AnyPrerelease))
-                return true;
-            if (PreRelease != actualVersion.PreRelease)
-                return false;
-            if (string.IsNullOrEmpty(BuildMetadata) == false && BuildMetadata != actualVersion.BuildMetadata)
-                return false;
-            return true;
-        }
-
         private bool MatchCompatible(SemanticVersion actualVersion)
-        {
-            if (actualVersion == null)
-                return true;
-            if (Major.HasValue && Major.Value != actualVersion.Major)
-                return false;
-            if (Minor.HasValue && Minor.Value > actualVersion.Minor)
-                return false;
-            if (Minor.HasValue && Minor.Value == actualVersion.Minor)
-                if (Patch.HasValue && Patch.Value > actualVersion.Patch)
-                    return false;
-
-
-            if (MatchBehavior.HasFlag(VersionMatchBehavior.AnyPrerelease))
-                return true;
-
-            if (0 < new SemanticVersion(0, 0, 0, PreRelease, null).CompareTo(new SemanticVersion(0, 0, 0, actualVersion.PreRelease, null)))
-                return false;
-            return true;
-        }
-
-        private bool MatchCompatible(VersionSpecifier actualVersion)
         {
             if (actualVersion == null)
                 return true;
