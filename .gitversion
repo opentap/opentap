@@ -8,7 +8,7 @@ version = 9.17.0
 # A version is determined to be a "beta" prerelease if it originates from the default branch
 # The default branch is the first branch that matches the following regular expession.
 # Uncomment to change the default.
-#beta branch = integration
+beta branch = main
 
 # When specified multiple times later specifications of "beta branch" will only be tried
 # if earlier ones did not match any branches in the git repository
