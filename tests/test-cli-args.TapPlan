@@ -2,11 +2,11 @@
 <TestPlan type="OpenTap.TestPlan" Locked="false">
   <Steps>
     <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="154cf1ab-d46d-4533-9a0e-2b5b5eeca0f7">
-      <Application>tap.exe</Application>
+      <Application>tap</Application>
       <Arguments>
         <Base64>dGVzdCBhY3Rpb24gdGVzdGFyZ2FjdGlvbiAtYSAxIC1iIDIgLWMgMyAtZCA0IC1lIDUgLWYgNiAtaSA5IC1pIDEwIA==</Base64>
       </Arguments>
-      <WorkingDirectory></WorkingDirectory>
+      <WorkingDirectory>.</WorkingDirectory>
       <WaitForEnd>true</WaitForEnd>
       <Timeout>0</Timeout>
       <AddToLog>true</AddToLog>
