@@ -153,14 +153,23 @@ namespace OpenTap
         /// </summary>
         public IEnumerable<object> Attributes => attributes ?? (attributes = Load()?.GetAllCustomAttributes(false)) ?? Array.Empty<object>();
 
-        /// <summary> The base type of this type. </summary>
+        ITypeData baseTypeCache;
+        /// <summary> The base type of this type. Will return null if there is no base type. If there is no direct base, but instead an interface, that will be returned.</summary>
         public ITypeData BaseType
         {
             get
             {
-                if (BaseTypes != null)
-                    return BaseTypes.First();
-                return Load().BaseType == null ? null : TypeData.FromType(Load().BaseType);
+                if (baseTypeCache != null) return ReferenceEquals(baseTypeCache, NullTypeData.Instance) ? null : baseTypeCache;
+                baseTypeCache = BaseTypes?.ElementAtOrDefault(0);
+                if (baseTypeCache != null) return baseTypeCache;
+                var result2 = Load()?.BaseType;
+                if (result2 != null)
+                {
+                    baseTypeCache = FromType(result2);
+                    return baseTypeCache;
+                }
+                baseTypeCache = NullTypeData.Instance;
+                return baseTypeCache;
             }
         }
 

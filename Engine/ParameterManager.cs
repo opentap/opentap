@@ -356,11 +356,17 @@ namespace OpenTap
         [ThreadStatic]
         private static bool parameterSanityCheckDelayed;
         
-        public static IDisposable WithSanityCheckDelayed()
+        [ThreadStatic]
+        private static bool quickSanityCheck;
+
+        public static IDisposable WithSanityCheckDelayed() => WithSanityCheckDelayed(false);
+        
+        public static IDisposable WithSanityCheckDelayed(bool quickCheck)
         {
             if (parameterSanityCheckDelayed)
                 return Utils.WithDisposable(() => { });
             parameterSanityCheckDelayed = true;
+            quickSanityCheck = quickCheck;
             return Utils.WithDisposable(() => parameterSanityCheckDelayed = false);
         } 
         
@@ -603,7 +609,15 @@ namespace OpenTap
         
         public static bool CheckParameterSanity(ITestStepParent step, ICollection<IMemberData> parameters, bool overrideCache = false)
         {
-            if (parameterSanityCheckDelayed) return true;
+            if (parameterSanityCheckDelayed)
+            {
+                // in some cases we may want to do a sanity check even if it has been delayed. 
+                if(quickSanityCheck == false)
+                    return true;
+                var changeid = recordedChangeIds.GetValue(step, x => new ChangeId());
+                if (changeid.Value == step.ChildTestSteps.ChangeId)
+                    return true;
+            }
             foreach (var elem in parameters)
             {
                 if (elem is ParameterMemberData)

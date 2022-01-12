@@ -559,9 +559,11 @@ namespace OpenTap.Package
                 result = ActionResult.Error;
             }
 
+            bool ignore(string filename) => filename.ToLower() == "tap" || filename.ToLower() == "tap.exe" || filename.ToLower() == "tap.dll";
+
             foreach (var file in package.Files)
             {
-                if (file.RelativeDestinationPath == "tap" || file.RelativeDestinationPath.ToLower() == "tap.exe") // ignore tap.exe as it is not meant to be overwritten.
+                if (ignore(file.RelativeDestinationPath)) // ignore tap, tap.dll, and tap.exe as they are not meant to be overwritten.
                     continue;
 
                 string fullPath;

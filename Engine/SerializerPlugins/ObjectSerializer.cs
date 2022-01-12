@@ -622,16 +622,14 @@ namespace OpenTap.Plugins
                 
                 if (XmlConvert.IsXmlChar(c))
                     continue;
-                else if(i < len - 1)
+                if(i < len - 1)
                 {
                     char c2 = str[i + 1];
                     if(XmlConvert.IsXmlSurrogatePair(c2, c))
                         continue;
                 }
+                return false;
                 
-                {
-                    return false;
-                }
             }
             return true;
         }
@@ -667,6 +665,10 @@ namespace OpenTap.Plugins
 
             return result;
         }
+
+        // this 'cache' only caches serialized values during this instance of the serialize
+        // this is to avoid a memory leak for e.g GUIDs, which falls into the category of primitives.
+        readonly Dictionary<object, string> enumTable = new Dictionary<object, string>();
 
         /// <summary>
         /// Serializes an object to XML.
@@ -746,15 +748,27 @@ namespace OpenTap.Plugins
                     return true;
                 }
 
-                if (expectedType is TypeData type && (type.Type.IsEnum || type.Type.IsPrimitive || type.Type.IsValueType))
+                if (expectedType is TypeData type)
                 {
-                    if (type.Type == typeof(bool))
+                    if(type.Type.IsEnum || type.Type.IsPrimitive || type.Type.IsValueType)
                     {
-                        elem.Value = (bool)obj ? "true" : "false"; // must be lower case for old XmlSerializer to work
+                        if (type.Type == typeof(bool))
+                        {
+                            elem.Value =
+                                (bool)obj ? "true" : "false"; // must be lower case for old XmlSerializer to work
+                            return true;
+                        }
+
+                        if (enumTable.TryGetValue(obj, out var v))
+                        {
+                            elem.Value = v;
+                            return true;
+                        }
+                        v = Convert.ToString(obj, CultureInfo.InvariantCulture);
+                        enumTable[obj] = v;
+                        elem.Value = v;
                         return true;
                     }
-                    elem.Value = Convert.ToString(obj, CultureInfo.InvariantCulture);
-                    return true;
                 }
 
                 IMemberData xmlTextProp = null;

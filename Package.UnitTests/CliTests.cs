@@ -384,8 +384,7 @@ namespace OpenTap.Package.UnitTests
                     File.Delete("Dependency.txt");
                 if (File.Exists("Dummy.txt"))
                     File.Delete("Dummy.txt");
-                int exitCode;
-                string output = RunPackageCli("install Dummy -y", out exitCode);
+                var output = RunPackageCli("install Dummy -y", out var exitCode);
                 Assert.AreEqual(0, exitCode, "Unexpected exit code.\r\n" + output);
                 StringAssert.Contains("Dummy", output);
                 StringAssert.Contains("Dependency", output);
