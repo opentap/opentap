@@ -657,3 +657,62 @@ jobs:
           name: package-deb
           retention-days: 14
           path: LinuxInstall/package/Debian/OpenTAP.deb
+
+  ###############
+  ### Publish ###
+  ###############
+  Publish-NuGet:
+    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
+    environment: nuget.org
+    runs-on: windows-2022
+    needs:
+      - Package-NuGet
+    steps:
+      - name: Download nuget package
+        uses: actions/download-artifact@v2
+        with:
+          name: nuget-package
+          path: .
+      - name: Package
+        run: nuget push OpenTAP.*.nupkg $NUGET_KEY -NonInteractive -Source https://api.nuget.org/v3/index.json
+
+  Publish-TapPackages:
+    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
+    environment: packages.opentap.io
+    runs-on: ubuntu-latest
+    needs:
+      - Package-Win
+      - Package-Linux
+      - Package-SDK
+    steps:
+      - name: Download Windows-x86 package
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x86-package
+          path: ./publish/
+      - name: Download Windows-x64 package
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x64-package
+          path: ./publish/
+      - name: Download Linux-x64 package
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-x64-package
+          path: ./publish/
+      - name: Download SDK package
+        uses: actions/download-artifact@v2
+        with:
+          name: package-sdk
+          path: ./publish/
+      - name: Install OpenTAP
+        run: |
+          wget -O opentap.tar https://www.opentap.io/docs/OpenTAP.9.16.2+f3c96b9f.tar
+          tar -xf opentap.tar
+          chmod u+x INSTALL.sh
+          echo 'y' | ./INSTALL.sh
+          ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
+      - name: Install PackagePublish
+        run: tap package install -f PackagePublish --version beta
+      - name: Publish
+        run: tap package publish -r http://packages.opentap.io -k $REPO_PASS ./publish/*.TapPackage
