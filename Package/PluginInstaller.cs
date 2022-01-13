@@ -409,6 +409,20 @@ namespace OpenTap.Package
                             try
                             {
                                 FileSystemHelper.EnsureDirectory(path);
+                                if (OperatingSystem.Current == OperatingSystem.Windows)
+                                {
+                                    // on windows, hidden files cannot be overwritten.
+                                    // an exception will be thrown in File.Create further down.
+                                    if (Path.GetFileName(path).StartsWith(".") && File.Exists(path))
+                                    {
+                                        var attrs = File.GetAttributes(path);
+                                        var attrs2 = attrs & ~FileAttributes.Hidden;
+                                        if(attrs2 != attrs)
+                                            File.SetAttributes(path, attrs2);
+                                    }
+                                }
+                                
+                                
                                 var deflate_stream = part.Open();
                                 using (var fileStream = File.Create(path))
                                 {
