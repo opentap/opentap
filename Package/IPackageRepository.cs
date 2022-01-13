@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -71,6 +72,7 @@ namespace OpenTap.Package
     /// <summary>
     /// Represents a version of a package. Objects of this type is returned by<see cref="IPackageRepository.GetPackageVersions"/>.
     /// </summary>
+    [DebuggerDisplay("{Name} : {Version.ToString()}")]
     public class PackageVersion : PackageIdentifier, IEquatable<PackageVersion>
     {
         /// <summary>
@@ -310,6 +312,8 @@ namespace OpenTap.Package
 
         internal static IPackageRepository DetermineRepositoryType(string url)
         {
+            if(registeredRepositories.TryGetValue(url, out var repo))
+                return repo;
             if(url.Contains("http://") || url.Contains("https://"))
                 return new HttpPackageRepository(url); // avoid throwing exceptions if it looks a lot like a URL.
             if (Uri.IsWellFormedUriString(url, UriKind.Relative) && Directory.Exists(url))
@@ -320,6 +324,13 @@ namespace OpenTap.Package
                 return new FilePackageRepository(url);
             else
                 return new HttpPackageRepository(url);
+        }
+
+        static Dictionary<string,IPackageRepository> registeredRepositories = new Dictionary<string,IPackageRepository>();
+
+        internal static void RegisterRepository(IPackageRepository repo)
+        {
+            registeredRepositories[repo.Url] = repo;
         }
     }
 }

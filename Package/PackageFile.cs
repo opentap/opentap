@@ -285,7 +285,7 @@ namespace OpenTap.Package
     /// <summary>
     /// Definition of a package file. Contains basic structural information relating to packages.
     /// </summary>
-    [DebuggerDisplay("{Name} ({Version})")]
+    [DebuggerDisplay("{Name} ({Version.ToString()})")]
     public class PackageDef : PackageIdentifier
     {
         /// <summary>
