@@ -674,7 +674,7 @@ jobs:
           name: nuget-package
           path: .
       - name: Package
-        run: nuget push OpenTAP.*.nupkg $NUGET_KEY -NonInteractive -Source https://api.nuget.org/v3/index.json
+        run: nuget push OpenTAP.*.nupkg ${{ secrets.NUGET_KEY }} -NonInteractive -Source https://api.nuget.org/v3/index.json
 
   Publish-TapPackages:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
@@ -715,4 +715,4 @@ jobs:
       - name: Install PackagePublish
         run: tap package install -f PackagePublish --version beta
       - name: Publish
-        run: tap package publish -r http://packages.opentap.io -k $REPO_PASS ./publish/*.TapPackage
+        run: tap package publish -r http://packages.opentap.io -k ${{ secrets.REPO_PASS }} ./publish/*.TapPackage
