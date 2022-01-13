@@ -712,6 +712,8 @@ jobs:
           chmod u+x INSTALL.sh
           echo 'y' | ./INSTALL.sh
           ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
+      - name: Debug
+        run: ls -la ./publish
       - name: Install PackagePublish
         run: tap package install -f PackagePublish --version beta
       - name: Publish
