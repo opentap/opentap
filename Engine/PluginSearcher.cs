@@ -13,6 +13,7 @@ using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Text;
+using System.Threading.Tasks;
 using Tap.Shared;
 
 [assembly: OpenTap.PluginAssembly(true)]
@@ -29,12 +30,28 @@ namespace OpenTap
         /// </summary>
         public bool SearchInternalTypes { get; }
         /// <summary>
+        /// (Optional) Full name of Plugin Init method that gets run before any other code in the plugin. Will only run once. 
+        /// Requirement: Must be parameterless static method inside static class
+        /// Important note: If init method fails (throws an <see cref="Exception"/>), then NONE of the <see cref="ITapPlugin"/> types will load
+        /// </summary>
+        public string PluginInitMethod { get; }
+        /// <summary>
         /// Marks an assembly as one containing OpenTAP plugins.
         /// </summary>
         /// <param name="SearchInternalTypes">True to ask the <see cref="PluginSearcher"/> to also look for plugins among the internal types in this assembly (default is to only search in public types).</param>
         public PluginAssemblyAttribute(bool SearchInternalTypes)
         {
             this.SearchInternalTypes = SearchInternalTypes;
+        }
+        /// <summary>
+        /// Marks an assembly as one containing OpenTAP plugins.
+        /// </summary>
+        /// <param name="SearchInternalTypes">True to ask the <see cref="PluginSearcher"/> to also look for plugins among the internal types in this assembly (default is to only search in public types).</param>
+        /// <param name="PluginInitMethod">Full name of Plugin Init method (<see cref="PluginInitMethod"/>)</param>
+        public PluginAssemblyAttribute(bool SearchInternalTypes, string PluginInitMethod)
+        {
+            this.SearchInternalTypes = SearchInternalTypes;
+            this.PluginInitMethod = PluginInitMethod;
         }
     }
 
@@ -392,6 +409,13 @@ namespace OpenTap
                     {
                         var valueString = attr.DecodeValue(new CustomAttributeTypeProvider());
                         ReadPrivateTypesInCurrentAsm = bool.Parse(valueString.FixedArguments.First().Value.ToString());
+                        if (valueString.FixedArguments.Count() > 1)
+                        {
+                            string initMethodName = valueString.FixedArguments.ElementAt(1).Value.ToString();
+                            asm.PluginAssemblyAttribute = new PluginAssemblyAttribute(ReadPrivateTypesInCurrentAsm, initMethodName);
+                        }
+                        else
+                            asm.PluginAssemblyAttribute = new PluginAssemblyAttribute(ReadPrivateTypesInCurrentAsm);
                         break;
                     }
                 }
@@ -1060,6 +1084,11 @@ namespace OpenTap
         public string Location { get; }
 
         /// <summary>
+        /// <see cref="PluginAssemblyAttribute"/> decorating assembly, if included
+        /// </summary>
+        public PluginAssemblyAttribute PluginAssemblyAttribute { get; internal set; }
+
+        /// <summary>
         /// A list of Assemblies that this Assembly references.
         /// </summary>
         public IEnumerable<AssemblyData> References { get; internal set; }
@@ -1112,7 +1141,8 @@ namespace OpenTap
         /// </summary>
         public Assembly Load()
         {
-            if (failedLoad) return null;
+            if (failedLoad)
+                return null;
             if (assembly == null)
             {
                 try
@@ -1138,7 +1168,37 @@ namespace OpenTap
                             assembly = Assembly.LoadFrom(Path.GetFullPath(this.Location));
                         }
                     }
-                    
+                    //TODO 
+                    try
+                    {
+                        // Find attribute
+                        if (PluginAssemblyAttribute != null && PluginAssemblyAttribute.PluginInitMethod != null)
+                        {
+                            string fullName = PluginAssemblyAttribute.PluginInitMethod;
+                            string[] names = fullName.Split('.');
+                            string methodName = names.Last();
+                            string className = names.ElementAt(names.Count() - 2);
+                            string namespacePath = string.Join(".", names.Take(names.Count() - 2));
+                            Type initClass = assembly.GetType($"{namespacePath}.{className}");
+                            // Check if loaded class exists and is static (abstract and sealed)
+                            if (initClass == null || !initClass.IsClass || !initClass.IsAbstract || !initClass.IsSealed)
+                                throw new Exception($"Could not find method {fullName} in assembly: {Location}");
+                            MethodInfo initMethod = initClass.GetMethod(methodName);
+                            // Check if loaded method exists and is static and returns void
+                            if (initMethod == null || !initMethod.IsStatic || initMethod.ReturnType != typeof(void))
+                                throw new Exception($"Could not find method {fullName} in assembly: {Location}");
+                            Task.Run(() => initMethod.Invoke(null, null)).Wait();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        failedLoad = true;
+                        assembly = null;
+                        log.Error($"Failed to load plugins from {this.Location}");
+                        log.Debug(ex);
+
+                        return null;
+                    }
                     log.Debug(watch, "Loaded {0}.", this.Name);
                 }
                 catch (SystemException ex)
