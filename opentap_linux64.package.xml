@@ -34,6 +34,7 @@
     <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.linux-x64"/>
     <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.redhat"/>
     <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.ubuntu"/>
+    <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.debian"/>
     <!-- License Texts -->
     <File Path="LICENSE.txt"  SourcePath="LICENSE.txt"/>
     <File Path="Dependencies/LibGit2Sharp.0.25.0.0/LICENSE.txt" SourcePath="libgit2sharp.license.md"  />

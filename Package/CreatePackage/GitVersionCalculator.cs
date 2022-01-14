@@ -152,17 +152,19 @@ namespace OpenTap.Package
                 return;
 
             string libgitfoldername = "Dependencies/LibGit2Sharp.0.25.0.0/";
-            IEnumerable<FileInfo> libgit2files = new[] {"ubuntu", "redhat", "linux-x64"}
+            IEnumerable<FileInfo> libgit2files = new[] {"ubuntu", "redhat", "linux-x64", "debian"}
                 .Select(x => Path.Combine(PathUtils.OpenTapDir, libgitfoldername, $"{libgit2name}.so.{x}")).Select(x => new FileInfo(x));
 
             var file = libgit2files.FirstOrDefault(x => x.Name.EndsWith(LinuxVariant.Current.Name));
             try
             {
-                file?.CopyTo(requiredFile, true);
+                if (file?.Exists != true)
+                    throw new FileNotFoundException(file?.FullName);
+                file.CopyTo(requiredFile, true);
             }
             catch
             {
-                
+                log.Error("Unable to load 'libgit2-4aecb64' for this platform.");
             }
         }
 
