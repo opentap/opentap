@@ -157,30 +157,6 @@ namespace OpenTap.Package
             return false;
         }
 
-        static string getAssemblyName(ITypeData _x)
-        {
-            var asm = _x.AsTypeData()?.Type?.Assembly;
-
-            if (asm == null)
-            {
-                Log.Warning("Unable to find source of type {0}. No package dependency will be recorded for this type in the xml file.", _x.Name);
-                return null;
-            }
-
-            // dynamic or assemblies loaded from bytes cannot be located.
-            if (asm.IsDynamic || string.IsNullOrWhiteSpace(asm.Location))
-                return null;
-
-            try
-            {
-                return Path.GetFileName(asm.Location.Replace("\\", "/"));
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
         XElement endnode;
 
         public override bool Serialize(XElement elem, object obj, ITypeData type)

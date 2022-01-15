@@ -11,7 +11,10 @@ using System.Reflection;
 using System.Diagnostics;
 using Tap.Shared;
 using System.Runtime.InteropServices;
+using System.Xml;
+using System.Xml.Linq;
 using System.Xml.Serialization;
+using System.Xml.XPath;
 using OpenTap.Cli;
 
 namespace OpenTap.Package
@@ -186,6 +189,9 @@ namespace OpenTap.Package
 
             pkgDef.findDependencies(excludeAdd, assemblies);
 
+            if (exceptions.Count > 0)
+                throw new AggregateException("Conflicting dependencies", exceptions);
+
             return pkgDef;
         }
 
@@ -293,7 +299,7 @@ namespace OpenTap.Package
             // Find "pre-processor funcions"
             match = Regex.Match(text, @"(.*)(?:\$\()(.*?),(.*)(?:\))(.*)"); // With text = "Rolf$(ConvertFourValue,1.0.0.69)Asger", this regex should return 4 matching groups: "Rolf", "ConvertFourValue", "1.0.0.69" and "Asger".
 
-            if (match == null || match.Groups.Count < 4 || !match.Groups[2].Success || !match.Groups[3].Success)
+            if (match.Groups.Count < 4 || !match.Groups[2].Success || !match.Groups[3].Success)
                 return text;
 
             var plugins = PluginManager.GetPlugins<IVersionTryConverter>().Concat(PluginManager.GetPlugins<IVersionConverter>());
@@ -612,7 +618,7 @@ namespace OpenTap.Package
             if (depender == null)
                 log.Warning("Adding dependent assembly '{0}' to package. It was not found in any other packages.", Path.GetFileName(foundAsm.Location));
             else
-                log.Info($"'{Path.GetFileName(depender.FileName)}' dependents on '{dependency.Name}' version '{dependency.Version}'. Adding dependency to package, it was not found in any other packages.");
+                log.Info($"'{Path.GetFileName(depender.FileName)}' depends on '{dependency.Name}' version '{dependency.Version}'. Adding dependency to package, it was not found in any other packages.");
 
             var destPath = string.Format("Dependencies/{0}.{1}/{2}", Path.GetFileNameWithoutExtension(foundAsm.Location), foundAsm.Version.ToString(), Path.GetFileName(foundAsm.Location));
             pkg.Files.Add(new PackageFile { SourcePath = foundAsm.Location, RelativeDestinationPath = destPath, DependentAssemblies = foundAsm.References.ToList() });
@@ -706,11 +712,7 @@ namespace OpenTap.Package
             if (!features.Any())
                 return;
             var timer = Stopwatch.StartNew();
-            SetAsmInfo.UpdateMethod updateMethod;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                updateMethod = SetAsmInfo.UpdateMethod.ILDasm;
-            else
-                updateMethod = SetAsmInfo.UpdateMethod.Mono;
+
             foreach (var file in files)
             {
                 if (!file.HasCustomData<SetAssemblyInfoData>())
@@ -749,10 +751,10 @@ namespace OpenTap.Package
                     fVersionShort = new Version(version.ToString(3));
                 }
 
-                SetAsmInfo.SetAsmInfo.SetInfo(file.FileName, fVersionShort, fVersionShort, fVersion, updateMethod);
+                SetAsmInfo.SetAsmInfo.SetInfo(file.FileName, fVersionShort, fVersionShort, fVersion);
                 file.RemoveCustomData<SetAssemblyInfoData>();
             }
-            log.Info(timer,"Updated assembly version info using {0} method.", updateMethod);
+            log.Info(timer,"Updated assembly version info using Mono method.");
         }
 
         /// <summary>

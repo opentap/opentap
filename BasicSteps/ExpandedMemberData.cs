@@ -267,9 +267,10 @@ namespace OpenTap.Plugins.BasicSteps
         TapSerializer tapSerializer;
         object cloneIfPossible(object value, object context)
         {
+            if (value == null) return null;
             var valType = TypeData.GetTypeData(value);
             var td = valType.AsTypeData();
-            if (td.Type.IsValueType)
+            if (td.IsValueType)
                 return value;
             
             if (StringConvertProvider.TryGetString(value, out string result))

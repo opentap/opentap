@@ -1,8 +1,8 @@
 OpenTAP Linux Distribution   
 
 Prerequisites:
-- Ubuntu (16.04)
-- .NET Core 2.0
+- Ubuntu (16.04 or greater)
+- .NET Core 6.0
 
 Installation instructions for Ubuntu can be found here: https://www.microsoft.com/net/learn/get-started/linuxubuntu
 

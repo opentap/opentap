@@ -343,8 +343,8 @@ namespace OpenTap.Package.UnitTests
                 Assert.AreEqual(0, exitCode, "Unexpected exit code");
                 StringAssert.Contains("Dummy", output);
                 StringAssert.Contains("Dependency", output);
-                Assert.IsTrue(File.Exists("Dependency.txt"));
                 Assert.IsTrue(File.Exists("Dummy.txt"));
+                Assert.IsTrue(File.Exists("Dependency.txt"));
             }
             finally
             {
@@ -384,8 +384,7 @@ namespace OpenTap.Package.UnitTests
                     File.Delete("Dependency.txt");
                 if (File.Exists("Dummy.txt"))
                     File.Delete("Dummy.txt");
-                int exitCode;
-                string output = RunPackageCli("install Dummy -y", out exitCode);
+                var output = RunPackageCli("install Dummy -y", out var exitCode);
                 Assert.AreEqual(0, exitCode, "Unexpected exit code.\r\n" + output);
                 StringAssert.Contains("Dummy", output);
                 StringAssert.Contains("Dependency", output);
@@ -654,7 +653,8 @@ namespace OpenTap.Package.UnitTests
         private static string RunPackageCliWrapped(string args, out int exitCode, string workingDir, string fileName = null)
         {
             if (fileName == null) fileName = Path.GetFileName(Path.Combine(Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location), "tap"));
-            var startinfo = new ProcessStartInfo
+            var p = new Process();
+            p.StartInfo = new ProcessStartInfo
             {
                 FileName = fileName,
                 WorkingDirectory = workingDir,
@@ -663,13 +663,14 @@ namespace OpenTap.Package.UnitTests
                 RedirectStandardError = true,
                 UseShellExecute = false
             };
-            var p = Process.Start(startinfo);
 
             StringBuilder output = new StringBuilder();
             var lockObj = new object();
 
             p.OutputDataReceived += (s, e) => { if (e.Data != null) lock (lockObj) output.AppendLine(e.Data); };
             p.ErrorDataReceived += (s, e) => { if (e.Data != null) lock (lockObj) output.AppendLine(e.Data); };
+
+            p.Start();
 
             p.BeginErrorReadLine();
             p.BeginOutputReadLine();
@@ -684,8 +685,10 @@ namespace OpenTap.Package.UnitTests
             else
             {
                 exitCode = p.ExitCode;
+                p.WaitForExit(); // The WaitForExit(int) overload called earlier does not wait for output processing to complete, this one does.
             }
-            return output.ToString();
+            lock (lockObj)
+                return output.ToString();
         }
     }
 }

@@ -41,6 +41,18 @@ namespace OpenTap
                 return cst.Type == basetype;
             return false;
         }
+        
+        /// <summary> Really fast direct descendant test. This checks for reference equality of the type or a base type, and 'baseType'.
+        /// Given these constraints are met, this can be 6x faster than DescendsTo, but should only be used in special cases. </summary>
+        public static bool DirectInheritsFrom(this ITypeData type, ITypeData baseType)
+        {
+            do
+            {
+                if(ReferenceEquals(type, baseType)) return true;
+                type = type.BaseType;
+            } while (type != null);
+            return false;
+        }
 
         public static TypeData AsTypeData(this ITypeData type)
         {
@@ -1813,6 +1825,29 @@ namespace OpenTap
             Array.Resize(ref array, array.Length + appendage.Length);
             Array.Copy(appendage, 0, array, preLen, appendage.Length);
         }
+        
+        public static IEnumerable<T2> TrySelect<T, T2>(this IEnumerable<T> src, Func<T, T2> f,
+            Action<Exception, T> handler) => src.TrySelect<T, T2, Exception>(f, handler);
+        public static IEnumerable<T2> TrySelect<T, T2>(this IEnumerable<T> src, Func<T,T2> f,
+            Action<Exception> handler) => src.TrySelect<T, T2, Exception>(f, (e,v) => handler(e));
+        
+        public static IEnumerable<T2> TrySelect<T, T2, T3>(this IEnumerable<T> src, Func<T, T2> f, Action<T3, T> handler) where T3: Exception
+        {
+            foreach (var x in src)
+            {
+                T2 y;
+                try
+                {
+                    y = f(x);
+                }
+                catch(T3 e)
+                {
+                    handler(e, x);
+                    continue;
+                }
+                yield return y;
+            }
+        }
     }
 
     internal class Time
@@ -1842,7 +1877,7 @@ namespace OpenTap
         uint user;
 
         /// <summary>
-        /// Creates a memory mapepd API.
+        /// Creates a memory mapped API.
         /// </summary>
         /// <param name="name"></param>
         public MemoryMappedApi(string name)
@@ -2129,30 +2164,35 @@ namespace OpenTap
     /// <summary> Invoke an action after a timeout, unless canceled. </summary>
     class TimeoutOperation : IDisposable
     {
+        /// <summary> Estimate of how long it takes for the user to loose patience.</summary>
+        static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);
+        
         TimeoutOperation(TimeSpan timeout, Action action)
         {
             this.timeout = timeout;
             this.action = action;
             tokenSource = new CancellationTokenSource(timeout);
         }
-        Action action;
-        TimeSpan timeout;
-        /// <summary> Estimate of how long it takes for the user to loose patience.</summary>
-        static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);
-
-        CancellationTokenSource tokenSource;
-        bool isCompleted = false;
+        readonly Action action;
+        readonly TimeSpan timeout;
+        readonly CancellationTokenSource tokenSource;
+        
+        bool isCompleted;
         void wait()
         {
             try
             {
-                if (!tokenSource.IsCancellationRequested && WaitHandle.WaitTimeout == WaitHandle.WaitAny(new WaitHandle[] { tokenSource.Token.WaitHandle, TapThread.Current.AbortToken.WaitHandle }, timeout))
+                var token = tokenSource.Token;
+                if (!token.IsCancellationRequested && WaitHandle.WaitTimeout == WaitHandle.WaitAny(new [] { token.WaitHandle, TapThread.Current.AbortToken.WaitHandle }, timeout))
                     action();
             }
             finally
             {
-                tokenSource.Dispose();
-                isCompleted = true;
+                lock (tokenSource)
+                {
+                    tokenSource.Dispose();
+                    isCompleted = true;
+                }
             }
         }
 
@@ -2182,8 +2222,11 @@ namespace OpenTap
         {
             try
             {
-                if (!isCompleted)
-                    tokenSource.Cancel();
+                lock (tokenSource)
+                {
+                    if (!isCompleted)
+                        tokenSource.Cancel();
+                }
             }
             catch (ObjectDisposedException)
             {

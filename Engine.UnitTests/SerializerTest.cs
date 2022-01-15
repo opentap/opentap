@@ -7,7 +7,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Configuration;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -15,11 +14,8 @@ using System.Text;
 using System.Xml;
 using System.Xml.Serialization;
 using OpenTap.Plugins.BasicSteps;
-using OpenTap;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using System.Xml.Linq;
-using OpenTap.Plugins;
-using OpenTap.UnitTests;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -662,6 +658,62 @@ namespace OpenTap.Engine.UnitTests
 
         }
 
+        public class SimpleClass
+        {
+            public SimpleClass(object obj)
+            {
+                
+            }
+        }
+        public class UnbalancedListStep : TestStep
+        {
+            [Display("Tx Command Sequences", "A predefined list of TX command sequences to control the DUT.",
+                Order: 10.2)]
+            public IReadOnlyList<SimpleClass> ReadOnlyList { get; set; } = new List<SimpleClass> {new SimpleClass(default), new SimpleClass(default)}.AsReadOnly();
+
+            public override void Run()
+            {
+                throw new NotImplementedException();
+            }
+        }
+        
+        [Test]
+        public void DeserializeUnbalancedList()
+        {
+            using (Session.Create())
+            {
+                var trace = new EngineUnitTestUtils.TestTraceListener();
+                Log.AddListener(trace);
+
+                var plan = new TestPlan();
+                plan.ChildTestSteps.Add(new UnbalancedListStep());
+
+                var ser = new TapSerializer();
+                var planXml = ser.SerializeToString(plan);
+                CollectionAssert.IsEmpty(ser.Errors);
+
+                var currentLength = planXml.Length;
+
+                var itemElem = $"<{nameof(SimpleClass)}></{nameof(SimpleClass)}>";
+                // Remove one of the two items from the xml
+                planXml = planXml.Remove(planXml.IndexOf(itemElem, StringComparison.Ordinal), itemElem.Length);
+                
+                // Ensure an element was actually removed
+                Assert.AreEqual(currentLength - itemElem.Length, planXml.Length);
+                
+                var deserializedPlan = ser.DeserializeFromString(planXml) as TestPlan;
+
+                CollectionAssert.IsEmpty(ser.Errors);
+
+                // Deserialization should succeed even though we expect an element which was missing
+                Assert.IsTrue(
+                    deserializedPlan.ChildTestSteps.First() is UnbalancedListStep s && s.ReadOnlyList.Count == 2,
+                    "Expected list to contain 2 element.");
+                
+                Assert.AreEqual(trace.WarningMessage.Count, 1);
+                CollectionAssert.Contains(trace.WarningMessage, "Deserialized unbalanced list.");
+            }
+        }
     }
 
     [TestFixture]
@@ -1244,6 +1296,16 @@ namespace OpenTap.Engine.UnitTests
 
         }
 
+        [Test]
+        public void HugeBigFloatTest()
+        {
+            // very huge numbers are not supported since they take a lot of time to parse.
+            Assert.Throws<FormatException>(() => new BigFloat("1e99999999")); // too huge.
+            Assert.Throws<FormatException>(() => new BigFloat("1e-99999999")); // too precise.
+            Assert.DoesNotThrow(() => new BigFloat("1e999")); // huge but ok.
+            Assert.DoesNotThrow(() => new BigFloat("1e-999")); // really precise but ok.
+        }
+
         private static bool Test<T>(T a, T b, Func<T, T, bool> test) { return test(a, b); }
         private static T Calc<T>(T a, T b, Func<T, T, T> test) { return test(a, b); }
 
@@ -1273,17 +1335,27 @@ namespace OpenTap.Engine.UnitTests
 
             for (int i = 0; i < values.Length; i++)
             {
-                Assert.AreEqual((-values[i]).ToString(), (-bigValues[i]).ToString(), "-{0}", values[i]);
-                Assert.AreEqual(Math.Abs(values[i]).ToString(), bigValues[i].Abs().ToString(), "abs({0})", values[i]);
-                Assert.AreEqual(Math.Round(values[i]).ToString(), bigValues[i].Round().ToString(), "round({0})", values[i]);
+                // Bumping to .NET6 has brought some slight behavior change to double.ToString().
+                // (-0).ToString() now returns "-0" instead of "0". This test has been modified
+                // to ensure we retain the old BigFloat tostring behavior.
+                string toString(double d)
+                {
+                    var str = d.ToString();
+                    if (str == "-0") return "0";
+                    return str;
+                }
+
+                Assert.AreEqual(toString(-values[i]), (-bigValues[i]).ToString(), "-{0}", values[i]);
+                Assert.AreEqual(toString(Math.Abs(values[i])), bigValues[i].Abs().ToString(), "abs({0})", values[i]);
+                Assert.AreEqual(toString(Math.Round(values[i])), bigValues[i].Round().ToString(), "round({0})", values[i]);
                 Assert.AreEqual((int)values[i], (int)bigValues[i], "(int){0}", values[i]);
 
                 for (int i2 = 0; i2 < values.Length; i2++)
                 {
-                    Assert.AreEqual(Calc(values[i], values[i2], (a, b) => a + b).ToString(), Calc(bigValues[i], bigValues[i2], (a, b) => a + b).ToString(), "{0} + {1}", values[i], values[i2]);
-                    Assert.AreEqual(Calc(values[i], values[i2], (a, b) => a - b).ToString(), Calc(bigValues[i], bigValues[i2], (a, b) => a - b).ToString(), "{0} - {1}", values[i], values[i2]);
-                    Assert.AreEqual(Calc(values[i], values[i2], (a, b) => a * b).ToString(), Calc(bigValues[i], bigValues[i2], (a, b) => a * b).ToString(), "{0} * {1}", values[i], values[i2]);
-                    Assert.AreEqual(Calc(values[i], values[i2], (a, b) => a / b).ToString(), Calc(bigValues[i], bigValues[i2], (a, b) => a / b).ToString(), "{0} / {1}", values[i], values[i2]);
+                    Assert.AreEqual(toString(Calc(values[i], values[i2], (a, b) => a + b)), Calc(bigValues[i], bigValues[i2], (a, b) => a + b).ToString(), "{0} + {1}", values[i], values[i2]);
+                    Assert.AreEqual(toString(Calc(values[i], values[i2], (a, b) => a - b)), Calc(bigValues[i], bigValues[i2], (a, b) => a - b).ToString(), "{0} - {1}", values[i], values[i2]);
+                    Assert.AreEqual(toString(Calc(values[i], values[i2], (a, b) => a * b)), Calc(bigValues[i], bigValues[i2], (a, b) => a * b).ToString(), "{0} * {1}", values[i], values[i2]);
+                    Assert.AreEqual(toString(Calc(values[i], values[i2], (a, b) => a / b)), Calc(bigValues[i], bigValues[i2], (a, b) => a / b).ToString(), "{0} / {1}", values[i], values[i2]);
                 }
             }
         }
@@ -2397,6 +2469,97 @@ namespace OpenTap.Engine.UnitTests
             var b = (InPlacePropertyOwner) new TapSerializer().DeserializeFromString(xml);
             Assert.AreEqual(1, b.XChanged);
             Assert.AreEqual(3, b.Prop.X);
+        }
+
+        [Test]
+        public void TestBase64EncodeDecode()
+        {
+            var testMessage = "(SCPI:TRIG1:SEQ:AIQM:DEL:STAT) ";
+            var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(testMessage));
+            
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(new DialogStep() { Message = "(SCPI:TRIG1:SEQ:AIQM:DEL:STAT) "});
+            
+            var ser = new TapSerializer();
+            var planXml = ser.SerializeToString(plan);
+            
+            StringAssert.Contains($"<Base64>{base64}</Base64>", planXml);
+
+            var newPlan = ser.DeserializeFromString(planXml) as TestPlan;
+
+            var dialog = newPlan.ChildTestSteps.First() as DialogStep;
+            Assert.AreEqual(testMessage, dialog.Message);
+        }
+        
+        [Test]
+        public void TestBase64DecodeWithNamespace()
+        {
+            var testMessage = "(SCPI:TRIG1:SEQ:AIQM:DEL:STAT) ";
+            var base64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(testMessage));
+            var ns = "http://opentap.io/schemas/package";
+            var xml = $@"<?xml version=""1.0"" encoding=""utf-8""?>
+<TestPlan type=""OpenTap.TestPlan"" Locked=""false"" xmlns=""{ns}"">
+  <Steps>
+    <TestStep type=""OpenTap.Plugins.BasicSteps.DialogStep"" Version=""9.4.0-Development"" Id=""d656ee5b-e764-4c6f-be9f-e4f28bcdee13"">
+      <Message>
+        <Base64>{base64}</Base64>
+      </Message>
+      <Title>Title</Title>
+      <Buttons>OkCancel</Buttons>
+      <PositiveAnswer>NotSet</PositiveAnswer>
+      <NegativeAnswer>NotSet</NegativeAnswer>
+      <UseTimeout>false</UseTimeout>
+      <Timeout>5</Timeout>
+      <DefaultAnswer>NotSet</DefaultAnswer>
+      <Enabled>true</Enabled>
+      <Name>Dialog</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+  </Steps>
+  <BreakConditions>Inherit</BreakConditions>
+  <OpenTap.Description />
+  <Package.Dependencies />
+</TestPlan>
+";
+            var ser = new TapSerializer();
+            var plan = ser.DeserializeFromString(xml) as TestPlan;
+            var dialog = plan.ChildTestSteps.First() as DialogStep;
+            Assert.AreEqual(testMessage, dialog.Message);
+        }
+
+        [Test]
+        public void TestSerializeProcessStepWithNullDefaultValue()
+        {
+            // When DefaulValue is used and the property value is null an exception was thrown.
+            var plan = new TestPlan();
+            var step = new ProcessStep {LogHeader = null};
+            plan.ChildTestSteps.Add(step);
+            plan.SerializeToString(true);
+        }
+
+        /// <summary> This class just inhertis from test plan </summary>
+        public class TestPlanTest2 : TestPlan
+        {
+            
+        }
+
+        /// <summary>
+        /// A problem existed where if inheriting from TestPlan,
+        /// Name was not set to the right value after deserializing from a stream.
+        /// </summary>
+        [Test]
+        public void TestSerializeInheritTestPlan()
+        {
+            var tp = new TestPlanTest2();
+            // this once threw an exception because of an error in ChildTestSteps.Add.
+            tp.ChildTestSteps.Add(new DelayStep());
+            var str = new MemoryStream();
+            tp.Save(str);
+            str.Seek(0, SeekOrigin.Begin);
+            tp = (TestPlanTest2)TestPlan.Load(str, "testplantest2.TapPlan");
+            // before the fix, this would be set "Untitled"
+            Assert.AreEqual(tp.Name, "testplantest2");
         }
     }
 }

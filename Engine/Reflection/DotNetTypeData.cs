@@ -16,6 +16,7 @@ namespace OpenTap
     /// <summary> Represents a .NET type. </summary>
     public partial class TypeData : ITypeData
     {
+
         /// <summary> Creates a string value of this.</summary>
         public override string ToString() => Name;
 
@@ -98,8 +99,8 @@ namespace OpenTap
         }
 
         bool isValueType;
-        /// <summary> Cached IsValueType for speeding up annotation. </summary>
-        internal bool IsValueType
+        /// <summary> gets if the type is a value-type. (see Type.IsValueType)</summary>
+        public bool IsValueType
         {
             get
             {
@@ -152,14 +153,23 @@ namespace OpenTap
         /// </summary>
         public IEnumerable<object> Attributes => attributes ?? (attributes = Load()?.GetAllCustomAttributes(false)) ?? Array.Empty<object>();
 
-        /// <summary> The base type of this type. </summary>
+        ITypeData baseTypeCache;
+        /// <summary> The base type of this type. Will return null if there is no base type. If there is no direct base, but instead an interface, that will be returned.</summary>
         public ITypeData BaseType
         {
             get
             {
-                if (BaseTypes != null)
-                    return BaseTypes.First();
-                return Load().BaseType == null ? null : TypeData.FromType(Load().BaseType);
+                if (baseTypeCache != null) return ReferenceEquals(baseTypeCache, NullTypeData.Instance) ? null : baseTypeCache;
+                baseTypeCache = BaseTypes?.ElementAtOrDefault(0);
+                if (baseTypeCache != null) return baseTypeCache;
+                var result2 = Load()?.BaseType;
+                if (result2 != null)
+                {
+                    baseTypeCache = FromType(result2);
+                    return baseTypeCache;
+                }
+                baseTypeCache = NullTypeData.Instance;
+                return baseTypeCache;
             }
         }
 
@@ -175,6 +185,8 @@ namespace OpenTap
             }
         }
 
+        internal bool createInstanceSet => canCreateInstance.HasValue;
+        
         bool? canCreateInstance;
         /// <summary> 
         /// returns true if an instance possibly can be created. 
@@ -188,7 +200,8 @@ namespace OpenTap
                 var type = Load();
                 canCreateInstance = type.IsAbstract == false && type.IsInterface == false && type.ContainsGenericParameters == false && type.GetConstructor(Array.Empty<Type>()) != null;
                 return canCreateInstance.Value;
-            }       
+            }
+            internal set => canCreateInstance = value;
         }
 
         string assemblyQualifiedName;

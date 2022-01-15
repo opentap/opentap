@@ -420,7 +420,11 @@ namespace OpenTap.Plugins
                     if (elem.HasElements)
                     {
                         // string contains Base64 if it has invalid XML chars.
-                        var encode = elem.Element("Base64");
+                        // elem.Element("Base64") fails if the attribute "xmlns" is set on the document.
+                        // In this case, "Base64" must be prepended with the value of xmlns in brackets.
+                        // If the namespace is not set, ns.GetName("Base64") will just evaluate to "Base64"
+                        var ns = elem.GetDefaultNamespace();
+                        var encode = elem.Element(ns.GetName("Base64"));
                         if (encode != null)
                         {
                             try
@@ -618,19 +622,54 @@ namespace OpenTap.Plugins
                 
                 if (XmlConvert.IsXmlChar(c))
                     continue;
-                else if(i < len - 1)
+                if(i < len - 1)
                 {
                     char c2 = str[i + 1];
                     if(XmlConvert.IsXmlSurrogatePair(c2, c))
                         continue;
                 }
+                return false;
                 
-                {
-                    return false;
-                }
             }
             return true;
         }
+
+        private List<string> GetUsedFiles(object obj)
+        {
+            var result = new List<string>();
+
+            string GetStringOrMacroString(IMemberData prop, object o)
+            {
+                if (prop.HasAttribute<XmlIgnoreAttribute>())
+                    return null;
+                object val = prop.GetValue(o);
+
+                if (val is string s)
+                    return s;
+                if (val is MacroString m)
+                    return m.ToString();
+
+                return null;
+            }
+
+            var td = TypeData.GetTypeData(obj);
+
+            var props = td.GetMembers().Where(m => m.HasAttribute<FileDependencyAttribute>());
+            foreach (var prop in props)
+            {
+                var path = GetStringOrMacroString(prop, obj);
+
+                if (string.IsNullOrWhiteSpace(path) == false)
+                    result.Add(path);
+            }
+
+            return result;
+        }
+
+        // this 'cache' only caches serialized values during this instance of the serialize
+        // this is to avoid a memory leak for e.g GUIDs, which falls into the category of primitives.
+        readonly Dictionary<object, string> enumTable = new Dictionary<object, string>();
+
         /// <summary>
         /// Serializes an object to XML.
         /// </summary>
@@ -642,12 +681,16 @@ namespace OpenTap.Plugins
         {
             if (obj == null)
                 return true;
-            
+
             object prevObj = Object;
             // If cycleDetectorLut already contains an element, we've been here before.
             // Note the cycleDetectorLut adds and removes the obj later if it is not already in it.
             if (!cycleDetetionSet.Add(obj))
                 throw new Exception("Cycle detected");
+            
+            foreach (var fileResource in GetUsedFiles(obj))
+                Serializer.NotifyFileUsed(fileResource);
+            
             object obj2 = obj;
             try
             {
@@ -705,15 +748,27 @@ namespace OpenTap.Plugins
                     return true;
                 }
 
-                if (expectedType is TypeData type && (type.Type.IsEnum || type.Type.IsPrimitive || type.Type.IsValueType))
+                if (expectedType is TypeData type)
                 {
-                    if (type.Type == typeof(bool))
+                    if(type.Type.IsEnum || type.Type.IsPrimitive || type.Type.IsValueType)
                     {
-                        elem.Value = (bool)obj ? "true" : "false"; // must be lower case for old XmlSerializer to work
+                        if (type.Type == typeof(bool))
+                        {
+                            elem.Value =
+                                (bool)obj ? "true" : "false"; // must be lower case for old XmlSerializer to work
+                            return true;
+                        }
+
+                        if (enumTable.TryGetValue(obj, out var v))
+                        {
+                            elem.Value = v;
+                            return true;
+                        }
+                        v = Convert.ToString(obj, CultureInfo.InvariantCulture);
+                        enumTable[obj] = v;
+                        elem.Value = v;
                         return true;
                     }
-                    elem.Value = Convert.ToString(obj, CultureInfo.InvariantCulture);
-                    return true;
                 }
 
                 IMemberData xmlTextProp = null;

@@ -41,6 +41,8 @@ namespace OpenTap.Cli
             var argToProp = new Dictionary<string, IMemberData>();
             var unnamedArgToProp = new List<IMemberData>();
 
+            var overrides = new HashSet<string>();
+
             foreach (var prop in props)
             {
                 if (prop.Readable == false || prop.Writable == false)
@@ -69,8 +71,25 @@ namespace OpenTap.Cli
                 {
                     description = attr.Description;
                 }
-                
-                var arg = ap.AllOptions.Add(attr.Name, attr.ShortName == null ? '\0' : attr.ShortName.FirstOrDefault(), needsArg, description);
+
+                if (ap.AllOptions.Contains(attr.Name))
+                {
+                    overrides.Add(attr.Name);
+                }
+
+                if (!string.IsNullOrWhiteSpace(attr.ShortName))
+                {
+                    var overriden = ap.AllOptions.FirstOrDefault(opt => opt.Value?.ShortName == attr.ShortName[0]).Value;
+                    if (overriden != null)
+                    {
+                        overrides.Add(overriden.ShortName.ToString());
+                        // Set the ShortName of the overriden option to '\0' so the argument parser will resolve this ShortName to the overriding option
+                        // The overriden option can still be accessed by its LongName, provided that is not also overriden
+                        ap.AllOptions.Add(overriden.LongName, '\0', overriden.NeedsArgument, overriden.Description);
+                    }
+                }
+
+                var arg = ap.AllOptions.Add(attr.Name, attr.ShortName?.FirstOrDefault() ?? '\0', needsArg, description);
                 arg.IsVisible = attr.Visible;
                 argToProp.Add(arg.LongName, prop);
             }
@@ -80,20 +99,33 @@ namespace OpenTap.Cli
             if (args.MissingArguments.Any())
                 throw new Exception($"Command line argument '{args.MissingArguments.FirstOrDefault().LongName}' is missing an argument.");
 
-            if (args.Contains("help"))
+            foreach (var @override in overrides)
+            {
+                if (args.Contains(@override))
+                    log.Debug($"The CLI option '--{@override}' from '{action}' overrides a common CLI option from OpenTAP.");
+                else if (@override.Length == 1)
+                {
+                    var shortName = @override[0];
+                    var isUsed = args.Any(a => a.Value?.ShortName == shortName);
+                    if (isUsed)
+                        log.Debug($"The CLI option '-{@override}' from '{action}' overrides a common CLI option from OpenTAP.");
+                }
+            }
+
+            if (!overrides.Contains("help") && args.Contains("help"))
             {
                 printOptions(action.GetType().GetAttribute<DisplayAttribute>().Name, ap.AllOptions, unnamedArgToProp);
                 return (int)ExitCodes.Success;
             }
 
-            if (args.Contains("log"))
+            if (!overrides.Contains("log") && args.Contains("log"))
             {
                 SessionLogs.Rename(args.Argument("log"));
             }
 
             foreach (var opts in args)
             {
-                if (argToProp.ContainsKey(opts.Key) == false) continue; 
+                if (argToProp.ContainsKey(opts.Key) == false) continue;
                 var prop = argToProp[opts.Key];
 
                 if (prop.TypeDescriptor is TypeData propTd)
@@ -104,10 +136,10 @@ namespace OpenTap.Cli
                     else if (propType == typeof(string)) prop.SetValue(action, opts.Value.Value);
                     else if (propType == typeof(string[])) prop.SetValue(action, opts.Value.Values.ToArray());
                     else if (propType == typeof(int)) prop.SetValue(action, int.Parse(opts.Value.Value));
-                    else throw new Exception(string.Format("Command line option '{0}' is of an unsupported type '{1}'.", opts.Key, propType.Name));
+                    else throw new Exception($"Command line option '{opts.Key}' is of an unsupported type '{propType.Name}'.");
                 }
                 else
-                    throw new Exception(string.Format("Command line option '{0}' is of an unsupported type '{1}'.", opts.Key, prop.TypeDescriptor.Name));
+                    throw new Exception($"Command line option '{opts.Key}' is of an unsupported type '{prop.TypeDescriptor.Name}'.");
             }
 
             unnamedArgToProp = unnamedArgToProp.OrderBy(p => p.GetAttribute<UnnamedCommandLineArgument>().Order).ToList();

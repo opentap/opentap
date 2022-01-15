@@ -20,6 +20,8 @@
              Link="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.redhat"/>
     <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/1.0.252/runtimes/linux-x64/native/libgit2-4aecb64.so" CopyToOutputDirectory="PreserveNewest" 
              Link="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.linux-x64"/>
+    <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/1.0.252/runtimes/debian.9-x64/native/libgit2-4aecb64.so" CopyToOutputDirectory="PreserveNewest"
+             Link="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.debian"/>
     <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/1.0.252/runtimes/osx/native/libgit2-4aecb64.dylib" CopyToOutputDirectory="PreserveNewest" 
              Link="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.dylib"/>
   </ItemGroup>

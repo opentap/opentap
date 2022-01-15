@@ -598,6 +598,46 @@ namespace OpenTap
                 }
             }
 
+            // Check if the type is constructable by inspecting the available constructors
+            if (plugin.createInstanceSet == false)
+            {
+                // Abstract types and interfaces cannot be instantiated
+                if (typeAttributes.HasFlag(TypeAttributes.Interface) || typeAttributes.HasFlag(TypeAttributes.Abstract))
+                {
+                    plugin.CanCreateInstance = false;
+                }
+                else
+                {
+                    // The type can only be instantiated if it has a parameter-less constructor which does not require type arguments
+                    bool hasGenericParameters(MethodDefinition m)
+                    {
+                        return m.GetGenericParameters().Count > 0;
+                    }
+
+                    bool hasParameters(MethodDefinition m)
+                    {
+                        return m.GetParameters().Count > 0;
+                    }
+                    
+                    foreach (var methodHandle in typeDef.GetMethods())
+                    {
+                        var m = CurrentReader.GetMethodDefinition(methodHandle);
+                        if (CurrentReader.GetString(m.Name) != ".ctor")
+                            continue;
+
+                        if (hasGenericParameters(m) || hasParameters(m))
+                        {
+                            plugin.CanCreateInstance = false;
+                            continue;
+                        }
+                        
+                        // We know that the type is constructable, so we can stop searching.
+                        plugin.CanCreateInstance = true;
+                        break;
+                    }
+                }
+            }
+
             if (plugin.PluginTypes != null)
             {
                 PluginTypes.Add(plugin);
@@ -1097,12 +1137,8 @@ namespace OpenTap
                         {
                             assembly = Assembly.LoadFrom(Path.GetFullPath(this.Location));
                         }
-                        
                     }
                     
-                        
-                        
-
                     log.Debug(watch, "Loaded {0}.", this.Name);
                 }
                 catch (SystemException ex)

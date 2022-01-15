@@ -322,7 +322,7 @@ namespace OpenTap
             return Deserialize(element, setter, t != null ? TypeData.FromType(t) : null);
         }
 
-        static readonly XName typeName = "type";
+        internal static readonly XName typeName = "type";
         
         /// <summary>
         /// Deserializes an object from XML.
@@ -405,7 +405,7 @@ namespace OpenTap
                 elem.Name = TypeToXmlString(obj.GetType());
             ClearErrors();
             using(TypeData.WithTypeDataCache())
-            using(ParameterManager.WithSanityCheckDelayed())
+            using(ParameterManager.WithSanityCheckDelayed(true))
                 Serialize(elem, obj);
             doc.Add(elem);
             doc.WriteTo(writer);

@@ -15,7 +15,11 @@ namespace OpenTap.Package
     public class Installation
     {
         static TraceSource log = Log.CreateSource("Installation");
-        string directory { get; }
+
+        /// <summary>
+        /// Path to the installation
+        /// </summary>
+        public string Directory { get; }
 
         /// <summary>
         /// Initialize an instance of a OpenTAP installation.
@@ -23,7 +27,7 @@ namespace OpenTap.Package
         /// <param name="directory"></param>
         public Installation(string directory)
         {
-            this.directory = directory ?? throw new ArgumentNullException(nameof(directory));
+            this.Directory = directory ?? throw new ArgumentNullException(nameof(directory));
         }
 
         /// <summary>
@@ -55,11 +59,45 @@ namespace OpenTap.Package
         /// Get the installed package which provides the file specified by the string.
         /// If multiple packages provide the file the package is chosen arbitrarily.
         /// </summary>
-        /// <param name="file"></param>
+        /// <param name="file">An absolute or relative path to the file</param>
         /// <returns></returns>
         public PackageDef FindPackageContainingFile(string file)
         {
-            file = file.Replace('\\', '/');
+            InvalidateIfChanged();
+
+            try
+            {
+                var invalid = Path.GetInvalidPathChars();
+                if (file.Any(ch => invalid.Contains(ch))) return null;
+                var name = Path.GetFileName(file);
+                invalid = Path.GetInvalidFileNameChars();
+                if (name.Any(ch => invalid.Contains(ch))) return null;
+                // The path API is not 100% consistent. In some circumstances 'GetFullPath' will
+                // still throw even if there are no illegal characters in the filename or path name.
+                _ = Path.GetFullPath(file);
+            }
+            catch
+            {
+                // This means the filename is invalid on some way not covered by Path.GetInvalidPathChars.
+                // This is fine, and it definitely means the file is not contained in a package
+                return null;
+            }
+
+            // Compute the absolute path in order to ensure the file exists, and normalize the path so it matches the format in package.xml files
+            var abs = Path.GetFullPath(file);
+
+            var installDir = ExecutorClient.ExeDir;
+
+            // abs must be contained within installDir
+            if (abs.Length <= installDir.Length)
+                return null;
+            
+            // Ensure the file is in a subdirectory of the installation. Otherwise it is not contained in a package.
+            if (!abs.StartsWith(installDir))
+                return null;
+
+            // Compute the relative path and normalize directory separators
+            var relative = abs.Substring(installDir.Length + 1).Replace('\\', '/');
 
             // Fully initialize fileMap as needed whenever it is cleared
             if (fileMap.Count == 0)
@@ -74,7 +112,7 @@ namespace OpenTap.Package
                 }                
             }
 
-            if (fileMap.TryGetValue(file, out var result))
+            if (fileMap.TryGetValue(relative, out var result))
                 return result;
             return null;
         }
@@ -89,13 +127,16 @@ namespace OpenTap.Package
         {
             var assembly = pluginType?.AsTypeData()?.Assembly?.Location;
             if (string.IsNullOrWhiteSpace(assembly)) return null;
-            var assemblyPath = new Uri(Path.GetDirectoryName(assembly));
-            var installPath = new Uri(ExecutorClient.ExeDir);
             
-            // Get the path relative to the install directory
-            var relative = $"{installPath.MakeRelativeUri(assemblyPath)}/{Path.GetFileName(assembly)}";
-            // MakeRelativeUri adds a leading / -- remove it
-            relative = relative.Substring(1);
+            var assemblyPath = Path.GetFullPath(assembly);
+            var installPath = Path.GetFullPath(ExecutorClient.ExeDir);
+
+            // The assembly must be rooted in the installation
+            if (assemblyPath.StartsWith(installPath) == false)
+                return null;
+            
+            // Get the path relative to the install directory by removing the install path + the leading '/'
+            var relative = assemblyPath.Substring(installPath.Length + 1);
 
             return FindPackageContainingFile(relative);
         }
@@ -104,18 +145,27 @@ namespace OpenTap.Package
         private long previousChangeId = -1;
 
         /// <summary>
+        /// Invalidate caches if the installation has changed.
+        /// </summary>
+        private void InvalidateIfChanged()
+        {
+            long changeId = IsolatedPackageAction.GetChangeId(Directory);
+            
+            if (changeId != previousChangeId)
+            {
+                Invalidate();
+                previousChangeId = changeId;
+            }
+        }
+
+        /// <summary>
         /// Returns package definition list of installed packages in the TAP installation defined in the constructor, and system-wide packages.
         /// Results are cached, and Invalidate must be called if changes to the installation are made by circumventing OpenTAP APIs.
         /// </summary>
         /// <returns></returns>
         public List<PackageDef> GetPackages()
         {
-            long changeId = IsolatedPackageAction.GetChangeId(directory);
-            
-            if (changeId != previousChangeId)
-            {
-                Invalidate();
-            }
+            InvalidateIfChanged();
 
             if (PackageCache == null || invalidate)
             {
@@ -123,7 +173,7 @@ namespace OpenTap.Package
                 List<string> package_files = new List<string>();
 
                 // Add normal package from OpenTAP folder
-                package_files.AddRange(PackageDef.GetPackageMetadataFilesInTapInstallation(directory));
+                package_files.AddRange(PackageDef.GetPackageMetadataFilesInTapInstallation(Directory));
 
                 // Add system wide packages
                 package_files.AddRange(PackageDef.GetSystemWidePackages());
@@ -145,7 +195,6 @@ namespace OpenTap.Package
                     }
                 }
 
-                previousChangeId = changeId;
                 invalidate = false;
                 PackageCache = plugins;
             }
@@ -161,7 +210,7 @@ namespace OpenTap.Package
         {
             var opentap = GetPackages()?.FirstOrDefault(p => p.Name == "OpenTAP");
             if (opentap == null)
-                log.Warning($"Could not find OpenTAP in {directory}.");
+                log.Warning($"Could not find OpenTAP in {Directory}.");
 
             return opentap;
         }
@@ -230,7 +279,7 @@ namespace OpenTap.Package
 
         internal void AnnouncePackageChange()
         {
-            using (var changeId = new ChangeId(this.directory))
+            using (var changeId = new ChangeId(this.Directory))
                 changeId.SetChangeId(changeId.GetChangeId() + 1);
         }
 

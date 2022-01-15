@@ -384,16 +384,16 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             }
         }
 
-        private static bool IsDotNetAssembly(string fullPath)
+        private bool IsDotNetAssembly(string fullPath)
         {
             try
             {
                 AssemblyName testAssembly = AssemblyName.GetAssemblyName(fullPath);
                 return true;
             }
-
-            catch (Exception)
+            catch (Exception ex)
             {
+                Log.LogMessage(MessageImportance.Low, $"Could not load assembly name from '{fullPath}'. {ex}\n{ex.GetType()}\n{ex.Message}\n{ex.StackTrace}");
                 return false;
             }
         }

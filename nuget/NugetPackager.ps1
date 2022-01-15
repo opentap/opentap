@@ -44,6 +44,8 @@ $packageXml = Get-ChildItem -File -Recurse package.xml | Resolve-Path -Relative 
 CopyPreserveRelativePath $packageXml $runtimeDir
 
 CopyPreserveRelativePath ./tap.exe  $runtimeDir
+CopyPreserveRelativePath ./tap.dll $runtimeDir
+CopyPreserveRelativePath ./tap.runtimeconfig.json $runtimeDir
 
 $git2dll = Get-ChildItem -File -Recurse *git2-*.dll | Resolve-Path -Relative | Select-Object -First 1
 CopyPreserveRelativePath $git2dll $runtimeDir
@@ -57,6 +59,8 @@ $packageXml = Get-ChildItem -File -Recurse package.xml | Resolve-Path -Relative 
 CopyPreserveRelativePath $packageXml $runtimeDir
 
 CopyPreserveRelativePath ./tap.exe  $runtimeDir
+CopyPreserveRelativePath ./tap.dll $runtimeDir
+CopyPreserveRelativePath ./tap.runtimeconfig.json $runtimeDir
 
 $git2dll = Get-ChildItem -File -Recurse *git2-*.dll | Resolve-Path -Relative | Select-Object -First 1
 CopyPreserveRelativePath $git2dll $runtimeDir

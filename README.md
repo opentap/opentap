@@ -30,13 +30,13 @@ For a guide on how to develop using OpenTAP, check out our __[Developer Guide](h
 ## Building OpenTAP
 Most users build plugins for OpenTAP but if you are interested in building OpenTAP yourself you can clone the git repository at https://gitlab.com/OpenTAP/opentap and build the OpenTAP.sln solution file.
 
+**Note:** You need [Microsoft .NET Core SDK 6.0](https://dotnet.microsoft.com/download) to build OpenTAP.
+
 ### Microsoft Windows 10
 On Windows, Visual Studio 2017 or greater is needed to build. This can be done by opening the solution and pressing F5, or Ctrl-Shift-B.
 
-**Note:** You need [Microsoft .NET Framework 4.6.2 Targeting Pack](https://www.microsoft.com/en-us/download/details.aspx?id=53321) to build OpenTAP for .NET Framework.
-
-### Linux / .NET Core
-On Linux, you can build the source with .NET Core. You usually need to install some dependencies in addition to .NET Core SDK. On Ubuntu, run the following on apt:
+### Linux
+On Linux, you usually need to install some dependencies in addition to .NET Core SDK. On Ubuntu, run the following on apt:
 
 ```sh
 sudo apt install libc6-dev libunwind8 curl git -y
@@ -45,14 +45,14 @@ sudo apt install libc6-dev libunwind8 curl git -y
 This should install the needed dependencies. Once these are installed, you can build OpenTAP using these commands:
 
 ```sh
-dotnet build -c NetCore -r linux-x64
-dotnet publish -c NetCore -r linux-x64
-dotnet publish -c NetCore -r linux-x64 tap/tap.csproj
+dotnet build -c Release
+dotnet publish -c Release
+dotnet publish -c Release tap/tap.csproj
 ```
 
 *Note, the last line is there to ensure getting the right System.Runtime.dll.*
 
-This creates a *Release* build. For a debug build set *NetCoreDebug* instead of *NetCore* when building.
+This creates a *Release* build. For a debug build, omit *-c Release* when building.
 
 
 ## Testing
@@ -67,7 +67,7 @@ Using Visual Studio 2017, open OpenTAP.sln and run the tests in the TestExplorer
 To run the entire test suite on Linux, run:
 
 ```sh
-dotnet test -c NetCore # Or NetCoreDebug
+dotnet test
 ```
 
 To debug the unit tests, set the `VSTEST_HOST_DEBUG` environment variable to `1`. This causes dotnet test to wait for a debugger to become attached.

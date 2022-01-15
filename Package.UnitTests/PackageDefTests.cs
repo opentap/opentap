@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using OpenTap.Plugins.BasicSteps;
 using System.Reflection;
 using System;
+using System.Runtime.Loader;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using static OpenTap.Package.PackageDefExt;
 
@@ -198,45 +199,22 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
-        [Platform(Exclude="Unix,Linux,MacOsX")]
         public void CreatePackageVersioningMono()
         {
             var tmpFile = Path.GetTempFileName();
             File.Copy("OpenTap.dll", tmpFile, true);
 
-            OpenTap.Package.SetAsmInfo.SetAsmInfo.SetInfo(tmpFile, new Version("1.2.3"), new Version("4.5.6"), SemanticVersion.Parse("0.1.2"), SetAsmInfo.UpdateMethod.Mono);
+            SetAsmInfo.SetAsmInfo.SetInfo(tmpFile, new Version("1.2.3"), new Version("4.5.6"), SemanticVersion.Parse("0.1.2"));
 
-            var asm = Assembly.LoadFrom(tmpFile);
+            // Side loading assemblies with different versions is not supported in netcore
+            // Load the dll in a new context instead. If we load it in the current context,
+            // the currently loaded OpenTAP.dll will be returned instead
+            var ctx = new AssemblyLoadContext("tmp");
+            var asm = ctx.LoadFromAssemblyPath(tmpFile);
             Assert.AreEqual(1, asm.GetName().Version.Major, "Wrong major");
             Assert.AreEqual(2, asm.GetName().Version.Minor, "Wrong minor");
             Assert.AreEqual(3, asm.GetName().Version.Build, "Wrong build");
             
-            Assert.AreEqual("4.5.6", asm.GetCustomAttribute<AssemblyFileVersionAttribute>().Version, "File version");
-            Assert.AreEqual("0.1.2", asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion, "Informational version");
-
-            Assert.AreEqual("4.5.6", FileVersionInfo.GetVersionInfo(tmpFile).FileVersion, "GetVersionInfo().FileVersion");
-            Assert.AreEqual("0.1.2", FileVersionInfo.GetVersionInfo(tmpFile).ProductVersion, "GetVersionInfo().ProductVersion");
-            Assert.AreEqual("0.1.2", FileSystemHelper.GetAssemblyVersion(tmpFile), "FileSystemHelper.GetAssemblyVersion");
-        }
-
-        [Test]
-        [Platform(Exclude="Unix,Linux,MacOsX")]
-        public void CreatePackageVersioningIlAsm()
-        {
-            var tmpFile = Path.GetTempFileName();
-
-            File.Delete(tmpFile);
-            tmpFile += ".dll";
-
-            File.Copy("OpenTap.dll", tmpFile, true);
-
-            OpenTap.Package.SetAsmInfo.SetAsmInfo.SetInfo(tmpFile, new Version("1.2.3"), new Version("4.5.6"), SemanticVersion.Parse("0.1.2"), SetAsmInfo.UpdateMethod.ILDasm);
-
-            var asm = Assembly.LoadFrom(tmpFile);
-            Assert.AreEqual(1, asm.GetName().Version.Major, "Wrong major");
-            Assert.AreEqual(2, asm.GetName().Version.Minor, "Wrong minor");
-            Assert.AreEqual(3, asm.GetName().Version.Build, "Wrong build");
-
             Assert.AreEqual("4.5.6", asm.GetCustomAttribute<AssemblyFileVersionAttribute>().Version, "File version");
             Assert.AreEqual("0.1.2", asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion, "Informational version");
 

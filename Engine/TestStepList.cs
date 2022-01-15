@@ -171,7 +171,7 @@ namespace OpenTap
                 throw new ArgumentNullException("childType");
             // if the parent is a TestPlan or the parent specifies "AllowAnyChild", then OK
             bool parentAllowsAnyChild = parentType.HasAttribute<AllowAnyChildAttribute>();
-            if (parentType == typeof(TestPlan) || parentAllowsAnyChild)
+            if (parentAllowsAnyChild)
             {
                 if (!childType.HasAttribute<AllowAsChildInAttribute>())
                 {
@@ -313,7 +313,10 @@ namespace OpenTap
             ListReplaced
         }
 
-        internal int ChangeId { get; set; }
+        static readonly Random changeIdRandomState = new Random();
+        // generate random IDs to try avoiding collisions with other cached states.
+        // changeid is often used for caching.
+        internal int ChangeId { get; set; } = changeIdRandomState.Next();
         
         void onContentChanged(TestStepList sender, ChildStepsChangedAction Action, ITestStep Object, int Index)
         {

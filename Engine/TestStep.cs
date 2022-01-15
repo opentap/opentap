@@ -8,6 +8,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -26,7 +27,7 @@ namespace OpenTap
     [ComVisible(true)]
     [Guid("d0b06600-7bac-47fb-9251-f834e420623f")]
     public abstract class TestStep : ValidatingObject, ITestStep, IBreakConditionProvider, IDescriptionProvider, 
-        IDynamicMembersProvider, IInputOutputRelations
+        IDynamicMembersProvider, IInputOutputRelations, IParameterizedMembersCache
     {
         #region Properties
         /// <summary>
@@ -506,10 +507,31 @@ namespace OpenTap
         // Implementing this interface will make setting and getting descriptions faster.
         string IDescriptionProvider.Description { get; set; }
         // Implementing this interface will make setting and getting dynamic members faster.
-        IMemberData[] IDynamicMembersProvider.DynamicMembers { get; set; }
+        IDictionary<string, IMemberData> IDynamicMembersProvider.DynamicMembers { get; set; }
 
         InputOutputRelation[] IInputOutputRelations.Inputs { get; set; }
         InputOutputRelation[] IInputOutputRelations.Outputs { get; set; }
+
+        readonly Dictionary<IMemberData, IParameterMemberData> parameterizations =
+            new Dictionary<IMemberData, IParameterMemberData>();
+        void IParameterizedMembersCache.RegisterParameterizedMember(IMemberData mem, IParameterMemberData memberData)
+        {
+            lock (parameterizations)
+                parameterizations.Add(mem, memberData);
+        }
+
+        void IParameterizedMembersCache.UnregisterParameterizedMember(IMemberData mem, IParameterMemberData memberData)
+        {
+            lock (parameterizations)
+                parameterizations.Remove(mem);
+        }
+
+        IParameterMemberData IParameterizedMembersCache.GetParameterFor(IMemberData mem)
+        {
+            if (parameterizations.TryGetValue(mem, out var r))
+                return r;
+            return null;
+        }
     }
 
     /// <summary>
@@ -965,13 +987,17 @@ namespace OpenTap
             }
         }
 
-        static Dictionary<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]> membersLookup = new Dictionary<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]>();
+        // this dictionary may be accessed by multiple threads, so it is best to use ConcurrentDictionary.
+        static readonly ConcurrentDictionary<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]> 
+            membersLookup = new ConcurrentDictionary<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]>();
 
         static (IMemberData, bool hasEnabledAttribute)[] getSettingsLookup(TypeData targetType, ITypeData sourceType)
         {
             if(membersLookup.TryGetValue((targetType, sourceType), out var value))
                 return value;
             var propertyInfos = sourceType.GetMembers();
+            // if the target type is 'object' we accept any type as a value. 
+            bool anyType = Equals(TypeData.FromType(typeof(object)), targetType);
 
             List<(IMemberData, bool)> result = null;
             foreach (var prop in propertyInfos)
@@ -980,11 +1006,15 @@ namespace OpenTap
                 if (prop is IParameterMemberData) continue;
                 if (prop.Readable == false) continue;
                 var td2 = prop.TypeDescriptor.AsTypeData();
-                if (td2.IsValueType && targetType.IsValueType == false) continue;
-                if (td2.IsString && targetType.IsString == false) continue;
+                if (td2 == null) continue;
+                if (!anyType)
+                {
+                    if (td2.IsValueType && targetType.IsValueType == false) continue;
+                    if (td2.IsString && targetType.IsString == false) continue;
+                }
+
                 bool hasEnabled = prop.HasAttribute<EnabledIfAttribute>();
-                if (td2.DescendsTo(typeof(IEnabled)) || td2.DescendsTo(targetType) ||
-                    td2.ElementType.DescendsTo(targetType))
+                if (td2.DescendsTo(targetType) || td2.ElementType.DescendsTo(targetType) || td2.DescendsTo(typeof(IEnabled)))
                 {
                     if (prop.HasAttribute<SettingsIgnoreAttribute>()) continue;
                     if(result == null) result = new List<(IMemberData, bool)>();
@@ -1113,8 +1143,9 @@ namespace OpenTap
             public string Content;
         }
         
-        static Dictionary<ITypeData, Dictionary<string, IMemberData>> formatterLutCache 
-            = new Dictionary<ITypeData, Dictionary<string, IMemberData>>();
+        // note: this should probably be a conditional weak table to avoid leaking exotic transient ITypeData values.
+        static readonly ConcurrentDictionary<ITypeData, Dictionary<string, IMemberData>> formatterLutCache 
+            = new ConcurrentDictionary<ITypeData, Dictionary<string, IMemberData>>();
         
         /// <summary> Takes the name of step and replaces {} tokens with the value of properties. </summary>
         public static string GetFormattedName(this ITestStep step)

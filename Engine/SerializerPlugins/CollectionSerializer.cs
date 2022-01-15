@@ -107,7 +107,7 @@ namespace OpenTap.Plugins
                         var elems = element.Elements();
                         if (elems.Count() != val.Count())
                         {
-                            throw new Exception("Unable to deserialize unbalanced list");
+                            Log.Warning("Deserialized unbalanced list.");
                         }
 
                         foreach (var (elem, obj) in elems.Pairwise(val))

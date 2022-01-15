@@ -68,7 +68,9 @@ namespace OpenTap.Engine.UnitTests
             var bf = new BinaryFormatter();
             var memstr = new MemoryStream();
             string[] strings2 = new[] { "asd", "", null };
+#pragma warning disable SYSLIB0011 // Type or member is obsolete
             bf.Serialize(memstr, strings2);
+#pragma warning restore SYSLIB0011 // Type or member is obsolete
             api.Write(memstr.ToArray());
 
             var array2 = new int[] { 1, 2, 3, 4, 5, 6 };
@@ -79,7 +81,9 @@ namespace OpenTap.Engine.UnitTests
             var thedata = api2.Read<byte[]>();
             Assert.IsTrue(array.SequenceEqual(thedata));
             var stream = api2.ReadStream();
+#pragma warning disable SYSLIB0011 // Type or member is obsolete
             var strings3 = (string[])bf.Deserialize(stream);
+#pragma warning restore SYSLIB0011 // Type or member is obsolete
             strings2.SequenceEqual(strings3);
             var array3 = api2.Read<int[]>();
             Assert.IsTrue(array2.SequenceEqual(array3));
@@ -364,6 +368,18 @@ namespace OpenTap.Engine.UnitTests
         {
             var str = Utils.BytesToReadable(number);
             Assert.AreEqual(expected, str);
+        }
+        
+        [Test]
+        public void TrySelectUnwrapTest()
+        {
+            var x = new int[] { 1, 0, 3, 0 };
+            int exceptionsCaught = 0;
+            var inv1 = x.TrySelect(x => 1 / x, (e, x) => exceptionsCaught++).ToArray();
+            var inv2 = x.TrySelect(x => 1 / x, e => exceptionsCaught++).ToArray();
+            Assert.IsTrue(inv1.SequenceEqual(new[] { 1, 0 }));
+            Assert.IsTrue(inv1.SequenceEqual(inv2));
+            Assert.AreEqual(4, exceptionsCaught);
         }
     }
 }

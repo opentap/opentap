@@ -12,7 +12,7 @@
         <SetAssemblyInfo Attributes="Version"/>
         <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
-    <File Path="OpenTap.Cli.dll">
+    <File Path="Packages/OpenTAP/OpenTap.Cli.dll">
         <SetAssemblyInfo Attributes="Version"/>
         <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
@@ -20,7 +20,7 @@
         <SetAssemblyInfo Attributes="Version"/>
         <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
-    <File Path="OpenTap.Plugins.BasicSteps.dll">
+    <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" SourcePath="OpenTap.Plugins.BasicSteps.dll">
         <SetAssemblyInfo Attributes="Version"/>
         <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
@@ -28,12 +28,13 @@
         <SetAssemblyInfo Attributes="Version"/>
         <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
-    <File Path="tap"/>
+    <File Path="tap" SourcePath="tap.sh"/>
     <File Path="tap.runtimeconfig.json"/>
     <File Path="Dependencies/System.Runtime.InteropServices.RuntimeInformation.4.0.2.0/System.Runtime.InteropServices.RuntimeInformation.dll"  SourcePath="System.Runtime.InteropServices.RuntimeInformation.dll"/>
     <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.linux-x64"/>
     <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.redhat"/>
     <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.ubuntu"/>
+    <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.debian"/>
     <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.dylib"/>
     <!-- License Texts -->
     <File Path="LICENSE.txt"  SourcePath="LICENSE.txt"/>

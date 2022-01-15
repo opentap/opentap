@@ -79,26 +79,26 @@ namespace OpenTap
                     {
                         
                         string line;
-                        while ((line = str.ReadLine()) != null)
+                        while ((line = str.ReadLine()?.ToLowerInvariant()) != null)
                         {
-                            if(line.Contains("NAME=\"Debian GNU/Linux\""))
+                            if(line.Contains("name=\"debian gnu/linux\""))
                             {
                                 Current = Debian;
                                 return;
                             }
-                            if(line.Contains("NAME=\"Ubuntu\""))
+                            if(line.Contains("name=\"ubuntu\"") || line.Contains("id_like=\"ubuntu"))
                             {
                                 Current = Ubuntu;
                                 return;
                             }
                             
-                            if (line.Contains("NAME=\"Red Hat"))
+                            if (line.Contains("name=\"red hat"))
                             {
                                 Current = RedHat;
                                 return;
                             }
 
-                            if (line.Contains("NAME=\"CentOS Linux\""))
+                            if (line.Contains("name=\"centos linux\""))
                             {
                                 // pretend CentOS is Red Hat for simplicity.
                                 Current = RedHat;

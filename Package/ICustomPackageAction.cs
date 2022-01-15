@@ -81,8 +81,10 @@ namespace OpenTap.Package
 
         internal static void RunCustomActions(PackageDef package, PackageActionStage stage, CustomPackageActionArgs args)
         {
-            var customActions = PluginManager.GetPlugins<ICustomPackageAction>()
-                .Select(s => Activator.CreateInstance(s) as ICustomPackageAction)
+            var customActions = TypeData.GetDerivedTypes<ICustomPackageAction>()
+                .Where(s => s.CanCreateInstance)
+                .Select(s => s.CreateInstance() as ICustomPackageAction)
+                .Where(s => s != null)
                 .Where(w => w.ActionStage == stage)
                 .OrderBy(p => p.Order())
                 .ToList();
