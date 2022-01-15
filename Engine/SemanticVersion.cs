@@ -51,9 +51,9 @@ namespace OpenTap
         /// </summary>
         public readonly string PreRelease;
 
-        private static Regex semVerRegex = new Regex(@"^(?<major>\d+)\.(?<minor>\d+)(?:\.(?<patch>\d+))?(?:-(?<prerelease>[a-zA-Z0-9-.]+))?(?:\+(?<metadata>[a-zA-Z0-9-.]+))?$", RegexOptions.Compiled | RegexOptions.ExplicitCapture);
+        private static Regex semVerRegex = new Regex(@"^(?<major>\d+)\.(?<minor>\d+)(?:\.(?<patch>\d+))?(?:-(?<prerelease>[a-zA-Z0-9-.]+))?(?:\+(?<metadata>[a-zA-Z0-9-.]+))?$", RegexOptions.None | RegexOptions.ExplicitCapture);
 
-        private static Regex validChars = new Regex("^[a-zA-Z0-9-.]*$", RegexOptions.Compiled);
+        private static Regex validChars = new Regex("^[a-zA-Z0-9-.]*$", RegexOptions.None);
 
         /// <summary>
         /// Creates a new SemanticVersion instance

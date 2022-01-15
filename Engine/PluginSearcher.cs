@@ -71,6 +71,7 @@ namespace OpenTap
         {
             Option = opts;
         }
+        private static Stopwatch sw = Stopwatch.StartNew();
 
         private class AssemblyRef
         {
@@ -129,6 +130,7 @@ namespace OpenTap
                     var existingFiles = nameToFileMap.SelectMany(g => g.Select(s => s));
                     nameToFileMap = existingFiles.Concat(files).Distinct().ToLookup(Path.GetFileNameWithoutExtension);
                 }
+                
 
                 // print a warning if the same assembly is loaded more than once.
                 foreach (var entry in nameToFileMap)
@@ -181,6 +183,7 @@ namespace OpenTap
 
                 return Assemblies;
             }
+
             
             private List<AssemblyData> Assemblies;
             private Dictionary<AssemblyRef, AssemblyData> nameToAsmMap;
@@ -200,12 +203,15 @@ namespace OpenTap
                 try
                 {
                     var thisAssembly = new AssemblyData(file, loadedAssembly);
-                    
+                    if (file.Contains(".resources.dll"))
+                        return null;
+                    //Console.WriteLine($"Loading: {sw.ElapsedMilliseconds} {file}  ");
                     List<AssemblyRef> refNames = new List<AssemblyRef>();
                     using (FileStream str = new FileStream(file, FileMode.Open, FileAccess.Read))
                     {
                         if(str.Length > int.MaxValue)
                             return null; // otherwise PEReader() will throw.
+                        if(str.Length < 100) return null;
                         using (PEReader header = new PEReader(str, PEStreamOptions.LeaveOpen))
                         {
                             if (!header.HasMetadata)
@@ -368,11 +374,13 @@ namespace OpenTap
             CurrentAsm = asm;
             ReadPrivateTypesInCurrentAsm = false;
             TypesInCurrentAsm = new Dictionary<TypeDefinitionHandle, TypeData>();
+            //Console.WriteLine($"Reading {asm.Name} {sw.ElapsedMilliseconds}");
             using (FileStream file = new FileStream(asm.Location, FileMode.Open, FileAccess.Read))
             using (PEReader header = new PEReader(file, PEStreamOptions.LeaveOpen))
             {
                 CurrentReader = header.GetMetadataReader();
-                
+                //Console.WriteLine($"Reading {asm.Name} {sw.ElapsedMilliseconds}");
+
                 foreach (CustomAttributeHandle attrHandle in CurrentReader.CustomAttributes)
                 {
                     CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
@@ -391,16 +399,18 @@ namespace OpenTap
                     if(isPluginAssemblyAttribute)
                     {
                         var valueString = attr.DecodeValue(new CustomAttributeTypeProvider());
-                        ReadPrivateTypesInCurrentAsm = bool.Parse(valueString.FixedArguments.First().Value.ToString());
+                        
+                        ReadPrivateTypesInCurrentAsm = (bool)valueString.FixedArguments[0].Value;
                         break;
                     }
                 }
-                
+
+                var refsOpentap = asm.References.Any(x => x.Name == "OpenTap");
                 foreach (var typeDefHandle in CurrentReader.TypeDefinitions)
                 {
                     try
                     {
-                        PluginFromTypeDefRecursive(typeDefHandle);
+                        PluginFromTypeDefRecursive(typeDefHandle, refsOpentap);
                     }
                     catch
                     {
@@ -434,7 +444,7 @@ namespace OpenTap
                 case HandleKind.TypeReference:
                     return PluginFromTypeRef((TypeReferenceHandle)handle);
                 case HandleKind.TypeDefinition:
-                    return PluginFromTypeDefRecursive((TypeDefinitionHandle)handle);
+                    return PluginFromTypeDefRecursive((TypeDefinitionHandle)handle, true);
                 case HandleKind.TypeSpecification:
                     var baseSpec = CurrentReader.GetTypeSpecification((TypeSpecificationHandle)handle);
                     try
@@ -459,7 +469,7 @@ namespace OpenTap
                 return null; // This is not a type that we care about (not defined in any of the files the searcher is given)
         }
 
-        private TypeData PluginFromTypeDefRecursive(TypeDefinitionHandle handle)
+        private TypeData PluginFromTypeDefRecursive(TypeDefinitionHandle handle, bool refsOpentap)
         {
             if (TypesInCurrentAsm.TryGetValue(handle, out var result))
                 return result;
@@ -484,19 +494,18 @@ namespace OpenTap
             TypeDefinitionHandle declaringTypeHandle = typeDef.GetDeclaringType();
             if (declaringTypeHandle.IsNil)
             {
-                plugin.Name = string.Format("{0}.{1}", CurrentReader.GetString(typeDef.Namespace), CurrentReader.GetString(typeDef.Name));
+                plugin.Name = CurrentReader.GetString(typeDef.Namespace) + "." + CurrentReader.GetString(typeDef.Name);
             }
             else
             {
                 // This is a nested type
-                TypeData declaringType = PluginFromTypeDefRecursive(declaringTypeHandle);
+                TypeData declaringType = PluginFromTypeDefRecursive(declaringTypeHandle, refsOpentap);
                 if (declaringType == null)
                     return null;
-                plugin.Name = string.Format("{0}+{1}", declaringType.Name, CurrentReader.GetString(typeDef.Name));
+                plugin.Name = declaringType.Name + "+" + CurrentReader.GetString(typeDef.Name);
             }
-            if (AllTypes.ContainsKey(plugin.Name))
+            if (AllTypes.TryGetValue(plugin.Name, out var existingPlugin))
             {
-                var existingPlugin = AllTypes[plugin.Name];
                 if (existingPlugin.Assembly.Name == CurrentAsm.Name)
                 {
                     // we assume this is the same plugin, just in another copy of the dll
@@ -504,6 +513,7 @@ namespace OpenTap
                     // This can happen if you are creating a package with file in a subfoler. 
                     // That file will get copied, and we end up with it twice in the installation dir
                     // in that case it is important for the logic in EnumeratePlugins that this assembly also has the plugin types listed.
+                    Console.WriteLine("!");
                     if (existingPlugin.PluginTypes != null &&
                         (CurrentAsm.PluginTypes == null || !CurrentAsm.PluginTypes.Any(t => t.Name == existingPlugin.Name)))
                     {
@@ -551,50 +561,55 @@ namespace OpenTap
                 }
             }
             plugin.FinalizeCreation();
-            
-            foreach (CustomAttributeHandle attrHandle in typeDef.GetCustomAttributes())
+
+            if (refsOpentap)
             {
-                CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
-                string attributeFullName = "";
-                if (attr.Constructor.Kind == HandleKind.MethodDefinition)
+                foreach (CustomAttributeHandle attrHandle in typeDef.GetCustomAttributes())
                 {
-                    MethodDefinition ctor =
-                        CurrentReader.GetMethodDefinition((MethodDefinitionHandle) attr.Constructor);
-                    attributeFullName = GetFullName(CurrentReader, ctor.GetDeclaringType());
-
-                }
-                else if (attr.Constructor.Kind == HandleKind.MemberReference)
-                {
-                    var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle) attr.Constructor);
-                    attributeFullName = GetFullName(CurrentReader, ctor.Parent);
-                }
-
-                switch (attributeFullName)
-                {
-                    case "OpenTap.DisplayAttribute":
+                    CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
+                    string attributeFullName = "";
+                    if (attr.Constructor.Kind == HandleKind.MethodDefinition)
                     {
-                        var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
-                        string displayName =
-                            GetStringIfNotNull(valueString.FixedArguments[0]
-                                .Value); // the first argument to the DisplayAttribute constructor is the diaplay name
-                        string displayDescription = GetStringIfNotNull(valueString.FixedArguments[1].Value);
-                        string displayGroup = GetStringIfNotNull(valueString.FixedArguments[2].Value);
-                        double displayOrder = (double)valueString.FixedArguments[3].Value;
-                        bool displayCollapsed = bool.Parse(GetStringIfNotNull(valueString.FixedArguments[4].Value));
-                        string[] displayGroups = GetStringArrayIfNotNull(valueString.FixedArguments[5].Value);
-                        DisplayAttribute attrInstance = new DisplayAttribute(displayName, displayDescription,
-                            displayGroup, displayOrder, displayCollapsed, displayGroups);
-                        plugin.Display = attrInstance;
+                        MethodDefinition ctor =
+                            CurrentReader.GetMethodDefinition((MethodDefinitionHandle)attr.Constructor);
+                        attributeFullName = GetFullName(CurrentReader, ctor.GetDeclaringType());
+
                     }
-                        break;
-                    case "System.ComponentModel.BrowsableAttribute":
+                    else if (attr.Constructor.Kind == HandleKind.MemberReference)
                     {
-                        var valueString = attr.DecodeValue(new CustomAttributeTypeProvider());
-                        plugin.IsBrowsable = bool.Parse(valueString.FixedArguments.First().Value.ToString());
+                        var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle)attr.Constructor);
+                        attributeFullName = GetFullName(CurrentReader, ctor.Parent);
                     }
-                        break;
-                    default:
-                        break;
+
+                    //Console.WriteLine("   " + plugin.Name + " " + attributeFullName + " " + attr);
+
+                    switch (attributeFullName)
+                    {
+                        case "OpenTap.DisplayAttribute":
+                        {
+                            var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
+                            string displayName =
+                                GetStringIfNotNull(valueString.FixedArguments[0]
+                                    .Value); // the first argument to the DisplayAttribute constructor is the diaplay name
+                            string displayDescription = GetStringIfNotNull(valueString.FixedArguments[1].Value);
+                            string displayGroup = GetStringIfNotNull(valueString.FixedArguments[2].Value);
+                            double displayOrder = (double)valueString.FixedArguments[3].Value;
+                            bool displayCollapsed = bool.Parse(GetStringIfNotNull(valueString.FixedArguments[4].Value));
+                            string[] displayGroups = GetStringArrayIfNotNull(valueString.FixedArguments[5].Value);
+                            DisplayAttribute attrInstance = new DisplayAttribute(displayName, displayDescription,
+                                displayGroup, displayOrder, displayCollapsed, displayGroups);
+                            plugin.Display = attrInstance;
+                        }
+                            break;
+                        case "System.ComponentModel.BrowsableAttribute":
+                        {
+                            var valueString = attr.DecodeValue(new CustomAttributeTypeProvider());
+                            plugin.IsBrowsable = bool.Parse(valueString.FixedArguments.First().Value.ToString());
+                        }
+                            break;
+                        default:
+                            break;
+                    }
                 }
             }
 
@@ -839,7 +854,7 @@ namespace OpenTap
 
             public TypeData GetTypeFromDefinition(MetadataReader reader, TypeDefinitionHandle handle, byte rawTypeKind)
             {
-                return _Searcher.PluginFromTypeDefRecursive(handle);
+                return _Searcher.PluginFromTypeDefRecursive(handle, true);
             }
 
             public TypeData GetTypeFromReference(MetadataReader reader, TypeReferenceHandle handle, byte rawTypeKind)

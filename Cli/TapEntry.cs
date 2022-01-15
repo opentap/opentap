@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -181,10 +182,12 @@ namespace OpenTap.Cli
                 AppDomain.CurrentDomain.ProcessExit += (s, e) => cliTraceListener.Flush();
 
             }
+            Console.WriteLine($"Hej {TapInitializer.watch.ElapsedMilliseconds}");
 
             TapInitializer.Initialize(); // This will dynamically load OpenTap.dll
             // loadCommandLine has to be called after Initialize 
             // to ensure that we are able to load OpenTap.dll
+            Console.WriteLine($"Hej2 {TapInitializer.watch.ElapsedMilliseconds}");
             loadCommandLine();
             wrapGoInProcess();
         }
@@ -198,6 +201,16 @@ namespace OpenTap.Cli
 
         public static void Go()
         {
+            AppDomain.CurrentDomain.AssemblyLoad += (sender, eventArgs) =>
+            {
+                Console.WriteLine($"{TapInitializer.watch.ElapsedMilliseconds} {eventArgs.LoadedAssembly.FullName}");
+                // Console.WriteLine(new StackTrace());
+            };
+            AppDomain.CurrentDomain.AssemblyResolve += (sender, eventArgs) =>
+            {
+                Console.WriteLine($"- {TapInitializer.watch.ElapsedMilliseconds} {eventArgs.Name}");
+                return null;
+            };
             if (ExecutorClient.IsExecutorMode)
             {
                 goInProcess();
