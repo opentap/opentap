@@ -12,6 +12,8 @@ using OpenTap.Plugins.BasicSteps;
 using System.Reflection;
 using System;
 using System.Runtime.Loader;
+using System.Xml;
+using OpenTap.Cli;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using static OpenTap.Package.PackageDefExt;
 
@@ -64,7 +66,6 @@ namespace OpenTap.Package.UnitTests
             package.Version = SemanticVersion.Parse("1.0.0");
             package.MetaData.Add("Kind", "UnitTest");
             package.MetaData.Add("Test", "Value");
-            package.MetaData.Add("Description", "Something that should not be added.");
 
             using (var stream = new MemoryStream())
             {
@@ -78,6 +79,16 @@ namespace OpenTap.Package.UnitTests
                 Assert.IsNotNull(xml);
                 Assert.IsNotEmpty(xml);
                 
+                // Check xml contains the right elements
+                var doc = new XmlDocument();
+                doc.LoadXml(xml);
+                var packageNode = doc.DocumentElement;
+                Assert.NotNull(packageNode);
+                Assert.IsTrue(packageNode.HasChildNodes);
+                Assert.IsTrue(packageNode.ChildNodes.Count == 2);
+                Assert.IsTrue(packageNode.FirstChild.Name == "Kind");
+                Assert.IsTrue(packageNode.LastChild.Name == "Test");
+                
                 // Load the package from xml
                 stream.Seek(0, 0);
                 stream.Position = 0;
@@ -87,6 +98,20 @@ namespace OpenTap.Package.UnitTests
                 Assert.IsTrue(package.MetaData.ContainsKey("Kind") && package.MetaData["Kind"] == "UnitTest");
                 Assert.IsTrue(package.MetaData.ContainsKey("Test") && package.MetaData["Test"] == "Value");
                 Assert.IsFalse(package.MetaData.ContainsKey("Description"));
+            }
+        }
+
+        [Test]
+        public void MetaDataOverriding()
+        {
+            var package = new PackageDef();
+            package.Name = "test";
+            package.Version = SemanticVersion.Parse("1.0.0");
+            package.MetaData.Add("Description", "Something that should not be added.");
+
+            using (var stream = new MemoryStream())
+            {
+                Assert.Catch<ExitCodeException>(() => package.SaveTo(stream));
             }
         }
         

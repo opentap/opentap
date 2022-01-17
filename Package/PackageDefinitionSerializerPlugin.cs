@@ -14,6 +14,7 @@ using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.Serialization;
+using OpenTap.Cli;
 
 namespace OpenTap.Package
 {
@@ -135,10 +136,7 @@ namespace OpenTap.Package
                         foreach (var key in metadata.Keys)
                         {
                             if (packageProperties.Any(p => p.Name == key))
-                            {
-                                Log.Warning($"PackageDef property '{key}' cannot be overridden by metadata.");
-                                continue;
-                            }
+                                throw new ExitCodeException((int)PackageExitCodes.PackageCreateError, $"PackageDef property '{key}' cannot be overridden by metadata.");
                             
                             var element = new XElement(key, metadata[key]);
                             SetAllNamespaces(element, ns);
