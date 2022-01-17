@@ -72,6 +72,8 @@ namespace OpenTap.Package
                             var prop = pkg.GetType().GetProperty(elm.Name.LocalName);
                             if (prop != null)
                                 Serializer.Deserialize(elm, o => prop.SetValue(pkg,o), prop.PropertyType);
+                            else // If the property does not exist on the packagedef type, it is MetaData
+                                pkg.MetaData.Add(elm.Name.LocalName, elm.Value);
                             break;
                     }
                 }
@@ -127,6 +129,22 @@ namespace OpenTap.Package
                         var ele = XElement.Load(txtReader);
                         node.Add(ele);
                         break;
+                    case nameof(PackageDef.MetaData):
+                        var metadata = val as Dictionary<string, string>;
+                        var packageProperties = typeof(PackageDef).GetProperties();
+                        foreach (var key in metadata.Keys)
+                        {
+                            if (packageProperties.Any(p => p.Name == key))
+                            {
+                                Log.Warning($"PackageDef property '{key}' cannot be overridden by metadata.");
+                                continue;
+                            }
+                            
+                            var element = new XElement(key, metadata[key]);
+                            SetAllNamespaces(element, ns);
+                            node.Add(element);
+                        }
+                        break;
                     default:
                         var xmlAttr = prop.GetAttributes<XmlAttributeAttribute>().FirstOrDefault();
                         if (xmlAttr != null)
@@ -143,13 +161,7 @@ namespace OpenTap.Package
                             {
                                 Serializer.Serialize(elm, val, expectedType: prop.TypeDescriptor);
                             }
-                            void SetNs(XElement e)
-                            {
-                                e.Name = ns + e.Name.LocalName;
-                                foreach (var n in e.Elements())
-                                    SetNs(n);
-                            }
-                            SetNs(elm);
+                            SetAllNamespaces(elm, ns);
                             node.Add(elm);
                         }
                         break;
@@ -165,6 +177,13 @@ namespace OpenTap.Package
                 depSerializer.WritePackageDependencies = false;
 
             return true;
+        }
+
+        void SetAllNamespaces(XElement e, XNamespace ns)
+        {
+            e.Name = ns + e.Name.LocalName;
+            foreach (var n in e.Elements())
+                SetAllNamespaces(n, ns);
         }
     }
 

@@ -289,6 +289,11 @@ namespace OpenTap.Package
     public class PackageDef : PackageIdentifier
     {
         /// <summary>
+        /// Holds additional metadata for a package
+        /// </summary>
+        public Dictionary<string, string> MetaData { get; } = new Dictionary<string, string>();
+        
+        /// <summary>
         /// The hash of the package. This is based on hashes of each payload file as well as metadata in the package definition.
         /// </summary>
         [DefaultValue(null)]

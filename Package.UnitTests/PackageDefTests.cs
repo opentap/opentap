@@ -56,6 +56,40 @@ namespace OpenTap.Package.UnitTests
             CliTests.CreateOpenTAPPackage();
         }
 
+        [Test]
+        public void MetaDataTest()
+        {
+            var package = new PackageDef();
+            package.Name = "test";
+            package.Version = SemanticVersion.Parse("1.0.0");
+            package.MetaData.Add("Kind", "UnitTest");
+            package.MetaData.Add("Test", "Value");
+            package.MetaData.Add("Description", "Something that should not be added.");
+
+            using (var stream = new MemoryStream())
+            {
+                package.SaveTo(stream);
+                package = null;
+
+                // Save the package to xml
+                stream.Seek(0, 0);
+                stream.Position = 0;
+                string xml = new StreamReader(stream).ReadToEnd();
+                Assert.IsNotNull(xml);
+                Assert.IsNotEmpty(xml);
+                
+                // Load the package from xml
+                stream.Seek(0, 0);
+                stream.Position = 0;
+                package = PackageDef.FromXml(stream);
+                
+                Assert.NotNull(package);
+                Assert.IsTrue(package.MetaData.ContainsKey("Kind") && package.MetaData["Kind"] == "UnitTest");
+                Assert.IsTrue(package.MetaData.ContainsKey("Test") && package.MetaData["Test"] == "Value");
+                Assert.IsFalse(package.MetaData.ContainsKey("Description"));
+            }
+        }
+        
         [TestCase("GlobTest/**/*.txt", 4)]
         [TestCase("GlobTest/*/*.txt", 3)]
         [TestCase("GlobTest/dir*/*.txt", 3)]
