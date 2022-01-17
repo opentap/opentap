@@ -97,7 +97,6 @@ namespace OpenTap.Package.UnitTests
                 Assert.NotNull(package);
                 Assert.IsTrue(package.MetaData.ContainsKey("Kind") && package.MetaData["Kind"] == "UnitTest");
                 Assert.IsTrue(package.MetaData.ContainsKey("Test") && package.MetaData["Test"] == "Value");
-                Assert.IsFalse(package.MetaData.ContainsKey("Description"));
             }
         }
 
