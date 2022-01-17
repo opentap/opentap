@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 
@@ -110,11 +111,33 @@ namespace OpenTap
             }
         }
         
-        
         public static LinuxVariant Current { get; }
 
         public LinuxVariant(string name) => Name = name;
-
     }
-    
+
+    class MacOsVariant
+    {
+        public string Type { get; }
+        public static readonly MacOsVariant Intel = new MacOsVariant("x64");
+        public static readonly MacOsVariant Apple = new MacOsVariant("arm64");
+        public static MacOsVariant Current { get; }
+        static MacOsVariant()
+        {
+            try
+            {
+                var startInfo = new ProcessStartInfo("uname", "-m");
+                startInfo.RedirectStandardOutput = true;
+                var process = Process.Start(startInfo);
+                var uname = process?.StandardOutput.ReadToEnd();
+                Current = uname.Contains("arm64") ? Apple : Intel;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+        }
+        public MacOsVariant(string type) => Type = type;
+    }
 }

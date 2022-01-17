@@ -119,11 +119,12 @@ namespace OpenTap.Package
             }
         }
 
+        private const string GIT_HASH = "b7bad55";
         void windowsEnsureLibgit2Present()
         {
             // It seems we have a problem similar to the linux issue below
             // when running with dotnet core on windows. Make a similar workaround
-            string libgit2name = "git2-4aecb64.dll";
+            string libgit2name = $"git2-{GIT_HASH}.dll";
             var requiredFile = Path.Combine(PathUtils.OpenTapDir, libgit2name);
 
             if (File.Exists(requiredFile))
@@ -145,17 +146,18 @@ namespace OpenTap.Package
             // on linux, we are not sure which libgit to load at package time.
             // so at this moment we need to check which version we are on
             // and move the file to a position that is checked.
-            string libgit2name = "libgit2-4aecb64";
+            string libgit2name = $"libgit2-{GIT_HASH}";
             var requiredFile = Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.so");
 
             if (File.Exists(requiredFile))
                 return;
 
             string libgitfoldername = "Dependencies/LibGit2Sharp.0.25.0.0/";
-            IEnumerable<FileInfo> libgit2files = new[] {"ubuntu", "redhat", "linux-x64", "debian"}
-                .Select(x => Path.Combine(PathUtils.OpenTapDir, libgitfoldername, $"{libgit2name}.so.{x}")).Select(x => new FileInfo(x));
+            // IEnumerable<FileInfo> libgit2files = new[] {"ubuntu", "redhat", "linux-x64", "debian"}
+            //     .Select(x => Path.Combine(PathUtils.OpenTapDir, libgitfoldername, $"{libgit2name}.so.{x}")).Select(x => new FileInfo(x));
 
-            var file = libgit2files.FirstOrDefault(x => x.Name.EndsWith(LinuxVariant.Current.Name));
+            // var file = libgit2files.FirstOrDefault(x => x.Name.EndsWith(LinuxVariant.Current.Name));
+            var file = new FileInfo(Path.Combine(PathUtils.OpenTapDir, libgitfoldername, $"{libgit2name}.so.linux-x64"));
             try
             {
                 if (file?.Exists != true)
@@ -169,12 +171,14 @@ namespace OpenTap.Package
         }
         void macEnsureLibgit2Present()
         {
+            string libgit2name = $"libgit2-{GIT_HASH}";
             string libgitfoldername = "Dependencies/LibGit2Sharp.0.25.0.0/";
-            var sourceFile = Path.Combine(PathUtils.OpenTapDir, libgitfoldername, "libgit2-4aecb64.dylib");
-            var destFile = Path.Combine(PathUtils.OpenTapDir, "libgit2-4aecb64.dylib");
+            var destFile = Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.dylib");
 
             if (File.Exists(destFile))
                 return;
+            
+            var sourceFile = Path.Combine(PathUtils.OpenTapDir, libgitfoldername, libgit2name + ".dylib." + MacOsVariant.Current.Type);
             
             try
             {
@@ -182,6 +186,7 @@ namespace OpenTap.Package
             }
             catch
             {
+                log.Error("Unable to load 'libgit2-4aecb64' for this platform.");
             }
         }
 
