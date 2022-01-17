@@ -173,9 +173,12 @@ namespace OpenTap.Package
             var sourceFile = Path.Combine(PathUtils.OpenTapDir, libgitfoldername, "libgit2-4aecb64.dylib");
             var destFile = Path.Combine(PathUtils.OpenTapDir, "libgit2-4aecb64.dylib");
 
+            if (File.Exists(destFile))
+                return;
+            
             try
             {
-                File.Copy(sourceFile, destFile);
+                File.Copy(sourceFile, destFile, true);
             }
             catch
             {
@@ -198,8 +201,10 @@ namespace OpenTap.Package
 
             if (OperatingSystem.Current == OperatingSystem.Windows)
                 windowsEnsureLibgit2Present();
-            else
+            else if (OperatingSystem.Current == OperatingSystem.Linux)
                 unixEnsureLibgit2Present();
+            else
+                macEnsureLibgit2Present();
 
             repo = new Repository(repositoryDir);
         }
