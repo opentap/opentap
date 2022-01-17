@@ -91,9 +91,6 @@ jobs:
 
   Build-Linux:
     runs-on: ubuntu-latest
-    container:
-      #image: mcr.microsoft.com/dotnet/sdk:6.0-bullseye-slim
-      image: mcr.microsoft.com/dotnet/sdk:6.0-focal
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -105,6 +102,10 @@ jobs:
       #   run: dotnet build --no-restore -c Release OpenTAP.sln
       # - name: Test
       #   run: dotnet test --no-build --verbosity normal
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
       - name: Upload binaries
@@ -230,12 +231,14 @@ jobs:
 
   TestLinuxPlan:
     runs-on: ubuntu-20.04
-    container: mcr.microsoft.com/dotnet/sdk:6.0-focal
-
     needs: Build-Linux
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
       - name: Download binaries
         uses: actions/download-artifact@v2
         with:
@@ -253,12 +256,11 @@ jobs:
 
   TestMacPlan:
     runs-on: macos-11
-
     needs: Build-Linux
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Setup .NET Core
+      - name: Setup .NET
         uses: actions/setup-dotnet@v1
         with:
           dotnet-version: '6.0.x'
@@ -578,11 +580,13 @@ jobs:
 
   Test-Installer-Linux:
     runs-on: ubuntu-20.04
-    container:
-      image: mcr.microsoft.com/dotnet/runtime:6.0-focal
     needs:
       - Installer-Linux
     steps:
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
       - name: Download Linux Installer
         uses: actions/download-artifact@v2
         with:
@@ -647,8 +651,6 @@ jobs:
 
   Package-Deb:
     runs-on: ubuntu-20.04
-    container:
-      image: mcr.microsoft.com/dotnet/sdk:6.0-focal
     needs:
       - Package-Linux
     steps:
