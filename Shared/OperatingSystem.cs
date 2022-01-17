@@ -3,10 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 
 namespace OpenTap
 {
@@ -132,10 +130,9 @@ namespace OpenTap
                 var uname = process?.StandardOutput.ReadToEnd();
                 Current = uname.Contains("arm64") ? Apple : Intel;
             }
-            catch (Exception e)
+            catch
             {
-                Console.WriteLine(e);
-                throw;
+                // ignored
             }
         }
         public MacOsVariant(string type) => Type = type;

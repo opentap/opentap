@@ -14,16 +14,13 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="PackageSchema.xsd" />
-<!--    <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/2.0.315-alpha.0.9/runtimes/ubuntu.18.04-x64/native/libgit2-b7bad55.so" CopyToOutputDirectory="PreserveNewest" Link="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-b7bad55.so.ubuntu" />-->
-<!--    <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/2.0.315-alpha.0.9/runtimes/rhel-x64/native/libgit2-b7bad55.so" CopyToOutputDirectory="PreserveNewest" Link="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-b7bad55.so.redhat" />-->
-    <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/2.0.315-alpha.0.9/runtimes/linux-x64/native/libgit2-b7bad55.so" CopyToOutputDirectory="PreserveNewest" Link="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-b7bad55.so.linux-x64" />
-<!--    <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/2.0.315-alpha.0.9/runtimes/debian.9-x64/native/libgit2-b7bad55.so" CopyToOutputDirectory="PreserveNewest" Link="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-b7bad55.so.debian" />-->
-    <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/2.0.315-alpha.0.9/runtimes/osx-x64/native/libgit2-b7bad55.dylib" CopyToOutputDirectory="PreserveNewest" Link="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-b7bad55.dylib.x64" />
-    <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/2.0.315-alpha.0.9/runtimes/osx-arm64/native/libgit2-b7bad55.dylib" CopyToOutputDirectory="PreserveNewest" Link="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-b7bad55.dylib.arm64" />
+    <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/2.0.315-alpha.0.9/runtimes/linux-x64/native/libgit2-b7bad55.so" CopyToOutputDirectory="PreserveNewest" Link="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so" />
+    <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/2.0.315-alpha.0.9/runtimes/osx-x64/native/libgit2-b7bad55.dylib" CopyToOutputDirectory="PreserveNewest" Link="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.x64" />
+    <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/2.0.315-alpha.0.9/runtimes/osx-arm64/native/libgit2-b7bad55.dylib" CopyToOutputDirectory="PreserveNewest" Link="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.arm64" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="DotNet.Glob" Version="3.0.1" />
-    <PackageReference Include="LibGit2Sharp" Version="0.27.0-preview-0175" />
+    <PackageReference Include="LibGit2Sharp" Version="0.27.0.0-preview-0175" />
     <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
     <PackageReference Include="Mono.Cecil" Version="0.10.1" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />

@@ -132,12 +132,12 @@ namespace OpenTap.Package
 
             try
             {
-                File.Copy(Path.Combine("Dependencies/LibGit2Sharp.0.25.0.0/", libgit2name),
-                    requiredFile);
+                File.Copy(Path.Combine("Dependencies/LibGit2Sharp.0.27.0.0/", libgit2name),
+                    requiredFile, true);
             }
             catch
             {
-
+                log.Error($"Unable to load 'libgit2-{GIT_HASH}' for this platform.");
             }
         }
 
@@ -146,47 +146,38 @@ namespace OpenTap.Package
             // on linux, we are not sure which libgit to load at package time.
             // so at this moment we need to check which version we are on
             // and move the file to a position that is checked.
-            string libgit2name = $"libgit2-{GIT_HASH}";
-            var requiredFile = Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.so");
+            string libgit2name = $"libgit2-{GIT_HASH}.so";
+            var requiredFile = Path.Combine(PathUtils.OpenTapDir, libgit2name);
 
             if (File.Exists(requiredFile))
                 return;
 
-            string libgitfoldername = "Dependencies/LibGit2Sharp.0.25.0.0/";
-            // IEnumerable<FileInfo> libgit2files = new[] {"ubuntu", "redhat", "linux-x64", "debian"}
-            //     .Select(x => Path.Combine(PathUtils.OpenTapDir, libgitfoldername, $"{libgit2name}.so.{x}")).Select(x => new FileInfo(x));
-
-            // var file = libgit2files.FirstOrDefault(x => x.Name.EndsWith(LinuxVariant.Current.Name));
-            var file = new FileInfo(Path.Combine(PathUtils.OpenTapDir, libgitfoldername, $"{libgit2name}.so.linux-x64"));
             try
             {
-                if (file?.Exists != true)
-                    throw new FileNotFoundException(file?.FullName);
-                file.CopyTo(requiredFile, true);
+                File.Copy(Path.Combine("Dependencies/LibGit2Sharp.0.27.0.0/", libgit2name), requiredFile, true);
             }
             catch
             {
-                log.Error("Unable to load 'libgit2-4aecb64' for this platform.");
+                log.Error($"Unable to load 'libgit2-{GIT_HASH}' for this platform.");
             }
         }
         void macEnsureLibgit2Present()
         {
             string libgit2name = $"libgit2-{GIT_HASH}";
-            string libgitfoldername = "Dependencies/LibGit2Sharp.0.25.0.0/";
-            var destFile = Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.dylib");
+            string libgitfoldername = "Dependencies/LibGit2Sharp.0.27.0.0/";
+            var requiredFile = Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.dylib");
 
-            if (File.Exists(destFile))
+            if (File.Exists(requiredFile))
                 return;
             
             var sourceFile = Path.Combine(PathUtils.OpenTapDir, libgitfoldername, libgit2name + ".dylib." + MacOsVariant.Current.Type);
-            
             try
             {
-                File.Copy(sourceFile, destFile, true);
+                File.Copy(sourceFile, requiredFile, true);
             }
             catch
             {
-                log.Error("Unable to load 'libgit2-4aecb64' for this platform.");
+                log.Error($"Unable to load 'libgit2-{GIT_HASH}' for this platform.");
             }
         }
 
