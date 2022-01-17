@@ -116,6 +116,27 @@ jobs:
           path: |
             bin/Release/publish/*
 
+  Build-MacOS:
+    runs-on: macos-11
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
+      - name: Build
+        run: dotnet publish -c Release OpenTAP.sln
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: linux-x64-bin
+          retention-days: 5
+          path: |
+            bin/Release/publish/*
+            
   Build-Win:
     runs-on: windows-2022
     strategy:
@@ -256,7 +277,7 @@ jobs:
 
   TestMacPlan:
     runs-on: macos-11
-    needs: Build-Linux
+    needs: Build-MacOS
     steps:
       - name: Checkout
         uses: actions/checkout@v2
