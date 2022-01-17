@@ -37,6 +37,51 @@ namespace OpenTap.Image.Tests
         }
 
         [Test]
+        public void SimpleResolve()
+        {
+            ImageSpecifier imageSpecifier = new ImageSpecifier()
+            {
+                Packages = new List<PackageSpecifier>() {
+                    new PackageSpecifier("Editor X")
+
+                },
+                Repositories = new List<string>() { "packages.opentap.io" }
+            };
+            try
+            {
+                var image = imageSpecifier.Resolve(System.Threading.CancellationToken.None);
+            }
+            catch
+            {
+                Assert.Fail("This should resolve");
+            }
+        }
+
+        [Test]
+        public void SimpleNotResolve()
+        {
+            ImageSpecifier imageSpecifier = new ImageSpecifier()
+            {
+                Packages = new List<PackageSpecifier>() {
+                    new PackageSpecifier("Editor 123456789")
+
+                },
+                Repositories = new List<string>() { "packages.opentap.io" }
+            };
+
+            try
+            {
+                var image = imageSpecifier.Resolve(System.Threading.CancellationToken.None);
+                Assert.Fail("This should fail to resolve");
+            }
+            catch (AggregateException ex)
+            {
+                Assert.AreEqual(1, ex.InnerExceptions.Count());
+            }
+
+        }
+
+        [Test]
         public void ResolveMultiMajors()
         {
             ImageSpecifier imageSpecifier = new ImageSpecifier()
