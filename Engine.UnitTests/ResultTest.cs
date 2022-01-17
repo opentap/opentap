@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
 
@@ -25,7 +26,32 @@ namespace OpenTap.UnitTests
                 StepResult = new Result {A = 1, B = 2};
             }
         }
+        public class SimpleResultTestMany : TestStep
+        {
+            public class Result
+            {
+                public double A { get; set; }
+                public double B { get; set; }
+            }
+            
+            public int Count { get; set; } = 1;
+            
+            public override void Run()
+            {
+                for(int i =0 ; i < Count; i++)
+                    Results.Publish(new Result{A = i, B = i});
+            }
+        }
 
+        public class ActionStep : TestStep
+        {
+            public Action Action { get; set; }
+            public override void Run()
+            {
+                Action();
+            }
+        }
+        
         [Test]
         public void TestSimpleResults()
         {
@@ -60,6 +86,31 @@ namespace OpenTap.UnitTests
             var parameterNames = rl.Runs.Values.OfType<TestStepRun>().SelectMany(run => run.Parameters.Select(x => x.Name)).Distinct();
             Assert.IsFalse(parameterNames.Contains("Description"));
             Assert.IsFalse(parameterNames.Contains("Break Conditions"));
+        }
+        
+        [Test]
+        public void TestSimpleResults3()
+        {
+            var plan = new TestPlan();
+            var step = new SimpleResultTestMany
+            {
+                Count = 10
+            };
+            var evt = new ManualResetEvent(false);
+            var actionStep = new ActionStep()
+            {
+                Action = () => evt.Set()
+            };
+            TypeData.GetTypeData(step).GetMember("OpenTap.Description").SetValue(step, "ASD");
+            plan.Steps.Add(step);
+            plan.Steps.Add(actionStep);
+
+            var rl = new RecordAllResultListener();
+            rl.OnTestStepRunStartAction = () => evt.WaitOne();
+            
+            plan.Execute(new []{rl});
+            Assert.AreEqual(step.Count, rl.Results[0].Rows);
+            Assert.AreEqual(1, rl.Results.Count);
         }
 
         [Test]

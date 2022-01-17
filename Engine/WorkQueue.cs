@@ -9,44 +9,13 @@ using System.Threading;
 
 namespace OpenTap
 {
-
-    class TimeSpanAverager
-    {
-        int averageCnt = 0;
-        long[] weights = new long[10];
-        int averageIndex = 0;
-
-        public void PushTimeSpan(TimeSpan ts)
-        {
-            var indexOfValue = averageIndex = (averageIndex + 1) % weights.Length;
-            weights[indexOfValue] = ts.Ticks;
-            averageCnt = Math.Min(weights.Length, averageCnt + 1);
-        }
-
-        static TimeSpan defaultSpan = TimeSpan.FromSeconds(0.1);
-
-        public TimeSpan GetAverage()
-        {
-            if (averageCnt == 0) return defaultSpan;
-            long sum = 0;
-            for(int i = 0; i < averageCnt; i++)
-            {
-                sum += weights[i];
-            }
-
-            var avg = TimeSpan.FromTicks(sum / averageCnt);
-            return avg;
-        }
-
-    }
-
     /// <summary> 
     /// Work Queue used for result processing in sequence but asynchronously. It uses the ThreadManager to automatically clean up threads that have been idle for a while.
     /// When the WorkQueue is disposed, the used thread is immediately returned to the ThreadManager.
     /// </summary>
     public class WorkQueue : IDisposable
     {
-        /// <summary> Options for WorkQUeues. </summary>
+        /// <summary> Options for WorkQueues. </summary>
         [Flags]
         public enum Options
         {
@@ -62,10 +31,17 @@ namespace OpenTap
         /// </summary>
         public int Timeout = 5;
         
-        // list of things to do sequenctially.
-        ConcurrentQueue<Action> workItems = new ConcurrentQueue<Action>();
-
-        TimeSpanAverager average;
+        // list of things to do sequentially.
+        readonly ConcurrentQueue<IInvokable> workItems = new ConcurrentQueue<IInvokable>();
+        readonly TimeSpanAverager average;
+        internal static readonly ThreadField<WorkQueue> CurrentWorkQueue = new ThreadField<WorkQueue>();
+        
+        internal IInvokable Peek()
+        {
+            if (workItems.TryPeek(out var inv))
+                return inv;
+            return null;
+        }
 
         /// <summary> The average time spent for each task. Only available if Options.TImeAveraging is enabled. </summary>
         public TimeSpan AverageTimeSpent
@@ -79,10 +55,10 @@ namespace OpenTap
         }
 
         /// <summary> The current number of items in the work queue. If called from the worker thread, this number will be 0 for that last worker. </summary>
-        public int QueueSize { get { return workItems.Count; } }
-        
-        object threadCreationLock = new object();
-        CancellationTokenSource cancel = new CancellationTokenSource();
+        public int QueueSize => workItems.Count;
+
+        readonly object threadCreationLock = new object();
+        readonly CancellationTokenSource cancel = new CancellationTokenSource();
 
         //this should always be either 1(thread was started) or 0(thread is not started yet)
         int threadCount = 0;
@@ -110,8 +86,10 @@ namespace OpenTap
         }
 
         /// <summary> Enqueue a new piece of work to be handled in the future. </summary>
-        /// <param name="f"></param>
-        public void EnqueueWork(Action f)
+        public void EnqueueWork(Action a) => EnqueueWork(new Invokable(a));
+
+        /// <summary> Enqueue a new piece of work to be handled in the future. </summary>
+        internal void EnqueueWork(IInvokable f)
         {
             void threadGo()
             {
@@ -142,21 +120,29 @@ namespace OpenTap
                             }
                         }
 
-
-                        Action run = null;
+                        IInvokable run;
                         while (!workItems.TryDequeue(out run))
                             Thread.Yield();
+                        bool introspectionSet = false;
+                        if (run is IWorkQueueIntrospectiveIInvokable run2 && run2.NeedsIntrospection)
+                        {
+                            CurrentWorkQueue.Value = this;
+                            introspectionSet = true;
+                        }
+
                         if (average != null)
                         {
                             var sw = Stopwatch.StartNew();
-                            run();
+                            run.Invoke();
                             average.PushTimeSpan(sw.Elapsed);
                         }
                         else
                         {
-                            run();
+                            run.Invoke();
                         }
                         Interlocked.Decrement(ref countdown);
+                        if(introspectionSet)
+                            CurrentWorkQueue.Value = null;
                     }
                 }
                 finally
@@ -206,6 +192,13 @@ namespace OpenTap
             {
                 Thread.Sleep(5);
             }
+        }
+
+        internal IInvokable Dequeue()
+        {
+            if (workItems.TryDequeue(out var tsk))
+                Interlocked.Decrement(ref countdown);
+            return tsk;
         }
     }
 }
