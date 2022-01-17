@@ -142,18 +142,6 @@ namespace OpenTap.Cli
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static int Execute(params string[] args)
         {
-            // Trigger plugin manager before anything else.
-            if (ExecutorClient.IsRunningIsolated)
-            {
-                // TODO: This is not needed right now, but might be again when we fix the TODO in tap.exe
-                //PluginManager.DirectoriesToSearch.Clear();
-                //PluginManager.DirectoriesToSearch.Add(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location));
-                using (var tpmClient = new ExecutorClient())
-                {
-                    tpmClient.MessageServer("delete " + Path.GetDirectoryName(Assembly.GetEntryAssembly().Location));
-                }
-            }
-
             // Set TapMutex to ensure any installers know about running OpenTAP processes.
             ReflectionHelper.SetTapMutex();
             
@@ -197,13 +185,7 @@ namespace OpenTap.Cli
                 bool isPathRooted = Path.IsPathRooted(logpath);
                 if (isPathRooted == false)
                 {
-                    var dir = Path.GetDirectoryName(typeof(SessionLogs).Assembly.Location);
-                    if (ExecutorClient.IsRunningIsolated)
-                    {
-                        // redirect the isolated log path to the non-isolated path.
-                        dir = ExecutorClient.ExeDir;
-                    }
-
+                    var dir = ExecutorClient.ExeDir;
                     logpath = Path.Combine(dir, logpath);
                 }
 
