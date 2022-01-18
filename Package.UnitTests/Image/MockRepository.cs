@@ -50,6 +50,21 @@ namespace OpenTap.Image.Tests
                     DefinePackage("Native2",        "1.0.0", CpuArchitecture.x64,    "windows"),
                     DefinePackage("Native2",        "1.0.0", CpuArchitecture.x86,    "linux"),
                     DefinePackage("Native2",        "1.0.0", CpuArchitecture.x64,    "linux"),
+                    DefinePackage("A","1.0.0"),
+                    DefinePackage("A","1.0.1"),
+                    DefinePackage("A","1.1.1"),
+                    DefinePackage("B",        "1.0.0", CpuArchitecture.x64,    "linux"),
+                    DefinePackage("B",        "1.1.0", CpuArchitecture.x64,    "linux"),
+                    DefinePackage("B",        "1.1.1", CpuArchitecture.x64,    "linux"),
+                    DefinePackage("B",        "2.0.0", CpuArchitecture.x86,    "linux"),
+                    DefinePackage("B",        "2.1.0", CpuArchitecture.x86,    "linux"),
+                    DefinePackage("B",        "2.1.1", CpuArchitecture.x86,    "linux"),
+                    DefinePackage("B",        "3.0.0-beta.1", CpuArchitecture.x64,    "Windows"),
+                    DefinePackage("B",        "3.0.0", CpuArchitecture.x64,    "Windows"),
+                    DefinePackage("B",        "3.1.0", CpuArchitecture.x64,    "Windows"),
+                    DefinePackage("B",        "3.1.1", CpuArchitecture.x64,    "Windows"),
+                    DefinePackage("B",        "3.2.1-beta.1", CpuArchitecture.x64,    "Windows"),
+                    DefinePackage("B",        "3.2.2-alpha.1", CpuArchitecture.x64,    "Windows"),
                 };
         }
 

@@ -285,7 +285,8 @@ namespace OpenTap.Package
             if (packageSpecifier.Version.Minor is null || packageSpecifier.Version.Patch is null)
             {
                 PackageDef foundPackage = GetLatestCompatible(repositories, packageSpecifier, installedPackages);
-                if (foundPackage is null) { 
+                if (foundPackage is null)
+                {
                     string issue = DetermineResolveIssue(repositories, packageSpecifier, installedPackages);
                     throw new InvalidOperationException(issue);
                 }
@@ -404,9 +405,19 @@ namespace OpenTap.Package
                 .Where(p => p.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS))
                                          .Select(p => p.Version).Distinct();
             if (packageSpecifier.Version.Major != null)
+            {
                 allVersions = allVersions.Where(v => v.Major == packageSpecifier.Version.Major);
+                allVersions = allVersions.Where(s => s.PreRelease == null);
+            }
             if (packageSpecifier.Version.Minor != null)
                 allVersions = allVersions.Where(p => p.Minor == packageSpecifier.Version.Minor);
+
+            if (packageSpecifier.Version.PreRelease != null)
+                allVersions = allVersions.Where(p => SemanticVersion.ComparePreRelease(p.PreRelease, packageSpecifier.Version.PreRelease) >= 0);
+
+            if (packageSpecifier.Version != VersionSpecifier.Any) // If user specified "any", we should not filter away prereleases
+                if (packageSpecifier.Version.Major is null && packageSpecifier.Version.Minor is null && packageSpecifier.Version.Patch is null && packageSpecifier.Version.PreRelease is null) // If user specified "" (blank), we filter away prereleases
+                    allVersions = allVersions.Where(s => s.PreRelease == null);
 
             if (!allVersions.Any())
                 return null;

@@ -211,7 +211,13 @@ namespace OpenTap
             return ComparePreRelease(PreRelease, other.PreRelease);
         }
 
-        private static int ComparePreRelease(string p1, string p2)
+        /// <summary>
+        ///  Returns -1 if <paramref name="p2"/> is greater than <paramref name="p1"/>, 0 if they are the same, and 1 if <paramref name="p1"/> is greater than <paramref name="p2"/>
+        /// </summary>
+        /// <param name="p1">Prerelease of one version</param>
+        /// <param name="p2">Prerelease of second version</param>
+        /// <returns>integer representation of order</returns>
+        public static int ComparePreRelease(string p1, string p2)
         {
             if (p1 == p2) return 0;
 
