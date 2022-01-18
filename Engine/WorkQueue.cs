@@ -15,6 +15,54 @@ namespace OpenTap
     /// </summary>
     public class WorkQueue : IDisposable
     {
+        interface IWorkQueueItem
+        {
+            void Invoke(WorkQueue queue);
+        }
+
+        abstract class ContextWorkQueueItem : IWorkQueueItem
+        {
+            /// <summary>
+            /// A context object that is set for each 
+            /// </summary>
+            public object Context { get; set; }
+            /// <summary>
+            /// A worker to do some action using the context. This might be the same worker instance for several context objects/WorkQueue items .
+            /// </summary>
+            public IWorkQueueWorker Worker { get; set; }
+
+            public abstract void Invoke(WorkQueue queue);
+        }
+
+        class ContextWorkQueueItem<ContextType> : ContextWorkQueueItem
+        {
+            public ContextWorkQueueItem(IWorkQueueWorker<ContextType> worker, ContextType context)
+            {
+                Worker = worker;
+                Context = context;
+            }
+
+            public override void Invoke(WorkQueue queue)
+            {
+                ((IWorkQueueWorker<ContextType>)Worker).Invoke((ContextType)Context, queue);
+            }
+        }
+
+        class ActionWorkQueueItem : IWorkQueueItem
+        {
+            private readonly Action action;
+
+            public ActionWorkQueueItem(Action action)
+            {
+                this.action = action;
+            }
+
+            public void Invoke(WorkQueue queue)
+            {
+                action.Invoke();
+            }
+        }
+
         /// <summary> Options for WorkQueues. </summary>
         [Flags]
         public enum Options
@@ -32,13 +80,13 @@ namespace OpenTap
         public int Timeout = 5;
         
         // list of things to do sequentially.
-        readonly ConcurrentQueue<IInvokable> workItems = new ConcurrentQueue<IInvokable>();
+        readonly ConcurrentQueue<IWorkQueueItem> workItems = new ConcurrentQueue<IWorkQueueItem>();
         readonly TimeSpanAverager average;
         
-        internal IInvokable Peek()
+        internal IWorkQueueWorker Peek()
         {
             if (workItems.TryPeek(out var inv))
-                return inv;
+                return (inv as ContextWorkQueueItem).Worker;
             return null;
         }
 
@@ -85,10 +133,15 @@ namespace OpenTap
         }
 
         /// <summary> Enqueue a new piece of work to be handled in the future. </summary>
-        public void EnqueueWork(Action a) => EnqueueWork(new Invokable(a));
+        public void EnqueueWork(Action a) => EnqueueWork(new ActionWorkQueueItem(a));
+
+        internal void EnqueueWork<T>(IWorkQueueWorker<T> worker, T context)
+        {
+            EnqueueWork(new ContextWorkQueueItem<T>(worker, context));
+        }
 
         /// <summary> Enqueue a new piece of work to be handled in the future. </summary>
-        internal void EnqueueWork(IInvokable f)
+        private void EnqueueWork(IWorkQueueItem f)
         {
             void threadGo()
             {
@@ -119,21 +172,22 @@ namespace OpenTap
                             }
                         }
 
-                        IInvokable run;
+                        IWorkQueueItem run;
                         while (!workItems.TryDequeue(out run))
                             Thread.Yield();
-                        
+
                         if (average != null)
                         {
                             var sw = Stopwatch.StartNew();
-                            run.Invoke();
+                            run.Invoke(this);
                             average.PushTimeSpan(sw.Elapsed);
                         }
                         else
                         {
-                            run.Invoke();
+                            run.Invoke(this);
                         }
                         Interlocked.Decrement(ref countdown);
+
                     }
                 }
                 finally
@@ -185,11 +239,11 @@ namespace OpenTap
             }
         }
 
-        internal IInvokable Dequeue()
+        internal IWorkQueueWorker Dequeue()
         {
             if (workItems.TryDequeue(out var tsk))
                 Interlocked.Decrement(ref countdown);
-            return tsk;
+            return (tsk as ContextWorkQueueItem).Worker;
         }
     }
 }

@@ -561,17 +561,19 @@ namespace OpenTap
         /// <summary> Publishes a result table. </summary>
         public void PublishTable(ResultTable table)
         {
-            planRun.ScheduleInResultProcessingThread(new PublishResultTableInvokable(table, this));
+            planRun.ScheduleInResultProcessingThread(new PublishResultTableWorker(table, this));
         }
 
         internal bool WasDeferred => deferWorker != null;
 
-        class PublishResultTableInvokable : IInvokable<IResultListener, WorkQueue>
+        class PublishResultTableWorker : IWorkQueueWorker<TestPlanRun.ResultProcessingWorkQueueItemContext>
         {
+            public WorkQueue Queue { get; set; }
+
             readonly ResultTable table;
             readonly ResultSource proxy;
 
-            public PublishResultTableInvokable(ResultTable table, ResultSource proxy)
+            public PublishResultTableWorker(ResultTable table, ResultSource proxy)
             {
                 this.table = table;
                 this.proxy = proxy;
@@ -588,8 +590,7 @@ namespace OpenTap
             ResultTable CreateOptimizedTable(WorkQueue workQueue)
             {
                 List<ResultTable> mergeTables = null;
-                while (workQueue?.Peek() is IWrappedInvokable wrap &&
-                       wrap.InnerInvokable is PublishResultTableInvokable p)
+                while (workQueue?.Peek() is PublishResultTableWorker p)
                 {
                     if (!CanMerge(p.table, table))
                         break;
@@ -608,21 +609,19 @@ namespace OpenTap
                 return table;
             }
 
-            public void Invoke(IResultListener a, WorkQueue queue)
+            public void Invoke(TestPlanRun.ResultProcessingWorkQueueItemContext context, WorkQueue queue)
             {
                 try
                 {
-                    a.OnResultPublished(proxy.stepRun.Id, CreateOptimizedTable(queue));
+                    context.ResultListener.OnResultPublished(proxy.stepRun.Id, CreateOptimizedTable(queue));
                 }
                 catch (Exception e)
                 {
                     log.Warning("Caught exception in result handling task.");
                     log.Debug(e);
-                    proxy.planRun.RemoveFaultyResultListener(a);
+                    proxy.planRun.RemoveFaultyResultListener(context.ResultListener);
                 }
             }
-
-            public bool NeedsIntrospection => true;
 
             /// <summary>
             /// Tables can be merged if they have the same name, and the same count, types and names of columns.

@@ -213,43 +213,50 @@ namespace OpenTap
             }
         }
 
+        internal class ResultProcessingWorkQueueItemContext
+        {
+            /// <summary>
+            /// The ResultListener that this item operates on
+            /// </summary>
+            public IResultListener ResultListener { get; set; }
+
+        }
+
         /// <summary>
         /// Returns the number of threads queued.
         /// </summary>
-        internal int ScheduleInResultProcessingThread(IInvokable<IResultListener, WorkQueue> r)
+        internal int ScheduleInResultProcessingThread(IWorkQueueWorker<ResultProcessingWorkQueueItemContext> r)
         {
             int count = 0;
             foreach (var item in resultWorkers)
             {
                 count++;
-                item.Value.EnqueueWork(r.Wrap(item.Key, item.Value));
+                var c = new ResultProcessingWorkQueueItemContext { ResultListener = item.Key};
+                item.Value.EnqueueWork(r, c);
             }
             return count;
         }
 
-        internal int ScheduleInResultProcessingThread(IInvokable<IResultListener> r)
-        {
-            int count = 0;
-            foreach (var item in resultWorkers)
-            {
-                count++;
-                item.Value.EnqueueWork(r.Wrap(item.Key));
-            }
-            return count;
-        }
-
-        internal int ScheduleInResultProcessingThread(Action<IResultListener> r, bool blocking = false)
-        {
-            return ScheduleInResultProcessingThread(new Invokable<IResultListener>(r), blocking);
-        }
+        //internal int ScheduleInResultProcessingThread(Action<IResultListener> r, bool blocking = false)
+        //{
+        //    return ScheduleInResultProcessingThread(new ResultProcessingWorkQueueItem(r), blocking);
+        //}
 
         /// <summary>
         /// like ScheduleInResultProcessingThread, but if blocking is used, it will block until the work is finished for all result listeners.
         /// </summary>
-        int ScheduleInResultProcessingThread(IInvokable<IResultListener> r, bool blocking = false)
+        internal int ScheduleInResultProcessingThread(Action<IResultListener> r, bool blocking = false)
         {
             if (!blocking)
-                return ScheduleInResultProcessingThread(r);
+            {
+                int count = 0;
+                foreach (var item in resultWorkers)
+                {
+                    count++;
+                    item.Value.EnqueueWork(new ActionWorkQueueWorker<IResultListener>(r), item.Key);
+                }
+                return count;
+            }
             if (resultWorkers.Count == 0) return 0;
        
             using (var sem = new SemaphoreSlim(0, resultWorkers.Count))
