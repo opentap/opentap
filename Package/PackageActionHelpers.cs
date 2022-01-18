@@ -204,6 +204,8 @@ namespace OpenTap.Package
 
             var actualMissingDependencies = resolver.MissingDependencies.Where(s => !gatheredPackages.Any(p => s.Name == p.Name));
 
+            Debugger.Launch();
+
             if (resolver.UnknownDependencies.Any())
             {
                 foreach (var dep in resolver.UnknownDependencies)
@@ -256,10 +258,6 @@ namespace OpenTap.Package
                     }
                 }
             }
-
-            foreach (var dependency in resolver.Dependencies)
-                if (!gatheredPackages.Contains(dependency))
-                    gatheredPackages.Add(dependency);
 
             return gatheredPackages.ToList();
         }
