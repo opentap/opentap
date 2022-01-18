@@ -107,7 +107,7 @@ namespace OpenTap
         {
             WaitHandle.WaitAny(new[] { execStage.PromptWaitHandle, TapThread.Current.AbortToken.WaitHandle });
             bool resultListenerError = false;
-            execStage.ScheduleInResultProcessingThread<IResultListener>(resultListener =>
+            execStage.ScheduleInResultProcessingThread(resultListener =>
             {
                 try
                 {

@@ -169,7 +169,7 @@ namespace OpenTap
         
         internal void AddTestPlanCompleted(HybridStream logStream, bool openCompleted)
         {
-            ScheduleInResultProcessingThread<IResultListener>(r => 
+            ScheduleInResultProcessingThread(r => 
             {
                 var reslog = ResourceTaskManager.GetLogSource(r);
                 if (r.IsConnected)
@@ -216,36 +216,37 @@ namespace OpenTap
         /// <summary>
         /// Returns the number of threads queued.
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="r"></param>
-        /// <returns></returns>
-        internal int ScheduleInResultProcessingThread<T>(IInvokable<T, WorkQueue> r)
+        internal int ScheduleInResultProcessingThread(IInvokable<IResultListener, WorkQueue> r)
         {
             int count = 0;
             foreach (var item in resultWorkers)
             {
-                if (item.Key is T x)
-                {
-                    count++;
-                    item.Value.EnqueueWork(r.Wrap(x, item.Value));
-                }
+                count++;
+                item.Value.EnqueueWork(r.Wrap(item.Key, item.Value));
             }
             return count;
         }
 
-        internal int ScheduleInResultProcessingThread<T>(Action<T> r, bool blocking = false)
+        internal int ScheduleInResultProcessingThread(IInvokable<IResultListener> r)
         {
-            return ScheduleInResultProcessingThread(new Invokable<T>(r), blocking);
+            int count = 0;
+            foreach (var item in resultWorkers)
+            {
+                count++;
+                item.Value.EnqueueWork(r.Wrap(item.Key));
+            }
+            return count;
+        }
+
+        internal int ScheduleInResultProcessingThread(Action<IResultListener> r, bool blocking = false)
+        {
+            return ScheduleInResultProcessingThread(new Invokable<IResultListener>(r), blocking);
         }
 
         /// <summary>
         /// like ScheduleInResultProcessingThread, but if blocking is used, it will block until the work is finished for all result listeners.
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="r"></param>
-        /// <param name="blocking"></param>
-        /// <returns></returns>
-        int ScheduleInResultProcessingThread<T>(IInvokable<T> r, bool blocking = false)
+        int ScheduleInResultProcessingThread(IInvokable<IResultListener> r, bool blocking = false)
         {
             if (!blocking)
                 return ScheduleInResultProcessingThread(r);
@@ -253,7 +254,7 @@ namespace OpenTap
        
             using (var sem = new SemaphoreSlim(0, resultWorkers.Count))
             {
-                int count = ScheduleInResultProcessingThread<T>(l =>
+                int count = ScheduleInResultProcessingThread(l =>
                 {
                     try
                     {
@@ -278,7 +279,7 @@ namespace OpenTap
             // values inside the active instance of TestStepRun.
             var clone = stepRun.Clone();
 
-            ScheduleInResultProcessingThread<IResultListener>(listener =>
+            ScheduleInResultProcessingThread(listener =>
             {
                 try
                 {
@@ -300,11 +301,12 @@ namespace OpenTap
         {
             var instant = Stopwatch.GetTimestamp();
 
-            ScheduleInResultProcessingThread<IExecutionListener>(listener =>
+            ScheduleInResultProcessingThread(listener =>
             {
                 try
                 {
-                    listener.OnTestStepExecutionChanged(stepID, stepRun, state, instant);
+                    if (listener is IExecutionListener ex)
+                        ex.OnTestStepExecutionChanged(stepID, stepRun, state, instant);
                 }
                 catch (Exception e)
                 {
@@ -320,7 +322,7 @@ namespace OpenTap
             
             var instant = Stopwatch.GetTimestamp();
             
-            ScheduleInResultProcessingThread<IResultListener>(listener =>
+            ScheduleInResultProcessingThread(listener =>
             {
                 try
                 {
