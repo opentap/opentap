@@ -219,7 +219,7 @@ namespace OpenTap
         /// <typeparam name="T"></typeparam>
         /// <param name="r"></param>
         /// <returns></returns>
-        internal int ScheduleInResultProcessingThread<T>(IInvokable<T> r)
+        internal int ScheduleInResultProcessingThread<T>(IInvokable<T, WorkQueue> r)
         {
             int count = 0;
             foreach (var item in resultWorkers)
@@ -227,7 +227,7 @@ namespace OpenTap
                 if (item.Key is T x)
                 {
                     count++;
-                    item.Value.EnqueueWork(r.Wrap(x));
+                    item.Value.EnqueueWork(r.Wrap(x, item.Value));
                 }
             }
             return count;

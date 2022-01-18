@@ -34,7 +34,6 @@ namespace OpenTap
         // list of things to do sequentially.
         readonly ConcurrentQueue<IInvokable> workItems = new ConcurrentQueue<IInvokable>();
         readonly TimeSpanAverager average;
-        internal static readonly ThreadField<WorkQueue> CurrentWorkQueue = new ThreadField<WorkQueue>();
         
         internal IInvokable Peek()
         {
@@ -123,13 +122,7 @@ namespace OpenTap
                         IInvokable run;
                         while (!workItems.TryDequeue(out run))
                             Thread.Yield();
-                        bool introspectionSet = false;
-                        if (run is IWorkQueueIntrospectiveIInvokable run2 && run2.NeedsIntrospection)
-                        {
-                            CurrentWorkQueue.Value = this;
-                            introspectionSet = true;
-                        }
-
+                        
                         if (average != null)
                         {
                             var sw = Stopwatch.StartNew();
@@ -141,8 +134,6 @@ namespace OpenTap
                             run.Invoke();
                         }
                         Interlocked.Decrement(ref countdown);
-                        if(introspectionSet)
-                            CurrentWorkQueue.Value = null;
                     }
                 }
                 finally
