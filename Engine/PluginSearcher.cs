@@ -31,7 +31,7 @@ namespace OpenTap
         public bool SearchInternalTypes { get; }
         /// <summary>
         /// (Optional) Full name of Plugin Init method that gets run before any other code in the plugin. Will only run once. 
-        /// Requirement: Must be parameterless static method inside static class
+        /// Requirement: Must be parameterless public static method returning void inside public static class
         /// Important note: If init method fails (throws an <see cref="Exception"/>), then NONE of the <see cref="ITapPlugin"/> types will load
         /// </summary>
         public string PluginInitMethod { get; }
@@ -1175,19 +1175,30 @@ namespace OpenTap
                         if (PluginAssemblyAttribute != null && PluginAssemblyAttribute.PluginInitMethod != null)
                         {
                             string fullName = PluginAssemblyAttribute.PluginInitMethod;
+                            // Break into namespace, class, and method name
                             string[] names = fullName.Split('.');
+                            if (names.Count() < 3)
+                                throw new Exception($"Could not find method {fullName} in assembly: {Location}");
                             string methodName = names.Last();
                             string className = names.ElementAt(names.Count() - 2);
                             string namespacePath = string.Join(".", names.Take(names.Count() - 2));
                             Type initClass = assembly.GetType($"{namespacePath}.{className}");
-                            // Check if loaded class exists and is static (abstract and sealed)
-                            if (initClass == null || !initClass.IsClass || !initClass.IsAbstract || !initClass.IsSealed)
+                            // Check if loaded class exists and is static (abstract and sealed) and is public
+                            if (initClass == null || !initClass.IsClass || !initClass.IsAbstract || !initClass.IsSealed || !initClass.IsPublic)
                                 throw new Exception($"Could not find method {fullName} in assembly: {Location}");
                             MethodInfo initMethod = initClass.GetMethod(methodName);
-                            // Check if loaded method exists and is static and returns void
-                            if (initMethod == null || !initMethod.IsStatic || initMethod.ReturnType != typeof(void))
+                            // Check if loaded method exists and is static and returns void and is public
+                            if (initMethod == null || !initMethod.IsStatic || initMethod.ReturnType != typeof(void) || !initMethod.IsPublic)
                                 throw new Exception($"Could not find method {fullName} in assembly: {Location}");
-                            Task.Run(() => initMethod.Invoke(null, null)).Wait();
+                            // Invoke the method and unwrap the InnerException to get meaningful error message
+                            try
+                            {
+                                initMethod.Invoke(null, null);
+                            }
+                            catch (TargetInvocationException exc)
+                            {
+                                throw exc.InnerException;
+                            }
                         }
                     }
                     catch (Exception ex)
