@@ -2,6 +2,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -21,14 +22,17 @@ namespace OpenTap
         /// The name of the column.
         /// </summary>
         public string Name { get; private set; }
+
         /// <summary>
         /// The data in the column.
         /// </summary>
         public Array Data { get; private set; }
+
         /// <summary>
         /// The TypeCode of data in the column.
         /// </summary>
         public TypeCode TypeCode { get; private set; }
+
         /// <summary>
         /// String describing the column.
         /// </summary>
@@ -76,13 +80,14 @@ namespace OpenTap
             Parameters = new ParameterCollection(parameters);
         }
 
-        internal ResultColumn(string name, Array data, IData table, IParameters parameters, string ObjectType = ResultObjectTypes.ResultColumn) : this(name, data)
+        internal ResultColumn(string name, Array data, IData table, IParameters parameters,
+            string ObjectType = ResultObjectTypes.ResultColumn) : this(name, data)
         {
             Parameters = parameters;
             Parent = table;
             this.ObjectType = ObjectType;
         }
-        
+
         internal ResultColumn WithResultTable(ResultTable table)
         {
             return new ResultColumn(Name, Data, table, Parameters, (this as IAttributedObject).ObjectType);
@@ -102,7 +107,8 @@ namespace OpenTap
         /// <summary>  Create a result column clone with additional parameters. </summary>
         public ResultColumn AddParameters(params IParameter[] additionalParameters)
         {
-            return new ResultColumn(Name, Data, Parent, new ParameterCollection(Parameters.Concat(additionalParameters).ToArray()));
+            return new ResultColumn(Name, Data, Parent,
+                new ParameterCollection(Parameters.Concat(additionalParameters).ToArray()));
         }
     }
 
@@ -118,18 +124,23 @@ namespace OpenTap
         public string Name { get; private set; }
 
         ResultColumn[] columns;
+
         /// <summary> An array containing the result columns. </summary>
         public ResultColumn[] Columns
         {
             get => columns;
             private set => columns = value;
         }
+
         /// <summary>
         /// Indicates how many rows of results this vector contains.
         /// </summary>
         public int Rows { get; private set; }
 
-        IResultColumn[] IResultTable.Columns { get { return Columns; } }
+        IResultColumn[] IResultTable.Columns
+        {
+            get { return Columns; }
+        }
 
         /// <summary>
         /// The parent of this object.
@@ -143,7 +154,7 @@ namespace OpenTap
         public IParameters Parameters { get; } = ParameterCollection.Empty;
 
 
-        string IAttributedObject.ObjectType => ResultObjectTypes.ResultVector; 
+        string IAttributedObject.ObjectType => ResultObjectTypes.ResultVector;
 
         long IData.GetID()
         {
@@ -176,6 +187,7 @@ namespace OpenTap
             {
                 columns[i] = columns[i].WithResultTable(this);
             }
+
             if (columns.Length <= 0)
                 Rows = 0;
             else
@@ -192,17 +204,18 @@ namespace OpenTap
         /// <summary>
         /// Creates a new Result Table with a name, result columns and parameters.
         /// </summary>
-        public ResultTable(string name, ResultColumn[] resultColumns, params IParameter[] parameters) : this(name,resultColumns)
+        public ResultTable(string name, ResultColumn[] resultColumns, params IParameter[] parameters) : this(name,
+            resultColumns)
         {
             Parameters = new ParameterCollection(parameters);
         }
-        
-        ResultTable(string name, ResultColumn[] resultColumns, IParameters parameters) : this(name,resultColumns)
+
+        ResultTable(string name, ResultColumn[] resultColumns, IParameters parameters) : this(name, resultColumns)
         {
             Parameters = parameters;
         }
 
-        internal ResultTable WithName(string newName) =>  new ResultTable(newName, Columns, Parameters);
+        internal ResultTable WithName(string newName) => new ResultTable(newName, Columns, Parameters);
     }
 
     /// <summary>
@@ -331,20 +344,21 @@ namespace OpenTap
         public void Defer(Action action)
         {
             if (TapThread.Current != stepRun.StepThread)
-                throw new InvalidOperationException("Defer may only be executed from the same thread as the test step.");
+                throw new InvalidOperationException(
+                    "Defer may only be executed from the same thread as the test step.");
             DeferNoCheck(action);
         }
 
         int deferCount = 0;
-        
+
         internal void DeferNoCheck(Action action)
         {
-            
             if (deferWorker == null)
             {
                 deferExceptions = new List<Exception>();
                 deferWorker = new WorkQueue(WorkQueue.Options.None, "Defer Worker");
             }
+
             Interlocked.Increment(ref deferCount);
             // only one defer task may run at a time.
             deferWorker.EnqueueWork(() =>
@@ -353,7 +367,7 @@ namespace OpenTap
                 {
                     action();
                 }
-                catch(Exception e)
+                catch (Exception e)
                 {
                     deferExceptions.Add(e);
                 }
@@ -393,7 +407,6 @@ namespace OpenTap
                     }
                     catch (OperationCanceledException)
                     {
-
                     }
                     catch (Exception e)
                     {
@@ -402,10 +415,11 @@ namespace OpenTap
                     }
                 });
             }
-
         }
 
-        Dictionary<ITypeData, Func<object, ResultTable>> resultFunc = null;//new Dictionary<Type, Func<object, ResultTable>>();
+        Dictionary<ITypeData, Func<object, ResultTable>>
+            resultFunc = null; //new Dictionary<Type, Func<object, ResultTable>>();
+
         readonly object resultFuncLock = new object();
 
         ResultTable ToResultTable<T>(T result)
@@ -416,6 +430,7 @@ namespace OpenTap
                 lock (resultFuncLock)
                     resultFunc = new Dictionary<ITypeData, Func<object, ResultTable>>();
             }
+
             if (!resultFunc.ContainsKey(runtimeType))
             {
                 bool enumerable = result is IEnumerable && !(result is string);
@@ -424,10 +439,11 @@ namespace OpenTap
                 {
                     targetType = targetType.AsTypeData().ElementType;
                 }
-                
+
                 var Typename = targetType.GetDisplayAttribute().GetFullName();
                 var classParameters = targetType.GetAttributes<IParameter>().ToArray();
-                var Props = targetType.GetMembers().Where(x => x.Readable && x.TypeDescriptor.DescendsTo(typeof(IConvertible))).ToArray();
+                var Props = targetType.GetMembers()
+                    .Where(x => x.Readable && x.TypeDescriptor.DescendsTo(typeof(IConvertible))).ToArray();
                 var PropNames = Props.Select(p => p.GetDisplayAttribute().GetFullName()).ToArray();
                 var propParameter = Props.Select(p => p.GetAttributes<IParameter>().ToArray()).ToArray();
                 resultFunc[runtimeType] = (v) =>
@@ -436,12 +452,12 @@ namespace OpenTap
                     IEnumerable values;
                     if (enumerable)
                     {
-                        values = (IEnumerable) v;
+                        values = (IEnumerable)v;
                         count = values.Count();
                     }
                     else
                     {
-                        values = new [] {v};
+                        values = new[] { v };
                         count = 1;
                     }
 
@@ -455,21 +471,23 @@ namespace OpenTap
                         {
                             arrays[i].SetValue(Props[i].GetValue(obj), j);
                         }
+
                         j++;
                     }
-                    
+
                     var cols = new ResultColumn[Props.Length];
                     for (int i = 0; i < Props.Length; i++)
                     {
                         cols[i] = new ResultColumn(PropNames[i], arrays[i], propParameter[i]);
                     }
+
                     return new ResultTable(Typename, cols, classParameters);
                 };
             }
 
             return resultFunc[runtimeType](result);
         }
-        
+
         /// <summary>
         /// Stores an object as a result.  These results will be propagated to the ResultStore after the TestStep completes.
         /// </summary>
@@ -495,7 +513,7 @@ namespace OpenTap
         {
             if (result == null)
                 throw new ArgumentNullException(nameof(result));
-            if(name == null)
+            if (name == null)
                 throw new ArgumentNullException(nameof(name));
             Publish(ToResultTable(result).WithName(name));
         }
@@ -513,7 +531,7 @@ namespace OpenTap
             if (results == null)
                 throw new ArgumentNullException(nameof(results));
 
-            var columns = results.Zip(columnNames, (val, title) 
+            var columns = results.Zip(columnNames, (val, title)
                 => new ResultColumn(title, GetArray(val == null ? typeof(object) : val.GetType(), val))).ToArray();
 
             Publish(new ResultTable(name, columns));
@@ -543,9 +561,108 @@ namespace OpenTap
         /// <summary> Publishes a result table. </summary>
         public void PublishTable(ResultTable table)
         {
-            planRun.ScheduleInResultProcessingThread<IResultListener>(l => Propagate(l, table));
+            planRun.ScheduleInResultProcessingThread(new PublishResultTableInvokable(table, this));
         }
 
         internal bool WasDeferred => deferWorker != null;
+
+        class PublishResultTableInvokable : IInvokable<IResultListener, WorkQueue>
+        {
+            readonly ResultTable table;
+            readonly ResultSource proxy;
+
+            public PublishResultTableInvokable(ResultTable table, ResultSource proxy)
+            {
+                this.table = table;
+                this.proxy = proxy;
+            }
+
+            /// <summary>
+            /// If possible, introspect the current work queue and collapse result table propagations into one.
+            /// This can give a huge performance boost for many use cases, but mostly when PublishTable is not used.
+            ///
+            /// Note that this has to be done in the result listener thread - since each may have different number of elements queued
+            /// depending on the speed of the result listener. Slow ones like internet based ones will have more items queued.
+            /// </summary>
+            /// <returns>An optimized table or the original one if it is not possible to optimize.</returns>
+            ResultTable CreateOptimizedTable(WorkQueue workQueue)
+            {
+                List<ResultTable> mergeTables = null;
+                while (workQueue?.Peek() is PublishResultTableInvokable p)
+                {
+                    if (!CanMerge(p.table, table))
+                        break;
+                    if (mergeTables == null)
+                        mergeTables = new List<ResultTable>();
+                    mergeTables.Add(p.table);
+                    workQueue.Dequeue();
+                }
+
+                if (mergeTables != null)
+                {
+                    mergeTables.Add(table);
+                    return MergeTables(mergeTables);
+                }
+
+                return table;
+            }
+
+            public void Invoke(IResultListener a, WorkQueue queue)
+            {
+                try
+                {
+                    a.OnResultPublished(proxy.stepRun.Id, CreateOptimizedTable(queue));
+                }
+                catch (Exception e)
+                {
+                    log.Warning("Caught exception in result handling task.");
+                    log.Debug(e);
+                    proxy.planRun.RemoveFaultyResultListener(a);
+                }
+            }
+
+            /// <summary>
+            /// Tables can be merged if they have the same name, and the same count, types and names of columns.
+            /// </summary>
+            static bool CanMerge(ResultTable table1, ResultTable table2)
+            {
+                if (table2.Name != table1.Name)
+                    return false;
+
+                if (table2.Columns.Length != table1.Columns.Length)
+                    return false;
+                var count = table1.Columns.Length;
+                for (var columnIdx = 0; columnIdx < count; columnIdx++)
+                {
+                    var c1 = table1.Columns[columnIdx];
+                    var c2 = table2.Columns[columnIdx];
+                    if (c1.Name != c2.Name || c1.ObjectType != c2.ObjectType)
+                        return false;
+                }
+
+                return true;
+            }
+
+            /// <summary> Merges a set of result tables. This assumes that CanMerge has been called and returned true for all elements in the list. </summary>
+            static ResultTable MergeTables(IReadOnlyList<ResultTable> tables)
+            {
+                int columnSize = tables.Sum(x => x.Rows);
+                var columns = tables[0].Columns.Select((v, i) =>
+                {
+                    var elem = v.Data.GetType().GetElementType();
+                    int offset = 0;
+                    var newA = Array.CreateInstance(elem, columnSize);
+                    for (var j = 0; j < tables.Count; j++)
+                    {
+                        var newData = tables[j].Columns[i].Data;
+                        newData.CopyTo(newA, offset);
+                        offset += newData.Length;
+                    }
+
+                    return new ResultColumn(v.Name, newA);
+                }).ToArray();
+                return new ResultTable(tables[0].Name, columns);
+            }
+        }
     }
 }
