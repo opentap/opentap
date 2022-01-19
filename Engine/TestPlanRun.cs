@@ -227,7 +227,7 @@ namespace OpenTap
                 if (item.Key is T x)
                 {
                     count++;
-                    item.Value.EnqueueWork(r.Wrap(x, item.Value));
+                    item.Value.EnqueueWork(r, x, item.Value);
                 }
             }
             return count;
@@ -235,7 +235,7 @@ namespace OpenTap
 
         internal int ScheduleInResultProcessingThread<T>(Action<T> r, bool blocking = false)
         {
-            return ScheduleInResultProcessingThread(new Invokable<T>(r), blocking);
+            return ScheduleInResultProcessingThread(new Invokable<T>(r).AddArg<WorkQueue>(), blocking);
         }
 
         /// <summary>
@@ -245,7 +245,7 @@ namespace OpenTap
         /// <param name="r"></param>
         /// <param name="blocking"></param>
         /// <returns></returns>
-        int ScheduleInResultProcessingThread<T>(IInvokable<T> r, bool blocking = false)
+        int ScheduleInResultProcessingThread<T>(IInvokable<T,WorkQueue> r, bool blocking)
         {
             if (!blocking)
                 return ScheduleInResultProcessingThread(r);
@@ -257,7 +257,7 @@ namespace OpenTap
                 {
                     try
                     {
-                        r.Invoke(l);
+                        r.Invoke(l, null);
                     }
                     finally
                     {

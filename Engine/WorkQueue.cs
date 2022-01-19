@@ -35,10 +35,14 @@ namespace OpenTap
         readonly ConcurrentQueue<IInvokable> workItems = new ConcurrentQueue<IInvokable>();
         readonly TimeSpanAverager average;
         
-        internal IInvokable Peek()
+        internal object Peek()
         {
             if (workItems.TryPeek(out var inv))
+            {
+                if (inv is IWrappedInvokable wrap)
+                    return wrap.InnerInvokable;
                 return inv;
+            }
             return null;
         }
 
@@ -64,14 +68,14 @@ namespace OpenTap
 
         const int semaphoreMaxCount = 1024 * 1024;
         // the addSemaphore counts the current number of things in the tasklist.
-        SemaphoreSlim addSemaphore = new SemaphoreSlim(0,semaphoreMaxCount); 
+        readonly SemaphoreSlim addSemaphore = new SemaphoreSlim(0,semaphoreMaxCount); 
 
         int countdown = 0;
         
         /// <summary> A name of identifying the work queue. </summary>
         public readonly string Name;
 
-        bool longRunning = false;
+        readonly bool longRunning;
 
         /// <summary> Creates a new instance of WorkQueue.</summary>
         /// <param name="options">Options.</param>
@@ -85,7 +89,8 @@ namespace OpenTap
         }
 
         /// <summary> Enqueue a new piece of work to be handled in the future. </summary>
-        public void EnqueueWork(Action a) => EnqueueWork(new Invokable(a));
+        public void EnqueueWork(Action a) => EnqueueWork(new ActionInvokable(a));
+        internal void EnqueueWork<T1, T2>(IInvokable<T1, T2> v, T1 a1, T2 a2) =>  EnqueueWork(new WrappedInvokable<T1,T2>(v, a1, a2));
 
         /// <summary> Enqueue a new piece of work to be handled in the future. </summary>
         internal void EnqueueWork(IInvokable f)
@@ -185,11 +190,50 @@ namespace OpenTap
             }
         }
 
-        internal IInvokable Dequeue()
+        internal object Dequeue()
         {
-            if (workItems.TryDequeue(out var tsk))
+            if (workItems.TryDequeue(out var inv))
+            {
                 Interlocked.Decrement(ref countdown);
-            return tsk;
+                if (inv is IWrappedInvokable wrap)
+                    return wrap.InnerInvokable;
+                return inv;
+            }
+            return inv;
+        }
+
+        interface IWrappedInvokable: IInvokable
+        {
+            object InnerInvokable { get; }
+        }
+        
+        /// <summary>  Wraps an Action in an IInvokable. </summary>
+        class ActionInvokable : IWrappedInvokable
+        {
+            readonly Action action;
+            public ActionInvokable(Action inv)
+            {
+                action = inv;
+            }
+
+            public void Invoke() => action();
+            public object InnerInvokable => action;
+        }
+        /// <summary>  Wraps an IInvokable(T,T2) in an IInvokable. </summary>
+        class WrappedInvokable<T, T2> : IWrappedInvokable 
+        {
+            readonly T arg1;
+            readonly T2 arg2;
+            readonly IInvokable<T, T2> wrapped;
+        
+            public WrappedInvokable(IInvokable<T, T2> invokable, T argument1, T2 argument2)
+            {
+                arg1 = argument1;
+                arg2 = argument2;
+                wrapped = invokable;
+            }
+            public void Invoke() => wrapped.Invoke(arg1, arg2);
+            public object InnerInvokable => wrapped;
         }
     }
 }

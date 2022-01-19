@@ -588,8 +588,7 @@ namespace OpenTap
             ResultTable CreateOptimizedTable(WorkQueue workQueue)
             {
                 List<ResultTable> mergeTables = null;
-                while (workQueue?.Peek() is IWrappedInvokable wrap &&
-                       wrap.InnerInvokable is PublishResultTableInvokable p)
+                while (workQueue?.Peek() is PublishResultTableInvokable p)
                 {
                     if (!CanMerge(p.table, table))
                         break;
@@ -621,8 +620,6 @@ namespace OpenTap
                     proxy.planRun.RemoveFaultyResultListener(a);
                 }
             }
-
-            public bool NeedsIntrospection => true;
 
             /// <summary>
             /// Tables can be merged if they have the same name, and the same count, types and names of columns.

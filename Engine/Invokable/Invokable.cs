@@ -11,19 +11,19 @@ namespace OpenTap
 
         public void Invoke(T v) => action(v);
 
-        public static implicit operator Invokable<T>(Action<T> a) => new Invokable<T>(a);        
+        /// <summary> Add an ignored argument. </summary>
+        public Invokable<T, T2> AddArg<T2>()
+        {
+            return new Invokable<T, T2>((a1, a2) => action(a1));
+        }
     }
-
-    /// <summary>
-    /// Action IInvokable.
-    /// </summary>
-    class Invokable : IInvokable
+    
+    /// <summary> Action(T) IInvokable. </summary>
+    class Invokable<T, T2> : IInvokable<T,T2>
     {
-        readonly Action action;
-        public Invokable(Action action) => this.action = action;
+        readonly Action<T,T2> action;
+        public Invokable(Action<T,T2> action) => this.action = action;
 
-        public void Invoke() => action();
-
-        public static implicit operator Invokable(Action a) => new Invokable(a);
+        public void Invoke(T v, T2 v2) => action(v, v2);
     }
 }
