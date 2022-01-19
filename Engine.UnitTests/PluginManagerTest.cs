@@ -474,6 +474,37 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(asm4 == asm5);
 
         }
+        
+        [Test]
+        public void PluginInitializerTest()
+        {
+            
+            var code =
+                "using OpenTap;"
+                + "[assembly: PluginAssemblyAttribute (false, \"PluginAssemblyTest.StaticClassTest.Invoke\")]\n"
+                + "namespace PluginAssemblyTest {public static class StaticClassTest{ public static bool Initialized; public static void Invoke(){Initialized = true;}}" +
+                " public class StaticClassTestTestStep : TestStep {public override void Run(){}}" +
+                "}\n";
+            var dirname = Guid.NewGuid().ToString();
+            var asmName = "PluginAssemblyTest";
+            var tempDir = Path.Combine(Path.GetTempPath(), asmName + dirname);
+            var fileName = Path.Combine(tempDir, asmName + ".dll");
+            if (File.Exists(fileName)) File.Delete(fileName);
+            Directory.CreateDirectory(tempDir);
+            PluginManager.DirectoriesToSearch.Add(tempDir);
+            
+            var results = CodeGen.BuildCode(code, asmName);
+            File.WriteAllBytes(fileName, results.Bytes);
+            PluginManager.Search();
+            var td = TypeData.GetTypeData("PluginAssemblyTest.StaticClassTestTestStep");
+            Assert.IsNotNull(td);
+            var td2 = TypeData.GetTypeData("PluginAssemblyTest.StaticClassTest");
+            Assert.IsNotNull(td);
+            var initialized = (bool)td2.As<TypeData>().Type.GetField("Initialized").GetValue(null);
+            Assert.IsTrue(initialized);
+            PluginManager.DirectoriesToSearch.Remove(tempDir);
+
+        }
     }
     public class SimpleListTest : TestStep
     {
