@@ -407,7 +407,8 @@ namespace OpenTap.Package
             if (packageSpecifier.Version.Major != null)
             {
                 allVersions = allVersions.Where(v => v.Major == packageSpecifier.Version.Major);
-                allVersions = allVersions.Where(s => s.PreRelease == null);
+                if (packageSpecifier.Version.PreRelease is null)
+                    allVersions = allVersions.Where(s => s.PreRelease == null);
             }
             if (packageSpecifier.Version.Minor != null)
                 allVersions = allVersions.Where(p => p.Minor == packageSpecifier.Version.Minor);

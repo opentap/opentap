@@ -110,6 +110,8 @@ namespace OpenTap.Image.Tests
         [TestCase("B", "3.0.0", "Windows", CpuArchitecture.x64, "3.0.0")] // full version means exact
         [TestCase("B", "beta", "Windows", CpuArchitecture.x64, "3.2.1-beta.1")]
         [TestCase("B", "beta", "", CpuArchitecture.AnyCPU, "3.2.1-beta.1")] // beta means we want latest, but minimum beta
+        [TestCase("B", "3-beta", "", CpuArchitecture.AnyCPU, "3.2.1-beta.1")] // beta means we want latest, but minimum beta
+        [TestCase("B", "2-beta", "", CpuArchitecture.AnyCPU, "3.1.0-beta.1")] // beta means we want latest, but minimum beta
         [TestCase("B", "any", "", CpuArchitecture.AnyCPU, "3.2.2-alpha.1")]  // any means we want latest, even if it is a prerelease
         public void FullResolveCases(string packageName, string version, string os, CpuArchitecture cpuArchitecture, string resultingVersion)
         {
