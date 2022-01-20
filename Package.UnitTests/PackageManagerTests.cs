@@ -154,7 +154,7 @@ namespace OpenTap.Package.UnitTests
         {
             (string initial, string redirected, string redirected_alt)[] urls = new[] {
                 ($"opentap.io", "https://www.opentap.io/", "https://opentap.io/"), // Redirect to www and https
-                ($"https://www.opentap.io", "https://www.opentap.io/", null), // no redirect
+                ($"https://opentap.io", "https://opentap.io/", null), // no redirect
                 ($"packages.opentap.io", "http://packages.opentap.io/", null), // No redirect
                 ($"http://opentap.io", "https://www.opentap.io/", "https://opentap.io/")}; // Redirect to https
 
