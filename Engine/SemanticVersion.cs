@@ -217,7 +217,7 @@ namespace OpenTap
         /// <param name="p1">Prerelease of one version</param>
         /// <param name="p2">Prerelease of second version</param>
         /// <returns>integer representation of order</returns>
-        public static int ComparePreRelease(string p1, string p2)
+        private static int ComparePreRelease(string p1, string p2)
         {
             if (p1 == p2) return 0;
 

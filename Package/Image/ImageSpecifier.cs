@@ -46,6 +46,11 @@ namespace OpenTap.Package
             return image;
         }
 
+        internal Installation Deploy(Installation deploymentInstallation)
+        {
+            throw new NotImplementedException();
+        }
+
         /// <summary>
         /// Create an <see cref="ImageSpecifier"/> from JSON or XML value. Throws <see cref="InvalidOperationException"/> if value is not valid JSON or XML
         /// </summary>

@@ -42,12 +42,22 @@ namespace OpenTap.Package
                 log.Warning($"Using --force does not force an image installation");
 
             var imageString = File.ReadAllText(ImagePath);
-            var image = ImageSpecifier.FromString(imageString);
+            var imageSpecifier = ImageSpecifier.FromString(imageString);
+
 
             try
             {
-
-                ImageIdentifier imageIdentifier = image.Resolve(cancellationToken);
+                //if (Merge)
+                //{
+                //    var deploymentInstallation = new Installation(Target);
+                //    Installation newInstallation = imageSpecifier.Deploy(deploymentInstallation);
+                //}
+                //else
+                //{
+                //    ImageIdentifier imageIdentifier = imageSpecifier.Resolve(cancellationToken);
+                //    imageIdentifier.Deploy(Target, cancellationToken);
+                //}
+                ImageIdentifier imageIdentifier = imageSpecifier.Resolve(cancellationToken);
                 if (Merge)
                     imageIdentifier.Deploy(new Installation(Target), cancellationToken);
                 else

@@ -119,7 +119,7 @@ namespace OpenTap.Package
         }
 
         static Regex parser = new Regex(@"^(?<compatible>\^)?((?<major>\d+)(\.(?<minor>\d+)(\.(?<patch>\d+))?)?)?(-(?<prerelease>([a-zA-Z0-9-\.]+)))?(\+(?<metadata>[a-zA-Z0-9-\.]+))?$", RegexOptions.Compiled);
-        static Regex semVerPrereleaseChars = new Regex(@"^[a-zA-Z0-9-\.]+$", RegexOptions.Compiled);
+        static Regex semVerPrereleaseChars = new Regex(@"^(?<compatible>\^)?(?<prerelease>([a-zA-Z0-9-\.]+))?$", RegexOptions.Compiled);
 
         /// <summary>
         /// Parses a string as a VersionSpecifier.
@@ -146,9 +146,13 @@ namespace OpenTap.Package
                     );
                     return true;
                 }
-                else if (semVerPrereleaseChars.IsMatch(version))
+
+                var prerelease = semVerPrereleaseChars.Match(version);
+                if (prerelease.Success)
                 {
-                    ver = new VersionSpecifier(null, null, null, version, null, VersionMatchBehavior.Compatible);
+                    var matchBehaviour = prerelease.Groups["compatible"].Success ? VersionMatchBehavior.Compatible : VersionMatchBehavior.Exact;
+                    var pre = prerelease.Groups["prerelease"].Success ? prerelease.Groups["prerelease"].Value : null;
+                    ver = new VersionSpecifier(null, null, null, pre, null, matchBehaviour);
                     return true;
                 }
             }
@@ -357,7 +361,7 @@ namespace OpenTap.Package
             if (Major > other.Major) return 1;
             if (Major < other.Major) return -1;
             if (Minor.HasValue && !other.Minor.HasValue || Minor > other.Minor) return 1;
-            if (!Minor.HasValue && other.Minor.HasValue ||  Minor < other.Minor) return -1;
+            if (!Minor.HasValue && other.Minor.HasValue || Minor < other.Minor) return -1;
             if (Patch.HasValue && !other.Patch.HasValue || Patch > other.Patch) return 1;
             if (!Patch.HasValue && other.Patch.HasValue || Patch < other.Patch) return -1;
 
