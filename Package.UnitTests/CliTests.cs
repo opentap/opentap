@@ -85,9 +85,31 @@ namespace OpenTap.Package.UnitTests
                 Environment.SetEnvironmentVariable("Debug", "1");
 
                 // Sign package is needed to create opentap
-                string createOpenTap = $"create -v {opentapPackageXmlPath} --install -o Packages/OpenTAP.TapPackage";
-                string output = RunPackageCliWrapped(createOpenTap, out int exitCode, installDir);
-                Assert.AreEqual(0, exitCode, "Error creating OpenTAP package. Log:\n" + output);
+                var create = new PackageCreateAction()
+                {
+                    Install = true,
+                    OutputPaths = new[] { "Packages/OpenTAP.TapPackage" },
+                    PackageXmlFile = opentapPackageXmlPath,
+                };
+                using (Session.Create())
+                {
+                    var logs = new StringBuilder();
+                    var lst = new EventTraceListener();
+                    lst.MessageLogged += evt => evt.ForEach(e => logs.AppendLine(e.ToString()));
+                    Log.AddListener(lst);
+                    int? res = null;
+                    try
+                    {
+                        res = create.Execute(CancellationToken.None);
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+
+                    Assert.AreEqual(0, res, "Error creating OpenTAP package. Log:\n" + logs.ToString());
+                }
+
             }
         }
 

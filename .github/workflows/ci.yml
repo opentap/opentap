@@ -299,13 +299,15 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET }}
       - name: Package
         run: |
-          if (!$GITHUB_REF_PROTECTED) { Set-Content .\opentap.${{ matrix.Architecture }}.package.xml  -Value (get-content .\opentap.${{ matrix.Architecture }}.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
+          $env:Platform = "Windows"
+          $env:Architecture =  "${{ matrix.Architecture }}"
+          if (!$GITHUB_REF_PROTECTED) { $env:Sign = "false" } else { $env:Sign = "true" }
           cd bin/Release-x64
           cp .\runtimes\win-x64\native\git2-4aecb64.dll .
           .\tap.exe package install -f sign.TapPackage
           $version=$(./tap sdk gitversion)
           cd ../Release-${{ matrix.Architecture }}
-          ..\Release-x64\tap.exe package create -v -c ../../opentap.${{ matrix.Architecture }}.package.xml -o ../../OpenTAP.$version.${{ matrix.Architecture }}.Windows.TapPackage
+          ..\Release-x64\tap.exe package create -v -c ../../package.xml -o ../../OpenTAP.$version.${{ matrix.Architecture }}.Windows.TapPackage
       - uses: actions/upload-artifact@v2
         with:
           name: win-${{ matrix.Architecture }}-package
@@ -354,11 +356,13 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET }}
       - name: Package
         run: |
-          if (!$GITHUB_REF_PROTECTED) { Set-Content .\opentap_linux64.package.xml  -Value (get-content .\opentap_linux64.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
+          $env:Platform = "Linux"
+          $env:Architecture = "x64"
+          if (!$GITHUB_REF_PROTECTED) { $env:Sign = "false" } else { $env:Sign = "true" }
           pushd bin\linux-x64\ 
           ../Release/tap package install -f "/repo/Sign.TapPackage"
           cp .\runtimes\win-x64\native\git2-4aecb64.dll .
-          ..\Release\tap package create -v -c ../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage
+          ..\Release\tap package create -v -c ../../package.xml -o Packages/OpenTAP.Linux.TapPackage
           $version=$(..\Release\tap sdk gitversion)
           cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.$version.Linux.TapPackage
       - uses: actions/upload-artifact@v2
@@ -396,10 +400,12 @@ jobs:
           path: Help/
       - name: Package
         run: |
-          Set-Content .\opentap.x86.package.xml  -Value (get-content .\opentap.x86.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch)
+          $env:Sign = "false"
+          $env:Architecture = "x86"
+          $env:Platform = "Windows"
           cd bin/Release
           cp .\runtimes\win-x64\native\git2-4aecb64.dll .
-          .\tap.exe package create ../../opentap.x86.package.xml --install -v -c
+          .\tap.exe package create ../../package.xml --install -v -c
           Copy-Item "../../sdk/Examples" "Packages/SDK/Examples" -Recurse
           Copy-Item "../../Package/PackageSchema.xsd" "Packages/SDK/PackageSchema.xsd"
           cd Packages/SDK/Examples

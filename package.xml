@@ -19,6 +19,11 @@
     <Owner>OpenTAP</Owner>
     <!-- Common files  -->
     <Files>        
+        <File Path="tap.runtimeconfig.json"/>
+        <File Path="tap.dll">
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)"/>
+        </File>
         <File Path="OpenTap.dll">
             <SetAssemblyInfo Attributes="Version"/>
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)"/>
@@ -42,23 +47,17 @@
     <!-- Windows only files -->    
     <Files Condition="$(Platform) == Windows">
         <File Path="tap.exe">
-            <SetAssemblyInfo Attributes="Version"/>
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)"/>
         </File>
         <File Path="Dependencies/LibGit2Sharp.0.25.0.0/git2-4aecb64.dll"               
-              SourcePath="lib/win32/$(Architecture)/git2-4aecb64.dll"/>
+              SourcePath="runtimes/win-$(Architecture)/native/git2-4aecb64.dll"/>
         <File Path="OpenTapApiReference.chm" 
               SourcePath="../../Help/OpenTapApiReference.chm"
               Condition="$(Debug) == false"/>        
     </Files>
     <!-- NetCore only files -->
     <Files Condition="$(Platform) != Windows">        
-        <File Path="tap.dll">
-            <SetAssemblyInfo Attributes="Version"/>
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)"/>
-        </File>
         <File Path="tap"/>
-        <File Path="tap.runtimeconfig.json"/>
         <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.linux-x64"/>
         <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.redhat"/>
         <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.ubuntu"/>
