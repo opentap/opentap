@@ -120,57 +120,31 @@ namespace OpenTap.Package
         }
 
         private const string GIT_HASH = "b7bad55";
-        void windowsEnsureLibgit2Present()
+
+        void ensureLibgit2Present()
         {
-            // It seems we have a problem similar to the linux issue below
-            // when running with dotnet core on windows. Make a similar workaround
-            string libgit2name = $"git2-{GIT_HASH}.dll";
-            var requiredFile = Path.Combine(PathUtils.OpenTapDir, libgit2name);
+            string libgit2name;
 
-            if (File.Exists(requiredFile))
-                return;
-
-            try
-            {
-                File.Copy(Path.Combine("Dependencies/LibGit2Sharp.0.27.0.0/", libgit2name),
-                    requiredFile, true);
-            }
-            catch
+            if (OperatingSystem.Current == OperatingSystem.Windows)
+                libgit2name = $"git2-{GIT_HASH}.dll";
+            else if (OperatingSystem.Current == OperatingSystem.Linux)
+                libgit2name = $"libgit2-{GIT_HASH}.so";
+            else if (OperatingSystem.Current == OperatingSystem.MacOS)
+                libgit2name = $"libgit2-{GIT_HASH}.dylib";
+            else
             {
                 log.Error($"Unable to load 'libgit2-{GIT_HASH}' for this platform.");
-            }
-        }
-
-        void unixEnsureLibgit2Present()
-        {
-            // on linux, we are not sure which libgit to load at package time.
-            // so at this moment we need to check which version we are on
-            // and move the file to a position that is checked.
-            string libgit2name = $"libgit2-{GIT_HASH}.so";
-            var requiredFile = Path.Combine(PathUtils.OpenTapDir, libgit2name);
-
-            if (File.Exists(requiredFile))
                 return;
-
-            try
-            {
-                File.Copy(Path.Combine("Dependencies/LibGit2Sharp.0.27.0.0/", libgit2name), requiredFile, true);
             }
-            catch
-            {
-                log.Error($"Unable to load 'libgit2-{GIT_HASH}' for this platform.");
-            }
-        }
-        void macEnsureLibgit2Present()
-        {
-            string libgit2name = $"libgit2-{GIT_HASH}";
-            string libgitfoldername = "Dependencies/LibGit2Sharp.0.27.0.0/";
-            var requiredFile = Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.dylib");
-
-            if (File.Exists(requiredFile))
-                return;
             
-            var sourceFile = Path.Combine(PathUtils.OpenTapDir, libgitfoldername, libgit2name + ".dylib." + MacOsVariant.Current.Type);
+            var requiredFile = Path.Combine(PathUtils.OpenTapDir, libgit2name);
+            if (File.Exists(requiredFile))
+                return;
+
+            string sourceFile = Path.Combine("Dependencies/LibGit2Sharp.0.27.0.0/", libgit2name);
+            if (OperatingSystem.Current == OperatingSystem.MacOS)
+                sourceFile += MacOsArchitecture.Current.Type;
+            
             try
             {
                 File.Copy(sourceFile, requiredFile, true);
@@ -195,13 +169,7 @@ namespace OpenTap.Package
                     throw new ArgumentException("Directory is not a git repository.", "repositoryDir");
             }
 
-            if (OperatingSystem.Current == OperatingSystem.Windows)
-                windowsEnsureLibgit2Present();
-            else if (OperatingSystem.Current == OperatingSystem.Linux)
-                unixEnsureLibgit2Present();
-            else
-                macEnsureLibgit2Present();
-
+            ensureLibgit2Present();
             repo = new Repository(repositoryDir);
         }
 

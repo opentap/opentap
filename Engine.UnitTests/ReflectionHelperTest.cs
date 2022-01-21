@@ -46,7 +46,7 @@ namespace OpenTap.Engine.UnitTests
         public void MemoryMappedApiTest()
         {
             if(OpenTap.OperatingSystem.Current != OpenTap.OperatingSystem.Windows) 
-                return;  // this feature is currently not supported on Linux. // TODO: Is this supported on mac?
+                return;  // this feature is currently not supported on Linux.
             var api = new MemoryMappedApi();
             var strings = new[] { "asd", "cxze", "" };
             foreach(var str in strings)

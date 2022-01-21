@@ -137,7 +137,7 @@ jobs:
       - name: Upload binaries
         uses: actions/upload-artifact@v2
         with:
-          name: linux-x64-bin
+          name: macos-bin
           retention-days: 5
           path: |
             bin/Release/publish/*

@@ -35,12 +35,30 @@ namespace OpenTap
                 {
                     return OperatingSystem.Linux;
                 }
-                else if (Directory.Exists("/opt")) // If /opt exists and /proc does not we are on mac
+                else if (isMacOs())
                 {
                     return OperatingSystem.MacOS;
                 }
             }
             return OperatingSystem.Unsupported;
+        }
+
+        static bool isMacOs()
+        {
+            try
+            {
+                var startInfo = new ProcessStartInfo("uname");
+                startInfo.RedirectStandardOutput = true;
+                var process = Process.Start(startInfo);
+                var uname = process?.StandardOutput.ReadToEnd();
+                return uname.ToLowerInvariant().Contains("darwin");
+            }
+            catch
+            {
+                // ignored
+            }
+
+            return false;
         }
 
         static OperatingSystem current;
@@ -114,13 +132,13 @@ namespace OpenTap
         public LinuxVariant(string name) => Name = name;
     }
 
-    class MacOsVariant
+    class MacOsArchitecture
     {
         public string Type { get; }
-        public static readonly MacOsVariant Intel = new MacOsVariant("x64");
-        public static readonly MacOsVariant Apple = new MacOsVariant("arm64");
-        public static MacOsVariant Current { get; }
-        static MacOsVariant()
+        public static readonly MacOsArchitecture Intel = new MacOsArchitecture("x64");
+        public static readonly MacOsArchitecture Apple = new MacOsArchitecture("arm64");
+        public static MacOsArchitecture Current { get; }
+        static MacOsArchitecture()
         {
             try
             {
@@ -135,6 +153,6 @@ namespace OpenTap
                 // ignored
             }
         }
-        public MacOsVariant(string type) => Type = type;
+        public MacOsArchitecture(string type) => Type = type;
     }
 }
