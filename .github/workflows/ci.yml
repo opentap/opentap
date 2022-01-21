@@ -270,11 +270,6 @@ jobs:
         with:
           name: linux-x64-bin
           path: bin/Release/
-      - name: Set locale
-        run: |
-          apt-get update
-          apt-get install locales
-          locale-gen en_US.UTF-8
       - name: Test
         run: |
           chmod +x bin/Release/tap

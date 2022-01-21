@@ -28,4 +28,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)ShortTimeSpan.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)VersionChecker.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="$(MSBuildThisFileDirectory)tap.runtimeconfig.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 </Project>
