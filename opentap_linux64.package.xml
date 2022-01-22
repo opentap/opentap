@@ -32,7 +32,7 @@
     <File Path="tap.runtimeconfig.json"/>
     <File Path="Dependencies/System.Runtime.InteropServices.RuntimeInformation.4.0.2.0/System.Runtime.InteropServices.RuntimeInformation.dll"  SourcePath="System.Runtime.InteropServices.RuntimeInformation.dll"/>
     <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so"/>
-    <File Path="Dependencies/LibGit2Sharp.0.27.0.0libgit2-b7bad55.dylib.x64"/>
+    <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.x64"/>
     <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.arm64"/>
     <!-- License Texts -->
     <File Path="LICENSE.txt"  SourcePath="LICENSE.txt"/>
