@@ -133,7 +133,7 @@ namespace OpenTap.Package
                 libgit2name = $"libgit2-{GIT_HASH}.dylib";
             else
             {
-                log.Error($"Unable to load 'libgit2-{GIT_HASH}' for this platform.");
+                log.Error($"Unsupported platform.");
                 return;
             }
             
@@ -141,17 +141,20 @@ namespace OpenTap.Package
             if (File.Exists(requiredFile))
                 return;
 
-            string sourceFile = Path.Combine("Dependencies/LibGit2Sharp.0.27.0.0/", libgit2name);
+            string sourceFile = Path.Combine(PathUtils.OpenTapDir, "Dependencies/LibGit2Sharp.0.27.0.0/", libgit2name);
+            if (OperatingSystem.Current == OperatingSystem.Windows)
+                sourceFile += $".{ArchitectureHelper.HostArchitecture}";
             if (OperatingSystem.Current == OperatingSystem.MacOS)
-                sourceFile += MacOsArchitecture.Current.Type;
+                sourceFile += $".{MacOsArchitecture.Current.Type}";
             
             try
             {
                 File.Copy(sourceFile, requiredFile, true);
             }
-            catch
+            catch (Exception e)
             {
-                log.Error($"Unable to load 'libgit2-{GIT_HASH}' for this platform.");
+                log.Error($"Unable to copy 'libgit2-{GIT_HASH}': {e.Message}.");
+                log.Debug(e);
             }
         }
 

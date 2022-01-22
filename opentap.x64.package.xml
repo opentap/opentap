@@ -32,7 +32,7 @@
         <File Path="tap.runtimeconfig.json"/>
         <File Path="Dependencies/System.Runtime.InteropServices.RuntimeInformation.4.0.2.0/System.Runtime.InteropServices.RuntimeInformation.dll"
               SourcePath="System.Runtime.InteropServices.RuntimeInformation.dll"/>
-        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.dll" SourcePath="runtimes/win-x64/native/git2-b7bad55.dll"/>
+        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.dll.x64"/>
         <File Path="OpenTapApiReference.chm" SourcePath="../../Help/OpenTapApiReference.chm"/>
 
         <!-- License Texts -->
