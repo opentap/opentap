@@ -612,10 +612,6 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: installer-linux
-      - name: Install Unzip
-        run: |
-          apt update
-          apt install unzip -y
       - name: Install OpenTAP
         run: |
           tar xf OpenTAP.tar
@@ -684,10 +680,6 @@ jobs:
         with:
           name: linux-x64-package
           path: .
-      - name: Install Unzip
-        run: |
-          apt update
-          apt install unzip -y
       - name: Create Debian Package
         run: |
           cd  LinuxInstall/package
