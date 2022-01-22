@@ -26,7 +26,7 @@ jobs:
       - name: Change permission
         run: chmod +x tap
       - name: Create symlink
-        run: ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
+        run: ln -s -f "/.tap/tap" /bin/tap
       - name: Checkout
         uses: actions/checkout@v2
         with:
