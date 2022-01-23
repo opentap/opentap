@@ -33,7 +33,7 @@ CopyPreserveRelativePath $packageXml $runtimeDir
 CopyPreserveRelativePath ./tap $runtimeDir
 CopyPreserveRelativePath ./tap.dll $runtimeDir
 CopyPreserveRelativePath ./tap.runtimeconfig.json $runtimeDir
-Get-ChildItem -File -Recurse libgit2-*.so* | Resolve-Path -Relative | ForEach-Object { CopyPreserveRelativePath $_ $runtimeDir }
+Get-ChildItem -File -Recurse libgit2-* | Resolve-Path -Relative | ForEach-Object { CopyPreserveRelativePath $_ $runtimeDir }
 
 Pop-Location
 
