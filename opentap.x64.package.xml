@@ -32,12 +32,12 @@
         <File Path="tap.runtimeconfig.json"/>
         <File Path="Dependencies/System.Runtime.InteropServices.RuntimeInformation.4.0.2.0/System.Runtime.InteropServices.RuntimeInformation.dll"
               SourcePath="System.Runtime.InteropServices.RuntimeInformation.dll"/>
-        <File Path="Dependencies/LibGit2Sharp.0.25.0.0/git2-4aecb64.dll" SourcePath="runtimes/win-x64/native/git2-4aecb64.dll"/>
+        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.dll.x64"/>
         <File Path="OpenTapApiReference.chm" SourcePath="../../Help/OpenTapApiReference.chm"/>
 
         <!-- License Texts -->
         <File Path="LICENSE.txt" SourcePath="../../LICENSE.txt"/>
-        <File Path="Dependencies/LibGit2Sharp.0.25.0.0/LICENSE.txt" SourcePath="libgit2sharp.license.md"/>
+        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/LICENSE.txt" SourcePath="libgit2sharp.license.md"/>
         <File Path="Dependencies/Mono.Cecil.0.10.1.0/LICENSE.txt" SourcePath="Mono.Cecil.License.txt"/>
         <File Path="Dependencies/netstandard.2.0.0.0/LICENSE.txt" SourcePath="dotnet_mit_license.txt"/>
         <File Path="Dependencies/System.Reflection.Metadata.1.4.3.0/LICENSE.txt" SourcePath="dotnet_mit_license.txt"/>

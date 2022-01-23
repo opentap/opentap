@@ -3,9 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
+using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 
 namespace OpenTap
 {
@@ -14,6 +13,7 @@ namespace OpenTap
     {
         public static readonly OperatingSystem Windows = new OperatingSystem(nameof(Windows));
         public static readonly OperatingSystem Linux = new OperatingSystem(nameof(Linux));
+        public static readonly OperatingSystem MacOS = new OperatingSystem(nameof(MacOS));
         public static readonly OperatingSystem Unsupported = new OperatingSystem(nameof(Unsupported));
         public override string ToString() => Name;
         public string Name { get; }
@@ -31,12 +31,35 @@ namespace OpenTap
             }
             else
             {
-                if (Directory.Exists("/proc/"))
+                if (isMacOs())
+                {
+                    return OperatingSystem.MacOS;
+                }
+                else if (Directory.Exists("/proc/"))
                 {
                     return OperatingSystem.Linux;
                 }
             }
             return OperatingSystem.Unsupported;
+        }
+        
+        static bool isMacOs()
+        {
+            try
+            {
+                var startInfo = new ProcessStartInfo("uname");
+                startInfo.RedirectStandardOutput = true;
+                var process = Process.Start(startInfo);
+                process.WaitForExit(1000);
+                var uname = process.StandardOutput.ReadToEnd();
+                return uname.ToLowerInvariant().Contains("darwin");
+            }
+            catch
+            {
+                // ignored
+            }
+
+            return false;
         }
 
         static OperatingSystem current;
@@ -74,26 +97,26 @@ namespace OpenTap
                     {
                         
                         string line;
-                        while ((line = str.ReadLine()) != null)
+                        while ((line = str.ReadLine()?.ToLowerInvariant()) != null)
                         {
-                            if(line.Contains("NAME=\"Debian GNU/Linux\""))
+                            if(line.Contains("name=\"debian gnu/linux\""))
                             {
                                 Current = Debian;
                                 return;
                             }
-                            if(line.Contains("NAME=\"Ubuntu\""))
+                            if(line.Contains("name=\"ubuntu\"") || line.Contains("id_like=\"ubuntu"))
                             {
                                 Current = Ubuntu;
                                 return;
                             }
-                            
-                            if (line.Contains("NAME=\"Red Hat"))
+
+                            if (line.Contains("name=\"red hat"))
                             {
                                 Current = RedHat;
                                 return;
                             }
 
-                            if (line.Contains("NAME=\"CentOS Linux\""))
+                            if (line.Contains("name=\"centos linux\""))
                             {
                                 // pretend CentOS is Red Hat for simplicity.
                                 Current = RedHat;
@@ -112,4 +135,28 @@ namespace OpenTap
 
     }
     
+    class MacOsArchitecture
+    {
+        public string Type { get; }
+        public static readonly MacOsArchitecture Intel = new MacOsArchitecture("x64");
+        public static readonly MacOsArchitecture Apple = new MacOsArchitecture("arm64");
+        public static MacOsArchitecture Current { get; }
+        static MacOsArchitecture()
+        {
+            try
+            {
+                var startInfo = new ProcessStartInfo("uname", "-m");
+                startInfo.RedirectStandardOutput = true;
+                var process = Process.Start(startInfo);
+                process.WaitForExit(1000);
+                var uname = process?.StandardOutput.ReadToEnd();
+                Current = uname.Contains("arm64") ? Apple : Intel;
+            }
+            catch
+            {
+                // ignored
+            }
+        }
+        public MacOsArchitecture(string type) => Type = type;
+    }
 }

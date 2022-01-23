@@ -47,7 +47,7 @@ CopyPreserveRelativePath ./tap.exe  $runtimeDir
 CopyPreserveRelativePath ./tap.dll $runtimeDir
 CopyPreserveRelativePath ./tap.runtimeconfig.json $runtimeDir
 
-$git2dll = Get-ChildItem -File -Recurse *git2-*.dll | Resolve-Path -Relative | Select-Object -First 1
+$git2dll = Get-ChildItem -File -Recurse *git2-*.dll.x86 | Resolve-Path -Relative | Select-Object -First 1
 CopyPreserveRelativePath $git2dll $runtimeDir
 
 Pop-Location
@@ -62,7 +62,7 @@ CopyPreserveRelativePath ./tap.exe  $runtimeDir
 CopyPreserveRelativePath ./tap.dll $runtimeDir
 CopyPreserveRelativePath ./tap.runtimeconfig.json $runtimeDir
 
-$git2dll = Get-ChildItem -File -Recurse *git2-*.dll | Resolve-Path -Relative | Select-Object -First 1
+$git2dll = Get-ChildItem -File -Recurse *git2-*.dll.x64 | Resolve-Path -Relative | Select-Object -First 1
 CopyPreserveRelativePath $git2dll $runtimeDir
 
 Pop-Location
