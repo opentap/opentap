@@ -145,7 +145,7 @@ namespace OpenTap.Package
             if (OperatingSystem.Current == OperatingSystem.Windows)
                 sourceFile += $".{ArchitectureHelper.HostArchitecture}";
             if (OperatingSystem.Current == OperatingSystem.MacOS)
-                sourceFile += $".{MacOsArchitecture.Current.Type}";
+                sourceFile += $".{MacOsArchitecture.Current.Architecture}";
 
             try
             {

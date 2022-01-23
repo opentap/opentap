@@ -276,12 +276,6 @@ namespace OpenTap.Engine.UnitTests
             {
                 Assert.AreEqual(OperatingSystem.Linux, OperatingSystem.Current);
             }
-
-            if (OperatingSystem.Current == OperatingSystem.Linux)
-            {
-                var current = LinuxVariant.Current;
-                Assert.IsTrue(current != LinuxVariant.Unknown && current != null);
-            }
         }
 
         [Test]

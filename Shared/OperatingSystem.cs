@@ -75,69 +75,10 @@ namespace OpenTap
             }
         }
     }
-
-    /// <summary> Detection of the specific linux variant. </summary>
-    class LinuxVariant
-    {
-        public string Name { get; }
-        public static readonly LinuxVariant Debian = new LinuxVariant("debian");
-        public static readonly LinuxVariant Ubuntu = new LinuxVariant("ubuntu");
-        public static readonly LinuxVariant RedHat = new LinuxVariant("redhat");
-        public static readonly LinuxVariant Unknown = new LinuxVariant("linux-x64");
-
-        static LinuxVariant()
-        {
-            if (OperatingSystem.Current == OperatingSystem.Linux)
-            {
-                var os_release_file = new FileInfo("/etc/os-release");
-                if (os_release_file.Exists)
-                {
-                    Current = Unknown;
-                    using (var str = new StreamReader(os_release_file.OpenRead()))
-                    {
-                        
-                        string line;
-                        while ((line = str.ReadLine()?.ToLowerInvariant()) != null)
-                        {
-                            if(line.Contains("name=\"debian gnu/linux\""))
-                            {
-                                Current = Debian;
-                                return;
-                            }
-                            if(line.Contains("name=\"ubuntu\"") || line.Contains("id_like=\"ubuntu"))
-                            {
-                                Current = Ubuntu;
-                                return;
-                            }
-
-                            if (line.Contains("name=\"red hat"))
-                            {
-                                Current = RedHat;
-                                return;
-                            }
-
-                            if (line.Contains("name=\"centos linux\""))
-                            {
-                                // pretend CentOS is Red Hat for simplicity.
-                                Current = RedHat;
-                                return;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        
-        public static LinuxVariant Current { get; }
-
-        public LinuxVariant(string name) => Name = name;
-
-    }
     
     class MacOsArchitecture
     {
-        public string Type { get; }
+        public string Architecture { get; }
         public static readonly MacOsArchitecture Intel = new MacOsArchitecture("x64");
         public static readonly MacOsArchitecture Apple = new MacOsArchitecture("arm64");
         public static MacOsArchitecture Current { get; }
@@ -157,6 +98,6 @@ namespace OpenTap
                 // ignored
             }
         }
-        public MacOsArchitecture(string type) => Type = type;
+        public MacOsArchitecture(string architecture) => Architecture = architecture;
     }
 }
