@@ -837,5 +837,94 @@ namespace OpenTap.Package.UnitTests
             SetAsmInfo.SetAsmInfo.SetInfo(fileName, Version.Parse("1.2.3.4"), Version.Parse("2.3.4.5"), SemanticVersion.Parse("3.4.5-test"));
             Assert.IsTrue(ReadAssemblyVersionStep.GetVersion(fileName)?.Equals(SemanticVersion.Parse("3.4.5-test")), "Assembly version was not updated correctly.");
         }
+
+        [Test]
+        public void PackageValidationTest()
+        {
+            var testDir = "metadatatest";
+            
+            void ValidateXml(string pkg)
+            {
+                var xmlPath = Path.Combine(testDir, "package.xml");
+                if (File.Exists(xmlPath))
+                    File.Delete(xmlPath);
+                
+                File.WriteAllText(xmlPath, pkg);
+
+                PackageDef.ValidateXml(xmlPath);
+            }
+            
+            try
+            {
+                Directory.CreateDirectory(testDir);
+                
+                // Package with metadata
+                var package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Name=""testing"" Version=""1.0.0"" Architecture=""AnyCPU"" OS=""Windows"" xmlns=""http://opentap.io/schemas/package"">
+                    <Something>testing</Something>
+                    <Owner>testing</Owner>
+                    </Package>";
+                Assert.DoesNotThrow(() => ValidateXml(package), "Package with metadata");
+                
+                
+                // Package with no name
+                package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Version=""1.0.0"" Architecture=""AnyCPU"" OS=""Windows"" xmlns=""http://opentap.io/schemas/package"" />";
+                Assert.Throws<InvalidDataException>(() => ValidateXml(package), "Package with no Name");
+                
+                // Package with empty name
+                package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Name="""" Version=""1.0.0"" Architecture=""AnyCPU"" OS=""Windows"" xmlns=""http://opentap.io/schemas/package"" />";
+                Assert.Throws<InvalidDataException>(() => ValidateXml(package), "Package with no Name");
+                
+                
+                // Package with no version. Should not fail, we automatically set it in the serializer <see cref="PackageDefinitionSerializerPlugin"/>
+                package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Name=""testing"" Architecture=""AnyCPU"" OS=""Windows"" xmlns=""http://opentap.io/schemas/package"" />";
+                Assert.DoesNotThrow(() => ValidateXml(package), "Package with no version");
+                
+                // Package with empty version. Should not fail, we automatically set it in the serializer <see cref="PackageDefinitionSerializerPlugin"/>
+                package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Name=""testing"" Version="""" Architecture=""AnyCPU"" OS=""Windows"" xmlns=""http://opentap.io/schemas/package"" />";
+                Assert.DoesNotThrow(() => ValidateXml(package), "Package with no version");
+                
+                package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Name=""testing"" Version=""$(GitVersion)"" Architecture=""AnyCPU"" OS=""Windows"" xmlns=""http://opentap.io/schemas/package"" />";
+                Assert.DoesNotThrow(() => ValidateXml(package), "Package with macro version");
+
+                
+                // Package with no OS. Should not fail, we set the Windows as default in the constructor.
+                package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Name=""testing"" Version=""1.0.0"" Architecture=""AnyCPU"" xmlns=""http://opentap.io/schemas/package"" />";
+                Assert.DoesNotThrow(() => ValidateXml(package), "Package with no OS");
+                
+                // Package with empty OS
+                package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Name=""testing"" Version=""1.0.0"" Architecture=""AnyCPU"" OS="""" xmlns=""http://opentap.io/schemas/package"" />";
+                Assert.Throws<InvalidDataException>(() => ValidateXml(package), "Package with empty OS");
+                
+                
+                // Package with no Architecture. Should not fail, we set the AnyCPU as default in the constructor.
+                package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Name=""testing"" Version=""1.0.0"" OS=""Windows"" xmlns=""http://opentap.io/schemas/package"" />";
+                Assert.DoesNotThrow(() => ValidateXml(package), "Package with no Architecture");
+                
+                // Package with empty Architecture
+                package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Name=""testing"" Version=""1.0.0"" OS=""Windows"" Architecture="""" xmlns=""http://opentap.io/schemas/package"" />";
+                Assert.Throws<ArgumentException>(() => ValidateXml(package), "Package with empty Architecture"); // Throws an ArgumentException from the serializer because enum must have a value
+            }
+            finally
+            {
+                try
+                {
+                    Directory.Delete(testDir, true);
+                }
+                catch
+                {
+                    // ignored
+                }
+            }
+        }
     }
 }
