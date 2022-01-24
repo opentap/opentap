@@ -74,7 +74,7 @@ namespace OpenTap.Package
             CategorizeResolvedPackages();
         }
 
-        public DependencyResolver(Installation tapInstallation, List<PackageSpecifier> packageSpecifiers, List<IPackageRepository> repositories, CancellationToken cancellationToken)
+        internal DependencyResolver(Installation tapInstallation, List<PackageSpecifier> packageSpecifiers, List<IPackageRepository> repositories, CancellationToken cancellationToken)
         {
             InstalledPackages = new Dictionary<string, PackageDef>();
             foreach (var pkg in tapInstallation.GetPackages())

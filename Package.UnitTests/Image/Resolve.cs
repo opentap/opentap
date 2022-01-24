@@ -125,7 +125,6 @@ namespace OpenTap.Image.Tests
         [TestCase("C", "beta", "Linux", CpuArchitecture.x86, "2.0.0-beta.1")]
         [TestCase("C", "^beta", "Linux", CpuArchitecture.x86, "2.0.0")]
         [TestCase("C", "alpha", "Linux", CpuArchitecture.x86, "2.0.0-alpha.1")]
-        [TestCase("C", "beta", "Linux", CpuArchitecture.x86, "2.0.0-beta.1")]
         [TestCase("C", "rc", "Linux", CpuArchitecture.x86, "2.0.0-rc.1")]
         [TestCase("C", "", "Linux", CpuArchitecture.x86, "2.0.0")]
         [TestCase("C", "^beta", "Linux", CpuArchitecture.x86, "2.0.0")]

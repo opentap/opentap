@@ -119,7 +119,7 @@ namespace OpenTap.Package
         }
 
         static Regex parser = new Regex(@"^(?<compatible>\^)?((?<major>\d+)(\.(?<minor>\d+)(\.(?<patch>\d+))?)?)?(-(?<prerelease>([a-zA-Z0-9-\.]+)))?(\+(?<metadata>[a-zA-Z0-9-\.]+))?$", RegexOptions.Compiled);
-        static Regex semVerPrereleaseChars = new Regex(@"^(?<compatible>\^)?(?<prerelease>([a-zA-Z0-9-\.]+))?$", RegexOptions.Compiled);
+        static Regex semVerPrereleaseRegex = new Regex(@"^(?<compatible>\^)?(?<prerelease>([a-zA-Z0-9-\.]+))$", RegexOptions.Compiled);
 
         /// <summary>
         /// Parses a string as a VersionSpecifier.
@@ -147,7 +147,7 @@ namespace OpenTap.Package
                     return true;
                 }
 
-                var prerelease = semVerPrereleaseChars.Match(version);
+                var prerelease = semVerPrereleaseRegex.Match(version);
                 if (prerelease.Success)
                 {
                     var matchBehaviour = prerelease.Groups["compatible"].Success ? VersionMatchBehavior.Compatible : VersionMatchBehavior.Exact;
