@@ -1,6 +1,9 @@
-push:
-  branches:
-    - 'main'
+name: PR commenter
+
+on:
+  push:
+    branches:
+      - 'main'
 
 # This grants access to the GITHUB_TOKEN so the action can make calls to GitHub's rest API
 permissions:
