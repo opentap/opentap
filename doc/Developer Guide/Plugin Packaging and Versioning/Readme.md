@@ -248,7 +248,7 @@ tap run -v ./Packages/MyPlugin/waveform-test.TapPlan
 
 
 #### MetaData elements
-Any undefined xml elements will be treated as metadata. These elements will be mapped to the `MetaData` dictionary on the package.
+Any unknown xml elements will be treated as metadata. These elements will be mapped to the `PackageDef.MetaData` dictionary on the C# package object model .
 
 
 ### A Complete Example
