@@ -18,6 +18,7 @@ namespace OpenTap
     /// <summary>
     /// Class containing a test plan.
     /// </summary>
+    [AllowAnyChild] 
     public partial class TestPlan : INotifyPropertyChanged, ITestStepParent
     {
         internal static readonly TraceSource Log = OpenTap.Log.CreateSource(nameof(TestPlan));        
@@ -431,6 +432,26 @@ namespace OpenTap
                     return null;
                 }
             }
+        }
+
+        readonly HashSet<(IMemberData, object)> registeredParameters = new HashSet<(IMemberData, object)>();
+
+        internal void RegisterParameter(IMemberData member, object source)
+        {
+            lock (registeredParameters)
+                registeredParameters.Add((member, source));
+        }
+
+        internal void UnregisterParameter(IMemberData member, object source)
+        {
+            lock (registeredParameters)
+                registeredParameters.Remove((member, source));
+        }
+
+        internal bool IsRegistered(IMemberData member, object source)
+        {
+            lock (registeredParameters)
+                return registeredParameters.Contains((member, source));
         }
     }
 

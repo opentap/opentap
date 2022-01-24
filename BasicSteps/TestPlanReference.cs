@@ -18,7 +18,7 @@ namespace OpenTap.Plugins.BasicSteps
     public class TestPlanReference : TestStep
     {
         /// <summary>
-        /// Mapping between step GUIDs. Oldversion -> New Version.
+        /// Mapping between step GUIDs. Old version -> New Version.
         /// </summary>
         public class GuidMapping
         {
@@ -43,6 +43,8 @@ namespace OpenTap.Plugins.BasicSteps
 
         MacroString filepath = new MacroString();
         string currentlyLoaded;
+
+        public bool CanOpenFile => File.Exists(filepath.Expand());
         
         [Display("Referenced Plan", Order: 0, Description: "A file path pointing to a test plan which will be loaded as read-only test steps.")]
         [Browsable(true)]
@@ -74,7 +76,7 @@ namespace OpenTap.Plugins.BasicSteps
         
         [AnnotationIgnore]
         public string Path => Filepath.Expand();
-
+        
         bool isExpandingPlanDir = false;
         [MetaData(macroName: "TestPlanDir")]
         [AnnotationIgnore]
@@ -337,10 +339,8 @@ namespace OpenTap.Plugins.BasicSteps
 
         [Browsable(true)]
         [Display("Load Test Plan", Order: 1, Description: "Load the selected test plan.")]
-        public void LoadTestPlan()
-        {
-            loadTestPlan();
-        }
+        [EnabledIf(nameof(CanOpenFile))]
+        public void LoadTestPlan() => loadTestPlan();
         
         public void loadTestPlan()
         {

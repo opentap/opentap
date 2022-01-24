@@ -93,10 +93,10 @@ pages:
 
 Build-Linux64:
   stage: build
-  image: opentapio/opentap:9.15-ubuntu18.04
+  image: mcr.microsoft.com/dotnet/sdk:6.0-bullseye-slim
   tags: [ docker, gce ]
   script: 
-         - dotnet publish -c NetCore OpenTAP.sln
+         - dotnet publish -c Release OpenTAP.sln
   artifacts:
     expire_in: 1 week
     paths:
@@ -104,50 +104,68 @@ Build-Linux64:
 
 QuickTest: # Quick test to fail as early as possible. 
   stage: build
-  image: opentapio/opentap:9.15-ubuntu18.04
+  image: mcr.microsoft.com/dotnet/sdk:6.0-bullseye-slim
   tags: [ docker, gce ]
   script:
-    - dotnet build -c NetCoreDebug
+    - dotnet build
     - dotnet vstest bin/Debug/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000
-  
-# Builds the Everything.sln solution
-Build-x86:
+
+.BuildWindows:
   stage: build
-  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   script:
-         - MSBuild OpenTAP.sln /t:restore /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /m
-         - dotnet restore -r win7-x86
-         - MSBuild OpenTAP.sln /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /m
-         - dotnet build tap\tap.csproj -c Release -r win-x86
-         - Remove-Item -recurse "bin\Release\Packages"
+    # We cannot set the version of dotnet core .exe files because it is not supported by Cecil (yet?)
+    # This is because they are not actually PE files, but a small archive which wraps a PE file.
+    # Generate an AssemblyInfo.cs file with the correct version instead.
+    # We need to build twice because 'gitversion' requires tap..
+    # Netcore apps require that the 32-bit runtime is used to run a 32-bit app (though targetting that runtime is not a problem)
+    # There is no 32-bit windows server .NET6 docker image. Target x64 first to get access to gitversion.
+    - dotnet build -c Release /p:Platform=x64
+    - cp bin\Release\runtimes\win-x64\native\git2-4aecb64.dll bin\Release
+    - $AssemblyVersion = "`"$(bin/Release/tap sdk gitversion --fields 3).0`""
+    - $GitVersion = "`"$(bin/Release/tap sdk gitversion)`""
+    - Push-Location ./tap/Properties
+    - $AssemblyInfoFile = (Get-Content AssemblyInfo.cs.Template)
+    - $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyVersion"', $AssemblyVersion
+    - $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyFileVersion"', $AssemblyVersion
+    - $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyInformationalVersion"', $GitVersion
+    - $AssemblyInfoFile | Set-Content AssemblyInfo.cs
+    - cat AssemblyInfo.cs
+    - Pop-Location
+    # We need to ensure all intermediate build files are removed when targeting a new architecture
+    - Move-Item ./bin/Release ./bin/Releasex64
+    - Get-ChildItem -Directory obj -Recurse | Remove-Item -Recurse -Force
+    # Now we actually build for the target architecture.
+    - dotnet build -c Release /p:Platform=$Architecture
+    - dotnet build tap/tap.csproj -c Release /p:Platform=$Architecture
+    - get-content ./bin/Release/tap.runtimeconfig.json
+    - Remove-Item -recurse "bin\Release\Packages"
   artifacts:
     expire_in: 1 week
     paths:
        - bin/Release/
+       - bin/Releasex64/
+
+Build-x86:
+  stage: build
+  variables:
+    Architecture: x86
+  extends: .BuildWindows
 
 Build-x64:
   stage: build
-  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
-  tags: [ docker, windows ]
-  script: 
-         - MSBuild /t:restore OpenTAP.sln /p:Configuration=Release /p:Platform=x64 /target:Rebuild /p:DefineConstants="TRACE" /m
-         - dotnet restore -r win7-x64
-         - MSBuild OpenTAP.sln /p:Configuration=Release /p:Platform=x64 /target:Rebuild /p:DefineConstants="TRACE" /m
-         - dotnet build tap\tap.csproj -c Release -r win-x64
-         - Remove-Item -recurse "bin\Release\Packages"
-  artifacts:
-    expire_in: 1 week
-    paths:
-       - bin/Release/
+  variables:
+    Architecture: x64
+  extends: .BuildWindows
 
 WarningTest:
   stage: build
-  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
-  tags: [ docker, windows ]
-  script: 
-         - MSBuild OpenTAP.sln /t:restore /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /p:TreatWarningsAsErrors="true" /m
-         - MSBuild OpenTAP.sln /p:Configuration=Release /p:Platform=x86 /target:Rebuild /p:DefineConstants="TRACE" /p:TreatWarningsAsErrors="true" /m
+  variables:
+    Architecture: x86
+  before_script:
+    - $env:TreatWarningsAsErrors="true"
+  extends: .BuildWindows
 
 
 # #############################################
@@ -157,12 +175,12 @@ WarningTest:
 # Gets bin directory from the builddrop location and runs unit tests in Tap.Engine.dll
 TestEngine:
   stage: test
-  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   dependencies:
-     - Build-x86
+     - Build-x64
   needs:
-     - Build-x86
+     - Build-x64
   script:
          - $ErrorActionPreference = "Stop"
          - dotnet vstest bin/Release/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000
@@ -176,15 +194,16 @@ TestEngine:
 # Can't run on docker, as a unit test is using dotfuscator
 TestPackage:
   stage: test
-  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   dependencies:
-     - Build-x86
+     - Build-x64
   needs:
-     - Build-x86
+     - Build-x64
   script:
          - $ErrorActionPreference = "Stop"
-         - copy-item -r "Package.UnitTests/Packages" bin/Release
+         - Copy-Item -r "Package.UnitTests/Packages" bin/Release
+         - Copy-Item .\bin\Release\runtimes\win-x64\native\git2-4aecb64.dll .\bin\Release
          - dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
   artifacts:
     when: always
@@ -194,19 +213,19 @@ TestPackage:
 
 TestWindowsPlan:
   stage: test
-  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   dependencies:
-    - Build-x86
+    - Build-x64
   needs:
-    - Build-x86
+    - Build-x64
   script:
     - bin/Release/tap.exe run tests/regression.TapPlan --verbose
 
 TestLinuxPlan:
   stage: test
   tags: [docker, gce]
-  image: opentapio/opentap:9.15-ubuntu18.04
+  image: mcr.microsoft.com/dotnet/sdk:6.0-focal
   dependencies:
     - Build-Linux64
   needs:
@@ -228,7 +247,7 @@ TestLinuxPlan:
         - PATH="/bin:$PATH"
         - ln -sf $PWD/bin/Release/publish/tap /bin
         - check_exit_code () { if [ $exit_code -eq $1 ]; then echo "OK"; else echo "FAIL ($exit_code)"; false; fi }
-        - echo "tap run unit test"        
+        - echo "tap run unit test"
         - tap run -v Engine.UnitTests/TestTestPlans/testMultiReferencePlan.TapPlan --ignore-load-errors || exit_code=$?
         - check_exit_code 20
         - echo "tap sdk gitversion unit tests"
@@ -271,13 +290,13 @@ TestLinuxPlan:
 
 TestUbuntu:
   stage: test
-  image: opentapio/opentap:9.15-ubuntu18.04
+  image: mcr.microsoft.com/dotnet/sdk:6.0-focal
   extends: .LinuxScript
 
 TestCentos7:
   stage: test
-  image: 
-    name: stefanholst0/dotnet-21-centos7-root:latest
+  image:
+    name: stefanholst0/dotnet-60-centos7-root:custom
     entrypoint: [ "" ]
   extends: .LinuxScript
 
@@ -327,7 +346,7 @@ TestCentos7:
 
 Package-Windows64:
   stage: package
-  image: registry.gitlab.com/opentap/buildrunners/signrunner:latest
+  image: registry.gitlab.com/opentap/buildrunners/signrunner:net6
   tags: [ docker, windows ]
   variables: 
     ErrorActionPreference: stop
@@ -340,10 +359,12 @@ Package-Windows64:
      - Doc-API
   script:
          - if (!$PROTECTED_BRANCH) { Set-Content .\opentap.$Architecture.package.xml  -Value (get-content .\opentap.$Architecture.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
-         - cd bin/Release
+         - cd bin/Releasex64
+         - cp .\runtimes\win-x64\native\git2-4aecb64.dll .
          - .\tap.exe package install -f "/repo/Sign.TapPackage"
          - $version=$(./tap sdk gitversion)
-         - cmd /C ".\tap.exe package create -v ../../opentap.$Architecture.package.xml -o ../../OpenTAP.$version.$Architecture.Windows.TapPackage"
+         - cd ../Release
+         - ..\Releasex64\tap.exe package create -v ../../opentap.$Architecture.package.xml -o ../../OpenTAP.$version.$Architecture.Windows.TapPackage
   artifacts:
     when: on_success
     expire_in: 1 day
@@ -363,22 +384,21 @@ Package-Windows32:
 
 Package-Linux:
   stage: package
-  image: registry.gitlab.com/opentap/buildrunners/signrunner:latest
+  image: registry.gitlab.com/opentap/buildrunners/signrunner:net6
   tags: [ docker, windows ]
   dependencies:
-     - Build-x86
+     - Build-x64
      - Build-Linux64
   needs:
-     - Build-x86
+     - Build-x64
      - Build-Linux64
   script:
          - if (!$PROTECTED_BRANCH) { Set-Content .\opentap_linux64.package.xml  -Value (get-content .\opentap_linux64.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
          - mv bin\Release\publish bin\linux-x64
          - pushd bin\linux-x64\
-         - ../Release/tap package download --os Linux --architecture x64 -f -r $env:PACKAGE_REPO_URL -t . Demonstration
-         - mv "Demonstration*.TapPackage" "Demonstration.TapPackage"
          - ../Release/tap package install -f "/repo/Sign.TapPackage"
-         - cmd /C "..\Release\tap package create -v ../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage"
+         - cp .\runtimes\win-x64\native\git2-4aecb64.dll .
+         - ..\Release\tap package create -v ../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage
          - $version=$(..\Release\tap sdk gitversion)
          - cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.$version.Linux.TapPackage
   artifacts:
@@ -387,22 +407,23 @@ Package-Linux:
     paths:
        - OpenTAP.*.Linux.TapPackage
 
-    
+
 Package-SDK:
   stage: package
-  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   dependencies:
-     - Build-x86
+     - Build-x64
      - Build-DevGuide
      - Doc-API
   needs:
-     - Build-x86
+     - Build-x64
      - Build-DevGuide
      - Doc-API
   script:
          - Set-Content .\opentap.x86.package.xml  -Value (get-content .\opentap.x86.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch)
          - cd bin/Release
+         - cp .\runtimes\win-x64\native\git2-4aecb64.dll .
          - .\tap.exe package create ../../opentap.x86.package.xml --install -v
          - Copy-Item "../../sdk/Examples" "Packages/SDK/Examples" -Recurse
          - Copy-Item "../../Package/PackageSchema.xsd" "Packages/SDK/PackageSchema.xsd"
@@ -430,7 +451,7 @@ Package-SDK:
 
 Package-NuGet:
   stage: installer
-  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   dependencies:
     - Build-x64
@@ -443,7 +464,7 @@ Package-NuGet:
     - Package-Windows32
     - Package-Linux
   script:
-    - ./bin/Release/tap sdk gitversion --replace ./nuget/OpenTAP.nuspec --fields 4
+    - ./bin/Releasex64/tap sdk gitversion --replace ./nuget/OpenTAP.nuspec --fields 4
     - New-Item -Force ./nuget/build/payload -ItemType Directory | Out-Null
     # Expand-Archive will only extract .zip extensions    
     - Move-Item OpenTAP.*.x86.Windows.TapPackage OpenTAP.x86.zip 
@@ -453,8 +474,12 @@ Package-NuGet:
     - Move-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
     - Move-Item ./bin/Release/DotNet.Glob.dll ./nuget/build    
     - ./bin/Release/tap package install ./OpenTap.x64.zip -t ./nuget/build/payload -f
-    # The package.xml of an installation should always come from one of the Runtime directories. Delete it from the payload directory.
+    # package.xml, tap.dll, and tap.runtimeconfig.json of an installation should always come from 
+    # one of the Runtime directories. Delete it from the payload directory.
     - Remove-Item ./nuget/build/payload/Packages/OpenTAP/package.xml
+    - Remove-Item ./nuget/build/payload/tap.dll
+    - Remove-Item ./nuget/build/payload/tap.runtimeconfig.json
+    
     - Move-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload
     - Move-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
     - Push-Location ./nuget/build/payload
@@ -472,6 +497,52 @@ Package-NuGet:
     expire_in: 1 week
     paths:
       - "*.nupkg"
+
+# Diff the public API of the generated OpenTAP package against the public API of some ancestor following this logic:
+# Version 9.16.0-beta should compare against the latest 9.15 release version
+# Version 9.16.1-beta should compare against the 9.16.0 release version
+# An RC should behave the same as a beta
+# A release version should behave the same as an RC or a beta
+# Any other prerelease version should compare to the beta that it branched out from
+# e.g. alpha 9.16.1-alpha.23.4-feature-branch should compare against 9.16.1-beta.23
+.Package-Diff:
+  stage: package
+  tags: [docker, gce]
+  image: opentapio/opentap:9.16-ubuntu18.04
+  allow_failure: true
+  variables:
+    OPENTAP_NO_UPDATE_CHECK: 1
+  script:
+    - mv OpenTAP.*.TapPackage OpenTAP.TapPackage
+    - tap package install "Package Diff" --version any
+    - tap package diff OpenTAP.TapPackage -o diff
+  artifacts:
+    expire_in: 1 week
+    when: always
+    paths:
+      - diff.html
+    expose_as: 'Public API Diff'
+
+Package-Diff-Windows-x64:
+  dependencies:
+    - Package-Windows64
+  needs:
+    - Package-Windows64
+  extends: .Package-Diff
+
+Package-Diff-Windows-x86:
+  dependencies:
+    - Package-Windows32
+  needs:
+    - Package-Windows32
+  extends: .Package-Diff
+
+Package-Diff-Linux:
+  dependencies:
+    - Package-Linux
+  needs:
+    - Package-Linux
+  extends: .Package-Diff
 
 Installer-Windows:
   stage: installer
@@ -504,7 +575,7 @@ Installer-Windows:
 
 Installer-Linux:
   stage: installer
-  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   dependencies:
      - Package-Linux
@@ -530,7 +601,7 @@ Installer-Linux:
 
 Package-Build-Deb:
   stage: installer
-  image: opentapio/opentap:9.15-ubuntu18.04
+  image: mcr.microsoft.com/dotnet/sdk:6.0-focal
   tags: [ docker, gce ]
   dependencies:
     - Package-Linux
@@ -557,7 +628,7 @@ Package-Build-Deb:
 
 Test-Installer-Linux:
   stage: testinstaller
-  image: opentapio/opentap:9.15-ubuntu18.04
+  image: mcr.microsoft.com/dotnet/runtime:6.0-focal
   tags: [ docker, gce ]
   dependencies:
     - Installer-Linux
@@ -591,7 +662,7 @@ TestIsolated:
 
 PublishPackages:
   stage: publish
-  image: mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+  image: mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
   tags: [ docker, windows ]
   variables:
     GIT_STRATEGY: none

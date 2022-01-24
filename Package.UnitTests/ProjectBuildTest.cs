@@ -300,6 +300,7 @@ namespace OpenTap.Package.UnitTests
         [Test]
         // Package not available on Linux
         [Platform(Exclude="Unix,Linux,MacOsX")]
+        [Ignore("This requires OpenTAP to be installed as a package, which is an odd requirement for a unittest for the project")]
         public void VSSDKTest()
         {
             var csProj = new CsProj(this);

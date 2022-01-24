@@ -5,8 +5,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Xml.Serialization;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests;
@@ -57,13 +55,32 @@ namespace OpenTap.UnitTests
                 var outerplan = new TestPlan();
                 var tpr = new TestPlanReference();
                 outerplan.Steps.Add(tpr);
+                {
+                    var annotation = AnnotationCollection.Annotate(tpr);
+                    var loadTestPlanMem = annotation.GetMember("LoadTestPlan");
+                    var enabled = loadTestPlanMem.Get<IEnabledAnnotation>();
+                    Assert.IsFalse(enabled.IsEnabled);
+                    
+                    var filePathMem = annotation.GetMember("Filepath");
+                    var fpEnabled = filePathMem.Get<IEnabledAnnotation>();
+                    Assert.IsTrue(fpEnabled?.IsEnabled ?? true);
+                    var fpString = filePathMem.Get<IStringValueAnnotation>();
+                    fpString.Value = planname;
+                    annotation.Write();
+                    annotation.Read();
+                    Assert.IsTrue(enabled.IsEnabled);
+
+
+                }
+
+
                 tpr.Filepath.Text = planname;
                 tpr.LoadTestPlan();
-
-                var annotation = AnnotationCollection.Annotate(tpr);
-                var members = annotation.Get<IMembersAnnotation>().Members;
-                var delaymem = annotation.GetMember("Time Delay");
-                Assert.IsNotNull(delaymem);
+                {
+                    var annotation = AnnotationCollection.Annotate(tpr);
+                    var delaymem = annotation.GetMember("Time Delay");
+                    Assert.IsNotNull(delaymem);
+                }
             }
             finally
             {

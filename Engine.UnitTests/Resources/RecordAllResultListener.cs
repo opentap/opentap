@@ -10,9 +10,11 @@ namespace OpenTap.UnitTests
         public Dictionary<Guid, TestRun> Runs { get; set; } = new Dictionary<Guid, TestRun>();
         public Dictionary<Guid, string> planLogs = new Dictionary<Guid, string>();
         public List<ResultTable> Results = new List<ResultTable>();
+        public Action OnTestStepRunStartAction = () => { };
 
         public override void OnTestStepRunStart(TestStepRun stepRun)
         {
+            OnTestStepRunStartAction();
             Runs[stepRun.Id] = stepRun;
             base.OnTestStepRunStart(stepRun);
         }
