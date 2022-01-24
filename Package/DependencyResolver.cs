@@ -437,24 +437,6 @@ namespace OpenTap.Package
                     allVersions = allVersions.Where(s => s.PreRelease == null);
             }
 
-
-
-            //if (packageSpecifier.Version.Major != null)
-            //{
-            //    allVersions = allVersions.Where(v => v.Major == packageSpecifier.Version.Major);
-            //    //if (packageSpecifier.Version.PreRelease is null)
-            //    //    allVersions = allVersions.Where(s => s.PreRelease == null);
-            //}
-            //if (packageSpecifier.Version.Minor != null)
-            //    allVersions = allVersions.Where(p => p.Minor == packageSpecifier.Version.Minor);
-
-            ////if (packageSpecifier.Version.PreRelease != null)
-            ////    allVersions = allVersions.Where(p => SemanticVersion.ComparePreRelease(p.PreRelease, packageSpecifier.Version.PreRelease) >= 0);
-
-            //if (packageSpecifier.Version.Major is null && packageSpecifier.Version.Minor is null && packageSpecifier.Version.Patch is null && packageSpecifier.Version.PreRelease is null) // If user specified "" (blank), we filter away prereleases
-            //    allVersions = allVersions.Where(s => s.PreRelease == null);
-
-
             if (!allVersions.Any())
                 return null;
             SemanticVersion ver = allVersions.OrderByDescending(v => v).FirstOrDefault();
