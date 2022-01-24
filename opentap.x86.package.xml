@@ -23,12 +23,15 @@
         <SetAssemblyInfo Attributes="Version"/>
         <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
-    <File Path="tap.exe" >
-        <SetAssemblyInfo Attributes="Version"/>
+    <File Path="tap.exe">
         <Sign Certificate="Keysight Technologies, Inc"/>
     </File>
+    <File Path="tap.dll">
+        <Sign Certificate="Keysight Technologies, Inc"/>
+    </File>
+    <File Path="tap.runtimeconfig.json"/>
     <File Path="LICENSE.txt"  SourcePath="../../LICENSE.txt"/>
-    <File Path="Dependencies/LibGit2Sharp.0.25.0.0/git2-4aecb64.dll" SourcePath="lib/win32/x86/git2-4aecb64.dll"  />
+    <File Path="Dependencies/LibGit2Sharp.0.25.0.0/git2-4aecb64.dll" SourcePath="runtimes/win-x86/native/git2-4aecb64.dll"  />
     <File Path="Dependencies/LibGit2Sharp.0.25.0.0/LICENSE.txt" SourcePath="libgit2sharp.license.md"  />
 
     <File Path="Dependencies/Mono.Cecil.0.10.1.0/LICENSE.txt" SourcePath="Mono.Cecil.License.txt"  />

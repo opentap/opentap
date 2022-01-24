@@ -4,39 +4,7 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "build Debug (netcore)",
-            "command": "dotnet",
-            "type": "shell",
-            "args": [
-                "build",
-                // Ask dotnet build to generate full paths for file names.
-                "/property:GenerateFullPaths=true",
-                // Do not generate summary otherwise it leads to duplicate errors in Problems panel
-                "/consoleloggerparameters:NoSummary",
-                "--configuration", 
-                "NetCoreDebug"
-            ],
-            "group": "build",
-            "problemMatcher": "$msCompile"
-        },
-        {
-            "label": "build Release (netcore)",
-            "command": "dotnet",
-            "type": "shell",
-            "args": [
-                "build",
-                // Ask dotnet build to generate full paths for file names.
-                "/property:GenerateFullPaths=true",
-                // Do not generate summary otherwise it leads to duplicate errors in Problems panel
-                "/consoleloggerparameters:NoSummary",
-                "--configuration", 
-                "NetCore"
-            ],
-            "group": "build",
-            "problemMatcher": "$msCompile"
-        },
-        {
-            "label": "restore (netframework)",
+            "label": "restore",
             "command": "msbuild",
             "type": "shell",
             "args": [
@@ -52,7 +20,7 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "build Debug (netframework)",
+            "label": "build Debug",
             "dependsOn" : [ "restore (msbuild)" ],
             "command": "msbuild",
             "type": "shell",
@@ -68,7 +36,7 @@
             "problemMatcher": "$msCompile"
         },
         {
-            "label": "build Release (netframework)",
+            "label": "build Release",
             "dependsOn" : [ "restore (msbuild)" ],
             "command": "msbuild",
             "type": "shell",

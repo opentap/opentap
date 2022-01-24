@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -13,6 +14,7 @@ namespace OpenTap.Package
     /// <summary>
     /// Holds search parameters that specifies a range of packages in the OpenTAP package system.
     /// </summary>
+    [DebuggerDisplay("{Name} ({Version.ToString()})")]
     public class PackageSpecifier
     {
         /// <summary>
@@ -29,8 +31,8 @@ namespace OpenTap.Package
         /// <summary>
         /// Search parameters that specify an exact or a version compatible match to the given package/identifier.
         /// </summary>
-        public PackageSpecifier(IPackageIdentifier package, VersionMatchBehavior versionMatchBehavior = VersionMatchBehavior.Exact) 
-            : this(package.Name, new VersionSpecifier(package.Version, versionMatchBehavior),package.Architecture, package.OS)
+        public PackageSpecifier(IPackageIdentifier package, VersionMatchBehavior versionMatchBehavior = VersionMatchBehavior.Exact)
+            : this(package.Name, new VersionSpecifier(package.Version, versionMatchBehavior), package.Architecture, package.OS)
         {
         }
 
@@ -59,7 +61,7 @@ namespace OpenTap.Package
     /// Specifies parts of a semantic version. This is used in <see cref="PackageSpecifier"/> to represent the part of a <see cref="SemanticVersion"/> to search for.
     /// E.g. the VersionSpecifier "9.0" may match the semantic version "9.0.4+abcdef" and also "9.1.x" if <see cref="MatchBehavior"/> is set to "Compatible".
     /// </summary>
-    public class VersionSpecifier
+    public class VersionSpecifier : IComparable
     {
         /// <summary>
         /// The VersionSpecifier that will match any version. VersionSpecifier.Any.IsCompatible always returns true.
@@ -67,28 +69,28 @@ namespace OpenTap.Package
         public static readonly VersionSpecifier Any = new VersionSpecifier(null, null, null, null, null, VersionMatchBehavior.Compatible | VersionMatchBehavior.AnyPrerelease);
 
         /// <summary>
-        /// Major version. When not null, <see cref="IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a Major version different from this.
+        /// Major version. When not null, <see cref="SemanticVersion.IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a Major version different from this.
         /// </summary>
         public readonly int? Major;
         /// <summary>
-        /// Minor version. When not null, <see cref="IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a Minor version less than this (with <see cref="VersionMatchBehavior.Compatible"/>) or different from this (with <see cref="VersionMatchBehavior.Exact"/>).
+        /// Minor version. When not null, <see cref="SemanticVersion.IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a Minor version less than this (with <see cref="VersionMatchBehavior.Compatible"/>) or different from this (with <see cref="VersionMatchBehavior.Exact"/>).
         /// </summary>
         public readonly int? Minor;
         /// <summary>
-        /// Patch version. When not null, <see cref="IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a Patch version different from this if <see cref="MatchBehavior"/> is <see cref="VersionMatchBehavior.Exact"/>.
+        /// Patch version. When not null, <see cref="SemanticVersion.IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a Patch version different from this if <see cref="MatchBehavior"/> is <see cref="VersionMatchBehavior.Exact"/>.
         /// </summary>
         public readonly int? Patch;
         /// <summary>
-        /// PreRelease identifier. <see cref="IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a PreRelease less than this (with <see cref="VersionMatchBehavior.Compatible"/>) or different from this (with <see cref="VersionMatchBehavior.Exact"/>).
+        /// PreRelease identifier. <see cref="SemanticVersion.IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a PreRelease less than this (with <see cref="VersionMatchBehavior.Compatible"/>) or different from this (with <see cref="VersionMatchBehavior.Exact"/>).
         /// </summary>
         public readonly string PreRelease;
         /// <summary>
-        /// BuildMetadata identifier. When not null, <see cref="IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a BuildMetadata different from this if <see cref="MatchBehavior"/> is <see cref="VersionMatchBehavior.Exact"/>.
+        /// BuildMetadata identifier. When not null, <see cref="SemanticVersion.IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a BuildMetadata different from this if <see cref="MatchBehavior"/> is <see cref="VersionMatchBehavior.Exact"/>.
         /// </summary>
         public readonly string BuildMetadata;
 
         /// <summary>
-        /// The way matching is done. This affects the behavior of <see cref="IsCompatible(SemanticVersion)"/>.
+        /// The way matching is done. This affects the behavior of <see cref="SemanticVersion.IsCompatible(SemanticVersion)"/>.
         /// </summary>
         public readonly VersionMatchBehavior MatchBehavior;
         /// <summary>
@@ -118,7 +120,7 @@ namespace OpenTap.Package
 
         static Regex parser = new Regex(@"^(?<compatible>\^)?((?<major>\d+)(\.(?<minor>\d+)(\.(?<patch>\d+))?)?)?(-(?<prerelease>([a-zA-Z0-9-\.]+)))?(\+(?<metadata>[a-zA-Z0-9-\.]+))?$", RegexOptions.Compiled);
         static Regex semVerPrereleaseChars = new Regex(@"^[a-zA-Z0-9-\.]+$", RegexOptions.Compiled);
-        
+
         /// <summary>
         /// Parses a string as a VersionSpecifier.
         /// </summary>
@@ -164,7 +166,7 @@ namespace OpenTap.Package
                 return ver;
             throw new FormatException($"The string '{version}' is not a valid version specifier.");
         }
-       
+
         /// <summary>
         /// Converts this value to a string. This string can be parsed by <see cref="Parse(string)"/> and <see cref="TryParse(string, out VersionSpecifier)"/>.
         /// </summary>
@@ -185,7 +187,7 @@ namespace OpenTap.Package
                 formatter.Append('.');
                 formatter.Append(Minor);
             }
-            
+
             if (Patch.HasValue)
             {
                 formatter.Append('.');
@@ -201,7 +203,7 @@ namespace OpenTap.Package
                 formatter.Append('+');
                 formatter.Append(BuildMetadata);
             }
-            
+
             return formatter.ToString();
         }
 
@@ -228,7 +230,7 @@ namespace OpenTap.Package
 
             if (Major.HasValue)
                 formatter.Append(Major);
-            
+
             if (Minor.HasValue && fieldCount >= 2)
             {
                 formatter.Append('.');
@@ -260,14 +262,14 @@ namespace OpenTap.Package
         /// <returns></returns>
         public bool IsCompatible(SemanticVersion actualVersion)
         {
-            if (ReferenceEquals(this,VersionSpecifier.Any))
+            if (ReferenceEquals(this, VersionSpecifier.Any))
                 return true; // this is just a small performance shortcut. The below logic would have given the same result.
 
             if (MatchBehavior == VersionMatchBehavior.Exact)
                 return MatchExact(actualVersion);
             if (MatchBehavior.HasFlag(VersionMatchBehavior.Compatible))
                 return MatchCompatible(actualVersion);
-            
+
             return false;
         }
 
@@ -301,7 +303,7 @@ namespace OpenTap.Package
             if (Minor.HasValue && Minor.Value == actualVersion.Minor)
                 if (Patch.HasValue && Patch.Value > actualVersion.Patch)
                     return false;
-                
+
 
             if (MatchBehavior.HasFlag(VersionMatchBehavior.AnyPrerelease))
                 return true;
@@ -339,6 +341,65 @@ namespace OpenTap.Package
                 return true;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Returns -1 if obj is greater than this version, 0 if they are the same, and 1 if this is greater than obj
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
+        public int CompareTo(object obj)
+        {
+            if (!(obj is VersionSpecifier))
+                throw new ArgumentException("Object is not a TapVersion");
+
+            VersionSpecifier other = (VersionSpecifier)obj;
+            if (Major > other.Major) return 1;
+            if (Major < other.Major) return -1;
+            if (Minor.HasValue && !other.Minor.HasValue || Minor > other.Minor) return 1;
+            if (!Minor.HasValue && other.Minor.HasValue ||  Minor < other.Minor) return -1;
+            if (Patch.HasValue && !other.Patch.HasValue || Patch > other.Patch) return 1;
+            if (!Patch.HasValue && other.Patch.HasValue || Patch < other.Patch) return -1;
+
+            return ComparePreRelease(PreRelease, other.PreRelease);
+        }
+
+        private static int ComparePreRelease(string p1, string p2)
+        {
+            if (p1 == p2) return 0;
+
+            if (string.IsNullOrEmpty(p1) && string.IsNullOrEmpty(p2)) return 0;
+            if (string.IsNullOrEmpty(p1)) return 1;
+            if (string.IsNullOrEmpty(p2)) return -1;
+
+            var identifiers1 = p1.Split('.');
+            var identifiers2 = p2.Split('.');
+
+            for (int i = 0; i < Math.Min(identifiers1.Length, identifiers2.Length); i++)
+            {
+                var id1 = identifiers1[i];
+                var id2 = identifiers2[i];
+
+                int v1, v2;
+
+                if (int.TryParse(id1, out v1) && int.TryParse(id2, out v2))
+                {
+                    if (v1 != v2)
+                        return v1.CompareTo(v2);
+                }
+                else
+                {
+                    var res = string.Compare(id1, id2);
+
+                    if (res != 0)
+                        return res;
+                }
+            }
+
+            if (identifiers1.Length > identifiers2.Length) return 1;
+            if (identifiers1.Length < identifiers2.Length) return -1;
+
+            return 0;
         }
 
         /// <summary>

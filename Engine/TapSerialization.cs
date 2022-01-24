@@ -405,7 +405,7 @@ namespace OpenTap
                 elem.Name = TypeToXmlString(obj.GetType());
             ClearErrors();
             using(TypeData.WithTypeDataCache())
-            using(ParameterManager.WithSanityCheckDelayed())
+            using(ParameterManager.WithSanityCheckDelayed(true))
                 Serialize(elem, obj);
             doc.Add(elem);
             doc.WriteTo(writer);

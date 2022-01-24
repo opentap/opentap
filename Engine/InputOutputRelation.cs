@@ -260,12 +260,14 @@ namespace OpenTap
         /// <summary> Gets a list of all the input relations to an object. </summary>
         static InputOutputRelation[] GetInputRelations(ITestStepParent step)
         {
+            if (Outputs.GetValue(step) == null) return Array.Empty<InputOutputRelation>();
             checkRelations(step);
             return getInputRelations(step);
         }
         /// <summary> Gets a list of all the output relations from an object. </summary>
         static InputOutputRelation[] GetOutputRelations(ITestStepParent step)
         {
+            if (Inputs.GetValue(step) == null) return Array.Empty<InputOutputRelation>();
             checkRelations(step);
             return getOutputRelations(step);
         }
@@ -273,6 +275,8 @@ namespace OpenTap
         /// <summary> Get input/output relations to/from a test step. </summary>
         public static IEnumerable<InputOutputRelation> GetRelations(ITestStepParent step)
         {
+            if (Inputs.GetValue(step) == null && Outputs.GetValue(step) == null)
+                return Array.Empty<InputOutputRelation>();
             checkRelations(step);
             return getOutputRelations(step).Concat(getInputRelations(step));
         }

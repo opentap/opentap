@@ -15,7 +15,11 @@ namespace OpenTap.Package
     public class Installation
     {
         static TraceSource log = Log.CreateSource("Installation");
-        string directory { get; }
+
+        /// <summary>
+        /// Path to the installation
+        /// </summary>
+        public string Directory { get; }
 
         /// <summary>
         /// Initialize an instance of a OpenTAP installation.
@@ -23,7 +27,7 @@ namespace OpenTap.Package
         /// <param name="directory"></param>
         public Installation(string directory)
         {
-            this.directory = directory ?? throw new ArgumentNullException(nameof(directory));
+            this.Directory = directory ?? throw new ArgumentNullException(nameof(directory));
         }
 
         /// <summary>
@@ -145,7 +149,7 @@ namespace OpenTap.Package
         /// </summary>
         private void InvalidateIfChanged()
         {
-            long changeId = IsolatedPackageAction.GetChangeId(directory);
+            long changeId = IsolatedPackageAction.GetChangeId(Directory);
             
             if (changeId != previousChangeId)
             {
@@ -169,7 +173,7 @@ namespace OpenTap.Package
                 List<string> package_files = new List<string>();
 
                 // Add normal package from OpenTAP folder
-                package_files.AddRange(PackageDef.GetPackageMetadataFilesInTapInstallation(directory));
+                package_files.AddRange(PackageDef.GetPackageMetadataFilesInTapInstallation(Directory));
 
                 // Add system wide packages
                 package_files.AddRange(PackageDef.GetSystemWidePackages());
@@ -206,7 +210,7 @@ namespace OpenTap.Package
         {
             var opentap = GetPackages()?.FirstOrDefault(p => p.Name == "OpenTAP");
             if (opentap == null)
-                log.Warning($"Could not find OpenTAP in {directory}.");
+                log.Warning($"Could not find OpenTAP in {Directory}.");
 
             return opentap;
         }
@@ -275,7 +279,7 @@ namespace OpenTap.Package
 
         internal void AnnouncePackageChange()
         {
-            using (var changeId = new ChangeId(this.directory))
+            using (var changeId = new ChangeId(this.Directory))
                 changeId.SetChangeId(changeId.GetChangeId() + 1);
         }
 
