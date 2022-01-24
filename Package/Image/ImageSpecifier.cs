@@ -46,7 +46,7 @@ namespace OpenTap.Package
             return image;
         }
 
-        internal Installation Deploy(Installation deploymentInstallation, CancellationToken cancellationToken)
+        internal Installation MergeAndDeploy(Installation deploymentInstallation, CancellationToken cancellationToken)
         {
             List<IPackageRepository> repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
 
@@ -59,9 +59,10 @@ namespace OpenTap.Package
                 throw new ImageResolveException(dotGraph, $"OpenTAP packages could not be resolved", resolver.DependencyIssues);
 
             var result = resolver.Dependencies.Concat(deploymentInstallation.GetPackages().Where(s => !resolver.Dependencies.Any(p => s.Name == p.Name)));
-            
-            ImageDeployer.Deploy(deploymentInstallation, result.ToList(), cancellationToken);
-            // Actual deploy
+
+            ImageIdentifier image = new ImageIdentifier(result, Repositories);
+            image.Deploy(deploymentInstallation.Directory, cancellationToken);
+            //ImageDeployer.Deploy(deploymentInstallation, result.ToList(), cancellationToken);
 
             return new Installation(deploymentInstallation.Directory);
         }

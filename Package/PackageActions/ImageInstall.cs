@@ -50,7 +50,7 @@ namespace OpenTap.Package
                 if (Merge)
                 {
                     var deploymentInstallation = new Installation(Target);
-                    Installation newInstallation = imageSpecifier.Deploy(deploymentInstallation, cancellationToken);
+                    Installation newInstallation = imageSpecifier.MergeAndDeploy(deploymentInstallation, cancellationToken);
                 }
                 else
                 {
