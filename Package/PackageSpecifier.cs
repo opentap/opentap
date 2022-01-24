@@ -199,7 +199,8 @@ namespace OpenTap.Package
             }
             if (!string.IsNullOrEmpty(PreRelease))
             {
-                formatter.Append('-');
+                if (formatter.Length != 0)
+                    formatter.Append('-');
                 formatter.Append(PreRelease);
             }
             if (!string.IsNullOrEmpty(BuildMetadata))
@@ -290,7 +291,20 @@ namespace OpenTap.Package
             if (MatchBehavior.HasFlag(VersionMatchBehavior.AnyPrerelease))
                 return true;
             if (PreRelease != actualVersion.PreRelease)
-                return false;
+            {
+                if (PreRelease is null || actualVersion.PreRelease is null)
+                    return false;
+
+                string[] actualPreReleaseIdentifiers = actualVersion.PreRelease.Split('.');
+                string[] preReleaseIdentifiers = PreRelease.Split('.');
+
+                if (actualPreReleaseIdentifiers.Length < preReleaseIdentifiers.Length)
+                    return false;
+
+                for (int i = 0; i < preReleaseIdentifiers.Length; i++)
+                    if (!actualPreReleaseIdentifiers[i].Equals(preReleaseIdentifiers[i]))
+                        return false;
+            }
             if (string.IsNullOrEmpty(BuildMetadata) == false && BuildMetadata != actualVersion.BuildMetadata)
                 return false;
             return true;
@@ -368,6 +382,11 @@ namespace OpenTap.Package
             return ComparePreRelease(PreRelease, other.PreRelease);
         }
 
+        /// <summary>
+        /// Returns -1 if <paramref name="p1"/> is greater than <paramref name="p2"/>, 0 if they are the same, and 1 if <paramref name="p2"/> is greater than <paramref name="p1"/>
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
         private static int ComparePreRelease(string p1, string p2)
         {
             if (p1 == p2) return 0;

@@ -74,6 +74,20 @@ namespace OpenTap.Package
             CategorizeResolvedPackages();
         }
 
+        public DependencyResolver(Installation tapInstallation, List<PackageSpecifier> packageSpecifiers, List<IPackageRepository> repositories, CancellationToken cancellationToken)
+        {
+            InstalledPackages = new Dictionary<string, PackageDef>();
+            foreach (var pkg in tapInstallation.GetPackages())
+                InstalledPackages[pkg.Name] = pkg;
+
+            foreach (var specifier in packageSpecifiers)
+                graph.AddEdge(DependencyGraph.Root, DependencyGraph.Unresolved, specifier);
+
+            resolveGraph(graph, repositories, cancellationToken);
+
+            CategorizeResolvedPackages();
+        }
+
         private void resolveGraph(DependencyGraph graph, List<IPackageRepository> repositories, CancellationToken cancellationToken)
         {
             AlignArchAndOS(graph);
@@ -297,12 +311,12 @@ namespace OpenTap.Package
             {
                 PackageSpecifier temp = packageSpecifier;
 
-                // ^ means THIS version or compatible, which is why we convert to an exact version first and if this fails, we check for LowestCompatible afterwards.
-                if (packageSpecifier.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible))
-                {
+                //// ^ means THIS version or compatible, which is why we convert to an exact version first and if this fails, we check for LowestCompatible afterwards.
+                //if (packageSpecifier.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible))
+                //{
                     VersionSpecifier spec = new VersionSpecifier(packageSpecifier.Version.Major, packageSpecifier.Version.Minor, packageSpecifier.Version.Patch, packageSpecifier.Version.PreRelease, packageSpecifier.Version.BuildMetadata, VersionMatchBehavior.Exact);
                     packageSpecifier = new PackageSpecifier(packageSpecifier.Name, spec, packageSpecifier.Architecture, packageSpecifier.OS);
-                }
+                //}
                 IEnumerable<PackageDef> packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageSpecifier, installedPackages.ToArray());
 
                 if (!packages.Any() && temp.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible))
@@ -412,21 +426,10 @@ namespace OpenTap.Package
                     allVersions = allVersions.Where(v => v.Major == packageSpecifier.Version.Major);
 
                 if (packageSpecifier.Version.Minor != null)
-                {
-                    if (packageSpecifier.Version.MatchBehavior == VersionMatchBehavior.Exact) // No ^
-                        allVersions = allVersions.Where(p => p.Minor == packageSpecifier.Version.Minor);
-                    else
-                        allVersions = allVersions.Where(p => p.Minor >= packageSpecifier.Version.Minor);
-
-                }
+                    allVersions = allVersions.Where(p => p.Minor == packageSpecifier.Version.Minor);
 
                 if (packageSpecifier.Version.PreRelease != null)
-                {
-                    if (packageSpecifier.Version.MatchBehavior == VersionMatchBehavior.Exact) // No ^
-                        allVersions = allVersions.Where(p => ComparePreReleaseType(p.PreRelease, packageSpecifier.Version.PreRelease) == 0);
-                    else
-                        allVersions = allVersions.Where(p => ComparePreReleaseType(p.PreRelease, packageSpecifier.Version.PreRelease) >= 0);
-                }
+                    allVersions = allVersions.Where(p => ComparePreReleaseType(p.PreRelease, packageSpecifier.Version.PreRelease) == 0);
                 else
                     allVersions = allVersions.Where(s => s.PreRelease == null);
 
@@ -455,187 +458,187 @@ namespace OpenTap.Package
             if (!allVersions.Any())
                 return null;
             SemanticVersion ver = allVersions.OrderByDescending(v => v).FirstOrDefault();
-        var exactSpec = new PackageSpecifier(packageSpecifier.Name, new VersionSpecifier(ver, VersionMatchBehavior.Exact), packageSpecifier.Architecture, packageSpecifier.OS);
-        var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, exactSpec);
+            var exactSpec = new PackageSpecifier(packageSpecifier.Name, new VersionSpecifier(ver, VersionMatchBehavior.Exact), packageSpecifier.Architecture, packageSpecifier.OS);
+            var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, exactSpec);
 
-        var selected = packages.FirstOrDefault(p => p.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS));
+            var selected = packages.FirstOrDefault(p => p.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS));
             if (selected is null)
                 return packages.FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture)); // fallback to old behavior
             else
                 return selected;
         }
 
-    private static int ComparePreReleaseType(string p1, string p2)
-    {
-        if (p1 == p2) return 0;
+        private static int ComparePreReleaseType(string p1, string p2)
+        {
+            if (p1 == p2) return 0;
 
-        if (string.IsNullOrEmpty(p1) && string.IsNullOrEmpty(p2)) return 0;
-        if (string.IsNullOrEmpty(p1)) return 1;
-        if (string.IsNullOrEmpty(p2)) return -1;
+            if (string.IsNullOrEmpty(p1) && string.IsNullOrEmpty(p2)) return 0;
+            if (string.IsNullOrEmpty(p1)) return 1;
+            if (string.IsNullOrEmpty(p2)) return -1;
 
-        var identifiers1 = p1.Split('.');
-        var identifiers2 = p2.Split('.');
+            var identifiers1 = p1.Split('.');
+            var identifiers2 = p2.Split('.');
 
-        if (identifiers1[0] == identifiers2[0])
-            return 0;
+            if (identifiers1[0] == identifiers2[0])
+                return 0;
 
-        return string.Compare(identifiers1[0], identifiers2[0]);
-    }
-}
-
-
-/// <summary>
-/// Dependency Graph structure. PackageDefs are vertices and edges between vertices are defined as PackageDef references to both vertices along with a PackageSpecifer
-/// defining the requirement of the 'From' vertex.
-/// </summary>
-internal class DependencyGraph
-{
-    internal static RootVertex Root = new RootVertex();
-    internal static UnresolvedVertex Unresolved = new UnresolvedVertex();
-    internal static UnknownVertex Unknown = new UnknownVertex();
-    private readonly List<PackageDef> vertices = new List<PackageDef>();
-    private readonly List<DependencyEdge> edges = new List<DependencyEdge>();
-    public void AddVertex(PackageDef vertex)
-    {
-        vertices.Add(vertex);
+            return string.Compare(identifiers1[0], identifiers2[0]);
+        }
     }
 
-    internal IEnumerable<PackageDef> GetPackages()
-    {
-        return vertices;
-    }
 
     /// <summary>
-    /// Add an edge between vertices. If the vertices used in the edge is not null, they will be added as vertices.
+    /// Dependency Graph structure. PackageDefs are vertices and edges between vertices are defined as PackageDef references to both vertices along with a PackageSpecifer
+    /// defining the requirement of the 'From' vertex.
     /// </summary>
-    /// <param name="from"></param>
-    /// <param name="to"></param>
-    /// <param name="packageSpecifier"></param>
-    public void AddEdge(PackageDef from, PackageDef to, PackageSpecifier packageSpecifier)
+    internal class DependencyGraph
     {
-        if (from != null && !vertices.Contains(from))
-            AddVertex(from);
-        if (to != null && !vertices.Contains(to))
-            AddVertex(to);
-        edges.Add(new DependencyEdge(from, to, packageSpecifier));
-    }
-
-    internal string CreateDotNotation(string rootName)
-    {
-        var rootEdges = edges.Where(s => s.From == Root);
-
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.Append("digraph{");
-        List<DependencyEdge> visited = new List<DependencyEdge>();
-        List<string> unknownWritten = new List<string>();
-        foreach (var edge in rootEdges)
+        internal static RootVertex Root = new RootVertex();
+        internal static UnresolvedVertex Unresolved = new UnresolvedVertex();
+        internal static UnknownVertex Unknown = new UnknownVertex();
+        private readonly List<PackageDef> vertices = new List<PackageDef>();
+        private readonly List<DependencyEdge> edges = new List<DependencyEdge>();
+        public void AddVertex(PackageDef vertex)
         {
-            visited.Add(edge);
-            createDotNotation(edge, stringBuilder, visited, rootName, unknownWritten);
+            vertices.Add(vertex);
         }
-        stringBuilder.Append("}");
 
-        return string.Join(Environment.NewLine, stringBuilder.ToString());
-    }
-
-    private void createDotNotation(DependencyEdge edge, StringBuilder stringBuilder, List<DependencyEdge> visited, string rootName, List<string> unknownWritten)
-    {
-        string from = edge.From == Root ? rootName : $"{edge.From.Name}\n{edge.From.Version.ToString(4)}";
-        string to = edge.To == Unknown ? $"{edge.PackageSpecifier.Name}" : $"{edge.To.Name}\n{edge.To.Version.ToString(4)}";
-        if (edge.To != Unknown && !edge.PackageSpecifier.IsCompatible(edge.To))
-            stringBuilder.Append($"\"{from}\" -> \"{to}\" [label=\"{edge.PackageSpecifier.Version.ToString(4)}\",color=red];");
-        else
-            stringBuilder.Append($"\"{from}\" -> \"{to}\" [label=\"{edge.PackageSpecifier.Version.ToString(4)}\"];");
-
-        if (edge.To is UnknownVertex)
+        internal IEnumerable<PackageDef> GetPackages()
         {
-            if (!unknownWritten.Contains(edge.PackageSpecifier.Name))
+            return vertices;
+        }
+
+        /// <summary>
+        /// Add an edge between vertices. If the vertices used in the edge is not null, they will be added as vertices.
+        /// </summary>
+        /// <param name="from"></param>
+        /// <param name="to"></param>
+        /// <param name="packageSpecifier"></param>
+        public void AddEdge(PackageDef from, PackageDef to, PackageSpecifier packageSpecifier)
+        {
+            if (from != null && !vertices.Contains(from))
+                AddVertex(from);
+            if (to != null && !vertices.Contains(to))
+                AddVertex(to);
+            edges.Add(new DependencyEdge(from, to, packageSpecifier));
+        }
+
+        internal string CreateDotNotation(string rootName)
+        {
+            var rootEdges = edges.Where(s => s.From == Root);
+
+            StringBuilder stringBuilder = new StringBuilder();
+            stringBuilder.Append("digraph{");
+            List<DependencyEdge> visited = new List<DependencyEdge>();
+            List<string> unknownWritten = new List<string>();
+            foreach (var edge in rootEdges)
             {
-                stringBuilder.Append($"\"{edge.PackageSpecifier.Name}\"[color=red];");
-                unknownWritten.Add(edge.PackageSpecifier.Name);
+                visited.Add(edge);
+                createDotNotation(edge, stringBuilder, visited, rootName, unknownWritten);
             }
-            return;
+            stringBuilder.Append("}");
+
+            return string.Join(Environment.NewLine, stringBuilder.ToString());
         }
-        foreach (var dependency in TraverseEdges().Where(s => s.From == edge.To).Distinct())
+
+        private void createDotNotation(DependencyEdge edge, StringBuilder stringBuilder, List<DependencyEdge> visited, string rootName, List<string> unknownWritten)
         {
-            if (!visited.Contains(dependency))
+            string from = edge.From == Root ? rootName : $"{edge.From.Name}\n{edge.From.Version.ToString(4)}";
+            string to = edge.To == Unknown ? $"{edge.PackageSpecifier.Name}" : $"{edge.To.Name}\n{edge.To.Version.ToString(4)}";
+            if (edge.To != Unknown && !edge.PackageSpecifier.IsCompatible(edge.To))
+                stringBuilder.Append($"\"{from}\" -> \"{to}\" [label=\"{edge.PackageSpecifier.Version.ToString(4)}\",color=red];");
+            else
+                stringBuilder.Append($"\"{from}\" -> \"{to}\" [label=\"{edge.PackageSpecifier.Version.ToString(4)}\"];");
+
+            if (edge.To is UnknownVertex)
             {
-                visited.Add(dependency);
-                createDotNotation(dependency, stringBuilder, visited, rootName, unknownWritten);
+                if (!unknownWritten.Contains(edge.PackageSpecifier.Name))
+                {
+                    stringBuilder.Append($"\"{edge.PackageSpecifier.Name}\"[color=red];");
+                    unknownWritten.Add(edge.PackageSpecifier.Name);
+                }
+                return;
+            }
+            foreach (var dependency in TraverseEdges().Where(s => s.From == edge.To).Distinct())
+            {
+                if (!visited.Contains(dependency))
+                {
+                    visited.Add(dependency);
+                    createDotNotation(dependency, stringBuilder, visited, rootName, unknownWritten);
+                }
             }
         }
-    }
 
-    internal IEnumerable<DependencyEdge> TraverseEdges()
-    {
-        var visited = new HashSet<DependencyEdge>();
-        var queue = new Queue<DependencyEdge>();
-        foreach (var edge in edges.Where(s => s.From == Root))
-            queue.Enqueue(edge);
-
-
-        while (queue.Any())
+        internal IEnumerable<DependencyEdge> TraverseEdges()
         {
-            var current = queue.Dequeue();
-            visited.Add(current);
-            yield return current;
-            foreach (var edge in edges.Where(s => !visited.Contains(s) && s.From == current.To))
-            {
+            var visited = new HashSet<DependencyEdge>();
+            var queue = new Queue<DependencyEdge>();
+            foreach (var edge in edges.Where(s => s.From == Root))
                 queue.Enqueue(edge);
+
+
+            while (queue.Any())
+            {
+                var current = queue.Dequeue();
+                visited.Add(current);
+                yield return current;
+                foreach (var edge in edges.Where(s => !visited.Contains(s) && s.From == current.To))
+                {
+                    queue.Enqueue(edge);
+                }
             }
         }
     }
-}
-internal class RootVertex : PackageDef
-{
-
-}
-
-internal class UnresolvedVertex : PackageDef
-{
-
-}
-
-internal class UnknownVertex : PackageDef
-{
-
-}
-
-[DebuggerDisplay("Edge: {PackageSpecifier.Name} needs {PackageSpecifier.Version.ToString()}, resolved {To.Version.ToString()}")]
-internal class DependencyEdge
-{
-    private PackageDef to;
-
-    public DependencyEdge(PackageDef from, PackageDef to, PackageSpecifier packageSpecifier)
+    internal class RootVertex : PackageDef
     {
-        PackageSpecifier = packageSpecifier;
-        From = from;
-        To = to;
+
     }
 
-    public PackageSpecifier PackageSpecifier { get; set; }
-    public PackageDef From { get; set; }
-    public PackageDef To { get => to; set { to = value; } }
-}
-
-
-static class PackageCompatibilityHelper
-{
-    public static bool IsCompatible(this PackageSpecifier spec, IPackageIdentifier pkg)
+    internal class UnresolvedVertex : PackageDef
     {
-        return spec.Name == pkg.Name &&
-               spec.Version.IsCompatible(pkg.Version) &&
-               (spec.Architecture is CpuArchitecture.Unspecified ||
-               ArchitectureHelper.PluginsCompatible(pkg.Architecture, spec.Architecture)); // TODO: Should we check OS?
+
     }
 
-    /// <summary>
-    /// Returns true if this specifier can be satisfied by the given version. Really the same behavior as VersionSpecifier.IsCompatible, just with a better name.
-    /// </summary>
-    public static bool IsSatisfiedBy(this VersionSpecifier spec, VersionSpecifier other)
+    internal class UnknownVertex : PackageDef
     {
-        SemanticVersion semanticVersion = new SemanticVersion(other.Major ?? 0, other.Minor ?? 0, other.Patch ?? 0, other.PreRelease, other.BuildMetadata);
-        return spec.IsCompatible(semanticVersion);
+
     }
-}
+
+    [DebuggerDisplay("Edge: {PackageSpecifier.Name} needs {PackageSpecifier.Version.ToString()}, resolved {To.Version.ToString()}")]
+    internal class DependencyEdge
+    {
+        private PackageDef to;
+
+        public DependencyEdge(PackageDef from, PackageDef to, PackageSpecifier packageSpecifier)
+        {
+            PackageSpecifier = packageSpecifier;
+            From = from;
+            To = to;
+        }
+
+        public PackageSpecifier PackageSpecifier { get; set; }
+        public PackageDef From { get; set; }
+        public PackageDef To { get => to; set { to = value; } }
+    }
+
+
+    static class PackageCompatibilityHelper
+    {
+        public static bool IsCompatible(this PackageSpecifier spec, IPackageIdentifier pkg)
+        {
+            return spec.Name == pkg.Name &&
+                   spec.Version.IsCompatible(pkg.Version) &&
+                   (spec.Architecture is CpuArchitecture.Unspecified ||
+                   ArchitectureHelper.PluginsCompatible(pkg.Architecture, spec.Architecture)); // TODO: Should we check OS?
+        }
+
+        /// <summary>
+        /// Returns true if this specifier can be satisfied by the given version. Really the same behavior as VersionSpecifier.IsCompatible, just with a better name.
+        /// </summary>
+        public static bool IsSatisfiedBy(this VersionSpecifier spec, VersionSpecifier other)
+        {
+            SemanticVersion semanticVersion = new SemanticVersion(other.Major ?? 0, other.Minor ?? 0, other.Patch ?? 0, other.PreRelease, other.BuildMetadata);
+            return spec.IsCompatible(semanticVersion);
+        }
+    }
 }

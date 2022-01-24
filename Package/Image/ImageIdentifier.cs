@@ -15,9 +15,9 @@ namespace OpenTap.Package
     /// <summary>
     /// Image that specifies a list of <see cref="PackageSpecifier"/> to install and a list of repositories to get the packages from.
     /// </summary>
-    public class ImageIdentifier
+    public class ImageIdentifier 
     {
-        internal bool Cached => cacheFileLookup.Count == Packages.Count();
+        internal bool Cached => Packages.All(s => s.PackageSource is FileRepositoryPackageDefSource);
 
         /// <summary>
         /// Image ID created by hashing the <see cref="Packages"/> list
@@ -34,7 +34,6 @@ namespace OpenTap.Package
         /// </summary>
         public ReadOnlyCollection<string> Repositories { get; }
 
-        internal Dictionary<PackageDef, string> cacheFileLookup = new Dictionary<PackageDef, string>();
 
         /// <summary>
         /// An <see cref="ImageIdentifier"/> is immutable, but can be converted to an <see cref="ImageSpecifier"/> which is mutable.
@@ -112,46 +111,48 @@ namespace OpenTap.Package
                 throw new OperationCanceledException("Deployment operation cancelled by user");
 
             Installation currentInstallation = new Installation(targetDir);
-            var currentPackages = currentInstallation.GetPackages();
 
-            var skippedPackages = Packages.Where(s => currentPackages.Any(p => p.Name == s.Name && p.Version.ToString() == s.Version.ToString())).ToHashSet();
-            var modifyOrAdd = Packages.Where(s => !skippedPackages.Contains(s)).ToList();
-            var packagesToUninstall = currentPackages.Where(pack => !Packages.Any(p => p.Name == pack.Name) && pack.Class.ToLower() != "system-wide").ToList(); // Uninstall installed packages which are not part of image
-            var versionMismatch = currentPackages.Where(pack => Packages.Any(p => p.Name == pack.Name && p.Version != pack.Version)).ToList(); // Uninstall installed packages where we're deploying another version
+            ImageDeployer.Deploy(currentInstallation, Packages.ToList(), cancellationToken);
+            //var currentPackages = currentInstallation.GetPackages();
 
-            if (!packagesToUninstall.Any() && !modifyOrAdd.Any())
-            {
-                log.Info($"Target installation is already up to date.");
-                return;
-            }
+            //var skippedPackages = Packages.Where(s => currentPackages.Any(p => p.Name == s.Name && p.Version.ToString() == s.Version.ToString())).ToHashSet();
+            //var modifyOrAdd = Packages.Where(s => !skippedPackages.Contains(s)).ToList();
+            //var packagesToUninstall = currentPackages.Where(pack => !Packages.Any(p => p.Name == pack.Name) && pack.Class.ToLower() != "system-wide").ToList(); // Uninstall installed packages which are not part of image
+            //var versionMismatch = currentPackages.Where(pack => Packages.Any(p => p.Name == pack.Name && p.Version != pack.Version)).ToList(); // Uninstall installed packages where we're deploying another version
 
-            if (!currentPackages.Any())
-                log.Info($"Deploying installation in {targetDir}:");
-            else
-                log.Info($"Modifying installation in {targetDir}:");
+            //if (!packagesToUninstall.Any() && !modifyOrAdd.Any())
+            //{
+            //    log.Info($"Target installation is already up to date.");
+            //    return;
+            //}
 
-            foreach (var package in skippedPackages)
-                log.Info($"- Skipping {package.Name} version {package.Version} ({package.Architecture}-{package.OS}) - Already installed.");
-            foreach (var package in packagesToUninstall)
-                log.Info($"- Removing {package.Name} version {package.Version} ({package.Architecture}-{package.OS})");
-            foreach (var package in versionMismatch)
-                log.Info($"- Modifying {package.Name} version {package.Version} to {Packages.FirstOrDefault(s => s.Name == package.Name).Version}");
-            foreach (var package in modifyOrAdd.Except(packagesToUninstall))
-                log.Info($"- Installing {package.Name} version {package.Version}");
+            //if (!currentPackages.Any())
+            //    log.Info($"Deploying installation in {targetDir}:");
+            //else
+            //    log.Info($"Modifying installation in {targetDir}:");
 
-            packagesToUninstall.AddRange(versionMismatch);
+            //foreach (var package in skippedPackages)
+            //    log.Info($"- Skipping {package.Name} version {package.Version} ({package.Architecture}-{package.OS}) - Already installed.");
+            //foreach (var package in packagesToUninstall)
+            //    log.Info($"- Removing {package.Name} version {package.Version} ({package.Architecture}-{package.OS})");
+            //foreach (var package in versionMismatch)
+            //    log.Info($"- Modifying {package.Name} version {package.Version} to {Packages.FirstOrDefault(s => s.Name == package.Name).Version}");
+            //foreach (var package in modifyOrAdd.Except(packagesToUninstall))
+            //    log.Info($"- Installing {package.Name} version {package.Version}");
 
-            if (cancellationToken.IsCancellationRequested)
-                throw new OperationCanceledException("Deployment operation cancelled by user");
+            //packagesToUninstall.AddRange(versionMismatch);
 
-            if (packagesToUninstall.Any())
-                Uninstall(packagesToUninstall, targetDir, cancellationToken);
+            //if (cancellationToken.IsCancellationRequested)
+            //    throw new OperationCanceledException("Deployment operation cancelled by user");
 
-            if (cancellationToken.IsCancellationRequested)
-                throw new OperationCanceledException("Deployment operation cancelled by user");
+            //if (packagesToUninstall.Any())
+            //    Uninstall(packagesToUninstall, targetDir, cancellationToken);
 
-            if (modifyOrAdd.Any())
-                Install(modifyOrAdd, targetDir, cancellationToken);
+            //if (cancellationToken.IsCancellationRequested)
+            //    throw new OperationCanceledException("Deployment operation cancelled by user");
+
+            //if (modifyOrAdd.Any())
+            //    Install(modifyOrAdd, targetDir, cancellationToken);
         }
 
         /// <summary>
@@ -165,111 +166,46 @@ namespace OpenTap.Package
         /// To detect issues prior to deployment, use the DependencyAnalyzer
         /// </param>
         /// <param name="cancellationToken">Cancellation token</param>
-        public void Deploy(Installation installation, CancellationToken cancellationToken)
-        {
-            var currentPackages = installation.GetPackages().Where(s => s.Class != "system-wide").ToList();
+        //public void Deploy(Installation installation, CancellationToken cancellationToken)
+        //{
+        //    var currentPackages = installation.GetPackages().Where(s => s.Class != "system-wide").ToList();
 
-            var upgrade = Packages.Where(s => currentPackages.Any(p => s.Name == p.Name && !s.Version.IsCompatible(p.Version))).ToList();
-            var add = Packages.Where(s => !currentPackages.Any(p => s.Name == p.Name)).ToList();
+        //    var upgrade = Packages.Where(s => currentPackages.Any(p => s.Name == p.Name && !s.Version.IsCompatible(p.Version))).ToList();
+        //    var add = Packages.Where(s => !currentPackages.Any(p => s.Name == p.Name)).ToList();
 
-            if (!add.Any() && !upgrade.Any())
-            {
-                log.Info($"Target installation is already up to date.");
-                return;
-            }
+        //    if (!add.Any() && !upgrade.Any())
+        //    {
+        //        log.Info($"Target installation is already up to date.");
+        //        return;
+        //    }
 
-            if (!currentPackages.Any())
-                log.Info($"Deploying installation in {installation.Directory}:");
-            else
-                log.Info($"Modifying installation in {installation.Directory}:");
+        //    if (!currentPackages.Any())
+        //        log.Info($"Deploying installation in {installation.Directory}:");
+        //    else
+        //        log.Info($"Modifying installation in {installation.Directory}:");
 
-            foreach (var package in upgrade)
-                log.Info($"- Modifying {package.Name} version {package.Version} to {Packages.FirstOrDefault(s => s.Name == package.Name).Version}");
-            foreach (var package in add)
-                log.Info($"- Installing {package.Name} version {package.Version}");
+        //    foreach (var package in upgrade)
+        //        log.Info($"- Modifying {package.Name} version {package.Version} to {Packages.FirstOrDefault(s => s.Name == package.Name).Version}");
+        //    foreach (var package in add)
+        //        log.Info($"- Installing {package.Name} version {package.Version}");
 
-            var packagesToUninstall = currentPackages.Where(s => upgrade.Any(p => s.Name == p.Name));
+        //    var packagesToUninstall = currentPackages.Where(s => upgrade.Any(p => s.Name == p.Name));
 
-            if (cancellationToken.IsCancellationRequested)
-                throw new OperationCanceledException("Deployment operation cancelled by user");
+        //    if (cancellationToken.IsCancellationRequested)
+        //        throw new OperationCanceledException("Deployment operation cancelled by user");
 
-            if (packagesToUninstall.Any())
-                Uninstall(packagesToUninstall, installation.Directory, cancellationToken);
+        //    if (packagesToUninstall.Any())
+        //        Uninstall(packagesToUninstall, installation.Directory, cancellationToken);
 
-            if (cancellationToken.IsCancellationRequested)
-                throw new OperationCanceledException("Deployment operation cancelled by user");
+        //    if (cancellationToken.IsCancellationRequested)
+        //        throw new OperationCanceledException("Deployment operation cancelled by user");
 
-            var modifyOrAdd = add;
-            modifyOrAdd.AddRange(upgrade);
+        //    var modifyOrAdd = add;
+        //    modifyOrAdd.AddRange(upgrade);
 
-            if (modifyOrAdd.Any())
-                Install(modifyOrAdd, installation.Directory, cancellationToken);
-        }
-
-        private void Install(IEnumerable<PackageDef> modifyOrAdd, string target, CancellationToken cancellationToken)
-        {
-            Installer installer = new Installer(target, cancellationToken) { DoSleep = false };
-            var packagesInOrder = OrderPackagesForInstallation(modifyOrAdd);
-            List<string> paths = new List<string>();
-            foreach (var package in packagesInOrder)
-            {
-                if (!cacheFileLookup.ContainsKey(package))
-                    Download(package);
-                paths.Add(cacheFileLookup[package]);
-            }
-            installer.PackagePaths.Clear();
-            installer.PackagePaths.AddRange(paths);
-
-
-            List<Exception> installErrors = new List<Exception>();
-            installer.Error += ex => installErrors.Add(ex);
-
-            try
-            {
-                installer.InstallThread();
-            }
-            catch (Exception ex)
-            {
-                installErrors.Add(ex);
-            }
-
-            if (installErrors.Any())
-                throw new AggregateException("Image deployment failed to install packages.", installErrors);
-        }
-
-        private void Uninstall(IEnumerable<PackageDef> packagesToUninstall, string target, CancellationToken cancellationToken)
-        {
-            var orderedPackagesToUninstall = OrderPackagesForInstallation(packagesToUninstall);
-            orderedPackagesToUninstall.Reverse();
-
-            List<Exception> uninstallErrors = new List<Exception>();
-            var newInstaller = new Installer(target, cancellationToken) { DoSleep = false };
-
-            newInstaller.Error += ex => uninstallErrors.Add(ex);
-            newInstaller.DoSleep = false;
-
-            newInstaller.PackagePaths.AddRange(orderedPackagesToUninstall.Select(x => (x.PackageSource as InstalledPackageDefSource)?.PackageDefFilePath).ToList());
-            int exitCode = newInstaller.RunCommand("uninstall", false, true);
-
-            if (uninstallErrors.Any() || exitCode != 0)
-                throw new AggregateException("Image deployment failed to uninstall existing packages.", uninstallErrors);
-        }
-
-        private static List<PackageDef> OrderPackagesForInstallation(IEnumerable<PackageDef> packages)
-        {
-            var toInstall = new List<PackageDef>();
-
-            var toBeSorted = packages.ToList();
-
-            while (toBeSorted.Count() > 0)
-            {
-                var packagesWithNoRemainingDepsInList = toBeSorted.Where(pkg => pkg.Dependencies.All(dep => !toBeSorted.Any(p => p.Name == dep.Name))).ToList();
-                toInstall.AddRange(packagesWithNoRemainingDepsInList);
-                toBeSorted.RemoveAll(p => packagesWithNoRemainingDepsInList.Contains(p));
-            }
-
-            return toInstall;
-        }
+        //    if (modifyOrAdd.Any())
+        //        Install(modifyOrAdd, installation.Directory, cancellationToken);
+        //}
 
         /// <summary>
         /// Download all packages to the PackageCache. This is an optional step that can speed up deploying later.
@@ -279,33 +215,7 @@ namespace OpenTap.Package
             if (Cached)
                 return;
             foreach (var package in Packages)
-                Download(package);
-        }
-
-        static TraceSource log = Log.CreateSource("Download");
-        private void Download(PackageDef package)
-        {
-            string filename = PackageCacheHelper.GetCacheFilePath(package);
-
-            if (File.Exists(filename))
-            {
-                log.Info($"Package {package.Name} exists in cache: {filename}");
-                cacheFileLookup.Add(package, filename);
-                return;
-            }
-
-            if (package.PackageSource is IFilePackageDefSource fileSource)
-            {
-                if (string.Equals(Path.GetPathRoot(fileSource.PackageFilePath), Path.GetPathRoot(PackageCacheHelper.PackageCacheDirectory), StringComparison.InvariantCultureIgnoreCase) && string.IsNullOrEmpty(fileSource.PackageFilePath) == false)
-                    File.Copy(fileSource.PackageFilePath, filename);
-            }
-            else if (package.PackageSource is IRepositoryPackageDefSource repoSource)
-            {
-                IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(repoSource.RepositoryUrl);
-                log.Info($"Downloading {package.Name} version {package.Version} from {rm.Url}");
-                rm.DownloadPackage(package, filename, CancellationToken.None);
-            }
-            cacheFileLookup.Add(package, filename);
+                ImageDeployer.Download(package);
         }
     }
 }

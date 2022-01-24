@@ -102,8 +102,8 @@ namespace OpenTap.Image.Tests
         [TestCase("B", "1.0", "Windows", CpuArchitecture.x86, "error")]
         [TestCase("B", "2.0", "Windows", CpuArchitecture.x86, "error")]
         [TestCase("B", "3.0", "Windows", CpuArchitecture.x64, "3.0.1")] // 3.0 means we want latest 3.0 release
-        [TestCase("B", "^3.0", "Windows", CpuArchitecture.x64, "3.1.1")] // ^3.0 means we want latest compatible 3.0 release
-        [TestCase("B", "^3.0.1", "Windows", CpuArchitecture.x64, "3.0.1")] // ^3.0.1 means we want 3.01 or latest compatible 3 release
+        [TestCase("B", "^3.0", "Windows", CpuArchitecture.x64, "3.0.1")] // ^3.0 means we want latest compatible 3.0 release
+        [TestCase("B", "^3.0.1", "Windows", CpuArchitecture.x64, "3.0.1")] // ^3.0.1 means we want 3.0.1 or compatible
         [TestCase("B", "3", "Windows", CpuArchitecture.x64, "3.1.1")] // 3 means we want latest 3 release
         [TestCase("B", "2.1.0", "Linux", CpuArchitecture.x86, "2.1.0")]
         [TestCase("B", "", "Linux", CpuArchitecture.x86, "2.1.1")]
@@ -111,15 +111,16 @@ namespace OpenTap.Image.Tests
         [TestCase("B", "", "Windows", CpuArchitecture.x64, "3.1.1")] // empty means we want latest release
         [TestCase("B", "3.0.0", "Windows", CpuArchitecture.x64, "3.0.0")] // full version means exact
         [TestCase("B", "beta", "Windows", CpuArchitecture.x64, "3.2.1-beta.1")]
+        [TestCase("B", "3.2.1-beta.1", "Windows", CpuArchitecture.x64, "3.2.1-beta.1")]
         [TestCase("B", "beta", "", CpuArchitecture.AnyCPU, "3.2.1-beta.1")] // means we want latest, but minimum beta
         [TestCase("B", "3-beta", "", CpuArchitecture.AnyCPU, "3.2.1-beta.1")] // means we want latest 3 beta
         [TestCase("B", "2-beta", "Linux", CpuArchitecture.x86, "2.1.0-beta.1")] // means we want latest 2 beta
         [TestCase("B", "^3-beta", "", CpuArchitecture.AnyCPU, "3.2.1-beta.1")] // means we want latest 3, minimum beta
-        [TestCase("B", "^2-beta", "Linux", CpuArchitecture.x86, "2.1.1")] // means we want latest 2, minimum beta
+        [TestCase("B", "^2-beta", "Linux", CpuArchitecture.x86, "2.1.0-beta.1")] // means we want latest 2 beta
         [TestCase("B", "any", "", CpuArchitecture.AnyCPU, "3.2.2-alpha.1")]  // any means we want latest, even if it is a prerelease
-        [TestCase("C", "^1.0-beta", "Linux", CpuArchitecture.x86, "1.0.0-rc.1")]
+        [TestCase("C", "^1.0-beta", "Linux", CpuArchitecture.x86, "1.0.0-beta.1")]
         [TestCase("C", "1.0-beta", "Linux", CpuArchitecture.x86, "1.0.0-beta.1")]
-        [TestCase("C", "^1-beta", "Linux", CpuArchitecture.x86, "1.0.0-rc.1")] 
+        [TestCase("C", "^1-beta", "Linux", CpuArchitecture.x86, "1.0.0-beta.1")] 
         [TestCase("C", "1-beta", "Linux", CpuArchitecture.x86, "1.0.0-beta.1")]
         [TestCase("C", "beta", "Linux", CpuArchitecture.x86, "2.0.0-beta.1")]
         [TestCase("C", "^beta", "Linux", CpuArchitecture.x86, "2.0.0")]
@@ -130,6 +131,14 @@ namespace OpenTap.Image.Tests
         [TestCase("C", "^beta", "Linux", CpuArchitecture.x86, "2.0.0")]
         [TestCase("C", "^alpha", "Linux", CpuArchitecture.x86, "2.0.0")]
         [TestCase("C", "^rc", "Linux", CpuArchitecture.x86, "2.0.0")]
+        [TestCase("D", "^rc", "Linux", CpuArchitecture.x86, "2.1.0-rc.1")]
+        [TestCase("E", "2.1.0-beta.1", "Linux", CpuArchitecture.x86, "2.1.0-beta.1")]
+        [TestCase("E", "2.1.0-beta", "Linux", CpuArchitecture.x86, "2.1.0-beta.2")]
+        [TestCase("E", "2.1.0-beta.2", "Linux", CpuArchitecture.x86, "2.1.0-beta.2")]
+        [TestCase("E", "2.2.0-alpha.2", "Linux", CpuArchitecture.x86, "2.2.0-alpha.2.2")]
+        [TestCase("E", "2.2.0-alpha.2.1", "Linux", CpuArchitecture.x86, "2.2.0-alpha.2.1")]
+        [TestCase("E", "2.2.0-alpha.2.2", "Linux", CpuArchitecture.x86, "2.2.0-alpha.2.2")]
+        [TestCase("E", "2.2.0-alpha", "Linux", CpuArchitecture.x86, "2.2.0-alpha.2.2")]
         public void FullResolveCases(string packageName, string version, string os, CpuArchitecture cpuArchitecture, string resultingVersion)
         {
             PackageRepositoryHelpers.RegisterRepository(new MockRepository("mock://localhost"));
@@ -415,11 +424,6 @@ namespace OpenTap.Image.Tests
             var pkgs2 = repo.GetPackages(spec2);
             Assert.AreEqual(1, pkgs2.Select(p => p.Version).Distinct().Count());
             Assert.AreEqual(latestVersion, pkgs2.First().Version);
-
-            var spec3 = new PackageSpecifier("OpenTAP", VersionSpecifier.Parse("beta"));
-            var pkgs3 = repo.GetPackages(spec3);
-            Assert.AreEqual(1, pkgs3.Select(p => p.Version).Distinct().Count());
-            Assert.AreEqual(latestVersion, pkgs3.First().Version);
         }
 
     }

@@ -73,6 +73,12 @@ namespace OpenTap.Image.Tests
                     DefinePackage("C",        "2.0.0-beta.1", CpuArchitecture.x86,    "Linux"),
                     DefinePackage("C",        "2.0.0-rc.1", CpuArchitecture.x86,    "Linux"),
                     DefinePackage("C",        "2.0.0", CpuArchitecture.x86,    "Linux"),
+                    DefinePackage("D",        "2.0.0", CpuArchitecture.x86,    "Linux"),
+                    DefinePackage("D",        "2.1.0-rc.1", CpuArchitecture.x86,    "Linux"),
+                    DefinePackage("E",        "2.1.0-beta.1", CpuArchitecture.x86,    "Linux"),
+                    DefinePackage("E",        "2.1.0-beta.2", CpuArchitecture.x86,    "Linux"),
+                    DefinePackage("E",        "2.2.0-alpha.2.1", CpuArchitecture.x86,    "Linux"),
+                    DefinePackage("E",        "2.2.0-alpha.2.2", CpuArchitecture.x86,    "Linux"),
                 };
         }
 
@@ -109,6 +115,7 @@ namespace OpenTap.Image.Tests
             var list = AllPackages.Where(p => p.Name == package.Name)
                               .GroupBy(p => p.Version)
                               .OrderByDescending(g => g.Key).ToList();
+
             return list.FirstOrDefault(g => package.Version.IsCompatible(g.Key)).ToArray();
         }
 

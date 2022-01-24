@@ -56,8 +56,7 @@ namespace OpenTap.Image.Tests
 
                 imageSpecifier.Packages.Clear();
                 imageSpecifier.Packages.Add(new PackageSpecifier("Keysight Floating Licensing", new VersionSpecifier(1, 4, 1, null, null, VersionMatchBehavior.Exact)));
-                identifier = imageSpecifier.Resolve(CancellationToken.None);
-                identifier.Deploy(new Installation(temp), CancellationToken.None);
+                imageSpecifier.Deploy(installation, CancellationToken.None);
                 installation = new Installation(temp);
                 nonSystemWidePackages = installation.GetPackages().Where(s => s.Class != "system-wide").ToList();
                 Assert.AreEqual(3, nonSystemWidePackages.Count);
@@ -92,8 +91,7 @@ namespace OpenTap.Image.Tests
 
                 imageSpecifier.Packages.Clear();
                 imageSpecifier.Packages.Add(new PackageSpecifier("Python", new VersionSpecifier(2, 3, 0, null, null, VersionMatchBehavior.Exact)));
-                identifier = imageSpecifier.Resolve(CancellationToken.None);
-                identifier.Deploy(new Installation(temp), CancellationToken.None);
+                imageSpecifier.Deploy(installation, CancellationToken.None);
                 installation = new Installation(temp);
                 nonSystemWidePackages = installation.GetPackages().Where(s => s.Class != "system-wide").ToList();
                 Assert.AreEqual(4, nonSystemWidePackages.Count);
@@ -128,8 +126,7 @@ namespace OpenTap.Image.Tests
 
                 imageSpecifier.Packages.Clear();
                 imageSpecifier.Packages.Add(new PackageSpecifier("REST-API", new VersionSpecifier(2, 6, 3, null, null, VersionMatchBehavior.Exact)));
-                identifier = imageSpecifier.Resolve(CancellationToken.None);
-                identifier.Deploy(new Installation(temp), CancellationToken.None);
+                imageSpecifier.Deploy(installation, CancellationToken.None);
                 installation = new Installation(temp);
                 nonSystemWidePackages = installation.GetPackages().Where(s => s.Class != "system-wide").ToList();
                 Assert.AreEqual(4, nonSystemWidePackages.Count);
@@ -137,7 +134,6 @@ namespace OpenTap.Image.Tests
                 Assert.IsTrue(nonSystemWidePackages.Any(s => s.Name == "OpenTAP" && s.Version.ToString().StartsWith("9.16.0")));
                 Assert.IsTrue(nonSystemWidePackages.Any(s => s.Name == "Keysight Floating Licensing" && s.Version.ToString().StartsWith("1.0.44")));
                 Assert.IsTrue(nonSystemWidePackages.Any(s => s.Name == "Python" && s.Version.ToString().StartsWith("2.3.0")));
-
             }
             finally
             {

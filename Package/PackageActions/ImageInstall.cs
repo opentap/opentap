@@ -47,21 +47,16 @@ namespace OpenTap.Package
 
             try
             {
-                //if (Merge)
-                //{
-                //    var deploymentInstallation = new Installation(Target);
-                //    Installation newInstallation = imageSpecifier.Deploy(deploymentInstallation);
-                //}
-                //else
-                //{
-                //    ImageIdentifier imageIdentifier = imageSpecifier.Resolve(cancellationToken);
-                //    imageIdentifier.Deploy(Target, cancellationToken);
-                //}
-                ImageIdentifier imageIdentifier = imageSpecifier.Resolve(cancellationToken);
                 if (Merge)
-                    imageIdentifier.Deploy(new Installation(Target), cancellationToken);
+                {
+                    var deploymentInstallation = new Installation(Target);
+                    Installation newInstallation = imageSpecifier.Deploy(deploymentInstallation, cancellationToken);
+                }
                 else
+                {
+                    ImageIdentifier imageIdentifier = imageSpecifier.Resolve(cancellationToken);
                     imageIdentifier.Deploy(Target, cancellationToken);
+                }
                 return 0;
             }
             catch (AggregateException e)
