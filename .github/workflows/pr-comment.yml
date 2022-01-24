@@ -19,7 +19,7 @@ jobs:
           # This action needs the entire history of the repository to calculate the version
           fetch-depth: 0
       - name: Run comment action
-        uses: AsgerIversen/pr-version-comment
+        uses: AsgerIversen/pr-version-comment@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           body: This change is part of OpenTAP version `{version}` or later.
