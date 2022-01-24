@@ -257,10 +257,6 @@ namespace OpenTap.Package
                 }
             }
 
-            foreach (var dependency in resolver.Dependencies)
-                if (!gatheredPackages.Contains(dependency))
-                    gatheredPackages.Add(dependency);
-
             return gatheredPackages.ToList();
         }
 

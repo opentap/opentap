@@ -37,13 +37,12 @@ namespace OpenTap.Image.Tests
         }
 
         [Test]
-        public void ResolveMultiMajors()
+        public void SimpleResolve()
         {
             ImageSpecifier imageSpecifier = new ImageSpecifier()
             {
                 Packages = new List<PackageSpecifier>() {
-                    new PackageSpecifier("REST-API", VersionSpecifier.Parse("2.4.0")),
-                    new PackageSpecifier("REST-API", VersionSpecifier.Parse("1.10.5"))
+                    new PackageSpecifier("Editor X")
 
                 },
                 Repositories = new List<string>() { "packages.opentap.io" }
@@ -51,32 +50,128 @@ namespace OpenTap.Image.Tests
             try
             {
                 var image = imageSpecifier.Resolve(System.Threading.CancellationToken.None);
-                Assert.Fail("This may not be resolved");
             }
-            catch (AggregateException ex)
+            catch
             {
-                Assert.AreEqual(1, ex.InnerExceptions.Count());
+                Assert.Fail("This should resolve");
             }
         }
 
-        [Test]
-        public void ResolveMissingPackage()
+        [TestCase("A", "1", "1.1.1")]
+        [TestCase("A", "1", "latest")]
+        [TestCase("A", "2", "error")]
+        [TestCase("A", "1.2", "error")]
+        [TestCase("A", "1.0.0", "1.0.0")]
+        [TestCase("A", "1.0.1", "1.0.1")]
+        [TestCase("Weyoooooo", "112.1337.0", "error")]
+        public void SimpleVersionResolveCases(string packageName, string version, string resultingVersion)
         {
-            ImageSpecifier imageSpecifier = new ImageSpecifier()
-            {
-                Packages = new List<PackageSpecifier>() {
-                    new PackageSpecifier("Weyoooo", VersionSpecifier.Parse("112.1337.0"))
-                },
-                Repositories = new List<string>() { "packages.opentap.io" }
-            };
+            PackageRepositoryHelpers.RegisterRepository(new MockRepository("mock://localhost"));
+            ImageSpecifier imageSpecifier = new ImageSpecifier();
+            imageSpecifier.Repositories = new List<string>() { "mock://localhost" };
+            imageSpecifier.Packages.Add(new PackageSpecifier(packageName, VersionSpecifier.Parse(version)));
+
             try
             {
                 var image = imageSpecifier.Resolve(System.Threading.CancellationToken.None);
-                Assert.Fail("This should fail to resolve");
+
+                if (resultingVersion is null || resultingVersion == "error")
+                    Assert.Fail("This should fail to resolve");
+                if (resultingVersion == "latest")
+                {
+                    var repo = PackageRepositoryHelpers.DetermineRepositoryType("mock://localhost");
+                    var latest = repo.GetPackageVersions(packageName).Select(v => v.Version).Where(v => v.PreRelease == null).Distinct().ToList();
+                    StringAssert.StartsWith(latest.First().ToString(), image.Packages.First(p => p.Name == packageName).Version.ToString());
+                }
+                else
+                    StringAssert.StartsWith(resultingVersion, image.Packages.First(p => p.Name == packageName).Version.ToString());
+                var resolvedPackage = image.Packages.FirstOrDefault();
+                Assert.AreEqual(packageName, resolvedPackage.Name);
             }
-            catch (AggregateException ex)
+            catch
             {
-                Assert.AreEqual(1, ex.InnerExceptions.Count());
+                if (resultingVersion == "error")
+                    Assert.Pass();
+            }
+        }
+
+        [TestCase("B", "1", "linux", CpuArchitecture.x86, "1.1.1")]
+        [TestCase("B", "1", "Linux", CpuArchitecture.x86, "1.1.1")]
+        [TestCase("B", "1.0", "Linux", CpuArchitecture.x86, "1.0.0")]
+        [TestCase("B", "1.0", "Linux", CpuArchitecture.x64, "error")]
+        [TestCase("B", "1.0", "Windows", CpuArchitecture.x86, "error")]
+        [TestCase("B", "2.0", "Windows", CpuArchitecture.x86, "error")]
+        [TestCase("B", "3.0", "Windows", CpuArchitecture.x64, "3.0.1")] // 3.0 means we want latest 3.0 release
+        [TestCase("B", "^3.0", "Windows", CpuArchitecture.x64, "3.0.1")] // ^3.0 means we want latest compatible 3.0 release
+        [TestCase("B", "^3.0.1", "Windows", CpuArchitecture.x64, "3.0.1")] // ^3.0.1 means we want 3.0.1 or compatible
+        [TestCase("B", "3", "Windows", CpuArchitecture.x64, "3.1.1")] // 3 means we want latest 3 release
+        [TestCase("B", "2.1.0", "Linux", CpuArchitecture.x86, "2.1.0")]
+        [TestCase("B", "", "Linux", CpuArchitecture.x86, "2.1.1")]
+        [TestCase("B", "beta", "Linux", CpuArchitecture.x86, "2.1.0-beta.1")]
+        [TestCase("B", "", "Windows", CpuArchitecture.x64, "3.1.1")] // empty means we want latest release
+        [TestCase("B", "3.0.0", "Windows", CpuArchitecture.x64, "3.0.0")] // full version means exact
+        [TestCase("B", "beta", "Windows", CpuArchitecture.x64, "3.2.1-beta.1")]
+        [TestCase("B", "3.2.1-beta.1", "Windows", CpuArchitecture.x64, "3.2.1-beta.1")]
+        [TestCase("B", "beta", "", CpuArchitecture.AnyCPU, "3.2.1-beta.1")] // means we want latest, but minimum beta
+        [TestCase("B", "3-beta", "", CpuArchitecture.AnyCPU, "3.2.1-beta.1")] // means we want latest 3 beta
+        [TestCase("B", "2-beta", "Linux", CpuArchitecture.x86, "2.1.0-beta.1")] // means we want latest 2 beta
+        [TestCase("B", "^3-beta", "", CpuArchitecture.AnyCPU, "3.2.1-beta.1")] // means we want latest 3, minimum beta
+        [TestCase("B", "^2-beta", "Linux", CpuArchitecture.x86, "2.1.0-beta.1")] // means we want latest 2 beta
+        [TestCase("B", "any", "", CpuArchitecture.AnyCPU, "3.2.2-alpha.1")]  // any means we want latest, even if it is a prerelease
+        [TestCase("C", "^1.0-beta", "Linux", CpuArchitecture.x86, "1.0.0-beta.1")]
+        [TestCase("C", "1.0-beta", "Linux", CpuArchitecture.x86, "1.0.0-beta.1")]
+        [TestCase("C", "^1-beta", "Linux", CpuArchitecture.x86, "1.0.0-beta.1")] 
+        [TestCase("C", "1-beta", "Linux", CpuArchitecture.x86, "1.0.0-beta.1")]
+        [TestCase("C", "beta", "Linux", CpuArchitecture.x86, "2.0.0-beta.1")]
+        [TestCase("C", "^beta", "Linux", CpuArchitecture.x86, "2.0.0")]
+        [TestCase("C", "alpha", "Linux", CpuArchitecture.x86, "2.0.0-alpha.1")]
+        [TestCase("C", "rc", "Linux", CpuArchitecture.x86, "2.0.0-rc.1")]
+        [TestCase("C", "", "Linux", CpuArchitecture.x86, "2.0.0")]
+        [TestCase("C", "^beta", "Linux", CpuArchitecture.x86, "2.0.0")]
+        [TestCase("C", "^alpha", "Linux", CpuArchitecture.x86, "2.0.0")]
+        [TestCase("C", "^rc", "Linux", CpuArchitecture.x86, "2.0.0")]
+        [TestCase("D", "^rc", "Linux", CpuArchitecture.x86, "2.1.0-rc.1")]
+        [TestCase("E", "2.1.0-beta.1", "Linux", CpuArchitecture.x86, "2.1.0-beta.1")]
+        [TestCase("E", "2.1.0-beta", "Linux", CpuArchitecture.x86, "2.1.0-beta.2")]
+        [TestCase("E", "2.1.0-beta.2", "Linux", CpuArchitecture.x86, "2.1.0-beta.2")]
+        [TestCase("E", "2.2.0-alpha.2", "Linux", CpuArchitecture.x86, "2.2.0-alpha.2.2")]
+        [TestCase("E", "2.2.0-alpha.2.1", "Linux", CpuArchitecture.x86, "2.2.0-alpha.2.1")]
+        [TestCase("E", "2.2.0-alpha.2.2", "Linux", CpuArchitecture.x86, "2.2.0-alpha.2.2")]
+        [TestCase("E", "2.2.0-alpha", "Linux", CpuArchitecture.x86, "2.2.0-alpha.2.2")]
+        public void FullResolveCases(string packageName, string version, string os, CpuArchitecture cpuArchitecture, string resultingVersion)
+        {
+            PackageRepositoryHelpers.RegisterRepository(new MockRepository("mock://localhost"));
+            ImageSpecifier imageSpecifier = new ImageSpecifier();
+            imageSpecifier.Repositories = new List<string>() { "mock://localhost" };
+            imageSpecifier.Packages.Add(new PackageSpecifier(packageName, VersionSpecifier.Parse(version), cpuArchitecture, os));
+
+            try
+            {
+                var image = imageSpecifier.Resolve(CancellationToken.None);
+
+                if (resultingVersion is null || resultingVersion == "error")
+                    Assert.Fail("This should fail to resolve");
+                if (resultingVersion == "latest")
+                {
+                    var repo = PackageRepositoryHelpers.DetermineRepositoryType("mock://localhost");
+                    var latest = repo.GetPackageVersions(packageName).Select(v => v.Version).Where(v => v.PreRelease == null).Distinct().ToList();
+                    StringAssert.StartsWith(latest.First().ToString(), image.Packages.First(p => p.Name == packageName).Version.ToString());
+                }
+                else
+                    StringAssert.StartsWith(resultingVersion, image.Packages.First(p => p.Name == packageName).Version.ToString());
+                var resolvedPackage = image.Packages.FirstOrDefault();
+                Assert.AreEqual(packageName, resolvedPackage.Name);
+                if (os != "")
+                    Assert.AreEqual(os.ToLower(), resolvedPackage.OS.ToLower());
+                if (cpuArchitecture != CpuArchitecture.AnyCPU)
+                    Assert.AreEqual(cpuArchitecture, resolvedPackage.Architecture);
+            }
+            catch (ImageResolveException ex)
+            {
+                if (resultingVersion == "error")
+                    Assert.Pass();
+                else
+                    Assert.Fail(ex.Message);
             }
         }
 
@@ -288,14 +383,15 @@ namespace OpenTap.Image.Tests
         {
             var packages = new List<PackageSpecifier>();
 
-            packages.Add(packageName, firstVersion); 
+            packages.Add(packageName, firstVersion);
             packages.Add(secondPackageName, secondVersion); // this depends on Demo ^9.0.2
 
             var repositories = new List<IPackageRepository> { new MockRepository("mock://localhost") };
 
             DependencyResolver resolver = new DependencyResolver(packages, repositories, CancellationToken.None);
             Assert.AreEqual(dependenciesCount, resolver.Dependencies.Count);
-            foreach (var res in resolved) {
+            foreach (var res in resolved)
+            {
                 var split = res.Split(':');
                 Assert.IsTrue(resolver.Dependencies.FirstOrDefault(s => s.Name == split[0]).Version.ToString().StartsWith(split[1]));
             }
@@ -327,14 +423,9 @@ namespace OpenTap.Image.Tests
             var pkgs2 = repo.GetPackages(spec2);
             Assert.AreEqual(1, pkgs2.Select(p => p.Version).Distinct().Count());
             Assert.AreEqual(latestVersion, pkgs2.First().Version);
-
-            var spec3 = new PackageSpecifier("OpenTAP", VersionSpecifier.Parse("beta"));
-            var pkgs3 = repo.GetPackages(spec3);
-            Assert.AreEqual(1, pkgs3.Select(p => p.Version).Distinct().Count());
-            Assert.AreEqual(latestVersion, pkgs3.First().Version);
         }
 
-   }
+    }
 
     public static class HelperExtensions
     {

@@ -46,6 +46,29 @@ namespace OpenTap.Package
             return image;
         }
 
+        internal Installation MergeAndDeploy(Installation deploymentInstallation, CancellationToken cancellationToken)
+        {
+            List<IPackageRepository> repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
+
+            DependencyResolver resolver = new DependencyResolver(deploymentInstallation, Packages, repositories, cancellationToken);
+            string dotGraph = resolver.GetDotNotation("Image");
+            log.Debug($"https://quickchart.io/graphviz?graph={WebUtility.UrlEncode(dotGraph)}");
+            log.Flush();
+
+            if (resolver.DependencyIssues.Any())
+                throw new ImageResolveException(dotGraph, $"OpenTAP packages could not be resolved", resolver.DependencyIssues);
+
+            var result = resolver.Dependencies.Concat(deploymentInstallation.GetPackages().Where(s => !resolver.Dependencies.Any(p => s.Name == p.Name)));
+
+            ImageIdentifier image = new ImageIdentifier(result, Repositories);
+            image.Deploy(deploymentInstallation.Directory, cancellationToken);
+            //ImageDeployer.Deploy(deploymentInstallation, result.ToList(), cancellationToken);
+
+            return new Installation(deploymentInstallation.Directory);
+        }
+
+
+
         /// <summary>
         /// Create an <see cref="ImageSpecifier"/> from JSON or XML value. Throws <see cref="InvalidOperationException"/> if value is not valid JSON or XML
         /// </summary>
