@@ -151,25 +151,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         {
             using (var installer = new OpenTapImageInstaller(TapDir, cts.Token))
             {
-                installer.OnError += err =>
-                {
-                    // Attempt to retrieve a relevant line number
-                    var item = PackagesToInstall.FirstOrDefault(i => err.Contains(i.ItemSpec));
-                    var lineNum = item != null ? GetLineNum(item) : Array.Empty<int>();
-                    if (lineNum.Any())
-                    {
-                        var lineNumber = lineNum.First();
-                        Log.LogError(null, "OpenTAP Install", null,
-                            SourceFile, lineNumber, 0, 0, 0, err);
-                    }
-                    // Otherwise just log it
-                    else
-                        Log.LogError(err);
-                };
-
-                installer.OnInfo += info => Log.LogMessage(info);
-                installer.OnDebug += debug => Log.LogMessage(MessageImportance.Low, debug);
-                installer.OnWarning += warn => Log.LogWarning(warn);
+                installer.LogMessage += OnInstallerLogMessage;
 
                 var repos = Repositories?.SelectMany(r =>
                         r.ItemSpec.Split(new[] { ";" }, StringSplitOptions.RemoveEmptyEntries))
@@ -190,6 +172,43 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                     Log.LogError(ex.Message);
                     return false;
                 }
+            }
+        }
+
+        private void OnInstallerLogMessage(string message, int logEventType, ITaskItem item)
+        {
+            // This mirrors the LogEventType enum from OpenTAP, but this class must not depend on OpenTAP being already
+            // resolved. Special care is given to resolving the correct OpenTAP dll in the Execute method.
+            var logLevelMap = new Dictionary<int, string>()
+            {
+                [10] = "Error",
+                [20] = "Warning",
+                [30] = "Information",
+                [40] = "Debug",
+            };
+
+            var logLevel = logLevelMap[logEventType];
+
+            var numbers = item == null ? Array.Empty<int>() : GetLineNum(item);
+            var lineNumber = numbers.Any() ? numbers.First() : 0;
+
+            // Log the messages with line number and source file information
+            // A line number of '0' causes the line number to be emitted by the MSBuild logger
+            var source = "OpenTAP Install";
+            switch (logLevel)
+            {
+                case "Error":
+                    Log.LogError(null, source, null, SourceFile, lineNumber, 0, 0, 0, message);
+                    break;
+                case "Warning":
+                    Log.LogWarning(null, source, null, SourceFile, lineNumber, 0, 0, 0, message);
+                    break;
+                case "Information":
+                    Log.LogMessage(null, source, null, SourceFile, lineNumber, 0, 0, 0, MessageImportance.Normal, message);
+                    break;
+                case "Debug":
+                    Log.LogMessage(null, source, null, SourceFile, lineNumber, 0, 0, 0, MessageImportance.Low, message);
+                    break;
             }
         }
     }

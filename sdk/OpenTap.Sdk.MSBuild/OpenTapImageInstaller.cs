@@ -20,17 +20,8 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         private EventTraceListener traceListener;
         void onEvent(IEnumerable<Event> events)
         {
-            var logLevelMap = new Dictionary<int, string>()
-            {
-                [10] = "Error",
-                [20] = "Warning",
-                [30] = "Information",
-                [40] = "Debug",
-            };
-
             var mutedSources = new HashSet<string>()
             {
-                "Searcher", "PluginManager", "TypeDataProvider", "Resolver", "Serializer"
             };
 
             foreach (var evt in events)
@@ -38,21 +29,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 if (mutedSources.Contains(evt.Source)) continue;
 
                 var msg = $"{evt.Source} : {evt.Message}";
-                switch (logLevelMap[evt.EventType])
-                {
-                    case "Error":
-                        OnError?.Invoke(msg);
-                        break;
-                    case "Warning":
-                        OnWarning?.Invoke(msg);
-                        break;
-                    case "Information":
-                        OnInfo?.Invoke(msg);
-                        break;
-                    case "Debug":
-                        OnDebug?.Invoke(msg);
-                        break;
-                }
+                LogMessage(msg, evt.EventType, null);
             }
         }
 
@@ -71,9 +48,6 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         {
             CancellationToken = cancellationToken;
             TapDir = tapDir;
-            var targetInstall = new Installation(TapDir);
-            InstalledPackages = targetInstall.GetPackages()
-                .Where(p => p.Class.Equals("system-wide", StringComparison.OrdinalIgnoreCase) == false).ToArray();
             attachTraceListener();
         }
 
@@ -104,24 +78,24 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             }
             catch (AggregateException aex)
             {
-                OnError?.Invoke(aex.Message);
+                LogMessage(aex.Message, (int)LogEventType.Error, null);
                 foreach (var ex in aex.InnerExceptions)
                 {
-                    OnError?.Invoke(ex.Message);
+                    LogMessage(ex.Message, (int)LogEventType.Error, null);
                 }
 
                 success = false;
             }
             catch (Exception ex)
             {
-                OnError?.Invoke(ex.Message);
+                LogMessage(ex.Message, (int)LogEventType.Error, null);
                 success = false;
             }
             finally
             {
                 if (success == false)
                 {
-                    OnError?.Invoke($"Failed to install packages.");
+                    LogMessage($"Failed to install packages.", (int)LogEventType.Error, null);
                 }
             }
 
@@ -129,17 +103,12 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         }
 
 
-        public Action<string> OnDebug;
-        public Action<string> OnInfo;
-        public Action<string> OnWarning;
-        public Action<string> OnError;
+        public Action<string, int, ITaskItem> LogMessage = (msg, evt, item) => { };
 
         public void Dispose()
         {
             Log.RemoveListener(traceListener);
         }
-
-        private PackageDef[] InstalledPackages;
 
         private ImageSpecifier ImageSpecifierFromTaskItems(ITaskItem[] items)
         {
@@ -154,7 +123,11 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                     arch = CpuArchitecture.Unspecified;
 
                 if (VersionSpecifier.TryParse(versionString, out var version) == false)
-                    version = VersionSpecifier.Any;
+                {
+                    LogMessage($"String '{versionString}' is not a valid version specifier." +
+                               $" Falling back to latest release.", (int)LogEventType.Warning, i);
+                    version = VersionSpecifier.Parse("");
+                }
 
                 return new PackageSpecifier(name, version, arch, os);
             }
