@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
+using System.Xml.Linq;
 using Microsoft.Build.Framework;
 using OpenTap;
 using OpenTap.Diagnostic;
@@ -20,8 +21,12 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         private EventTraceListener traceListener;
         void onEvent(IEnumerable<Event> events)
         {
+            // These sources are really loud and not relevant to the image install.
+            // In addition, messages logged at the error level are treated as build errors by MSBuild.
+            // Skip these log sources.
             var mutedSources = new HashSet<string>()
             {
+                "Searcher", "PluginManager", "TypeDataProvider", "Resolver", "Serializer"
             };
 
             foreach (var evt in events)
