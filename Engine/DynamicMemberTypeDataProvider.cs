@@ -45,14 +45,14 @@ namespace OpenTap
         /// <param name="source"> The source of the member. </param>
         /// <param name="parameterizedMember"> The parameterized member owned by the source. </param>
         /// <returns></returns>
-        internal static ParameterMemberData GetParameter(this IMemberData parameterizedMember, object target, object source)
+        internal static IParameterMemberData GetParameter(this IMemberData parameterizedMember, object target, object source)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
             if (parameterizedMember == null)
                 throw new ArgumentNullException(nameof(parameterizedMember));
 
-            var parameterMembers = TypeData.GetTypeData(target).GetMembers().OfType<ParameterMemberData>();
+            var parameterMembers = TypeData.GetTypeData(target).GetMembers().OfType<IParameterMemberData>();
             foreach (var fwd in parameterMembers)
             {
                 if (fwd.ContainsMember((source, parameterizedMember)))

@@ -62,8 +62,8 @@ namespace OpenTap
                     if (annotation.Source is ITestStepParent step)
                     {
                         ITestStepParent parent = step;
-                        ParameterMemberData parameter = null;
-                        while (parameter == null)
+                        IParameterMemberData parameter = null;
+                        while (parameter == null && parent != null)
                         {
                             parent = parent.Parent;
                             parameter = member.GetParameter(parent, step);
@@ -71,7 +71,7 @@ namespace OpenTap
                         annotation.Add(new ParameterizedIconAnnotation
                         {
                             TestStepReference = (parent as ITestStep)?.Id ?? Guid.Empty,
-                            MemberName = parameter.Name
+                            MemberName = parameter?.Name
                         });
                     }
                     else // this is the multiselect case (source is an array)
