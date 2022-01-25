@@ -46,7 +46,7 @@ namespace OpenTap.Package
             return image;
         }
 
-        internal Installation MergeAndDeploy(Installation deploymentInstallation, CancellationToken cancellationToken)
+        public Installation MergeAndDeploy(Installation deploymentInstallation, CancellationToken cancellationToken)
         {
             List<IPackageRepository> repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
 

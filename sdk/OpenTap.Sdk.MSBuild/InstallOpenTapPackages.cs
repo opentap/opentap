@@ -172,13 +172,13 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 installer.OnWarning += warn => Log.LogWarning(warn);
 
                 var repos = Repositories?.SelectMany(r =>
-                        r.ItemSpec.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                        r.ItemSpec.Split(new[] { ";" }, StringSplitOptions.RemoveEmptyEntries))
                     .ToList() ?? new List<string>();
 
                 repos.AddRange(PackagesToInstall.Select(p => p.GetMetadata("Repository"))
                     .Where(m => string.IsNullOrWhiteSpace(m) == false));
 
-                if (!repos.Any(r => r.Contains("packages.opentap.io", StringComparison.OrdinalIgnoreCase)))
+                if (!repos.Any(r => r.ToLower().Contains("packages.opentap.io")))
                     repos.Add("packages.opentap.io");
 
                 try

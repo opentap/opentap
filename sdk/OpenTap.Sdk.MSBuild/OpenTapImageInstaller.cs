@@ -1,10 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Text;
-using System.Text.Json;
 using System.Threading;
 using Microsoft.Build.Framework;
 using OpenTap;
@@ -91,16 +87,20 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         public bool InstallImage(ITaskItem[] packagesToInstall, string[] repositories)
         {
             bool success = true;
-            var imageString = CreateJsonImageSpecifier(packagesToInstall, repositories);
-            OnDebug?.Invoke($"Trying to deploy '{imageString.Replace('\n', ' ')}'");
 
             try
             {
-                Debugger.Launch();
-                var imageSpecifier = ImageSpecifier.FromString(imageString);
-                imageSpecifier.Repositories.AddRange(new []{TapDir, Path.Combine(TapDir, "PackageCache")});
-                var imageIdentifier = imageSpecifier.Resolve(CancellationToken);
-                imageIdentifier.Deploy(TapDir, CancellationToken);
+                var install = new Installation(TapDir);
+
+                var imageSpecifier = ImageSpecifierFromTaskItems(packagesToInstall);
+                imageSpecifier.Repositories.AddRange(repositories);
+                var opentap = install.GetOpenTapPackage();
+
+                imageSpecifier.Packages.Add(new PackageSpecifier(opentap.Name,
+                    new VersionSpecifier(opentap.Version.Major, opentap.Version.Minor, opentap.Version.Patch,
+                        opentap.Version.PreRelease, opentap.Version.BuildMetadata, VersionMatchBehavior.Exact)));
+
+                imageSpecifier.MergeAndDeploy(install, CancellationToken);
             }
             catch (AggregateException aex)
             {
@@ -121,8 +121,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             {
                 if (success == false)
                 {
-                    OnError?.Invoke($"Failed to resolve image.");
-                    OnDebug?.Invoke($"{string.Join('\n', imageString)}");
+                    OnError?.Invoke($"Failed to install packages.");
                 }
             }
 
@@ -142,20 +141,9 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
         private PackageDef[] InstalledPackages;
 
-        /// <summary>
-        /// Convert the <see cref="ITaskItem"/> to a JSON image specifier
-        /// </summary>
-        /// <param name="taskItems"></param>
-        /// <param name="repositories"></param>
-        /// <returns></returns>
-        private string CreateJsonImageSpecifier(ITaskItem[] taskItems, string[] repositories)
+        private ImageSpecifier ImageSpecifierFromTaskItems(ITaskItem[] items)
         {
-            // OpenTAP should not be installed or updated through these package elements.
-            // The version should only be managed through a NuGet <PackageReference/> tag.
-            taskItems = taskItems.Where(t => t.ItemSpec != "OpenTAP").ToArray();
-            // packages.opentap.io is required for images to resolve in some cases. There's no harm in adding it.
-
-            PackageSpecifier toPackageSpec(ITaskItem i)
+            PackageSpecifier itemToPackageSpec(ITaskItem i)
             {
                 var name = i.ItemSpec;
                 var versionString = i.GetMetadata("Version");
@@ -171,53 +159,10 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 return new PackageSpecifier(name, version, arch, os);
             }
 
-            var packageSpecs = taskItems.Select(toPackageSpec).ToList();
+            var spec = new ImageSpecifier();
+            spec.Packages.AddRange(items.Select(itemToPackageSpec));
 
-            // Currently installed packages should be merged with the requested packages
-            var installed = InstalledPackages;
-            foreach (var pkg in installed)
-            {
-                // .csproj elements should always take precedence over installed packages.
-                if (packageSpecs.Any(i => i.Name == pkg.Name) == false)
-                    packageSpecs.Add(new PackageSpecifier(pkg.Name, VersionSpecifier.Parse(pkg.Version.ToString()),
-                        pkg.Architecture, pkg.OS));
-            }
-
-            var ms = new MemoryStream();
-            using (var w = new Utf8JsonWriter(ms, new JsonWriterOptions() { Indented = true, SkipValidation = false }))
-            {
-                w.WriteStartObject();
-
-                { // Write Packages element
-                    w.WriteStartArray("Packages");
-                    foreach (var spec in packageSpecs)
-                    {
-                        w.WriteStartObject();
-                        w.WriteString("Name", spec.Name);
-                        w.WriteString(nameof(spec.Version), spec.Version.ToString());
-                        if (string.IsNullOrWhiteSpace(spec.OS) == false)
-                            w.WriteString(nameof(spec.OS), spec.OS);
-                        w.WriteString(nameof(spec.Architecture), spec.Architecture.ToString());
-                        w.WriteEndObject();
-                    }
-
-                    w.WriteEndArray();
-                }
-                { // Write Repositories element
-                    w.WriteStartArray("Repositories");
-                    foreach (var repo in repositories)
-                    {
-                        w.WriteStringValue(repo);
-                    }
-                    w.WriteEndArray();
-                }
-                w.WriteEndObject();
-            }
-
-            // Utf8JsonWriter doesn't write to the memory stream before it has been disposed.
-            // This means we cannot use the scoped using language feature for the writer, and we cannot return from inside
-            // the Using scope.
-            return Encoding.UTF8.GetString(ms.ToArray());
+            return spec;
         }
     }
 }
