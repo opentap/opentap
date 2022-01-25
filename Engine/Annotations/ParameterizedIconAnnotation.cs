@@ -55,46 +55,66 @@ namespace OpenTap
         public static void AddParameter(AnnotationCollection annotation, IMemberData member, object source)
         {
             var stepModel = TestStepMenuModel.FromSource(member, annotation.Source);
-            ITestStep step = annotation.Source as ITestStep;
             if (stepModel != null)
             {
                 if (stepModel.IsParameterized)
                 {
-                    ITestStepParent parent = step;
-                    ParameterMemberData parameter = null;
-                    while (parameter == null)
+                    if (annotation.Source is ITestStepParent step)
                     {
-                        parent = parent.Parent;
-                        parameter = member.GetParameter(parent, step);
+                        ITestStepParent parent = step;
+                        ParameterMemberData parameter = null;
+                        while (parameter == null)
+                        {
+                            parent = parent.Parent;
+                            parameter = member.GetParameter(parent, step);
+                        }
+                        annotation.Add(new ParameterizedIconAnnotation
+                        {
+                            TestStepReference = (parent as ITestStep)?.Id ?? Guid.Empty,
+                            MemberName = parameter.Name
+                        });
                     }
-                    annotation.Add(new ParameterizedIconAnnotation
+                    else // this is the multiselect case (source is an array)
                     {
-                        TestStepReference = (parent as ITestStep)?.Id ?? Guid.Empty,
-                        MemberName = parameter.Name
-                    });
+                        annotation.Add(new ParameterizedIconAnnotation());
+                    }
                 }
                 if (stepModel.IsParameter)
                     annotation.Add(new ParameterIconAnnotation(annotation));
-                if(stepModel.IsOutput)
+                if (stepModel.IsOutput)
                     annotation.Add(new OutputAnnotation());
-                if (stepModel.IsAnyInputAssigned)
+                if (stepModel.IsAnyInputAssigned) // this is an assigned output. In case of multiselect, at least one of the selected step has this as an assigned output
                 {
-                    var relation = InputOutputRelation.GetRelations(step).FirstOrDefault(r => r.OutputMember == member && r.OutputObject == source);
-                    annotation.Add(new OutputAssignedAnnotation
+                    if (annotation.Source is ITestStepParent step)
                     {
-                        TestStepReference = (relation.InputObject as ITestStep)?.Id ?? Guid.Empty,
-                        MemberName = relation.InputMember.Name
-                    }) ;
-                }
-                if (stepModel.IsAnyOutputAssigned)
-                {
-                    var relation = InputOutputRelation.GetRelations(step).FirstOrDefault(r => r.InputMember == member && r.InputObject == source);
-                    annotation.Add(new InputIconAnnotation
+                        var relation = InputOutputRelation.GetRelations(step).FirstOrDefault(r => r.OutputMember == member && r.OutputObject == source);
+                        annotation.Add(new OutputAssignedAnnotation
+                        {
+                            TestStepReference = (relation.InputObject as ITestStep)?.Id ?? Guid.Empty,
+                            MemberName = relation.InputMember.Name
+                        });
+                    }
+                    else // this is the multiselect case (source is an array)
                     {
-                        TestStepReference = (relation.OutputObject as ITestStep)?.Id ?? Guid.Empty,
-                        MemberName = relation.OutputMember.Name
-                    });
+                        annotation.Add(new OutputAssignedAnnotation()); // In case of multiselect, don't populate the ISettingReferenceIconAnnotation part
 
+                    }
+                }
+                if (stepModel.IsAnyOutputAssigned) // this is an input. In case of multiselect, at least one of the selected step has this as an input
+                {
+                    if (annotation.Source is ITestStepParent step)
+                    {
+                        var relation = InputOutputRelation.GetRelations(step).FirstOrDefault(r => r.InputMember == member && r.InputObject == source);
+                        annotation.Add(new InputIconAnnotation
+                        {
+                            TestStepReference = (relation.OutputObject as ITestStep)?.Id ?? Guid.Empty,
+                            MemberName = relation.OutputMember.Name
+                        });
+                    }
+                    else // this is the multiselect case (source is an array)
+                    {
+                        annotation.Add(new InputIconAnnotation()); // In case of multiselect, don't populate the ISettingReferenceIconAnnotation part
+                    }
                 }
             }
         }
