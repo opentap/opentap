@@ -1,12 +1,17 @@
+using System;
 using System.Linq;
 
 namespace OpenTap
 {
-    class ParameterizedIconAnnotation :IIconAnnotation, IEnabledAnnotation
+    class ParameterizedIconAnnotation :IIconAnnotation, IEnabledAnnotation, ISettingReferenceIconAnnotation
     {
         public string IconName => IconNames.Parameterized;
         /// <summary> Parameterized properties are disabled is controlled by the parent parameter </summary>
         public bool IsEnabled => false;
+
+        public Guid TestStepReference { get; set; }
+
+        public string MemberName { get; set; }
     }
 
     class ParameterIconAnnotation : IInteractiveIconAnnotation
@@ -45,7 +50,21 @@ namespace OpenTap
             if (stepModel != null)
             {
                 if (stepModel.IsParameterized)
-                    annotation.Add(new ParameterizedIconAnnotation());
+                {
+                    ITestStep step = annotation.Source as ITestStep;
+                    ITestStepParent parent = step;
+                    ParameterMemberData parameter = null;
+                    while (parameter == null)
+                    {
+                        parent = parent.Parent;
+                        parameter = member.GetParameter(parent, step);
+                    }
+                    annotation.Add(new ParameterizedIconAnnotation
+                    {
+                        TestStepReference = (parent as ITestStep)?.Id ?? Guid.Empty,
+                        MemberName = parameter.Name
+                    });
+                }
                 if (stepModel.IsParameter)
                     annotation.Add(new ParameterIconAnnotation(annotation));
                 if(stepModel.IsOutput)
