@@ -24,12 +24,16 @@ namespace OpenTap
         readonly AnnotationCollection annotation;
     }
     
-    class InputIconAnnotation : IIconAnnotation, IEnabledAnnotation
+    class InputIconAnnotation : IIconAnnotation, IEnabledAnnotation, ISettingReferenceIconAnnotation
     {
         public string IconName => IconNames.Input;
         
         /// <summary> Inputs are disabled in the GUI and is controlled by the output parameter </summary>
         public bool IsEnabled => false;
+
+        public Guid TestStepReference { get; set; }
+
+        public string MemberName { get; set; }
     }
 
     class OutputAnnotation : IIconAnnotation
@@ -37,9 +41,13 @@ namespace OpenTap
         public string IconName => IconNames.Output;
     }
     
-    class OutputAssignedAnnotation : IIconAnnotation
+    class OutputAssignedAnnotation : IIconAnnotation, ISettingReferenceIconAnnotation
     {
         public string IconName => IconNames.OutputAssigned;
+
+        public Guid TestStepReference { get; set; }
+
+        public string MemberName { get; set; }
     }
 
     class IconAnnotationHelper
@@ -47,11 +55,11 @@ namespace OpenTap
         public static void AddParameter(AnnotationCollection annotation, IMemberData member, object source)
         {
             var stepModel = TestStepMenuModel.FromSource(member, annotation.Source);
+            ITestStep step = annotation.Source as ITestStep;
             if (stepModel != null)
             {
                 if (stepModel.IsParameterized)
                 {
-                    ITestStep step = annotation.Source as ITestStep;
                     ITestStepParent parent = step;
                     ParameterMemberData parameter = null;
                     while (parameter == null)
@@ -69,10 +77,25 @@ namespace OpenTap
                     annotation.Add(new ParameterIconAnnotation(annotation));
                 if(stepModel.IsOutput)
                     annotation.Add(new OutputAnnotation());
-                if(stepModel.IsAnyInputAssigned)
-                    annotation.Add(new OutputAssignedAnnotation());
+                if (stepModel.IsAnyInputAssigned)
+                {
+                    var relation = InputOutputRelation.GetRelations(step).FirstOrDefault(r => r.OutputMember == member && r.OutputObject == source);
+                    annotation.Add(new OutputAssignedAnnotation
+                    {
+                        TestStepReference = (relation.InputObject as ITestStep)?.Id ?? Guid.Empty,
+                        MemberName = relation.InputMember.Name
+                    }) ;
+                }
                 if (stepModel.IsAnyOutputAssigned)
-                    annotation.Add(new InputIconAnnotation());
+                {
+                    var relation = InputOutputRelation.GetRelations(step).FirstOrDefault(r => r.InputMember == member && r.InputObject == source);
+                    annotation.Add(new InputIconAnnotation
+                    {
+                        TestStepReference = (relation.OutputObject as ITestStep)?.Id ?? Guid.Empty,
+                        MemberName = relation.OutputMember.Name
+                    });
+
+                }
             }
         }
     }
