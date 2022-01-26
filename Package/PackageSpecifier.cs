@@ -326,6 +326,16 @@ namespace OpenTap.Package
             if (MatchBehavior.HasFlag(VersionMatchBehavior.AnyPrerelease))
                 return true;
 
+            // We want ^1.0.0 to accept 1.0.1-beta or 1.1.0-beta as compatible versions
+            if(PreRelease == null && actualVersion.PreRelease != null)
+            {
+                if (Minor.HasValue && Minor.Value < actualVersion.Minor)
+                    return true;
+                if (Minor.HasValue && Minor.Value == actualVersion.Minor)
+                    if (Patch.HasValue && Patch.Value < actualVersion.Patch)
+                        return true;
+            }
+
             if (0 < new SemanticVersion(0, 0, 0, PreRelease, null).CompareTo(new SemanticVersion(0, 0, 0, actualVersion.PreRelease, null)))
                 return false;
             return true;
@@ -454,6 +464,6 @@ namespace OpenTap.Package
         /// <summary>
         /// Prerelease property of <see cref="VersionSpecifier"/> is ignored when looking for matching packages.
         /// </summary>
-        AnyPrerelease = 4,
+        AnyPrerelease = 4
     }
 }
