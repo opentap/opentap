@@ -464,6 +464,6 @@ namespace OpenTap.Package
         /// <summary>
         /// Prerelease property of <see cref="VersionSpecifier"/> is ignored when looking for matching packages.
         /// </summary>
-        AnyPrerelease = 4
+        AnyPrerelease = 4,
     }
 }

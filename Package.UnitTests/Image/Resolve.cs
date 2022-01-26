@@ -209,7 +209,6 @@ namespace OpenTap.Image.Tests
         [TestCase("OpenTAP", "9.14", "9.13.1", "error")]
         [TestCase("OpenTAP", "^9.13", "9.13.2", "9.13.2")]
 
-        // Make sure resolved is semantically aligned
         [TestCase("OpenTAP", "^9.13.0", "^9.13.2-beta.1", "9.13.2-beta.1")]
         [TestCase("OpenTAP", "^9.12.0", "^9.13.2-beta.1", "9.13.2-beta.1")]
         [TestCase("OpenTAP", "^9.13.2", "^9.13.2-beta.1", "9.13.2")]
