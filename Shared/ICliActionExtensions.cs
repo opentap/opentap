@@ -161,8 +161,9 @@ namespace OpenTap.Cli
                     if (propType2 != typeof(string) && propType2.IsArray)
                     {
                         var array = Array.CreateInstance(propType2.GetElementType(), opts.Value.Values.Count);
+                        var elemType = propType2.GetElementType();
                         for (int i = 0; i < array.Length; i++)
-                            array.SetValue(getValue(opts.Value.Values[i], propType2.GetElementType()), i);
+                            array.SetValue(getValue(opts.Value.Values[i], elemType), i);
                         prop.SetValue(action, array);
                     }
                     else
