@@ -1599,5 +1599,29 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual(instrument.Name, next);
             }
         }
+
+
+        class ClassWithNumbers
+        {
+            [Unit("things")]
+            public int[] Values { get; set; } = new int[] {1, 2, 3};
+        }
+        
+        [Test]
+        public void TestNumberSequenceAnnotation()
+        {
+            var obj = new ClassWithNumbers();
+            var annotation = AnnotationCollection.Annotate(obj);
+            var str = annotation.GetMember(nameof(obj.Values)).Get<IStringValueAnnotation>();
+            var err = annotation.GetMember(nameof(obj.Values)).Get<IErrorAnnotation>();
+            // this should not throw.
+            str.Value = "asd";
+            Assert.IsTrue(err.Errors.Count() == 1);
+            str.Value = "1, 2, 3, 4";
+            Assert.IsTrue(err.Errors.Count() == 0);
+            annotation.Write();
+            Assert.IsTrue(obj.Values.SequenceEqual(new int[] {1, 2, 3, 4}));
+        }
+        
     }
 }
