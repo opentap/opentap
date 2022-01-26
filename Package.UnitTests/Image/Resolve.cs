@@ -209,6 +209,10 @@ namespace OpenTap.Image.Tests
         [TestCase("OpenTAP", "9.14", "9.13.1", "error")]
         [TestCase("OpenTAP", "^9.13", "9.13.2", "9.13.2")]
 
+        [TestCase("OpenTAP", "^9.13.0", "^9.13.2-beta.1", "9.13.2-beta.1")]
+        [TestCase("OpenTAP", "^9.12.0", "^9.13.2-beta.1", "9.13.2-beta.1")]
+        [TestCase("OpenTAP", "^9.13.2", "^9.13.2-beta.1", "9.13.2")]
+
         [TestCase("Cyclic", "1.0.0", null, "1.0.0")]
 
         // [TestCase("OpenTAP", "^9.13", "9.14.0", "error")] ^9.13 This does not work as intended
@@ -229,7 +233,7 @@ namespace OpenTap.Image.Tests
                 {
                     var repo = PackageRepositoryHelpers.DetermineRepositoryType("mock://localhost");
                     var latest = repo.GetPackageVersions(packageName).Select(v => v.Version).Where(v => v.PreRelease == null).Distinct().ToList();
-                    StringAssert.StartsWith(latest.First().ToString(), image.Packages.First(p => p.Name == packageName).Version.ToString());
+                    StringAssert.AreEqualIgnoringCase(latest.First().ToString(), image.Packages.First(p => p.Name == packageName).Version.ToString());
                 }
                 else
                     StringAssert.StartsWith(resultingVersion, image.Packages.First(p => p.Name == packageName).Version.ToString());
