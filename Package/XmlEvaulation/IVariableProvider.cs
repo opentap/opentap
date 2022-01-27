@@ -27,12 +27,6 @@ namespace OpenTap.Package.XmlEvaulation
         /// <param name="element"></param>
         /// <returns></returns>
         void Expand(XElement element);
-
-        /// <summary>
-        /// This method is called once for each <see cref="DependsOnAttribute"/> declared on the interface implementation
-        /// </summary>
-        /// <param name="exp"></param>
-        void InjectDependency(IElementExpander exp);
     }
 
     [DependsOn(typeof(PropertyExpander))]
@@ -115,12 +109,6 @@ namespace OpenTap.Package.XmlEvaulation
                 return false;
             }
         }
-
-
-        public void InjectDependency(IElementExpander exp)
-        {
-
-        }
     }
 
     [DependsOn(typeof(EnvironmentVariableExpander))]
@@ -160,9 +148,6 @@ namespace OpenTap.Package.XmlEvaulation
                 ExpansionHelper.ReplaceToken(element, key, Variables[key].ToString());
             }
         }
-        public void InjectDependency(IElementExpander exp)
-        {
-        }
     }
 
     [DependsOn(typeof(GitVersionExpander))]
@@ -181,10 +166,6 @@ namespace OpenTap.Package.XmlEvaulation
             {
                 ExpansionHelper.ReplaceToken(element, key, Variables[key].ToString());
             }
-        }
-
-        public void InjectDependency(IElementExpander exp)
-        {
         }
     }
 
@@ -217,10 +198,6 @@ namespace OpenTap.Package.XmlEvaulation
             // If 'GitVersion' could not be resolved, don't replace it
             if (version != null)
                 ExpansionHelper.ReplaceToken(element, "GitVersion", version);
-        }
-
-        public void InjectDependency(IElementExpander exp)
-        {
         }
     }
 }

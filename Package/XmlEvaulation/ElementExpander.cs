@@ -51,21 +51,7 @@ namespace OpenTap.Package.XmlEvaulation
         private List<IElementExpander> ElementExpanders = new List<IElementExpander>();
         internal void AddProvider(IElementExpander prov)
         {
-            var provDeps = getDependents(prov);
-            // Notify all existing expanders that depend on this of the new provider
-            foreach (var expander in ElementExpanders)
-            {
-                var deps = getDependents(expander);
-
-                if (deps.Any(t => t == prov.GetType()))
-                    expander.InjectDependency(prov);
-
-                if (provDeps.Contains(expander.GetType()))
-                    prov.InjectDependency(expander);
-            }
-
             ElementExpanders.Add(prov);
-
             isOrdered = false;
         }
 

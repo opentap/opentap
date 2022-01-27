@@ -17,7 +17,7 @@ namespace OpenTap.Package.XmlEvaulation
     /// condition itself is removed. A condition takes the form Condition="$(abc)" or Condition="$(abc) == $(def)" or
     /// Condition="$(abc) != $(def)". A condition is true if it has the value '1' or 'true', or if the comparison operator evaluates to true.
     /// </summary>
-    public class XmlEvaluator
+    internal class XmlEvaluator
     {
         /// <summary>
         /// Initializes a new instance of <see cref="XmlEvaluator"/> from an <see cref="XElement"/> object.
