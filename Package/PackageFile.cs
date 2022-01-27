@@ -660,8 +660,19 @@ namespace OpenTap.Package
         /// </summary>
         public static PackageDef FromXml(string path)
         {
+            PackageDef pkDef;
             using (var stream = File.OpenRead(path))
-                return PackageDef.FromXml(stream);
+                pkDef = PackageDef.FromXml(stream);
+            if (pkDef != null)
+            {
+                pkDef.PackageSource = new InstalledPackageDefSource
+                {
+                    Installation = Installation.Current,
+                    PackageDefFilePath = path
+                };
+            }
+
+            return pkDef;
         }
 
         /// <summary>
