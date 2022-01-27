@@ -11,7 +11,6 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using System.Xml.Serialization;
 
 namespace OpenTap.Package
 {
@@ -258,8 +257,10 @@ namespace OpenTap.Package
             catch (AggregateException ex)
             {
                 foreach (var inner in ex.InnerExceptions)
-                    log.Error(inner);
-                log.Error(ex);
+                {
+                    log.Info(inner.Message);
+                    log.Debug(inner);
+                }
             }
             return list;
         }
@@ -281,8 +282,10 @@ namespace OpenTap.Package
             catch (AggregateException ex)
             {
                 foreach (var inner in ex.InnerExceptions)
-                    log.Error(inner);
-                log.Error(ex);
+                {
+                    log.Info(inner.Message);
+                    log.Debug(inner);
+                }
             }
             return list;
         }
@@ -304,8 +307,10 @@ namespace OpenTap.Package
             catch (AggregateException ex)
             {
                 foreach (var inner in ex.InnerExceptions)
-                    log.Error(inner);
-                log.Error(ex);
+                {
+                    log.Info(inner.Message);
+                    log.Debug(inner);
+                }
             }
             return list;
         }
