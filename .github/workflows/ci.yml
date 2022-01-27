@@ -415,40 +415,6 @@ jobs:
           path: |
             SDK.*.TapPackage
 
-  Package-Diff:
-    runs-on: ubuntu-20.04
-    strategy:
-      matrix:
-        Package: [win-x86, win-x64, linux-x64]
-    needs:
-      - Package-Win
-      - Package-Linux
-    steps:
-      - name: Download package
-        uses: actions/download-artifact@v2
-        with:
-          name: ${{ matrix.Package }}-package
-          path: .
-      - name: Install OpenTAP
-        run: |
-          cd $RUNNER_TEMP
-          wget -O opentap.tar https://www.opentap.io/docs/OpenTAP.9.16.2+f3c96b9f.tar
-          tar -xf opentap.tar
-          chmod u+x INSTALL.sh
-          echo 'y' | ./INSTALL.sh
-          ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
-          cd -
-      - name: Diff Package
-        run: |
-          mv OpenTAP.*.TapPackage OpenTAP.TapPackage
-          tap package install "Package Diff" --version any
-          tap package diff OpenTAP.TapPackage -o diff
-      - uses: actions/upload-artifact@v2
-        with:
-          name: api-diff-${{ matrix.Package }}
-          retention-days: 14
-          path: diff.html
-
   Package-NuGet:
     runs-on: windows-2022
     needs:
