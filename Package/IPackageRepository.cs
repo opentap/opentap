@@ -220,39 +220,11 @@ namespace OpenTap.Package
         private static TraceSource log = Log.CreateSource("PackageRepository");
         private static VersionSpecifier RequiredApiVersion = new VersionSpecifier(3, 1, 0, "", "", VersionMatchBehavior.Compatible | VersionMatchBehavior.AnyPrerelease); // Required for GraphQL
 
-        internal static List<PackageDef> GetPackageNameAndVersionFromAllRepos(List<IPackageRepository> repositories, PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
+        static void ParallelTryForEach<TSource>(IEnumerable<TSource> source, Action<TSource> body)
         {
-            var list = new List<PackageDef>();
             try
             {
-                string query = 
-                    @"query Query {
-                            packages(distinctName:true" + (id != null ? $",version:\"{id.Version}\",os:\"{id.OS}\",architecture:\"{id.Architecture}\"" : "") + @") {
-                            name
-                            version
-                        }
-                    }";
-
-                Parallel.ForEach(repositories, repo =>
-                {
-                    if (repo is HttpPackageRepository httprepo && httprepo.Version != null && RequiredApiVersion.IsCompatible(httprepo.Version))
-                    {
-                        var json = httprepo.Query(query);
-                        lock (list)
-                        {
-                            foreach (var item in json["packages"])
-                                list.Add(new PackageDef() { Name = item["name"].ToString(), Version = SemanticVersion.Parse(item["version"].ToString()) });
-                        }
-                    }
-                    else
-                    {
-                        var packages = repo.GetPackages(id, compatibleWith);
-                        lock (list)
-                        {
-                            list.AddRange(packages);
-                        }
-                    }
-                });
+                Parallel.ForEach(source, body);
             }
             catch (AggregateException ex)
             {
@@ -262,56 +234,80 @@ namespace OpenTap.Package
                     log.Debug(inner);
                 }
             }
-            return list;
         }
 
-        internal static List<PackageDef> GetPackagesFromAllRepos(List<IPackageRepository> repositories, PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
+        internal static List<PackageDef> GetPackageNameAndVersionFromAllRepos(List<IPackageRepository> repositories,
+            PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
         {
             var list = new List<PackageDef>();
-            try
+
+            string query =
+                @"query Query {
+                            packages(distinctName:true" +
+                (id != null ? $",version:\"{id.Version}\",os:\"{id.OS}\",architecture:\"{id.Architecture}\"" : "") +
+                @") {
+                            name
+                            version
+                        }
+                    }";
+
+            ParallelTryForEach(repositories, repo =>
             {
-                Parallel.ForEach(repositories, repo =>
+                if (repo is HttpPackageRepository httprepo && httprepo.Version != null &&
+                    RequiredApiVersion.IsCompatible(httprepo.Version))
+                {
+                    var json = httprepo.Query(query);
+                    lock (list)
+                    {
+                        foreach (var item in json["packages"])
+                            list.Add(new PackageDef()
+                            {
+                                Name = item["name"].ToString(),
+                                Version = SemanticVersion.Parse(item["version"].ToString())
+                            });
+                    }
+                }
+                else
                 {
                     var packages = repo.GetPackages(id, compatibleWith);
                     lock (list)
                     {
                         list.AddRange(packages);
                     }
-                });
-            }
-            catch (AggregateException ex)
-            {
-                foreach (var inner in ex.InnerExceptions)
-                {
-                    log.Info(inner.Message);
-                    log.Debug(inner);
                 }
-            }
+            });
             return list;
         }
 
-        internal static List<PackageVersion> GetAllVersionsFromAllRepos(List<IPackageRepository> repositories, string packageName, params IPackageIdentifier[] compatibleWith)
+        internal static List<PackageDef> GetPackagesFromAllRepos(List<IPackageRepository> repositories,
+            PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
+        {
+            var list = new List<PackageDef>();
+
+            ParallelTryForEach(repositories, repo =>
+            {
+                var packages = repo.GetPackages(id, compatibleWith);
+                lock (list)
+                {
+                    list.AddRange(packages);
+                }
+            });
+
+            return list;
+        }
+
+        internal static List<PackageVersion> GetAllVersionsFromAllRepos(List<IPackageRepository> repositories,
+            string packageName, params IPackageIdentifier[] compatibleWith)
         {
             var list = new List<PackageVersion>();
-            try
+            ParallelTryForEach(repositories, repo =>
             {
-                Parallel.ForEach(repositories, repo =>
+                var packages = repo.GetPackageVersions(packageName, compatibleWith);
+                lock (list)
                 {
-                    var packages = repo.GetPackageVersions(packageName, compatibleWith);
-                    lock (list)
-                    {
-                        list.AddRange(packages);
-                    }
-                });
-            }
-            catch (AggregateException ex)
-            {
-                foreach (var inner in ex.InnerExceptions)
-                {
-                    log.Info(inner.Message);
-                    log.Debug(inner);
+                    list.AddRange(packages);
                 }
-            }
+            });
             return list;
         }
 
