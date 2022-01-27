@@ -15,7 +15,7 @@ namespace OpenTap
     /// </summary>
     static class ParameterizedMembersCache
     {
-        public static (ParameterMemberData, ITestStepParent) GetParameterFor(ITestStepParent step, IMemberData member)
+        public static (IParameterMemberData, ITestStepParent) GetParameterFor(ITestStepParent step, IMemberData member)
         {
             if (step is IParameterizedMembersCache cache && cache.GetParameterFor(member) is ParameterMemberData p) // implemented by TestStep.
                 return (p, p.Target as ITestStepParent);
@@ -24,7 +24,7 @@ namespace OpenTap
             while (source != null)
             {
                 source = source.Parent;
-                if (member.GetParameter(source, step) is ParameterMemberData p2)
+                if (member.GetParameter(source, step) is IParameterMemberData p2)
                     return (p2, source);
             }
 
