@@ -375,7 +375,7 @@ namespace OpenTap
                     // in two different test plans and the old parameters are lingering in the old plan.
                     // in this case try to fix the parameterized state by 
                     // checking for parameter sanity.
-                    var param = cache.GetParameterFor(member) as ParameterMemberData;
+                    var param = cache.GetParameterFor(member);
                     ParameterManager.CheckParameterSanity(param, true);
                     bad = IsParameterized(member, source);
                 }

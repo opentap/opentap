@@ -61,13 +61,7 @@ namespace OpenTap
                 {
                     if (annotation.Source is ITestStepParent step)
                     {
-                        ITestStepParent parent = step;
-                        IParameterMemberData parameter = null;
-                        while (parameter == null && parent != null)
-                        {
-                            parent = parent.Parent;
-                            parameter = member.GetParameter(parent, step);
-                        }
+                        (IParameterMemberData parameter, object parent) = ParameterizedMembersCache.GetParameterFor(step, member);   
                         annotation.Add(new ParameterizedIconAnnotation
                         {
                             TestStepReference = (parent as ITestStep)?.Id ?? Guid.Empty,
