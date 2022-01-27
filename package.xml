@@ -55,7 +55,7 @@
               SourcePath="../../Help/OpenTapApiReference.chm"
               Condition="$(Debug) == false"/>        
     </Files>
-    <!-- NetCore only files -->
+    <!-- Linux only files -->
     <Files Condition="$(Platform) != Windows">        
         <File Path="tap"/>
         <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.linux-x64"/>
