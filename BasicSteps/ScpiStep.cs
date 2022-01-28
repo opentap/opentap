@@ -7,7 +7,6 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml.Serialization;
-using OpenTap;
 
 namespace OpenTap.Plugins.BasicSteps
 {
