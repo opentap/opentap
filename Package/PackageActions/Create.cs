@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.IO;
+using System.Text.RegularExpressions;
 using OpenTap.Cli;
 using System.Threading;
 using Tap.Shared;
@@ -107,6 +108,18 @@ namespace OpenTap.Package
                     {
                         log.Error("Package name cannot contain invalid file path characters: '{0}'.", pkg.Name[illegalCharacter]);
                         return (int)PackageExitCodes.InvalidPackageName;
+                    }
+                    
+                    // Check for invalid package metadata
+                    var invalidMetadataPattern = new Regex("[_a-zA-Z][_a-zA-Z0-9]*");
+                    foreach (var metaDataKey in pkg.MetaData.Keys)
+                    {
+                        var invalidCharacters = invalidMetadataPattern.Replace(metaDataKey, "");
+                        if (invalidCharacters.Length > 0)
+                        {
+                            log.Error($"Package metadata keys contains invalid characters: '{invalidCharacters}'.");
+                            return (int)PackageExitCodes.InvalidPackageDefinition;
+                        }
                     }
                 }
                 catch (AggregateException aex)

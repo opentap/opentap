@@ -192,6 +192,29 @@ namespace OpenTap.Package.UnitTests
                 Assert.True(e.Message.Contains("invalid file path characters"));
             }
         }
+
+        [Test]
+        public void CheckInvalidMetadata()
+        {
+            // Check if metadata contains invalid characters
+            try
+            {
+                var package = new PackageDef()
+                {
+                    Name = "test",
+                    MetaData = { {"te.st",""} },
+                    Version = SemanticVersion.Parse("1.0.0")
+                };
+                DummyPackageGenerator.GeneratePackage(package);
+                
+                Assert.Fail("Package metadata keys contains invalid");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                Assert.True(e.Message.Contains("Package metadata keys contains invalid"));
+            }
+        }
         
         [Test]
         public void ListTest()
