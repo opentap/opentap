@@ -219,43 +219,56 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
-        public void TestFindPackageOf()
+        [TestCase("InstallDir")]
+        [TestCase("../")]
+        [TestCase("../../")]
+        public void TestFindPackageOf(string workingDirectory)
         {
-            // Test FindPackageContainingType(TypeData)
+            var start = Directory.GetCurrentDirectory();
+            if (workingDirectory != "InstallDir")
+                Directory.SetCurrentDirectory(workingDirectory);
+            try
             {
-                var td = TypeData.FromType(typeof(MyTestStep));
+                // Test FindPackageContainingType(TypeData)
+                {
+                    var td = TypeData.FromType(typeof(MyTestStep));
 
-                var p1 = Installation.Current.FindPackageContainingType(td);
-                Assert.IsNull(p1);
-                InstallPackage();
-                var p2 = Installation.Current.FindPackageContainingType(td);
-                // The package should be null because the cache is not invalidated
-                Assert.IsNull(p2);
-                Installation.Current.Invalidate();
-                var p3 = Installation.Current.FindPackageContainingType(td);
-                Assert.IsNotNull(p3);
+                    var p1 = Installation.Current.FindPackageContainingType(td);
+                    Assert.IsNull(p1);
+                    InstallPackage();
+                    var p2 = Installation.Current.FindPackageContainingType(td);
+                    // The package should be null because the cache is not invalidated
+                    Assert.IsNull(p2);
+                    Installation.Current.Invalidate();
+                    var p3 = Installation.Current.FindPackageContainingType(td);
+                    Assert.IsNotNull(p3);
 
-                StringAssert.AreEqualIgnoringCase(p3.Name, TestPackageName);
-                StringAssert.AreEqualIgnoringCase(p3.Version.ToString(), version);
+                    StringAssert.AreEqualIgnoringCase(p3.Name, TestPackageName);
+                    StringAssert.AreEqualIgnoringCase(p3.Version.ToString(), version);
+                }
+
+                Uninstall();
+
+                // Test FindPackageContainingFile("File/Path")
+                {
+                    var filename = ReferencedFile2;
+                    var p1 = Installation.Current.FindPackageContainingFile(filename);
+                    Assert.IsNull(p1);
+                    InstallPackage();
+                    var p2 = Installation.Current.FindPackageContainingFile(filename);
+                    // The package should be null because the cache is not invalidated
+                    Assert.IsNull(p2);
+                    Installation.Current.Invalidate();
+                    var p3 = Installation.Current.FindPackageContainingFile(filename);
+                    Assert.IsNotNull(p3);
+
+                    StringAssert.AreEqualIgnoringCase(p3.Name, TestPackageName);
+                    StringAssert.AreEqualIgnoringCase(p3.Version.ToString(), version);
+                }
             }
-
-            Uninstall();
-
-            // Test FindPackageContainingFile("File/Path")
+            finally
             {
-                var filename = ReferencedFile2;
-                var p1 = Installation.Current.FindPackageContainingFile(filename);
-                Assert.IsNull(p1);
-                InstallPackage();
-                var p2 = Installation.Current.FindPackageContainingFile(filename);
-                // The package should be null because the cache is not invalidated
-                Assert.IsNull(p2);
-                Installation.Current.Invalidate();
-                var p3 = Installation.Current.FindPackageContainingFile(filename);
-                Assert.IsNotNull(p3);
-
-                StringAssert.AreEqualIgnoringCase(p3.Name, TestPackageName);
-                StringAssert.AreEqualIgnoringCase(p3.Version.ToString(), version);
+                Directory.SetCurrentDirectory(start);
             }
         }
         

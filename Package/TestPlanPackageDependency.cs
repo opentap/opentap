@@ -180,7 +180,7 @@ namespace OpenTap.Package
                     {
                         var ele = new XElement(PackageDependencyName);
                         ele.Add(new XAttribute(NameName, p.Name));
-                        if (p.Version != null) ele.Add(new XAttribute(VersionName, p.Version));
+                        if (p.Version != null) ele.Add(new XAttribute(VersionName, $"^{p.Version}"));
                         
                         pluginsNode.Add(ele);
 

@@ -83,10 +83,12 @@ namespace OpenTap.Package
                 return null;
             }
 
-            // Compute the absolute path in order to ensure the file exists, and normalize the path so it matches the format in package.xml files
-            var abs = Path.GetFullPath(file);
-
             var installDir = ExecutorClient.ExeDir;
+
+            // Compute the absolute path in order to ensure the file exists, and normalize the path so it matches the format in package.xml files
+            var abs = Path.IsPathRooted(file)
+                ? Path.GetFullPath(file) // If the path is rooted, use the full path
+                : Path.GetFullPath(Path.Combine(installDir, file)); // otherwise, append the relative path to the install dir
 
             // abs must be contained within installDir
             if (abs.Length <= installDir.Length)
