@@ -667,7 +667,6 @@ namespace OpenTap.Package
             {
                 pkDef.PackageSource = new InstalledPackageDefSource
                 {
-                    Installation = Installation.Current,
                     PackageDefFilePath = path
                 };
             }

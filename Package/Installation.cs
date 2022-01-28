@@ -235,7 +235,7 @@ namespace OpenTap.Package
                     if(duplicateLogWarningsEmitted.Add(p.Key))
                         log.Warning(
                         $"Duplicate {p.Key} packages detected. Consider removing some of the duplicate package definitions:\n" +
-                        $"{string.Join("\n", p.Append(plugins[p.Key]).Select(x => " - " + x.Location))}");
+                        $"{string.Join("\n", p.Append(plugins[p.Key]).Select(x => " - " + ((InstalledPackageDefSource)x.PackageSource).PackageDefFilePath))}");
                 }
 
                 invalidate = false;
