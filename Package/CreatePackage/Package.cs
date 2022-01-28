@@ -10,10 +10,8 @@ using System.Text.RegularExpressions;
 using System.Reflection;
 using System.Diagnostics;
 using Tap.Shared;
-using System.Runtime.InteropServices;
 using System.Xml.Serialization;
 using OpenTap.Cli;
-using OpenTap.Package.XmlEvaulation;
 
 namespace OpenTap.Package
 {
@@ -123,14 +121,17 @@ namespace OpenTap.Package
         {
             try
             {
-                var evaluator = new XmlEvaluator(xmlFilePath, projectDir);
+                var sw = Stopwatch.StartNew();
+                var evaluator = new PackageXmlPreprocessor(xmlFilePath, projectDir);
                 var xmlDoc = evaluator.Evaluate();
                 var evaluated = Path.GetTempFileName();
                 xmlDoc.Save(evaluated);
                 xmlFilePath = evaluated;
+                log.Debug(sw, $"Package preprocessing completed.");
             }
             catch (Exception ex)
             {
+                log.Warning(ex.Message);
                 log.Debug($"Unexpected error while evaluating package xml. Continuing in spite of errors.");
                 log.Debug(ex);
             }

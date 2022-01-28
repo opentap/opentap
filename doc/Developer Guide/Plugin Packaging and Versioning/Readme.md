@@ -532,8 +532,8 @@ expanded exactly once if it appears as text inside an element or an attribute.
 </Package>
 ```
 
-If an *Environment* variable is defined with the same name as a *file-local* property, then the *Environment* variable will take precedence.
-Values from the **PropertyGroup** element can be considered *default* values, but can be overriden during `package create`.
+If an *Environment* variable is defined with the same name as a *file-local* property, then the *file-local* variable will take precedence.
+Default values can be specified using *Conditions*.
 
 > **Note** the $(GitVersion) variable has a special meaning, and cannot be overriden.
 
@@ -546,8 +546,7 @@ an equality comparison, or a literal value:
 > &lt;SomeElement Condition="$(abc) == 123" /&gt;<br>
 > &lt;SomeElement Condition="$(abc) != $(def)" /&gt;
 
-If a condition evaluates to true, the **Condition** attribute is removed from the element. If the condition evaluates to false,
-the **Element** containing the condition is removed. 
+If the condition evaluates to false, the **Element** containing the condition is removed. 
 
 When a literal value is used, it is considered *true* if the value is `true` or `1`, and *false* if the value is `false`, `0` or empty (not case sensitive). 
 
@@ -575,14 +574,14 @@ Some elements have been omitted for brevity
 <Package Version="$(GitVersion)" OS="$(Platform)" Architecture="$(Architecture)" Name="OpenTAP" >
     <PropertyGroup>
         <!-- We include some native dependencies based on the platform and architecture, notably libgitsharp -->
-        <Architecture>x64</Architecture>
-        <Platform>Windows</Platform>
+        <Architecture Condition="$(Architecture) == ''">x64</Architecture>
+        <Platform Condition="$(Platform) == ''">Windows</Platform>
         <!--Set 'Sign' to false to disable Signing elements. This is useful for local debug builds -->
-        <Sign>true</Sign>
+        <Sign Condition="$(Sign) == ''">true</Sign>
         <!-- When debug is enabled, the .chm documentation file will not be included -->
-        <Debug>false</Debug>
+        <Debug Condition="$(Debug) == ''">false</Debug>
         <!-- When IncludePdb is set to true, all .pdb files will be included by a glob expression -->
-        <IncludePdb>false</IncludePdb>
+        <IncludePdb Condition="$(IncludePdb) == ''">false</IncludePdb>
     </PropertyGroup>
     <!-- Common files  -->
     <Files>        
@@ -630,15 +629,16 @@ Some elements have been omitted for brevity
 ```
 
 Here we use several properties for targeting different architectures and platforms with a single package definition.
+Assume for now that all the *Condition* attributes evaluate to 'true'.
 
 1. We bundle different versions of the native binary `LibGit2Sharp` depending on platform and architecture. 
 2. We use the `Sign` property in order to easily disable signing when building in debug environments without signing capabilities.
 3. We use the `IncludePdb` property in order to create debug packages with debugging symbols.
 4. We run `chmod +x tap` after the package has been installed on non-windows platforms
 
-After evaluating this package definition, we get the following definition:
+After preprocessing this package definition, we get the following definition:
 
-> This evaluation is performed automatically when `tap package create` is used, and is only shown here for illustrative purposes
+> This preprocessing is performed automatically when `tap package create` is used, and is only shown here for illustrative purposes
 
 ```xml
 <Package Version="$(GitVersion)" OS="Windows" Architecture="x64" Name="OpenTAP">
@@ -671,7 +671,26 @@ After evaluating this package definition, we get the following definition:
 1. Notice that the **PropertyGroup** element, and all the **Condition** attributes have been removed. 
 2. Notice that all the **Files** elements have been merged into a single element (though the comments are still there).
 
-Leveraging this solution, we can now create an OpenTAP package for Windows-x86, Windows-x64, and Linux-x64 in a few easy steps:
+As mentioned earlier, **PropertyGroup** variables take precedence over **Environment** variables, but leveraging the **Condition**
+attribute allows us to reverse this behavior. Take another look at the **PropertyGroup** from earlier:
+
+```xml
+<PropertyGroup>
+    <!-- We include some native dependencies based on the platform and architecture, notably libgitsharp -->
+    <Architecture Condition="$(Architecture) == ''">x64</Architecture>
+    <Platform Condition="$(Platform) == ''">Windows</Platform>
+    <!--Set 'Sign' to false to disable Signing elements. This is useful for local debug builds -->
+    <Sign Condition="$(Sign) == ''">true</Sign>
+    <!-- When debug is enabled, the .chm documentation file will not be included -->
+    <Debug Condition="$(Debug) == ''">false</Debug>
+    <!-- When IncludePdb is set to true, all .pdb files will be included by a glob expression -->
+    <IncludePdb Condition="$(IncludePdb) == ''">false</IncludePdb>
+</PropertyGroup>
+```
+
+When using the **Condition** attribute in this way, the value specified in a **PropertyGroup** element is used *only* 
+if the value is not defined in the environment.
+Leveraging this, we can now create an OpenTAP package for Windows-x86, Windows-x64, and Linux-x64 in a few easy steps:
 
 ```powershell
 $env:Platform="Windows"

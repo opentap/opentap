@@ -2,9 +2,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
-namespace OpenTap.Package.XmlEvaulation
+namespace OpenTap.Package
 {
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
     internal class DependsOnAttribute : Attribute
@@ -32,6 +33,7 @@ namespace OpenTap.Package.XmlEvaulation
     [DependsOn(typeof(PropertyExpander))]
     [DependsOn(typeof(EnvironmentVariableExpander))]
     [DependsOn(typeof(GitVersionExpander))]
+    [DependsOn(typeof(DefaultVariableExpander))]
     internal class ConditionExpander : IElementExpander
     {
         private static TraceSource log = Log.CreateSource("Condition Evaluator");
@@ -62,6 +64,8 @@ namespace OpenTap.Package.XmlEvaulation
             {
                 // Trim leading and trailing space
                 str = str.Trim();
+
+                if (str == string.Empty) return string.Empty;
 
                 // Remove one level of quotes if present
                 if ((str[0] == '\'' || str[0] == '"') && str.First() == str.Last())
@@ -111,7 +115,6 @@ namespace OpenTap.Package.XmlEvaulation
         }
     }
 
-    [DependsOn(typeof(EnvironmentVariableExpander))]
     [DependsOn(typeof(GitVersionExpander))]
     internal class PropertyExpander : IElementExpander
     {
@@ -125,7 +128,8 @@ namespace OpenTap.Package.XmlEvaulation
         {
             foreach (var propertyGroup in propertyGroups)
             {
-                foreach (var variable in propertyGroup.Descendants())
+                var desc = propertyGroup.Descendants().ToArray();
+                foreach (var variable in desc)
                 {
                     var k = variable.Name.LocalName;
                     // Overriding an existing key is fine here
@@ -134,7 +138,10 @@ namespace OpenTap.Package.XmlEvaulation
                     // followed by
                     // <PATH>$(PATH):def</PATH>
                     Stack.ExpandElement(variable);
-                    Variables[k] = variable.Value;
+                    // The variable may have been removed from the document if its condition was 'false'
+                    // In this case, do not add its value as a property.
+                    if (variable.Parent != null)
+                        Variables[k] = variable.Value;
                 }
             }
         }
@@ -143,7 +150,7 @@ namespace OpenTap.Package.XmlEvaulation
         public ElementExpander Stack { get; set; }
         public void Expand(XElement element)
         {
-            foreach (var key in Variables.Keys.OfType<string>())
+            foreach (var key in Variables.Keys)
             {
                 ExpansionHelper.ReplaceToken(element, key, Variables[key].ToString());
             }
@@ -151,20 +158,55 @@ namespace OpenTap.Package.XmlEvaulation
     }
 
     [DependsOn(typeof(GitVersionExpander))]
+    [DependsOn(typeof(PropertyExpander))]
     internal class EnvironmentVariableExpander : IElementExpander
     {
         public EnvironmentVariableExpander()
         {
             Variables = Environment.GetEnvironmentVariables();
+            Keys = Variables.Keys.OfType<string>().ToArray();
         }
 
-        private IDictionary Variables { get; set; }
+        private IDictionary Variables { get; }
+        private string[] Keys { get; }
 
         public void Expand(XElement element)
         {
-            foreach (var key in Variables.Keys.OfType<string>())
+            foreach (var key in Keys)
             {
                 ExpansionHelper.ReplaceToken(element, key, Variables[key].ToString());
+            }
+        }
+    }
+
+    [DependsOn(typeof(GitVersionExpander))]
+    [DependsOn(typeof(PropertyExpander))]
+    [DependsOn(typeof(EnvironmentVariableExpander))]
+    internal class DefaultVariableExpander : IElementExpander
+    {
+        private static Regex VariableRegex = new Regex("\\$\\(.*?\\)");
+        /// <summary>
+        /// Replace all variables with an empty string. E.g. '$(whatever) -> '')'
+        /// </summary>
+        /// <param name="element"></param>
+        public void Expand(XElement element)
+        {
+            var textNodes = element.Nodes().OfType<XText>().ToArray();
+
+            foreach (var textNode in textNodes)
+            {
+                foreach (Match match in VariableRegex.Matches(textNode.Value))
+                {
+                    textNode.Value = textNode.Value.Replace(match.Value, "");
+                }
+            }
+
+            foreach (var attribute in element.Attributes().ToArray())
+            {
+                foreach (Match match in VariableRegex.Matches(attribute.Value))
+                {
+                    attribute.Value = attribute.Value.Replace(match.Value, "");
+                }
             }
         }
     }

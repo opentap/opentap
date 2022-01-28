@@ -3,10 +3,10 @@ using System.IO;
 using System.Linq;
 using System.Xml.Linq;
 
-namespace OpenTap.Package.XmlEvaulation
+namespace OpenTap.Package
 {
     /// <summary>
-    /// The <see cref="XmlEvaluator"/> class can expand variables of the form $(VarName) -> VarNameValue
+    /// The <see cref="PackageXmlPreprocessor"/> class can expand variables of the form $(VarName) -> VarNameValue
     /// in an XML document. It reads the current environment variables, and optionally document-local variables set in
     /// a <Variables/> element as a child of the root element. A variable will be expanded exactly once either if it is
     /// an XMLText element, or if it appears as text in an attribute.
@@ -17,14 +17,14 @@ namespace OpenTap.Package.XmlEvaulation
     /// condition itself is removed. A condition takes the form Condition="$(abc)" or Condition="$(abc) == $(def)" or
     /// Condition="$(abc) != $(def)". A condition is true if it has the value '1' or 'true', or if the comparison operator evaluates to true.
     /// </summary>
-    internal class XmlEvaluator
+    internal class PackageXmlPreprocessor
     {
         /// <summary>
-        /// Initializes a new instance of <see cref="XmlEvaluator"/> from an <see cref="XElement"/> object.
+        /// Initializes a new instance of <see cref="PackageXmlPreprocessor"/> from an <see cref="XElement"/> object.
         /// </summary>
         /// <param name="root"></param>
         /// <param name="projectPath"></param>
-        public XmlEvaluator(XElement root, string projectPath = null)
+        public PackageXmlPreprocessor(XElement root, string projectPath = null)
         {
             // Create a deep copy of the source element
             Root = new XElement(root);
@@ -32,11 +32,11 @@ namespace OpenTap.Package.XmlEvaulation
         }
 
         /// <summary>
-        /// Initializes a new instance of <see cref="XmlEvaluator"/> from a file path.
+        /// Initializes a new instance of <see cref="PackageXmlPreprocessor"/> from a file path.
         /// </summary>
         /// <param name="path"></param>
         /// <param name="projectPath"></param>
-        public XmlEvaluator(string path, string projectPath = null)
+        public PackageXmlPreprocessor(string path, string projectPath = null)
         {
             if (File.Exists(path) == false) throw new FileNotFoundException($"The file '{path}' does not exist.");
             try
@@ -54,10 +54,12 @@ namespace OpenTap.Package.XmlEvaulation
         private void InitExpander(string projectPath = null)
         {
             // The project directory is required to compute the gitversion. If it is not set, GitVersion will not be computed.
+            Expander.AddProvider(new GitVersionExpander(projectPath));
+
+            Expander.AddProvider(new DefaultVariableExpander());
             Expander.AddProvider(new EnvironmentVariableExpander());
             Expander.AddProvider(new ConditionExpander());
 
-            Expander.AddProvider(new GitVersionExpander(projectPath));
 
             // Evaluate all '<PropertyGroup/> elements and remove them from the document
             var properties = Root.Elements(Root.GetDefaultNamespace().GetName("PropertyGroup")).ToArray();
@@ -93,7 +95,7 @@ namespace OpenTap.Package.XmlEvaulation
             return Root;
         }
 
-        static TraceSource log = Log.CreateSource(nameof(XmlEvaluator));
+        static TraceSource log = Log.CreateSource(nameof(PackageXmlPreprocessor));
         XElement Root { get; }
 
         /// <summary>

@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
 
-namespace OpenTap.Package.XmlEvaulation
+namespace OpenTap.Package
 {
     internal static class ExpansionHelper
     {
@@ -69,8 +69,8 @@ namespace OpenTap.Package.XmlEvaulation
                 if (orderedExpanders.Count == progress)
                 {
                     var issue = string.Join(", ", expanders.Select(e => e.GetType().Name));
-                    log.Debug($"Cycle detected while resolving expander order: [{issue}]");
-                    throw new Exception($"Cycle detected!");
+                    throw new Exception(
+                        $"Cycle detected while resolving expander order: [{issue}]. Aborting Package XML preprocessing.");
                 }
                 progress = orderedExpanders.Count;
 

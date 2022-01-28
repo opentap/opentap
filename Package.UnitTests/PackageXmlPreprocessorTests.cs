@@ -2,15 +2,14 @@
 using System.Linq;
 using System.Xml.Linq;
 using NUnit.Framework;
-using OpenTap.Package.XmlEvaulation;
 
 namespace OpenTap.Package.UnitTests
 {
     [TestFixture]
-    public class XmlEvaluatorTests
+    public class PackageXmlPreprocessorTests
     {
         [Test]
-        public void TestEvaluateXml([Values(true, false)] bool sign)
+        public void TestPreprocessXml([Values(true, false)] bool sign)
         {
             const string platform = "Windows";
             const string arch = "TestArch";
@@ -53,10 +52,9 @@ namespace OpenTap.Package.UnitTests
 ";
             var fn = Path.GetTempFileName();
             File.WriteAllText(fn, xmlString);
-            PackageDef.ValidateXml(fn);
 
             var original = XElement.Parse(xmlString);
-            var evaluator = new XmlEvaluator(original);
+            var evaluator = new PackageXmlPreprocessor(original);
             var expanded = evaluator.Evaluate();
 
             var ns = original.GetDefaultNamespace();

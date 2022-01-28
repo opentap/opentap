@@ -6,14 +6,14 @@
     </Description>
     <PropertyGroup>
         <!-- We include some native dependencies based on the platform and architecture, notably libgitsharp -->
-        <Architecture>x64</Architecture>
-        <Platform>Windows</Platform>
+        <Architecture Condition="$(Architecture) == ''">x64</Architecture>
+        <Platform Condition="$(Platform) == ''">Windows</Platform>
         <!--Set 'Sign' to false to disable Signing elements. This is useful for local debug builds -->
-        <Sign>true</Sign>
+        <Sign Condition="$(Sign) == ''">true</Sign>
         <!-- When debug is enabled, the .chm documentation file will not be included -->
-        <Debug>false</Debug>
+        <Debug Condition="$(Debug) == ''">false</Debug>
         <!-- When IncludePdb is set to true, all .pdb files will be included by a glob expression -->
-        <IncludePdb>false</IncludePdb>
+        <IncludePdb Condition="$(IncludePdb) == ''">false</IncludePdb>
     </PropertyGroup>
     <SourceUrl>https://gitlab.com/OpenTAP/opentap</SourceUrl>
     <Owner>OpenTAP</Owner>
@@ -36,13 +36,20 @@
             <SetAssemblyInfo Attributes="Version"/>
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)"/>
         </File>
-        <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" 
-              SourcePath="OpenTap.Plugins.BasicSteps.dll">
+        <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" SourcePath="OpenTap.Plugins.BasicSteps.dll">
             <SetAssemblyInfo Attributes="Version"/>
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)"/>
         </File>
         <File Path="Dependencies/System.Runtime.InteropServices.RuntimeInformation.4.0.2.0/System.Runtime.InteropServices.RuntimeInformation.dll"
               SourcePath="System.Runtime.InteropServices.RuntimeInformation.dll"/>
+    </Files>
+    <!-- PDB Files  -->
+    <Files Condition="$(IncludePdb)">
+      <File Path="tap.pdb"/>
+      <File Path="OpenTap.pdb"/>
+      <File Path="Packages/OpenTAP/OpenTap.Cli.pdb"/>
+      <File Path="OpenTap.Package.pdb"/>
+      <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.pdb" SourcePath="OpenTap.Plugins.BasicSteps.pdb"/>
     </Files>
     <!-- Windows only files -->    
     <Files Condition="$(Platform) == Windows">
@@ -93,10 +100,6 @@
               SourcePath="Dotnet.Glob.License.txt"/>
         <File Path="Dependencies/Newtonsoft.Json.12.0.0.0/LICENSE.txt"
               SourcePath="newtonsoft_mit_license.txt"/>
-    </Files>
-    <!--  PDB Files  -->
-    <Files Condition="$(IncludePdb)">
-        <File Path="**/**/*.pdb"/>
     </Files>
     <PackageActionExtensions Condition="$(Platform) != Windows">
         <ActionStep ActionName="install" ExeFile="chmod" Arguments="+x tap"  />
