@@ -182,9 +182,9 @@ namespace OpenTap.Package.UnitTests
             package.Description = "Cached version";
 
             var file = DummyPackageGenerator.GeneratePackage(package);
-            if (File.Exists(Path.Combine("PackageCache", file)))
-                File.Delete(Path.Combine("PackageCache", file));
-            File.Move(file, Path.Combine("PackageCache", file));
+            if (File.Exists(Path.Combine(PackageCacheHelper.PackageCacheDirectory, file)))
+                File.Delete(Path.Combine(PackageCacheHelper.PackageCacheDirectory, file));
+            File.Move(file, Path.Combine(PackageCacheHelper.PackageCacheDirectory, file));
 
             package.Description = "Right version";
             var file2 = DummyPackageGenerator.GeneratePackage(package);

@@ -555,8 +555,10 @@ namespace OpenTap
         }
     }
 
-    class NumberSequenceAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation
+    class NumberSequenceAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation, IErrorAnnotation
     {
+        string currentError;
+        public IEnumerable<string> Errors => currentError == null ? Array.Empty<string>() : new[] { currentError };
         public string Value
         {
             get
@@ -573,10 +575,18 @@ namespace OpenTap
                 var objVal = mem.Get<IObjectValueAnnotation>();
                 var reflect = mem.Get<IReflectionAnnotation>();
                 var unit = mem.Get<UnitAttribute>();
-                if ((reflect.ReflectionInfo as ITypeData) is TypeData cst)
+                if (reflect.ReflectionInfo is TypeData cst)
                 {
-                    var numbers = DoConvertBack(value, cst.Type, unit, CultureInfo.CurrentCulture);
-                    objVal.Value = numbers;
+                    currentError = null;
+                    try
+                    {
+                        var numbers = DoConvertBack(value, cst.Type, unit, CultureInfo.CurrentCulture);
+                        objVal.Value = numbers;
+                    }
+                    catch (Exception e)
+                    {
+                        currentError = e.Message;
+                    }    
                 }
                 else
                 {

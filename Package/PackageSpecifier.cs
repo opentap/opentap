@@ -119,7 +119,7 @@ namespace OpenTap.Package
         }
 
         static Regex parser = new Regex(@"^(?<compatible>\^)?((?<major>\d+)(\.(?<minor>\d+)(\.(?<patch>\d+))?)?)?(-(?<prerelease>([a-zA-Z0-9-\.]+)))?(\+(?<metadata>[a-zA-Z0-9-\.]+))?$", RegexOptions.Compiled);
-        static Regex semVerPrereleaseChars = new Regex(@"^[a-zA-Z0-9-\.]+$", RegexOptions.Compiled);
+        static Regex semVerPrereleaseRegex = new Regex(@"^(?<compatible>\^)?(?<prerelease>([a-zA-Z0-9-\.]+))$", RegexOptions.Compiled);
 
         /// <summary>
         /// Parses a string as a VersionSpecifier.
@@ -146,9 +146,13 @@ namespace OpenTap.Package
                     );
                     return true;
                 }
-                else if (semVerPrereleaseChars.IsMatch(version))
+
+                var prerelease = semVerPrereleaseRegex.Match(version);
+                if (prerelease.Success)
                 {
-                    ver = new VersionSpecifier(null, null, null, version, null, VersionMatchBehavior.Compatible);
+                    var matchBehaviour = prerelease.Groups["compatible"].Success ? VersionMatchBehavior.Compatible : VersionMatchBehavior.Exact;
+                    var pre = prerelease.Groups["prerelease"].Success ? prerelease.Groups["prerelease"].Value : null;
+                    ver = new VersionSpecifier(null, null, null, pre, null, matchBehaviour);
                     return true;
                 }
             }
@@ -195,7 +199,8 @@ namespace OpenTap.Package
             }
             if (!string.IsNullOrEmpty(PreRelease))
             {
-                formatter.Append('-');
+                if (formatter.Length != 0)
+                    formatter.Append('-');
                 formatter.Append(PreRelease);
             }
             if (!string.IsNullOrEmpty(BuildMetadata))
@@ -286,7 +291,20 @@ namespace OpenTap.Package
             if (MatchBehavior.HasFlag(VersionMatchBehavior.AnyPrerelease))
                 return true;
             if (PreRelease != actualVersion.PreRelease)
-                return false;
+            {
+                if (PreRelease is null || actualVersion.PreRelease is null)
+                    return false;
+
+                string[] actualPreReleaseIdentifiers = actualVersion.PreRelease.Split('.');
+                string[] preReleaseIdentifiers = PreRelease.Split('.');
+
+                if (actualPreReleaseIdentifiers.Length < preReleaseIdentifiers.Length)
+                    return false;
+
+                for (int i = 0; i < preReleaseIdentifiers.Length; i++)
+                    if (!actualPreReleaseIdentifiers[i].Equals(preReleaseIdentifiers[i]))
+                        return false;
+            }
             if (string.IsNullOrEmpty(BuildMetadata) == false && BuildMetadata != actualVersion.BuildMetadata)
                 return false;
             return true;
@@ -307,6 +325,16 @@ namespace OpenTap.Package
 
             if (MatchBehavior.HasFlag(VersionMatchBehavior.AnyPrerelease))
                 return true;
+
+            // We want ^1.0.0 to accept 1.0.1-beta or 1.1.0-beta as compatible versions
+            if(PreRelease == null && actualVersion.PreRelease != null)
+            {
+                if (Minor.HasValue && Minor.Value < actualVersion.Minor)
+                    return true;
+                if (Minor.HasValue && Minor.Value == actualVersion.Minor)
+                    if (Patch.HasValue && Patch.Value < actualVersion.Patch)
+                        return true;
+            }
 
             if (0 < new SemanticVersion(0, 0, 0, PreRelease, null).CompareTo(new SemanticVersion(0, 0, 0, actualVersion.PreRelease, null)))
                 return false;
@@ -357,7 +385,7 @@ namespace OpenTap.Package
             if (Major > other.Major) return 1;
             if (Major < other.Major) return -1;
             if (Minor.HasValue && !other.Minor.HasValue || Minor > other.Minor) return 1;
-            if (!Minor.HasValue && other.Minor.HasValue ||  Minor < other.Minor) return -1;
+            if (!Minor.HasValue && other.Minor.HasValue || Minor < other.Minor) return -1;
             if (Patch.HasValue && !other.Patch.HasValue || Patch > other.Patch) return 1;
             if (!Patch.HasValue && other.Patch.HasValue || Patch < other.Patch) return -1;
 

@@ -862,7 +862,56 @@ namespace OpenTap.UnitTests
             parameterizeIcon = icons[IconNames.Unparameterize].First();
             Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
         }
-        
+
+        [Test]
+        public void ParameterizeOnParentTest()
+        {
+            var plan = new TestPlan();
+            var seqStep = new SequenceStep();
+            plan.ChildTestSteps.Add(seqStep);
+            var delayStep = new DelayStep();
+            seqStep.ChildTestSteps.Add(delayStep);
+
+            // Check can parameterize
+            var member = AnnotationCollection.Annotate(delayStep).GetMember(nameof(DelayStep.DelaySecs));
+            var menu = member.Get<MenuAnnotation>();
+            var menuItems = menu.MenuItems;
+            var icons = menuItems.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
+            var parameterizeIcon = icons[IconNames.Parameterize].First();
+            Assert.IsTrue(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+            parameterizeIcon = icons[IconNames.Unparameterize].First();
+            Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+
+            // Parameterize 
+            var delayMember = TypeData.GetTypeData(delayStep).GetMember(nameof(DelayStep.DelaySecs));
+            delayMember.Parameterize(seqStep, delayStep, "Delay");
+
+            // Check can parameterize
+            member = AnnotationCollection.Annotate(delayStep).GetMember(nameof(DelayStep.DelaySecs));
+            menu = member.Get<MenuAnnotation>();
+            menuItems = menu.MenuItems;
+            icons = menuItems.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
+            parameterizeIcon = icons[IconNames.Parameterize].First();
+            Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+            parameterizeIcon = icons[IconNames.Unparameterize].First();
+            Assert.IsTrue(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+            
+            var paramIconAnnotation = member.Get<ISettingReferenceIconAnnotation>();
+            Assert.AreEqual(seqStep.Id, paramIconAnnotation.TestStepReference);
+            Assert.AreEqual("Delay", paramIconAnnotation.MemberName);
+
+            // Set read only
+            delayStep.IsReadOnly = true;
+
+            // Check can parameterize
+            member = AnnotationCollection.Annotate(delayStep).GetMember(nameof(DelayStep.DelaySecs));
+            menu = member.Get<MenuAnnotation>();
+            menuItems = menu.MenuItems;
+            icons = menuItems.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
+            parameterizeIcon = icons[IconNames.Unparameterize].First();
+            Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+        }
+
         /// <summary>
         /// When the test plan is changed, parameters that becomes invalid needs to be removed.
         /// This is done by doing some checks in DynamicMemberTypeDataProvider.
@@ -1599,5 +1648,29 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual(instrument.Name, next);
             }
         }
+
+
+        class ClassWithNumbers
+        {
+            [Unit("things")]
+            public int[] Values { get; set; } = new int[] {1, 2, 3};
+        }
+        
+        [Test]
+        public void TestNumberSequenceAnnotation()
+        {
+            var obj = new ClassWithNumbers();
+            var annotation = AnnotationCollection.Annotate(obj);
+            var str = annotation.GetMember(nameof(obj.Values)).Get<IStringValueAnnotation>();
+            var err = annotation.GetMember(nameof(obj.Values)).Get<IErrorAnnotation>();
+            // this should not throw.
+            str.Value = "asd";
+            Assert.IsTrue(err.Errors.Count() == 1);
+            str.Value = "1, 2, 3, 4";
+            Assert.IsTrue(err.Errors.Count() == 0);
+            annotation.Write();
+            Assert.IsTrue(obj.Values.SequenceEqual(new int[] {1, 2, 3, 4}));
+        }
+        
     }
 }

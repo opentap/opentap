@@ -99,7 +99,14 @@
           <Filepath>../../tests/RepeatOutputCompare.TapPlan</Filepath>
           <StepMapping />
           <Enabled>true</Enabled>
-          <Name>Test Plan Reference</Name>
+          <Name>Test Plan: {Referenced Plan}</Name>
+          <BreakConditions>Inherit</BreakConditions>
+        </TestStep>
+        <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="13d39559-0c3b-407c-8ac0-7e998324567d">
+          <Filepath>../../tests/test-cli-args.TapPlan</Filepath>
+          <StepMapping />
+          <Enabled>true</Enabled>
+          <Name>Test Plan {Referenced Plan}</Name>
           <BreakConditions>Inherit</BreakConditions>
         </TestStep>
       </ChildTestSteps>
