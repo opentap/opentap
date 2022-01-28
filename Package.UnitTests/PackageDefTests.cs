@@ -167,7 +167,7 @@ namespace OpenTap.Package.UnitTests
             PackageDef pkg = PackageDefExt.FromInputXml(inputFilename,Directory.GetCurrentDirectory());
             
             Assert.AreEqual("Test Step",pkg.Files?.FirstOrDefault()?.Plugins?.FirstOrDefault(p => p.Type == typeof(IfStep).FullName)?.BaseType);
-            Assert.AreEqual(pkg.Files?.FirstOrDefault()?.Plugins.FirstOrDefault(p => p.Type == typeof(ScpiInstrument).FullName)?.BaseType, "Instrument");
+            Assert.AreEqual(pkg.Files?.FirstOrDefault()?.Plugins.FirstOrDefault(p => p.Type == "OpenTap.Plugins.BasicSteps.GenericScpiInstrument")?.BaseType, "Instrument");
         }
 
         [Test]
