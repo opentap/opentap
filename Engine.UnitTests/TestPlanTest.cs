@@ -2511,15 +2511,6 @@ namespace OpenTap.Engine.UnitTests
                 Assert.AreEqual(Verdict.Fail, Verdict);
                 Verdict = Verdict.NotSet;
             }
-            {
-                var Result =
-                    "  +0,+0,+50000,+1,+2.00000000E-008,-5.00000000E-004,+0,+8.04020100E-003,-3.95000000E-001,+128 ";
-                this.RegularExpressionPattern.IsEnabled = false;
-                this.ResultRegularExpressionPattern = new Enabled<string> { Value = "([^,]+),?([^,]+),?([^,]+),?([^,]+),?([^,]+),?([^,]+),?([^,]+),?([^,]+),?", IsEnabled = true };
-                ProcessOutput(Result);
-                Assert.AreEqual(Verdict.Fail, Verdict);
-                Verdict = Verdict.NotSet;
-            }
             Verdict = Verdict.Pass;
         }
     }
