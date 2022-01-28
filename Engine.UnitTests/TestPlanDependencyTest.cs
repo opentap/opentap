@@ -194,7 +194,7 @@ namespace OpenTap.UnitTests
 
                 // Expect a warning for the two [FilePath] properties on the test step
                 // Expect an error for the missing package and two errors for the missing files
-                Assert.AreEqual(3, errors.Length, "Expected 0 errors.");
+                Assert.AreEqual(3, errors.Length, "Expected 3 errors.");
                 Assert.IsTrue(errors.Any(e =>
                     e.Contains(
                         $"Package '{TestPackageName}' is required to load the test plan, but it is not installed.")));
@@ -219,16 +219,15 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
-        [TestCase("InstallDir")]
+        [TestCase(".")]
         [TestCase("../")]
         [TestCase("../../")]
         public void TestFindPackageOf(string workingDirectory)
         {
             var start = Directory.GetCurrentDirectory();
-            if (workingDirectory != "InstallDir")
-                Directory.SetCurrentDirectory(workingDirectory);
             try
             {
+                Directory.SetCurrentDirectory(workingDirectory);
                 // Test FindPackageContainingType(TypeData)
                 {
                     var td = TypeData.FromType(typeof(MyTestStep));
