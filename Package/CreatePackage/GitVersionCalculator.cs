@@ -143,7 +143,7 @@ namespace OpenTap.Package
 
             string sourceFile = Path.Combine(PathUtils.OpenTapDir, "Dependencies/LibGit2Sharp.0.27.0.0/", libgit2name);
             if (OperatingSystem.Current == OperatingSystem.Windows)
-                sourceFile += $".{ArchitectureHelper.HostArchitecture}";
+                sourceFile += $".{ArchitectureHelper.GuessBaseArchitecture}";
             if (OperatingSystem.Current == OperatingSystem.MacOS)
                 sourceFile += $".{MacOsArchitecture.Current.Architecture}";
 
