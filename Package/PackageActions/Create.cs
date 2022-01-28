@@ -111,13 +111,17 @@ namespace OpenTap.Package
                     }
                     
                     // Check for invalid package metadata
-                    var invalidMetadataPattern = new Regex("[_a-zA-Z][_a-zA-Z0-9]*");
+                    const string validMetadataPattern = "^[_a-zA-Z][_a-zA-Z0-9]*";
+                    var validMetadataRegex = new Regex(validMetadataPattern);
                     foreach (var metaDataKey in pkg.MetaData.Keys)
                     {
-                        var invalidCharacters = invalidMetadataPattern.Replace(metaDataKey, "");
-                        if (invalidCharacters.Length > 0)
+                        var match = validMetadataRegex.Match(metaDataKey);
+                        if (match.Success == false || match.Length != metaDataKey.Length)
                         {
-                            log.Error($"Package metadata keys contains invalid characters: '{invalidCharacters}'.");
+                            if (metaDataKey.Length > 0)
+                                log.Error($"Found invalid character '{metaDataKey[match.Length]}' in package metadata key '{metaDataKey}' at position {match.Length + 1}.");
+                            else
+                                log.Error($"Metadata key cannot be empty.");
                             return (int)PackageExitCodes.InvalidPackageDefinition;
                         }
                     }

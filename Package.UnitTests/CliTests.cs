@@ -12,6 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace OpenTap.Package.UnitTests
 {
@@ -193,26 +194,34 @@ namespace OpenTap.Package.UnitTests
             }
         }
 
-        [Test]
-        public void CheckInvalidMetadata()
+        [TestCase(".test", 1, typeof(XmlException))]
+        [TestCase("t-est", 2, typeof(Exception))]
+        [TestCase("te st", 3, typeof(XmlException))]
+        [TestCase("tes.t", 4, typeof(Exception))]
+        [TestCase("1test", 1, typeof(XmlException))]
+        [TestCase("test?", 5, typeof(XmlException))]
+        public void CheckInvalidMetadata(string invalidMetadataKey, int index, Type exceptionType)
         {
             // Check if metadata contains invalid characters
+            var package = new PackageDef()
+            {
+                Name = "test",
+                MetaData = { {invalidMetadataKey,""} },
+                Version = SemanticVersion.Parse("1.0.0")
+            };
+
             try
             {
-                var package = new PackageDef()
-                {
-                    Name = "test",
-                    MetaData = { {"te.st",""} },
-                    Version = SemanticVersion.Parse("1.0.0")
-                };
                 DummyPackageGenerator.GeneratePackage(package);
-                
-                Assert.Fail("Package metadata keys contains invalid");
             }
             catch (Exception e)
             {
-                Console.WriteLine(e.Message);
-                Assert.True(e.Message.Contains("Package metadata keys contains invalid"));
+                Assert.IsAssignableFrom(exceptionType, e);
+                if (e is XmlException)
+                    return;
+                
+                Assert.True(e.Message.Contains($"Found invalid character"), "Package metadata keys contains invalid");
+                Assert.True(e.Message.Contains($" in package metadata key '{invalidMetadataKey}' at position {index}."), "Package metadata keys contains invalid");
             }
         }
         
