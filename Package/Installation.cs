@@ -136,11 +136,8 @@ namespace OpenTap.Package
             // The assembly must be rooted in the installation
             if (assemblyPath.StartsWith(installPath) == false)
                 return null;
-            
-            // Get the path relative to the install directory by removing the install path + the leading '/'
-            var relative = assemblyPath.Substring(installPath.Length + 1);
 
-            return FindPackageContainingFile(relative);
+            return FindPackageContainingFile(assemblyPath);
         }
 
         private List<PackageDef> PackageCache;
