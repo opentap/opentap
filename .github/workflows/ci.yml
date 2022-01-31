@@ -601,7 +601,7 @@ jobs:
           mv OpenTAP.*.Linux.TapPackage docker/Linux/OpenTAP.Linux.TapPackage
           echo "TAG_NAME=alpha" >> $GITHUB_ENV
       - name: Set tag (beta)
-        if: contains(github.ref, 'refs/heads/main')
+        if: github.ref == 'refs/heads/main'
         run: echo "TAG_NAME=beta" >> $GITHUB_ENV
       - name: Set tag (rc)
         if: contains(github.ref, 'refs/heads/release')
