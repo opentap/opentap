@@ -4,17 +4,15 @@
         <Status>Released</Status>
         <Organisation>Keysight Technologies</Organisation>
     </Description>
-    <PropertyGroup>
-        <!-- We include some native dependencies based on the platform and architecture, notably libgitsharp -->
+    <Variables>
+        <!-- We include some native dependencies based on the platform and architecture, notably libgit2sharp -->
         <Architecture Condition="$(Architecture) == ''">x64</Architecture>
         <Platform Condition="$(Platform) == ''">Windows</Platform>
-        <!--Set 'Sign' to false to disable Signing elements. This is useful for local debug builds -->
-        <Sign Condition="$(Sign) == ''">true</Sign>
-        <!-- When debug is enabled, the .chm documentation file will not be included -->
-        <Debug Condition="$(Debug) == ''">false</Debug>
-        <!-- When IncludePdb is set to true, all .pdb files will be included by a glob expression -->
-        <IncludePdb Condition="$(IncludePdb) == ''">false</IncludePdb>
-    </PropertyGroup>
+        <!--Set Sign=false to disable Signing elements. This is useful for local debug builds -->
+        <Sign Condition="$(Sign) != false">true</Sign>
+        <!-- Set Debug=true to exclude documentation files and include debugging symbols -->
+        <Debug Condition="$(Debug) != true">false</Debug>
+    </Variables>
     <SourceUrl>https://gitlab.com/OpenTAP/opentap</SourceUrl>
     <Owner>OpenTAP</Owner>
     <!-- Common files  -->
@@ -22,39 +20,29 @@
         <File Path="tap.runtimeconfig.json"/>
         <File Path="tap.dll">
             <SetAssemblyInfo Attributes="Version"/>
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="OpenTap.dll">
             <SetAssemblyInfo Attributes="Version"/>
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="Packages/OpenTAP/OpenTap.Cli.dll">
             <SetAssemblyInfo Attributes="Version"/>
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="OpenTap.Package.dll">
             <SetAssemblyInfo Attributes="Version"/>
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" SourcePath="OpenTap.Plugins.BasicSteps.dll">
             <SetAssemblyInfo Attributes="Version"/>
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
-        <File Path="Dependencies/System.Runtime.InteropServices.RuntimeInformation.4.0.2.0/System.Runtime.InteropServices.RuntimeInformation.dll"
-              SourcePath="System.Runtime.InteropServices.RuntimeInformation.dll"/>
     </Files>
-    <!-- PDB Files  -->
-    <Files Condition="$(IncludePdb)">
-      <File Path="tap.pdb"/>
-      <File Path="OpenTap.pdb"/>
-      <File Path="Packages/OpenTAP/OpenTap.Cli.pdb"/>
-      <File Path="OpenTap.Package.pdb"/>
-      <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.pdb" SourcePath="OpenTap.Plugins.BasicSteps.pdb"/>
-    </Files>
-    <!-- Windows only files -->    
+    <!-- Windows only files -->
     <Files Condition="$(Platform) == Windows">
         <File Path="tap.exe">
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="Dependencies/LibGit2Sharp.0.25.0.0/git2-4aecb64.dll"               
               SourcePath="runtimes/win-$(Architecture)/native/git2-4aecb64.dll"/>
@@ -68,6 +56,14 @@
         <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.linux-x64"/>
         <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.redhat"/>
         <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.ubuntu"/>
+    </Files>
+    <!-- PDB files -->
+    <Files Condition="$(Debug) == true">
+      <File Path="tap.pdb"/>
+      <File Path="OpenTap.pdb"/>
+      <File Path="Packages/OpenTAP/OpenTap.Cli.pdb"/>
+      <File Path="OpenTap.Package.pdb"/>
+      <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.pdb" SourcePath="OpenTap.Plugins.BasicSteps.pdb"/>
     </Files>
     <!-- License Texts -->
     <Files>        

@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Xml;
 using System.Xml.Linq;
 
 namespace OpenTap.Package
@@ -23,14 +24,14 @@ namespace OpenTap.Package
     internal interface IElementExpander
     {
         /// <summary>
-        /// Called once for each XElement in the document being expanded
+        /// Expand all attributes and text on the input element
         /// </summary>
         /// <param name="element"></param>
         /// <returns></returns>
         void Expand(XElement element);
     }
 
-    [DependsOn(typeof(PropertyExpander))]
+    [DependsOn(typeof(VariableExpander))]
     [DependsOn(typeof(EnvironmentVariableExpander))]
     [DependsOn(typeof(GitVersionExpander))]
     [DependsOn(typeof(DefaultVariableExpander))]
@@ -57,9 +58,8 @@ namespace OpenTap.Package
             }
         }
 
-        bool EvaluateCondition(XAttribute attr)
+        internal string GetExpansion(string condition)
         {
-            var condition = attr.Value;
             string normalize(string str)
             {
                 // Trim leading and trailing space
@@ -70,63 +70,55 @@ namespace OpenTap.Package
                 // Remove one level of quotes if present
                 if ((str[0] == '\'' || str[0] == '"') && str.First() == str.Last())
                     str = str.Substring(1, str.Length - 2);
-
-                // Condition="true == 1" should evaluate to true
-                if (str.Equals("True", StringComparison.OrdinalIgnoreCase)) return "1";
-                // Condition="0 == false" should evaluate to true
-                if (str.Equals("False", StringComparison.OrdinalIgnoreCase)) return "0";
                 return str;
             }
 
-            if (string.IsNullOrWhiteSpace(condition)) return false;
-            try
+            // Check if the condition is a literal
+            var norm = normalize(condition);
+
+            if (string.IsNullOrWhiteSpace(norm)) return string.Empty;
+
+            if (norm.IndexOf("==", StringComparison.Ordinal) < 0 &&
+                norm.IndexOf("!=", StringComparison.Ordinal) < 0)
+                return norm;
+
+            condition = condition.Trim();
+            var parts = condition.Split(new string[] { "==", "!=" }, StringSplitOptions.None)
+                .Select(p => p.Trim())
+                .ToArray();
+
+            var lhs = normalize(parts[0]);
+            var rhs = normalize(parts[1]);
+
+            var isEquals = condition.IndexOf("==", StringComparison.Ordinal) >= 0;
+            var areEqual = lhs.Equals(rhs, StringComparison.Ordinal);
+            return isEquals == areEqual ? "true" : string.Empty;
+        }
+
+        bool EvaluateCondition(XAttribute attr)
+        {
+            var condition = attr.Value;
+            var result = GetExpansion(condition).Any();
+            if (attr.Parent is IXmlLineInfo li && li.HasLineInfo())
             {
-                { // Check if the condition is a literal
-                    var norm = normalize(condition);
-
-                    if (string.IsNullOrWhiteSpace(norm)) return false;
-                    if (norm.Equals("1")) return true;
-                    if (norm.Equals("0")) return false;
-                }
-
-                condition = condition.Trim();
-                var parts = condition.Split(new string[] { "==", "!=" }, StringSplitOptions.None)
-                    .Select(p => p.Trim())
-                    .ToArray();
-
-                if (parts.Length != 2)
-                {
-                    log.Error($"Error in condition '{condition}'. A condition must be either true, false, 1, 0, or of the form a==b.");
-                    return false;
-                }
-
-                var lhs = normalize(parts[0]);
-                var rhs = normalize(parts[1]);
-
-                var isEquals = condition.IndexOf("==", StringComparison.Ordinal) >= 0;
-                var areEqual = lhs.Equals(rhs, StringComparison.Ordinal);
-                return isEquals == areEqual;
+                log.Debug($@"XML Line {li.LineNumber}: Evaluated Condition=""{condition}"" to ""{result}""");
             }
-            catch
-            {
-                log.Error($"Error during parsing of condition '{condition}'.");
-                return false;
-            }
+            return result;
         }
     }
 
     [DependsOn(typeof(GitVersionExpander))]
-    internal class PropertyExpander : IElementExpander
+    internal class VariableExpander : IElementExpander
     {
-
-        public PropertyExpander(ElementExpander s)
+        private static TraceSource log = Log.CreateSource(nameof(VariableExpander));
+        public VariableExpander(ElementExpander s)
         {
             Stack = s;
         }
 
-        internal void InitVariables(IEnumerable<XElement> propertyGroups)
+        internal void InitVariables(IEnumerable<XElement> variablesGroup)
         {
-            foreach (var propertyGroup in propertyGroups)
+            foreach (var propertyGroup in variablesGroup)
             {
                 var desc = propertyGroup.Descendants().ToArray();
                 foreach (var variable in desc)
@@ -144,6 +136,12 @@ namespace OpenTap.Package
                         Variables[k] = variable.Value;
                 }
             }
+
+            log.Debug($"Initialized variable expander:");
+            foreach (var kvp in Variables)
+            {
+                log.Debug($"{kvp.Key} = '{kvp.Value}'");
+            }
         }
 
         private Dictionary<string, string> Variables { get; } = new Dictionary<string, string>();
@@ -158,7 +156,7 @@ namespace OpenTap.Package
     }
 
     [DependsOn(typeof(GitVersionExpander))]
-    [DependsOn(typeof(PropertyExpander))]
+    [DependsOn(typeof(VariableExpander))]
     internal class EnvironmentVariableExpander : IElementExpander
     {
         public EnvironmentVariableExpander()
@@ -180,7 +178,7 @@ namespace OpenTap.Package
     }
 
     [DependsOn(typeof(GitVersionExpander))]
-    [DependsOn(typeof(PropertyExpander))]
+    [DependsOn(typeof(VariableExpander))]
     [DependsOn(typeof(EnvironmentVariableExpander))]
     internal class DefaultVariableExpander : IElementExpander
     {

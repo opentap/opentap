@@ -25,7 +25,7 @@ namespace OpenTap.Package.UnitTests
     <Owner>{owner}</Owner>
     <PackageName>{packageName}</PackageName>
     <SourceUrl>{sourceUrl}</SourceUrl>
-    <SignVar>{sign}</SignVar>
+    <SignVar Condition=""{sign} == True"">true</SignVar>
   </PropertyGroup>
   <SourceUrl Condition=""$(PlatformVar) == Windows"">$(SourceUrl)</SourceUrl>
   <Owner Condition=""$(PlatformVar) == Linux"">$(Owner)</Owner>
@@ -36,11 +36,11 @@ namespace OpenTap.Package.UnitTests
     <File Path=""CorrectFile""/>
   </Files>
   <Files Condition=""b == b"">
-    <File Condition=""0"" Path=""AlsoWrongFile""/>
+    <File Condition="""" Path=""AlsoWrongFile""/>
   </Files>
   <Files Condition=""b == b"">
     <File Condition=""1"" Path=""AlsoCorrectFile"">
-      <Sign Certificate=""Some Cert"" Condition=""'$(SignVar)' == tRuE""/>
+      <Sign Certificate=""Some Cert"" Condition=""'$(SignVar)' == true""/>
     </File>    
   </Files>
 
@@ -88,6 +88,44 @@ namespace OpenTap.Package.UnitTests
             Assert.AreEqual(packageName,expanded.Attribute("Name").Value);
             Assert.AreEqual("$(ArchitectureVar)",original.Attribute("Architecture").Value);
             Assert.AreEqual(arch,expanded.Attribute("Architecture").Value);
+        }
+
+        [TestCase("a", "a", true)]
+        [TestCase("a", "'a'", true)]
+        [TestCase("'a", "'a", true)]
+        [TestCase("a'", "a'", true)]
+        [TestCase("'a'", "a", true)]
+        [TestCase("   'a'   ", "  a  ", true)]
+        [TestCase("a", "   a   ", true)]
+        [TestCase("   a  ", " a  ", true)]
+
+        [TestCase("a", "a'", false)]
+        [TestCase("a", "'a", false)]
+        [TestCase("'a", "a", false)]
+        [TestCase("b", "a", false)]
+        [TestCase("a", "b", false)]
+        [TestCase("'  a   '", "a", false)]
+        public void ConditionExpanderTest(string lhs, string rhs, bool success)
+        {
+            var expander = new ConditionExpander();
+            var equality = $"{lhs}=={rhs}";
+            var inEquality = $"{lhs}!={rhs}";
+            Assert.AreEqual(expander.GetExpansion(equality).Any(), success, $"Expected [{equality}] to evaluate to [{success}].");
+            Assert.AreEqual(expander.GetExpansion(inEquality).Any(), !success, $"Expected [{inEquality}] to evaluate to [{!success}].");
+        }
+
+        [TestCase("", false)]
+        [TestCase(" ", false)]
+        [TestCase("' '", false)]
+        [TestCase("'  '", false)]
+
+        [TestCase("0", true)]
+        [TestCase("false", true)]
+        [TestCase("123", true)]
+        public void ConditionExpanderTest2(string str, bool success)
+        {
+            var expander = new ConditionExpander();
+            Assert.AreEqual(expander.GetExpansion(str).Any(), success, $"Expected [{str}] == [{success}].");
         }
     }
 }

@@ -41,7 +41,7 @@ namespace OpenTap.Package
             if (File.Exists(path) == false) throw new FileNotFoundException($"The file '{path}' does not exist.");
             try
             {
-                Root = XElement.Load(path);
+                Root = XElement.Load(path, LoadOptions.PreserveWhitespace | LoadOptions.SetLineInfo);
             }
             catch (Exception)
             {
@@ -62,13 +62,13 @@ namespace OpenTap.Package
 
 
             // Evaluate all '<PropertyGroup/> elements and remove them from the document
-            var properties = Root.Elements(Root.GetDefaultNamespace().GetName("PropertyGroup")).ToArray();
+            var variables = Root.Elements(Root.GetDefaultNamespace().GetName("Variables")).ToArray();
 
-            var propertyProvider = new PropertyExpander(Expander);
-            Expander.AddProvider(propertyProvider);
-            propertyProvider.InitVariables(properties);
+            var variableExpander = new VariableExpander(Expander);
+            Expander.AddProvider(variableExpander);
+            variableExpander.InitVariables(variables);
 
-            foreach (var propElem in properties)
+            foreach (var propElem in variables)
             {
                 // The property could have been removed due to a Condition.
                 if (propElem.Parent != null)

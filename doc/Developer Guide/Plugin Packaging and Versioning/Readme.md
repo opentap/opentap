@@ -511,8 +511,8 @@ platform or architecture, these subtle differences nonetheless require different
 
 Both of these solutions hurt the maintainability of the package definition. This process is made easy with **Properties** and **Conditions**.
 
-### The PropertyGroup Element
-The **PropertyGroup** element is placed as a child of the **Package** element, and can be used to define file-scoped properties. A property will be 
+### The Variables Element
+The **Variables** element is placed as a child of the **Package** element, and can be used to define file-scoped properties. A property will be 
 expanded exactly once if it appears as text inside an element or an attribute.
 
 > &lt;SomeElement Attr1="$(abc)"&gt;abc $(def) ghi&lt;/SomeElement&gt; will expand $(abc) and $(def)
@@ -520,15 +520,15 @@ expanded exactly once if it appears as text inside an element or an attribute.
 
 > A variable will be expanded exactly once. E.g. if `$(abc)` expands to the string `"$(def)"`, then $(def) will not be expanded.
 
-> Tip: Although **PropertyGroup** appears a a child of the **Package** element, properties can still be used in **Package** attributes.
+> Tip: Although **Variables** appears a a child of the **Package** element, properties can still be used in **Package** attributes.
 > The following `package.xml` example will correctly set the package architecture and OS.
 
 ```xml
 <Package OS="$(Platform)" Architecture="$(Architecture)">
-    <PropertyGroup>
+    <Variables>
         <Architecture>x64</Architecture>
         <Platform>Windows</Platform>
-    </PropertyGroup>
+    </Variables>
 </Package>
 ```
 
@@ -548,79 +548,88 @@ an equality comparison, or a literal value:
 
 If the condition evaluates to false, the **Element** containing the condition is removed. 
 
-When a literal value is used, it is considered *true* if the value is `true` or `1`, and *false* if the value is `false`, `0` or empty (not case sensitive). 
+When a literal value is used, it is considered *true* if the value is a non-empty string, and *false* if the value is an empty string or contains only whitespace characters.
 
 #### Condition Examples
 This table demonstrates the general behavior of conditions. Assume `$(a) = 1` and `$(b) = 2`
 
-| **Condition** | **Value** | **Result** |
+| **Condition** | **Value** |
 | ----  | -------- | -- |
-| **0** | **false** | **Condition** attribute is removed from the containing element
-| **false** | **false** | **Condition** attribute is removed from the containing element
-| **1** | **true** | The **Element** containing **Condition** is removed from the document
-| **true** | **true** | The **Element** containing **Condition** is removed from the document
-| **1 == true** | **true** | The **Element** containing **Condition** is removed from the document
-| **0 == true** | **false** | **Condition** attribute is removed from the containing element
-| **$(a) == 1** | **true** | The **Element** containing **Condition** is removed from the document
-| **$(a) == $(b)** | **false** | **Condition** attribute is removed from the containing element
-| **$(a) != $(b)** | **true** | The **Element** containing **Condition** is removed from the document
+| **""** | **false** |
+| **" "** | **false** |
+| **1** | **true** |
+| **0** | **true** |
+| **true** | **true** |
+| **false** | **true** |
+| **false == "false" ** | **true** |
+| **false == "false " ** | **false** |
+| **$(a) == 1** | **true** |
+| **$(a) == $(b)** | **false** |
+| **$(a) != $(b)** | **true** |
 
 
-### PropertyGroup and Conditions Example
+### Variables and Conditions Example
 Consider this example (which is an excerpt from the OpenTAP package definition) for a real world use case.
 Some elements have been omitted for brevity
 
 ```xml
 <Package Version="$(GitVersion)" OS="$(Platform)" Architecture="$(Architecture)" Name="OpenTAP" >
-    <PropertyGroup>
-        <!-- We include some native dependencies based on the platform and architecture, notably libgitsharp -->
+    <Variables>
+        <!-- We include some native dependencies based on the platform and architecture, notably libgit2sharp -->
         <Architecture Condition="$(Architecture) == ''">x64</Architecture>
         <Platform Condition="$(Platform) == ''">Windows</Platform>
-        <!--Set 'Sign' to false to disable Signing elements. This is useful for local debug builds -->
-        <Sign Condition="$(Sign) == ''">true</Sign>
-        <!-- When debug is enabled, the .chm documentation file will not be included -->
-        <Debug Condition="$(Debug) == ''">false</Debug>
-        <!-- When IncludePdb is set to true, all .pdb files will be included by a glob expression -->
-        <IncludePdb Condition="$(IncludePdb) == ''">false</IncludePdb>
-    </PropertyGroup>
+        <!--Set Sign=false to disable Signing elements. This is useful for local debug builds -->
+        <Sign Condition="$(Sign) != false">true</Sign>
+        <!-- Set Debug=true to exclude documentation files and include debugging symbols -->
+        <Debug Condition="$(Debug) != true">false</Debug>
+    </Variables>
     <!-- Common files  -->
     <Files>        
+        <File Path="tap.runtimeconfig.json"/>
+        <File Path="tap.dll">
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+        </File>
         <File Path="OpenTap.dll">
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)"/>
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="Packages/OpenTAP/OpenTap.Cli.dll">
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)"/>
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="OpenTap.Package.dll">
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)"/>
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
-        <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" 
-              SourcePath="OpenTap.Plugins.BasicSteps.dll">
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)"/>
+        <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" SourcePath="OpenTap.Plugins.BasicSteps.dll">
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
-        <File Path="Dependencies/System.Runtime.InteropServices.RuntimeInformation.4.0.2.0/System.Runtime.InteropServices.RuntimeInformation.dll"
-              SourcePath="System.Runtime.InteropServices.RuntimeInformation.dll"/>
     </Files>
     <!-- Windows only files -->    
     <Files Condition="$(Platform) == Windows">
         <File Path="tap.exe">
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="Dependencies/LibGit2Sharp.0.25.0.0/git2-4aecb64.dll"               
-              SourcePath="lib/win32/$(Architecture)/git2-4aecb64.dll"/>
+              SourcePath="runtimes/win-$(Architecture)/native/git2-4aecb64.dll"/>
+        <File Path="OpenTapApiReference.chm" 
+              SourcePath="../../Help/OpenTapApiReference.chm"
+              Condition="$(Debug) == false"/>        
     </Files>
-    <!-- NetCore only files -->
+    <!-- Linux only files -->
     <Files Condition="$(Platform) != Windows">        
-        <File Path="tap.dll">
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)"/>
-        </File>
         <File Path="tap"/>
-        <File Path="tap.runtimeconfig.json"/>
         <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.linux-x64"/>
     </Files>
-    <!--  PDB Files  -->
-    <Files Condition="$(IncludePdb)">
-        <File Path="**/**/*.pdb"/>
+    <!-- PDB files -->
+    <Files Condition="$(Debug) == true">
+      <File Path="tap.pdb"/>
+      <File Path="OpenTap.pdb"/>
+      <File Path="Packages/OpenTAP/OpenTap.Cli.pdb"/>
+      <File Path="OpenTap.Package.pdb"/>
+      <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.pdb" SourcePath="OpenTap.Plugins.BasicSteps.pdb"/>
     </Files>
     <PackageActionExtensions Condition="$(Platform) != Windows">
         <ActionStep ActionName="install" ExeFile="chmod" Arguments="+x tap"  />
@@ -633,7 +642,7 @@ Assume for now that all the *Condition* attributes evaluate to 'true'.
 
 1. We bundle different versions of the native binary `LibGit2Sharp` depending on platform and architecture. 
 2. We use the `Sign` property in order to easily disable signing when building in debug environments without signing capabilities.
-3. We use the `IncludePdb` property in order to create debug packages with debugging symbols.
+3. We use the `Debug` property in order to include .pdb files with debugging symbols.
 4. We run `chmod +x tap` after the package has been installed on non-windows platforms
 
 After preprocessing this package definition, we get the following definition:
@@ -663,32 +672,30 @@ After preprocessing this package definition, we get the following definition:
     <File Path="Dependencies/LibGit2Sharp.0.25.0.0/git2-4aecb64.dll" SourcePath="lib/win32/x64/git2-4aecb64.dll" />
   </Files>
   <!-- Windows only files -->
-  <!-- NetCore only files -->
-  <!--  PDB Files  -->
+  <!-- Linux only files -->
+  <!-- PDB files -->
 </Package>
 ```
 
-1. Notice that the **PropertyGroup** element, and all the **Condition** attributes have been removed. 
+1. Notice that the **Variables** element, and all the **Condition** attributes have been removed. 
 2. Notice that all the **Files** elements have been merged into a single element (though the comments are still there).
 
-As mentioned earlier, **PropertyGroup** variables take precedence over **Environment** variables, but leveraging the **Condition**
-attribute allows us to reverse this behavior. Take another look at the **PropertyGroup** from earlier:
+As mentioned earlier, **Variables** variables take precedence over **Environment** variables, but leveraging the **Condition**
+attribute allows us to reverse this behavior. Take another look at the **Variables** from earlier:
 
 ```xml
-<PropertyGroup>
-    <!-- We include some native dependencies based on the platform and architecture, notably libgitsharp -->
+<Variables>
+    <!-- We include some native dependencies based on the platform and architecture, notably libgit2sharp -->
     <Architecture Condition="$(Architecture) == ''">x64</Architecture>
     <Platform Condition="$(Platform) == ''">Windows</Platform>
-    <!--Set 'Sign' to false to disable Signing elements. This is useful for local debug builds -->
-    <Sign Condition="$(Sign) == ''">true</Sign>
-    <!-- When debug is enabled, the .chm documentation file will not be included -->
-    <Debug Condition="$(Debug) == ''">false</Debug>
-    <!-- When IncludePdb is set to true, all .pdb files will be included by a glob expression -->
-    <IncludePdb Condition="$(IncludePdb) == ''">false</IncludePdb>
-</PropertyGroup>
+    <!--Set Sign=false to disable Signing elements. This is useful for local debug builds -->
+    <Sign Condition="$(Sign) != false">true</Sign>
+    <!-- Set Debug=true to exclude documentation files and include debugging symbols -->
+    <Debug Condition="$(Debug) != true">false</Debug>
+</Variables>
 ```
 
-When using the **Condition** attribute in this way, the value specified in a **PropertyGroup** element is used *only* 
+When using the **Condition** attribute in this way, the value specified in a **Variables** element is used *only* 
 if the value is not defined in the environment.
 Leveraging this, we can now create an OpenTAP package for Windows-x86, Windows-x64, and Linux-x64 in a few easy steps:
 

@@ -736,7 +736,7 @@ namespace OpenTap.Package
                 if (!toSet.Any())
                     continue;
 
-                log.Debug("Updating version info for '{0}'", file.FileName);
+                log.Debug(timer, "Updating version info for '{0}'", file.FileName);
 
 
                 // Assume we can't open the file for writing (could be because we are trying to modify TPM or the engine), and copy to the same filename in a subdirectory
