@@ -2561,5 +2561,35 @@ namespace OpenTap.Engine.UnitTests
             // before the fix, this would be set "Untitled"
             Assert.AreEqual(tp.Name, "testplantest2");
         }
+        
+        [Test]
+        public void TestSerializerErrors()
+        {
+            var x = new Enabled<Enabled<Enabled<int>>>();
+            x.Value = new Enabled<Enabled<int>>();
+            x.Value.Value = new Enabled<int>();
+            x.Value.Value.Value = 4;
+            var ser = new TapSerializer();
+            var str = ser.SerializeToString(x);
+            Assert.IsFalse(ser.XmlErrors.Any());
+            var str2 = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                <EnabledOfEnabledOfEnabledOfInt32 type=""OpenTap.Enabled`1[[OpenTap.Enabled`1[[OpenTap.Enabled`1[[System.Int32, System.Private.CoreLib, Version=6.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], OpenTap, Version=9.4.0.0, Culture=neutral, PublicKeyToken=null]], OpenTap, Version=9.4.0.0, Culture=neutral, PublicKeyToken=null]]"">
+                <Value>
+                <Value>
+                <Value>abc</Value>
+                <IsEnabled>false</IsEnabled>
+                </Value>
+                <IsEnabled>false</IsEnabled>
+                </Value>
+                <IsEnabled>false</IsEnabled>
+                </EnabledOfEnabledOfEnabledOfInt32>";
+            var r= ser.DeserializeFromString(str2, TypeData.GetTypeData(x));
+            Assert.AreEqual(1, ser.XmlErrors.Count());
+            var err = ser.XmlErrors.First();
+            // error was that asd could not be parsed as an int.
+            Assert.AreEqual("abc", err.Element.Value);
+            // error occured on line number 5
+            Assert.AreEqual(5, (err.Element as IXmlLineInfo).LineNumber);
+        }
     }
 }
