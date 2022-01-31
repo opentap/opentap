@@ -50,7 +50,8 @@ namespace OpenTap
     /// <summary> 
     /// Implements a connection to talk to any SCPI-enabled instrument.
     /// </summary>
-    public abstract class ScpiInstrument : Instrument, IScpiInstrument
+    [Display("Generic SCPI Instrument", Description: "Allows you to configure a VISA based connection to a SCPI instrument.")]
+    public class ScpiInstrument : Instrument, IScpiInstrument
     {
         private readonly IScpiIO2 scpiIO;
         
@@ -261,6 +262,7 @@ namespace OpenTap
         /// <param name="io"> An IO Implementation for doing communication. </param>
         public ScpiInstrument(IScpiIO2 io)
         {
+            Name = "SCPI";
             this.scpiIO = io;
             IoTimeout = 2000;
 

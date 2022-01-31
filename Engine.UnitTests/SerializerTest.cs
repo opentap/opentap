@@ -1865,11 +1865,11 @@ namespace OpenTap.Engine.UnitTests
         {
             InstrumentSettings.Current.Clear();
 
-            InstrumentSettings.Current.Add(new GenericScpiInstrument { Name = "1" });
-            InstrumentSettings.Current.Add(new GenericScpiInstrument { Name = "0" });
+            InstrumentSettings.Current.Add(new ScpiInstrument { Name = "1" });
+            InstrumentSettings.Current.Add(new ScpiInstrument { Name = "0" });
 
             TestPlan tp = new TestPlan();
-            tp.ChildTestSteps.Add(new SCPIRegexStep { Instrument = InstrumentSettings.Current[0] as GenericScpiInstrument });
+            tp.ChildTestSteps.Add(new SCPIRegexStep { Instrument = InstrumentSettings.Current[0] as ScpiInstrument });
             using (var ms = new MemoryStream())
             {
                 tp.Save(ms);
@@ -2003,22 +2003,22 @@ namespace OpenTap.Engine.UnitTests
         {
             try
             {
-                // Make sure we have two profiles with a RawSCPIInstrument in each:
+                // Make sure we have two profiles with a SCPIInstrument in each:
                 ComponentSettings.SetSettingsProfile("Bench", "Test1");
                 InstrumentSettings.Current.Clear();
-                InstrumentSettings.Current.Add(new ScpiDummyInstrument { Name = "Dum" });
-                InstrumentSettings.Current.Add(new GenericScpiInstrument { Name = "INST1" });
+                InstrumentSettings.Current.Add(new DummyInstrument { Name = "Dum" });
+                InstrumentSettings.Current.Add(new ScpiInstrument { Name = "INST1" });
                 InstrumentSettings.Current.Save();
                 ComponentSettings.SetSettingsProfile("Bench", "Test2");
                 InstrumentSettings.Current.Clear();
-                InstrumentSettings.Current.Add(new GenericScpiInstrument { Name = "INST2" });
+                InstrumentSettings.Current.Add(new ScpiInstrument { Name = "INST2" });
                 InstrumentSettings.Current.Save();
 
                 // Add a RefListener to ResultSettings
                 var res = new RefListener();
                 ResultSettings.Current.RemoveIf<IResultListener>(l => l is RefListener);
                 ResultSettings.Current.Add(res);
-                res.InstrRef = InstrumentSettings.Current.GetDefault<GenericScpiInstrument>();
+                res.InstrRef = InstrumentSettings.Current.GetDefault<ScpiInstrument>();
                 ResultSettings.Current.Save();
 
                 Assert.AreEqual("INST2", res.InstrRef.Name);
@@ -2366,7 +2366,7 @@ namespace OpenTap.Engine.UnitTests
             {
 
                 ConnectionSettings.Current.Add(new RfConnection());
-                InstrumentSettings.Current.Add(new GenericScpiInstrument { VisaAddress = "1234" });
+                InstrumentSettings.Current.Add(new ScpiInstrument { VisaAddress = "1234" });
                 
                 var testPlan = new TestPlan();
                 var step = new SerializeConnectionTestStep();
