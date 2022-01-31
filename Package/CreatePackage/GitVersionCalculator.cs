@@ -143,7 +143,7 @@ namespace OpenTap.Package
 
             string sourceFile = Path.Combine(PathUtils.OpenTapDir, "Dependencies/LibGit2Sharp.0.27.0.0/", libgit2name);
             if (OperatingSystem.Current == OperatingSystem.Windows)
-                sourceFile += $".{ArchitectureHelper.GuessBaseArchitecture}";
+                sourceFile += $".{(Environment.Is64BitProcess ? CpuArchitecture.x64 : CpuArchitecture.x86)}";
             if (OperatingSystem.Current == OperatingSystem.MacOS)
                 sourceFile += $".{MacOsArchitecture.Current.Architecture}";
 
@@ -153,8 +153,15 @@ namespace OpenTap.Package
             }
             catch (Exception e)
             {
-                log.Error($"Unable to copy 'libgit2-{GIT_HASH}': {e.Message}.");
-                log.Debug(e);
+                if (OperatingSystem.Current == OperatingSystem.Windows)
+                {
+                    var opentapArch = Installation.Current.GetOpenTapPackage()?.Architecture;
+                    var processArch = Environment.Is64BitProcess ? CpuArchitecture.x64 : CpuArchitecture.x86;
+                    if (opentapArch != processArch)
+                        throw new PlatformNotSupportedException($"Unable to find the correct 'libgit2-{GIT_HASH}' because the process architecture '{processArch}' does not match the installed OpenTAP architecture '{opentapArch}'", e);
+                }
+
+                throw new PlatformNotSupportedException($"Unable to copy 'libgit2-{GIT_HASH}': {e.Message}.", e);
             }
         }
 
