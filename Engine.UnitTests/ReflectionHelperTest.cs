@@ -45,7 +45,7 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void MemoryMappedApiTest()
         {
-            if(OpenTap.OperatingSystem.Current == OpenTap.OperatingSystem.Linux) 
+            if(OpenTap.OperatingSystem.Current != OpenTap.OperatingSystem.Windows) 
                 return;  // this feature is currently not supported on Linux.
             var api = new MemoryMappedApi();
             var strings = new[] { "asd", "cxze", "" };
@@ -268,15 +268,13 @@ namespace OpenTap.Engine.UnitTests
             {
                 Assert.AreEqual(OperatingSystem.Windows, OperatingSystem.Current);
             }
+            else if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.OSX))
+            {
+                Assert.AreEqual(OperatingSystem.MacOS, OperatingSystem.Current);
+            }
             else
             {
                 Assert.AreEqual(OperatingSystem.Linux, OperatingSystem.Current);
-            }
-
-            if (OperatingSystem.Current == OperatingSystem.Linux)
-            {
-                var current = LinuxVariant.Current;
-                Assert.IsTrue(current != LinuxVariant.Unknown && current != null);
             }
         }
 

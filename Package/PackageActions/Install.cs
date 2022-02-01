@@ -79,7 +79,7 @@ namespace OpenTap.Package
             switch (Environment.OSVersion.Platform)
             {
                 case PlatformID.MacOSX:
-                    OS = "OSX";
+                    OS = "MacOS";
                     break;
                 case PlatformID.Unix:
                     OS = "Linux";

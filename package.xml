@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Package Name="OpenTAP" xmlns="http://opentap.io/schemas/package" InfoLink="http://www.keysight.com/find/TAP" Version="$(GitVersion)" OS="$(Platform)" Architecture="$(Architecture)">
+    <Description>This is the OpenTAP package that contain the most common functionality used in test automation. It controls test plan (list of test steps) execution and provides access to functionality offered by plugins. This covers logging functionality, result handling (database) and instrument communication (user-developed hardware drivers, for example). OpenTAP also includes a CLI and a plugin manager that finds and handles plugins (test steps, DUT and Instrument interfaces, etc.). 
+        <Status>Released</Status>
+        <Organisation>Keysight Technologies</Organisation>
+    </Description>
+    <Variables>
+        <!-- We include some native dependencies based on the platform and architecture, notably libgit2sharp -->
+        <Architecture Condition="$(Architecture) == ''">x64</Architecture>
+        <Platform Condition="$(Platform) == ''">Windows</Platform>
+        <!--Set Sign=false to disable Signing elements. This is useful for local debug builds -->
+        <Sign Condition="$(Sign) != false">true</Sign>
+        <!-- Set Debug=true to exclude documentation files and include debugging symbols -->
+        <Debug Condition="$(Debug) != true">false</Debug>
+    </Variables>
+    <SourceUrl>https://gitlab.com/OpenTAP/opentap</SourceUrl>
+    <Owner>OpenTAP</Owner>
+    <!-- Common files  -->
+    <Files>        
+        <File Path="tap.runtimeconfig.json"/>
+        <File Path="tap.dll">
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+        </File>
+        <File Path="OpenTap.dll">
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+        </File>
+        <File Path="Packages/OpenTAP/OpenTap.Cli.dll">
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+        </File>
+        <File Path="OpenTap.Package.dll">
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+        </File>
+        <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" SourcePath="OpenTap.Plugins.BasicSteps.dll">
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+        </File>
+    </Files>
+    <!-- Windows only files -->
+    <Files Condition="$(Platform) == Windows">
+        <File Path="tap.exe">
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+        </File>
+        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.dll.$(Architecture)"/>
+        <File Path="OpenTapApiReference.chm" 
+              SourcePath="../../Help/OpenTapApiReference.chm"
+              Condition="$(Debug) == false"/>        
+    </Files>
+    <!-- Linux / MacOS files -->
+    <Files Condition="$(Platform) != Windows">
+        <File Path="tap"/>
+        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so"/>
+        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.x64"/>
+        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.arm64"/>
+    </Files>
+
+    <!-- PDB files -->
+    <Files Condition="$(Debug) == true">
+      <File Path="tap.pdb"/>
+      <File Path="OpenTap.pdb"/>
+      <File Path="Packages/OpenTAP/OpenTap.Cli.pdb"/>
+      <File Path="OpenTap.Package.pdb"/>
+      <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.pdb" SourcePath="OpenTap.Plugins.BasicSteps.pdb"/>
+    </Files>
+    <!-- License Texts -->
+    <Files>        
+        <File Path="LICENSE.txt" />
+        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/LICENSE.txt"
+              SourcePath="libgit2sharp.license.md"/>
+        <File Path="Dependencies/Mono.Cecil.0.10.1.0/LICENSE.txt" 
+              SourcePath="Mono.Cecil.License.txt"/>
+        <File Path="Dependencies/netstandard.2.0.0.0/LICENSE.txt" 
+              SourcePath="dotnet_mit_license.txt"/>
+        <File Path="Dependencies/System.Reflection.Metadata.1.4.3.0/LICENSE.txt" 
+              SourcePath="dotnet_mit_license.txt"/>
+        <File Path="Dependencies/System.Collections.Immutable.1.2.3.0/LICENSE.txt" 
+              SourcePath="dotnet_mit_license.txt"/>
+        <File Path="Dependencies/Microsoft.CSharp.4.0.4.0/LICENSE.txt" 
+              SourcePath="dotnet_mit_license.txt"/>
+        <File Path="Dependencies/System.ValueTuple.4.0.3.0/LICENSE.txt" 
+              SourcePath="dotnet_mit_license.txt"/>
+        <File Path="Dependencies/System.Runtime.4.1.2.0/LICENSE.txt" 
+              SourcePath="dotnet_library_license.txt"/>
+        <File Path="Dependencies/System.Collections.4.0.11.0/LICENSE.txt" 
+              SourcePath="dotnet_library_license.txt"/>
+        <File Path="Dependencies/System.IO.4.1.2.0/LICENSE.txt" 
+              SourcePath="dotnet_library_license.txt"/>
+        <File Path="Dependencies/System.Runtime.Extensions.4.1.2.0/LICENSE.txt"
+              SourcePath="dotnet_library_license.txt"/>
+        <File Path="Dependencies/System.Linq.4.1.2.0/LICENSE.txt" 
+              SourcePath="dotnet_library_license.txt"/>
+        <File Path="Dependencies/DotNet.Glob.3.0.1.0/LICENSE.txt" 
+              SourcePath="Dotnet.Glob.License.txt"/>
+        <File Path="Dependencies/Newtonsoft.Json.12.0.0.0/LICENSE.txt"
+              SourcePath="newtonsoft_mit_license.txt"/>
+    </Files>
+    <PackageActionExtensions Condition="$(Platform) != Windows">
+        <ActionStep ActionName="install" ExeFile="chmod" Arguments="+x tap"  />
+    </PackageActionExtensions>
+</Package>

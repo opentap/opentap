@@ -48,7 +48,16 @@ namespace OpenTap.Package
             return image;
         }
 
-        internal Installation MergeAndDeploy(Installation deploymentInstallation, CancellationToken cancellationToken)
+        /// <summary>
+        /// Resolve specified packages in the ImageSpecifier with respect to the target installation.
+        /// Specified packages will take precedence over already installed packages
+        /// Already installed packages, which are not specified in the imagespecifier, will remain installed.
+        /// </summary>
+        /// <param name="deploymentInstallation">OpenTAP installation to merge with and deploy to.</param>
+        /// <param name="cancellationToken">Standard CancellationToken</param>
+        /// <returns>A new Installation</returns>
+        /// <exception cref="ImageResolveException">In case of resolve errors, this method will throw ImageResolveExceptions.</exception>
+        public Installation MergeAndDeploy(Installation deploymentInstallation, CancellationToken cancellationToken)
         {
             List<IPackageRepository> repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
 

@@ -16,8 +16,8 @@ using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
 using System.Threading.Tasks;
-using NuGet.Packaging;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 
 namespace OpenTap.Package
 {
@@ -138,8 +138,8 @@ namespace OpenTap.Package
         /// License required by the plugin file.
         /// </summary>
         [XmlAttribute("LicenseRequired")]
-        [DefaultValue(null)]
-        public string LicenseRequired { get; set; }
+        [DefaultValue("")]
+        public string LicenseRequired { get; set; } = "";
 
         /// <summary>
         /// Creates a new instance of PackageFile.
@@ -367,8 +367,8 @@ namespace OpenTap.Package
         /// Bundle packages (<see cref="Class"/> is 'bundle') can use this property to show licenses that are required by the bundle dependencies. 
         /// </summary>
         [XmlAttribute]
-        [DefaultValue(null)]
-        public string LicenseRequired { get; set; }
+        [DefaultValue("")]
+        public string LicenseRequired { get; set; } = "";
 
         /// <summary>
         /// The package class, this can be either 'package', 'bundle' or 'solution'.
@@ -469,16 +469,16 @@ namespace OpenTap.Package
             var root = XElement.Load(stream);
 
             var xns = root.GetDefaultNamespace();
-            var filesElement = root.Element(xns + "Files");
+            var filesElement = root.Element(xns.GetName("Files"));
             if (filesElement != null)
             {
-                var fileElements = filesElement.Elements(xns + "File");
+                var fileElements = filesElement.Elements(xns.GetName("File"));
                 foreach (var file in fileElements)
                 {
-                    var plugins = file.Element(xns + "Plugins");
+                    var plugins = file.Element(xns.GetName("Plugins"));
                     if (plugins == null) continue;
 
-                    var pluginElements = plugins.Elements(xns + "Plugin");
+                    var pluginElements = plugins.Elements(xns.GetName("Plugin"));
                     foreach (var plugin in pluginElements)
                     {
                         if (!plugin.HasElements && !plugin.IsEmpty)
@@ -543,11 +543,11 @@ namespace OpenTap.Package
             {
                 using (Stream str = new MemoryStream())
                 {
-                    if (node is XElement)
+                    if (node is XElement nodeElement)
                     {
-                        (node as XElement).Save(str);
+                        nodeElement.Save(str);
                         str.Seek(0, 0);
-                        var package = PackageDef.FromXml(str);
+                        var package = FromXml(str);
                         if (package != null)
                         {
                             lock (packages)
@@ -929,10 +929,9 @@ namespace OpenTap.Package
                 if ((HostArchitecture == CpuArchitecture.arm) || (HostArchitecture == CpuArchitecture.arm64)) currentArchitecture = HostArchitecture;
 
                 // And finally try to use the actual information in the package xml.
-                var installDir = Path.GetDirectoryName(typeof(PluginManager).Assembly.Location);
-                if(File.Exists(PackageDef.GetDefaultPackageMetadataPath("OpenTap", installDir))){
-                    currentArchitecture = PackageDef.FromXml(PackageDef.GetDefaultPackageMetadataPath("OpenTap", installDir)).Architecture;
-                }
+                var opentapPackage = Installation.Current.GetOpenTapPackage();
+                if (opentapPackage != null)
+                    currentArchitecture = opentapPackage.Architecture;
 
                 return currentArchitecture;
             }

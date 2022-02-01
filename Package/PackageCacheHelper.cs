@@ -2,14 +2,22 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
+
+using System;
 using System.IO;
 
 namespace OpenTap.Package
 {
-    internal static class PackageCacheHelper
+    static class PackageCacheHelper
     {
-        public static string PackageCacheDirectory { get; private set; } = Path.Combine(ExecutorClient.ExeDir, "PackageCache");
-        readonly static TraceSource log =  OpenTap.Log.CreateSource("PackageCache");
+        // ApplicationDataLocal is meant for storing data for the local(non-roaming) user. E.g, if the user logs
+        // into another machine that data should not be copied over. It needs to be a location that can be written to
+        // by the current user without any additional rights - hence it cannot be truly system-wide.
+        // Resolves to:
+        // - Linux: /home/<USER>/.local/share/OpenTAP/PackageCache
+        // - Windows: C:\Users\<USER>\AppData\Local\OpenTAP\PackageCache
+        public static string PackageCacheDirectory { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTap", "PackageCache");
+        readonly static TraceSource log =  Log.CreateSource("PackageCache");
 
         static PackageCacheHelper()
         {
