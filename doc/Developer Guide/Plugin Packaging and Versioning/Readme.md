@@ -509,18 +509,18 @@ As a plugin grows in complexity, special care is needed when targeting multiple 
 Although these package definitions are often nearly identical for each 
 platform or architecture, these subtle differences nonetheless require different *package definitions* for each target (or build-time modification). 
 
-Both of these solutions hurt the maintainability of the package definition. This process is made easy with **Properties** and **Conditions**.
+Both of these solutions hurt the maintainability of the package definition. This process is made easy with **Variables** and **Conditions**.
 
 ### The Variables Element
-The **Variables** element is placed as a child of the **Package** element, and can be used to define file-scoped properties. A property will be 
-expanded exactly once if it appears as text inside an element or an attribute.
+The **Variables** element is placed as a child of the **Package** element, and can be used to define file-scoped variables. A variable can be referenced
+inside an element or an attribute using a `$(VaribleName)` syntax.
 
 > &lt;SomeElement Attr1="$(abc)"&gt;abc $(def) ghi&lt;/SomeElement&gt; will expand $(abc) and $(def)
 > &lt;$(XmlElement)&gt;&lt;/$(XmlElement)&gt; will not expand, and is invalid XML.
 
 > A variable will be expanded exactly once. E.g. if `$(abc)` expands to the string `"$(def)"`, then $(def) will not be expanded.
 
-> Tip: Although **Variables** appears a a child of the **Package** element, properties can still be used in **Package** attributes.
+> Tip: Although **Variables** appears a a child of the **Package** element, variables can still be used in **Package** attributes.
 > The following `package.xml` example will correctly set the package architecture and OS.
 
 ```xml
@@ -532,7 +532,7 @@ expanded exactly once if it appears as text inside an element or an attribute.
 </Package>
 ```
 
-If an *Environment* variable is defined with the same name as a *file-local* property, then the *file-local* variable will take precedence.
+If an *Environment* variable is defined with the same name as a *file-local* variable, then the *file-local* variable will take precedence.
 Default values can be specified using *Conditions*.
 
 > **Note** the $(GitVersion) variable has a special meaning, and cannot be overriden.
@@ -702,9 +702,9 @@ Leveraging this, we can now create an OpenTAP package for Windows-x86, Windows-x
 ```powershell
 $env:Platform="Windows"
 $env:Architecture="x86"
-tap package create package.xml # Windows-x86
+tap package create package.xml -o OpenTAP.Windows.x86.TapPackage
 $env:Architecture = "x64"
-tap package create package.xml # Windows-x64
+tap package create package.xml -o OpenTAP.Windows.x64.TapPackage
 $env:Platform = "Linux"
-tap package create package.xml # Linux-x64
+tap package create package.xml -o OpenTAP.Linux.x64.TapPackage
 ```
