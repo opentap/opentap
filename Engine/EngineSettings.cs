@@ -28,7 +28,13 @@ namespace OpenTap
             Step_Fail = 1,
             /// <summary> If a step completes with verdict 'Error', the test plan execution should be aborted.</summary>
             [Display("Break On Error", "Issue a break when step completes with an error.")]
-            Step_Error = 2
+            Step_Error = 2,
+            /// <summary> If a step completes with verdict 'Inconclusive', the test plan execution should be aborted. </summary>
+            [Display("Break On Inconclusive", "Issue a break when step completes with an inconclusive verdict.")]
+            Step_Inconclusive = 4,
+            /// <summary> If a step completes with verdict 'Pass', the test plan execution should be aborted. </summary>
+            [Display("Break On Pass", "Issue a break when step completes with a pass verdict.")]
+            Step_Pass = 8,
         }
 
 

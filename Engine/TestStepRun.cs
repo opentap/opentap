@@ -313,7 +313,8 @@ namespace OpenTap
             if (OutOfRetries 
                 || (verdict == Verdict.Fail && BreakCondition.HasFlag(BreakCondition.BreakOnFail)) 
                 || (verdict == Verdict.Error && BreakCondition.HasFlag(BreakCondition.BreakOnError))
-                || (verdict == Verdict.Inconclusive && BreakCondition.HasFlag(BreakCondition.BreakOnInconclusive)))
+                || (verdict == Verdict.Inconclusive && BreakCondition.HasFlag(BreakCondition.BreakOnInconclusive))
+                || (verdict == Verdict.Pass && BreakCondition.HasFlag(BreakCondition.BreakOnPass)))
             {
                 return true;
             }
