@@ -114,4 +114,15 @@
   <ItemGroup>
     <Folder Include="Keysight\Tap\" />
   </ItemGroup>
+
+  <!-- Install OpenTAP as a package - this is necessary for most of the package cli actions to function normally.  -->
+  <!-- CopyFilesToOutputDirectory is required for libgit native DLLs -->
+  <Target Name="InstallOpenTapAsPackage"
+          AfterTargets="CopyFilesToOutputDirectory">
+    <Copy SourceFiles="$(OutDir)runtimes\win-x64\native\git2-4aecb64.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true"/>
+    <Exec Command="$(OutDir)tap.exe package create ../../package.xml -o $(OutDir)OpenTap.TapPackage --install"
+          EnvironmentVariables="Debug=true;Sign=false"
+          WorkingDirectory="$(OutDir)"/>
+    <Exec Command="$(OutDir)tap.exe package install $(OutDir)OpenTap.TapPackage"/>    
+  </Target>
 </Project>

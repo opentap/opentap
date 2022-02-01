@@ -19,25 +19,41 @@
     <Files>        
         <File Path="tap.runtimeconfig.json"/>
         <File Path="tap.dll">
-            <SetAssemblyInfo Attributes="Version"/>
+            <SetAssemblyInfo Attributes="Version" IncludePdb="$(Debug)"/>
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="OpenTap.dll">
-            <SetAssemblyInfo Attributes="Version"/>
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
-        </File>
-        <File Path="Packages/OpenTAP/OpenTap.Cli.dll">
-            <SetAssemblyInfo Attributes="Version"/>
+            <SetAssemblyInfo Attributes="Version" IncludePdb="$(Debug)"/>
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="OpenTap.Package.dll">
-            <SetAssemblyInfo Attributes="Version"/>
+            <SetAssemblyInfo Attributes="Version" IncludePdb="$(Debug)"/>
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
-        <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" SourcePath="OpenTap.Plugins.BasicSteps.dll">
-            <SetAssemblyInfo Attributes="Version"/>
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
-        </File>
+    </Files>
+    <!-- Debug location
+       In order to avoid 'Multiple assemblies ... warnings, install these DLLs
+       to the OpenTAP root directory in debug builds. (thus overwriting the original DLLs) -->
+    <Files Condition="$(Debug) == true">
+      <File Path="OpenTap.Plugins.BasicSteps.dll">
+        <SetAssemblyInfo Attributes="Version" IncludePdb="$(Debug)"/>
+        <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+      </File>
+      <File Path="OpenTap.Cli.dll">
+        <SetAssemblyInfo Attributes="Version" IncludePdb="$(Debug)"/>
+        <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+      </File>
+    </Files>
+    <!-- Release location -->
+    <Files Condition="$(Debug) != true">
+      <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" SourcePath="OpenTap.Plugins.BasicSteps.dll">
+        <SetAssemblyInfo Attributes="Version"/>
+        <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+      </File>
+      <File Path="Packages/OpenTAP/OpenTap.Cli.dll" SourcePath="OpenTap.Cli.dll">
+        <SetAssemblyInfo Attributes="Version"/>
+        <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+      </File>
     </Files>
     <!-- Windows only files -->
     <Files Condition="$(Platform) == Windows">

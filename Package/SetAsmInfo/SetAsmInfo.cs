@@ -11,6 +11,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Mono.Cecil.Cil;
 
 namespace OpenTap.Package.SetAsmInfo
 {
@@ -275,7 +276,7 @@ namespace OpenTap.Package.SetAsmInfo
             }
         }
         
-        public static void SetInfo(string filename, Version version, Version fileVersion, SemanticVersion infoVersion)
+        public static void SetInfo(string filename, Version version, Version fileVersion, SemanticVersion infoVersion, bool writePdb = false)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -334,9 +335,35 @@ namespace OpenTap.Package.SetAsmInfo
 
             var resolver = new TapMonoResolver();
             bool anyWritten = false;
-            var asm = AssemblyDefinition.ReadAssembly(filename,
-                new ReaderParameters
-                    { AssemblyResolver = resolver, InMemory = true, ReadingMode = ReadingMode.Deferred });
+
+            AssemblyDefinition asm;
+            try
+            {
+                asm = AssemblyDefinition.ReadAssembly(filename,
+                    new ReaderParameters
+                    {
+                        AssemblyResolver = resolver, InMemory = true, ReadingMode = ReadingMode.Deferred,
+                        ReadSymbols = writePdb
+                    });
+            }
+            catch (Exception ex)
+            {
+                var log = Log.CreateSource("Version Injector");
+                if (ex is SymbolsNotMatchingException)
+                    log.Debug($"Symbols were found but are not matching the assembly '{Path.GetFileName(filename)}'.");
+                else if (ex is SymbolsNotFoundException)
+                    log.Debug($"No symbols found for the assembly '{Path.GetFileName(filename)}'.");
+                else throw;
+
+                // Continue updating the version without updating symbols
+                writePdb = false;
+                asm = AssemblyDefinition.ReadAssembly(filename,
+                    new ReaderParameters
+                    {
+                        AssemblyResolver = resolver, InMemory = true, ReadingMode = ReadingMode.Deferred,
+                        ReadSymbols = writePdb
+                    });
+            }
 
             if (version != null)
             {
@@ -394,7 +421,7 @@ namespace OpenTap.Package.SetAsmInfo
                 anyWritten = true;
             }
             if (anyWritten)
-                asm.Write(filename);
+                asm.Write(filename, new WriterParameters { WriteSymbols = writePdb });
             asm.Dispose();
         }
 

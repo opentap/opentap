@@ -716,34 +716,32 @@ namespace OpenTap.Package
         {
             [XmlAttribute]
             public string Attributes { get; set; }
+
+            [XmlAttribute] public bool IncludePdb { get; set; } = false;
+
+            internal string[] Features => Attributes.ToLower()
+                .Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim()).Distinct().ToArray();
         }
 
         private static void UpdateVersionInfo(string tempDir, List<PackageFile> files, SemanticVersion version)
         {
-            var features = files.Where(f => f.HasCustomData<SetAssemblyInfoData>()).SelectMany(f => string.Join(",", f.GetCustomData<SetAssemblyInfoData>().Select(a => a.Attributes)).Split(',').Select(str => str.Trim().ToLower())).Distinct().ToHashSet();
-
-            if (!features.Any())
-                return;
             var timer = Stopwatch.StartNew();
 
             foreach (var file in files)
             {
-                if (!file.HasCustomData<SetAssemblyInfoData>())
-                    continue;
-
-                var toSet = string.Join(",", file.GetCustomData<SetAssemblyInfoData>().Select(a => a.Attributes)).Split(',').Select(str => str.Trim().ToLower()).Distinct().ToHashSet();
-
-                if (!toSet.Any())
-                    continue;
+                var data = file.GetCustomData<SetAssemblyInfoData>().ToArray();
+                if (!data.Any(d => d.Features.Contains("version"))) continue;
+                var includePdb = data.Any(d => d.IncludePdb);
 
                 log.Debug(timer, "Updating version info for '{0}'", file.FileName);
-
 
                 // Assume we can't open the file for writing (could be because we are trying to modify TPM or the engine), and copy to the same filename in a subdirectory
                 var versionedOutput = Path.Combine(tempDir, "Versioned");
 
                 var origFilename = Path.GetFileName(file.FileName);
                 var tempName = Path.Combine(versionedOutput, origFilename);
+
                 int i = 1;
                 while (File.Exists(tempName))
                 {
@@ -751,21 +749,40 @@ namespace OpenTap.Package
                     i++;
                 }
 
+                var pdbFile = Path.ChangeExtension(origFilename, "pdb");
+                var pdbTempName = Path.ChangeExtension(tempName, "pdb");
+
                 Directory.CreateDirectory(Path.GetDirectoryName(tempName));
                 ProgramHelper.FileCopy(file.FileName, tempName);
                 file.SourcePath = tempName;
 
-                SemanticVersion fVersion = null;
-                Version fVersionShort = null;
-
-                if (toSet.Contains("version"))
+                if (includePdb)
                 {
-                    fVersion = version;
-                    fVersionShort = new Version(version.ToString(3));
+                    if (File.Exists(pdbFile))
+                    {
+                        File.Copy(pdbFile, pdbTempName, true);
+                    }
+                    else
+                    {
+                        log.Debug($"No symbols file found for '{origFilename}'.");
+                        includePdb = false;
+                    }
                 }
 
-                SetAsmInfo.SetAsmInfo.SetInfo(file.FileName, fVersionShort, fVersionShort, fVersion);
+                var fVersion = version;
+                var fVersionShort = new Version(version.ToString(3));
+
+                SetAsmInfo.SetAsmInfo.SetInfo(file.FileName, fVersionShort, fVersionShort, fVersion, includePdb);
                 file.RemoveCustomData<SetAssemblyInfoData>();
+
+                if (includePdb)
+                {
+                    if (File.Exists(pdbTempName))
+                    {
+                        log.Debug($"Updating debugging symbols at {pdbFile}");
+                        File.Copy(pdbTempName, pdbFile, true);
+                    }
+                }
             }
             log.Info(timer,"Updated assembly version info using Mono method.");
         }
