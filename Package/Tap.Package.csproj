@@ -2,12 +2,10 @@
   <PropertyGroup>
     <AssemblyName>OpenTap.Package</AssemblyName>
     <RootNamespace>OpenTap.Package</RootNamespace>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(IsDebug)'!='true'">
     <DocumentationFile>$(OutputPath)\OpenTap.Package.xml</DocumentationFile>
+    <PlatformEnv Condition=" '$(OS)' == 'Unix' ">Linux,Macos</PlatformEnv>
+    <PlatformEnv Condition=" '$(OS)' != 'Unix' ">Windows</PlatformEnv>
   </PropertyGroup>
-
 
   <ItemGroup>
     <None Remove="PackageSchema.xsd" />
@@ -47,9 +45,9 @@
   <Target Name="InstallOpenTapAsPackage"
           AfterTargets="CopyFilesToOutputDirectory"
           Condition="'$(IsDebug)'=='true'">
-    <Exec Command="$(OutDir)tap.exe package create ../../package.xml -o $(OutDir)OpenTap.TapPackage --install"
-          EnvironmentVariables="Debug=true;Sign=false"
+    <Exec Command="$(OutDir)tap package create ../../package.xml -o $(OutDir)OpenTap.TapPackage --install"
+          EnvironmentVariables="Debug=true;Sign=false;Platform=$(PlatformEnv)"
           WorkingDirectory="$(OutDir)"/>
-    <Exec Command="$(OutDir)tap.exe package install $(OutDir)OpenTap.TapPackage"/>
+    <Exec Command="$(OutDir)tap package install $(OutDir)OpenTap.TapPackage"/>
   </Target>
 </Project>
