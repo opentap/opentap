@@ -698,7 +698,7 @@ namespace OpenTap.Package
                 // Concat license required from all files. But only if the property has not manually been set.
                 if (string.IsNullOrEmpty(pkg.LicenseRequired))
                 {
-                    var licenses = pkg.Files.Select(f => f.LicenseRequired).Where(l => l != null).ToList();
+                    var licenses = pkg.Files.Select(f => f.LicenseRequired).Where(l => string.IsNullOrWhiteSpace(l) == false).ToList();
                     pkg.LicenseRequired = string.Join(", ", licenses.Distinct().Select(l => LicenseBase.FormatFriendly(l, false)).ToList());
                 }
                 

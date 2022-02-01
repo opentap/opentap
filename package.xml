@@ -60,19 +60,19 @@
         <File Path="tap.exe">
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
-        <File Path="Dependencies/LibGit2Sharp.0.25.0.0/git2-4aecb64.dll"               
-              SourcePath="runtimes/win-$(Architecture)/native/git2-4aecb64.dll"/>
+        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.dll.$(Architecture)"/>
         <File Path="OpenTapApiReference.chm" 
               SourcePath="../../Help/OpenTapApiReference.chm"
               Condition="$(Debug) == false"/>        
     </Files>
-    <!-- Linux only files -->
-    <Files Condition="$(Platform) != Windows">        
+    <!-- Linux / MacOS files -->
+    <Files Condition="$(Platform) != Windows">
         <File Path="tap"/>
-        <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.linux-x64"/>
-        <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.redhat"/>
-        <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.ubuntu"/>
+        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so"/>
+        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.x64"/>
+        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.arm64"/>
     </Files>
+
     <!-- PDB files -->
     <Files Condition="$(Debug) == true">
       <File Path="tap.pdb"/>
@@ -84,7 +84,7 @@
     <!-- License Texts -->
     <Files>        
         <File Path="LICENSE.txt" />
-        <File Path="Dependencies/LibGit2Sharp.0.25.0.0/LICENSE.txt" 
+        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/LICENSE.txt"
               SourcePath="libgit2sharp.license.md"/>
         <File Path="Dependencies/Mono.Cecil.0.10.1.0/LICENSE.txt" 
               SourcePath="Mono.Cecil.License.txt"/>
