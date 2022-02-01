@@ -625,7 +625,7 @@ namespace OpenTap.Package
             }
 
             if (package.PackageSource is InstalledPackageDefSource f2 && File.Exists(f2.PackageDefFilePath))
-                // in case the package def XML was not inside the package definition
+                // in case the package def XML was not in the default package definition directory
                 // it is better to delete it anyway, because otherwise it will seem like it is still installed.
                 File.Delete(f2.PackageDefFilePath);
             
