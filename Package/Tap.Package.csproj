@@ -48,6 +48,5 @@
     <Exec Command="$(OutDir)tap package create ../../package.xml -o $(OutDir)OpenTap.TapPackage --install"
           EnvironmentVariables="Debug=true;Sign=false;Platform=$(PlatformEnv)"
           WorkingDirectory="$(OutDir)"/>
-    <Exec Command="$(OutDir)tap package install $(OutDir)OpenTap.TapPackage"/>
   </Target>
 </Project>
