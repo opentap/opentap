@@ -138,8 +138,8 @@ namespace OpenTap.Package
         /// License required by the plugin file.
         /// </summary>
         [XmlAttribute("LicenseRequired")]
-        [DefaultValue(null)]
-        public string LicenseRequired { get; set; }
+        [DefaultValue("")]
+        public string LicenseRequired { get; set; } = "";
 
         /// <summary>
         /// Creates a new instance of PackageFile.
@@ -367,8 +367,8 @@ namespace OpenTap.Package
         /// Bundle packages (<see cref="Class"/> is 'bundle') can use this property to show licenses that are required by the bundle dependencies. 
         /// </summary>
         [XmlAttribute]
-        [DefaultValue(null)]
-        public string LicenseRequired { get; set; }
+        [DefaultValue("")]
+        public string LicenseRequired { get; set; } = "";
 
         /// <summary>
         /// The package class, this can be either 'package', 'bundle' or 'solution'.
