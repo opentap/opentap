@@ -128,23 +128,23 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Default Verdict", "The verdict the step will have if timeout is reached", Group: "Timeout", Order: 1, Collapsed: true)]
         public Verdict DefaultAnswer { get; set; }
 
-        [Display("Use Picture", "The dialog will include a picture if the environment supports it.", "Picture", Order: 0, Collapsed: true)]
-        public bool UsePicture { get; set; }
+        [Display("Show Picture", "The dialog will include a picture if the environment supports it.", "Picture", Order: 0, Collapsed: true)]
+        public bool ShowPicture { get; set; }
 
-        [EnabledIf(nameof(UsePicture), HideIfDisabled = true)]
+        [EnabledIf(nameof(ShowPicture), HideIfDisabled = true)]
         public Picture Picture { get; } = new Picture();
 
         [Display("Source", "The source of the picture. Can be a URL or a file path.", "Picture", Order: 2, Collapsed: true)]
         [FilePath(FilePathAttribute.BehaviorChoice.Open)]
-        [EnabledIf(nameof(UsePicture), HideIfDisabled = true)]
+        [EnabledIf(nameof(ShowPicture), HideIfDisabled = true)]
         public string PictureSource
         {
             get => Picture.Source;
             set => Picture.Source = value;
         }
 
-        [Display("Description", "A description of the picture", "Picture", Order: 3, Collapsed: true)]
-        [EnabledIf(nameof(UsePicture), HideIfDisabled = true)]
+        [Display("Description", "A description of the picture. This is usually displayed in a mouseover tooltip, or if the picture fails to load.", "Picture", Order: 3, Collapsed: true)]
+        [EnabledIf(nameof(ShowPicture), HideIfDisabled = true)]
         public string PictureDescription
         {
             get => Picture.Description;
@@ -163,7 +163,7 @@ namespace OpenTap.Plugins.BasicSteps
         public override void Run()
         {
             Verdict answer = DefaultAnswer;
-            var req = new DialogRequest(Title, Message) { Buttons = Buttons, Picture = UsePicture ? Picture : null };
+            var req = new DialogRequest(Title, Message) { Buttons = Buttons, Picture = ShowPicture ? Picture : null };
             try
             {
                 var timeout = TimeSpan.FromSeconds(Timeout);
