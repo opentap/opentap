@@ -49,14 +49,10 @@
               SourcePath="../../Help/OpenTapApiReference.chm"
               Condition="$(Debug) == false"/>        
     </Files>
-    <!-- Linux only files -->
-    <Files Condition="$(Platform) == Linux">
+    <!-- Linux / MacOS files -->
+    <Files Condition="$(Platform) != Windows">
         <File Path="tap"/>
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so"/>
-    </Files>
-    <!-- MacOS only files -->
-    <Files Condition="$(Platform) == MacOS">
-        <File Path="tap"/>
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.x64"/>
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.arm64"/>
     </Files>

@@ -392,7 +392,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET }}
       - name: Package
         run: |
-          $env:Platform = "Linux"
+          $env:Platform = "Linux,MacOS"
           $env:Architecture = "x64"
           if (!$GITHUB_REF_PROTECTED) { $env:Sign = "false" } else { $env:Sign = "true" }
           pushd bin\linux-x64\ 
