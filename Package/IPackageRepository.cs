@@ -257,7 +257,7 @@ namespace OpenTap.Package
                 if (repo is HttpPackageRepository httprepo && httprepo.Version != null &&
                     RequiredApiVersion.IsCompatible(httprepo.Version))
                 {
-                    var jsonString = httprepo.SendQuery(query);
+                    var jsonString = httprepo.QueryGraphQL(query);
                     var json = JObject.Parse(jsonString);
                     lock (list)
                     {

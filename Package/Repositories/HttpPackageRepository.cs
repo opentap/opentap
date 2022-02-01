@@ -738,21 +738,11 @@ namespace OpenTap.Package
         }
 
         /// <summary>
-        /// Send the query string to the repository.
+        /// Send the GraphQL query string to the repository.
         /// </summary>
-        /// <param name="query"></param>
-        /// <returns></returns>
-        public string SendQuery(string query) =>
+        /// <param name="query">A GraphQL query string</param>
+        /// <returns>A JSON string containing the GraphQL response</returns>
+        public string QueryGraphQL(string query) =>
             downloadPackagesString($"/3.1/query", query, "application/json", "application/json");
-
-        /// <summary>
-        /// Asynchronously send the query string to the repository.
-        /// </summary>
-        /// <param name="query"></param>
-        /// <returns></returns>
-        public Task<string> SendQueryAsync(string query)
-        {
-            return Task.Run(() => SendQuery(query));
-        }
     }
 }
