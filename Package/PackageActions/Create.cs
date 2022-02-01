@@ -128,15 +128,15 @@ namespace OpenTap.Package
                 }
                 catch (AggregateException aex)
                 {
-                    foreach (var ex in aex.InnerExceptions)
+                    foreach (var inner in aex.InnerExceptions)
                     {
-                        if (ex is FileNotFoundException)
+                        if (inner is FileNotFoundException ex)
                         {
-                            log.Error("File not found: '{0}'", ((FileNotFoundException)ex).FileName);
+                            log.Error("File not found: '{0}'", ex.FileName);
                         }
                         else
                         {
-                            log.Error(ex.ToString());
+                            log.Error(inner.ToString());
                         }
                     }
                     log.Error("Caught errors while loading package definition.");

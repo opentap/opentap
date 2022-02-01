@@ -16,8 +16,8 @@ using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
 using System.Threading.Tasks;
-using NuGet.Packaging;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 
 namespace OpenTap.Package
 {
@@ -469,16 +469,16 @@ namespace OpenTap.Package
             var root = XElement.Load(stream);
 
             var xns = root.GetDefaultNamespace();
-            var filesElement = root.Element(xns + "Files");
+            var filesElement = root.Element(xns.GetName("Files"));
             if (filesElement != null)
             {
-                var fileElements = filesElement.Elements(xns + "File");
+                var fileElements = filesElement.Elements(xns.GetName("File"));
                 foreach (var file in fileElements)
                 {
-                    var plugins = file.Element(xns + "Plugins");
+                    var plugins = file.Element(xns.GetName("Plugins"));
                     if (plugins == null) continue;
 
-                    var pluginElements = plugins.Elements(xns + "Plugin");
+                    var pluginElements = plugins.Elements(xns.GetName("Plugin"));
                     foreach (var plugin in pluginElements)
                     {
                         if (!plugin.HasElements && !plugin.IsEmpty)
@@ -543,11 +543,11 @@ namespace OpenTap.Package
             {
                 using (Stream str = new MemoryStream())
                 {
-                    if (node is XElement)
+                    if (node is XElement nodeElement)
                     {
-                        (node as XElement).Save(str);
+                        nodeElement.Save(str);
                         str.Seek(0, 0);
-                        var package = PackageDef.FromXml(str);
+                        var package = FromXml(str);
                         if (package != null)
                         {
                             lock (packages)

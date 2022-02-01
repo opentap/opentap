@@ -79,17 +79,38 @@ namespace OpenTap.Package.UnitTests
             string installDir = Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location);
             if (!File.Exists(Path.Combine(installDir, "Packages/OpenTAP/package.xml")))
             {
-                string opentapPackageXmlPath;
-                if (OperatingSystem.Current == OpenTap.OperatingSystem.Windows)
-                    opentapPackageXmlPath = "opentap.x86.package.xml";
-                else
-                    opentapPackageXmlPath = "opentap_linux64.package.xml";
+                var opentapPackageXmlPath = "package.xml";
+                Environment.SetEnvironmentVariable("Platform", OperatingSystem.Current == OperatingSystem.Windows ? "Windows" : "Linux");
+                Environment.SetEnvironmentVariable("Architecture", OperatingSystem.Current == OperatingSystem.Windows ? "x86" : "x64");
+                Environment.SetEnvironmentVariable("Sign", "false");
+                Environment.SetEnvironmentVariable("Debug", "true");
+
                 // Sign package is needed to create opentap
-                string packageXml = CreateOpenTapPackageXmlWithoutSignElement(opentapPackageXmlPath);
-                string createOpenTap = $"create -v {packageXml} --install -o Packages/OpenTAP.TapPackage";
-                string output = RunPackageCliWrapped(createOpenTap, out int exitCode, installDir);
-                Assert.AreEqual(0, exitCode, "Error creating OpenTAP package. Log:\n" + output);
-                File.Delete(packageXml);
+                var create = new PackageCreateAction()
+                {
+                    Install = true,
+                    OutputPaths = new[] { "Packages/OpenTAP.TapPackage" },
+                    PackageXmlFile = opentapPackageXmlPath,
+                };
+                using (Session.Create())
+                {
+                    var logs = new StringBuilder();
+                    var lst = new EventTraceListener();
+                    lst.MessageLogged += evt => evt.ForEach(e => logs.AppendLine(e.ToString()));
+                    Log.AddListener(lst);
+                    int? res = null;
+                    try
+                    {
+                        res = create.Execute(CancellationToken.None);
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+
+                    Assert.AreEqual(0, res, "Error creating OpenTAP package. Log:\n" + logs.ToString());
+                }
+
             }
         }
 
@@ -219,12 +240,12 @@ namespace OpenTap.Package.UnitTests
                 Assert.IsAssignableFrom(exceptionType, e);
                 if (e is XmlException)
                     return;
-                
+
                 Assert.True(e.Message.Contains($"Found invalid character"), "Package metadata keys contains invalid");
                 Assert.True(e.Message.Contains($" in package metadata key '{invalidMetadataKey}' at position {index}."), "Package metadata keys contains invalid");
             }
         }
-        
+
         [Test]
         public void ListTest()
         {
