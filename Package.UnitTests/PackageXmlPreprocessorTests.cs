@@ -19,14 +19,14 @@ namespace OpenTap.Package.UnitTests
 
             var xmlString = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <Package Name=""$(PackageName)"" Version=""$(GitVersion)"" OS=""$(PlatformVar)"" Architecture=""$(ArchitectureVar)"">
-  <PropertyGroup>
+  <Variables>
     <PlatformVar>{platform}</PlatformVar>
     <ArchitectureVar>{arch}</ArchitectureVar>
     <Owner>{owner}</Owner>
     <PackageName>{packageName}</PackageName>
     <SourceUrl>{sourceUrl}</SourceUrl>
     <SignVar Condition=""{sign} == True"">true</SignVar>
-  </PropertyGroup>
+  </Variables>
   <SourceUrl Condition=""$(PlatformVar) == Windows"">$(SourceUrl)</SourceUrl>
   <Owner Condition=""$(PlatformVar) == Linux"">$(Owner)</Owner>
   <Files Condition=""a == b"">
@@ -69,7 +69,7 @@ namespace OpenTap.Package.UnitTests
             }
 
             // This element should have been removed
-            assertRemoved("PropertyGroup");
+            assertRemoved("Variables");
             assertRemoved("PackageActionExtensions");
             assertRemoved("Owner");
 
