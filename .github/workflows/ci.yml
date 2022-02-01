@@ -17,13 +17,16 @@ jobs:
       ShortVersion: ${{ steps.asmVer.outputs.ver }}
       GitVersion: ${{ steps.gitVer.outputs.ver }}
     steps:
-      - name: Install OpenTAP
-        run: |
-          wget -O opentap.tar https://www.opentap.io/docs/OpenTAP.9.16.2+f3c96b9f.tar
-          tar -xf opentap.tar
-          chmod u+x INSTALL.sh
-          echo 'y' | ./INSTALL.sh
-          ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
+      - name: Create OpenTAP install dir
+        run: mkdir $HOME/.tap
+      - name: Download OpenTAP
+        run: wget -O opentap.TapPackage https://packages.opentap.io/3.0/downloadpackage/OpenTAP?os=linux
+      - name: Unzip
+        run: unzip opentap.TapPackage -d "$HOME/.tap"
+      - name: Change permission
+        run: chmod +x $HOME/.tap/tap
+      - name: Create symlink
+        run: ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
       - name: Checkout
         uses: actions/checkout@v2
         with:
@@ -93,20 +96,15 @@ jobs:
 
   Build-Linux:
     runs-on: ubuntu-latest
-    container:
-      #image: mcr.microsoft.com/dotnet/sdk:6.0-bullseye-slim
-      image: mcr.microsoft.com/dotnet/sdk:6.0-focal
     steps:
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      # - name: Restore dependencies
-      #   run: dotnet restore -c Release OpenTAP.sln
-      # - name: Build
-      #   run: dotnet build --no-restore -c Release OpenTAP.sln
-      # - name: Test
-      #   run: dotnet test --no-build --verbosity normal
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
       - name: Upload binaries
@@ -253,22 +251,19 @@ jobs:
 
   TestLinuxPlan:
     runs-on: ubuntu-20.04
-    container: mcr.microsoft.com/dotnet/sdk:6.0-focal
-
     needs: Build-Linux
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
       - name: Download binaries
         uses: actions/download-artifact@v2
         with:
           name: linux-x64-bin
           path: bin/Release/
-      - name: Set locale
-        run: |
-          apt-get update
-          apt-get install locales
-          locale-gen en_US.UTF-8
       - name: Test
         run: |
           chmod +x bin/Release/tap
@@ -600,19 +595,17 @@ jobs:
 
   Test-Installer-Linux:
     runs-on: ubuntu-20.04
-    container:
-      image: mcr.microsoft.com/dotnet/runtime:6.0-focal
     needs:
       - Installer-Linux
     steps:
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
       - name: Download Linux Installer
         uses: actions/download-artifact@v2
         with:
           name: installer-linux
-      - name: Install Unzip
-        run: |
-          apt update
-          apt install unzip -y
       - name: Install OpenTAP
         run: |
           tar xf OpenTAP.tar
@@ -649,7 +642,7 @@ jobs:
           mv OpenTAP.*.Linux.TapPackage docker/Linux/OpenTAP.Linux.TapPackage
           echo "TAG_NAME=alpha" >> $GITHUB_ENV
       - name: Set tag (beta)
-        if: github.ref != 'refs/heads/main'
+        if: github.ref == 'refs/heads/main'
         run: echo "TAG_NAME=beta" >> $GITHUB_ENV
       - name: Set tag (rc)
         if: contains(github.ref, 'refs/heads/release')
@@ -669,8 +662,6 @@ jobs:
 
   Package-Deb:
     runs-on: ubuntu-20.04
-    container:
-      image: mcr.microsoft.com/dotnet/sdk:6.0-focal
     needs:
       - Package-Linux
     steps:
@@ -678,15 +669,15 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
       - name: Download Linux package
         uses: actions/download-artifact@v2
         with:
           name: linux-x64-package
           path: .
-      - name: Install Unzip
-        run: |
-          apt update
-          apt install unzip -y
       - name: Create Debian Package
         run: |
           cd  LinuxInstall/package

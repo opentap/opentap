@@ -12,6 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace OpenTap.Package.UnitTests
 {
@@ -161,9 +162,9 @@ namespace OpenTap.Package.UnitTests
             package.Description = "Cached version";
 
             var file = DummyPackageGenerator.GeneratePackage(package);
-            if (File.Exists(Path.Combine("PackageCache", file)))
-                File.Delete(Path.Combine("PackageCache", file));
-            File.Move(file, Path.Combine("PackageCache", file));
+            if (File.Exists(Path.Combine(PackageCacheHelper.PackageCacheDirectory, file)))
+                File.Delete(Path.Combine(PackageCacheHelper.PackageCacheDirectory, file));
+            File.Move(file, Path.Combine(PackageCacheHelper.PackageCacheDirectory, file));
 
             package.Description = "Right version";
             var file2 = DummyPackageGenerator.GeneratePackage(package);
@@ -190,6 +191,37 @@ namespace OpenTap.Package.UnitTests
             {
                 Console.WriteLine(e.Message);
                 Assert.True(e.Message.Contains("invalid file path characters"));
+            }
+        }
+
+        [TestCase(".test", 1, typeof(XmlException))]
+        [TestCase("t-est", 2, typeof(Exception))]
+        [TestCase("te st", 3, typeof(XmlException))]
+        [TestCase("tes.t", 4, typeof(Exception))]
+        [TestCase("1test", 1, typeof(XmlException))]
+        [TestCase("test?", 5, typeof(XmlException))]
+        public void CheckInvalidMetadata(string invalidMetadataKey, int index, Type exceptionType)
+        {
+            // Check if metadata contains invalid characters
+            var package = new PackageDef()
+            {
+                Name = "test",
+                MetaData = { {invalidMetadataKey,""} },
+                Version = SemanticVersion.Parse("1.0.0")
+            };
+
+            try
+            {
+                DummyPackageGenerator.GeneratePackage(package);
+            }
+            catch (Exception e)
+            {
+                Assert.IsAssignableFrom(exceptionType, e);
+                if (e is XmlException)
+                    return;
+                
+                Assert.True(e.Message.Contains($"Found invalid character"), "Package metadata keys contains invalid");
+                Assert.True(e.Message.Contains($" in package metadata key '{invalidMetadataKey}' at position {index}."), "Package metadata keys contains invalid");
             }
         }
         

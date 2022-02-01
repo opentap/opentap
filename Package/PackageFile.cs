@@ -289,6 +289,11 @@ namespace OpenTap.Package
     public class PackageDef : PackageIdentifier
     {
         /// <summary>
+        /// Holds additional metadata for a package
+        /// </summary>
+        public Dictionary<string, string> MetaData { get; } = new Dictionary<string, string>();
+        
+        /// <summary>
         /// The hash of the package. This is based on hashes of each payload file as well as metadata in the package definition.
         /// </summary>
         [DefaultValue(null)]
@@ -639,7 +644,15 @@ namespace OpenTap.Package
         /// </summary>
         public static void ValidateXml(string path)
         {
-            ValidateXmlDefinitionFile(path, false);
+            var package = FromXml(path);
+            if (string.IsNullOrWhiteSpace(package.Name))
+                throw new InvalidDataException("Package Name cannot be empty.");
+            if (package.Version == null && package.RawVersion == null)
+                throw new InvalidDataException("Package Version cannot be empty.");
+            if (string.IsNullOrWhiteSpace(package.OS))
+                throw new InvalidDataException("Package OS cannot be empty.");
+            if (package.Architecture == CpuArchitecture.Unspecified)
+                throw new InvalidDataException("Package Architecture cannot be unspecified.");
         }
 
         /// <summary>
@@ -677,45 +690,6 @@ namespace OpenTap.Package
         private static void PrintError(string message, int lineNumber, int linePosition, string path)
         {
             log.Error("{0}({1},{2}): error: {3}", path, lineNumber, linePosition, message);
-        }
-
-        /// <summary>
-        /// Throws InvalidDataException if the xml in the file does not conform to the schema. Also prints an error to stderr
-        /// </summary>
-        private static void ValidateXmlDefinitionFile(string xmlFilePath, bool verbose = true)
-        {
-            XmlReaderSettings settings = new XmlReaderSettings();
-            settings.Schemas = GetXmlSchema();
-            settings.ValidationType = ValidationType.Schema;
-            
-            settings.ValidationEventHandler += (sender, e) =>
-            {
-                throw new InvalidDataException("Line " + e.Exception.LineNumber + ": " + e.Exception.Message);
-            };
-            XmlReader reader = XmlReader.Create(xmlFilePath, settings);
-
-            try
-            {
-                XDocument.Load(reader);
-            }
-            catch (Exception ex)
-            {
-                if (verbose)
-                {
-                    if (ex is XmlException)
-                    {
-                        XmlException xex = (XmlException)ex;
-                        PrintError(ex.Message, xex.LineNumber, xex.LinePosition, xmlFilePath);
-                    }
-                    else
-                        PrintError(ex.Message, 0, 0, xmlFilePath);
-                }
-                throw new InvalidDataException(ex.Message);
-            }
-            finally
-            {
-                reader.Close();
-            }
         }
 
         /// <summary>

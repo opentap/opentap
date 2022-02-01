@@ -60,8 +60,6 @@ namespace OpenTap
         public static readonly XmlReaderSettings DefaultReaderSettings =
             new XmlReaderSettings { IgnoreComments = true, IgnoreWhitespace = true };
 
-        
-
         /// <summary>
         /// Pushes a message to the list of errors for things that happened during load.
         /// </summary>
@@ -69,14 +67,13 @@ namespace OpenTap
         /// <param name="message"></param>
         public void PushError(XElement element, string message)
         {
-            errors.Add(new Error {Element = element, Message = message});
-            
+            errors.Add(new XmlError( element, message));
         }
         
         /// <summary>  Pushes a message to the list of errors for things that happened during load. Includes optional Exception value. </summary>
         public void PushError(XElement element, string message, Exception e)
         {
-            errors.Add(new Error {Element = element, Message = message, Exception = e});
+            errors.Add(new XmlError( element, message, e));
         }
 
         void logErrors()
@@ -282,25 +279,13 @@ namespace OpenTap
             deferredLoads.Enqueue(deferred);
         }
 
-        struct Error
-        {
-            public XElement Element;
-            public Exception Exception;
-            public string Message;
+        readonly List<XmlError> errors = new List<XmlError>();
 
-            public override string ToString()
-            {
-                string message = Message ?? Exception.Message;
-                if (Element is IXmlLineInfo lineInfo && lineInfo.HasLineInfo())
-                    return $"XML Line {lineInfo.LineNumber}: {message}";
-                return message;
-            }
-        }
-        
-        readonly List<Error> errors = new List<Error>();
-
-        /// <summary> Get the errors associated with deserialization. The errors only persists between calls to Serialize/Deserialize. </summary>
+        /// <summary> Get the errors associated with deserialization. The errors only persists between calls to Serialize/Deserialize. See XmlErrors for more detailed information. </summary>
         public IEnumerable<string> Errors => errors.Select(x => x.ToString());
+
+        /// <summary> Gets a list of exceptions tha occured while loading the test plan.</summary>
+        public IEnumerable<XmlError> XmlErrors => errors.AsReadOnly();
 
         /// <summary> Clears the errors accumulated in the serializer. </summary>
         void ClearErrors()
@@ -594,8 +579,7 @@ namespace OpenTap
         }
 
         readonly Dictionary<string, XName> xmlPropertyNames = new Dictionary<string, XName>();
-        internal XName PropertyXmlName(string subPropName) => xmlPropertyNames.GetOrCreateValue(subPropName, name => XmlConvert.EncodeLocalName(name));
-        
+        internal XName PropertyXmlName(string subPropName) => xmlPropertyNames.GetOrCreateValue(subPropName, name => XmlConvert.EncodeLocalName(name));   
     }
 }
 

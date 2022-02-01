@@ -74,6 +74,20 @@ namespace OpenTap.Package
             CategorizeResolvedPackages();
         }
 
+        internal DependencyResolver(Installation tapInstallation, List<PackageSpecifier> packageSpecifiers, List<IPackageRepository> repositories, CancellationToken cancellationToken)
+        {
+            InstalledPackages = new Dictionary<string, PackageDef>();
+            foreach (var pkg in tapInstallation.GetPackages())
+                InstalledPackages[pkg.Name] = pkg;
+
+            foreach (var specifier in packageSpecifiers)
+                graph.AddEdge(DependencyGraph.Root, DependencyGraph.Unresolved, specifier);
+
+            resolveGraph(graph, repositories, cancellationToken);
+
+            CategorizeResolvedPackages();
+        }
+
         private void resolveGraph(DependencyGraph graph, List<IPackageRepository> repositories, CancellationToken cancellationToken)
         {
             AlignArchAndOS(graph);
@@ -116,8 +130,9 @@ namespace OpenTap.Package
                                                 .Where(a => a != CpuArchitecture.Unspecified && a != CpuArchitecture.AnyCPU).ToList();
 
             CpuArchitecture arch;
-            if (archs.Count != 1) { 
-                if(openTapPackage?.Architecture != null && openTapPackage.Architecture != CpuArchitecture.Unspecified)
+            if (archs.Count != 1)
+            {
+                if (openTapPackage?.Architecture != null && openTapPackage.Architecture != CpuArchitecture.Unspecified)
                     arch = openTapPackage.Architecture;
                 else
                     arch = ArchitectureHelper.GuessBaseArchitecture;
@@ -283,16 +298,21 @@ namespace OpenTap.Package
         {
             if (packageSpecifier.Version.Minor is null || packageSpecifier.Version.Patch is null)
             {
-                return GetLatestCompatible(repositories, packageSpecifier, installedPackages);
+                PackageDef foundPackage = GetLatestCompatible(repositories, packageSpecifier, installedPackages);
+                if (foundPackage is null)
+                {
+                    string issue = DetermineResolveIssue(repositories, packageSpecifier, installedPackages);
+                    throw new InvalidOperationException(issue);
+                }
+                else
+                    return foundPackage;
             }
             else
             {
                 PackageSpecifier temp = packageSpecifier;
 
-                if (packageSpecifier.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible)) {
-                    VersionSpecifier spec = new VersionSpecifier(packageSpecifier.Version.Major, packageSpecifier.Version.Minor, packageSpecifier.Version.Patch, packageSpecifier.Version.PreRelease, packageSpecifier.Version.BuildMetadata, VersionMatchBehavior.Exact);
-                    packageSpecifier = new PackageSpecifier(packageSpecifier.Name, spec, packageSpecifier.Architecture, packageSpecifier.OS);
-                }
+                VersionSpecifier spec = new VersionSpecifier(packageSpecifier.Version.Major, packageSpecifier.Version.Minor, packageSpecifier.Version.Patch, packageSpecifier.Version.PreRelease, packageSpecifier.Version.BuildMetadata, VersionMatchBehavior.Exact);
+                packageSpecifier = new PackageSpecifier(packageSpecifier.Name, spec, packageSpecifier.Architecture, packageSpecifier.OS);
                 IEnumerable<PackageDef> packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageSpecifier, installedPackages.ToArray());
 
                 if (!packages.Any() && temp.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible))
@@ -303,54 +323,10 @@ namespace OpenTap.Package
 
                 if (!packages.Any())
                 {
-                    var compatibleVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageSpecifier.Name, installedPackages.ToArray());
-                    var versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageSpecifier.Name);
-
-                    // Any packages compatible with opentap and platform
-                    var filteredVersions = compatibleVersions.Where(v => v.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS)).ToList();
-                    if (filteredVersions.Any())
-                    {
-                        // if the specified version exist, don't say it could not be found. 
-                        if (versions.Any(v => packageSpecifier.Version.IsCompatible(v.Version)))
-                            throw new InvalidOperationException($"Package '{packageSpecifier.Name}' matching version '{packageSpecifier.Version}' is not compatible. Latest compatible version is '{filteredVersions.FirstOrDefault().Version}'.");
-                        else
-                            throw new InvalidOperationException($"Package '{packageSpecifier.Name}' matching version '{packageSpecifier.Version}' could not be found. Latest compatible version is '{filteredVersions.FirstOrDefault().Version}'.");
-                    }
-
-                    // Any compatible with platform but not opentap
-                    filteredVersions = versions.Where(v => v.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS)).ToList();
-                    if (filteredVersions.Any() && installedPackages.Any())
-                    {
-                        var opentapPackage = installedPackages.First();
-                        throw new InvalidOperationException($"Package '{packageSpecifier.Name}' does not exist in a version compatible with '{opentapPackage.Name}' version '{opentapPackage.Version}'.");
-                    }
-
-                    // Any compatible with opentap but not platform
-                    if (compatibleVersions.Any())
-                    {
-                        if (packageSpecifier.Version != VersionSpecifier.Any || packageSpecifier.OS != null || packageSpecifier.Architecture != CpuArchitecture.Unspecified)
-                            throw new InvalidOperationException(string.Format("No '{0}' package {1} was found.", packageSpecifier.Name, string.Join(" and ",
-                                    new string[] {
-                                    packageSpecifier.Version != VersionSpecifier.Any ? $"compatible with version '{packageSpecifier.Version}'": null,
-                                    packageSpecifier.OS != null ? $"compatible with '{packageSpecifier.OS}' operating system" : null,
-                                    packageSpecifier.Architecture != CpuArchitecture.Unspecified ? $"with '{packageSpecifier.Architecture}' architecture" : null
-                                }.Where(x => x != null).ToArray())));
-                        else
-                            throw new InvalidOperationException($"Package '{packageSpecifier.Name}' does not exist in a version compatible with this OS and architecture.");
-                    }
-
-                    // Any version
-                    if (versions.Any())
-                    {
-                        var opentapPackage = installedPackages.FirstOrDefault();
-                        if (opentapPackage != null)
-                            throw new InvalidOperationException($"Package '{packageSpecifier.Name}' does not exist in a version compatible with this OS, architecture and '{opentapPackage.Name}' version '{opentapPackage.Version}'.");
-                        else
-                            throw new InvalidOperationException($"Package '{packageSpecifier.Name}' does not exist in a version compatible with this OS and architecture.");
-                    }
-
-                    throw new InvalidOperationException($"Package '{packageSpecifier.Name}' could not be found in any repository.");
+                    string issue = DetermineResolveIssue(repositories, packageSpecifier, installedPackages);
+                    throw new InvalidOperationException(issue);
                 }
+
                 var selected = packages.FirstOrDefault(p => p.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS));
                 if (selected is null)
                     return packages.FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture)); // fallback to old behavior
@@ -358,6 +334,57 @@ namespace OpenTap.Package
                     return selected;
 
             }
+        }
+
+        private static string DetermineResolveIssue(List<IPackageRepository> repositories, PackageSpecifier packageSpecifier, List<PackageDef> installedPackages)
+        {
+            var compatibleVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageSpecifier.Name, installedPackages.ToArray());
+            var versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageSpecifier.Name);
+
+            // Any packages compatible with opentap and platform
+            var filteredVersions = compatibleVersions.Where(v => v.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS)).ToList();
+            if (filteredVersions.Any())
+            {
+                // if the specified version exist, don't say it could not be found. 
+                if (versions.Any(v => packageSpecifier.Version.IsCompatible(v.Version)))
+                    return $"Package '{packageSpecifier.Name}' matching version '{packageSpecifier.Version}' is not compatible. Latest compatible version is '{filteredVersions.FirstOrDefault().Version}'.";
+                else
+                    return $"Package '{packageSpecifier.Name}' matching version '{packageSpecifier.Version}' could not be found. Latest compatible version is '{filteredVersions.FirstOrDefault().Version}'.";
+            }
+
+            // Any compatible with platform but not opentap
+            filteredVersions = versions.Where(v => v.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS)).ToList();
+            if (filteredVersions.Any() && installedPackages.Any())
+            {
+                var opentapPackage = installedPackages.First();
+                return $"Package '{packageSpecifier.Name}' does not exist in a version compatible with '{opentapPackage.Name}' version '{opentapPackage.Version}'.";
+            }
+
+            // Any compatible with opentap but not platform
+            if (compatibleVersions.Any())
+            {
+                if (packageSpecifier.Version != VersionSpecifier.Any || packageSpecifier.OS != null || packageSpecifier.Architecture != CpuArchitecture.Unspecified)
+                    return string.Format("No '{0}' package {1} was found.", packageSpecifier.Name, string.Join(" and ",
+                            new string[] {
+                                    packageSpecifier.Version != VersionSpecifier.Any ? $"compatible with version '{packageSpecifier.Version}'": null,
+                                    packageSpecifier.OS != null ? $"compatible with '{packageSpecifier.OS}' operating system" : null,
+                                    packageSpecifier.Architecture != CpuArchitecture.Unspecified ? $"with '{packageSpecifier.Architecture}' architecture" : null
+                        }.Where(x => x != null).ToArray()));
+                else
+                    return $"Package '{packageSpecifier.Name}' does not exist in a version compatible with this OS and architecture.";
+            }
+
+            // Any version
+            if (versions.Any())
+            {
+                var opentapPackage = installedPackages.FirstOrDefault();
+                if (opentapPackage != null)
+                    return $"Package '{packageSpecifier.Name}' does not exist in a version compatible with this OS, architecture and '{opentapPackage.Name}' version '{opentapPackage.Version}'.";
+                else
+                    return $"Package '{packageSpecifier.Name}' does not exist in a version compatible with this OS and architecture.";
+            }
+
+            return $"Package '{packageSpecifier.Name}' could not be found in any repository.";
         }
 
         private static PackageDef GetLowestCompatible(List<IPackageRepository> repositories, PackageSpecifier packageSpecifier, List<PackageDef> installedPackages)
@@ -386,10 +413,28 @@ namespace OpenTap.Package
         private static PackageDef GetLatestCompatible(List<IPackageRepository> repositories, PackageSpecifier packageSpecifier, List<PackageDef> installedPackages)
         {
             var allVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageSpecifier.Name, installedPackages.ToArray())
+                .Where(p => p.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS))
                                          .Select(p => p.Version).Distinct();
-            allVersions = allVersions.Where(v => v.Major == packageSpecifier.Version.Major);
-            if (packageSpecifier.Version.Minor != null)
-                allVersions = allVersions.Where(p => p.Minor == packageSpecifier.Version.Minor);
+
+            if (packageSpecifier.Version != VersionSpecifier.Any) // If user specified "any", do not filter anything!
+            {
+                if (packageSpecifier.Version.Major != null)
+                    allVersions = allVersions.Where(v => v.Major == packageSpecifier.Version.Major);
+
+                if (packageSpecifier.Version.Minor != null)
+                    allVersions = allVersions.Where(p => p.Minor == packageSpecifier.Version.Minor);
+
+                if (packageSpecifier.Version.PreRelease != null)
+                    allVersions = allVersions.Where(p => ComparePreReleaseType(p.PreRelease, packageSpecifier.Version.PreRelease) == 0);
+                else
+                    allVersions = allVersions.Where(s => s.PreRelease == null);
+
+                if (packageSpecifier.Version.Major is null && packageSpecifier.Version.Minor is null && packageSpecifier.Version.Patch is null && packageSpecifier.Version.PreRelease is null) // If user specified "" (blank), we filter away prereleases
+                    allVersions = allVersions.Where(s => s.PreRelease == null);
+            }
+
+            if (!allVersions.Any())
+                return null;
             SemanticVersion ver = allVersions.OrderByDescending(v => v).FirstOrDefault();
             var exactSpec = new PackageSpecifier(packageSpecifier.Name, new VersionSpecifier(ver, VersionMatchBehavior.Exact), packageSpecifier.Architecture, packageSpecifier.OS);
             var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, exactSpec);
@@ -399,6 +444,23 @@ namespace OpenTap.Package
                 return packages.FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture)); // fallback to old behavior
             else
                 return selected;
+        }
+
+        private static int ComparePreReleaseType(string p1, string p2)
+        {
+            if (p1 == p2) return 0;
+
+            if (string.IsNullOrEmpty(p1) && string.IsNullOrEmpty(p2)) return 0;
+            if (string.IsNullOrEmpty(p1)) return 1;
+            if (string.IsNullOrEmpty(p2)) return -1;
+
+            var identifiers1 = p1.Split('.');
+            var identifiers2 = p2.Split('.');
+
+            if (identifiers1[0] == identifiers2[0])
+                return 0;
+
+            return string.Compare(identifiers1[0], identifiers2[0]);
         }
     }
 

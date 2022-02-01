@@ -309,6 +309,12 @@ namespace OpenTap.Package
                 AddWritePair("Plugins", sb.ToString());
             }
 
+            if (package.MetaData.Any())
+            {
+                foreach (var metadata in package.MetaData)
+                    AddWritePair(metadata.Key, metadata.Value);
+            }
+            
             WritePairs();
         }
         private IEnumerable<string> WordWrap(string input, int breakLength)

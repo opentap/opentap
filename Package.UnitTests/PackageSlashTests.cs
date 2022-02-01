@@ -41,7 +41,7 @@ namespace OpenTap.Package.UnitTests
         private string FullName => Path.Combine(dir1, dir2, name).Replace("\\", "/");
         private string PackageDirRelative => Path.Combine("Packages", FullName);
         private string PackageDir => Path.Combine(TapDir, PackageDirRelative);
-        private string PackageCache => Path.Combine(TapDir, "PackageCache");
+        string PackageCache => PackageCacheHelper.PackageCacheDirectory;
         private const string version = "3.2.1";
         private const string filename = "SampleFile.txt";
         private const string packageFileName = "TestPackage.xml";

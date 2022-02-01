@@ -228,7 +228,37 @@ namespace OpenTap.UnitTests
                 UserInput.SetInterface(userInput);
             }
         }
-        
+
+        [Test]
+        public void IconAnnotationForInputOutputRelations()
+        {
+            var step1 = new OutputInput { Output = 5, Input = 5, Name = "Step 1" };
+            var step2 = new OutputInput { ExpectedInput = 5, CheckExpectedInput = true, Name = "Step 2" };
+            var step3 = new OutputInput { ExpectedInput = 5, CheckExpectedInput = true, Name = "Step 3" };
+            var plan = new TestPlan();
+            plan.ChildTestSteps.AddRange(new[] { step1, step2, step3 });
+            var outputMember = TypeData.GetTypeData(step1).GetMember(nameof(OutputInput.Output));
+            var inputMember = TypeData.GetTypeData(step1).GetMember(nameof(OutputInput.Input));
+            InputOutputRelation.Assign(step2, inputMember, step1, outputMember);
+            InputOutputRelation.Assign(step3, inputMember, step2, outputMember);
+
+
+            var a = AnnotationCollection.Annotate(step2);
+            var im = a.GetMember(inputMember.Name);
+            var iicon = im.Get<ISettingReferenceIconAnnotation>();
+            Assert.NotNull(iicon);
+            Assert.AreEqual(IconNames.Input, iicon.IconName);
+            Assert.AreEqual(step1.Id, iicon.TestStepReference);
+            Assert.AreEqual(outputMember.Name, iicon.MemberName);
+
+            var om = a.GetMember(outputMember.Name);
+            var oicon = om.Get<ISettingReferenceIconAnnotation>();
+            Assert.NotNull(oicon);
+            Assert.AreEqual(IconNames.OutputAssigned, oicon.IconName);
+            Assert.AreEqual(step3.Id, oicon.TestStepReference);
+            Assert.AreEqual(inputMember.Name, oicon.MemberName);
+        }
+
         [Test]
         public void TestMenuAnnotationForInputOutputRelationsMultiSelect()
         {

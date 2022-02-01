@@ -159,7 +159,7 @@ namespace OpenTap
                 throw new ArgumentNullException(nameof(step));
             if(propertyInfo == null)
                 throw new ArgumentNullException(nameof(propertyInfo));
-            ParameterMemberData fwd = propertyInfo.GetParameter(plan, step);
+            ParameterMemberData fwd = propertyInfo.GetParameter(plan, step) as ParameterMemberData;
             if (fwd == null) return;
             if(name != null && fwd.Name != name)
                 throw new InvalidOperationException("Name does not match external parameter name.");
@@ -196,7 +196,7 @@ namespace OpenTap
                 throw new ArgumentNullException(nameof(step));
             if(property == null)
                 throw new ArgumentNullException(nameof(property));
-            var parameter = property.GetParameter(plan, step);
+            var parameter = property.GetParameter(plan, step) as ParameterMemberData;
             if(parameter != null)
                 return new ExternalParameter(plan, parameter);
             return null;

@@ -512,21 +512,21 @@ namespace OpenTap
         InputOutputRelation[] IInputOutputRelations.Inputs { get; set; }
         InputOutputRelation[] IInputOutputRelations.Outputs { get; set; }
 
-        readonly Dictionary<IMemberData, IParameterMemberData> parameterizations =
-            new Dictionary<IMemberData, IParameterMemberData>();
-        void IParameterizedMembersCache.RegisterParameterizedMember(IMemberData mem, IParameterMemberData memberData)
+        readonly Dictionary<IMemberData, ParameterMemberData> parameterizations =
+            new Dictionary<IMemberData, ParameterMemberData>();
+        void IParameterizedMembersCache.RegisterParameterizedMember(IMemberData mem, ParameterMemberData memberData)
         {
             lock (parameterizations)
                 parameterizations.Add(mem, memberData);
         }
 
-        void IParameterizedMembersCache.UnregisterParameterizedMember(IMemberData mem, IParameterMemberData memberData)
+        void IParameterizedMembersCache.UnregisterParameterizedMember(IMemberData mem, ParameterMemberData memberData)
         {
             lock (parameterizations)
                 parameterizations.Remove(mem);
         }
 
-        IParameterMemberData IParameterizedMembersCache.GetParameterFor(IMemberData mem)
+        ParameterMemberData IParameterizedMembersCache.GetParameterFor(IMemberData mem)
         {
             if (parameterizations.TryGetValue(mem, out var r))
                 return r;
