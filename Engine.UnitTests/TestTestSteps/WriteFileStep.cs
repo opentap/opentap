@@ -166,7 +166,7 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
     public class RunOnOs : TestStep
     {
 
-        public string[] AvailableOperatingSystems => new []{"Linux", "Windows"};
+        public string[] AvailableOperatingSystems => new []{ "MacOS", "Linux", "Windows"};
 
         [AvailableValues(nameof(AvailableOperatingSystems))]
         public string OperatingSystem { get; set; } = "Windows";

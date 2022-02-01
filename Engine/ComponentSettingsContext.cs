@@ -47,6 +47,8 @@ namespace OpenTap
 
         public void SaveAllCurrentSettings()
         {
+            foreach (var cacheType in xmlCache.Keys.ToArray())
+                GetCurrent(cacheType);
             foreach (var comp in objectCache.GetResults().Where(x => x != null))
                 Save(comp);
         }

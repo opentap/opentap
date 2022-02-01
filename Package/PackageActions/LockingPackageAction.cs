@@ -35,7 +35,7 @@ namespace OpenTap.Package
             "'x.y.z' only match the exact version.\n" +
             "Use 'any', 'beta', or 'rc' to match 'any', 'beta', or 'rc' pre-release versions and above.";
         internal const string CommandLineArgumentOsDescription =
-            "Override the OS (Linux, Windows) to target.\n" +
+            "Override the OS (Linux, Windows, MacOS) to target.\n" +
             "The default is the current OS.";
         internal const string CommandLineArgumentArchitectureDescription =
             "Override the CPU architecture (x86, x64, AnyCPU) to target.\n" +

@@ -167,7 +167,7 @@ namespace OpenTap.Package.UnitTests
             PackageDef pkg = PackageDefExt.FromInputXml(inputFilename,Directory.GetCurrentDirectory());
             
             Assert.AreEqual("Test Step",pkg.Files?.FirstOrDefault()?.Plugins?.FirstOrDefault(p => p.Type == typeof(IfStep).FullName)?.BaseType);
-            Assert.AreEqual(pkg.Files?.FirstOrDefault()?.Plugins.FirstOrDefault(p => p.Type == typeof(GenericScpiInstrument).FullName)?.BaseType, "Instrument");
+            Assert.AreEqual(pkg.Files?.FirstOrDefault()?.Plugins.FirstOrDefault(p => p.Type == "OpenTap.Plugins.BasicSteps.GenericScpiInstrument")?.BaseType, "Instrument");
         }
 
         [Test]
@@ -709,7 +709,7 @@ namespace OpenTap.Package.UnitTests
         public void FileRepositoryManagerTest()
         {
             string pkgContent = @"<?xml version=""1.0"" encoding=""utf-8""?>
-<Package Name=""BasicSteps"" xmlns=""http://keysight.com/schemas/TAP/Package"" OS=""Linux,Windows"">
+<Package Name=""BasicSteps"" xmlns=""http://keysight.com/schemas/TAP/Package"" OS=""Linux,Windows,MacOS"">
  <Files>
   <File Path=""__BASICSTEPS_DLL__"">
     <UseVersion/>

@@ -12,6 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace OpenTap.Package.UnitTests
 {
@@ -122,7 +123,7 @@ namespace OpenTap.Package.UnitTests
         [TestCase(false, true, null)]                // tap package download pkg -r /tmp
         public void DownloadTest(bool useOut, bool useRepo, string outFileName)
         {
-            var depDef = new PackageDef {Name = "Pkg1", Version = SemanticVersion.Parse("1.0"), OS = "Windows,Linux"};
+            var depDef = new PackageDef {Name = "Pkg1", Version = SemanticVersion.Parse("1.0"), OS = "Windows,Linux,MacOS"};
             depDef.AddFile("Dependency.txt");
             string dep0File = DummyPackageGenerator.GeneratePackage(depDef);
 
@@ -213,7 +214,38 @@ namespace OpenTap.Package.UnitTests
                 Assert.True(e.Message.Contains("invalid file path characters"));
             }
         }
-        
+
+        [TestCase(".test", 1, typeof(XmlException))]
+        [TestCase("t-est", 2, typeof(Exception))]
+        [TestCase("te st", 3, typeof(XmlException))]
+        [TestCase("tes.t", 4, typeof(Exception))]
+        [TestCase("1test", 1, typeof(XmlException))]
+        [TestCase("test?", 5, typeof(XmlException))]
+        public void CheckInvalidMetadata(string invalidMetadataKey, int index, Type exceptionType)
+        {
+            // Check if metadata contains invalid characters
+            var package = new PackageDef()
+            {
+                Name = "test",
+                MetaData = { {invalidMetadataKey,""} },
+                Version = SemanticVersion.Parse("1.0.0")
+            };
+
+            try
+            {
+                DummyPackageGenerator.GeneratePackage(package);
+            }
+            catch (Exception e)
+            {
+                Assert.IsAssignableFrom(exceptionType, e);
+                if (e is XmlException)
+                    return;
+
+                Assert.True(e.Message.Contains($"Found invalid character"), "Package metadata keys contains invalid");
+                Assert.True(e.Message.Contains($" in package metadata key '{invalidMetadataKey}' at position {index}."), "Package metadata keys contains invalid");
+            }
+        }
+
         [Test]
         public void ListTest()
         {
@@ -382,7 +414,7 @@ namespace OpenTap.Package.UnitTests
             DummyPackageGenerator.InstallDummyPackage(); // We need to have "Dummy" installed before we can create a package that depends on it.
             var depDef = new PackageDef();
             depDef.Name = "Dependency";
-            depDef.OS="Windows,Linux";
+            depDef.OS="Windows,Linux,MacOS";
             depDef.Version = SemanticVersion.Parse("1.0");
             depDef.AddFile("Dependency.txt");
             depDef.Dependencies.Add(new PackageDependency("Dummy", VersionSpecifier.Parse("1.0")));
@@ -545,7 +577,7 @@ namespace OpenTap.Package.UnitTests
         {
             var def = new PackageDef();
             def.Name = "Dummy2";
-            def.OS = "Windows,Linux";
+            def.OS = "Windows,Linux,MacOS";
             def.Version = SemanticVersion.Parse("1.0");
             def.AddFile("Dummy.txt");
             def.Dependencies.Add(new PackageDependency("Missing", VersionSpecifier.Parse("1.0")));
@@ -626,7 +658,7 @@ namespace OpenTap.Package.UnitTests
             var package = new PackageDef();
             package.Name = "ExactVersionTest";
             package.Version = SemanticVersion.Parse("1.0.1");
-            package.OS = "Windows,Linux";
+            package.OS = "Windows,Linux,MacOS";
             var path = DummyPackageGenerator.GeneratePackage(package);
 
             // Install
@@ -650,6 +682,25 @@ namespace OpenTap.Package.UnitTests
         private static string RunPackageCli(string args, out int exitCode, string workingDir = null)
         {
             return RunPackageCliWrapped(args, out exitCode, workingDir);
+        }
+
+        private static string CreateOpenTapPackageXmlWithoutSignElement(string v)
+        {
+            string fakeOpenTap = "fakeOpentap.xml";
+            using (StreamWriter fsWrite = new StreamWriter(fakeOpenTap, false))
+            {
+                using (StreamReader fsRead = new StreamReader(v))
+                {
+                    while (!fsRead.EndOfStream)
+                    {
+                        string line = fsRead.ReadLine();
+                        if (!line.Contains("<Sign") && !line.Contains(".chm"))
+                            fsWrite.WriteLine(line);
+                    }
+
+                }
+            }
+            return fakeOpenTap;
         }
 
         private static string RunPackageCliWrapped(string args, out int exitCode, string workingDir, string fileName = null)

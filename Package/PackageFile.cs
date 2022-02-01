@@ -138,8 +138,8 @@ namespace OpenTap.Package
         /// License required by the plugin file.
         /// </summary>
         [XmlAttribute("LicenseRequired")]
-        [DefaultValue(null)]
-        public string LicenseRequired { get; set; }
+        [DefaultValue("")]
+        public string LicenseRequired { get; set; } = "";
 
         /// <summary>
         /// Creates a new instance of PackageFile.
@@ -367,8 +367,8 @@ namespace OpenTap.Package
         /// Bundle packages (<see cref="Class"/> is 'bundle') can use this property to show licenses that are required by the bundle dependencies. 
         /// </summary>
         [XmlAttribute]
-        [DefaultValue(null)]
-        public string LicenseRequired { get; set; }
+        [DefaultValue("")]
+        public string LicenseRequired { get; set; } = "";
 
         /// <summary>
         /// The package class, this can be either 'package', 'bundle' or 'solution'.
@@ -929,10 +929,9 @@ namespace OpenTap.Package
                 if ((HostArchitecture == CpuArchitecture.arm) || (HostArchitecture == CpuArchitecture.arm64)) currentArchitecture = HostArchitecture;
 
                 // And finally try to use the actual information in the package xml.
-                var installDir = Path.GetDirectoryName(typeof(PluginManager).Assembly.Location);
-                if(File.Exists(PackageDef.GetDefaultPackageMetadataPath("OpenTap", installDir))){
-                    currentArchitecture = PackageDef.FromXml(PackageDef.GetDefaultPackageMetadataPath("OpenTap", installDir)).Architecture;
-                }
+                var opentapPackage = Installation.Current.GetOpenTapPackage();
+                if (opentapPackage != null)
+                    currentArchitecture = opentapPackage.Architecture;
 
                 return currentArchitecture;
             }
