@@ -39,6 +39,9 @@ should still work if you install the equivalent packages for your distribution.
 In addition to these packages, OpenTAP depends on dotnet core runtime version 6.0. The installation procedure depends on your distribution. Please see [the official documentation from
 Microsoft ](https://docs.microsoft.com/en-us/dotnet/core/install/runtime) for further instructions.
 
+> Note: Dotnet installed using [Snap](https://docs.microsoft.com/en-us/dotnet/core/install/linux-snap) is NOT supported.
+The Snap permissions for dotnet does not permit it to read *hidden* files (files or directories starting with a '.') which breaks core functionality of OpenTAP.
+
 #### 2. Install OpenTAP
 Download the OpenTAP distribution (`.tar`<!--, `.dep` or `.rpm`-->) from our homepage [here](https://www.opentap.io/download.html). 
 
