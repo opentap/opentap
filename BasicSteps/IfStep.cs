@@ -20,7 +20,7 @@ namespace OpenTap.Plugins.BasicSteps
             RunChildren,
             [Display("Break Loop", "Break out of the current loop")]
             BreakLoop,
-            [Display("Continue Loop", "Skip steps until the parent step regains control.")]
+            [Display("Continue Loop", "Skip steps until the parent loop step regains control.")]
             ContinueLoop,
             [Display("Abort Test Plan")]
             AbortTestPlan,
@@ -42,6 +42,7 @@ namespace OpenTap.Plugins.BasicSteps
             InputVerdict = new Input<Verdict>();
             Rules.Add(() => InputVerdict.Step != null, "Input property must be set.", nameof(InputVerdict));
             Rules.Add(() => Action != IfStepAction.ContinueLoop || GetParent<LoopTestStep>() != null, "Continue Loop only works when this step is a child of a loop-type step, e.g Repeat or Sweep Steps.", nameof(Action));
+            Rules.Add(() => Action != IfStepAction.BreakLoop || GetParent<LoopTestStep>() != null, "Break Loop only works when this step is a child of a loop-type step, e.g Repeat or Sweep Steps.", nameof(Action));
         }
 
         
@@ -94,11 +95,14 @@ namespace OpenTap.Plugins.BasicSteps
                         }
                         break;
                     case IfStepAction.BreakLoop:
-                        Log.Info("Condition is true, breaking loop.");
+                        
                         var loopStep = GetParent<LoopTestStep>();
                         if(loopStep != null)
                         {
+                            Log.Info("Condition is true, breaking loop.");
                             loopStep.BreakLoop();
+                        }else{
+                            Log.Error("Condition is true, but no loop parent step was found.");
                         }
                         break;
                     default:
