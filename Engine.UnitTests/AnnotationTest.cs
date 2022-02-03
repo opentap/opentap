@@ -1697,11 +1697,11 @@ namespace OpenTap.UnitTests
             var a = AnnotationCollection.Annotate(o);
             var a2 = a.GetMember(nameof(o.Overlapping));
             var available = a2.Get<IAvailableValuesAnnotation>().AvailableValues.Cast<Overlapping>();
-            Assert.IsTrue(available.SequenceEqual(new[] {Overlapping.A, Overlapping.X, Overlapping.Z, Overlapping.W}));
+            CollectionAssert.AreEqual(available, new[] {Overlapping.A, Overlapping.X, Overlapping.Z, Overlapping.W});
 
             var a3 = a2.Get<IAvailableValuesAnnotationProxy>();
             var strValues = a3.AvailableValues.Select(x => x.Get<IStringReadOnlyValueAnnotation>().Value).ToArray();
-            Assert.IsTrue(strValues.SequenceEqual(new []{"A", "X", "Z", "W"}));
+            CollectionAssert.AreEqual(strValues, new []{"A", "X", "Z", "W"});
             a3.SelectedValue = a3.AvailableValues.Skip(2).FirstOrDefault();
             a.Write();
             a.Read();
