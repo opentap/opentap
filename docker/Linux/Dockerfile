@@ -1,4 +1,4 @@
-FROM ubuntu:18.04 as development
+FROM mcr.microsoft.com/dotnet/sdk:6.0-focal as development
 
 # Update ubuntu
 RUN apt update
@@ -6,11 +6,7 @@ RUN apt upgrade -y
 
 # Install dotnet core 2.1
 RUN apt install -y wget
-RUN wget -q https://packages.microsoft.com/config/ubuntu/18.04/packages-microsoft-prod.deb
-RUN dpkg -i packages-microsoft-prod.deb
 RUN apt install apt-transport-https -y
-RUN apt update
-RUN apt install dotnet-sdk-2.1 -y
 
 # TAP dotnet core 2.1 dependency
 RUN apt install libc6-dev libunwind8 curl git locales -y
@@ -34,7 +30,8 @@ RUN tap -h
 RUN tap package list -v
 
 ################## DOTNET CORE RUNTIME #########################################
-FROM mcr.microsoft.com/dotnet/core/runtime:2.1.12-bionic as production
+FROM mcr.microsoft.com/dotnet/runtime:6.0-focal as production
+
 
 COPY --from=development /opt/tap /opt/tap
 

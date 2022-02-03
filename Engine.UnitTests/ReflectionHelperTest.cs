@@ -45,7 +45,7 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void MemoryMappedApiTest()
         {
-            if(OpenTap.OperatingSystem.Current == OpenTap.OperatingSystem.Linux) 
+            if(OpenTap.OperatingSystem.Current != OpenTap.OperatingSystem.Windows) 
                 return;  // this feature is currently not supported on Linux.
             var api = new MemoryMappedApi();
             var strings = new[] { "asd", "cxze", "" };
@@ -68,7 +68,9 @@ namespace OpenTap.Engine.UnitTests
             var bf = new BinaryFormatter();
             var memstr = new MemoryStream();
             string[] strings2 = new[] { "asd", "", null };
+#pragma warning disable SYSLIB0011 // Type or member is obsolete
             bf.Serialize(memstr, strings2);
+#pragma warning restore SYSLIB0011 // Type or member is obsolete
             api.Write(memstr.ToArray());
 
             var array2 = new int[] { 1, 2, 3, 4, 5, 6 };
@@ -79,7 +81,9 @@ namespace OpenTap.Engine.UnitTests
             var thedata = api2.Read<byte[]>();
             Assert.IsTrue(array.SequenceEqual(thedata));
             var stream = api2.ReadStream();
+#pragma warning disable SYSLIB0011 // Type or member is obsolete
             var strings3 = (string[])bf.Deserialize(stream);
+#pragma warning restore SYSLIB0011 // Type or member is obsolete
             strings2.SequenceEqual(strings3);
             var array3 = api2.Read<int[]>();
             Assert.IsTrue(array2.SequenceEqual(array3));
@@ -264,15 +268,13 @@ namespace OpenTap.Engine.UnitTests
             {
                 Assert.AreEqual(OperatingSystem.Windows, OperatingSystem.Current);
             }
+            else if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.OSX))
+            {
+                Assert.AreEqual(OperatingSystem.MacOS, OperatingSystem.Current);
+            }
             else
             {
                 Assert.AreEqual(OperatingSystem.Linux, OperatingSystem.Current);
-            }
-
-            if (OperatingSystem.Current == OperatingSystem.Linux)
-            {
-                var current = LinuxVariant.Current;
-                Assert.IsTrue(current != LinuxVariant.Unknown && current != null);
             }
         }
 
@@ -339,7 +341,7 @@ namespace OpenTap.Engine.UnitTests
         {
             TestEnumToString((Verdict) 111, "111");
             // 1 and 2 are included in 111, so actually these flags are set.
-            TestEnumToString((EngineSettings.AbortTestPlanType) 111, "Break On Fail | Break On Error");
+            TestEnumToString((EngineSettings.AbortTestPlanType) 111, "Break On Fail | Break On Error | Break On Inconclusive | Break On Pass");
         }
 
 

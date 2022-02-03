@@ -16,8 +16,8 @@ using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
 using System.Threading.Tasks;
-using NuGet.Packaging;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 
 namespace OpenTap.Package
 {
@@ -138,8 +138,8 @@ namespace OpenTap.Package
         /// License required by the plugin file.
         /// </summary>
         [XmlAttribute("LicenseRequired")]
-        [DefaultValue(null)]
-        public string LicenseRequired { get; set; }
+        [DefaultValue("")]
+        public string LicenseRequired { get; set; } = "";
 
         /// <summary>
         /// Creates a new instance of PackageFile.
@@ -285,9 +285,14 @@ namespace OpenTap.Package
     /// <summary>
     /// Definition of a package file. Contains basic structural information relating to packages.
     /// </summary>
-    [DebuggerDisplay("{Name} ({Version})")]
+    [DebuggerDisplay("{Name} ({Version.ToString()})")]
     public class PackageDef : PackageIdentifier
     {
+        /// <summary>
+        /// Holds additional metadata for a package
+        /// </summary>
+        public Dictionary<string, string> MetaData { get; } = new Dictionary<string, string>();
+        
         /// <summary>
         /// The hash of the package. This is based on hashes of each payload file as well as metadata in the package definition.
         /// </summary>
@@ -362,8 +367,8 @@ namespace OpenTap.Package
         /// Bundle packages (<see cref="Class"/> is 'bundle') can use this property to show licenses that are required by the bundle dependencies. 
         /// </summary>
         [XmlAttribute]
-        [DefaultValue(null)]
-        public string LicenseRequired { get; set; }
+        [DefaultValue("")]
+        public string LicenseRequired { get; set; } = "";
 
         /// <summary>
         /// The package class, this can be either 'package', 'bundle' or 'solution'.
@@ -464,16 +469,16 @@ namespace OpenTap.Package
             var root = XElement.Load(stream);
 
             var xns = root.GetDefaultNamespace();
-            var filesElement = root.Element(xns + "Files");
+            var filesElement = root.Element(xns.GetName("Files"));
             if (filesElement != null)
             {
-                var fileElements = filesElement.Elements(xns + "File");
+                var fileElements = filesElement.Elements(xns.GetName("File"));
                 foreach (var file in fileElements)
                 {
-                    var plugins = file.Element(xns + "Plugins");
+                    var plugins = file.Element(xns.GetName("Plugins"));
                     if (plugins == null) continue;
 
-                    var pluginElements = plugins.Elements(xns + "Plugin");
+                    var pluginElements = plugins.Elements(xns.GetName("Plugin"));
                     foreach (var plugin in pluginElements)
                     {
                         if (!plugin.HasElements && !plugin.IsEmpty)
@@ -538,11 +543,11 @@ namespace OpenTap.Package
             {
                 using (Stream str = new MemoryStream())
                 {
-                    if (node is XElement)
+                    if (node is XElement nodeElement)
                     {
-                        (node as XElement).Save(str);
+                        nodeElement.Save(str);
                         str.Seek(0, 0);
-                        var package = PackageDef.FromXml(str);
+                        var package = FromXml(str);
                         if (package != null)
                         {
                             lock (packages)
@@ -639,7 +644,15 @@ namespace OpenTap.Package
         /// </summary>
         public static void ValidateXml(string path)
         {
-            ValidateXmlDefinitionFile(path, false);
+            var package = FromXml(path);
+            if (string.IsNullOrWhiteSpace(package.Name))
+                throw new InvalidDataException("Package Name cannot be empty.");
+            if (package.Version == null && package.RawVersion == null)
+                throw new InvalidDataException("Package Version cannot be empty.");
+            if (string.IsNullOrWhiteSpace(package.OS))
+                throw new InvalidDataException("Package OS cannot be empty.");
+            if (package.Architecture == CpuArchitecture.Unspecified)
+                throw new InvalidDataException("Package Architecture cannot be unspecified.");
         }
 
         /// <summary>
@@ -677,45 +690,6 @@ namespace OpenTap.Package
         private static void PrintError(string message, int lineNumber, int linePosition, string path)
         {
             log.Error("{0}({1},{2}): error: {3}", path, lineNumber, linePosition, message);
-        }
-
-        /// <summary>
-        /// Throws InvalidDataException if the xml in the file does not conform to the schema. Also prints an error to stderr
-        /// </summary>
-        private static void ValidateXmlDefinitionFile(string xmlFilePath, bool verbose = true)
-        {
-            XmlReaderSettings settings = new XmlReaderSettings();
-            settings.Schemas = GetXmlSchema();
-            settings.ValidationType = ValidationType.Schema;
-            
-            settings.ValidationEventHandler += (sender, e) =>
-            {
-                throw new InvalidDataException("Line " + e.Exception.LineNumber + ": " + e.Exception.Message);
-            };
-            XmlReader reader = XmlReader.Create(xmlFilePath, settings);
-
-            try
-            {
-                XDocument.Load(reader);
-            }
-            catch (Exception ex)
-            {
-                if (verbose)
-                {
-                    if (ex is XmlException)
-                    {
-                        XmlException xex = (XmlException)ex;
-                        PrintError(ex.Message, xex.LineNumber, xex.LinePosition, xmlFilePath);
-                    }
-                    else
-                        PrintError(ex.Message, 0, 0, xmlFilePath);
-                }
-                throw new InvalidDataException(ex.Message);
-            }
-            finally
-            {
-                reader.Close();
-            }
         }
 
         /// <summary>
@@ -955,10 +929,9 @@ namespace OpenTap.Package
                 if ((HostArchitecture == CpuArchitecture.arm) || (HostArchitecture == CpuArchitecture.arm64)) currentArchitecture = HostArchitecture;
 
                 // And finally try to use the actual information in the package xml.
-                var installDir = Path.GetDirectoryName(typeof(PluginManager).Assembly.Location);
-                if(File.Exists(PackageDef.GetDefaultPackageMetadataPath("OpenTap", installDir))){
-                    currentArchitecture = PackageDef.FromXml(PackageDef.GetDefaultPackageMetadataPath("OpenTap", installDir)).Architecture;
-                }
+                var opentapPackage = Installation.Current.GetOpenTapPackage();
+                if (opentapPackage != null)
+                    currentArchitecture = opentapPackage.Architecture;
 
                 return currentArchitecture;
             }

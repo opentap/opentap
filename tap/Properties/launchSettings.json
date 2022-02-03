@@ -13,7 +13,7 @@
     },
     "tap (create)": {
       "commandName": "Project",
-      "commandLineArgs": "package create ..\\..\\opentap.x64.package.xml -v"
+      "commandLineArgs": "package create ..\\..\\package.xml -v"
     },
     "tap (gitversion)": {
       "commandName": "Project",

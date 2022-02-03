@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/framework/sdk:4.7.2
+FROM mcr.microsoft.com/dotnet/sdk:6.0-windowsservercore-ltsc2019
 
 # Download OpenTAP
 COPY OpenTAP.exe .

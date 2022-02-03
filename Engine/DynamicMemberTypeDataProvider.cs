@@ -45,14 +45,14 @@ namespace OpenTap
         /// <param name="source"> The source of the member. </param>
         /// <param name="parameterizedMember"> The parameterized member owned by the source. </param>
         /// <returns></returns>
-        internal static ParameterMemberData GetParameter(this IMemberData parameterizedMember, object target, object source)
+        internal static IParameterMemberData GetParameter(this IMemberData parameterizedMember, object target, object source)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
             if (parameterizedMember == null)
                 throw new ArgumentNullException(nameof(parameterizedMember));
 
-            var parameterMembers = TypeData.GetTypeData(target).GetMembers().OfType<ParameterMemberData>();
+            var parameterMembers = TypeData.GetTypeData(target).GetMembers().OfType<IParameterMemberData>();
             foreach (var fwd in parameterMembers)
             {
                 if (fwd.ContainsMember((source, parameterizedMember)))
@@ -375,7 +375,7 @@ namespace OpenTap
                     // in two different test plans and the old parameters are lingering in the old plan.
                     // in this case try to fix the parameterized state by 
                     // checking for parameter sanity.
-                    var param = cache.GetParameterFor(member) as ParameterMemberData;
+                    var param = cache.GetParameterFor(member);
                     ParameterManager.CheckParameterSanity(param, true);
                     bad = IsParameterized(member, source);
                 }
@@ -528,6 +528,8 @@ namespace OpenTap
             IDictionary<string,IMemberData> getDynamicMembers()
             {
                 var dynamicMembers = (IDictionary<string,IMemberData>)TestStepTypeData.DynamicMembers.GetValue(target);
+                // dynamicMembers can be null after the last element is removed.
+                if(dynamicMembers == null) return EmptyDictionary<string, IMemberData>.Instance;
                 if (target is ITestStepParent step)
                 {
                     // if it is a test step type, check that the parameters declared on a parent step

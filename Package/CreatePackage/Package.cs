@@ -10,11 +10,7 @@ using System.Text.RegularExpressions;
 using System.Reflection;
 using System.Diagnostics;
 using Tap.Shared;
-using System.Runtime.InteropServices;
-using System.Xml;
-using System.Xml.Linq;
 using System.Xml.Serialization;
-using System.Xml.XPath;
 using OpenTap.Cli;
 
 namespace OpenTap.Package
@@ -123,6 +119,23 @@ namespace OpenTap.Package
         /// <returns></returns>
         public static PackageDef FromInputXml(string xmlFilePath, string projectDir)
         {
+            try
+            {
+                var sw = Stopwatch.StartNew();
+                var evaluator = new PackageXmlPreprocessor(xmlFilePath, projectDir);
+                var xmlDoc = evaluator.Evaluate();
+                var evaluated = Path.GetTempFileName();
+                xmlDoc.Save(evaluated);
+                xmlFilePath = evaluated;
+                log.Debug(sw, $"Package preprocessing completed.");
+            }
+            catch (Exception ex)
+            {
+                log.Warning(ex.Message);
+                log.Debug($"Unexpected error while evaluating package xml. Continuing in spite of errors.");
+                log.Debug(ex);
+            }
+
             PackageDef.ValidateXml(xmlFilePath);
             var pkgDef = PackageDef.FromXml(xmlFilePath);
             if(pkgDef.Files.Any(f => f.HasCustomData<UseVersionData>() && f.HasCustomData<SetAssemblyInfoData>()))
@@ -634,7 +647,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Creates a *.TapPackage file from the definition in this PackageDef.
         /// </summary>
-        static public void CreatePackage(this PackageDef pkg, FileStream str)
+        public static void CreatePackage(this PackageDef pkg, FileStream str)
         {
             foreach (PackageFile file in pkg.Files)
             {
@@ -685,7 +698,7 @@ namespace OpenTap.Package
                 // Concat license required from all files. But only if the property has not manually been set.
                 if (string.IsNullOrEmpty(pkg.LicenseRequired))
                 {
-                    var licenses = pkg.Files.Select(f => f.LicenseRequired).Where(l => l != null).ToList();
+                    var licenses = pkg.Files.Select(f => f.LicenseRequired).Where(l => string.IsNullOrWhiteSpace(l) == false).ToList();
                     pkg.LicenseRequired = string.Join(", ", licenses.Distinct().Select(l => LicenseBase.FormatFriendly(l, false)).ToList());
                 }
                 
@@ -712,11 +725,7 @@ namespace OpenTap.Package
             if (!features.Any())
                 return;
             var timer = Stopwatch.StartNew();
-            SetAsmInfo.UpdateMethod updateMethod;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                updateMethod = SetAsmInfo.UpdateMethod.ILDasm;
-            else
-                updateMethod = SetAsmInfo.UpdateMethod.Mono;
+
             foreach (var file in files)
             {
                 if (!file.HasCustomData<SetAssemblyInfoData>())
@@ -727,7 +736,7 @@ namespace OpenTap.Package
                 if (!toSet.Any())
                     continue;
 
-                log.Debug("Updating version info for '{0}'", file.FileName);
+                log.Debug(timer, "Updating version info for '{0}'", file.FileName);
 
 
                 // Assume we can't open the file for writing (could be because we are trying to modify TPM or the engine), and copy to the same filename in a subdirectory
@@ -755,10 +764,10 @@ namespace OpenTap.Package
                     fVersionShort = new Version(version.ToString(3));
                 }
 
-                SetAsmInfo.SetAsmInfo.SetInfo(file.FileName, fVersionShort, fVersionShort, fVersion, updateMethod);
+                SetAsmInfo.SetAsmInfo.SetInfo(file.FileName, fVersionShort, fVersionShort, fVersion);
                 file.RemoveCustomData<SetAssemblyInfoData>();
             }
-            log.Info(timer,"Updated assembly version info using {0} method.", updateMethod);
+            log.Info(timer,"Updated assembly version info using Mono method.");
         }
 
         /// <summary>

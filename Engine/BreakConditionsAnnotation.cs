@@ -50,7 +50,9 @@ namespace OpenTap
             static BreakCondition convertAbortCondition(EngineSettings.AbortTestPlanType abortType)
             {
                 return ((abortType.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail)) ? BreakCondition.BreakOnFail : 0)
-                       | (abortType.HasFlag(EngineSettings.AbortTestPlanType.Step_Error) ? BreakCondition.BreakOnError : 0);
+                       | (abortType.HasFlag(EngineSettings.AbortTestPlanType.Step_Error) ? BreakCondition.BreakOnError : 0)
+                       | (abortType.HasFlag(EngineSettings.AbortTestPlanType.Step_Inconclusive) ? BreakCondition.BreakOnInconclusive : 0)
+                       | (abortType.HasFlag(EngineSettings.AbortTestPlanType.Step_Pass) ? BreakCondition.BreakOnPass : 0);
             }
 
             private static (BreakCondition Condition, string InheritKind, bool MultiselectDifference) getInheritedVerdict(ITestStepParent _step)

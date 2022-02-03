@@ -20,6 +20,9 @@ namespace OpenTap
         /// <summary> If a step completes with verdict 'Inconclusive', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
         [Display("Break on Inconclusive", "If a step completes with verdict 'inconclusive', skip execution of subsequent steps and return control to the parent step.")]
         BreakOnInconclusive = 8,
+        /// <summary> If a step completes with verdict 'Pass', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
+        [Display("Break on Pass", "If a step completes with verdict 'pass', skip execution of subsequent steps and return control to the parent step.")]
+        BreakOnPass = 16
     }
 
     /// <summary>

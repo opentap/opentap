@@ -80,6 +80,28 @@ namespace OpenTap.UnitTests
             }
         }
         
+        [Test]
+        public void RepeatUntilPass2()
+        {
+            var step = new PassThirdTime();
+            var rpt = new RepeatStep
+            {
+                Action =  RepeatStep.RepeatStepAction.Until,
+                TargetStep = step,
+                TargetVerdict = Verdict.Pass,
+                ClearVerdict = true,
+                MaxCount = new Enabled<uint>{IsEnabled = true, Value = 5}
+            };
+            rpt.ChildTestSteps.Add(step);
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(rpt);
+            
+            var run = plan.Execute();
+
+            Assert.AreEqual(Verdict.Pass, run.Verdict);
+            Assert.AreEqual(3, step.Iterations);
+        }
+        
         
         // These two cases are technically equivalent.
         [Test]

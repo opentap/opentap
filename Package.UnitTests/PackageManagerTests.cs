@@ -87,18 +87,18 @@ namespace OpenTap.Package.UnitTests
             {
                 // Revert changes
                 if (orgId != null)
-                    File.WriteAllText(idPath, orgId);    
+                    File.WriteAllText(idPath, orgId);
             }
         }
-        
+
         public static void RepositoryManagerReceivePackageList(IPackageRepository manager)
         {
             var tap = new PackageIdentifier("OpenTAP", SemanticVersion.Parse("7.4"), CpuArchitecture.Unspecified, "Windows");
-            
+
             // ReceivePackageList.
             var allPackages = manager.GetPackages(new PackageSpecifier(os: "Windows"), tap);
             Assert.IsTrue(allPackages.Length > 0, "args(7.4)");
-            
+
             #region GetPackages
             log.Info("GetPackages - STARTED");
 
@@ -121,7 +121,7 @@ namespace OpenTap.Package.UnitTests
         public static void TestDownload(IPackageRepository manager)
         {
             var tap = new PackageIdentifier("OpenTAP", SemanticVersion.Parse("7.5.0-Development"), CpuArchitecture.Unspecified, "Windows");
-            
+
             // Download package.
             var bag = manager.GetPackages(new PackageSpecifier(os: "Windows"), tap);
             Assert.IsTrue(bag.Length > 0, "args(7.5.0-Development)");
@@ -154,7 +154,7 @@ namespace OpenTap.Package.UnitTests
         {
             (string initial, string redirected, string redirected_alt)[] urls = new[] {
                 ($"opentap.io", "https://www.opentap.io/", "https://opentap.io/"), // Redirect to www and https
-                ($"https://www.opentap.io", "https://www.opentap.io/", null), // no redirect
+                ($"https://opentap.io", "https://opentap.io/", null), // no redirect
                 ($"packages.opentap.io", "http://packages.opentap.io/", null), // No redirect
                 ($"http://opentap.io", "https://www.opentap.io/", "https://opentap.io/")}; // Redirect to https
 
@@ -169,7 +169,7 @@ namespace OpenTap.Package.UnitTests
 
 
     [TestFixture]
-    public class RepositoryManagerTests 
+    public class RepositoryManagerTests
     {
         static TraceSource log =  OpenTap.Log.CreateSource("Test");
         [Test]
@@ -177,7 +177,7 @@ namespace OpenTap.Package.UnitTests
         {
             log.Info("-----------------------------RepositoryManager LoadAllPackages-----------------------------");
             var tempFolder = "RepositoryManagerTestTempFolder";
-            
+
             try
             {
                 // Empty folder.
@@ -185,14 +185,14 @@ namespace OpenTap.Package.UnitTests
                 var repo = new FilePackageRepository(tempFolder);
                 Assert.IsTrue(repo.GetPackages(new PackageSpecifier()).Any() == false, "Empty");
                 log.Info("Empty folder - SUCCESS");
-    
+
                 // Folder with one plugin.
                 Directory.CreateDirectory("TapPackage");
                 File.Copy("TapPackages/MyPlugin1.TapPackage", tempFolder + "/MyPlugin1.TapPackage",true);
                 repo.Reset();
                 Assert.IsTrue(repo.GetPackages(new PackageSpecifier(os: "Windows")).Count() == 1, "Folder with one package");
                 log.Info("Folder with one plugin - SUCCESS");
-    
+
                 // Folder with several plugins.
                 Directory.GetFiles("TapPackages").ToList().ForEach(f => File.Copy(f, Path.Combine(tempFolder, Path.GetFileName(f)), true));
                 repo.Reset();
@@ -249,7 +249,7 @@ namespace OpenTap.Package.UnitTests
             issues = dependencyAnalyzer.GetIssues(packages.Last());
             Assert.IsTrue(issues.Count == 1, "Dependencies with issues (Tap newer than plugin)");
             log.Info("Dependencies with issues (Tap newer than plugin) - SUCCESS");
-            
+
             // Reset test.
             packages = packages.Take(1).ToList();
 
@@ -314,7 +314,7 @@ namespace OpenTap.Package.UnitTests
                 xmlText.Seek(0, 0);
                 packages.AddRange(PackageDef.ManyFromXml(xmlText));
             }
-            
+
             // Reset test.
             packages.Clear();
 
@@ -356,7 +356,7 @@ namespace OpenTap.Package.UnitTests
             Assert.IsTrue(issues == DependencyChecker.Issue.BrokenPackages, "Dependency on plugin");
             log.Info("Dependency on plugin - SUCCESS");
         }
-        
+
         [Test]
         public void TestDependencyPatchVersion()
         {
@@ -378,14 +378,13 @@ namespace OpenTap.Package.UnitTests
 
             var resolver = new DependencyResolver(installedPackages, packages, repositories);
 
-            Assert.AreEqual(1, resolver.MissingDependencies.Count);
-            var missing = resolver.MissingDependencies.First();
-            
+            Assert.AreEqual(2, resolver.MissingDependencies.Count);
+            var missing = resolver.MissingDependencies.FirstOrDefault(p => p.Name == "OpenTAP");
+
             Assert.AreEqual("OpenTAP", missing.Name);
-            Assert.LessOrEqual(9, missing.Version.Major);
-            Assert.LessOrEqual(12, missing.Version.Minor);
-            if (missing.Version.Minor == 12)
-                Assert.LessOrEqual(1, missing.Version.Patch);
+            Assert.AreEqual(9, missing.Version.Major);
+            Assert.AreEqual(12, missing.Version.Minor);
+            Assert.AreEqual(1, missing.Version.Patch);
         }
 
         [Test]
@@ -394,7 +393,7 @@ namespace OpenTap.Package.UnitTests
             // Verify that the resolver does not try to upgrade installed "9.12.0"
             var repo = "packages.opentap.io";
 
-            var installedOpenTap = new PackageDef() {Version = SemanticVersion.Parse("9.12.0"), Name = "OpenTAP"};
+            var installedOpenTap = new PackageDef() { Version = SemanticVersion.Parse("9.12.0"), Name = "OpenTAP" };
 
             var toInstall = new PackageDef()
             {
@@ -409,7 +408,8 @@ namespace OpenTap.Package.UnitTests
 
             var resolver = new DependencyResolver(installedPackages, packages, repositories);
 
-            Assert.AreEqual(0, resolver.MissingDependencies.Count);
+            Assert.AreEqual(1, resolver.MissingDependencies.Count);
+            Assert.AreEqual("MockPackage", resolver.MissingDependencies[0].Name);
         }
     }
 
@@ -433,11 +433,11 @@ namespace OpenTap.Package.UnitTests
         void GetPackages()
         {
             var tap = new PackageIdentifier("OpenTAP", SemanticVersion.Parse("9.0.0-Development"), CpuArchitecture.Unspecified, "Windows");
-            
+
             // Development, don't check build version
             var packages = get(tap);
             // MyPlugin1 requires OpenTAP ^9.0.605 which is not compatible with 9.0.0 
-            Assert.IsFalse(packages.Any(p => p.Name == "MyPlugin1")); 
+            Assert.IsFalse(packages.Any(p => p.Name == "MyPlugin1"));
             Assert.IsTrue(packages.Any(p => p.Name == "MyPlugin2"));
             Assert.IsTrue(packages.Any(p => p.Name == "MyPlugin3"));
 
@@ -477,7 +477,7 @@ namespace OpenTap.Package.UnitTests
             Assert.IsFalse(packages.Any(p => p.Name == "MyPlugin2"));
             Assert.IsTrue(packages.Any(p => p.Name == "MyPlugin3"), "GetPackages - No build");
         }
-        
+
         List<PackageDef> get(IPackageIdentifier compatibleWith)
         {
             var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(

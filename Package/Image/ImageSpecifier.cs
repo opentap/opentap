@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace OpenTap.Package
 {
@@ -11,6 +13,7 @@ namespace OpenTap.Package
     /// </summary>
     public class ImageSpecifier
     {
+        static TraceSource log = Log.CreateSource("ImageResolution");
         /// <summary>
         /// Desired packages in the installation
         /// </summary>
@@ -19,10 +22,6 @@ namespace OpenTap.Package
         /// OpenTAP repositories to fetch the desired packages from
         /// </summary>
         public List<string> Repositories { get; set; } = new List<string>();
-        
-        internal delegate PackageDef ResolveDelegate(ImageSpecifierResolveArgs args);
-
-        internal event ResolveDelegate OnResolve;
 
         /// <summary>
         /// Resolve the desired packages from the specified repositories. This will check if the packages are available, compatible and can successfully be deployed as an OpenTAP installation
@@ -31,85 +30,44 @@ namespace OpenTap.Package
         /// <returns>An <see cref="ImageIdentifier"/></returns>
         public ImageIdentifier Resolve(CancellationToken cancellationToken)
         {
-            List<Exception> exceptions = new List<Exception>();
             List<IPackageRepository> repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
-            List<PackageDef> gatheredPackages = new List<PackageDef>();
 
-            // Check if all package only specify compatible oss
-            var oss = Packages.Select(p => p.OS).Distinct().Where(o => string.IsNullOrEmpty(o) == false && o.Contains(",") == false).ToList();
-            var openTapPackage = Packages.FirstOrDefault(p => p.Name == "OpenTAP"); 
-            string os;
-            if (oss.Count != 1)
-                os = openTapPackage?.OS ?? OperatingSystem.Current.Name;
-            else
-                os = oss[0];
-            
-            // Check if all package only specify compatible architectures
-            var archs = Packages.Select(p => p.Architecture).Distinct()
-                                                .Where(a => a != CpuArchitecture.Unspecified && a != CpuArchitecture.AnyCPU).ToList();
-            CpuArchitecture arch;
-            if (archs.Count != 1)
-                arch = openTapPackage?.Architecture ?? ArchitectureHelper.GuessBaseArchitecture;
-            else
-                arch = archs[0];
-            
-            foreach (var specifier in Packages)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                    throw new OperationCanceledException("Resolve operation cancelled by user");
-                try
-                {
-                    PackageDef package = PackageActionHelpers.FindPackage(new PackageSpecifier(specifier.Name, specifier.Version, arch, os), new List<PackageDef>(), repositories);
-                    gatheredPackages.Add(package);
-                }
-                catch (Exception)
-                {
-                    PackageDef package = OnResolve?.Invoke(new ImageSpecifierResolveArgs(this, specifier));
-                    if (package != null)
-                        gatheredPackages.Add(package);
-                    else
-                        exceptions.Add(new InvalidOperationException($"Unable to resolve package '{specifier.Name}'"));
-                }
-            }
-            if (cancellationToken.IsCancellationRequested)
-                throw new OperationCanceledException("Resolve operation cancelled by user");
+            DependencyResolver resolver = new DependencyResolver(Packages, repositories, cancellationToken);
 
-            DependencyResolver dependencyResolver = new DependencyResolver(new Dictionary<string, PackageDef>(), gatheredPackages, repositories);
-            if (dependencyResolver.UnknownDependencies.Any())
-            {
-                foreach (var dep in dependencyResolver.UnknownDependencies)
-                {
-                    string message = string.Format("A package dependency named '{0}' with a version compatible with {1} could not be found in any repository.", dep.Name, dep.Version);
-                    exceptions.Add(new InvalidOperationException(message));
-                }
-            }
+            string dotGraph = resolver.GetDotNotation("Image");
+            log.Debug($"https://quickchart.io/graphviz?graph={WebUtility.UrlEncode(dotGraph)}");
+            log.Flush();
 
-            gatheredPackages = dependencyResolver.Dependencies;
+            if (resolver.DependencyIssues.Any())
+                throw new ImageResolveException(dotGraph, $"OpenTAP packages could not be resolved", resolver.DependencyIssues);
 
-            // Group packages by name in order to find conflicting versions
-            var gatheredPackagesGrouped = gatheredPackages.GroupBy(s => s.Name)
-                                            .Select(x => x.OrderByDescending(g => g.Version));
-            foreach (var package in gatheredPackagesGrouped)
-            {
-                if (package.Select(x => x.Version.Major).Distinct().Count() > 1)
-                    exceptions.Add(new InvalidOperationException($"{package.FirstOrDefault().Name} is resolved to multiple packages with different major versions which conflicts"));
-            }
+            ImageIdentifier image = new ImageIdentifier(resolver.Dependencies, repositories.Select(s => s.Url));
 
-
-            // If there is no errors, only pick the highest versions of each resolved package
-            if (!exceptions.Any())
-                gatheredPackages = gatheredPackages.GroupBy(s => s.Name)
-                                            .Select(x => x.OrderByDescending(g => g.Version).FirstOrDefault()).ToList();
-
-            if (cancellationToken.IsCancellationRequested)
-                throw new OperationCanceledException("Resolve operation cancelled by user");
-
-            ImageIdentifier image = new ImageIdentifier(gatheredPackages, repositories.Select(s => s.Url));
-
-            if (exceptions.Any())
-                throw new AggregateException("Image could not be resolved", exceptions);
             return image;
         }
+
+        internal Installation MergeAndDeploy(Installation deploymentInstallation, CancellationToken cancellationToken)
+        {
+            List<IPackageRepository> repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
+
+            DependencyResolver resolver = new DependencyResolver(deploymentInstallation, Packages, repositories, cancellationToken);
+            string dotGraph = resolver.GetDotNotation("Image");
+            log.Debug($"https://quickchart.io/graphviz?graph={WebUtility.UrlEncode(dotGraph)}");
+            log.Flush();
+
+            if (resolver.DependencyIssues.Any())
+                throw new ImageResolveException(dotGraph, $"OpenTAP packages could not be resolved", resolver.DependencyIssues);
+
+            var result = resolver.Dependencies.Concat(deploymentInstallation.GetPackages().Where(s => !resolver.Dependencies.Any(p => s.Name == p.Name)));
+
+            ImageIdentifier image = new ImageIdentifier(result, Repositories);
+            image.Deploy(deploymentInstallation.Directory, cancellationToken);
+            //ImageDeployer.Deploy(deploymentInstallation, result.ToList(), cancellationToken);
+
+            return new Installation(deploymentInstallation.Directory);
+        }
+
+
 
         /// <summary>
         /// Create an <see cref="ImageSpecifier"/> from JSON or XML value. Throws <see cref="InvalidOperationException"/> if value is not valid JSON or XML
@@ -132,5 +90,22 @@ namespace OpenTap.Package
             this.ImageSpecifier = ImageSpecifier;
             this.PackageSpecifier = PackageSpecifier;
         }
+    }
+
+    /// <summary>
+    /// Exception thrown when ImageSpecifier.Resolve fails. The exception contains a dependency graph specified Dot notation.
+    /// </summary>
+    public class ImageResolveException : AggregateException
+    {
+        internal ImageResolveException(string dotGraph, string message, List<Exception> dependencyIssues) : base(message, dependencyIssues)
+        {
+            DotGraph = dotGraph;
+        }
+
+        /// <summary>
+        /// Dependency graph specified in Dot notation
+        /// </summary>
+        public string DotGraph { get; private set; }
+
     }
 }

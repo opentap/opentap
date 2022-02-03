@@ -44,11 +44,11 @@ namespace OpenTap
 
         /// <summary> Returns true if member on object is assigned to an output / is an input. </summary>
         public static bool IsInput(ITestStepParent @object, IMemberData member)
-            => GetOutputRelations(@object).Any(con => con.InputMember == member);
+            => GetOutputRelations(@object).Any(con => con.InputMember == member && con.InputObject == @object);
 
         /// <summary> Returns true if member on object is assigned to an input / is an output. </summary>
         public static bool IsOutput(ITestStepParent @object, IMemberData member)
-            => GetInputRelations(@object).Any(con => con.OutputMember == member);
+            => GetInputRelations(@object).Any(con => con.OutputMember == member && con.OutputObject == @object);
 
         /// <summary> Create a relation between two members on two different objects. </summary>
         public static void Assign(ITestStepParent inputObject, IMemberData inputMember, ITestStepParent outputObject,

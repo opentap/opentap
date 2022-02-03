@@ -213,8 +213,8 @@ namespace OpenTap.Package
             return (int)ExitCodes.Success;
         }
 
-        // ignore tap.exe as it is not meant to be overwritten.
-        private bool exclude(string filename) => filename.ToLower() == "tap" || filename.ToLower() == "tap.exe";
+        // ignore tap.exe and tap.dll as it is not meant to be overwritten.
+        private bool exclude(string filename) => filename.ToLower() == "tap" || filename.ToLower() == "tap.exe" || filename.ToLower() == "tap.dll";
         private FileInfo[] GetFilesInUse(string tapDir, List<string> packagePaths)
         {
             List<FileInfo> filesInUse = new List<FileInfo>();
