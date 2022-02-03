@@ -9,8 +9,8 @@ using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 
 namespace OpenTap.Package.SetAsmInfo
 {
@@ -336,7 +336,7 @@ namespace OpenTap.Package.SetAsmInfo
             bool anyWritten = false;
             var asm = AssemblyDefinition.ReadAssembly(filename,
                 new ReaderParameters
-                    {AssemblyResolver = resolver, InMemory = true, ReadingMode = ReadingMode.Immediate});
+                    { AssemblyResolver = resolver, InMemory = true, ReadingMode = ReadingMode.Deferred });
 
             if (version != null)
             {
@@ -441,20 +441,26 @@ namespace OpenTap.Package.SetAsmInfo
 
         private class TapMonoResolver : BaseAssemblyResolver
         {
-            ILookup<string, AssemblyData> searchedAssemblies = PluginManager.GetSearcher().Assemblies.ToLookup(asm => asm.Name);
+            ILookup<string, AssemblyData> searchedAssemblies =
+                PluginManager.GetSearcher().Assemblies.ToLookup(asm => asm.Name);
 
-            public override AssemblyDefinition Resolve(AssemblyNameReference name, ReaderParameters parameters)
+            private ConditionalWeakTable<AssemblyNameReference, AssemblyDefinition> lookup =
+                new ConditionalWeakTable<AssemblyNameReference, AssemblyDefinition>();
+
+            private AssemblyDefinition resolve(AssemblyNameReference name, ReaderParameters parameters)
             {
                 var subset = searchedAssemblies[name.Name];
 
-                var found = subset.FirstOrDefault(asm => asm.Version == name.Version) ?? subset.FirstOrDefault(asm => OpenTap.Utils.Compatible(asm.Version, name.Version));
+                var found = subset.FirstOrDefault(asm => asm.Version == name.Version) ??
+                            subset.FirstOrDefault(asm => OpenTap.Utils.Compatible(asm.Version, name.Version));
 
                 ReaderParameters customParameters = new ReaderParameters() { AssemblyResolver = new TapMonoResolver() };
 
                 if (found == null) // Try find dependency from already loaded assemblies
                 {
                     var neededAssembly = new AssemblyName(name.ToString());
-                    var loadedAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(s => s.GetName().Name == neededAssembly.Name);
+                    var loadedAssembly = AppDomain.CurrentDomain.GetAssemblies()
+                        .FirstOrDefault(s => s.GetName().Name == neededAssembly.Name);
                     if (loadedAssembly != null)
                         return AssemblyDefinition.ReadAssembly(loadedAssembly.Location, customParameters);
                 }
@@ -462,6 +468,11 @@ namespace OpenTap.Package.SetAsmInfo
                 if (found != null)
                     return AssemblyDefinition.ReadAssembly(found.Location, customParameters);
                 return base.Resolve(name, parameters);
+            }
+
+            public override AssemblyDefinition Resolve(AssemblyNameReference name, ReaderParameters parameters)
+            {
+                return lookup.GetValue(name, _ => resolve(name, parameters));
             }
         }
     }

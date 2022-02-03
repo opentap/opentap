@@ -419,9 +419,9 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void RfConnectionDisplayAttributeTest()
         {
-            // The following works because the GenericScpiInstrument gets discovered by PluginManager
+            // The following works because the ScpiInstrument gets discovered by PluginManager
             // and gets its Display attribute from it.
-            var instr = TypeData.GetDerivedTypes<Instrument>().FirstOrDefault(x => x.Name.Contains("GenericScpiInstrument"));
+            var instr = TypeData.GetDerivedTypes<Instrument>().FirstOrDefault(x => x.Name.Contains("ScpiInstrument"));
             Assert.IsTrue(instr.GetDisplayAttribute().Name == "Generic SCPI Instrument");
             
             // The following did not work because RfConnection connection was not an ITapPlugin type.

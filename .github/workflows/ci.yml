@@ -161,6 +161,27 @@ jobs:
           path: |
             bin/Release/*
 
+  Build-MacOS:
+    runs-on: macos-11
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
+      - name: Build
+        run: dotnet publish -c Release OpenTAP.sln
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: macos-bin
+          retention-days: 5
+          path: |
+            bin/Release/publish/*
+
   ##############
   ### TESTS ###
   ##############
@@ -204,7 +225,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           Copy-Item -r "Package.UnitTests/Packages" bin/Release
-          Copy-Item .\bin\Release\runtimes\win-x64\native\git2-4aecb64.dll .\bin\Release
+          Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
           dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
       - uses: actions/upload-artifact@v2
         with:
@@ -242,6 +263,26 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: linux-x64-bin
+          path: bin/Release/
+      - name: Test
+        run: |
+          chmod +x bin/Release/tap
+          bin/Release/tap run tests/regression.TapPlan --verbose --color
+
+  TestMacPlan:
+    runs-on: macos-11
+    needs: Build-MacOS
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: macos-bin
           path: bin/Release/
       - name: Test
         run: |
@@ -294,13 +335,15 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET }}
       - name: Package
         run: |
-          if (!$GITHUB_REF_PROTECTED) { Set-Content .\opentap.${{ matrix.Architecture }}.package.xml  -Value (get-content .\opentap.${{ matrix.Architecture }}.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
+          $env:Platform = "Windows"
+          $env:Architecture =  "${{ matrix.Architecture }}"
+          if (!$GITHUB_REF_PROTECTED) { $env:Sign = "false" } else { $env:Sign = "true" }
           cd bin/Release-x64
-          cp .\runtimes\win-x64\native\git2-4aecb64.dll .
+          cp .\runtimes\win-x64\native\git2-b7bad55.dll .
           .\tap.exe package install -f sign.TapPackage
           $version=$(./tap sdk gitversion)
           cd ../Release-${{ matrix.Architecture }}
-          ..\Release-x64\tap.exe package create -v -c ../../opentap.${{ matrix.Architecture }}.package.xml -o ../../OpenTAP.$version.${{ matrix.Architecture }}.Windows.TapPackage
+          ..\Release-x64\tap.exe package create -v -c ../../package.xml -o ../../OpenTAP.$version.${{ matrix.Architecture }}.Windows.TapPackage
       - uses: actions/upload-artifact@v2
         with:
           name: win-${{ matrix.Architecture }}-package
@@ -349,11 +392,13 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET }}
       - name: Package
         run: |
-          if (!$GITHUB_REF_PROTECTED) { Set-Content .\opentap_linux64.package.xml  -Value (get-content .\opentap_linux64.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch) }
+          $env:Platform = "Linux,MacOS"
+          $env:Architecture = "x64"
+          if (!$GITHUB_REF_PROTECTED) { $env:Sign = "false" } else { $env:Sign = "true" }
           pushd bin\linux-x64\ 
           ../Release/tap package install -f "/repo/Sign.TapPackage"
-          cp .\runtimes\win-x64\native\git2-4aecb64.dll .
-          ..\Release\tap package create -v -c ../../opentap_linux64.package.xml -o Packages/OpenTAP.Linux.TapPackage
+          cp .\runtimes\win-x64\native\git2-b7bad55.dll .
+          ..\Release\tap package create -v -c ../../package.xml -o Packages/OpenTAP.Linux.TapPackage
           $version=$(..\Release\tap sdk gitversion)
           cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.$version.Linux.TapPackage
       - uses: actions/upload-artifact@v2
@@ -391,10 +436,12 @@ jobs:
           path: Help/
       - name: Package
         run: |
-          Set-Content .\opentap.x86.package.xml  -Value (get-content .\opentap.x86.package.xml | Select-String -Pattern '<Sign Certificate' -NotMatch)
+          $env:Sign = "false"
+          $env:Architecture = "x86"
+          $env:Platform = "Windows"
           cd bin/Release
-          cp .\runtimes\win-x64\native\git2-4aecb64.dll .
-          .\tap.exe package create ../../opentap.x86.package.xml --install -v -c
+          cp .\runtimes\win-x64\native\git2-b7bad55.dll .
+          .\tap.exe package create ../../package.xml --install -v -c
           Copy-Item "../../sdk/Examples" "Packages/SDK/Examples" -Recurse
           Copy-Item "../../Package/PackageSchema.xsd" "Packages/SDK/PackageSchema.xsd"
           cd Packages/SDK/Examples
@@ -482,7 +529,7 @@ jobs:
           path: .
       - name: Package
         run: |
-          cp bin\Release\runtimes\win-x64\native\git2-4aecb64.dll bin\Release
+          cp bin\Release\runtimes\win-x64\native\git2-b7bad55.dll bin\Release
           ./bin/Release/tap sdk gitversion --replace ./nuget/OpenTAP.nuspec --fields 4
           New-Item -Force ./nuget/build/payload -ItemType Directory | Out-Null
           # Expand-Archive will only extract .zip extensions    
@@ -503,7 +550,7 @@ jobs:
           Move-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
           Push-Location ./nuget/build/payload
           Remove-Item tap.exe
-          Remove-Item ./Dependencies/LibGit2Sharp.0.25.0.0/git2*.dll
+          Remove-Item ./Dependencies/LibGit2Sharp.0.27.0.0/git2*.dll
           Pop-Location
           Expand-Archive OpenTAP.x64.zip win-x64
           Expand-Archive OpenTAP.x86.zip win-x86
@@ -601,7 +648,7 @@ jobs:
           mv OpenTAP.*.Linux.TapPackage docker/Linux/OpenTAP.Linux.TapPackage
           echo "TAG_NAME=alpha" >> $GITHUB_ENV
       - name: Set tag (beta)
-        if: github.ref != 'refs/heads/main'
+        if: github.ref == 'refs/heads/main'
         run: echo "TAG_NAME=beta" >> $GITHUB_ENV
       - name: Set tag (rc)
         if: contains(github.ref, 'refs/heads/release')

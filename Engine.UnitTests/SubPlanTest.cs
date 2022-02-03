@@ -171,6 +171,7 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
+        [Retry(3)]
         public void RedirectedLogTest2()
         {
             var listener = new MemoryTraceListener();
@@ -201,7 +202,7 @@ namespace OpenTap.UnitTests
             sem.WaitOne();
             log.Debug("This is not redirected2");
             log.Flush();
-            Assert.AreEqual(3, listener.Events.Count);
+            Assert.AreEqual(3, listener.Events.Count, string.Join(Environment.NewLine, listener.Events.Select(evt => evt.Message)));
 
             Assert.IsTrue(listener1.Events[0].Message == msg1);
             Assert.IsTrue(listener1.Events[1].Message == msg2);

@@ -22,7 +22,7 @@
   </ItemGroup>
   
   <ItemGroup>
-    <None Include="../opentap*package.xml">
+    <None Include="../package.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="TapPackages\MyPlugin1.TapPackage">
