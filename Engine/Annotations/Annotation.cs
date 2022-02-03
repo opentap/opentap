@@ -1412,20 +1412,18 @@ namespace OpenTap
                 {
                     if (availableValues == null)
                     {
-                        bool isBrowsable(Enum e)
-                        {
-                            var mem = enumType.GetMember(e.ToString()).FirstOrDefault();
-                            if (mem != null)
-                                return mem.IsBrowsable();
-                            return true;
-                        }
+                        var names = Enum.GetNames(enumType);
+                        var values = Enum.GetValues(enumType);
                         
-                        double order(Enum e) =>  enumType.GetMember(e.ToString()).FirstOrDefault().GetDisplayAttribute().Order;
-
-                        availableValues = Enum.GetValues(enumType)
-                            .Cast<Enum>()
-                            .Where(isBrowsable)
-                            .OrderBy(order)
+                        var orders = names.Select(x =>
+                        {
+                            var memberInfo = enumType.GetMember(x).FirstOrDefault();
+                            return (memberInfo.GetDisplayAttribute(), memberInfo.IsBrowsable());
+                        }).ToArray();
+                        availableValues = Enumerable.Range(0, names.Length)
+                            .Where(i => orders[i].Item2)
+                            .OrderBy(i => orders[i].Item1.Order)
+                            .Select(i => values.GetValue(i))
                             .ToArray();
                     }
                     return availableValues;
@@ -3431,11 +3429,11 @@ namespace OpenTap
         }
 
         /// <summary> Creates a new data annotation. </summary>
-        /// <param name="obj"></param>
+        /// <param name="object"></param>
         /// <param name="member"></param>
         /// <param name="extraAnnotations"></param>
         /// <returns></returns>
-        public static AnnotationCollection Create(object obj, IReflectionData member, params IAnnotation[] extraAnnotations)
+        public static AnnotationCollection Create(object @object, IReflectionData member, params IAnnotation[] extraAnnotations)
         {
             var annotation = new AnnotationCollection();
 
@@ -3447,8 +3445,8 @@ namespace OpenTap
             annotation.AddRange(extraAnnotations);
             var resolver = new AnnotationResolver();
             resolver.Iterate(annotation);
-            if (obj != null)
-                annotation.Read(obj);
+            if (@object != null)
+                annotation.Read(@object);
             return annotation;
         }
 
@@ -3459,17 +3457,17 @@ namespace OpenTap
         /// <summary>
         /// Annotates an object.
         /// </summary>
-        /// <param name="obj"></param>
+        /// <param name="object"></param>
         /// <param name="extraAnnotations"></param>
         /// <returns></returns>
-        public static AnnotationCollection Annotate(object obj, params IAnnotation[] extraAnnotations)
+        public static AnnotationCollection Annotate(object @object, params IAnnotation[] extraAnnotations)
         {
-            var annotation = new AnnotationCollection { source = obj, ExtraAnnotations = extraAnnotations ?? Array.Empty<IAnnotation>() };
+            var annotation = new AnnotationCollection { source = @object, ExtraAnnotations = extraAnnotations ?? Array.Empty<IAnnotation>() };
             annotation.AddRange(extraAnnotations);
-            annotation.Add(new ObjectValueAnnotation(obj, TypeData.GetTypeData(obj)));
+            annotation.Add(new ObjectValueAnnotation(@object, TypeData.GetTypeData(@object)));
             var resolver = new AnnotationResolver();
             resolver.Iterate(annotation);
-            annotation.Read(obj);
+            annotation.Read(@object);
             return annotation;
         }
 

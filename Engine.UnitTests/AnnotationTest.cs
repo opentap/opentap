@@ -1676,7 +1676,7 @@ namespace OpenTap.UnitTests
         {
             A = 0,
             X = 1,
-            Z = 2, // there is one constraint, which is that the selected name must be the first one.
+            Z = 2, // there is one constraint, which is that the selected name must be the first one. Otherwise Overlapping.Z.ToString() => "Y"
             [Obsolete]
             [Browsable(false)]
             Y = 2,
