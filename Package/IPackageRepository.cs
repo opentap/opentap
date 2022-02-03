@@ -263,7 +263,8 @@ namespace OpenTap.Package
                             list.Add(new PackageDef()
                             {
                                 Name = item["name"].ToString(),
-                                Version = SemanticVersion.Parse(item["version"].ToString())
+                                Version = SemanticVersion.Parse(item["version"].ToString()),
+                                PackageSource = new HttpRepositoryPackageDefSource() { RepositoryUrl = httprepo.Url }
                             });
                     }
                 }
