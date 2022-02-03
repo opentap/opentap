@@ -109,7 +109,7 @@ namespace OpenTap.Plugins.PluginDevelopment.GUI
             }
             catch (TimeoutException)
             {
-                Log.Info("User did not click. Is he sleeping?");
+                Log.Info("User did not click. Are they sleeping?");
             }
         }
     }

@@ -341,7 +341,7 @@ namespace OpenTap.Engine.UnitTests
         {
             TestEnumToString((Verdict) 111, "111");
             // 1 and 2 are included in 111, so actually these flags are set.
-            TestEnumToString((EngineSettings.AbortTestPlanType) 111, "Break On Fail | Break On Error");
+            TestEnumToString((EngineSettings.AbortTestPlanType) 111, "Break On Fail | Break On Error | Break On Inconclusive | Break On Pass");
         }
 
 
