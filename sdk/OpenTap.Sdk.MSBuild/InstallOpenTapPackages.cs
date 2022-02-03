@@ -105,6 +105,11 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         {
             if (!PackagesToInstall.Any()) return true;
 
+            // This alters the value returned by 'ExecutorClient.ExeDir' which would otherwise return the location of
+            // OpenTap.dll which in an MSBuild context would be the nuget directory which leads to unexpected behavior
+            // because the expected location is the build directory in all common use cases.
+            Environment.SetEnvironmentVariable("OPENTAP_INIT_DIRECTORY", TapDir, EnvironmentVariableTarget.Process);
+
             var tapInstall = Path.Combine(TapDir, "tap");
             if (File.Exists(tapInstall) == false)
                 tapInstall = Path.Combine(TapDir, "tap.exe");

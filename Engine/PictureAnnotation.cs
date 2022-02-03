@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 
 namespace OpenTap
@@ -31,8 +32,13 @@ namespace OpenTap
 
         public void Read(object source)
         {
+            if (source == null) return;
+            var sources = (source as IEnumerable<object>)?.ToArray() ?? new[] { source };
+
+            if (sources.Length == 0) return;
+
             var mem = annotation.Get<IMemberAnnotation>()?.Member;
-            var memVal = mem?.GetValue(source);
+            var memVal = mem?.GetValue(sources[0]);
             
             if (memVal is IPicture picture)
             {
@@ -43,19 +49,25 @@ namespace OpenTap
 
         public void Write(object source)
         {
+            if (source == null) return;
+
             var mem = annotation.Get<IMemberAnnotation>()?.Member;
-            var memVal = mem?.GetValue(source);
+            if (mem == null) return;
 
-            var a = AnnotationCollection.Annotate(memVal);
-            var members = a.Get<IMembersAnnotation>().Members.Select(m => m.Get<IMemberAnnotation>().Member);
+            var sources = (source as IEnumerable<object>)?.ToArray() ?? new[] { source };
+            if (sources.Length == 0) return;
 
-            foreach (var m in members)
+            foreach (var s in sources)
             {
-                if (!m.Writable) continue;
-                if (m.Name == nameof(IPicture.Source))
-                    m.SetValue(memVal, Source);
-                else if (m.Name == nameof(IPicture.Description))
-                    m.SetValue(memVal, Description);
+                var memVal = mem.GetValue(s);
+
+                var a = AnnotationCollection.Annotate(memVal);
+                var members = a.Get<IMembersAnnotation>().Members.Select(m => m.Get<IMemberAnnotation>().Member)
+                    .Where(m => m.Writable)
+                    .ToLookup(m => m.Name);
+
+                members[nameof(IPicture.Source)].FirstOrDefault()?.SetValue(memVal, Source);
+                members[nameof(IPicture.Description)].FirstOrDefault()?.SetValue(memVal, Description);
             }
         }
     }

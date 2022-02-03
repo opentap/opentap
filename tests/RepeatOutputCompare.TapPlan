@@ -16,11 +16,11 @@
       <ChildTestSteps>
         <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.RunTimeStep" Version="0.0.0" Id="b01de716-29f4-4f89-9bce-2696e5664075">
           <RunCount Parameter="Parameters \ RunCount" Scope="44ed0f8d-d06f-4f21-886c-58bfb0f87e2b">3</RunCount>
+          <RestartMarker>44ed0f8d-d06f-4f21-886c-58bfb0f87e2b</RestartMarker>
           <Enabled>true</Enabled>
           <Name>RunTimeStep</Name>
           <ChildTestSteps />
           <BreakConditions>Inherit</BreakConditions>
-          <OpenTap.Description />
         </TestStep>
       </ChildTestSteps>
       <BreakConditions>Inherit</BreakConditions>
@@ -33,13 +33,12 @@
       <Name>CompareIntStep</Name>
       <ChildTestSteps />
       <BreakConditions>Inherit</BreakConditions>
-      <OpenTap.Description />
       <TestStep.Inputs>
         <InputOutputMember id="44ed0f8d-d06f-4f21-886c-58bfb0f87e2b" member="Parameters \ RunCount" target-member="InputValue"></InputOutputMember>
       </TestStep.Inputs>
     </TestStep>
   </Steps>
   <BreakConditions>Inherit</BreakConditions>
-  <OpenTap.Description> Verifies that the input/output system works as well as parameterizations and repeat loop. </OpenTap.Description>
+  <OpenTap.Description>Verifies that the input/output system works as well as parameterizations and repeat loop.</OpenTap.Description>
   <Parameters_x0020__x005C__x0020_ExpectedValue>3</Parameters_x0020__x005C__x0020_ExpectedValue>
 </TestPlan>

@@ -52,6 +52,7 @@ namespace OpenTap.Engine.UnitTests
         [TestCase(Verdict.Error, BreakCondition.BreakOnError)]
         [TestCase(Verdict.Fail, BreakCondition.BreakOnFail)]
         [TestCase(Verdict.Inconclusive, BreakCondition.BreakOnInconclusive)]
+        [TestCase(Verdict.Pass, BreakCondition.BreakOnPass)]
         [TestCase(Verdict.Inconclusive,
             BreakCondition.BreakOnInconclusive | BreakCondition.BreakOnError)]
 

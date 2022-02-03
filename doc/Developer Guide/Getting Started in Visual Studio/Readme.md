@@ -6,7 +6,7 @@ To make it easier to develop plugins we created two options you can choose from 
 
 - Using the OpenTAP NuGet Package - This is the recommended way to get OpenTAP if you are developing plugin projects. The NuGet package is available on [nuget.org](https://www.nuget.org/packages/OpenTAP/).
 - Using the OpenTAP SDK Package - This provides templates for many types of common OpenTAP plugins and can be used via:
-  - The **OpenTAP Visual Studio Integration** - This allows you to use Visual Studio to create your plugins. You need Visual Studio 2015, 2017 or 2019. If you are using the KS8400A PathWave Test Automation Developer's System, this is already included. Otherwise, it can be downloaded from the the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=OpenTAP.opentapsdkce).
+  - The **OpenTAP Visual Studio Integration** - This allows you to use Visual Studio to create your plugins. You need Visual Studio 2017 or newer. If you are using the KS8400A PathWave Test Automation Developer's System, this is already included. Otherwise, it can be downloaded from the the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=OpenTAP.opentapsdkce).
   - The **Command Line** - This allows you to create project code templates from the command line. You can learn how in [The OpenTAP SDK Templates](#opentap-sdk-templates) section.
 
 ## NuGet Package
