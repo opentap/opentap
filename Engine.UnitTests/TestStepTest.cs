@@ -605,22 +605,55 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void ContinueLoop()
         {
-            var sequence = new SequenceStep();
-            var verdict1 = new VerdictStep {VerdictOutput = Verdict.Pass};
+            var repeat = new RepeatStep() {Action = RepeatStep.RepeatStepAction.Fixed_Count};
+            
+            var passStep = new VerdictStep {VerdictOutput = Verdict.Pass};
             var ifstep = new IfStep() {Action = IfStep.IfStepAction.ContinueLoop, TargetVerdict = Verdict.Pass};
-            ifstep.InputVerdict.Property = TypeData.GetTypeData(verdict1).GetMember(nameof(VerdictStep.Verdict));
-            ifstep.InputVerdict.Step = verdict1;
+            ifstep.InputVerdict.Property = TypeData.GetTypeData(passStep).GetMember(nameof(VerdictStep.Verdict));
+            ifstep.InputVerdict.Step = passStep;
             var verdict2 = new VerdictStep() {VerdictOutput = Verdict.Fail};
-            sequence.ChildTestSteps.Add(verdict1);
-            sequence.ChildTestSteps.Add(ifstep); // instructed to skip the last verdict step
-            sequence.ChildTestSteps.Add(verdict2); // if this step runs the plan will get the verdict 'fail'.
+            repeat.ChildTestSteps.Add(passStep);
+            repeat.ChildTestSteps.Add(ifstep); // instructed to skip the last verdict step
+            repeat.ChildTestSteps.Add(verdict2); // if this step runs the plan will get the verdict 'fail'.
             var plan = new TestPlan();
-            plan.ChildTestSteps.Add(sequence);
-
+            plan.ChildTestSteps.Add(repeat);
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Pass, run.Verdict);
         }
 
+        [Test]
+        public void ContinueLoop2()
+        {
+            var repeat = new RepeatStep()
+            {
+                Action = RepeatStep.RepeatStepAction.Fixed_Count,
+                Count = 3
+            };
+            var sequence = new SequenceStep();
+            repeat.ChildTestSteps.Add(sequence);
+            // add some arbitrary depth to the loop.
+            var seq2 = new SequenceStep();
+            var seq3 = new SequenceStep();
+            var seq4 = new SequenceStep();
+
+            var verdict1 = new VerdictStep {VerdictOutput = Verdict.Pass};
+            var ifstep = new IfStep() {Action = IfStep.IfStepAction.ContinueLoop, TargetVerdict = Verdict.Pass};
+            ifstep.InputVerdict.Property = TypeData.GetTypeData(verdict1).GetMember(nameof(VerdictStep.Verdict));
+            ifstep.InputVerdict.Step = verdict1;
+            var failStep = new VerdictStep() {VerdictOutput = Verdict.Fail};
+            sequence.ChildTestSteps.Add(verdict1);
+            sequence.ChildTestSteps.Add(seq2);
+            seq2.ChildTestSteps.Add(seq3);
+            seq3.ChildTestSteps.Add(seq4);
+            seq4.ChildTestSteps.Add(ifstep); // instructed to skip the last verdict step
+            sequence.ChildTestSteps.Add(failStep); // if this step runs the plan will get the verdict 'fail'.
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(repeat);
+
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, run.Verdict);
+        } 
+        
         class ThrowsOnValidationErrorStep : TestStep
         {
             public bool ValidationFails { get; set; }

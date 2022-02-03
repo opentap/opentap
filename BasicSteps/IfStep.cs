@@ -41,6 +41,7 @@ namespace OpenTap.Plugins.BasicSteps
         {
             InputVerdict = new Input<Verdict>();
             Rules.Add(() => InputVerdict.Step != null, "Input property must be set.", nameof(InputVerdict));
+            Rules.Add(() => Action != IfStepAction.ContinueLoop || GetParent<LoopTestStep>() != null, "Continue Loop only works when this step is a child of a loop-type step, e.g Repeat or Sweep Steps.", nameof(Action));
         }
 
         
@@ -76,8 +77,11 @@ namespace OpenTap.Plugins.BasicSteps
                         PlanRun.MainThread.Abort();
                         break;
                     case IfStepAction.ContinueLoop:
-                        Log.Info("Condition is true, skipping sibling steps.");
-                        StepRun.SuggestedNextStep = (Parent as ITestStep)?.Id;
+                        StepRun.SuggestedNextStep = GetParent<LoopTestStep>()?.Id;
+                        if (StepRun.SuggestedNextStep != null)
+                            Log.Info("Condition is true, jumping to next loop iteration.");
+                        else
+                            Log.Error("Condition is true, but no loop parent step was found.");
                         break;
                     case IfStepAction.WaitForUser:
                         Log.Info("Condition is true, waiting for user input.");

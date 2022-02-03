@@ -114,9 +114,9 @@
       </ChildTestSteps>
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
-    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ReplaceInFileStep">
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ReplaceInFileStep" Version="0.0.0" Id="7dba2808-7a59-46fb-b0b3-3f168c7ab560">
       <File>../../NewProj/NewProj.csproj</File>
-      <Search>2020.0.0-beta1</Search>
+      <Search>2020.0.1</Search>
       <Replace>2016.0.0</Replace>
       <Enabled>true</Enabled>
       <Name>Replace In File</Name>
@@ -185,17 +185,17 @@
       </ChildTestSteps>
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
-    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.RunOnOs">
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.RunOnOs" Version="0.0.0" Id="b4ebd013-9f78-451d-ad84-73faaa5b6afc">
       <OperatingSystem>Windows</OperatingSystem>
       <Enabled>true</Enabled>
       <Name>Run On {OperatingSystem}</Name>
       <ChildTestSteps>
-        <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep">
+        <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep" Version="0.0.0" Id="c035d9b7-fcf5-4841-b95b-5b1313f8eae4">
           <ExpectedVerdict>Fail</ExpectedVerdict>
           <Enabled>true</Enabled>
           <Name>Expect {ExpectedVerdict} (1)</Name>
           <ChildTestSteps>
-            <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.FindFileStep">
+            <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.FindFileStep" Version="0.0.0" Id="e8551fd3-acde-4cda-b11e-e676d2bad73f">
               <SearchDir>%TMP%</SearchDir>
               <Regex>.*opentap_package_tmp.zip</Regex>
               <Enabled>true</Enabled>
