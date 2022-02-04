@@ -21,7 +21,7 @@
                 &lt;/PropertyGroup&gt;
                 &lt;ItemGroup&gt;
                     &lt;PackageReference Include="OpenTAP" Version="9.17.0-beta.9" /&gt;
-                    &lt;PackageReference Include="SSH.NET" Version="2020.0.0-beta1"/&gt;
+                    &lt;PackageReference Include="SSH.NET" Version="2020.0.0"/&gt;
                     &lt;OpenTapPackageReference Include="SSH" Version="0.3.0-beta.8" Repository="packages.opentap.io" /&gt;
                 &lt;/ItemGroup&gt;
            &lt;/Project&gt;
@@ -116,7 +116,7 @@
     </TestStep>
     <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ReplaceInFileStep" Version="0.0.0" Id="7dba2808-7a59-46fb-b0b3-3f168c7ab560">
       <File>../../NewProj/NewProj.csproj</File>
-      <Search>2020.0.1</Search>
+      <Search>2020.0.0</Search>
       <Replace>2016.0.0</Replace>
       <Enabled>true</Enabled>
       <Name>Replace In File</Name>
