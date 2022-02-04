@@ -679,8 +679,21 @@ namespace OpenTap
                         }
 
                         var stepidx = steps.IndexWhen(x => x.Id == id);
-                        if (stepidx != -1)
-                            i = stepidx - 1;
+                        if (stepidx >= 0)
+                            i = stepidx - 1; // next iteration will be that one.
+                        else
+                        {
+                            var seek = Step.Parent;
+                            while (seek != null)
+                            {
+                                if (seek is ITestStep step2 && id == step2.Id)
+                                {
+                                    currentStepRun.SuggestedNextStep = id;
+                                    return runs;
+                                }
+                                seek = seek.Parent;
+                            }
+                        }
                         // if skip to next step, dont add it to the wait queue.
                     }
                     if (run.IsBreakCondition())
