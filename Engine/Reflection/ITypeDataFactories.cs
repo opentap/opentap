@@ -59,9 +59,9 @@ namespace OpenTap
                 else
                     count += items.Count();
             }
-            
-            if (lastCount == count && invalidated == false && derivedTypesCache.TryGetValue(baseType, out var result2 ))
-                    return result2;
+
+            if (lastCount == count && invalidated == false && derivedTypesCache.TryGetValue(baseType, out var result2))
+                return result2;
             
             lock (lockSearchers)
             {
@@ -94,9 +94,16 @@ namespace OpenTap
                     {
                         if (existing.Contains(searcherType)) continue;
 
-                        var searcher = (ITypeDataSearcher) searcherType.CreateInstance(Array.Empty<object>());
-                        searchTasks.Add(TapThread.StartAwaitable(searcher.Search));
-                        searchers.Add(searcher);
+                        try
+                        {
+                            var searcher = (ITypeDataSearcher)searcherType.CreateInstance(Array.Empty<object>());
+                            searchTasks.Add(TapThread.StartAwaitable(searcher.Search));
+                            searchers.Add(searcher);
+                        }
+                        catch
+                        {
+                            log.Debug($"Failed to instantiate {nameof(ITypeDataSearcher)} {searcherType}");
+                        }
                     }
                 }
                 try
