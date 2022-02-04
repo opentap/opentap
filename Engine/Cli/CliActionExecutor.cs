@@ -270,11 +270,19 @@ namespace OpenTap.Cli
             {
                 string getVersion()
                 {
+                    // We cannot access the 'OpenTap.Package.Installation.Current' from Engine. Parse the XML instead.
                     var xmlFile = Path.Combine(ExecutorClient.ExeDir, "Packages", "OpenTAP", "package.xml");
                     if (File.Exists(xmlFile))
                     {
-                        var pkg = XElement.Load(xmlFile);
-                        if (pkg.Attribute("Version") is XAttribute x) return x.Value;
+                        try
+                        {
+                            var pkg = XElement.Load(xmlFile);
+                            if (pkg.Attribute("Version") is XAttribute x) return x.Value;
+                        }
+                        catch
+                        {
+                            // This is fine to silently ignore
+                        }
                     }
                     return Assembly.GetExecutingAssembly().GetSemanticVersion().ToString(4);
                 }

@@ -717,7 +717,8 @@ namespace OpenTap.Package
             [XmlAttribute]
             public string Attributes { get; set; }
 
-            [XmlAttribute] public bool IncludePdb { get; set; } = false;
+            [XmlAttribute] public bool ExcludePdb { get; set; } = false;
+            internal bool IncludePdb => !ExcludePdb;
 
             internal string[] Features => Attributes.ToLower()
                 .Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries)
@@ -764,7 +765,6 @@ namespace OpenTap.Package
                     }
                     else
                     {
-                        log.Debug($"No symbols file found for '{origFilename}'.");
                         includePdb = false;
                     }
                 }
