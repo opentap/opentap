@@ -729,6 +729,13 @@ namespace OpenTap.Package
         {
             var timer = Stopwatch.StartNew();
 
+            var pdbMap = new Dictionary<string, PackageFile>();
+            foreach (var file in files.GroupBy(f => Path.GetFileNameWithoutExtension(f.FileName)))
+            {
+                var symbols = file.ToArray().FirstOrDefault(f => Path.GetExtension(f.FileName).Equals(".pdb", StringComparison.OrdinalIgnoreCase));
+                if (symbols != null) pdbMap[file.Key] = symbols;
+            }
+
             foreach (var file in files)
             {
                 var data = file.GetCustomData<SetAssemblyInfoData>().ToArray();
@@ -750,8 +757,6 @@ namespace OpenTap.Package
                     i++;
                 }
 
-                var pdbFile = Path.ChangeExtension(origFilename, "pdb");
-                var pdbTempName = Path.ChangeExtension(tempName, "pdb");
 
                 Directory.CreateDirectory(Path.GetDirectoryName(tempName));
                 ProgramHelper.FileCopy(file.FileName, tempName);
@@ -759,9 +764,12 @@ namespace OpenTap.Package
 
                 if (includePdb)
                 {
-                    if (File.Exists(pdbFile))
+                    var basename = Path.GetFileNameWithoutExtension(file.SourcePath);
+                    if (pdbMap.TryGetValue(basename, out var pdbFile) && Path.GetFileName(pdbFile.FileName) is string symbolsFile && File.Exists(symbolsFile))
                     {
-                        File.Copy(pdbFile, pdbTempName, true);
+                        var pdbTempName = Path.ChangeExtension(tempName, "pdb");
+                        File.Copy(symbolsFile, pdbTempName);
+                        pdbFile.SourcePath = pdbTempName;
                     }
                     else
                     {
@@ -774,15 +782,6 @@ namespace OpenTap.Package
 
                 SetAsmInfo.SetAsmInfo.SetInfo(file.FileName, fVersionShort, fVersionShort, fVersion, includePdb);
                 file.RemoveCustomData<SetAssemblyInfoData>();
-
-                if (includePdb)
-                {
-                    if (File.Exists(pdbTempName))
-                    {
-                        log.Debug($"Updating debugging symbols at {pdbFile}");
-                        File.Copy(pdbTempName, pdbFile, true);
-                    }
-                }
             }
             log.Info(timer,"Updated assembly version info using Mono method.");
         }
