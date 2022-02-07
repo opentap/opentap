@@ -2800,68 +2800,84 @@ namespace OpenTap
     {
         class AvailableValuesAnnotationProxy : IAvailableValuesAnnotationProxy, IOwnedAnnotation
         {
-            IEnumerable<AnnotationCollection> annotations = null;
-            IEnumerable prevValues = Enumerable.Empty<object>();
+            IEnumerable<AnnotationCollection> annotations;
+            object[] prevValues = Array.Empty<object>();
             public IEnumerable<AnnotationCollection> AvailableValues
             {
                 get
                 {
-                    if (annotations == null)
+                    IEnumerable values;
+                    if (annotations != null)
                     {
-                        var values = a.Get<IAvailableValuesAnnotation>()?.AvailableValues;
-
-
-                        if (a?.Get<MergedValueAnnotation>() is MergedValueAnnotation merged)
+                        if (invalidated)
                         {
-                            // Merged available value fields are the common of all the original available values.
-                            HashSet<object> values2 = null;
-                            foreach (var m in merged.Merged)
-                            {
-                                var e = (m.Get<IAvailableValuesAnnotation>()?.AvailableValues as IEnumerable)?.Cast<object>();
-                                if (e == null) continue;
-                                if (values2 == null)
-                                {
-                                    values2 = new HashSet<object>(e);
-                                    continue;
-                                }
-
-                                foreach (var value in values2.ToArray())
-                                {
-                                    if (e.Contains(value) == false)
-                                    {
-                                        values2.Remove(value);
-                                    }
-                                }
-
-                            }
-                            values = values2;
+                            invalidated = false;
+                            values = a.Get<IAvailableValuesAnnotation>()?.AvailableValues;
+                            if (prevValues.SequenceEqual(values?.Cast<object>() ?? Array.Empty<object>()))
+                                return annotations;
                         }
-
-                        if (values != null)
-                            prevValues = values.Cast<object>().ToArray();
                         else
                         {
-                            prevValues = Array.Empty<object>();
+                            return annotations;
                         }
-
-                        var readOnly = new ReadOnlyMemberAnnotation();
-                        var lst = new List<AnnotationCollection>();
-                        foreach (var obj in prevValues)
-                        {
-                            if (obj is AnnotationCollection da)
-                            {
-                                lst.Add(da);
-                            }
-                            else
-                            {
-                                var da2 = a.AnnotateSub(TypeData.GetTypeData(obj), obj, readOnly, new AvailableMemberAnnotation(a));
-                                lst.Add(da2);
-                            }
-                        }
-                        lst.RemoveIf(x => x.Get<IAccessAnnotation>()?.IsVisible == false);                 
-                        annotations = lst;
-
                     }
+                    else
+                    {
+                        values = a.Get<IAvailableValuesAnnotation>()?.AvailableValues ?? Array.Empty<object>();    
+                    }
+
+                    if (a?.Get<MergedValueAnnotation>() is MergedValueAnnotation merged)
+                    {
+                        // Merged available value fields are the common of all the original available values.
+                        HashSet<object> values2 = null;
+                        foreach (var m in merged.Merged)
+                        {
+                            var e =
+                                (m.Get<IAvailableValuesAnnotation>()?.AvailableValues as IEnumerable)?.Cast<object>();
+                            if (e == null) continue;
+                            if (values2 == null)
+                            {
+                                values2 = new HashSet<object>(e);
+                                continue;
+                            }
+
+                            foreach (var value in values2.ToArray())
+                            {
+                                if (e.Contains(value) == false)
+                                {
+                                    values2.Remove(value);
+                                }
+                            }
+                        }
+
+                        values = values2;
+                    }
+
+                    if (values != null)
+                        prevValues = values.Cast<object>().ToArray();
+                    else
+                    {
+                        prevValues = Array.Empty<object>();
+                    }
+
+                    var readOnly = new ReadOnlyMemberAnnotation();
+                    var lst = new List<AnnotationCollection>();
+                    foreach (var obj in prevValues)
+                    {
+                        if (obj is AnnotationCollection da)
+                        {
+                            lst.Add(da);
+                        }
+                        else
+                        {
+                            var da2 = a.AnnotateSub(TypeData.GetTypeData(obj), obj, readOnly,
+                                new AvailableMemberAnnotation(a));
+                            lst.Add(da2);
+                        }
+                    }
+
+                    lst.RemoveIf(x => x.Get<IAccessAnnotation>()?.IsVisible == false);
+                    annotations = lst;
                     return annotations;
                 }
             }
@@ -2898,18 +2914,19 @@ namespace OpenTap
             }
 
             AnnotationCollection a;
-
+            
             public AvailableValuesAnnotationProxy(AnnotationCollection a)
             {
                 this.a = a;
             }
 
+            // when the object has been re-read, we need to check if the AvailableValues annotations needs update.
+            bool invalidated;
+            
             public void Read(object source)
             {
                 if (annotations == null) return;
-                var values = a.Get<IAvailableValuesAnnotation>()?.AvailableValues;
-                if (Enumerable.SequenceEqual(prevValues.Cast<object>(), values.Cast<object>()) == false)
-                    annotations = null;
+                invalidated = true;
             }
 
             public void Write(object source)
