@@ -680,7 +680,7 @@ namespace OpenTap.Engine.UnitTests
         {
             var sval = AnnotationCollection.Annotate(DataInterfaceTestClass.SingleEnum.A).Get<IStringValueAnnotation>().Value;
             Assert.AreEqual("AAA", sval);
-            InstrumentSettings.Current.Add(new GenericScpiInstrument());
+            InstrumentSettings.Current.Add(new ScpiInstrument());
             DataInterfaceTestClass testobj = new DataInterfaceTestClass();
 
             AnnotationCollection annotations = AnnotationCollection.Annotate(testobj, Array.Empty<IAnnotation>());

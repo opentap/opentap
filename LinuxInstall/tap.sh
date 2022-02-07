@@ -16,8 +16,9 @@ if [[ $(uname) == Darwin ]]; then
         popd >/dev/null
         relativePath="$(readlink "$path")"
     done
-    dotnet "$path.dll" "$@"
+    exec dotnet "$path.dll" "$@"
 # We are on linux -- Use GNU Readline normally
 else
-    dotnet "$(dirname "$(readlink -f "$0")")/tap.dll" "$@"
+    # use exec to replace the current process instead of starting a child process
+    exec dotnet "$(dirname "$(readlink -f "$0")")/tap.dll" "$@" 
 fi

@@ -175,9 +175,20 @@ namespace OpenTap.Package
 
                     p.WaitForExit();
 
-                    if (p.ExitCode != 0)
-                        throw new Exception($"Failed to run {step.ActionName} step {stepName}. Exitcode: {p.ExitCode}");
-                    log.Info(sw, $"Succesfully ran {step.ActionName} step  {stepName}.");
+                    if (step.ExpectedExitCodes != "*")
+                    {
+                        var expectedExitCodes = step.ExpectedExitCodes.Split(',').TrySelect(int.Parse,
+                                (_, stringValue) => log.Error($"Failed to parse string '{stringValue}' as an integer."))
+                            .ToHashSet();
+
+                        if (expectedExitCodes.Count == 0)
+                            expectedExitCodes.Add(0);
+
+                        if (!expectedExitCodes.Contains(p.ExitCode))
+                            throw new Exception($"Failed to run {step.ActionName} step {stepName}. Unexpected exitcode: {p.ExitCode}");
+                    }
+
+                    log.Info(sw, $"Succesfully ran {step.ActionName} step  {stepName}. {(p.ExitCode != 0 ? $"Exitcode: {p.ExitCode}" : "")}");
                 }
                 catch (Exception e)
                 {
@@ -398,6 +409,20 @@ namespace OpenTap.Package
                             try
                             {
                                 FileSystemHelper.EnsureDirectory(path);
+                                if (OperatingSystem.Current == OperatingSystem.Windows)
+                                {
+                                    // on windows, hidden files cannot be overwritten.
+                                    // an exception will be thrown in File.Create further down.
+                                    if (Path.GetFileName(path).StartsWith(".") && File.Exists(path))
+                                    {
+                                        var attrs = File.GetAttributes(path);
+                                        var attrs2 = attrs & ~FileAttributes.Hidden;
+                                        if(attrs2 != attrs)
+                                            File.SetAttributes(path, attrs2);
+                                    }
+                                }
+                                
+                                
                                 var deflate_stream = part.Open();
                                 using (var fileStream = File.Create(path))
                                 {
@@ -548,9 +573,11 @@ namespace OpenTap.Package
                 result = ActionResult.Error;
             }
 
+            bool ignore(string filename) => filename.ToLower() == "tap" || filename.ToLower() == "tap.exe" || filename.ToLower() == "tap.dll";
+
             foreach (var file in package.Files)
             {
-                if (file.RelativeDestinationPath == "tap" || file.RelativeDestinationPath.ToLower() == "tap.exe") // ignore tap.exe as it is not meant to be overwritten.
+                if (ignore(file.RelativeDestinationPath)) // ignore tap, tap.dll, and tap.exe as they are not meant to be overwritten.
                     continue;
 
                 string fullPath;

@@ -224,7 +224,7 @@ namespace OpenTap
             scpiString = scpiString.Trim(); // Ensure no garbage.
             if (T == typeof(bool))
             {
-                return (object)(scpiString == "ON" || scpiString == "1");
+                return scpiString == "ON" || scpiString == "1";
             }
             else if (T.IsEnum)
             {

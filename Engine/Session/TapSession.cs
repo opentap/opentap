@@ -192,6 +192,12 @@ namespace OpenTap
             return session;
         }
 
+        /// <summary> Creates a new session in the current <see cref="TapThread"/> context. The session lasts until the TapTread ends, or Dispose is called on the returned Session object.</summary>
+        /// <param name="options">Flags selected from the SessionOptions enum to customize the behavior of the session.</param>
+        /// <returns> A disposable Session object. </returns>
+        public static Session Create(SessionOptions options) => Create(options, null);
+
+
         /// <summary>
         /// Creates a new session, and runs the specified action in the context of that session. When the acion completes, the session is Disposed automatically.
         /// </summary>

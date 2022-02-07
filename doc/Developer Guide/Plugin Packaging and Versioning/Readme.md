@@ -247,6 +247,10 @@ tap run -v ./Packages/MyPlugin/waveform-test.TapPlan
 > Using **ExeFile="tap.exe"** will work on Windows, but not on Linux and MacOS. Omitting the `.exe` extension will work on all platforms.
 
 
+#### MetaData elements
+Any unknown xml elements will be treated as metadata. These elements will be mapped to the `PackageDef.MetaData` dictionary on the C# package object model .
+
+
 ### A Complete Example
 
 The below configuration file results in `MyPlugin.{version}.TapPackage` file,containing `OpenTap.Plugins.MyPlugin.dll`, `waveform1.wfm` and `waveform2.wfm`.
@@ -453,7 +457,7 @@ version = 1.0.1
 # Uncomment to change the default.
 #beta branch = integration
 
-# When specified multiple times later sprcifications of "beta branch" will only be tried
+# When specified multiple times later specifications of "beta branch" will only be tried
 # if earlier ones did not match any branches in the git repository
 #beta branch = develop
 #beta branch = dev

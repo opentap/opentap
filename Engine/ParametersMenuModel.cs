@@ -78,11 +78,7 @@ namespace OpenTap
                 ParameterManager.CreateParameter(this, parents.FirstOrDefault(), false);
         }
 
-        bool isParameterized(ITestStepParent item) => item.GetParents().Any(parent =>
-            TypeData.GetTypeData(parent).GetMembers().OfType<ParameterMemberData>()
-                .Any(x => x.ContainsMember((item, Member: member))));
-        
-        bool isParameterized() =>  source.Any(isParameterized);
+        bool isParameterized() => source.Any(x => DynamicMember.IsParameterized(member, x));
         public bool IsParameterized => isParameterized();
         public bool IsParameter => member is ParameterMemberData;
         public bool MultiSelect => source?.Length != 1;

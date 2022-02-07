@@ -35,28 +35,37 @@ namespace OpenTap.Package
 
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
+            if (NonInteractive)
+                UserInput.SetInterface(new NonInteractiveUserInputInterface());
+
+            if (Force)
+                log.Warning($"Using --force does not force an image installation");
+
+            var imageString = File.ReadAllText(ImagePath);
+            var imageSpecifier = ImageSpecifier.FromString(imageString);
+
+
             try
             {
-                if (NonInteractive)
-                    UserInput.SetInterface(new NonInteractiveUserInputInterface());
-                
-                var imageString = File.ReadAllText(ImagePath);
-                var image = ImageSpecifier.FromString(imageString);
                 if (Merge)
                 {
-                    var installation = new Installation(Target);
-                    image.Packages.AddRange(installation.GetPackages().Select(p => new PackageSpecifier(p)));
+                    var deploymentInstallation = new Installation(Target);
+                    Installation newInstallation = imageSpecifier.MergeAndDeploy(deploymentInstallation, cancellationToken);
                 }
-                var imageIdentifier = image.Resolve(cancellationToken);
-                imageIdentifier.Deploy(Target, cancellationToken);
+                else
+                {
+                    ImageIdentifier imageIdentifier = imageSpecifier.Resolve(cancellationToken);
+                    imageIdentifier.Deploy(Target, cancellationToken);
+                }
                 return 0;
             }
             catch (AggregateException e)
             {
                 foreach (var innerException in e.InnerExceptions)
-                    log.Error(innerException.Message);
-                throw;
+                    log.Error($"- {innerException.Message}");
+                throw new ExitCodeException((int)PackageExitCodes.PackageDependencyError, e.Message);
             }
+
         }
     }
 }

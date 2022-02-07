@@ -15,6 +15,7 @@ namespace OpenTap.Image.Tests
     public class Workflows
     {
         [Test]
+        [Ignore("This depends on remote package repository and internet connectivity. Ignore to reduce flakyness")]
         public void DeployImage()
         {
             string temp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -67,6 +68,7 @@ namespace OpenTap.Image.Tests
         }
 
         [Test]
+        [Ignore("This depends on remote package repository and internet connectivity. Ignore to reduce flakyness")]
         public void DeployImageOnExistingInstallation()
         {
             string temp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -127,6 +129,7 @@ namespace OpenTap.Image.Tests
         }
 
         [Test]
+        [Ignore("This depends on remote package repository and internet connectivity. Ignore to reduce flakyness")]
         public void DoNotDownloadPackagesThatAreAlreadyInstalled()
         {
             string temp = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
@@ -175,6 +178,7 @@ namespace OpenTap.Image.Tests
         }
 
         [Test]
+        [Ignore("This depends on remote package repository and internet connectivity. Ignore to reduce flakyness")]
         public void UninstallInOrder()
         {
             if (OperatingSystem.Current != OperatingSystem.Windows)

@@ -2,6 +2,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
+
 using OpenTap.Package;
 using System;
 using System.Collections.Generic;
@@ -41,6 +42,8 @@ namespace OpenTap.Cli
             var argToProp = new Dictionary<string, IMemberData>();
             var unnamedArgToProp = new List<IMemberData>();
 
+            var overrides = new HashSet<string>();
+
             foreach (var prop in props)
             {
                 if (prop.Readable == false || prop.Writable == false)
@@ -69,13 +72,26 @@ namespace OpenTap.Cli
                 {
                     description = attr.Description;
                 }
-                
+
                 if (ap.AllOptions.Contains(attr.Name))
                 {
-                    var prevOption = ap.AllOptions.GetOrDefault(attr.Name);
-                    throw new Exception($"The '{action} --{attr.Name}' option to '{attr.Description}' overloads the '--{attr.Name}' common option to '{prevOption.Description}'");
+                    overrides.Add(attr.Name);
                 }
-                var arg = ap.AllOptions.Add(attr.Name, attr.ShortName == null ? '\0' : attr.ShortName.FirstOrDefault(), needsArg, description);
+
+                if (!string.IsNullOrWhiteSpace(attr.ShortName))
+                {
+                    var overriden = ap.AllOptions.FirstOrDefault(opt => opt.Value?.ShortName == attr.ShortName[0])
+                        .Value;
+                    if (overriden != null)
+                    {
+                        overrides.Add(overriden.ShortName.ToString());
+                        // Set the ShortName of the overriden option to '\0' so the argument parser will resolve this ShortName to the overriding option
+                        // The overriden option can still be accessed by its LongName, provided that is not also overriden
+                        ap.AllOptions.Add(overriden.LongName, '\0', overriden.NeedsArgument, overriden.Description);
+                    }
+                }
+
+                var arg = ap.AllOptions.Add(attr.Name, attr.ShortName?.FirstOrDefault() ?? '\0', needsArg, description);
                 arg.IsVisible = attr.Visible;
                 argToProp.Add(arg.LongName, prop);
             }
@@ -83,40 +99,87 @@ namespace OpenTap.Cli
             var args = ap.Parse(parameters);
 
             if (args.MissingArguments.Any())
-                throw new Exception($"Command line argument '{args.MissingArguments.FirstOrDefault().LongName}' is missing an argument.");
+                throw new Exception(
+                    $"Command line argument '{args.MissingArguments.FirstOrDefault().LongName}' is missing an argument.");
 
-            if (args.Contains("help"))
+            foreach (var @override in overrides)
+            {
+                if (args.Contains(@override))
+                    log.Debug(
+                        $"The CLI option '--{@override}' from '{action}' overrides a common CLI option from OpenTAP.");
+                else if (@override.Length == 1)
+                {
+                    var shortName = @override[0];
+                    var isUsed = args.Any(a => a.Value?.ShortName == shortName);
+                    if (isUsed)
+                        log.Debug(
+                            $"The CLI option '-{@override}' from '{action}' overrides a common CLI option from OpenTAP.");
+                }
+            }
+
+            if (!overrides.Contains("help") && args.Contains("help"))
             {
                 printOptions(action.GetType().GetAttribute<DisplayAttribute>().Name, ap.AllOptions, unnamedArgToProp);
                 return (int)ExitCodes.Success;
             }
 
-            if (args.Contains("log"))
+            if (!overrides.Contains("log") && args.Contains("log"))
             {
                 SessionLogs.Rename(args.Argument("log"));
             }
 
             foreach (var opts in args)
             {
-                if (argToProp.ContainsKey(opts.Key) == false) continue; 
+                if (argToProp.ContainsKey(opts.Key) == false) continue;
                 var prop = argToProp[opts.Key];
 
                 if (prop.TypeDescriptor is TypeData propTd)
                 {
-                    Type propType = propTd.Load();
-                    if (propType == typeof(bool)) prop.SetValue(action, true);
-                    else if (propType.IsEnum) prop.SetValue(action, ParseEnum(opts.Key, opts.Value.Value, propType));
-                    else if (propType == typeof(string)) prop.SetValue(action, opts.Value.Value);
-                    else if (propType == typeof(string[])) prop.SetValue(action, opts.Value.Values.ToArray());
-                    else if (propType == typeof(int)) prop.SetValue(action, int.Parse(opts.Value.Value));
-                    else throw new Exception(string.Format("Command line option '{0}' is of an unsupported type '{1}'.", opts.Key, propType.Name));
+                    Type propType2 = propTd.Load();
+
+                    object getValue(string src, Type propType)
+                    {
+                        if (propType == typeof(string)) return src;
+                        if (propType == typeof(bool)) return true;
+                        if (propType.IsEnum)
+                            return parseArbitrary(opts.Key, src, propType);
+                        if (propType == typeof(int)
+                            || propType == typeof(long)
+                            || propType == typeof(uint)
+                            || propType == typeof(ushort)
+                            || propType == typeof(short)
+                            || propType == typeof(byte)
+                            || propType == typeof(sbyte)
+                            || propType == typeof(ulong)
+                            || propType == typeof(double)
+                            || propType == typeof(float))
+                            return Convert.ChangeType(src, propType);
+                        throw new Exception(
+                            $"Command line option '{opts.Key}' is of an unsupported type '{propType.Name}'.");
+                    }
+
+                    if (propType2 != typeof(string) && propType2.IsArray)
+                    {
+                        var array = Array.CreateInstance(propType2.GetElementType(), opts.Value.Values.Count);
+                        var elemType = propType2.GetElementType();
+                        for (int i = 0; i < array.Length; i++)
+                            array.SetValue(getValue(opts.Value.Values[i], elemType), i);
+                        prop.SetValue(action, array);
+                    }
+                    else
+                    {
+                        prop.SetValue(action, getValue(opts.Value.Value, propType2));
+                    }
                 }
                 else
-                    throw new Exception(string.Format("Command line option '{0}' is of an unsupported type '{1}'.", opts.Key, prop.TypeDescriptor.Name));
+                    throw new Exception(
+                        $"Command line option '{opts.Key}' is of an unsupported type '{prop.TypeDescriptor.Name}'.");
             }
 
-            unnamedArgToProp = unnamedArgToProp.OrderBy(p => p.GetAttribute<UnnamedCommandLineArgument>().Order).ToList();
-            var requiredArgs = unnamedArgToProp.Where(x => x.GetAttribute<UnnamedCommandLineArgument>().Required).ToHashSet();
+            unnamedArgToProp = unnamedArgToProp.OrderBy(p => p.GetAttribute<UnnamedCommandLineArgument>().Order)
+                .ToList();
+            var requiredArgs = unnamedArgToProp.Where(x => x.GetAttribute<UnnamedCommandLineArgument>().Required)
+                .ToHashSet();
             int idx = 0;
 
             for (int i = 0; i < unnamedArgToProp.Count; i++)
@@ -146,7 +209,7 @@ namespace OpenTap.Cli
                     if (idx < args.UnnamedArguments.Length)
                     {
                         var name = p.GetAttribute<UnnamedCommandLineArgument>()?.Name ?? p.Name;
-                        p.SetValue(action, ParseEnum($"<{name}>", args.UnnamedArguments[idx++], td2.Type));
+                        p.SetValue(action, parseArbitrary($"<{name}>", args.UnnamedArguments[idx++], td2.Type));
                         requiredArgs.Remove(p);
                     }
                 }
@@ -158,8 +221,9 @@ namespace OpenTap.Cli
                     Console.WriteLine("Unknown options: " + string.Join(" ", args.UnknownsOptions));
 
                 if (requiredArgs.Any())
-                    Console.WriteLine("Missing argument: " + string.Join(" ", requiredArgs.Select(p => p.GetAttribute<UnnamedCommandLineArgument>().Name)));
-                
+                    Console.WriteLine("Missing argument: " + string.Join(" ",
+                        requiredArgs.Select(p => p.GetAttribute<UnnamedCommandLineArgument>().Name)));
+
                 printOptions(action.GetType().GetAttribute<DisplayAttribute>().Name, ap.AllOptions, unnamedArgToProp);
                 return (int)ExitCodes.ArgumentParseError;
             }
@@ -172,8 +236,8 @@ namespace OpenTap.Cli
             return exitCode;
         }
 
-        static TraceSource log = Log.CreateSource("CLI"); 
-        
+        static TraceSource log = Log.CreateSource("CLI");
+
         private static void printOptions(string passName, ArgumentCollection options, List<IMemberData> unnamed)
         {
             Console.WriteLine("Usage: {2} {0} {1}",
@@ -201,13 +265,16 @@ namespace OpenTap.Cli
 
             Console.Write(options);
         }
-        
-        private static object ParseEnum(string name, string value, Type propertyType)
+
+        private static object parseArbitrary(string name, string value, Type propertyType)
         {
-            var obj = StringConvertProvider.FromString(value, TypeData.FromType(propertyType), null, System.Globalization.CultureInfo.InvariantCulture);
+            var obj = StringConvertProvider.FromString(value, TypeData.FromType(propertyType), null,
+                System.Globalization.CultureInfo.InvariantCulture);
 
             if (obj == null)
-                throw new Exception(string.Format("Could not parse argument '{0}'. Argument given: '{1}'. Valid arguments: {2}", name, value, string.Join(", ", propertyType.GetEnumNames())));
+                throw new Exception(string.Format(
+                    "Could not parse argument '{0}'. Argument given: '{1}'. Valid arguments: {2}", name, value,
+                    string.Join(", ", propertyType.GetEnumNames())));
 
             return obj;
         }

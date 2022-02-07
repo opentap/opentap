@@ -37,7 +37,7 @@ namespace OpenTap.Package
                     }
                 }
 
-                setter.Invoke(new PackageSpecifier(name, version, architecture, os));
+                setter.Invoke(new PackageSpecifier(name, version ?? VersionSpecifier.Parse(""), architecture, os));
 
                 return true;
             }

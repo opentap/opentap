@@ -39,12 +39,16 @@ namespace OpenTap.UnitTests
         }
     }
     
-    [Display("action", Groups: new[] { "test" }, Description:"Runs TestAction2")]
+    [Display("action2", Groups: new[] { "test" }, Description:"Runs TestAction2")]
     public class TestAction2 : ICliAction
     {
+        [CommandLineArgument("other", Description = "Some option which does not override a common option", ShortName = "o")]
+        public bool Other { get; set; }
+        [CommandLineArgument("quiet", Description = "Some option which overrides a common option", ShortName = "h")]
+        public string Quiet { get; set; }
         public int Execute(CancellationToken cancellationToken)
         {
-            Console.WriteLine("Executed action 2");
+            Console.WriteLine($"Executed action 2 with 'Quiet = {Quiet}'.");
             return (int)ExitCodes.Success;
         }
     }
@@ -61,4 +65,26 @@ namespace OpenTap.UnitTests
             throw new NotImplementedException();
         }
     }
+    
+    [Display("testargaction", Groups: new[] { "test", "action" }, Description:"Runs TestAction")]
+    public class TestArgCliACtion  : ICliAction
+    {
+        [CommandLineArgument("a")] public uint a { get; set; } = 0;
+        [CommandLineArgument("b")] public ulong b { get; set; } = 0;
+        // c overridden by --color - does not work.
+        [CommandLineArgument("c")] public float c { get; set; } = 0;
+        [CommandLineArgument("d")] public float d { get; set; } = 0;
+        [CommandLineArgument("e")] public double e { get; set; } = 0;
+        [CommandLineArgument("f")] public long f { get; set; } = 0;
+        // aliased by --help
+        [CommandLineArgument("h")] public int[] h { get; set; } = Array.Empty<int>();
+        [CommandLineArgument("i")] public int[] i { get; set; } = Array.Empty<int>();
+        
+        public int Execute(CancellationToken cancellationToken)
+        {
+            Console.WriteLine("{0} {1} {2} {3} {4} {5} [{6}]", a, b, c, d, e, f, string.Join(" ", i));
+            return 0;
+        }
+    }
+    
 }

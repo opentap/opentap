@@ -11,6 +11,9 @@ using System.Collections.Generic;
 using OpenTap.Plugins.BasicSteps;
 using System.Reflection;
 using System;
+using System.Runtime.Loader;
+using System.Xml;
+using OpenTap.Cli;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using static OpenTap.Package.PackageDefExt;
 
@@ -55,6 +58,62 @@ namespace OpenTap.Package.UnitTests
             CliTests.CreateOpenTAPPackage();
         }
 
+        [Test]
+        public void MetaDataTest()
+        {
+            var package = new PackageDef();
+            package.Name = "test";
+            package.Version = SemanticVersion.Parse("1.0.0");
+            package.MetaData.Add("Kind", "UnitTest");
+            package.MetaData.Add("Test", "Value");
+
+            using (var stream = new MemoryStream())
+            {
+                package.SaveTo(stream);
+                package = null;
+
+                // Save the package to xml
+                stream.Seek(0, 0);
+                stream.Position = 0;
+                string xml = new StreamReader(stream).ReadToEnd();
+                Assert.IsNotNull(xml);
+                Assert.IsNotEmpty(xml);
+                
+                // Check xml contains the right elements
+                var doc = new XmlDocument();
+                doc.LoadXml(xml);
+                var packageNode = doc.DocumentElement;
+                Assert.NotNull(packageNode);
+                Assert.IsTrue(packageNode.HasChildNodes);
+                Assert.IsTrue(packageNode.ChildNodes.Count == 2);
+                Assert.IsTrue(packageNode.FirstChild.Name == "Kind");
+                Assert.IsTrue(packageNode.LastChild.Name == "Test");
+                
+                // Load the package from xml
+                stream.Seek(0, 0);
+                stream.Position = 0;
+                package = PackageDef.FromXml(stream);
+                
+                Assert.NotNull(package);
+                Assert.IsTrue(package.MetaData.ContainsKey("Kind") && package.MetaData["Kind"] == "UnitTest");
+                Assert.IsTrue(package.MetaData.ContainsKey("Test") && package.MetaData["Test"] == "Value");
+            }
+        }
+
+        [Test]
+        public void MetaDataOverriding()
+        {
+            var package = new PackageDef();
+            package.Name = "test";
+            package.Version = SemanticVersion.Parse("1.0.0");
+            package.MetaData.Add("Description", "Something that should not be added.");
+
+            using (var stream = new MemoryStream())
+            {
+                Assert.Catch<ExitCodeException>(() => package.SaveTo(stream));
+            }
+        }
+        
         [TestCase("GlobTest/**/*.txt", 4)]
         [TestCase("GlobTest/*/*.txt", 3)]
         [TestCase("GlobTest/dir*/*.txt", 3)]
@@ -108,7 +167,7 @@ namespace OpenTap.Package.UnitTests
             PackageDef pkg = PackageDefExt.FromInputXml(inputFilename,Directory.GetCurrentDirectory());
             
             Assert.AreEqual("Test Step",pkg.Files?.FirstOrDefault()?.Plugins?.FirstOrDefault(p => p.Type == typeof(IfStep).FullName)?.BaseType);
-            Assert.AreEqual(pkg.Files?.FirstOrDefault()?.Plugins.FirstOrDefault(p => p.Type == typeof(GenericScpiInstrument).FullName)?.BaseType, "Instrument");
+            Assert.AreEqual(pkg.Files?.FirstOrDefault()?.Plugins.FirstOrDefault(p => p.Type == "OpenTap.Plugins.BasicSteps.GenericScpiInstrument")?.BaseType, "Instrument");
         }
 
         [Test]
@@ -198,45 +257,22 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
-        [Platform(Exclude="Unix,Linux,MacOsX")]
         public void CreatePackageVersioningMono()
         {
             var tmpFile = Path.GetTempFileName();
             File.Copy("OpenTap.dll", tmpFile, true);
 
-            OpenTap.Package.SetAsmInfo.SetAsmInfo.SetInfo(tmpFile, new Version("1.2.3"), new Version("4.5.6"), SemanticVersion.Parse("0.1.2"), SetAsmInfo.UpdateMethod.Mono);
+            SetAsmInfo.SetAsmInfo.SetInfo(tmpFile, new Version("1.2.3"), new Version("4.5.6"), SemanticVersion.Parse("0.1.2"));
 
-            var asm = Assembly.LoadFrom(tmpFile);
+            // Side loading assemblies with different versions is not supported in netcore
+            // Load the dll in a new context instead. If we load it in the current context,
+            // the currently loaded OpenTAP.dll will be returned instead
+            var ctx = new AssemblyLoadContext("tmp");
+            var asm = ctx.LoadFromAssemblyPath(tmpFile);
             Assert.AreEqual(1, asm.GetName().Version.Major, "Wrong major");
             Assert.AreEqual(2, asm.GetName().Version.Minor, "Wrong minor");
             Assert.AreEqual(3, asm.GetName().Version.Build, "Wrong build");
             
-            Assert.AreEqual("4.5.6", asm.GetCustomAttribute<AssemblyFileVersionAttribute>().Version, "File version");
-            Assert.AreEqual("0.1.2", asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion, "Informational version");
-
-            Assert.AreEqual("4.5.6", FileVersionInfo.GetVersionInfo(tmpFile).FileVersion, "GetVersionInfo().FileVersion");
-            Assert.AreEqual("0.1.2", FileVersionInfo.GetVersionInfo(tmpFile).ProductVersion, "GetVersionInfo().ProductVersion");
-            Assert.AreEqual("0.1.2", FileSystemHelper.GetAssemblyVersion(tmpFile), "FileSystemHelper.GetAssemblyVersion");
-        }
-
-        [Test]
-        [Platform(Exclude="Unix,Linux,MacOsX")]
-        public void CreatePackageVersioningIlAsm()
-        {
-            var tmpFile = Path.GetTempFileName();
-
-            File.Delete(tmpFile);
-            tmpFile += ".dll";
-
-            File.Copy("OpenTap.dll", tmpFile, true);
-
-            OpenTap.Package.SetAsmInfo.SetAsmInfo.SetInfo(tmpFile, new Version("1.2.3"), new Version("4.5.6"), SemanticVersion.Parse("0.1.2"), SetAsmInfo.UpdateMethod.ILDasm);
-
-            var asm = Assembly.LoadFrom(tmpFile);
-            Assert.AreEqual(1, asm.GetName().Version.Major, "Wrong major");
-            Assert.AreEqual(2, asm.GetName().Version.Minor, "Wrong minor");
-            Assert.AreEqual(3, asm.GetName().Version.Build, "Wrong build");
-
             Assert.AreEqual("4.5.6", asm.GetCustomAttribute<AssemblyFileVersionAttribute>().Version, "File version");
             Assert.AreEqual("0.1.2", asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion, "Informational version");
 
@@ -800,6 +836,95 @@ namespace OpenTap.Package.UnitTests
             // Check if version has been updated.
             SetAsmInfo.SetAsmInfo.SetInfo(fileName, Version.Parse("1.2.3.4"), Version.Parse("2.3.4.5"), SemanticVersion.Parse("3.4.5-test"));
             Assert.IsTrue(ReadAssemblyVersionStep.GetVersion(fileName)?.Equals(SemanticVersion.Parse("3.4.5-test")), "Assembly version was not updated correctly.");
+        }
+
+        [Test]
+        public void PackageValidationTest()
+        {
+            var testDir = "metadatatest";
+            
+            void ValidateXml(string pkg)
+            {
+                var xmlPath = Path.Combine(testDir, "package.xml");
+                if (File.Exists(xmlPath))
+                    File.Delete(xmlPath);
+                
+                File.WriteAllText(xmlPath, pkg);
+
+                PackageDef.ValidateXml(xmlPath);
+            }
+            
+            try
+            {
+                Directory.CreateDirectory(testDir);
+                
+                // Package with metadata
+                var package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Name=""testing"" Version=""1.0.0"" Architecture=""AnyCPU"" OS=""Windows"" xmlns=""http://opentap.io/schemas/package"">
+                    <Something>testing</Something>
+                    <Owner>testing</Owner>
+                    </Package>";
+                Assert.DoesNotThrow(() => ValidateXml(package), "Package with metadata");
+                
+                
+                // Package with no name
+                package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Version=""1.0.0"" Architecture=""AnyCPU"" OS=""Windows"" xmlns=""http://opentap.io/schemas/package"" />";
+                Assert.Throws<InvalidDataException>(() => ValidateXml(package), "Package with no Name");
+                
+                // Package with empty name
+                package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Name="""" Version=""1.0.0"" Architecture=""AnyCPU"" OS=""Windows"" xmlns=""http://opentap.io/schemas/package"" />";
+                Assert.Throws<InvalidDataException>(() => ValidateXml(package), "Package with no Name");
+                
+                
+                // Package with no version. Should not fail, we automatically set it in the serializer <see cref="PackageDefinitionSerializerPlugin"/>
+                package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Name=""testing"" Architecture=""AnyCPU"" OS=""Windows"" xmlns=""http://opentap.io/schemas/package"" />";
+                Assert.DoesNotThrow(() => ValidateXml(package), "Package with no version");
+                
+                // Package with empty version. Should not fail, we automatically set it in the serializer <see cref="PackageDefinitionSerializerPlugin"/>
+                package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Name=""testing"" Version="""" Architecture=""AnyCPU"" OS=""Windows"" xmlns=""http://opentap.io/schemas/package"" />";
+                Assert.DoesNotThrow(() => ValidateXml(package), "Package with no version");
+                
+                package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Name=""testing"" Version=""$(GitVersion)"" Architecture=""AnyCPU"" OS=""Windows"" xmlns=""http://opentap.io/schemas/package"" />";
+                Assert.DoesNotThrow(() => ValidateXml(package), "Package with macro version");
+
+                
+                // Package with no OS. Should not fail, we set the Windows as default in the constructor.
+                package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Name=""testing"" Version=""1.0.0"" Architecture=""AnyCPU"" xmlns=""http://opentap.io/schemas/package"" />";
+                Assert.DoesNotThrow(() => ValidateXml(package), "Package with no OS");
+                
+                // Package with empty OS
+                package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Name=""testing"" Version=""1.0.0"" Architecture=""AnyCPU"" OS="""" xmlns=""http://opentap.io/schemas/package"" />";
+                Assert.Throws<InvalidDataException>(() => ValidateXml(package), "Package with empty OS");
+                
+                
+                // Package with no Architecture. Should not fail, we set the AnyCPU as default in the constructor.
+                package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Name=""testing"" Version=""1.0.0"" OS=""Windows"" xmlns=""http://opentap.io/schemas/package"" />";
+                Assert.DoesNotThrow(() => ValidateXml(package), "Package with no Architecture");
+                
+                // Package with empty Architecture
+                package = @"<?xml version=""1.0"" encoding=""utf-8""?>
+                    <Package Name=""testing"" Version=""1.0.0"" OS=""Windows"" Architecture="""" xmlns=""http://opentap.io/schemas/package"" />";
+                Assert.Throws<ArgumentException>(() => ValidateXml(package), "Package with empty Architecture"); // Throws an ArgumentException from the serializer because enum must have a value
+            }
+            finally
+            {
+                try
+                {
+                    Directory.Delete(testDir, true);
+                }
+                catch
+                {
+                    // ignored
+                }
+            }
         }
     }
 }
