@@ -19,6 +19,14 @@ namespace OpenTap
         static readonly List<ITypeDataSearcher> searchers = new List<ITypeDataSearcher>();
         static readonly ConcurrentDictionary<ITypeData, ITypeData[]> derivedTypesCache = new ConcurrentDictionary<ITypeData, ITypeData[]>();
 
+        /// <summary>  Invoked when new types has been discovered in an asynchronous fashion. </summary>
+        public static event EventHandler TypeCacheInvalidated; 
+        static void OnSearcherCacheInvalidated()
+        {
+            lastCount = 0;
+            TypeCacheInvalidated?.Invoke(null, EventArgs.Empty);
+        }
+        
         /// <summary> Get all known types that derive from a given type.</summary>
         /// <typeparam name="BaseType">Base type that all returned types descends to.</typeparam>
         /// <returns>All known types that descends to the given base type.</returns>
@@ -33,6 +41,9 @@ namespace OpenTap
         {
             if (PluginManager.ChangeID != ChangeID)
             {
+                // make sure that ITypeDataSearchers with cache invalidation are demantled.
+                foreach (var searcher in searchers.OfType<ITypeDataSearcherCacheInvalidated>())
+                    searcher.CacheInvalidated -= CacheInvalidatedOnCacheInvalidated;
                 searchers.Clear();
                 MemberData.InvalidateCache();
                 dict = new System.Runtime.CompilerServices.ConditionalWeakTable<Type, TypeData>();
@@ -97,6 +108,10 @@ namespace OpenTap
                         try
                         {
                             var searcher = (ITypeDataSearcher)searcherType.CreateInstance(Array.Empty<object>());
+                            // make sure that ITypeDataSearchers with cache invalidation are activated.
+                            if (searcher is ITypeDataSearcherCacheInvalidated cacheInvalidated)
+                                cacheInvalidated.CacheInvalidated += CacheInvalidatedOnCacheInvalidated;
+                            
                             searchTasks.Add(TapThread.StartAwaitable(searcher.Search));
                             searchers.Add(searcher);
                         }
@@ -139,6 +154,11 @@ namespace OpenTap
                 derivedTypesCache[baseType] = result;
                 return result;
             }
+        }
+
+        static void CacheInvalidatedOnCacheInvalidated(object sender, EventArgs e)
+        {
+            OnSearcherCacheInvalidated();
         }
 
         /// <summary> Get the type info of an object. </summary>

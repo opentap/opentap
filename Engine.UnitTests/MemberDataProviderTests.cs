@@ -2,6 +2,8 @@ using OpenTap.Plugins.BasicSteps;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Linq;
 using System.Xml.Serialization;
@@ -40,7 +42,7 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(types.All(t => t.DescendsTo(baseType)));
         }
 
-        public class TypeDataSearcherTestImpl : ITypeDataSearcher, ITypeDataProvider
+        public class TypeDataSearcherTestImpl : ITypeDataSearcher, ITypeDataProvider, ITypeDataSearcherCacheInvalidated
         {
             public class MemberDataTestImpl : IMemberData
             {
@@ -114,9 +116,7 @@ namespace OpenTap.Engine.UnitTests
                     };
                 }
             }
-
-
-            static List<ITypeData> hardcodedTypes = new List<ITypeData>
+            static ObservableCollection<ITypeData> hardcodedTypes = new ObservableCollection<ITypeData>
             {
                 new TypeDataTestImpl( "UnitTestType", TypeData.FromType(typeof(IResultListener)),null),
                 new TypeDataTestImpl( "UnitTestCliActionType", TypeData.FromType(typeof(ICliAction)),() => new SomeTestAction())
@@ -146,6 +146,32 @@ namespace OpenTap.Engine.UnitTests
                 if (obj is SomeTestAction)
                     return hardcodedTypes.Last();
                 return null;
+            }
+
+            event EventHandler cacheInvalidated;
+            public event EventHandler CacheInvalidated
+            {
+                add
+                {
+                    if (cacheInvalidated == null)
+                    {
+                        hardcodedTypes.CollectionChanged += HardcodedTypesOnCollectionChanged;
+                    }
+                    cacheInvalidated += value;
+                }
+                remove
+                {
+                    cacheInvalidated -= value;
+                    if (cacheInvalidated == null)
+                    {
+                        hardcodedTypes.CollectionChanged -= HardcodedTypesOnCollectionChanged;
+                    }
+                }
+            }
+
+            void HardcodedTypesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+            {
+                cacheInvalidated?.Invoke(sender, e);
             }
         }
         
@@ -178,6 +204,11 @@ namespace OpenTap.Engine.UnitTests
             TypeData.GetDerivedTypes<ITestStep>().Count();
             TypeDataSearcherTestImpl.Enable = true;
             TypeData.GetDerivedTypes<ITestStep>().Count();
+            int invalidated = 0;
+            TypeData.TypeCacheInvalidated += (obj, evt) =>
+            {
+                invalidated += 1;
+            };
             try
             {
                 ITypeData baseType = TypeData.FromType(typeof(IResultListener));
@@ -193,6 +224,7 @@ namespace OpenTap.Engine.UnitTests
                 var c3 = TypeData.GetDerivedTypes<IResultListener>().Count();
                 Assert.IsTrue(c1 + 1 == c2);
                 Assert.IsTrue(c2 + 1 == c3);
+                Assert.IsTrue(invalidated == 2);
 
             }
             finally
