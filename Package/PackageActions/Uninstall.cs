@@ -40,7 +40,8 @@ namespace OpenTap.Package
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;
 
-            var installedPackages = new Installation(Target).GetPackages();
+            var installation = new Installation(Target);
+            var installedPackages = installation.GetPackages();
 
             bool anyUnrecognizedPlugins = false;
             foreach (string pack in Packages)
@@ -64,7 +65,7 @@ namespace OpenTap.Package
                 return (int) PackageExitCodes.InvalidPackageName;
 
             if (!Force)
-                if (!CheckPackageAndDependencies(installedPackages, installer.PackagePaths, out var userCancelled))
+                if (!CheckPackageAndDependencies(installation, installedPackages, installer.PackagePaths, out var userCancelled))
                 {
                     if (userCancelled)
                     {
@@ -135,10 +136,10 @@ namespace OpenTap.Package
             return result;
         }
 
-        private bool CheckPackageAndDependencies(List<PackageDef> installed, List<string> packagePaths, out bool userCancelled)
+        private bool CheckPackageAndDependencies(Installation installation, List<PackageDef> installed, List<string> packagePaths, out bool userCancelled)
         {
             userCancelled = false;
-            var packages = packagePaths.Select(PackageDef.FromXml).ToList();
+            var packages = packagePaths.Select(path => PackageDef.FromXml(path, installation)).ToList();
             installed.RemoveIf(i => packages.Any(u => u.Name == i.Name && u.Version == i.Version));
             var analyzer = DependencyAnalyzer.BuildAnalyzerContext(installed);
             var packagesWithIssues = new List<PackageDef>();

@@ -663,9 +663,25 @@ namespace OpenTap.Package
             PackageDef pkDef;
             using (var stream = File.OpenRead(path))
                 pkDef = PackageDef.FromXml(stream);
-
             return pkDef;
         }
+        
+        /// <summary>
+        /// Constructs a PackageDef objects to represent the package definition in the given xml file.
+        /// </summary>
+        internal static PackageDef FromXml(string path, Installation installation)
+        {
+            PackageDef pkDef;
+            using (var stream = File.OpenRead(path))
+                pkDef = FromXml(stream);
+            pkDef.PackageSource = new InstalledPackageDefSource
+            {
+                Installation = installation,
+                PackageDefFilePath = path
+            };
+            return pkDef;
+        }
+        
 
         /// <summary>
         /// Returns the XML schema for a package definition XML file.
