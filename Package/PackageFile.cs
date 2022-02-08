@@ -663,7 +663,7 @@ namespace OpenTap.Package
             PackageDef pkDef;
             using (var stream = File.OpenRead(path))
                   pkDef = FromXml(stream);
-            pkDef.PackageSource = new PackageDefXmlSource{PackageDefFilePath = path};
+            pkDef.PackageSource = new XmlPackageDefSource{PackageDefFilePath = path};
             return pkDef;
         }
         

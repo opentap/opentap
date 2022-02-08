@@ -69,7 +69,7 @@ namespace OpenTap.Package
     /// <summary>
     /// The package definition is loaded from an package XML file.
     /// </summary>
-    public class PackageDefXmlSource : IPackageDefSource
+    public class XmlPackageDefSource : IPackageDefSource
     {
         /// <summary>
         /// The file path to the .xml file of the package definition. 
@@ -80,7 +80,7 @@ namespace OpenTap.Package
     /// <summary>
     /// The package definition is sourced from an OpenTAP installation.
     /// </summary>
-    public class InstalledPackageDefSource : PackageDefXmlSource
+    public class InstalledPackageDefSource : XmlPackageDefSource
     {
         /// <summary>
         /// The installation the package definition is sourced.

@@ -119,7 +119,7 @@ namespace OpenTap.Package
             {
                 var dependencyPackage = installedPackages.FirstOrDefault(p => p.Name == dependency.Name);
                 
-                if (dependencyPackage != null && dependencyPackage.PackageSource is PackageDefXmlSource source2)
+                if (dependencyPackage != null && dependencyPackage.PackageSource is XmlPackageDefSource source2)
                 {
                     var question =
                         $"Package '{dependency.Name}' is a member of the bundle '{package.Name}'.\nDo you wish to uninstall '{dependency.Name}'?";

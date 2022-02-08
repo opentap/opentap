@@ -271,7 +271,7 @@ namespace OpenTap.Package
             var installed = installation.GetPackages();
 
             var packages = packagePaths.Select(PackageDef.FromPackage).Select(x => x.Name).ToHashSet();
-            var existingPackages = installed.Where(kvp => packages.Contains(kvp.Name)).Select(x => (x.PackageSource as PackageDefXmlSource)?.PackageDefFilePath).ToList();
+            var existingPackages = installed.Where(kvp => packages.Contains(kvp.Name)).Select(x => (x.PackageSource as XmlPackageDefSource)?.PackageDefFilePath).ToList();
 
             if (existingPackages.Count == 0) return;
 

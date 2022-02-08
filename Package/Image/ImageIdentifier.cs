@@ -218,7 +218,7 @@ namespace OpenTap.Package
             newInstaller.Error += ex => uninstallErrors.Add(ex);
             newInstaller.DoSleep = false;
 
-            newInstaller.PackagePaths.AddRange(orderedPackagesToUninstall.Select(x => (x.PackageSource as PackageDefXmlSource)?.PackageDefFilePath).ToList());
+            newInstaller.PackagePaths.AddRange(orderedPackagesToUninstall.Select(x => (x.PackageSource as XmlPackageDefSource)?.PackageDefFilePath).ToList());
             int exitCode = newInstaller.RunCommand("uninstall", false, true);
 
             if (uninstallErrors.Any() || exitCode != 0)
