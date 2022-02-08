@@ -1672,6 +1672,59 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(obj.Values.SequenceEqual(new int[] {1, 2, 3, 4}));
         }
 
+        [Test]
+        public void AvailableValuesUpdateTest()
+        {
+            var step = new AvailableValuesUpdateTest();
+            var annotation = AnnotationCollection.Annotate(step);
+            var a = annotation.GetMember(nameof(step.A));
+            var b = annotation.GetMember(nameof(step.B));
+            var a1 = a.Get<IAvailableValuesAnnotationProxy>();
+            var b1 = b.Get<IAvailableValuesAnnotationProxy>();
+
+            bool doTest()
+            {
+                // A available values is not allowed to contain the value of B and vice versa.
+                var test2 = b1.AvailableValues.Select(x => x.Get<IObjectValueAnnotation>().Value).Contains(a1.SelectedValue.Get<IObjectValueAnnotation>().Value);
+                var test1 = a1.AvailableValues.Select(x => x.Get<IObjectValueAnnotation>().Value).Contains(b1.SelectedValue.Get<IObjectValueAnnotation>().Value);
+                var b1val = b1.SelectedValue.Get<IObjectValueAnnotation>().Value;
+                var a1val = a1.SelectedValue.Get<IObjectValueAnnotation>().Value;
+                
+                if (Equals(b1val, a1val))
+                    return false;
+                return !test1 && !test2;
+            }
+
+            for (int i = 0; i < 10; i++)
+            {
+                Assert.IsTrue(doTest());
+                
+                b1.SelectedValue = b1.AvailableValues.FirstOrDefault(x => !Equals(x.Get<IObjectValueAnnotation>().Value,
+                    b1.SelectedValue.Get<IObjectValueAnnotation>().Value));
+                
+                annotation.Write();
+                annotation.Read();
+                Assert.IsTrue(doTest());
+                a1.SelectedValue = a1.AvailableValues.FirstOrDefault(x => !Equals(x.Get<IObjectValueAnnotation>().Value, 
+                    a1.SelectedValue.Get<IObjectValueAnnotation>().Value));
+                
+                annotation.Write();
+                annotation.Read();
+                Assert.IsTrue(doTest());
+            }
+
+            for (int i = 0; i < 5; i++)
+            {
+                var number = annotation.GetMember(nameof(step.FromIncreasingNumber));
+                var number1 = number.Get<IAvailableValuesAnnotationProxy>();
+                var numbers = number1.AvailableValues.Select(x => (int)x.Get<IObjectValueAnnotation>().Value).ToArray();
+                Assert.AreEqual(step.IncreasingNumber, numbers[0]);
+                var numberIncrease = annotation.GetMember(nameof(step.IncreaseNumber)).Get<IMethodAnnotation>();
+                numberIncrease.Invoke();
+                annotation.Read();
+            }
+        }
+
         public enum Overlapping
         {
             A = 0,
@@ -1697,11 +1750,11 @@ namespace OpenTap.UnitTests
             var a = AnnotationCollection.Annotate(o);
             var a2 = a.GetMember(nameof(o.Overlapping));
             var available = a2.Get<IAvailableValuesAnnotation>().AvailableValues.Cast<Overlapping>();
-            CollectionAssert.AreEqual(available, new[] {Overlapping.A, Overlapping.X, Overlapping.Z, Overlapping.W});
+            CollectionAssert.AreEqual(available, new[] { Overlapping.A, Overlapping.X, Overlapping.Z, Overlapping.W });
 
             var a3 = a2.Get<IAvailableValuesAnnotationProxy>();
             var strValues = a3.AvailableValues.Select(x => x.Get<IStringReadOnlyValueAnnotation>().Value).ToArray();
-            CollectionAssert.AreEqual(strValues, new []{"A", "X", "Z", "W"});
+            CollectionAssert.AreEqual(strValues, new[] { "A", "X", "Z", "W" });
             a3.SelectedValue = a3.AvailableValues.Skip(2).FirstOrDefault();
             a.Write();
             a.Read();

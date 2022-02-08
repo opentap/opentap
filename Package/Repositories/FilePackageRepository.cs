@@ -44,10 +44,10 @@ namespace OpenTap.Package
             
             if (File.Exists(Url) || Directory.Exists(Url) == false)
             {
-                allPackages = new PackageDef[0];
+                allPackages = Array.Empty<PackageDef>();
 
                 if (Url != PackageDef.SystemWideInstallationDirectory) // Let's ignore this error if the repo is the system wide directory.
-                    throw new DirectoryNotFoundException(string.Format("File package repository directory not found at: {0}", Url));
+                    throw new DirectoryNotFoundException($"File package repository directory not found at: {Url}");
 
                 return;
             }
@@ -61,17 +61,21 @@ namespace OpenTap.Package
                 cancellationToken.ThrowIfCancellationRequested();
                 allPackages = GetAllPackages(allFiles).ToArray();
 
-                var caches = PackageManagerSettings.Current.Repositories.Select(p => GetCache(p.Url).CacheFileName);
+                var caches = PackageManagerSettings.Current.Repositories.Select(p => GetCache(p.Url).CacheFileName)
+                    .ToHashSet();
                 foreach (var file in allFiles)
                 {
                     var filename = Path.GetFileName(file);
                     if (filename.StartsWith(TapPluginCache) == false) continue;
-                    if (caches.Any(r => r == filename)) continue;
+                    if (caches.Contains(filename)) continue;
                     try
                     {
                         File.Delete(file);
                     }
-                    catch { }
+                    catch
+                    {
+                        // This is fine
+                    }
                 }
             }
         }
@@ -162,7 +166,7 @@ namespace OpenTap.Package
         // this file-copy action copies and notifies of progress.
         void fileCopy(string source, string destination)
         {
-            var tmpDestination = destination + ".part-" + System.Guid.NewGuid().ToString();
+            var tmpDestination = destination + ".part-" + Guid.NewGuid();
             
             using(var readStream = File.OpenRead(source))
             using (var writeStream = File.OpenWrite(tmpDestination))
@@ -429,7 +433,7 @@ namespace OpenTap.Package
                     allPackages.Add(package);
                 }
             });
-            
+
             return allPackages.ToArray();
         }
 
