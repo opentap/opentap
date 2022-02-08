@@ -82,37 +82,43 @@ namespace OpenTap.Sdk.New
 
         private bool Validate()
         {
-            var startsWithNumber = new Regex("^\\d+");
-            if (startsWithNumber.IsMatch(Name))
+            bool anyInvalid = false;
+            var invalid = Path.GetInvalidFileNameChars().Concat(" ").ToArray();
+            var line1 = $"\"{Name}\"";
+            var sb = new StringBuilder();
+
+            bool leading = true;
+
+            foreach (var ch in Name)
             {
-                log.Error($"Invalid project name: '{Name}' starts with a digit.");
-                return false;
+                if (leading)
+                {
+                    if (char.IsNumber(ch))
+                    {
+                        sb.Append("^");
+                        anyInvalid = true;
+                        continue;
+                    }
+                }
+
+                leading = false;
+
+                // Then detect any invalid filename or C# identifier chars
+                if (invalid.Contains(ch))
+                {
+                    sb.Append("^");
+                    anyInvalid = true;
+                }
+                else sb.Append(" ");
             }
 
-            { // Check invalid filename chars
-                bool anyInvalid = false;
-                var invalid = Path.GetInvalidFileNameChars().Concat(" ");
-                var line1 = $"\"{Name}\"";
-                var line2 = new StringBuilder();
-                line2.Append(" ");
-                foreach (var ch in Name)
-                {
-                    if (invalid.Contains(ch))
-                    {
-                        line2.Append("^");
-                        anyInvalid = true;
-                    }
-                    else
-                        line2.Append(" ");
-                }
-
-                if (anyInvalid)
-                {
-                    log.Error($"Invalid project name: '{Name}' contains illegal characters.");
-                    log.Error(line1);
-                    log.Error(line2.ToString());
-                    return false;
-                }
+            if (anyInvalid)
+            {
+                var stringStart = "Invalid project name: '";
+                log.Error($"{stringStart}{Name}' contains illegal characters.");
+                var hint = sb.ToString();
+                log.Error(hint.PadLeft("Invalid project name: '".Length + hint.Length));
+                return false;
             }
 
             return true;
