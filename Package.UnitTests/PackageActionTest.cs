@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using NUnit.Framework;
+using OpenTap.Diagnostic;
 
 namespace OpenTap.Package.UnitTests
 {
@@ -67,7 +68,6 @@ namespace OpenTap.Package.UnitTests
 
             Assert.AreEqual(0, act.Execute(CancellationToken.None));
             Assert.AreEqual(100, progress);
-
         }
 
         [Test]
@@ -120,7 +120,7 @@ namespace OpenTap.Package.UnitTests
                 progressUpdates.Add((progress, message));
             };
 
-            
+
             try
             {
                 Assert.AreEqual(0, act.Execute(CancellationToken.None));
@@ -135,14 +135,12 @@ namespace OpenTap.Package.UnitTests
                 if (File.Exists(outFile))
                     File.Delete(outFile);
             }
-
         }
-        
+
         internal class MyTestInterface : IUserInputInterface
         {
             void IUserInputInterface.RequestUserInput(object dataObject, TimeSpan timeout, bool modal)
             {
-            
             }
         }
 
@@ -153,7 +151,7 @@ namespace OpenTap.Package.UnitTests
         {
             var ui = new MyTestInterface();
             var packageName = "MyPlugin1";
-            
+
             using (OpenTap.Session.Create())
             {
                 UserInput.SetInterface(ui);
@@ -179,8 +177,107 @@ namespace OpenTap.Package.UnitTests
                 };
 
                 act2.Execute(CancellationToken.None);
-                
+
                 Assert.IsTrue(ReferenceEquals(ui, UserInput.GetInterface()));
+            }
+        }
+
+        [Test]
+        public void PackageInstallOtherOsTest()
+        {
+            var packageName = "MyPlugin1";
+
+            var act = new PackageInstallAction
+            {
+                Packages = new[] {packageName},
+                Repository = new[] {Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)},
+                OS = "Windows"
+            };
+
+            try
+            {
+                var log = new LoggingTraceListener();
+                using (Session.Create(SessionOptions.RedirectLogging))
+                {
+                    Log.AddListener(log);
+                    Assert.AreEqual(0, act.Execute(CancellationToken.None));
+                    Log.Flush();
+                }
+
+                var warningLog = log.Events.FirstOrDefault(x =>
+                    x.EventType == (int) LogEventType.Warning &&
+                    x.Message.Contains("is incompatible with the host platform"));
+                if (OperatingSystem.Current != OperatingSystem.Windows)
+                    Assert.IsNotNull(warningLog);
+                else
+                    Assert.IsNull(warningLog);
+            }
+            finally
+            {
+                new PackageUninstallAction {Packages = new[] {packageName}}.Execute(CancellationToken.None);
+            }
+        }
+
+        [Test]
+        public void PackageInstallOtherOsDirectTest([Values(true, false)] bool specifyPlatform)
+        {
+            var packageName = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                "TapPackages", "MyPlugin1.TapPackage");
+            
+            var act = new PackageInstallAction
+            {
+                Packages = new[] {packageName},
+                Repository = Array.Empty<string>()
+            };
+            if (specifyPlatform)
+                act.OS = "Windows";
+            try
+            {
+                var log = new LoggingTraceListener();
+                using (Session.Create(SessionOptions.RedirectLogging))
+                {
+                    Log.AddListener(log);
+                    var exitCode = act.Execute(CancellationToken.None);
+                    if (OperatingSystem.Current == OperatingSystem.Windows || specifyPlatform)
+                    {
+                        Assert.AreEqual(0, exitCode);
+                        var warningLog = log.Events.FirstOrDefault(x =>
+                            x.EventType == (int) LogEventType.Warning &&
+                            x.Message.Contains("is incompatible with the host platform"));
+                        if (specifyPlatform)
+                            Assert.IsNotNull(warningLog);
+                        if (!specifyPlatform)
+                            Assert.IsNull(warningLog);
+                    }
+                    else
+                    {
+                        var errorlog = log.Events.FirstOrDefault(x =>
+                            x.EventType == (int) LogEventType.Error &&
+                            x.Message.Contains("is incompatible with the host platform"));
+                        Assert.AreNotEqual(0, exitCode);
+                        Assert.IsNotNull(errorlog);
+                    }
+
+                    Log.Flush();
+                }
+            }
+            finally
+            {
+                new PackageUninstallAction {Packages = new[] {packageName}}.Execute(CancellationToken.None);
+            }
+        }
+
+        class LoggingTraceListener : ILogListener
+        {
+            public readonly List<Event> Events = new List<Event>();
+
+            public void EventsLogged(IEnumerable<Event> events)
+            {
+                Events.AddRange(events);
+            }
+
+            public void Flush()
+            {
             }
         }
     }

@@ -42,6 +42,23 @@ namespace OpenTap.Package
         /// </summary>
         public static Installation Current => _current ?? (_current = new Installation(ExecutorClient.ExeDir));
 
+        /// <summary> Target installation architecture. This could be anything as 32-bit is supported on 64bit systems.</summary>
+        internal CpuArchitecture Architecture => GetOpenTapPackage()?.Architecture ?? CpuArchitecture.AnyCPU;
+
+        /// <summary> The target installation OS, should be either Windows, MacOS or Linux. </summary>
+        internal string OS
+        {
+            get
+            {
+                if (OperatingSystem.Current == OperatingSystem.Windows)
+                    return "Windows";
+                if (OperatingSystem.Current == OperatingSystem.MacOS)
+                    return "MacOS";
+                return "Linux";
+            }
+        }
+        
+
         /// <summary>
         /// Invalidate cached package list. This should only be called if changes have been made to the installation by circumventing OpenTAP APIs.
         /// </summary>
