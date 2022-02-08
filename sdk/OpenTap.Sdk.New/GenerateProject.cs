@@ -82,7 +82,7 @@ namespace OpenTap.Sdk.New
 
         public override int Execute(CancellationToken cancellationToken)
         {
-            if (!Validate(name: Name, allowSpaces: false, allowLeadingNumbers: false))
+            if (!Validate(name: Name, allowWhiteSpace: false, allowLeadingNumbers: false))
             {
                 return (int)ExitCodes.ArgumentError;
             }

@@ -15,31 +15,27 @@ namespace OpenTap.Sdk.New
 {
     public abstract class GenerateType : ICliAction
     {
-        internal bool Validate(string name, bool allowSpaces, bool allowLeadingNumbers)
+        internal bool Validate(string name, bool allowWhiteSpace, bool allowLeadingNumbers)
         {
             bool anyInvalid = false;
             var invalid = Path.GetInvalidFileNameChars();
-            if (!allowSpaces) invalid = invalid.Concat(" ").ToArray();
             var sb = new StringBuilder();
 
             var leading = !allowLeadingNumbers;
 
             foreach (var ch in name)
             {
-                if (leading)
+                if (leading && char.IsNumber(ch))
                 {
-                    if (char.IsNumber(ch))
-                    {
-                        sb.Append("^");
-                        anyInvalid = true;
-                        continue;
-                    }
+                    sb.Append("^");
+                    anyInvalid = true;
+                    continue;
                 }
 
                 leading = false;
 
                 // Then detect any invalid filename or C# identifier chars
-                if (invalid.Contains(ch))
+                if (invalid.Contains(ch) || (!allowWhiteSpace && char.IsWhiteSpace(ch)))
                 {
                     sb.Append("^");
                     anyInvalid = true;
@@ -47,16 +43,13 @@ namespace OpenTap.Sdk.New
                 else sb.Append(" ");
             }
 
-            if (anyInvalid)
-            {
-                var stringStart = "Invalid name specified: '";
-                log.Error($"{stringStart}{name}' contains illegal characters.");
-                var hint = sb.ToString();
-                log.Error(hint.PadLeft(stringStart.Length + hint.Length));
-                return false;
-            }
+            if (!anyInvalid) return true;
 
-            return true;
+            var stringStart = "Invalid name specified: '";
+            log.Error($"{stringStart}{name}' contains illegal characters.");
+            var hint = sb.ToString();
+            log.Error(hint.PadLeft(stringStart.Length + hint.Length));
+            return false;
         }
 
         public TraceSource log = Log.CreateSource("New");
