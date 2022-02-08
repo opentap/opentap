@@ -392,30 +392,30 @@ public class HandleInput : TestStep
 ```
 
 ## Parameterized Settings
-In some cases multiple test steps requires using the same setting values. This can be a bit cumbersome to configure and error prone under normal circumstances. To better consolidate settings across many test steps parameterizations can be used. A setting can be parameterized on any parent test step or the test plan itself. The purpose of the parameterization is to group together test step settings and make it easier to manage setting values across many different test steps.
+In some cases multiple test steps requires using the same setting values. This can be a bit cumbersome to configure and error prone under normal circumstances. To better consolidate settings across many test steps, parameterizations can be used. A setting can be parameterized on any parent test step or the test plan itself. The purpose of the parameterization is to group together test step settings, and make it easier to manage setting values across many different test steps.
 
-For example, let's say a `Signal Generator Test Step` and a `Signal Analyzer Test Step` both has a `Frequency` setting and it is wanted to make sure that the values of the frequencies are always the same. Each `Frequency` setting can then be Parameterized to the parent test step under the same name, and the parent test step will get a single property representing `Frequency` for both test steps.
+For example, let's say a `Signal Generator Test Step` and a `Signal Analyzer Test Step` both has a `Frequency` setting, and it is wanted to make sure that the values of the frequencies are always the same. Each `Frequency` setting can then be Parameterized to the parent test step under the same name, and the parent test step will get a single property representing `Frequency` for both test steps.
 
 ![Parameterized frequency setting](./Parameterization.png)
 
 <em>Notice the parameterized `Frequency` property in the `Signal Generator` step that is marked as read-only. The setting can be modified on the parent `Sequence` step. </em>
 
 
-In addition, some test steps has special behavior with regards to parameters that are useful to know about.
+In addition, some test steps have special behavior with regards to parameters that are useful to know about.
 
 ### Sweeping Parameters
 
-The Parameter Sweep test steps utilizes parameterized settings to make it possible to sweep specific test step settings on specific test steps. When a child test steps setting is parameterized unto the Sweep Parameter test step, that parameter can be swept.  
+The Parameter Sweep test steps utilizes parameterized settings to make it possible to sweep specific test step settings on specific test steps. When a child test steps setting is parameterized onto the Sweep Parameter test step, that parameter can be swept.  
 
 - Sweep Parameter Test Step: Sweeps a set of parameters across a table of values defined by the user.
 - Sweep Parameter Range Test Step: Sweeps a set of parameters across a range of numeric values. For example, an exponential sweep can be made of values between 1MHz to 1GHz. Or a linear sweep can be done across a number of channels.
 
 ### Test Plan Parameters
-If the setting is parameterized on a test plan, it is sometimes referred to as an "External Parameter" or "Test Plan Parameter". A test plan parameter can be configured from the command line when "tap run" is being used, for example by specifying `-e "Frequency=10MHz"`. It can also be configured from a test plan reference as the referenced test plan parameters are promoted unto the Test Plan Reference test step.
+If the setting is parameterized on a test plan, it is sometimes referred to as an "External Parameter" or "Test Plan Parameter". A test plan parameter can be configured from the command line when "tap run" is being used, for example by specifying `-e "Frequency=10MHz"`. It can also be configured from a test plan reference, as the referenced test plan parameters are promoted onto the Test Plan Reference test step.
 
 ### ExternalParameterAttribute
 
-The ExternalParameterAttribute marks a property that should be an external parameter (Test Plan Parameter) by default. When the test step is inserted into the test plan, these properties will be automatically assigned to test plan parameters. Note, that the setting can be unparameterized manually in cases the default behavior is not wanted.
+The ExternalParameterAttribute marks a property that should be an external parameter (Test Plan Parameter) by default. When the test step is inserted into the test plan, these properties will be automatically assigned to test plan parameters. Note that the setting can be unparameterized manually in case the default behavior is not wanted.
 
 ## Exceptions 
 Exceptions from user code are caught by OpenTAP. This could break the control flow, but all resources will always be closed. If the exception gets caught before PostPlanRun, the steps that had PrePlanRun called will also get PostPlanRun called. When a step fails (by setting the Verdict to *Fail* or *Abort*) or throws an exception, execution can be configured to continue (ignoring the error), or to abort execution, by changing the "Abort Run If" property in Engine settings 
