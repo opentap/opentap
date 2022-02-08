@@ -51,7 +51,7 @@
     </Files>
     <!-- Linux / MacOS files -->
     <Files Condition="$(Platform) != Windows">
-        <File Path="tap"/>
+        <File Path="tap" SourcePath="tap.sh"/>
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so"/>
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.x64"/>
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.arm64"/>
