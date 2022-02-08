@@ -148,8 +148,8 @@ namespace OpenTap.Engine.UnitTests
                 return null;
             }
 
-            event EventHandler cacheInvalidated;
-            public event EventHandler CacheInvalidated
+            event EventHandler<TypeDataCacheInvalidatedEventArgs> cacheInvalidated;
+            public event EventHandler<TypeDataCacheInvalidatedEventArgs> CacheInvalidated
             {
                 add
                 {
@@ -169,9 +169,9 @@ namespace OpenTap.Engine.UnitTests
                 }
             }
 
-            void HardcodedTypesOnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+            void HardcodedTypesOnCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
             {
-                cacheInvalidated?.Invoke(sender, e);
+                cacheInvalidated?.Invoke(sender, new TypeDataCacheInvalidatedEventArgs());
             }
         }
         

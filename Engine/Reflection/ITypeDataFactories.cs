@@ -20,11 +20,11 @@ namespace OpenTap
         static readonly ConcurrentDictionary<ITypeData, ITypeData[]> derivedTypesCache = new ConcurrentDictionary<ITypeData, ITypeData[]>();
 
         /// <summary>  Invoked when new types has been discovered in an asynchronous fashion. </summary>
-        public static event EventHandler TypeCacheInvalidated; 
-        static void OnSearcherCacheInvalidated()
+        public static event EventHandler<TypeDataCacheInvalidatedEventArgs> TypeCacheInvalidated; 
+        static void OnSearcherCacheInvalidated(TypeDataCacheInvalidatedEventArgs args)
         {
             lastCount = 0;
-            TypeCacheInvalidated?.Invoke(null, EventArgs.Empty);
+            TypeCacheInvalidated?.Invoke(null, args);
         }
         
         /// <summary> Get all known types that derive from a given type.</summary>
@@ -156,9 +156,9 @@ namespace OpenTap
             }
         }
 
-        static void CacheInvalidatedOnCacheInvalidated(object sender, EventArgs e)
+        static void CacheInvalidatedOnCacheInvalidated(object sender, TypeDataCacheInvalidatedEventArgs e)
         {
-            OnSearcherCacheInvalidated();
+            OnSearcherCacheInvalidated(e);
         }
 
         /// <summary> Get the type info of an object. </summary>

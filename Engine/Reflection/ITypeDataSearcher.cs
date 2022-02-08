@@ -24,6 +24,12 @@ namespace OpenTap
         void Search();
     }
 
+    /// <summary> Event occuring when the TypeData cache has been invalidated. </summary>
+    public class TypeDataCacheInvalidatedEventArgs : EventArgs
+    {
+        
+    }
+    
     /// <summary>
     /// A type data searcher with a cache invalidation event. This can be useful for notifying the rest of the TypeData system that
     /// new plugins has been found in this cache. 
@@ -31,6 +37,6 @@ namespace OpenTap
     public interface ITypeDataSearcherCacheInvalidated : ITypeDataSearcher
     {
         /// <summary>  Should be invoked when the available type data for a given type data searcher has changed. </summary>
-        event EventHandler CacheInvalidated;
+        event EventHandler<TypeDataCacheInvalidatedEventArgs> CacheInvalidated;
     }
 }
