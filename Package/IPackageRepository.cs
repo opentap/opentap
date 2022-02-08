@@ -11,7 +11,6 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using System.Xml.Serialization;
 
 namespace OpenTap.Package
 {
@@ -221,92 +220,95 @@ namespace OpenTap.Package
         private static TraceSource log = Log.CreateSource("PackageRepository");
         private static VersionSpecifier RequiredApiVersion = new VersionSpecifier(3, 1, 0, "", "", VersionMatchBehavior.Compatible | VersionMatchBehavior.AnyPrerelease); // Required for GraphQL
 
-        internal static List<PackageDef> GetPackageNameAndVersionFromAllRepos(List<IPackageRepository> repositories, PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
+        static void ParallelTryForEach<TSource>(IEnumerable<TSource> source, Action<TSource> body)
         {
-            var list = new List<PackageDef>();
             try
             {
-                string query = 
-                    @"query Query {
-                            packages(distinctName:true" + (id != null ? $",version:\"{id.Version}\",os:\"{id.OS}\",architecture:\"{id.Architecture}\"" : "") + @") {
+                Parallel.ForEach(source, body);
+            }
+            catch (AggregateException ex)
+            {
+                foreach (var inner in ex.InnerExceptions)
+                {
+                    log.Info(inner.Message);
+                    log.Debug(inner);
+                }
+            }
+        }
+
+        internal static List<PackageDef> GetPackageNameAndVersionFromAllRepos(List<IPackageRepository> repositories,
+            PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
+        {
+            var list = new List<PackageDef>();
+
+            string query =
+                @"query Query {
+                            packages(distinctName:true" +
+                (id != null ? $",version:\"{id.Version}\",os:\"{id.OS}\",architecture:\"{id.Architecture}\"" : "") +
+                @") {
                             name
                             version
                         }
                     }";
 
-                Parallel.ForEach(repositories, repo =>
+            ParallelTryForEach(repositories, repo =>
+            {
+                if (repo is HttpPackageRepository httprepo && httprepo.Version != null &&
+                    RequiredApiVersion.IsCompatible(httprepo.Version))
                 {
-                    if (repo is HttpPackageRepository httprepo && httprepo.Version != null && RequiredApiVersion.IsCompatible(httprepo.Version))
+                    var json = httprepo.Query(query);
+                    lock (list)
                     {
-                        var json = httprepo.Query(query);
-                        lock (list)
-                        {
-                            foreach (var item in json["packages"])
-                                list.Add(new PackageDef() { Name = item["name"].ToString(), Version = SemanticVersion.Parse(item["version"].ToString()) });
-                        }
+                        foreach (var item in json["packages"])
+                            list.Add(new PackageDef()
+                            {
+                                Name = item["name"].ToString(),
+                                Version = SemanticVersion.Parse(item["version"].ToString()),
+                                PackageSource = new HttpRepositoryPackageDefSource() { RepositoryUrl = httprepo.Url }
+                            });
                     }
-                    else
-                    {
-                        var packages = repo.GetPackages(id, compatibleWith);
-                        lock (list)
-                        {
-                            list.AddRange(packages);
-                        }
-                    }
-                });
-            }
-            catch (AggregateException ex)
-            {
-                foreach (var inner in ex.InnerExceptions)
-                    log.Error(inner);
-                log.Error(ex);
-            }
-            return list;
-        }
-
-        internal static List<PackageDef> GetPackagesFromAllRepos(List<IPackageRepository> repositories, PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
-        {
-            var list = new List<PackageDef>();
-            try
-            {
-                Parallel.ForEach(repositories, repo =>
+                }
+                else
                 {
                     var packages = repo.GetPackages(id, compatibleWith);
                     lock (list)
                     {
                         list.AddRange(packages);
                     }
-                });
-            }
-            catch (AggregateException ex)
-            {
-                foreach (var inner in ex.InnerExceptions)
-                    log.Error(inner);
-                log.Error(ex);
-            }
+                }
+            });
             return list;
         }
 
-        internal static List<PackageVersion> GetAllVersionsFromAllRepos(List<IPackageRepository> repositories, string packageName, params IPackageIdentifier[] compatibleWith)
+        internal static List<PackageDef> GetPackagesFromAllRepos(List<IPackageRepository> repositories,
+            PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
+        {
+            var list = new List<PackageDef>();
+
+            ParallelTryForEach(repositories, repo =>
+            {
+                var packages = repo.GetPackages(id, compatibleWith);
+                lock (list)
+                {
+                    list.AddRange(packages);
+                }
+            });
+
+            return list;
+        }
+
+        internal static List<PackageVersion> GetAllVersionsFromAllRepos(List<IPackageRepository> repositories,
+            string packageName, params IPackageIdentifier[] compatibleWith)
         {
             var list = new List<PackageVersion>();
-            try
+            ParallelTryForEach(repositories, repo =>
             {
-                Parallel.ForEach(repositories, repo =>
+                var packages = repo.GetPackageVersions(packageName, compatibleWith);
+                lock (list)
                 {
-                    var packages = repo.GetPackageVersions(packageName, compatibleWith);
-                    lock (list)
-                    {
-                        list.AddRange(packages);
-                    }
-                });
-            }
-            catch (AggregateException ex)
-            {
-                foreach (var inner in ex.InnerExceptions)
-                    log.Error(inner);
-                log.Error(ex);
-            }
+                    list.AddRange(packages);
+                }
+            });
             return list;
         }
 

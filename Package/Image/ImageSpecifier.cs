@@ -18,10 +18,12 @@ namespace OpenTap.Package
         /// Desired packages in the installation
         /// </summary>
         public List<PackageSpecifier> Packages { get; set; } = new List<PackageSpecifier>();
+
         /// <summary>
         /// OpenTAP repositories to fetch the desired packages from
         /// </summary>
-        public List<string> Repositories { get; set; } = new List<string>();
+        public List<string> Repositories { get; set; } =
+            new List<string>() { PackageCacheHelper.PackageCacheDirectory };
 
         /// <summary>
         /// Resolve the desired packages from the specified repositories. This will check if the packages are available, compatible and can successfully be deployed as an OpenTAP installation
