@@ -717,9 +717,6 @@ namespace OpenTap.Package
             [XmlAttribute]
             public string Attributes { get; set; }
 
-            [XmlAttribute] public bool ExcludePdb { get; set; } = false;
-            internal bool IncludePdb => !ExcludePdb;
-
             internal string[] Features => Attributes.ToLower()
                 .Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(s => s.Trim()).Distinct().ToArray();
@@ -740,7 +737,6 @@ namespace OpenTap.Package
             {
                 var data = file.GetCustomData<SetAssemblyInfoData>().ToArray();
                 if (!data.Any(d => d.Features.Contains("version"))) continue;
-                var includePdb = data.Any(d => d.IncludePdb);
 
                 log.Debug(timer, "Updating version info for '{0}'", file.FileName);
 
@@ -762,19 +758,20 @@ namespace OpenTap.Package
                 ProgramHelper.FileCopy(file.FileName, tempName);
                 file.SourcePath = tempName;
 
-                if (includePdb)
+                var includePdb = true;
+
+                var basename = Path.GetFileNameWithoutExtension(file.SourcePath);
+                if (pdbMap.TryGetValue(basename, out var pdbFile) &&
+                    Path.GetFileName(pdbFile.FileName) is string symbolsFile && File.Exists(symbolsFile))
                 {
-                    var basename = Path.GetFileNameWithoutExtension(file.SourcePath);
-                    if (pdbMap.TryGetValue(basename, out var pdbFile) && Path.GetFileName(pdbFile.FileName) is string symbolsFile && File.Exists(symbolsFile))
-                    {
-                        var pdbTempName = Path.ChangeExtension(tempName, "pdb");
-                        File.Copy(symbolsFile, pdbTempName);
-                        pdbFile.SourcePath = pdbTempName;
-                    }
-                    else
-                    {
-                        includePdb = false;
-                    }
+                    var pdbTempName = Path.ChangeExtension(tempName, "pdb");
+                    File.Copy(symbolsFile, pdbTempName);
+                    pdbFile.SourcePath = pdbTempName;
+                }
+                else
+                {
+                    // The pdb file is not part of the package -- don't include it
+                    includePdb = false;
                 }
 
                 var fVersion = version;

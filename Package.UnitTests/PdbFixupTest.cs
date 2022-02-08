@@ -11,30 +11,28 @@ namespace OpenTap.Package.UnitTests
     [TestFixture]
     public class PdbFixupTest
     {
-        [TestCase(true)]
-        [TestCase(false)]
-        public void OpenTapSymbolsFixed(bool excludeSymbols)
+        [Test]
+        public void OpenTapSymbolsFixed()
         {
             var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <Package Name=""TestPackage""   Version=""1.0.0"" OS=""{OperatingSystem.Current}"" Architecture=""x64"">
     <Files>
          <File Path=""tap.dll"">
-            <SetAssemblyInfo Attributes=""Version"" ExcludePdb=""{excludeSymbols}"" />
+            <SetAssemblyInfo Attributes=""Version"" />
         </File>
         <File Path=""OpenTap.dll"">
-            <SetAssemblyInfo Attributes=""Version"" ExcludePdb=""{excludeSymbols}"" />
+            <SetAssemblyInfo Attributes=""Version"" />
         </File>
         <File Path=""OpenTap.Package.dll"">
-            <SetAssemblyInfo Attributes=""Version"" ExcludePdb=""{excludeSymbols}"" />
+            <SetAssemblyInfo Attributes=""Version"" />
         </File>
         <File Path=""OpenTap.Plugins.BasicSteps.dll"">
-            <SetAssemblyInfo Attributes=""Version"" ExcludePdb=""{excludeSymbols}"" />
+            <SetAssemblyInfo Attributes=""Version"" />
         </File>
         <File Path=""OpenTap.Cli.dll"">
-            <SetAssemblyInfo Attributes=""Version"" ExcludePdb=""{excludeSymbols}"" />
+            <SetAssemblyInfo Attributes=""Version"" />
         </File>
         <File Path=""tap.pdb""/>
-        <File Path=""OpenTap.pdb""/>
         <File Path=""OpenTap.Package.pdb""/>
         <File Path=""OpenTap.Plugins.BasicSteps.pdb""/>
         <File Path=""OpenTap.Cli.pdb""/>
@@ -46,7 +44,7 @@ namespace OpenTap.Package.UnitTests
             var outFile = Path.GetTempFileName();
             
             var files = new string[]
-                { "tap", "OpenTap", "OpenTap.Package", "OpenTap.Plugins.BasicSteps", "OpenTap.Cli" };
+                { "tap", "OpenTap.Package", "OpenTap.Plugins.BasicSteps", "OpenTap.Cli" };
 
             var create = new PackageCreateAction()
             {
@@ -83,6 +81,7 @@ namespace OpenTap.Package.UnitTests
 
                     void load()
                     {
+                        // This will throw if the symbols don't match
                         AssemblyDefinition.ReadAssembly(asmStream,
                             new ReaderParameters()
                             {
@@ -91,10 +90,14 @@ namespace OpenTap.Package.UnitTests
                             });
                     }
 
-                    if (excludeSymbols)
-                        Assert.Throws<SymbolsNotMatchingException>(load);
-                    else
+                    try
+                    {
                         load();
+                    }
+                    catch
+                    {
+                        Assert.Fail("Debugging symbols did not match!");
+                    }
                 }
             }
             finally
