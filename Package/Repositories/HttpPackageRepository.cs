@@ -26,7 +26,6 @@ namespace OpenTap.Package
     /// </summary>
     public class HttpPackageRepository : IPackageRepository, IPackageDownloadProgress
     {
-#pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
         private static TraceSource log = Log.CreateSource("HttpPackageRepository");
         private const string ApiVersion = "3.0";
         private VersionSpecifier MinRepoVersion = new VersionSpecifier(3, 0, 0, "", "", VersionMatchBehavior.AnyPrerelease | VersionMatchBehavior.Compatible);
@@ -45,8 +44,16 @@ namespace OpenTap.Package
                 return httpClient;
             }
         }
+
+        /// <summary>
+        /// If true, most warnings will be logged as debug messages
+        /// </summary>
         public bool IsSilent;
         private SemanticVersion _version;
+
+        /// <summary>
+        /// Get or set the version of the repository
+        /// </summary>
         public SemanticVersion Version
         {
             get
@@ -61,6 +68,11 @@ namespace OpenTap.Package
                 _version = value;
             }
         }
+
+        /// <summary>
+        /// Initialize a http repository with the given URL
+        /// </summary>
+        /// <param name="url"></param>
 
         public HttpPackageRepository(string url)
         {
@@ -81,6 +93,7 @@ namespace OpenTap.Package
             string installDir = ExecutorClient.ExeDir;
             UpdateId = String.Format("{0:X8}{1:X8}", MurMurHash3.Hash(id), MurMurHash3.Hash(installDir));
         }
+
         Action<string, long, long> IPackageDownloadProgress.OnProgressUpdate { get; set; }
         internal static string GetUserId()
         {
@@ -432,11 +445,22 @@ namespace OpenTap.Package
         }
 
         #region IPackageRepository Implementation
+
+        /// <summary>
+        /// Get the URL of the repository
+        /// </summary>
         public string Url { get; set; }
+
+        /// <summary>
+        /// Download a package to a specific destination
+        /// </summary>
+        /// <param name="package"></param>
+        /// <param name="destination"></param>
+        /// <param name="cancellationToken"></param>
         public void DownloadPackage(IPackageIdentifier package, string destination, CancellationToken cancellationToken)
         {
             var tmpPath = destination + "." + Guid.NewGuid().ToString();
-            //Use DeleteOnClose to auto-magically remove the file when the stream or application is closed. 
+            //Use DeleteOnClose to auto-magically remove the file when the stream or application is closed.
             using (var tmpFile = new FileStream(tmpPath, FileMode.Create, FileAccess.ReadWrite,
                 FileShare.Delete | FileShare.Read, 4096, FileOptions.DeleteOnClose))
             {
@@ -472,6 +496,13 @@ namespace OpenTap.Package
             }
         }
 
+        /// <summary>
+        /// Get the names of the available packages in the repository
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <param name="compatibleWith"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public string[] GetPackageNames(CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             string response;
@@ -513,6 +544,12 @@ namespace OpenTap.Package
                 throw new Exception($"Invalid xml from package repository at '{defaultUrl}'.");
             }
         }
+
+        /// <summary>
+        /// Get the names of the available packages in the repository with the specified class
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public string[] GetPackageNames(string @class, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             string response;
@@ -555,6 +592,13 @@ namespace OpenTap.Package
             }
         }
 
+        /// <summary>
+        /// Get the available versions of packages with name 'packageName' and optionally compatible with a list of packages
+        /// </summary>
+        /// <param name="packageName"></param>
+        /// <param name="cancellationToken"></param>
+        /// <param name="compatibleWith"></param>
+        /// <returns></returns>
         public PackageVersion[] GetPackageVersions(string packageName, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             string response;
@@ -584,6 +628,13 @@ namespace OpenTap.Package
             return pkgs;
         }
 
+        /// <summary>
+        /// Get the available versions of packages matching 'package' and optionally compatible with a list of packages
+        /// </summary>
+        /// <param name="package"></param>
+        /// <param name="cancellationToken"></param>
+        /// <param name="compatibleWith"></param>
+        /// <returns></returns>
         public PackageDef[] GetPackages(PackageSpecifier package, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             List<string> reqs = new List<string>();
@@ -612,6 +663,9 @@ namespace OpenTap.Package
             return packagesFromXml(downloadPackagesString("/" + ApiVersion + endpoint));
         }
 
+        /// <summary>
+        /// Get Client ID
+        /// </summary>
         public string UpdateId;
 
         private string PackageNameHash(string packageName)
@@ -624,6 +678,12 @@ namespace OpenTap.Package
             }
         }
 
+        /// <summary>
+        /// Query the repository for updated versions of specified packages
+        /// </summary>
+        /// <param name="packages"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         public PackageDef[] CheckForUpdates(IPackageIdentifier[] packages, CancellationToken cancellationToken)
         {
             List<PackageDef> latestPackages = new List<PackageDef>();
@@ -667,11 +727,25 @@ namespace OpenTap.Package
         }
         #endregion
 
+        /// <summary>
+        /// Send the GraphQL query string to the repository.
+        /// </summary>
+        /// <param name="query">A GraphQL query string</param>
+        /// <returns>A JObject containing the GraphQL response</returns>
+        [Obsolete("Please use SendQuery or SendQueryAsync instead.")]
         public JObject Query(string query)
         {
             var response = downloadPackagesString($"/3.1/query", query, "application/json", "application/json");
             var json = JObject.Parse(response);
             return json;
         }
+
+        /// <summary>
+        /// Send the GraphQL query string to the repository.
+        /// </summary>
+        /// <param name="query">A GraphQL query string</param>
+        /// <returns>A JSON string containing the GraphQL response</returns>
+        public string QueryGraphQL(string query) =>
+            downloadPackagesString($"/3.1/query", query, "application/json", "application/json");
     }
 }

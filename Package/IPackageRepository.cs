@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
+using Newtonsoft.Json.Linq;
 
 namespace OpenTap.Package
 {
@@ -256,7 +257,8 @@ namespace OpenTap.Package
                 if (repo is HttpPackageRepository httprepo && httprepo.Version != null &&
                     RequiredApiVersion.IsCompatible(httprepo.Version))
                 {
-                    var json = httprepo.Query(query);
+                    var jsonString = httprepo.QueryGraphQL(query);
+                    var json = JObject.Parse(jsonString);
                     lock (list)
                     {
                         foreach (var item in json["packages"])
