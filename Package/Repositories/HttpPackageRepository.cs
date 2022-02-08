@@ -546,7 +546,7 @@ namespace OpenTap.Package
         }
 
         /// <summary>
-        /// Get the names of the available packages in the repository with class <see cref="@class"/>
+        /// Get the names of the available packages in the repository with the specified class
         /// </summary>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
@@ -629,7 +629,7 @@ namespace OpenTap.Package
         }
 
         /// <summary>
-        /// Get the available versions of packages matching <see cref="package"/> and optionally compatible with a list of packages
+        /// Get the available versions of packages matching 'package' and optionally compatible with a list of packages
         /// </summary>
         /// <param name="package"></param>
         /// <param name="cancellationToken"></param>
