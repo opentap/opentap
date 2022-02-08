@@ -548,8 +548,6 @@ namespace OpenTap.Package
         /// <summary>
         /// Get the names of the available packages in the repository with class <see cref="@class"/>
         /// </summary>
-        /// <param name="cancellationToken"></param>
-        /// <param name="compatibleWith"></param>
         /// <returns></returns>
         /// <exception cref="Exception"></exception>
         public string[] GetPackageNames(string @class, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
@@ -595,7 +593,7 @@ namespace OpenTap.Package
         }
 
         /// <summary>
-        /// Get the available versions of packages with name <see cref="packageName"/> and optionally compatible with a list of packages
+        /// Get the available versions of packages with name 'packageName' and optionally compatible with a list of packages
         /// </summary>
         /// <param name="packageName"></param>
         /// <param name="cancellationToken"></param>
@@ -633,7 +631,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Get the available versions of packages matching <see cref="package"/> and optionally compatible with a list of packages
         /// </summary>
-        /// <param name="packageName"></param>
+        /// <param name="package"></param>
         /// <param name="cancellationToken"></param>
         /// <param name="compatibleWith"></param>
         /// <returns></returns>
@@ -729,6 +727,11 @@ namespace OpenTap.Package
         }
         #endregion
 
+        /// <summary>
+        /// Send the GraphQL query string to the repository.
+        /// </summary>
+        /// <param name="query">A GraphQL query string</param>
+        /// <returns>A JObject containing the GraphQL response</returns>
         [Obsolete("Please use SendQuery or SendQueryAsync instead.")]
         public JObject Query(string query)
         {
