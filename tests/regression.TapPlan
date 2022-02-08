@@ -114,13 +114,25 @@
               <StepMapping />
               <Enabled>true</Enabled>
               <Name>Test Plan: {Referenced Plan}</Name>
-          <BreakConditions>Inherit</BreakConditions>
-        </TestStep>
-        <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="13d39559-0c3b-407c-8ac0-7e998324567d">
-          <Filepath>../../tests/test-cli-args.TapPlan</Filepath>
-          <StepMapping />
-          <Enabled>true</Enabled>
-          <Name>Test Plan {Referenced Plan}</Name>
+              <BreakConditions>Inherit</BreakConditions>
+            </TestStep>
+            <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="13d39559-0c3b-407c-8ac0-7e998324567d">
+              <Filepath>../../tests/test-cli-args.TapPlan</Filepath>
+              <StepMapping />
+              <Enabled>true</Enabled>
+              <Name>Test Plan {Referenced Plan}</Name>
+              <BreakConditions>Inherit</BreakConditions>
+            </TestStep>
+            <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="33283dfc-1947-4ba9-b845-d62df5472597">
+              <Filepath>../../tests/test-sdk-templates.TapPlan</Filepath>
+              <StepMapping>
+                <GuidMapping>
+                  <Guid1>154cf1ab-d46d-4533-9a0e-2b5b5eeca0f7</Guid1>
+                  <Guid2>1cfd4c46-a9be-4fc2-9c80-89b559e26eb3</Guid2>
+                </GuidMapping>
+              </StepMapping>
+              <Enabled>true</Enabled>
+              <Name>Test Plan {Referenced Plan}</Name>
               <BreakConditions>Inherit</BreakConditions>
             </TestStep>
           </ChildTestSteps>

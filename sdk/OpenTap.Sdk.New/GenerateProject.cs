@@ -10,14 +10,12 @@ using OpenTap.Package;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using Newtonsoft.Json;
 
 namespace OpenTap.Sdk.New
 {
@@ -82,8 +80,51 @@ namespace OpenTap.Sdk.New
             
         }
 
+        private bool Validate()
+        {
+            var startsWithNumber = new Regex("^\\d+");
+            if (startsWithNumber.IsMatch(Name))
+            {
+                log.Error($"Invalid project name: '{Name}' starts with a digit.");
+                return false;
+            }
+
+            { // Check invalid filename chars
+                bool anyInvalid = false;
+                var invalid = Path.GetInvalidFileNameChars().Concat(" ");
+                var line1 = $"\"{Name}\"";
+                var line2 = new StringBuilder();
+                line2.Append(" ");
+                foreach (var ch in Name)
+                {
+                    if (invalid.Contains(ch))
+                    {
+                        line2.Append("^");
+                        anyInvalid = true;
+                    }
+                    else
+                        line2.Append(" ");
+                }
+
+                if (anyInvalid)
+                {
+                    log.Error($"Invalid project name: '{Name}' contains illegal characters.");
+                    log.Error(line1);
+                    log.Error(line2.ToString());
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
         public override int Execute(CancellationToken cancellationToken)
         {
+            if (!Validate())
+            {
+                return (int)ExitCodes.ArgumentError;
+            }
+
             var dest = string.IsNullOrWhiteSpace(output) ? new DirectoryInfo(WorkingDirectory) : new DirectoryInfo(output);
             
             if (!dest.Exists)
@@ -172,6 +213,9 @@ namespace OpenTap.Sdk.New
             
             if (dest.Exists)
             {
+                var ignore = dest.EnumerateFiles().FirstOrDefault(x => x.Name == ".OpenTapIgnore");
+                if (ignore != null) return null;
+
                 var file = dest.EnumerateFiles().FirstOrDefault(x => x.Name == "OpenTap.dll");
                 if (file != null)
                 {
