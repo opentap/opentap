@@ -23,6 +23,11 @@ namespace OpenTap.Sdk.New
 
         public override int Execute(CancellationToken cancellationToken)
         {
+            if (!Validate(name: Name, allowSpaces: false, allowLeadingNumbers: false))
+            {
+                return (int)ExitCodes.ArgumentError;
+            }
+
             using (var reader = new StreamReader(Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("OpenTap.Sdk.New.Resources.DutTemplate.txt")))
             {
@@ -42,6 +47,11 @@ namespace OpenTap.Sdk.New
 
         public override int Execute(CancellationToken cancellationToken)
         {
+            if (!Validate(name: Name, allowSpaces: false, allowLeadingNumbers: false))
+            {
+                return (int)ExitCodes.ArgumentError;
+            }
+
             using (var reader = new StreamReader(Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("OpenTap.Sdk.New.Resources.InstrumentTemplate.txt")))
             {
@@ -60,6 +70,11 @@ namespace OpenTap.Sdk.New
 
         public override int Execute(CancellationToken cancellationToken)
         {
+            if (!Validate(name: Name, allowSpaces: false, allowLeadingNumbers: false))
+            {
+                return (int)ExitCodes.ArgumentError;
+            }
+
             using (var reader = new StreamReader(Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("OpenTap.Sdk.New.Resources.ResultListenerTemplate.txt")))
             {
@@ -78,6 +93,11 @@ namespace OpenTap.Sdk.New
 
         public override int Execute(CancellationToken cancellationToken)
         {
+            if (!Validate(name: Name, allowSpaces: false, allowLeadingNumbers: false))
+            {
+                return (int)ExitCodes.ArgumentError;
+            }
+
             using (var reader = new StreamReader(Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("OpenTap.Sdk.New.Resources.SettingsTemplate.txt")))
             {
@@ -96,6 +116,11 @@ namespace OpenTap.Sdk.New
 
         public override int Execute(CancellationToken cancellationToken)
         {
+            if (!Validate(name: Name, allowSpaces: false, allowLeadingNumbers: false))
+            {
+                return (int)ExitCodes.ArgumentError;
+            }
+
             using (var reader = new StreamReader(Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("OpenTap.Sdk.New.Resources.TestStepTemplate.txt")))
             {
@@ -118,6 +143,11 @@ namespace OpenTap.Sdk.New
 
         public override int Execute(CancellationToken cancellationToken)
         {
+            if (!Validate(name: Name, allowSpaces: true, allowLeadingNumbers: true))
+            {
+                return (int)ExitCodes.ArgumentError;
+            }
+
             using (var reader = new StreamReader(Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("OpenTap.Sdk.New.Resources.TapPlanTemplate.txt")))
             {
@@ -150,6 +180,11 @@ namespace OpenTap.Sdk.New
 
         public override int Execute(CancellationToken cancellationToken)
         {
+            if (!Validate(name: Name, allowSpaces: false, allowLeadingNumbers: false))
+            {
+                return (int)ExitCodes.ArgumentError;
+            }
+
             using (var reader = new StreamReader(Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("OpenTap.Sdk.New.Resources.CliActionTemplate.txt")))
             {
@@ -168,6 +203,11 @@ namespace OpenTap.Sdk.New
 
         public override int Execute(CancellationToken cancellationToken)
         {
+            if (!Validate(name: Name, allowSpaces: true, allowLeadingNumbers: true))
+            {
+                return (int)ExitCodes.ArgumentError;
+            }
+
             using (var reader = new StreamReader(Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream("OpenTap.Sdk.New.Resources.PackageXmlTemplate.txt")))
             {

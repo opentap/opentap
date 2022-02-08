@@ -80,53 +80,9 @@ namespace OpenTap.Sdk.New
             
         }
 
-        private bool Validate()
-        {
-            bool anyInvalid = false;
-            var invalid = Path.GetInvalidFileNameChars().Concat(" ").ToArray();
-            var line1 = $"\"{Name}\"";
-            var sb = new StringBuilder();
-
-            bool leading = true;
-
-            foreach (var ch in Name)
-            {
-                if (leading)
-                {
-                    if (char.IsNumber(ch))
-                    {
-                        sb.Append("^");
-                        anyInvalid = true;
-                        continue;
-                    }
-                }
-
-                leading = false;
-
-                // Then detect any invalid filename or C# identifier chars
-                if (invalid.Contains(ch))
-                {
-                    sb.Append("^");
-                    anyInvalid = true;
-                }
-                else sb.Append(" ");
-            }
-
-            if (anyInvalid)
-            {
-                var stringStart = "Invalid project name: '";
-                log.Error($"{stringStart}{Name}' contains illegal characters.");
-                var hint = sb.ToString();
-                log.Error(hint.PadLeft("Invalid project name: '".Length + hint.Length));
-                return false;
-            }
-
-            return true;
-        }
-
         public override int Execute(CancellationToken cancellationToken)
         {
-            if (!Validate())
+            if (!Validate(name: Name, allowSpaces: false, allowLeadingNumbers: false))
             {
                 return (int)ExitCodes.ArgumentError;
             }

@@ -7,6 +7,7 @@ using OpenTap.Cli;
 using System;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 
@@ -14,6 +15,50 @@ namespace OpenTap.Sdk.New
 {
     public abstract class GenerateType : ICliAction
     {
+        internal bool Validate(string name, bool allowSpaces, bool allowLeadingNumbers)
+        {
+            bool anyInvalid = false;
+            var invalid = Path.GetInvalidFileNameChars();
+            if (!allowSpaces) invalid = invalid.Concat(" ").ToArray();
+            var sb = new StringBuilder();
+
+            var leading = !allowLeadingNumbers;
+
+            foreach (var ch in name)
+            {
+                if (leading)
+                {
+                    if (char.IsNumber(ch))
+                    {
+                        sb.Append("^");
+                        anyInvalid = true;
+                        continue;
+                    }
+                }
+
+                leading = false;
+
+                // Then detect any invalid filename or C# identifier chars
+                if (invalid.Contains(ch))
+                {
+                    sb.Append("^");
+                    anyInvalid = true;
+                }
+                else sb.Append(" ");
+            }
+
+            if (anyInvalid)
+            {
+                var stringStart = "Invalid name specified: '";
+                log.Error($"{stringStart}{name}' contains illegal characters.");
+                var hint = sb.ToString();
+                log.Error(hint.PadLeft(stringStart.Length + hint.Length));
+                return false;
+            }
+
+            return true;
+        }
+
         public TraceSource log = Log.CreateSource("New");
 
         [CommandLineArgument("out", ShortName = "o", Description = "Path to generated file.")]
