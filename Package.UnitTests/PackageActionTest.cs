@@ -201,10 +201,9 @@ namespace OpenTap.Package.UnitTests
                 {
                     Log.AddListener(log);
                     Assert.AreEqual(0, act.Execute(CancellationToken.None));
-                    Log.Flush();
                 }
 
-                var warningLog = log.Events.FirstOrDefault(x =>
+                Event? warningLog = log.Events.FirstOrNull(x =>
                     x.EventType == (int) LogEventType.Warning &&
                     x.Message.Contains("is incompatible with the host platform"));
                 if (OperatingSystem.Current != OperatingSystem.Windows)
@@ -234,31 +233,31 @@ namespace OpenTap.Package.UnitTests
             try
             {
                 var log = new LoggingTraceListener();
+                int exitCode;
                 using (Session.Create(SessionOptions.RedirectLogging))
                 {
                     Log.AddListener(log);
-                    var exitCode = act.Execute(CancellationToken.None);
-                    if (OperatingSystem.Current == OperatingSystem.Windows || specifyPlatform)
-                    {
-                        Assert.AreEqual(0, exitCode);
-                        var warningLog = log.Events.FirstOrDefault(x =>
-                            x.EventType == (int) LogEventType.Warning &&
-                            x.Message.Contains("is incompatible with the host platform"));
-                        if (specifyPlatform)
-                            Assert.IsNotNull(warningLog);
-                        if (!specifyPlatform)
-                            Assert.IsNull(warningLog);
-                    }
+                    exitCode = act.Execute(CancellationToken.None);
+                    
+                }
+                if (OperatingSystem.Current == OperatingSystem.Windows || specifyPlatform)
+                {
+                    Assert.AreEqual(0, exitCode);
+                    var warningLog = log.Events.FirstOrNull(x =>
+                        x.EventType == (int) LogEventType.Warning &&
+                        x.Message.Contains("is incompatible with the host platform"));
+                    if (specifyPlatform && OperatingSystem.Current != OperatingSystem.Windows)
+                        Assert.IsNotNull(warningLog);
                     else
-                    {
-                        var errorlog = log.Events.FirstOrDefault(x =>
-                            x.EventType == (int) LogEventType.Error &&
-                            x.Message.Contains("is incompatible with the host platform"));
-                        Assert.AreNotEqual(0, exitCode);
-                        Assert.IsNotNull(errorlog);
-                    }
-
-                    Log.Flush();
+                        Assert.IsNull(warningLog);
+                }
+                else
+                {
+                    var errorlog = log.Events.FirstOrNull(x =>
+                        x.EventType == (int) LogEventType.Error &&
+                        x.Message.Contains("is incompatible with the host platform"));
+                    Assert.AreNotEqual(0, exitCode);
+                    Assert.IsNotNull(errorlog);
                 }
             }
             finally
