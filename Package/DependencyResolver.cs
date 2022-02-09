@@ -567,7 +567,7 @@ namespace OpenTap.Package
             {
                 if (!verticesWritten.Contains(edge.From.Name))
                 {
-                    stringBuilder.Append($"\"{edge.From.Name}\"[color=blue];");
+                    stringBuilder.Append($"\"{edge.From.Name}\"[shape=square];");
                     verticesWritten.Add(edge.From.Name);
                 }
             }
@@ -576,7 +576,7 @@ namespace OpenTap.Package
             {
                 if (!verticesWritten.Contains(edge.PackageSpecifier.Name))
                 {
-                    stringBuilder.Append($"\"{edge.PackageSpecifier.Name}\"[color=orange];");
+                    stringBuilder.Append($"\"{edge.PackageSpecifier.Name}\"[color=orange,style=dashed];");
                     verticesWritten.Add(edge.PackageSpecifier.Name);
                 }
             }
@@ -584,7 +584,7 @@ namespace OpenTap.Package
             {
                 if (!verticesWritten.Contains(edge.PackageSpecifier.Name))
                 {
-                    stringBuilder.Append($"\"{edge.PackageSpecifier.Name}\"[color=red];");
+                    stringBuilder.Append($"\"{edge.PackageSpecifier.Name}\"[style=dashed];");
                     verticesWritten.Add(edge.PackageSpecifier.Name);
                 }
             }
