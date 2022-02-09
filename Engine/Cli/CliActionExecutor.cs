@@ -10,7 +10,7 @@ using System.Linq;
 using System.IO;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Threading;
+using System.Xml.Linq;
 
 namespace OpenTap.Cli
 {
@@ -268,7 +268,26 @@ namespace OpenTap.Cli
             // Print default info
             if (selectedCommand == null)
             {
-                Console.WriteLine("OpenTAP Command Line Interface ({0})",Assembly.GetExecutingAssembly().GetSemanticVersion().ToString(4));
+                string getVersion()
+                {
+                    // We cannot access the 'OpenTap.Package.Installation.Current' from Engine. Parse the XML instead.
+                    var xmlFile = Path.Combine(ExecutorClient.ExeDir, "Packages", "OpenTAP", "package.xml");
+                    if (File.Exists(xmlFile))
+                    {
+                        try
+                        {
+                            var pkg = XElement.Load(xmlFile);
+                            if (pkg.Attribute("Version") is XAttribute x) return x.Value;
+                        }
+                        catch
+                        {
+                            // This is fine to silently ignore
+                        }
+                    }
+                    return Assembly.GetExecutingAssembly().GetSemanticVersion().ToString(4);
+                }
+
+                Console.WriteLine("OpenTAP Command Line Interface ({0})", getVersion());
                 Console.WriteLine("Usage: tap <command> [<subcommand(s)>] [<args>]\n");
 
                 if (selectedcmd == null)

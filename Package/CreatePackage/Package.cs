@@ -716,34 +716,36 @@ namespace OpenTap.Package
         {
             [XmlAttribute]
             public string Attributes { get; set; }
+
+            internal string[] Features => Attributes.ToLower()
+                .Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim()).Distinct().ToArray();
         }
 
         private static void UpdateVersionInfo(string tempDir, List<PackageFile> files, SemanticVersion version)
         {
-            var features = files.Where(f => f.HasCustomData<SetAssemblyInfoData>()).SelectMany(f => string.Join(",", f.GetCustomData<SetAssemblyInfoData>().Select(a => a.Attributes)).Split(',').Select(str => str.Trim().ToLower())).Distinct().ToHashSet();
-
-            if (!features.Any())
-                return;
             var timer = Stopwatch.StartNew();
+
+            var pdbMap = new Dictionary<string, PackageFile>();
+            foreach (var file in files.GroupBy(f => Path.GetFileNameWithoutExtension(f.FileName)))
+            {
+                var symbols = file.ToArray().FirstOrDefault(f => Path.GetExtension(f.FileName).Equals(".pdb", StringComparison.OrdinalIgnoreCase));
+                if (symbols != null) pdbMap[file.Key] = symbols;
+            }
 
             foreach (var file in files)
             {
-                if (!file.HasCustomData<SetAssemblyInfoData>())
-                    continue;
-
-                var toSet = string.Join(",", file.GetCustomData<SetAssemblyInfoData>().Select(a => a.Attributes)).Split(',').Select(str => str.Trim().ToLower()).Distinct().ToHashSet();
-
-                if (!toSet.Any())
-                    continue;
+                var data = file.GetCustomData<SetAssemblyInfoData>().ToArray();
+                if (!data.Any(d => d.Features.Contains("version"))) continue;
 
                 log.Debug(timer, "Updating version info for '{0}'", file.FileName);
-
 
                 // Assume we can't open the file for writing (could be because we are trying to modify TPM or the engine), and copy to the same filename in a subdirectory
                 var versionedOutput = Path.Combine(tempDir, "Versioned");
 
                 var origFilename = Path.GetFileName(file.FileName);
                 var tempName = Path.Combine(versionedOutput, origFilename);
+
                 int i = 1;
                 while (File.Exists(tempName))
                 {
@@ -751,20 +753,31 @@ namespace OpenTap.Package
                     i++;
                 }
 
+
                 Directory.CreateDirectory(Path.GetDirectoryName(tempName));
                 ProgramHelper.FileCopy(file.FileName, tempName);
                 file.SourcePath = tempName;
 
-                SemanticVersion fVersion = null;
-                Version fVersionShort = null;
+                var includePdb = true;
 
-                if (toSet.Contains("version"))
+                var basename = Path.GetFileNameWithoutExtension(file.SourcePath);
+                if (pdbMap.TryGetValue(basename, out var pdbFile) &&
+                    Path.GetFileName(pdbFile.FileName) is string symbolsFile && File.Exists(symbolsFile))
                 {
-                    fVersion = version;
-                    fVersionShort = new Version(version.ToString(3));
+                    var pdbTempName = Path.ChangeExtension(tempName, "pdb");
+                    File.Copy(symbolsFile, pdbTempName);
+                    pdbFile.SourcePath = pdbTempName;
+                }
+                else
+                {
+                    // The pdb file is not part of the package -- don't include it
+                    includePdb = false;
                 }
 
-                SetAsmInfo.SetAsmInfo.SetInfo(file.FileName, fVersionShort, fVersionShort, fVersion);
+                var fVersion = version;
+                var fVersionShort = new Version(version.ToString(3));
+
+                SetAsmInfo.SetAsmInfo.SetInfo(file.FileName, fVersionShort, fVersionShort, fVersion, includePdb);
                 file.RemoveCustomData<SetAssemblyInfoData>();
             }
             log.Info(timer,"Updated assembly version info using Mono method.");
