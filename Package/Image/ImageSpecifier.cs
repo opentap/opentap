@@ -13,7 +13,11 @@ namespace OpenTap.Package
     /// </summary>
     public class ImageSpecifier
     {
-        static TraceSource log = Log.CreateSource("ImageResolution");
+        /// <summary>
+        /// Optional name of the ImageSpecifier. Used for debugging purposes.
+        /// </summary>
+        public string Name { get; set; } = "";
+
         /// <summary>
         /// Desired packages in the installation
         /// </summary>
@@ -36,12 +40,30 @@ namespace OpenTap.Package
 
             DependencyResolver resolver = new DependencyResolver(Packages, repositories, cancellationToken);
 
-            string dotGraph = resolver.GetDotNotation("Image");
-            log.Debug($"https://quickchart.io/graphviz?graph={WebUtility.UrlEncode(dotGraph)}");
-            log.Flush();
 
             if (resolver.DependencyIssues.Any())
-                throw new ImageResolveException(dotGraph, $"OpenTAP packages could not be resolved", resolver.DependencyIssues);
+                throw new ImageResolveException(resolver.GetDotNotation(), $"OpenTAP packages could not be resolved", resolver.DependencyIssues);
+
+            ImageIdentifier image = new ImageIdentifier(resolver.Dependencies, repositories.Select(s => s.Url));
+
+            return image;
+        }
+
+        public static ImageIdentifier MergeAndResolve(IEnumerable<ImageSpecifier> images, CancellationToken cancellationToken)
+        {
+            List<IPackageRepository> repositories = images.SelectMany(s => s.Repositories).Distinct().Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
+
+            Dictionary<string, List<PackageSpecifier>> packages = new Dictionary<string, List<PackageSpecifier>>();
+            foreach (var img in images)
+            {
+                if (img.Name is null)
+                    img.Name = "Unnamed";
+                packages[img.Name] = img.Packages;
+            }
+            DependencyResolver resolver = new DependencyResolver(packages, repositories, cancellationToken);
+
+            if (resolver.DependencyIssues.Any())
+                throw new ImageResolveException(resolver.GetDotNotation(), $"OpenTAP packages could not be resolved", resolver.DependencyIssues);
 
             ImageIdentifier image = new ImageIdentifier(resolver.Dependencies, repositories.Select(s => s.Url));
 
@@ -62,12 +84,9 @@ namespace OpenTap.Package
             List<IPackageRepository> repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
 
             DependencyResolver resolver = new DependencyResolver(deploymentInstallation, Packages, repositories, cancellationToken);
-            string dotGraph = resolver.GetDotNotation("Image");
-            log.Debug($"https://quickchart.io/graphviz?graph={WebUtility.UrlEncode(dotGraph)}");
-            log.Flush();
 
             if (resolver.DependencyIssues.Any())
-                throw new ImageResolveException(dotGraph, $"OpenTAP packages could not be resolved", resolver.DependencyIssues);
+                throw new ImageResolveException(resolver.GetDotNotation(), $"OpenTAP packages could not be resolved", resolver.DependencyIssues);
 
             var result = resolver.Dependencies.Concat(deploymentInstallation.GetPackages().Where(s => !resolver.Dependencies.Any(p => s.Name == p.Name)));
 

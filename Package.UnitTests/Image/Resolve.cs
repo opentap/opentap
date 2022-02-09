@@ -120,7 +120,7 @@ namespace OpenTap.Image.Tests
         [TestCase("B", "any", "", CpuArchitecture.AnyCPU, "3.2.2-alpha.1")]  // any means we want latest, even if it is a prerelease
         [TestCase("C", "^1.0-beta", "Linux", CpuArchitecture.x86, "1.0.0-beta.1")]
         [TestCase("C", "1.0-beta", "Linux", CpuArchitecture.x86, "1.0.0-beta.1")]
-        [TestCase("C", "^1-beta", "Linux", CpuArchitecture.x86, "1.0.0-beta.1")] 
+        [TestCase("C", "^1-beta", "Linux", CpuArchitecture.x86, "1.0.0-beta.1")]
         [TestCase("C", "1-beta", "Linux", CpuArchitecture.x86, "1.0.0-beta.1")]
         [TestCase("C", "beta", "Linux", CpuArchitecture.x86, "2.0.0-beta.1")]
         [TestCase("C", "^beta", "Linux", CpuArchitecture.x86, "2.0.0")]
@@ -342,7 +342,7 @@ namespace OpenTap.Image.Tests
 
             DependencyResolver resolver = new DependencyResolver(packages, repositories, CancellationToken.None);
 
-            string resolved = resolver.GetDotNotation("Image");
+            string resolved = resolver.GetDotNotation();
             var unknownLine = resolved.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(p => p.Contains("Unknown"));
             Assert.IsNotNull(unknownLine);
             TestContext.WriteLine(resolved);
@@ -400,7 +400,6 @@ namespace OpenTap.Image.Tests
                 Assert.IsTrue(resolver.Dependencies.FirstOrDefault(s => s.Name == split[0]).Version.ToString().StartsWith(split[1]));
             }
         }
-
 
         static List<IPackageRepository> repos = new List<IPackageRepository>
         {

@@ -67,7 +67,7 @@ namespace OpenTap.Package
             InstalledPackages = new Dictionary<string, PackageDef>();
 
             foreach (var specifier in packageSpecifiers)
-                graph.AddEdge(DependencyGraph.Root, DependencyGraph.Unresolved, specifier);
+                graph.AddEdge(new RootVertex("Root"), DependencyGraph.Unresolved, specifier);
 
             resolveGraph(graph, repositories, cancellationToken);
 
@@ -81,7 +81,22 @@ namespace OpenTap.Package
                 InstalledPackages[pkg.Name] = pkg;
 
             foreach (var specifier in packageSpecifiers)
-                graph.AddEdge(DependencyGraph.Root, DependencyGraph.Unresolved, specifier);
+                graph.AddEdge(new RootVertex("Root"), DependencyGraph.Unresolved, specifier);
+
+            resolveGraph(graph, repositories, cancellationToken);
+
+            CategorizeResolvedPackages();
+        }
+
+        internal DependencyResolver(Dictionary<string, List<PackageSpecifier>> packages, List<IPackageRepository> repositories, CancellationToken cancellationToken)
+        {
+            InstalledPackages = new Dictionary<string, PackageDef>();
+
+            foreach (var img in packages)
+            {
+                foreach (var pack in img.Value)
+                    graph.AddEdge(new RootVertex(img.Key), DependencyGraph.Unresolved, pack);
+            }
 
             resolveGraph(graph, repositories, cancellationToken);
 
@@ -95,7 +110,9 @@ namespace OpenTap.Package
             bool unresolvedExists = true;
             while (unresolvedExists)
             {
-                var edges = graph.TraverseEdges()
+                var traversedEdges = graph.TraverseEdges();
+
+                var edges = traversedEdges
                     .Where(s => s.To == DependencyGraph.Unresolved && s.PackageSpecifier.Name != "OpenTAP")
                     .GroupBy(s => s.PackageSpecifier.Name);
 
@@ -149,6 +166,22 @@ namespace OpenTap.Package
         private void resolveEdge(List<DependencyEdge> edges, List<IPackageRepository> repositories, CancellationToken cancellationToken)
         {
             var versions = AlignVersions(edges.Select(s => s.PackageSpecifier).ToList());
+
+            if (versions.Count > 1 && versions.Any(s => s.Version.MatchBehavior == VersionMatchBehavior.Exact))
+            {
+                var highest = versions.OrderByDescending(s => s.Version).FirstOrDefault();
+                foreach (var exactversion in versions.Where(s => s.Version.MatchBehavior == VersionMatchBehavior.Exact))
+                {
+                    if (exactversion != highest && !exactversion.Version.IsSatisfiedBy(highest.Version))
+                    {
+                        ConflictVertex conflictVertex = new ConflictVertex() { Name = edges.FirstOrDefault().PackageSpecifier.Name };
+                        foreach (var edge in edges)
+                            edge.To = conflictVertex;
+
+                        return;
+                    }
+                }
+            }
 
             foreach (var specifier in versions)
             {
@@ -248,10 +281,7 @@ namespace OpenTap.Package
         /// Returns the resolved dependency tree
         /// </summary>
         /// <returns>Multi line dependency tree string</returns>
-        internal string GetDotNotation(string rootName)
-        {
-            return graph.CreateDotNotation(rootName);
-        }
+        internal string GetDotNotation() => graph.CreateDotNotation();
 
         /// <summary>
         /// Populates Dependencies, UnknownDependencies and DependencyIssues based on resolved dependency tree
@@ -265,6 +295,11 @@ namespace OpenTap.Package
             // A dependency is only "missing" if it is not installed and has to be downloaded from a repository
             MissingDependencies = Dependencies.Where(s => !InstalledPackages.Any(p => p.Key == s.Name && s.Version == p.Value.Version)).ToList();
 
+            foreach (var conflict in traversedEdges.Where(s => s.To is ConflictVertex).GroupBy(x => x.PackageSpecifier.Name))
+            {
+                DependencyIssues.Add(new InvalidOperationException($"Requested versions of package '{conflict.Key}' are not compatible: {string.Join(", ", conflict.SelectValues(s => s.PackageSpecifier.Version))}"));
+            }
+
             var multipleVersions = traversedEdges.Where(p => !(p.To is UnknownVertex)).Select(s => s.To).Distinct().GroupBy(x => x.Name);
             foreach (var grp in multipleVersions)
             {
@@ -277,7 +312,7 @@ namespace OpenTap.Package
         {
             foreach (var pkg in packages)
             {
-                graph.AddEdge(DependencyGraph.Root, pkg, new PackageSpecifier(pkg, VersionMatchBehavior.Exact));
+                graph.AddEdge(new RootVertex("Root"), pkg, new PackageSpecifier(pkg, VersionMatchBehavior.Exact));
                 foreach (var dep in pkg.Dependencies)
                 {
                     var spec = new PackageSpecifier(dep.Name, dep.Version, pkg.Architecture, pkg.OS);
@@ -471,7 +506,6 @@ namespace OpenTap.Package
     /// </summary>
     internal class DependencyGraph
     {
-        internal static RootVertex Root = new RootVertex();
         internal static UnresolvedVertex Unresolved = new UnresolvedVertex();
         internal static UnknownVertex Unknown = new UnknownVertex();
         private readonly List<PackageDef> vertices = new List<PackageDef>();
@@ -501,48 +535,68 @@ namespace OpenTap.Package
             edges.Add(new DependencyEdge(from, to, packageSpecifier));
         }
 
-        internal string CreateDotNotation(string rootName)
+        internal string CreateDotNotation()
         {
-            var rootEdges = edges.Where(s => s.From == Root);
+            var rootEdges = edges.Where(s => s.From is RootVertex);
 
             StringBuilder stringBuilder = new StringBuilder();
             stringBuilder.Append("digraph{");
             List<DependencyEdge> visited = new List<DependencyEdge>();
-            List<string> unknownWritten = new List<string>();
+            List<string> verticesWritten = new List<string>();
             foreach (var edge in rootEdges)
             {
                 visited.Add(edge);
-                createDotNotation(edge, stringBuilder, visited, rootName, unknownWritten);
+                createDotNotation(edge, stringBuilder, visited, verticesWritten);
             }
             stringBuilder.Append("}");
 
             return string.Join(Environment.NewLine, stringBuilder.ToString());
         }
 
-        private void createDotNotation(DependencyEdge edge, StringBuilder stringBuilder, List<DependencyEdge> visited, string rootName, List<string> unknownWritten)
+        private void createDotNotation(DependencyEdge edge, StringBuilder stringBuilder, List<DependencyEdge> visited, List<string> verticesWritten)
         {
-            string from = edge.From == Root ? rootName : $"{edge.From.Name}\n{edge.From.Version.ToString(4)}";
-            string to = edge.To == Unknown ? $"{edge.PackageSpecifier.Name}" : $"{edge.To.Name}\n{edge.To.Version.ToString(4)}";
-            if (edge.To != Unknown && !edge.PackageSpecifier.IsCompatible(edge.To))
+            string from = edge.From is RootVertex Root ? Root.Name : $"{edge.From.Name} {edge.From.Version.ToString(4)}";
+            string to = edge.To == Unknown || edge.To is ConflictVertex ? $"{edge.PackageSpecifier.Name}" : $"{edge.To.Name} {edge.To.Version.ToString(4)}";
+
+            if ((edge.To != Unknown && !edge.PackageSpecifier.IsCompatible(edge.To)) || edge.To is ConflictVertex)
                 stringBuilder.Append($"\"{from}\" -> \"{to}\" [label=\"{edge.PackageSpecifier.Version.ToString(4)}\",color=red];");
             else
                 stringBuilder.Append($"\"{from}\" -> \"{to}\" [label=\"{edge.PackageSpecifier.Version.ToString(4)}\"];");
 
+            if(edge.From is RootVertex)
+            {
+                if (!verticesWritten.Contains(edge.From.Name))
+                {
+                    stringBuilder.Append($"\"{edge.From.Name}\"[shape=square];");
+                    verticesWritten.Add(edge.From.Name);
+                }
+            }
+
             if (edge.To is UnknownVertex)
             {
-                if (!unknownWritten.Contains(edge.PackageSpecifier.Name))
+                if (!verticesWritten.Contains(edge.PackageSpecifier.Name))
                 {
-                    stringBuilder.Append($"\"{edge.PackageSpecifier.Name}\"[color=red];");
-                    unknownWritten.Add(edge.PackageSpecifier.Name);
+                    stringBuilder.Append($"\"{edge.PackageSpecifier.Name}\"[color=orange,style=dashed];");
+                    verticesWritten.Add(edge.PackageSpecifier.Name);
                 }
-                return;
             }
+            else if (edge.To is ConflictVertex)
+            {
+                if (!verticesWritten.Contains(edge.PackageSpecifier.Name))
+                {
+                    stringBuilder.Append($"\"{edge.PackageSpecifier.Name}\"[style=dashed];");
+                    verticesWritten.Add(edge.PackageSpecifier.Name);
+                }
+            }
+            if (edge.To is UnknownVertex || edge.To is ConflictVertex)
+                return;
+
             foreach (var dependency in TraverseEdges().Where(s => s.From == edge.To).Distinct())
             {
                 if (!visited.Contains(dependency))
                 {
                     visited.Add(dependency);
-                    createDotNotation(dependency, stringBuilder, visited, rootName, unknownWritten);
+                    createDotNotation(dependency, stringBuilder, visited, verticesWritten);
                 }
             }
         }
@@ -551,7 +605,7 @@ namespace OpenTap.Package
         {
             var visited = new HashSet<DependencyEdge>();
             var queue = new Queue<DependencyEdge>();
-            foreach (var edge in edges.Where(s => s.From == Root))
+            foreach (var edge in edges.Where(s => s.From is RootVertex))
                 queue.Enqueue(edge);
 
 
@@ -569,7 +623,10 @@ namespace OpenTap.Package
     }
     internal class RootVertex : PackageDef
     {
-
+        public RootVertex(string name)
+        {
+            Name = name;
+        }
     }
 
     internal class UnresolvedVertex : PackageDef
@@ -578,6 +635,11 @@ namespace OpenTap.Package
     }
 
     internal class UnknownVertex : PackageDef
+    {
+
+    }
+
+    internal class ConflictVertex : PackageDef
     {
 
     }
