@@ -145,6 +145,9 @@ namespace OpenTap
             /// <summary> If a step completes with verdict 'Inclusive' the step should break execution.</summary>
             [Display("On Inconclusive", "If a step completes with verdict 'inconclusive', stop execution of any subsequent steps at this level, and return control to the parent step.")]
             BreakOnInconclusive = 8,
+            /// <summary> If a step completes with verdict 'Pass' the step should break execution.</summary>
+            [Display("On Pass", "If a step completes with verdict 'pass', stop execution of any subsequent steps at this level, and return control to the parent step.")]
+            BreakOnPass = 16,
         }
         
         AnnotationCollection createEnabledAnnotation()
