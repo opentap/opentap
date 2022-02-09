@@ -197,7 +197,7 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual(3, errors.Length, "Expected 3 errors.");
                 Assert.IsTrue(errors.Any(e =>
                     e.Contains(
-                        $"Package '{TestPackageName}' is required to load the test plan, but it is not installed.")));
+                        $"Package '{TestPackageName}' is required to load, but it is not installed.")));
                 Assert.IsTrue(errors.Any(e =>
                     e.Contains(
                         $"File '{ReferencedFile}' from package '{TestPackageName}' is required by the test plan, but it could not be found.")));

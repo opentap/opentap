@@ -120,7 +120,7 @@ namespace OpenTap.Package
                     }
                     else
                     {
-                        errors.Add($"Package '{packageName}' is required to load the test plan, but it is not installed.");
+                        errors.Add($"Package '{packageName}' is required to load, but it is not installed.");
                     }
 
                     if (UsePlatformInteraction)
