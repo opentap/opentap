@@ -1724,5 +1724,41 @@ namespace OpenTap.UnitTests
                 annotation.Read();
             }
         }
+
+        public enum Overlapping
+        {
+            A = 0,
+            X = 1,
+            Z = 2, // there is one constraint, which is that the selected name must be the first one. Otherwise Overlapping.Z.ToString() => "Y"
+            [Obsolete]
+            [Browsable(false)]
+            Y = 2,
+            [Browsable(false)]
+            [Obsolete]
+            Y2 = 2,
+            W = 3
+        }
+
+        class ClassWithOverlapping
+        {
+            public Overlapping Overlapping { get; set; } = Overlapping.X;
+        }
+        [Test]
+        public void OverlappingEnumTest()
+        {
+            var o = new ClassWithOverlapping();
+            var a = AnnotationCollection.Annotate(o);
+            var a2 = a.GetMember(nameof(o.Overlapping));
+            var available = a2.Get<IAvailableValuesAnnotation>().AvailableValues.Cast<Overlapping>();
+            CollectionAssert.AreEqual(available, new[] { Overlapping.A, Overlapping.X, Overlapping.Z, Overlapping.W });
+
+            var a3 = a2.Get<IAvailableValuesAnnotationProxy>();
+            var strValues = a3.AvailableValues.Select(x => x.Get<IStringReadOnlyValueAnnotation>().Value).ToArray();
+            CollectionAssert.AreEqual(strValues, new[] { "A", "X", "Z", "W" });
+            a3.SelectedValue = a3.AvailableValues.Skip(2).FirstOrDefault();
+            a.Write();
+            a.Read();
+            Assert.AreEqual(Overlapping.Z, o.Overlapping);
+        }
     }
 }
