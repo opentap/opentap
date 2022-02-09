@@ -307,6 +307,7 @@ namespace OpenTap
         
         #endregion
 
+        /// <summary> Returns true if the break conditions are satisfied for the test step run.</summary>
         public bool BreakConditionsSatisfied()
         {
             var verdict = Verdict;
@@ -318,7 +319,6 @@ namespace OpenTap
             {
                 return true;
             }
-
             return false;
         }
         
