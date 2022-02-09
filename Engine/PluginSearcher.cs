@@ -12,8 +12,9 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Text;
-using System.Threading.Tasks;
 using Tap.Shared;
 
 [assembly: OpenTap.PluginAssembly(true)]
@@ -403,7 +404,35 @@ namespace OpenTap
                     else if (attr.Constructor.Kind == HandleKind.MemberReference)
                     {
                         var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle)attr.Constructor);
-                        isPluginAssemblyAttribute = MatchFullName(CurrentReader, ctor.Parent, "OpenTap", nameof(PluginAssemblyAttribute));
+                        var attributeFullName = GetFullName(CurrentReader, ctor.Parent);
+                        if (attributeFullName == typeof(PluginAssemblyAttribute).FullName)
+                            isPluginAssemblyAttribute = true;
+
+                        else if (attributeFullName == typeof(TargetFrameworkAttribute).FullName)
+                        {
+                            var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
+                            if (valueString.FixedArguments.FirstOrDefault().Value is string framework)
+                            {
+                                // If the framework is .NETStandard it is always safe to load
+                                if (framework.StartsWith(".NETStandard") == false)
+                                {
+                                    // If the framework is .NETFramework, it is only safe to load if we are currently running in .NET Framework
+                                    if (framework.StartsWith(".NETFramework") && RuntimeInformation.FrameworkDescription.StartsWith(".NET Framework") == false)
+                                    {
+                                        log.Debug(
+                                            $"Skipping assembly '{Path.GetFileName(CurrentAsm.Location)}'. This assembly requires the .NET Runtime, but the current runtime is {RuntimeInformation.FrameworkDescription}.");
+                                        return;
+                                    }
+                                    // The framework must be some version of .NET Core. This is not compatible if we are currently running in .NET Framework
+                                    else if (framework.StartsWith(".NETFramework") == false && RuntimeInformation.FrameworkDescription.StartsWith(".NET Framework"))
+                                    {
+                                        log.Debug(
+                                            $"Skipping assembly '{Path.GetFileName(CurrentAsm.Location)}'. This assembly requires the .NET Framework Runtime, but the current runtime is {RuntimeInformation.FrameworkDescription}");
+                                        return;
+                                    }
+                                }
+                            }
+                        }
                     }
                     if(isPluginAssemblyAttribute)
                     {
@@ -416,7 +445,6 @@ namespace OpenTap
                         }
                         else
                             asm.PluginAssemblyAttribute = new PluginAssemblyAttribute(ReadPrivateTypesInCurrentAsm);
-                        break;
                     }
                 }
                 
@@ -672,7 +700,7 @@ namespace OpenTap
                     foreach (CustomAttributeHandle attrHandle in CurrentReader.GetAssemblyDefinition().GetCustomAttributes())
                     {
                         CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
-                        
+
                         if (attr.Constructor.Kind == HandleKind.MemberReference)
                         {
                             var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle)attr.Constructor);
