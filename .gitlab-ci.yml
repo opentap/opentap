@@ -363,6 +363,7 @@ Package-Windows64:
          - cp .\runtimes\win-x64\native\git2-4aecb64.dll .
          - .\tap.exe package install -f "/repo/Sign.TapPackage"
          - $version=$(./tap sdk gitversion)
+         - ./tap sdk gitversion --fields 4 > ../../version.txt
          - cd ../Release
          - ..\Releasex64\tap.exe package create -v ../../opentap.$Architecture.package.xml -o ../../OpenTAP.$version.$Architecture.Windows.TapPackage
   artifacts:
@@ -370,6 +371,7 @@ Package-Windows64:
     expire_in: 1 day
     paths:
        - OpenTAP.*.Windows.TapPackage
+       - version.txt
 
 Package-Windows32:
   extends: Package-Windows64
@@ -546,28 +548,22 @@ Package-Diff-Linux:
 
 Installer-Windows:
   stage: installer
-  image: registry.gitlab.com/opentap/buildrunners/inno
-  tags: [ docker, windows ]
+  image: registry.gitlab.com/opentap/buildrunners/smartinstaller:beta
+  tags: [ docker, gce ]
   only:
     - tags
     - /^release.*$/
     - master
   dependencies:
-     - Build-x64
-     - Package-Windows64
+    - Package-Windows64
   needs:
-     - Build-x64
-     - Package-Windows64
+    - Package-Windows64
   script:
-         - pushd bin\Release
-         - $version = ./tap.exe sdk gitversion
-         - echo "OpenTAP.$($version).exe"
-
-         - ./tap.exe package install -f -v "/BundleInstaller.TapPackage"
-         - Remove-Item "Packages\Bundle Installer\Assets\LICENSES.txt"
-
-         - ./tap.exe sdk create-bundle --sign "Keysight Technologies, Inc" --no-gui --tap64 "../../OpenTAP.$version.x64.Windows.TapPackage" -x ../../Installer/Assets/opentapCE.installer.xml setup.exe
-         - Move-Item setup.exe ..\..\OpenTAP.$($version).exe
+    - version=$(cat version.txt)
+    - mv OpenTAP.*.Windows.TapPackage Installer/Assets/OpenTAP.TapPackage
+    - cd Installer/Assets
+    - tap installer create "opentap.installer.xml" 
+    - mv setup.exe ../../OpenTAP.$version.exe
   artifacts:
     expire_in: 1 week
     paths:
