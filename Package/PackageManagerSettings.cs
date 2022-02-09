@@ -29,7 +29,7 @@ namespace OpenTap.Package
             Repositories = new List<RepositorySettingEntry>();
             Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = ExecutorClient.ExeDir });
             Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = PackageDef.SystemWideInstallationDirectory });
-            Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = "http://packages.opentap.io" });
+            Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = "https://packages.opentap.io" });
         }
 
         /// <summary>
@@ -66,12 +66,9 @@ namespace OpenTap.Package
         /// <summary>
         /// List of servers from where new plugin packages can be discovered and downloaded.
         /// </summary>
-        [Display("URLs", Group: "Package Repositories", Order: 2, Description: "URLs from where new plugin packages can be discovered and downloaded.")]
-        public List<RepositorySettingEntry> Repositories
-        {
-            get;
-            set;
-        }
+        [Display("URLs", Group: "Package Repositories", Order: 2, Description: "URLs or file-system paths from where plugin packages can be found. Example: https://packages.opentap.io")]
+        [Layout(LayoutMode.FullRow)]
+        public List<RepositorySettingEntry> Repositories { get; set; }
     }
 
     /// <summary>
