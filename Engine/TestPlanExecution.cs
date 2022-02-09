@@ -180,7 +180,11 @@ namespace OpenTap
                     var run = step.DoRun(execStage, execStage);
                     if (!run.Skipped)
                         runs.Add(run);
-                    run.CheckBreakCondition();
+                    if (run.BreakConditionsSatisfied())
+                    {
+                        run.LogBreakCondition();
+                        break;
+                    }
 
                     // note: The following is copied inside TestStep.cs
                     if (run.SuggestedNextStep is Guid id)

@@ -307,7 +307,7 @@ namespace OpenTap
         
         #endregion
 
-        internal bool IsBreakCondition()
+        public bool BreakConditionsSatisfied()
         {
             var verdict = Verdict;
             if (OutOfRetries 
@@ -320,12 +320,6 @@ namespace OpenTap
             }
 
             return false;
-        }
-        
-        internal void CheckBreakCondition()
-        {
-            if(IsBreakCondition())
-                ThrowDueToBreakConditions();
         }
         
         internal bool OutOfRetries { get; set; }
