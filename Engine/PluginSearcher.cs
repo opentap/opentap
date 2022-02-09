@@ -13,7 +13,6 @@ using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Text;
-using System.Threading.Tasks;
 using Tap.Shared;
 
 [assembly: OpenTap.PluginAssembly(true)]
@@ -1014,26 +1013,28 @@ namespace OpenTap
         public Type Load()
         {
             if (failedLoad) return null;
-            if (type == null)
+            if (type != null) return type;
+
+            try
             {
                 var asm = Assembly.Load();
-                if(asm == null)
+                if (asm == null)
                 {
                     failedLoad = true;
                     return null;
                 }
-                try
-                {
-                    type = asm.GetType(this.Name,true);
-                    dict.GetValue(type, t => this);
-                }
-                catch (Exception ex)
-                {
-                    failedLoad = true;
-                    log.Error("Unable to load type '{0}' from '{1}'. Reason: '{2}'.", Name, Assembly.Location, ex.Message);
-                    log.Debug(ex);
-                }
+
+                type = asm.GetType(this.Name, true);
+                dict.GetValue(type, t => this);
             }
+            catch (Exception ex)
+            {
+                failedLoad = true;
+                log.Error("Unable to load type '{0}' from '{1}'. Reason: '{2}'.", Name, Assembly.Location,
+                    ex.Message);
+                log.Debug(ex);
+            }
+
             return type;
         }
 

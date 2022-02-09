@@ -195,11 +195,17 @@ namespace OpenTap
         public bool CanCreateInstance {
             get
             {
-                if (canCreateInstance.HasValue) return canCreateInstance.Value;
                 if (failedLoad) return false;
-                var type = Load();
-                canCreateInstance = type.IsAbstract == false && type.IsInterface == false && type.ContainsGenericParameters == false && type.GetConstructor(Array.Empty<Type>()) != null;
-                return canCreateInstance.Value;
+                if (canCreateInstance.HasValue) return canCreateInstance.Value;
+                if (Load() is Type t)
+                {
+                    type = t;
+                    canCreateInstance = type.IsAbstract == false && type.IsInterface == false &&
+                                        type.ContainsGenericParameters == false &&
+                                        type.GetConstructor(Array.Empty<Type>()) != null;
+                    return canCreateInstance.Value;
+                }
+                return false; // failed to load
             }
             internal set => canCreateInstance = value;
         }
@@ -220,7 +226,7 @@ namespace OpenTap
         /// </summary>
         public object CreateInstance(object[] arguments)
         {
-            return Activator.CreateInstance(Load(), arguments);
+            return Load() is Type t ? Activator.CreateInstance(t, arguments) : null;
         }
 
         /// <summary>
@@ -246,9 +252,11 @@ namespace OpenTap
         /// </summary>
         public IEnumerable<IMemberData> GetMembers()
         {
-            if (members == null)
+            if (members != null) return members;
+
+            if (Load() is Type t)
             {
-                var props = Load().GetPropertiesTap();
+                var props = t.GetPropertiesTap();
                 List<IMemberData> m = new List<IMemberData>(props.Length);
                 foreach (var mem in props)
                 {
@@ -268,7 +276,7 @@ namespace OpenTap
                     m.Add(MemberData.Create(mem));
                 }
 
-                foreach (var mem in Load().GetMethodsTap())
+                foreach (var mem in t.GetMethodsTap())
                 {
                     if (mem.GetAttribute<BrowsableAttribute>()?.Browsable ?? false)
                     {
@@ -277,6 +285,11 @@ namespace OpenTap
                     }
                 }
                 members = m.ToArray();
+            }
+            else
+            {
+                // The members list cannot be populated because the type could not be loaded.
+                members = Array.Empty<IMemberData>();
             }
             return members;
         }

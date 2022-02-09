@@ -105,20 +105,26 @@ namespace OpenTap
                     {
                         if (existing.Contains(searcherType)) continue;
 
+                        bool error = false;
                         try
                         {
-                            var searcher = (ITypeDataSearcher)searcherType.CreateInstance(Array.Empty<object>());
-                            // make sure that ITypeDataSearchers with cache invalidation are activated.
-                            if (searcher is ITypeDataSearcherCacheInvalidated cacheInvalidated)
-                                cacheInvalidated.CacheInvalidated += CacheInvalidatedOnCacheInvalidated;
-                            
-                            searchTasks.Add(TapThread.StartAwaitable(searcher.Search));
-                            searchers.Add(searcher);
+                            if (searcherType.CreateInstance(Array.Empty<object>()) is ITypeDataSearcher searcher)
+                            {
+                                // make sure that ITypeDataSearchers with cache invalidation are activated.
+                                if (searcher is ITypeDataSearcherCacheInvalidated cacheInvalidated)
+                                    cacheInvalidated.CacheInvalidated += CacheInvalidatedOnCacheInvalidated;
+
+                                searchTasks.Add(TapThread.StartAwaitable(searcher.Search));
+                                searchers.Add(searcher);
+                            }
+                            else error = true;
                         }
                         catch
                         {
-                            log.Debug($"Failed to instantiate {nameof(ITypeDataSearcher)} {searcherType}");
+                            error = true;
                         }
+                        if (error)
+                            log.Debug($"Failed to instantiate {nameof(ITypeDataSearcher)} {searcherType}");
                     }
                 }
                 try
