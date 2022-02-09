@@ -6,6 +6,8 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security;
+using System.Text;
 using System.Threading;
 
 namespace OpenTap
@@ -132,12 +134,49 @@ namespace OpenTap
                     {
                         readerThread = TapThread.Start(() =>
                         {
-                            while (true)
-                                lines.Add(Console.ReadLine());
+                            try
+                            {
+                                var sb = new StringBuilder();
+                                while (true)
+                                {
+                                    
+                                    var chr = Console.ReadKey();
+                                    var left = Console.CursorLeft;
+                                    var top = Console.CursorTop;
+                                    if (left > 0)
+                                    {
+                                        Console.SetCursorPosition(left - 1, top);
+                                        Console.Write(" ");
+                                    }
+
+                                    if (chr.KeyChar == 0)
+                                        continue;
+                                    if (chr.Key == ConsoleKey.Enter)
+                                    {
+                                        lines.Add(sb.ToString());
+                                        sb.Clear();
+                                    }
+
+                                    if (chr.Key == ConsoleKey.Backspace)
+                                    {
+                                        sb.Remove(sb.Length - 1, 1);
+                                        Console.SetCursorPosition(left -1, top);
+                                    }
+                                    else
+                                    {
+                                        sb.Append(chr.KeyChar);
+                                    }
+                                }
+                            }
+                            catch(Exception e)
+                            {
+                                log.Error(e);
+                            }
                         }, "Console Reader");
                     }
                 }
             }
+            TapThread.Sleep(1000);
             DateTime timeoutAt;
             if (timeout == TimeSpan.MaxValue)
                 timeoutAt = DateTime.MaxValue;
@@ -156,7 +195,7 @@ namespace OpenTap
 
             try
             {
-                Log.Flush();
+                
                 var a = AnnotationCollection.Annotate(dataObject);
                 var members = a.Get<IMembersAnnotation>()?.Members;
 
@@ -175,6 +214,8 @@ namespace OpenTap
                 if (display is DisplayAttribute attr && attr.IsDefaultAttribute() == false)
                     title = display.Name;
                 
+                // flush and make sure that there is no new log messages coming in (0.1s span).
+                Log.Flush(TimeSpan.FromSeconds(0.1));    
                 if (string.IsNullOrWhiteSpace(title))
                     // fallback magic
                     title = TypeData.GetTypeData(dataObject)?.GetMember("Name")?.GetValue(dataObject) as string;
@@ -206,9 +247,10 @@ namespace OpenTap
                     {
                         if (!isBrowsable(mem)) continue;
                     }
-                    log.Flush();
+                    
+                    bool secure = _message.Get<IReflectionAnnotation>()?.ReflectionInfo.DescendsTo(typeof(SecureString)) ?? false;
                     var str = _message.Get<IStringValueAnnotation>();
-                    if (str == null) continue;
+                    if (str == null && !secure) continue;
                     var name = _message.Get<DisplayAttribute>()?.Name;
 
                     start:
@@ -261,13 +303,25 @@ namespace OpenTap
                     {
                         Console.Write("Please enter ");
                     }
-                    if (showName)
+
+                    if (secure && showName)
+                    {
+                        Console.Write($"{name}: ");
+                    }else if (showName)
                         Console.Write($"{name} ({str.Value}): ");
                     else
                         Console.Write($"({str.Value}): ");
+                    
+                    
+                    if (secure)
+                    {
+                        var read2 = (awaitReadLine(timeoutAt, true) ?? "").Trim();
+                        _message.Get<IObjectValueAnnotation>().Value = read2.ToSecureString();
+                        continue;
 
+                    }
 
-                    var read = (awaitReadLine(timeoutAt) ?? "").Trim();
+                    var read = (awaitReadLine(timeoutAt, false) ?? "").Trim();
                     if (read == "")
                     {
                         // accept the default value.
@@ -314,17 +368,25 @@ namespace OpenTap
         /// This has to be done in a thread, otherwise we cannot abort the test plan in the meantime. </summary>
         /// <param name="TimeOut"></param>
         /// <returns></returns>
-        string awaitReadLine(DateTime TimeOut)
+        string awaitReadLine(DateTime TimeOut, bool secure)
         {
-            while (DateTime.Now <= TimeOut)
+            try
             {
-                if (lines.TryTake(out string line, 20, TapThread.Current.AbortToken))
-                    return line;
-            }
+                IsSecure = secure;
+                while (DateTime.Now <= TimeOut)
+                {
+                    if (lines.TryTake(out string line, 20, TapThread.Current.AbortToken))
+                        return line;
+                }
 
-            Console.WriteLine();
-            log.Info("Timed out while waiting for user input.");
-            throw new TimeoutException("Request user input timed out");
+                Console.WriteLine();
+                log.Info("Timed out while waiting for user input.");
+                throw new TimeoutException("Request user input timed out");
+            }
+            finally
+            {
+                IsSecure = false;
+            }
         }
 
         TapThread readerThread = null;
@@ -356,7 +418,7 @@ namespace OpenTap
                 cli.userInputMutex.WaitOne();
                 return Utils.WithDisposable(cli.userInputMutex.ReleaseMutex);
             }
-
+            
             // when CliUserInputInterface is not being used we don't have to do this.
             return Utils.WithDisposable(Utils.Noop);
         }
