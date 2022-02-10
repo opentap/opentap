@@ -76,7 +76,38 @@ namespace OpenTap
         
         #region Internal Members used by the TestPlan
 
-        internal IList<IResultListener> ResultListeners;
+        internal IEnumerable<IResultListener> ResultListeners => resultWorkers.Keys;
+
+        /// <summary>
+        /// Result listeners can be added just before the test plan actually starts.
+        /// If the operation fails an exception will be thrown.</summary>
+        public void AddResultListener(IResultListener listener)
+        {
+            if (listener == null)
+                throw new ArgumentNullException(nameof(listener));
+            if (ResultListenersSealed)
+                throw new Exception("Test plan already started. ResultListeners cannot be added at this point");
+            if (resultWorkers.ContainsKey(listener))
+                return;
+            resultWorkers.Add(listener, new WorkQueue(WorkQueue.Options.LongRunning | WorkQueue.Options.TimeAveraging, listener.ToString()));
+        }
+        
+        /// <summary>
+        /// Removes a result listener from the active result listeners in this run.
+        /// Note this can only be done at specific times during test plan execution,
+        /// namely when result listeners has not been connected.
+        /// If the operation fails an exception will be thrown.
+        /// </summary>
+        public void RemoveResultListener(IResultListener listener)
+        {
+            if (listener == null)
+                throw new ArgumentNullException(nameof(listener));
+            if (ResultListenersSealed)
+                throw new Exception("Test plan is running. ResultListeners cannot be removed at this point");
+            if (!resultWorkers.ContainsKey(listener)) 
+                return;
+            resultWorkers.Remove(listener);
+        }
 
         /// <summary> Wait handle that is set when the metadata action is completed. </summary>
         internal ManualResetEvent PromptWaitHandle = new ManualResetEvent(false);
@@ -86,6 +117,9 @@ namespace OpenTap
         internal IResourceManager ResourceManager { get; private set; }
 
         internal bool IsCompositeRun { get; set; }
+        
+        /// <summary> Set to true when result listeners cannot be added to the test plan run.</summary>
+        internal bool ResultListenersSealed { get; set; }
 
         #region Result propagation dispatcher system
         
@@ -211,6 +245,8 @@ namespace OpenTap
                     kw.Value.Wait();
                 }
             }
+
+            ResultListenersSealed = false;
         }
 
         /// <summary>
@@ -348,7 +384,7 @@ namespace OpenTap
             {
 
             }
-            ResultListeners.Remove(resultListener);
+            resultWorkers.Remove(resultListener);
             log.Warning("Removing faulty ResultListener '{0}'", resultListener);
         }
 
@@ -418,13 +454,11 @@ namespace OpenTap
             Parameters.IncludeMetadataFromObject(plan);
 
             this.Verdict = Verdict.NotSet; // set Parameters before setting Verdict.
-            ResultListeners = resultListeners ?? Array.Empty<IResultListener>();
-
-            foreach (var res in ResultListeners)
+            
+            foreach (var res in resultListeners)
             {
-                resultWorkers[res] = new WorkQueue(WorkQueue.Options.LongRunning | WorkQueue.Options.TimeAveraging, res.ToString());
+                AddResultListener(res);
             }
-
 
             StartTime = startTime;
             StartTimeStamp = startTimeStamp;
@@ -493,7 +527,7 @@ namespace OpenTap
             this.plan = plan;
         }
 
-        bool resourceOpenedAttached;
+        bool planRunStarted;
         internal void Start()
         {
             if (ResourceManager == null)
@@ -505,11 +539,11 @@ namespace OpenTap
                         (IResourceManager) EngineSettings.Current.ResourceManagerType.GetType().CreateInstance();
             }
 
-            if (resourceOpenedAttached)
+            if (planRunStarted)
                 return;
 
             // waits for prompt before loading the parameters.
-            resourceOpenedAttached = true;
+            planRunStarted = true;
             ResourceManager.ResourceOpened += 
                 res => Parameters.AddRange(ResultParameters.GetMetadataFromObject(res));
             
@@ -548,10 +582,10 @@ namespace OpenTap
 
             this.Parameters = original.Parameters; // set Parameters before setting Verdict.
             this.Verdict = Verdict.NotSet;
-            this.ResultListeners = original.ResultListeners;
-            foreach (var resultListener in ResultListeners)
+            
+            foreach (var res in ResultListeners)
             {
-                resultWorkers[resultListener] = new WorkQueue(WorkQueue.Options.LongRunning | WorkQueue.Options.TimeAveraging, resultListener.ToString());
+                AddResultListener(res);
             }
 
             this.ResourceManager = original.ResourceManager;
@@ -581,5 +615,7 @@ namespace OpenTap
             TestPlanName = original.TestPlanName;
         }
         #endregion
+
+        
     }
 }

@@ -31,9 +31,9 @@ namespace OpenTap
         /// <returns></returns>
         public static ITestPlanRunMonitor[] GetCurrent()
         {
-            return PluginManager.GetPlugins<ComponentSettings>()
-                .Where(settings => settings.DescendsTo(typeof(ITestPlanRunMonitor)))
-                .Select(ComponentSettings.GetCurrent).OfType<ITestPlanRunMonitor>()
+            return TypeData.GetDerivedTypes<ITestPlanRunMonitor>()
+                .Select(ComponentSettings.GetCurrent)
+                .OfType<ITestPlanRunMonitor>()
                 .ToArray();
         }
     }
