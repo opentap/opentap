@@ -226,7 +226,10 @@ namespace OpenTap
         /// </summary>
         public object CreateInstance(object[] arguments)
         {
-            return Load() is Type t ? Activator.CreateInstance(t, arguments) : null;
+            if (!(Load() is Type t))
+                throw new InvalidOperationException(
+                    $"Failed to instantiate object of type '{this.Name}'. The assembly failed to load.");
+            return Activator.CreateInstance(t, arguments);
         }
 
         /// <summary>

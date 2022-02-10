@@ -53,6 +53,13 @@ namespace OpenTap
 
         static readonly object lockSearchers = new object();
         static int lastCount;
+
+        private static HashSet<ITypeData> logged = new HashSet<ITypeData>();
+        private static void WarnOnce(string message, ITypeData t)
+        {
+            if (logged.Add(t))
+                log.Warning(message);
+        }
         
         /// <summary> Get all known types that derive from a given type.</summary>
         /// <param name="baseType">Base type that all returned types descends to.</param>
@@ -123,8 +130,9 @@ namespace OpenTap
                         {
                             error = true;
                         }
+
                         if (error)
-                            log.Debug($"Failed to instantiate {nameof(ITypeDataSearcher)} {searcherType}");
+                            WarnOnce($"Failed to instantiate {nameof(ITypeDataSearcher)} {searcherType}", searcherType);
                     }
                 }
                 try
