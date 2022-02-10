@@ -18,7 +18,16 @@ namespace OpenTap
         /// </summary>
         public static object CreateInstance(this ITypeData type)
         {
-            return type.CreateInstance(Array.Empty<object>());
+            var ctor = type.AsTypeData().GetPreferredConstructor();
+            if (ctor == null)
+            {
+                // This could be an ITypeData implementation which does not represent a dotnet type
+                // Try to invoke its virtual constructor anyway
+                return type.CreateInstance(Array.Empty<object>());
+            }
+
+            var args = ctor.GetParameters().Select(p => p.DefaultValue).ToArray();
+            return type.CreateInstance(args);
         }
 
         /// <summary> returns true if 'type' is a descendant of 'basetype'. </summary>

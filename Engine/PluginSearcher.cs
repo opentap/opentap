@@ -13,7 +13,6 @@ using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Text;
-using System.Threading.Tasks;
 using Tap.Shared;
 
 [assembly: OpenTap.PluginAssembly(true)]
@@ -632,30 +631,40 @@ namespace OpenTap
                 }
                 else
                 {
-                    // The type can only be instantiated if it has a parameter-less constructor which does not require type arguments
-                    bool hasGenericParameters(MethodDefinition m)
-                    {
-                        return m.GetGenericParameters().Count > 0;
-                    }
-
-                    bool hasParameters(MethodDefinition m)
-                    {
-                        return m.GetParameters().Count > 0;
-                    }
-                    
                     foreach (var methodHandle in typeDef.GetMethods())
                     {
                         var m = CurrentReader.GetMethodDefinition(methodHandle);
-                        if (CurrentReader.GetString(m.Name) != ".ctor")
-                            continue;
-
-                        if (hasGenericParameters(m) || hasParameters(m))
+                        // Only consider public constructors
+                        if (m.Attributes.HasFlag(MethodAttributes.Public) == false)
                         {
                             plugin.CanCreateInstance = false;
                             continue;
                         }
-                        
-                        // We know that the type is constructable, so we can stop searching.
+
+                        if (CurrentReader.GetString(m.Name) != ".ctor")
+                            continue;
+
+                        // We cannot instantiate the type with this constructor if it has generic parameters
+                        if (m.GetGenericParameters().Count > 0)
+                        {
+                            plugin.CanCreateInstance = false;
+                            continue;
+                        }
+
+                        // If any parameter does not have a default value, we cannot instantiate this type
+                        // Because default-valued parameters must follow all non-default parameters,
+                        // we know that all parameters must have default values if the first one does.
+                        var pHandle = m.GetParameters().FirstOrDefault();
+                        if (pHandle.IsNil == false)
+                        {
+                            var p = CurrentReader.GetParameter(pHandle);
+                            if (p.GetDefaultValue().IsNil)
+                            {
+                                plugin.CanCreateInstance = false;
+                                continue;
+                            }
+                        }
+
                         plugin.CanCreateInstance = true;
                         break;
                     }
