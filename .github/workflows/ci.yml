@@ -615,6 +615,7 @@ jobs:
           
   Installer-Windows:
     runs-on: ubuntu-latest
+    environment: sign
     needs:
       - GetVersion
       - Package-Win
@@ -633,12 +634,16 @@ jobs:
           path: .
       - run: mv OpenTAP.*.Windows.TapPackage Installer/Assets/OpenTAP.TapPackage
       - run: ls /root/go/bin
-      - name: Remove certificate
-        #if: github.ref != 'refs/heads/main' && !contains(github.ref, 'refs/heads/release') && !contains(github.ref, 'refs/tags/v')
-        run: sed -i 's/<SignCert>Keysight Technologies, Inc<\/SignCert>/<SignCert><\/SignCert>/' 'opentap.installer.xml'
-        working-directory: Installer/Assets
+      #- name: Remove certificate
+      #  if: github.ref != 'refs/heads/main' && !contains(github.ref, 'refs/heads/release') && !contains(github.ref, 'refs/tags/v')
+      #  run: sed -i 's/<SignCert>Keysight Technologies, Inc<\/SignCert>/<SignCert><\/SignCert>/' 'opentap.installer.xml'
+      #  working-directory: Installer/Assets
       - run: tap installer create "opentap.installer.xml"
         working-directory: Installer/Assets
+        env:
+          TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
+          TAP_SIGN_AUTH: ${{ secrets.TAP_SIGN_AUTH }}
+          TAP_SIGN_CERT: ${{ secrets.SIGN_SERVER_CERT }}
       - run: mv Installer/Assets/setup.exe OpenTAP.${{needs.GetVersion.outputs.LongVersion}}.exe
       - uses: actions/upload-artifact@v2
         with:
