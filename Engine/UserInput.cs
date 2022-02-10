@@ -146,7 +146,10 @@ namespace OpenTap
                                     if (left > 0)
                                     {
                                         Console.SetCursorPosition(left - 1, top);
-                                        Console.Write(" ");
+                                        if(IsSecure)
+                                            Console.Write(" ");
+                                        else if(chr.Key != ConsoleKey.Enter || chr.Key != ConsoleKey.Backspace)
+                                            Console.Write(chr.KeyChar);
                                     }
 
                                     if (chr.KeyChar == 0)
@@ -155,11 +158,13 @@ namespace OpenTap
                                     {
                                         lines.Add(sb.ToString());
                                         sb.Clear();
+                                        Console.WriteLine();
                                     }
 
                                     if (chr.Key == ConsoleKey.Backspace)
                                     {
-                                        sb.Remove(sb.Length - 1, 1);
+                                        if(sb.Length > 0)
+                                            sb.Remove(sb.Length - 1, 1);
                                         Console.SetCursorPosition(left -1, top);
                                     }
                                     else
@@ -363,17 +368,20 @@ namespace OpenTap
             }
         }
 
+        private bool IsSecure;
+
         /// <summary>
         /// AwaitReadline reads the line asynchronously.  
         /// This has to be done in a thread, otherwise we cannot abort the test plan in the meantime. </summary>
-        /// <param name="TimeOut"></param>
+        /// <param name="timeOut"></param>
+        /// <param name="secure"></param>
         /// <returns></returns>
-        string awaitReadLine(DateTime TimeOut, bool secure)
+        string awaitReadLine(DateTime timeOut, bool secure)
         {
             try
             {
                 IsSecure = secure;
-                while (DateTime.Now <= TimeOut)
+                while (DateTime.Now <= timeOut)
                 {
                     if (lines.TryTake(out string line, 20, TapThread.Current.AbortToken))
                         return line;
