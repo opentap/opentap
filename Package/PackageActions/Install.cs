@@ -143,6 +143,27 @@ namespace OpenTap.Package
                 List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                     targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
                     InstallDependencies, IgnoreDependencies, askToInstallDependencies, NoDowngrade);
+
+                foreach (var pkg in packagesToInstall)
+                {
+                    // print a warning if the selected package is incompatible with the host platform.
+                    // or return an error if the package does not match.
+                    var platformCompatible =  pkg.IsPlatformCompatible( targetInstallation.Architecture, targetInstallation.OS);
+                    if (!platformCompatible)
+                    {
+                        var selectedPlatformCompatible =  pkg.IsPlatformCompatible(Architecture,OS);
+                        var message =
+                            $"Selected package {pkg.Name} for {pkg.OS}, {pkg.Architecture} is incompatible with the host platform {targetInstallation.OS}, {targetInstallation.Architecture}.";
+                        if (selectedPlatformCompatible)
+                            log.Warning(message);
+                        else
+                        {
+                            log.Error(message);
+                            return (int)ExitCodes.ArgumentError;
+                        }
+                    }
+                }
+                
                 if (packagesToInstall?.Any() != true)
                 {
                     if (NoDowngrade)
