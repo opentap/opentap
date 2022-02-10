@@ -696,10 +696,10 @@ namespace OpenTap
                         }
                         // if skip to next step, dont add it to the wait queue.
                     }
-                    if (run.IsBreakCondition())
+                    if (run.BreakConditionsSatisfied())
                     {
-                        Step.UpgradeVerdict(Verdict.Error);
-                        run.ThrowDueToBreakConditions();
+                        run.LogBreakCondition();
+                        break;
                     }
                     
                     TapThread.ThrowIfAborted();
@@ -788,14 +788,19 @@ namespace OpenTap
                 Step.UpgradeVerdict(run.Verdict);
             }
 
-            if (run.IsBreakCondition())
+            if (run.BreakConditionsSatisfied())
             {
-                Step.UpgradeVerdict(Verdict.Error);
-                if (throwOnError)
+                run.LogBreakCondition();
+                if(run.Verdict == Verdict.Error && throwOnError)
                     run.ThrowDueToBreakConditions();
             }
 
             return run;
+        }
+
+        internal static void LogBreakCondition(this TestStepRun run)
+        {
+            Log.CreateSource("Test Step").Debug( $"Break issued from '{run.TestStepName}' due to verdict {run.Verdict}. See Break Conditions settings.");
         }
 
         internal static string GetStepPath(this ITestStep Step)

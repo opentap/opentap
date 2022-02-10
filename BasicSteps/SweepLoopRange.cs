@@ -342,6 +342,8 @@ namespace OpenTap.Plugins.BasicSteps
                 var runs = RunChildSteps(AdditionalParams, BreakLoopRequested).ToList();
                 if (BreakLoopRequested.IsCancellationRequested) break;
                 runs.ForEach(r => r.WaitForCompletion());
+                if (runs.LastOrDefault()?.BreakConditionsSatisfied() == true)
+                    break;
             }
             for (int i = 0; i < sets.Count; i++)
                 sets[i].SetValue(originalValues[i]);

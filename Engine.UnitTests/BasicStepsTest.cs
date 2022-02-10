@@ -75,7 +75,7 @@ namespace OpenTap.UnitTests
             else
             {
                 // break condition reached -> Error verdict.
-                Assert.AreEqual(Verdict.Error, run.Verdict);
+                Assert.AreEqual(Verdict.Fail, run.Verdict);
                 Assert.AreEqual(1, step.Iterations);
             }
         }
@@ -105,7 +105,7 @@ namespace OpenTap.UnitTests
         
         // These two cases are technically equivalent.
         [Test]
-        [TestCase(Verdict.Error, RepeatStep.RepeatStepAction.While)]
+        [TestCase(Verdict.Fail, RepeatStep.RepeatStepAction.While)]
         [TestCase(Verdict.Pass, RepeatStep.RepeatStepAction.Until)]
         public void RepeatWhileError(Verdict targetVerdict, RepeatStep.RepeatStepAction action)
         {
