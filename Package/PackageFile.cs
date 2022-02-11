@@ -660,13 +660,9 @@ namespace OpenTap.Package
         /// </summary>
         public static PackageDef FromXml(string path)
         {
-            PackageDef pkDef;
             using (var stream = File.OpenRead(path))
-                  pkDef = FromXml(stream);
-            pkDef.PackageSource = new XmlPackageDefSource{PackageDefFilePath = path};
-            return pkDef;
+                  return FromXml(stream);
         }
-        
         
         /// <summary>
         /// Returns the XML schema for a package definition XML file.

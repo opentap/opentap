@@ -65,7 +65,7 @@ namespace OpenTap.Package
                 return (int) PackageExitCodes.InvalidPackageName;
 
             if (!Force)
-                if (!CheckPackageAndDependencies(installation, installedPackages, installer.PackagePaths, out var userCancelled))
+                if (!CheckPackageAndDependencies(installedPackages, installer.PackagePaths, out var userCancelled))
                 {
                     if (userCancelled)
                     {
@@ -135,10 +135,15 @@ namespace OpenTap.Package
             return result;
         }
 
-        private bool CheckPackageAndDependencies(Installation installation, List<PackageDef> installed, List<string> packagePaths, out bool userCancelled)
+        private bool CheckPackageAndDependencies(List<PackageDef> installed, List<string> packagePaths, out bool userCancelled)
         {
             userCancelled = false;
-            var packages = packagePaths.Select(PackageDef.FromXml).ToList();
+            var packages = packagePaths.Select(str =>
+            {
+                var pkg = PackageDef.FromXml(str);
+                pkg.PackageSource = new XmlPackageDefSource{PackageDefFilePath = str};
+                return pkg;
+            }).ToList();
             installed.RemoveIf(i => packages.Any(u => u.Name == i.Name && u.Version == i.Version));
             var analyzer = DependencyAnalyzer.BuildAnalyzerContext(installed);
             var packagesWithIssues = new List<PackageDef>();
