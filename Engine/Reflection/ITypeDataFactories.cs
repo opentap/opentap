@@ -53,6 +53,13 @@ namespace OpenTap
 
         static readonly object lockSearchers = new object();
         static int lastCount;
+
+        private static HashSet<ITypeData> logged = new HashSet<ITypeData>();
+        private static void WarnOnce(string message, ITypeData t)
+        {
+            if (logged.Add(t))
+                log.Warning(message);
+        }
         
         /// <summary> Get all known types that derive from a given type.</summary>
         /// <param name="baseType">Base type that all returned types descends to.</param>
@@ -105,20 +112,27 @@ namespace OpenTap
                     {
                         if (existing.Contains(searcherType)) continue;
 
+                        bool error = false;
                         try
                         {
-                            var searcher = (ITypeDataSearcher)searcherType.CreateInstance(Array.Empty<object>());
-                            // make sure that ITypeDataSearchers with cache invalidation are activated.
-                            if (searcher is ITypeDataSearcherCacheInvalidated cacheInvalidated)
-                                cacheInvalidated.CacheInvalidated += CacheInvalidatedOnCacheInvalidated;
-                            
-                            searchTasks.Add(TapThread.StartAwaitable(searcher.Search));
-                            searchers.Add(searcher);
+                            if (searcherType.CreateInstance(Array.Empty<object>()) is ITypeDataSearcher searcher)
+                            {
+                                // make sure that ITypeDataSearchers with cache invalidation are activated.
+                                if (searcher is ITypeDataSearcherCacheInvalidated cacheInvalidated)
+                                    cacheInvalidated.CacheInvalidated += CacheInvalidatedOnCacheInvalidated;
+
+                                searchTasks.Add(TapThread.StartAwaitable(searcher.Search));
+                                searchers.Add(searcher);
+                            }
+                            else error = true;
                         }
                         catch
                         {
-                            log.Debug($"Failed to instantiate {nameof(ITypeDataSearcher)} {searcherType}");
+                            error = true;
                         }
+
+                        if (error)
+                            WarnOnce($"Failed to instantiate {nameof(ITypeDataSearcher)} {searcherType}", searcherType);
                     }
                 }
                 try
