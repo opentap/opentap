@@ -58,6 +58,11 @@
         <File Path="tap.exe">
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
+        <!-- The tap upgrader is only necessary on Windows because we cannot overwrite tap.exe otherwise -->
+        <File Path="Packages/OpenTap/Tap.Upgrader.exe" SourcePath="Tap.Upgrader.exe">
+          <SetAssemblyInfo Attributes="Version"/>
+          <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+        </File>
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.dll.$(Architecture)"/>
         <File Path="OpenTapApiReference.chm"
               SourcePath="../../Help/OpenTapApiReference.chm"
@@ -104,5 +109,8 @@
     </Files>
     <PackageActionExtensions Condition="$(Platform) != Windows">
         <ActionStep ActionName="install" ExeFile="chmod" Arguments="+x tap"  />
+    </PackageActionExtensions>
+    <PackageActionExtensions Condition="$(Platform) == Windows">
+        <ActionStep ActionName="install" ExeFile="Packages/OpenTap/Tap.Upgrader.exe" Arguments="v=$(GitVersion)" />
     </PackageActionExtensions>
 </Package>

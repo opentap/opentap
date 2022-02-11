@@ -38,18 +38,4 @@
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
   </ItemGroup>
   <Import Project="..\Shared\Tap.Shared.projitems" Label="Shared" />
-
-  <PropertyGroup>
-    <PlatformEnv Condition=" '$(OS)' == 'Unix' ">Linux,Macos</PlatformEnv>
-    <PlatformEnv Condition=" '$(OS)' != 'Unix' ">Windows</PlatformEnv>
-  </PropertyGroup>
-  <!-- Install OpenTAP as a package - this is necessary for most of the package cli actions to function normally.  -->
-  <!-- CopyFilesToOutputDirectory is required for libgit native DLLs -->
-  <Target Name="InstallOpenTapAsPackage"
-          AfterTargets="CopyFilesToOutputDirectory"
-          Condition="'$(IsDebug)'=='true'">
-    <Exec Command="$(OutDir)tap package create ../../package.xml -o $(OutDir)OpenTap.TapPackage --install"
-          EnvironmentVariables="Debug=true;Sign=false;Platform=$(PlatformEnv)"
-          WorkingDirectory="$(OutDir)"/>
-  </Target>
 </Project>
