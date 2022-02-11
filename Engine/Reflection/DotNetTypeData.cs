@@ -186,6 +186,41 @@ namespace OpenTap
         }
 
         internal bool createInstanceSet => canCreateInstance.HasValue;
+
+        private ConstructorInfo preferredConstructor;
+        private bool constructorSearched = false;
+
+        internal ConstructorInfo GetPreferredConstructor()
+        {
+            if (constructorSearched) return preferredConstructor;
+            constructorSearched = true;
+
+            if (!(Load() is Type t))
+                return null;
+
+            // Prefer constructors with fewer parameters
+            var constructors = t.GetConstructors().OrderBy(c => c.GetParameters().Length);
+            foreach (var constructor in constructors)
+            {
+                if (constructor.ContainsGenericParameters) continue;
+                var parameters = constructor.GetParameters();
+                if (parameters.Length == 0)
+                {
+                    preferredConstructor = constructor;
+                    return constructor;
+                }
+
+                // Because default-valued parameters must follow all non-default parameters,
+                // we know that all parameters must have default values if the first one does.
+                if (parameters.First().HasDefaultValue)
+                {
+                    preferredConstructor = constructor;
+                    return constructor;
+                }
+            }
+
+            return null;
+        }
         
         bool? canCreateInstance;
         /// <summary> 
@@ -198,7 +233,10 @@ namespace OpenTap
                 if (canCreateInstance.HasValue) return canCreateInstance.Value;
                 if (failedLoad) return false;
                 var type = Load();
-                canCreateInstance = type.IsAbstract == false && type.IsInterface == false && type.ContainsGenericParameters == false && type.GetConstructor(Array.Empty<Type>()) != null;
+
+                canCreateInstance = type.IsAbstract == false && type.IsInterface == false &&
+                                    type.ContainsGenericParameters == false && GetPreferredConstructor() != null;
+
                 return canCreateInstance.Value;
             }
             internal set => canCreateInstance = value;
