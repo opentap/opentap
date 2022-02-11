@@ -33,7 +33,7 @@ namespace OpenTap.Package
         /// Resolve the desired packages from the specified repositories. This will check if the packages are available, compatible and can successfully be deployed as an OpenTAP installation
         /// </summary>
         /// <param name="cancellationToken">Cancellation token</param>
-        /// <returns>An <see cref="ImageIdentifier"/></returns>
+        /// <exception cref="ImageResolveException">The exception thrown if the image could not be resolved</exception>
         public ImageIdentifier Resolve(CancellationToken cancellationToken)
         {
             List<IPackageRepository> repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
@@ -49,6 +49,13 @@ namespace OpenTap.Package
             return image;
         }
 
+        /// <summary>
+        /// Merges and resolves the packages for a number of images. May throw an exception if the packages cannot be resolved.
+        /// </summary>
+        /// <param name="images">The images to merge.</param>
+        /// <param name="cancellationToken">A cancellation token to cancel the operation before time. This will cause an OperationCancelledException to be thrown.</param>
+        /// <returns></returns>
+        /// <exception cref="ImageResolveException">The exception thrown if the image could not be resolved</exception>
         public static ImageIdentifier MergeAndResolve(IEnumerable<ImageSpecifier> images, CancellationToken cancellationToken)
         {
             List<IPackageRepository> repositories = images.SelectMany(s => s.Repositories).Distinct().Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
