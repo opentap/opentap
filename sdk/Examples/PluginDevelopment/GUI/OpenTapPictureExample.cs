@@ -64,7 +64,7 @@ namespace OpenTap.Plugins.PluginDevelopment.GUI
         /// </summary>
         public Picture Picture { get; } = new Picture()
         {
-            Source = "Packages/SDK/Examples/PluginDevelopment.Gui/GUI/SomeInstrument.png",
+            Source = "GUI\\SomeInstrument.png",
             Description = "The instrument we are controlling."
         };
 
