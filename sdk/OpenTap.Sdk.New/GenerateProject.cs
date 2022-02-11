@@ -35,7 +35,7 @@ namespace OpenTap.Sdk.New
             {
                 log.Warning("Unable to get an OpenTAP version from Nuget, using the local version instead.");
                 // cannot get opentap version. Try something else..
-                var v2 = new Installation(Path.GetDirectoryName(typeof(ITestStep).Assembly.Location)).GetOpenTapPackage()?.Version;
+                var v2 = Installation.Current.GetOpenTapPackage()?.Version;
                 if(v2 == null) // panic?
                     v2 = new SemanticVersion(9, 8, 3, null, null);
                 version = new SemanticVersion(v2.Major, v2.Minor, v2.Patch, null, null);

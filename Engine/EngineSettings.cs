@@ -150,7 +150,7 @@ namespace OpenTap
         static EngineSettings()
         {
             StartupDir = System.IO.Directory.GetCurrentDirectory();
-            Environment.SetEnvironmentVariable("ENGINE_DIR", System.IO.Path.GetDirectoryName(typeof(TestPlan).Assembly.Location));
+            Environment.SetEnvironmentVariable("ENGINE_DIR",  ExecutorClient.ExeDir);
         }
     }
 }

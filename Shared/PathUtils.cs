@@ -123,7 +123,7 @@ namespace Tap.Shared
         static string openTapLocation = null;
         /// <summary> Get the location of OpenTAP (OpenTAP.dll) </summary>
         public static string OpenTapDir =>
-            openTapLocation ?? (openTapLocation = Path.GetDirectoryName(typeof(TestPlan).Assembly.Location));
+            openTapLocation ?? (openTapLocation = ExecutorClient.ExeDir);
 
         public static string GetTempFileName(string extension)
         {

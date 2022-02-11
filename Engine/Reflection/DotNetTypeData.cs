@@ -50,10 +50,9 @@ namespace OpenTap
                     // This can occur for some types inside mscorlib such as System.Net.IPAddress.
                     try
                     {
-                        if (type.Assembly != null && type.Assembly.IsDynamic == false &&
-                            type.Assembly.Location != null)
+                        if (type.Assembly.IsDynamic == false)
                         {
-                            searcher.AddAssembly(type.Assembly.Location, type.Assembly);
+                            searcher.AddAssembly(type.Assembly.GetLocation(), type.Assembly);
                             if (searcher.AllTypes.TryGetValue(type.FullName, out td))
                                 return td;
                         }

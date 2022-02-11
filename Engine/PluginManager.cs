@@ -21,6 +21,39 @@ namespace OpenTap
     /// </summary>
     public static class PluginManager
     {
+        /// <summary>
+        /// This is only called via reflection
+        /// </summary>
+        static void Isolate()
+        {
+            log.Info($"Loading assemblies in-memory because the process is running in 'Isolated' mode.");
+            assemblyLoader.Value = new InMemoryAssemblyLoader();
+        }
+
+        /// <summary>
+        /// Get the location of an assembly
+        /// </summary>
+        /// <param name="asm"></param>
+        /// <returns></returns>
+        public static string GetLocation(this Assembly asm) => GetAssemblyLocation(asm);
+
+        static string GetAssemblyLocation(Assembly asm)
+        {
+            return assemblyLoader.Value.GetAssemblyLocation(asm);
+        }
+
+        internal static SessionLocal<IAssemblyLoader> assemblyLoader = new SessionLocal<IAssemblyLoader>();
+
+        /// <summary>
+        /// Load an assembly from a filename.
+        /// </summary>
+        /// <param name="assemblyPath">The path to the assembly</param>
+        /// <returns></returns>
+        internal static Assembly LoadAssembly(string assemblyPath)
+        {
+            return assemblyLoader.Value.LoadAssembly(assemblyPath);
+        }
+
         private static readonly TraceSource log = Log.CreateSource("PluginManager");
         private static ManualResetEventSlim searchTask = new ManualResetEventSlim(true);
         private static PluginSearcher searcher;
@@ -260,9 +293,10 @@ namespace OpenTap
             TapThread.Start(Search);  
             return Task.Run(() => GetSearcher());
         }
-        
+
         ///<summary>Searches for plugins.</summary>
-        public static void Search(){
+        public static void Search()
+        {
             searchTask.Reset();
             searcher = null;
             assemblyResolver.Invalidate(DirectoriesToSearch);
@@ -319,17 +353,11 @@ namespace OpenTap
                 if (isLoaded) return;
                 isLoaded = true;
 
+                assemblyLoader.Value = new DefaultAssemblyLoader();
+
                 SessionLogs.Initialize();
 
-                string tapEnginePath = Assembly.GetExecutingAssembly().Location;
-                if(String.IsNullOrEmpty(tapEnginePath))
-                {
-                    // if Tap.Engine was loaded from memory/bytes instead of from a file, it does not have a location.
-                    // This is the case if the process was launched through tap.exe. 
-                    // In that case just use the location of tap.exe, it is the same
-                    tapEnginePath = Assembly.GetEntryAssembly().Location;
-                }
-                DirectoriesToSearch = new List<string> { Path.GetDirectoryName(tapEnginePath) };
+                DirectoriesToSearch = new List<string> { ExecutorClient.ExeDir };
                 assemblyResolver = new TapAssemblyResolver(DirectoriesToSearch);
 
                 RedirectAssembly("System.Collections.Immutable", Version.Parse("1.2.1.0"));
@@ -361,9 +389,9 @@ namespace OpenTap
             try
             {
                 var w2 = Stopwatch.StartNew();
-                IEnumerable<TypeData> foundPluginTypes = searcher.Search(fileNames);
-                IEnumerable<AssemblyData> foundAssemblies = foundPluginTypes.Select(p => p.Assembly).Distinct();
-                log.Debug(w2, "Found {0} plugin assemblies containing {1} plugin types.", foundAssemblies.Count(), foundPluginTypes.Count());
+                var foundPluginTypes = searcher.Search(fileNames).ToArray();
+                var foundAssemblies = foundPluginTypes.Select(p => p.Assembly).Distinct().ToArray();
+                log.Debug(w2, "Found {0} plugin assemblies containing {1} plugin types.", foundAssemblies.Length, foundPluginTypes.Length);
 
                 foreach (AssemblyData asm in foundAssemblies)
                 {
@@ -459,7 +487,7 @@ namespace OpenTap
         {
             string hash = " - ";
 
-            using (var file = new FileStream(assembly.Location, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 4 * 4096))
+            using (var file = new FileStream(assembly.GetLocation(), FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 4 * 4096))
             {
                 byte[] hashValue = BitConverter.GetBytes(MurMurHash3.Hash(file));
 
@@ -484,7 +512,7 @@ namespace OpenTap
             {
                 try
                 {
-                    if (!asm.IsDynamic && !string.IsNullOrEmpty(asm.Location))
+                    if (!asm.IsDynamic && !string.IsNullOrEmpty(asm.GetLocation()))
                     {
                         parameters.Add(AssemblyVersions.Invoke(asm));
                     }
@@ -498,7 +526,7 @@ namespace OpenTap
         }
         #endregion
     }
-    
+
 
     class TapAssemblyResolver
     {
@@ -641,10 +669,11 @@ namespace OpenTap
         {
             if (asm.IsDynamic == false)
             {
-                var name = Path.GetFileNameWithoutExtension(asm.Location);
-                asmLookup[name] = asm.Location;
+                var loc = asm.GetLocation();
+                var name = Path.GetFileNameWithoutExtension(loc);
+                asmLookup[name] = loc;
                 if (Utils.IsDebugBuild)
-                    log.Debug("Loaded assembly {0} from {1}", asm.FullName, asm.Location);
+                    log.Debug("Loaded assembly {0} from {1}", asm.FullName, loc);
             }
             else
             {
@@ -729,10 +758,7 @@ namespace OpenTap
                 {
                     try
                     {
-                        if (!reflectionOnly)
-                            return Assembly.LoadFrom(loadFilename);
-                        else
-                            return Assembly.ReflectionOnlyLoadFrom(loadFilename);
+                        return PluginManager.LoadAssembly(loadFilename);
                     }
                     catch(Exception ex)
                     {
