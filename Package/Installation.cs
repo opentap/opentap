@@ -306,7 +306,7 @@ namespace OpenTap.Package
 
             public static async Task WaitForChange()
             {
-                var changeId = new ChangeId(Path.GetDirectoryName(typeof(SharedState).Assembly.Location));
+                var changeId = new ChangeId(ExecutorClient.ExeDir);
                 var id = changeId.GetChangeId();
                 while (changeId.GetChangeId() == id)
                     await Task.Delay(500);
@@ -314,7 +314,7 @@ namespace OpenTap.Package
 
             public static void WaitForChangeBlocking()
             {
-                var changeId = new ChangeId(Path.GetDirectoryName(typeof(SharedState).Assembly.Location));
+                var changeId = new ChangeId(ExecutorClient.ExeDir);
                 var id = changeId.GetChangeId();
                 while (changeId.GetChangeId() == id)
                     Thread.Sleep(500);

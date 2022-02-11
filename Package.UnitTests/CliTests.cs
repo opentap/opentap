@@ -57,6 +57,7 @@ namespace OpenTap.Package.UnitTests
             string contentFilePath = Path.Combine(installDir, "Packages", packageName, contentFileName);
             if (!File.Exists(contentFilePath))
                 File.WriteAllText(contentFilePath, "hello");
+            Installation.Current.Invalidate();
         }
 
         internal static void UninstallDummyPackage(string packageName = "Dummy")

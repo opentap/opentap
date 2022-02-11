@@ -3,13 +3,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Threading;
 
 namespace OpenTap.Cli
 {
@@ -58,115 +54,13 @@ namespace OpenTap.Cli
             if (envvar == "always")
                 return true;
             else if (envvar == "auto")
-                return !(Console.IsErrorRedirected || Console.IsOutputRedirected) || ExecutorClient.IsExecutorMode;
+                return !(Console.IsErrorRedirected || Console.IsOutputRedirected);
             else if (envvar != "never")
                 Console.WriteLine("Unknown value of variable OPENTAP_COLOR, valid values are always, auto or never.");
             return false;
         }
 
-        private static void goIsolated()
-        {
-            if (IsColor())
-            {
-                try
-                {
-                    if (OperatingSystem.Current == OperatingSystem.Windows)
-                    {
-                        if (AnsiColorCodeFix.TryEnableForWin10())
-                            Environment.SetEnvironmentVariable("OPENTAP_ANSI_COLORS", "1");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Error while enabling ANSI colors: {ex.Message}");
-                }
-            }
-
-            string arguments = new CommandLineSplit(Environment.CommandLine).Args;
-            string message = null;
-            using (ExecutorSubProcess subproc = ExecutorSubProcess.Create("tap.exe", arguments))
-            {
-                subproc.MessageReceived += (s, msg) =>
-                {
-                    if (string.IsNullOrEmpty(message))
-                    {
-                        message = msg;
-                    }
-                };
-                subproc.Start();
-                Environment.ExitCode = subproc.WaitForExit();
-            }
-            List<string> tmpDirs = new List<string>();
-            try
-            {
-                while (string.IsNullOrEmpty(message) == false)
-                {
-
-                    if (message.StartsWith("delete "))
-                    {
-                        string dir = message.Substring("delete ".Length);
-                        for (int i = 0; i < 4; i++)
-                        {
-                            try // probably OK if it cannot be deleted.
-                            {
-                                if (Directory.Exists(dir))
-                                {
-                                    Directory.Delete(dir, true);
-                                }
-
-                                break;
-                            }
-                            catch
-                            {
-                                Thread.Sleep(50);
-                            }
-                        }
-                        message = null;
-                    }
-                    else if (message.StartsWith("run "))
-                    {
-                        string loc = message.Substring("run ".Length);
-                        CommandLineSplit command = new CommandLineSplit(loc);
-                        message = null;
-                        using (ExecutorSubProcess subproc = ExecutorSubProcess.Create(command.App, $"{arguments} {command.Args}", true))
-                        {
-                            subproc.Start();
-                            subproc.MessageReceived += (s, msg) =>
-                            {
-                                if (string.IsNullOrEmpty(message))
-                                {
-                                    message = msg;
-                                }
-                            };
-                            Environment.ExitCode = subproc.WaitForExit();
-                        }
-                        tmpDirs.Add(Path.GetDirectoryName(command.App));
-                    }
-                    else
-                    {
-                        message = null;
-                    }
-                }
-            }
-            finally
-            {
-
-                foreach (string dir in tmpDirs)
-                {
-                    try // probably OK if it cannot be deleted.
-                    {
-                        if (Directory.Exists(dir))
-                        {
-                            Directory.Delete(dir, true);
-                        }
-                    }
-                    catch { }
-                }
-            }
-
-        }
-
-        private static void goInProcess()
+        private static void goInProcess(bool isolated)
         {
             var start = DateTime.Now;
             void loadCommandLine()
@@ -182,43 +76,41 @@ namespace OpenTap.Cli
 
             }
 
-            TapInitializer.Initialize(); // This will dynamically load OpenTap.dll
+            TapInitializer.Initialize(isolated); // This will dynamically load OpenTap.dll
             // loadCommandLine has to be called after Initialize 
             // to ensure that we are able to load OpenTap.dll
             loadCommandLine();
-            wrapGoInProcess();
+            wrapGoInProcess(isolated);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        static void wrapGoInProcess()
+        static void wrapGoInProcess(bool isolated)
         {
+            if (isolated)
+            {
+                // Enable Isolated mode on the plugin-manager as early as possible to ensure we don't
+                // load assemblies incorrectly
+                typeof(PluginManager).GetMethod("Isolate", BindingFlags.Static | BindingFlags.NonPublic)
+                    .Invoke(null, Array.Empty<object>());
+            }
             DebuggerAttacher.TryAttach();
             CliActionExecutor.Execute();
         }
 
         public static void Go()
         {
-            if (ExecutorClient.IsExecutorMode)
-            {
-                goInProcess();
-                return;
-            }
-
-            string[] args = Environment.GetCommandLineArgs().Skip(1).ToArray();
-            bool installCommand;
-            bool uninstallCommand;
-            bool packageManagerCommand;
-            installCommand = args.Contains("install");
-            uninstallCommand = args.Contains("uninstall");
-            packageManagerCommand = args.Contains("packagemanager");
+            var args = Environment.GetCommandLineArgs().Skip(1).ToArray();
+            var installCommand = args.Contains("install");
+            var uninstallCommand = args.Contains("uninstall");
+            var packageManagerCommand = args.Contains("packagemanager");
 
             if (OperatingSystem.Current == OperatingSystem.Windows && (installCommand || uninstallCommand || packageManagerCommand))
             {
-                goIsolated();
+                goInProcess(true);
             }
             else
             {
-                goInProcess();
+                goInProcess(false);
             }
         }
     }

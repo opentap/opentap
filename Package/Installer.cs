@@ -38,15 +38,7 @@ namespace OpenTap.Package
             DoSleep = true;
             UnpackOnly = false;
             PackagePaths = new List<string>();
-            TapDir = tapDir?.Trim() ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            if(ExecutorClient.IsRunningIsolated)
-            {
-                TapDir = tapDir?.Trim() ?? Directory.GetCurrentDirectory();
-            }
-            else
-            {
-                TapDir = tapDir?.Trim() ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            }
+            TapDir = tapDir?.Trim() ?? ExecutorClient.ExeDir;
         }
 
         internal void InstallThread()
@@ -80,15 +72,9 @@ namespace OpenTap.Package
                             var newPlugins = pkg.Files.SelectMany(s => s.Plugins.Select(t => t)).Where(t => t.BaseType == nameof(ICustomPackageData));
                             if (newPlugins.Any(np => TypeData.GetTypeData(np.Name) == null))  // Only search again, if the new plugins are not already loaded.
                             {
-                                if (ExecutorClient.IsRunningIsolated)
-                                {
-                                    // Only load installed assemblies if we're running isolated. 
-                                    log.Info(timer, $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
-                                    PluginManager.DirectoriesToSearch.Add(TapDir);
-                                    PluginManager.SearchAsync();
-                                }
-                                else
-                                    log.Warning($"Package '{pkg.Name}' contains possibly relevant plugins for next package installations, but these will not be loaded.");
+                                log.Info(timer, $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
+                                PluginManager.DirectoriesToSearch.Add(TapDir);
+                                PluginManager.SearchAsync();
                             }
                         }
                     }
@@ -305,7 +291,7 @@ namespace OpenTap.Package
                 sb.AppendLine("- " + file.FullName);
 
                 var loaded_asm = AppDomain.CurrentDomain.GetAssemblies()
-                    .FirstOrDefault(x => x.IsDynamic == false && x.Location == file.FullName);
+                    .FirstOrDefault(x => x.IsDynamic == false && x.GetLocation() == file.FullName);
                 if (loaded_asm != null)
                     throw new InvalidOperationException(
                         $"The file '{file.FullName}' is being used by this process.");

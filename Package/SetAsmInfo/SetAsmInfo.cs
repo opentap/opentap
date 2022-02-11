@@ -490,7 +490,7 @@ namespace OpenTap.Package.SetAsmInfo
                     var loadedAssembly = AppDomain.CurrentDomain.GetAssemblies()
                         .FirstOrDefault(s => s.GetName().Name == neededAssembly.Name);
                     if (loadedAssembly != null)
-                        return AssemblyDefinition.ReadAssembly(loadedAssembly.Location, customParameters);
+                        return AssemblyDefinition.ReadAssembly(loadedAssembly.GetLocation(), customParameters);
                 }
                 try
                 {

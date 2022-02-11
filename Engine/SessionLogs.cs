@@ -245,11 +245,8 @@ namespace OpenTap
                     
                 }
             }
-            if (ExecutorClient.IsRunningIsolated)
-            {   // Use the recent system logs from original directory to avoid leaking log files.
-                addOption(() => Path.Combine(ExecutorClient.ExeDir, RecentFilesName));
-            }
-            addOption(() => Path.Combine(Path.GetDirectoryName(typeof(SessionLogs).Assembly.Location), RecentFilesName));
+
+            addOption(() => Path.Combine(ExecutorClient.ExeDir, RecentFilesName));
             addOption(() => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), RecentFilesName));
             addOption(() => RecentFilesName);
 
