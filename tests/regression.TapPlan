@@ -35,32 +35,7 @@
             </TestStep>
             <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="321543e3-31fc-4923-ae06-674cc13bc232">
               <Filepath>../../tests/ILGitVersionBug.TapPlan</Filepath>
-              <StepMapping>
-                <GuidMapping>
-                  <Guid1>3a8e33d7-d7f9-4d58-868b-c38acbf0c15e</Guid1>
-                  <Guid2>e8c42535-b680-4922-9251-a0b3805d2e76</Guid2>
-                </GuidMapping>
-                <GuidMapping>
-                  <Guid1>45f82fc0-8acf-41b2-8472-2c1b9db25f32</Guid1>
-                  <Guid2>32ccc3e7-e8aa-4e34-93ff-3244e0ae6f8d</Guid2>
-                </GuidMapping>
-                <GuidMapping>
-                  <Guid1>fc4259db-b8d5-4790-a940-5de27bfb515d</Guid1>
-                  <Guid2>c39f9346-77e0-474c-9cbc-1663c5f586cf</Guid2>
-                </GuidMapping>
-                <GuidMapping>
-                  <Guid1>87ef4ac9-541e-4add-8c40-7303cdccda87</Guid1>
-                  <Guid2>95b1b48f-2bef-4320-bb05-1237cb9f5738</Guid2>
-                </GuidMapping>
-                <GuidMapping>
-                  <Guid1>03572f31-123d-40de-b737-74c714b8cd31</Guid1>
-                  <Guid2>6541135f-3800-4c45-b85f-0adfc457f075</Guid2>
-                </GuidMapping>
-                <GuidMapping>
-                  <Guid1>ef81482d-125b-4f3f-a1d5-eaf212d302fe</Guid1>
-                  <Guid2>c6ea9599-17d0-4574-9252-88f08c755664</Guid2>
-                </GuidMapping>
-              </StepMapping>
+              <StepMapping />
               <Enabled>true</Enabled>
               <Name>Test Plan: {Referenced Plan}</Name>
               <BreakConditions>Inherit</BreakConditions>
@@ -72,28 +47,7 @@
               <ChildTestSteps>
                 <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="e46b3aba-9711-4dc2-afcc-376f25461664">
                   <Filepath>../../tests/NoAssemblyInfo.TapPlan</Filepath>
-                  <StepMapping>
-                    <GuidMapping>
-                      <Guid1>3a8e33d7-d7f9-4d58-868b-c38acbf0c15e</Guid1>
-                      <Guid2>8c6d4846-30d9-4322-b152-34264b3110f9</Guid2>
-                    </GuidMapping>
-                    <GuidMapping>
-                      <Guid1>45f82fc0-8acf-41b2-8472-2c1b9db25f32</Guid1>
-                      <Guid2>80d5b604-84dc-4f91-91bf-1298b51559fe</Guid2>
-                    </GuidMapping>
-                    <GuidMapping>
-                      <Guid1>87ef4ac9-541e-4add-8c40-7303cdccda87</Guid1>
-                      <Guid2>f5e3089c-fb08-450d-adaa-c473a5cc4e26</Guid2>
-                    </GuidMapping>
-                    <GuidMapping>
-                      <Guid1>03572f31-123d-40de-b737-74c714b8cd31</Guid1>
-                      <Guid2>5c5a4931-8882-4008-9988-8e58d8ad6fbe</Guid2>
-                    </GuidMapping>
-                    <GuidMapping>
-                      <Guid1>ef81482d-125b-4f3f-a1d5-eaf212d302fe</Guid1>
-                      <Guid2>8682b331-57c9-4ded-a59a-a644f1debc32</Guid2>
-                    </GuidMapping>
-                  </StepMapping>
+                  <StepMapping />
                   <Enabled>true</Enabled>
                   <Name>Test Plan: {Referenced Plan} (1)</Name>
                   <BreakConditions>Inherit</BreakConditions>
@@ -109,7 +63,6 @@
               <BreakConditions>Inherit</BreakConditions>
             </TestStep>
             <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="28f79a0f-fa70-4dc8-9b31-322828869f8c">
-              <Parameters_x0020__x005C__x0020_ExpectedValue>3</Parameters_x0020__x005C__x0020_ExpectedValue>
               <Filepath>../../tests/RepeatOutputCompare.TapPlan</Filepath>
               <StepMapping />
               <Enabled>true</Enabled>
@@ -125,12 +78,14 @@
             </TestStep>
             <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="33283dfc-1947-4ba9-b845-d62df5472597">
               <Filepath>../../tests/test-sdk-templates.TapPlan</Filepath>
-              <StepMapping>
-                <GuidMapping>
-                  <Guid1>154cf1ab-d46d-4533-9a0e-2b5b5eeca0f7</Guid1>
-                  <Guid2>1cfd4c46-a9be-4fc2-9c80-89b559e26eb3</Guid2>
-                </GuidMapping>
-              </StepMapping>
+              <StepMapping />
+              <Enabled>true</Enabled>
+              <Name>Test Plan {Referenced Plan}</Name>
+              <BreakConditions>Inherit</BreakConditions>
+            </TestStep>
+            <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="08dfa414-3367-48a6-b2f4-26a2d94a3852">
+                <Filepath>../../tests/generate-references-twice.TapPlan</Filepath>
+              <StepMapping />
               <Enabled>true</Enabled>
               <Name>Test Plan {Referenced Plan}</Name>
               <BreakConditions>Inherit</BreakConditions>

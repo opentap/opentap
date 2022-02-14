@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="OpenTap.TestPlan" Locked="false">
+  <Steps>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.CreateDirectoryStep" Version="0.0.0" Id="3a8e33d7-d7f9-4d58-868b-c38acbf0c15e">
+      <Directory>../../RefProj</Directory>
+      <Enabled>true</Enabled>
+      <Name>Create Directory: {Directory}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Version="0.0.0" Id="45f82fc0-8acf-41b2-8472-2c1b9db25f32">
+      <String>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+                &lt;PropertyGroup&gt;
+                    &lt;TargetFrameworkIdentifier&gt;&lt;/TargetFrameworkIdentifier&gt;
+                    &lt;TargetFrameworkVersion&gt;&lt;/TargetFrameworkVersion&gt;
+                    &lt;TargetFramework&gt;netstandard2.0&lt;/TargetFramework&gt;
+                    &lt;AppendTargetFrameworkToOutputPath&gt;false&lt;/AppendTargetFrameworkToOutputPath&gt;
+                    &lt;CopyLocalLockFileAssemblies&gt;true&lt;/CopyLocalLockFileAssemblies&gt;
+                    &lt;OutputPath&gt;bin/Debug&lt;/OutputPath&gt;
+                &lt;/PropertyGroup&gt;
+                &lt;ItemGroup&gt;
+                    &lt;PackageReference Include="OpenTAP" Version="9.17.0-beta.9" /&gt;
+                    &lt;OpenTapPackageReference Include="CSV"  Repository="packages.opentap.io" /&gt;
+                &lt;/ItemGroup&gt;
+           &lt;/Project&gt;</String>
+      <File>../../RefProj/RefProj.csproj</File>
+      <Enabled>true</Enabled>
+      <Name>Write {File}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Version="0.0.0" Id="fc4259db-b8d5-4790-a940-5de27bfb515d">
+      <String>
+        <Base64>dXNpbmcgS2V5c2lnaHQuT3BlblRhcC5QbHVnaW5zLkNzdjsKCnB1YmxpYyBjbGFzcyBUZXN0MQp7CiAgICBwdWJsaWMgVGVzdDEoKQogICAgewogICAgICAgICB0eXBlb2YoQ3N2V3JpdGVyKS5Ub1N0cmluZygpOwogICAgfQp9Cg==</Base64>
+      </String>
+      <File>../../RefProj/class.cs</File>
+      <Enabled>true</Enabled>
+      <Name>Write {File}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="03572f31-123d-40de-b737-74c714b8cd31">
+      <Application>dotnet</Application>
+      <Arguments>build</Arguments>
+      <WorkingDirectory>../../RefProj</WorkingDirectory>
+      <WaitForEnd>true</WaitForEnd>
+      <Timeout>0</Timeout>
+      <AddToLog>true</AddToLog>
+      <LogHeader />
+      <CheckExitCode>true</CheckExitCode>
+      <RegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </RegularExpressionPattern>
+      <VerdictOnMatch>Pass</VerdictOnMatch>
+      <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+      <ResultRegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </ResultRegularExpressionPattern>
+      <ResultName>Regex Result</ResultName>
+      <Behavior>GroupsAsDimensions</Behavior>
+      <DimensionTitles></DimensionTitles>
+      <Enabled>true</Enabled>
+      <Name>Build Once</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="7d211af4-0cbd-4e31-bb8e-9b82ed4d2dfc">
+      <Application>dotnet</Application>
+      <Arguments>build</Arguments>
+      <WorkingDirectory>../../RefProj</WorkingDirectory>
+      <WaitForEnd>true</WaitForEnd>
+      <Timeout>0</Timeout>
+      <AddToLog>true</AddToLog>
+      <LogHeader />
+      <CheckExitCode>true</CheckExitCode>
+      <RegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </RegularExpressionPattern>
+      <VerdictOnMatch>Pass</VerdictOnMatch>
+      <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+      <ResultRegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </ResultRegularExpressionPattern>
+      <ResultName>Regex Result</ResultName>
+      <Behavior>GroupsAsDimensions</Behavior>
+      <DimensionTitles></DimensionTitles>
+      <Enabled>true</Enabled>
+      <Name>Build Twice</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+  </Steps>
+  <BreakConditions>Inherit</BreakConditions>
+</TestPlan>
