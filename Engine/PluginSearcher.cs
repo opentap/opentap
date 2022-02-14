@@ -645,6 +645,18 @@ namespace OpenTap
                     foreach (var methodHandle in typeDef.GetMethods())
                     {
                         var m = CurrentReader.GetMethodDefinition(methodHandle);
+
+                        // This method is applicable if it is public, non-static, and has the RTSpecialName attribute
+                        // The RTSpecialName attribute means that the method has a special significance explained by its name.
+                        // All constructors will have this attribute, but most user-defined methods will not.
+                        var attributes = m.Attributes;
+                        var applicable = attributes.HasFlag(MethodAttributes.Public) &&
+                                         attributes.HasFlag(MethodAttributes.Static) == false &&
+                                         attributes.HasFlag(MethodAttributes.RTSpecialName);
+
+                        if (!applicable)
+                            continue;
+
                         if (CurrentReader.GetString(m.Name) != ".ctor")
                             continue;
 
