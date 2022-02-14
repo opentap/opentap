@@ -157,8 +157,11 @@ namespace OpenTap.Package
             return FindPackageContainingFile(assemblyPath);
         }
 
-        private List<PackageDef> PackageCache;
+        private Dictionary<string, PackageDef> packageCache;
         private long previousChangeId = -1;
+        
+        // Keeps track of which warnings about duplicate packages has been emitted.
+        static readonly HashSet<string> duplicateLogWarningsEmitted = new HashSet<string>();
 
         /// <summary>
         /// Invalidate caches if the installation has changed.
@@ -173,19 +176,28 @@ namespace OpenTap.Package
                 previousChangeId = changeId;
             }
         }
+        /// <summary>
+        /// Returns package definition list of installed packages in the TAP installation defined in the constructor, and system-wide packages.
+        /// Results are cached, and Invalidate must be called if changes to the installation are made by circumventing OpenTAP APIs.
+        /// </summary>
+        public List<PackageDef> GetPackages() => new List<PackageDef>(GetPackagesLookup().Values);
 
+        /// <summary> Finds an installed package by name. Returns null if the package was not found. </summary>
+        public PackageDef FindPackage(string name) => GetPackagesLookup().TryGetValue(name, out var package) ? package : null;
+        
         /// <summary>
         /// Returns package definition list of installed packages in the TAP installation defined in the constructor, and system-wide packages.
         /// Results are cached, and Invalidate must be called if changes to the installation are made by circumventing OpenTAP APIs.
         /// </summary>
         /// <returns></returns>
-        public List<PackageDef> GetPackages()
+        Dictionary<string, PackageDef> GetPackagesLookup()
         {
             InvalidateIfChanged();
 
-            if (PackageCache == null || invalidate)
+            if (packageCache == null || invalidate)
             {
-                List<PackageDef> plugins = new List<PackageDef>();
+                Dictionary<string, PackageDef> plugins = new Dictionary<string, PackageDef>();
+                List<PackageDef> duplicatePlugins = new List<PackageDef>();
                 List<string> package_files = new List<string>();
 
                 // Add normal package from OpenTAP folder
@@ -197,26 +209,42 @@ namespace OpenTap.Package
                 foreach (var file in package_files)
                 {
                     var package = installedPackageMemorizer.Invoke(file);
-                    if (package != null && !plugins.Any(s => s.Name == package.Name))
-                    {
+                    if (package == null) continue;
+
 #pragma warning disable 618
-                        package.Location = file;
+                    package.Location = file;
 #pragma warning restore 618
-                        package.PackageSource = new InstalledPackageDefSource
-                        {
-                            Installation = this,
-                            PackageDefFilePath = file
-                        };
-                        plugins.Add(package);
+                    package.PackageSource = new InstalledPackageDefSource
+                    {
+                        Installation = this,
+                        PackageDefFilePath = file
+                    };
+                    if (!plugins.ContainsKey(package.Name))
+                    {
+                        plugins.Add(package.Name, package);
+                    }
+                    else
+                    {
+                        duplicatePlugins.Add(package);
+                        
                     }
                 }
 
+                foreach (var p in duplicatePlugins.GroupBy(p => p.Name))
+                {
+                    if(duplicateLogWarningsEmitted.Add(p.Key))
+                        log.Warning(
+                        $"Duplicate {p.Key} packages detected. Consider removing some of the duplicate package definitions:\n" +
+                        $"{string.Join("\n", p.Append(plugins[p.Key]).Select(x => " - " + ((InstalledPackageDefSource)x.PackageSource).PackageDefFilePath))}");
+                }
+
                 invalidate = false;
-                PackageCache = plugins;
+                packageCache = plugins;
             }
 
-            return new List<PackageDef>(PackageCache);
+            return packageCache;
         }
+
 
         /// <summary>
         /// Get a package definition of OpenTAP engine.
@@ -224,11 +252,11 @@ namespace OpenTap.Package
         /// <returns></returns>
         public PackageDef GetOpenTapPackage()
         {
-            var opentap = GetPackages()?.FirstOrDefault(p => p.Name == "OpenTAP");
-            if (opentap == null)
-                log.Warning($"Could not find OpenTAP in {Directory}.");
-
-            return opentap;
+            if (GetPackagesLookup().TryGetValue("OpenTAP", out var opentap))
+                return opentap;
+            
+            log.Warning($"Could not find OpenTAP in {Directory}.");
+            return null;
         }
 
 
