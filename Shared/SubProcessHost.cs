@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
+using System.Linq;
 using System.Reflection;
 using System.Security.Principal;
 using System.Threading;
@@ -15,14 +17,11 @@ namespace OpenTap
     /// It executes a test step (which can have child test steps) in a new process
     /// It supports subscribing to log events from the child process, and forwarding the logs directly.
     /// </summary>
-    internal class SubProcessHost
+    class SubProcessHost
     {
-        private bool forwardLogs = false;
+        public bool ForwardLogs { get; set; } 
+        public string LogPrefix { get; set; } = "Subprocess";
 
-        public SubProcessHost(bool forwardLogs)
-        {
-            this.forwardLogs = forwardLogs;
-        }
 
         public static bool IsAdmin()
         {
@@ -70,29 +69,7 @@ namespace OpenTap
             return Path.Combine(ExecutorClient.ExeDir, "tap");
         }
 
-        private static void LogLine(Event evt)
-        {
-            var childLog = Log.CreateSource("Subprocess: " + evt.Source);
-            var message = evt.Message;
-
-            switch (evt.EventType)
-            {
-                case 10:
-                    childLog.Error(message);
-                    break;
-                case 20:
-                    childLog.Warning(message);
-                    break;
-                case 30:
-                    childLog.Info(message);
-                    break;
-                case 40:
-                    childLog.Debug(message);
-                    break;
-            }
-        }
-
-        private static TraceSource log = Log.CreateSource(nameof(SubProcessHost));
+        private static readonly TraceSource log = Log.CreateSource(nameof(SubProcessHost));
         internal Process LastProcessHandle;
 
         private static readonly object StdoutLock = new object();
@@ -217,8 +194,15 @@ namespace OpenTap
                     if (token.IsCancellationRequested)
                         throw new OperationCanceledException($"Process cancelled by the user.");
 
-                    if (server.TryReadMessage<Event[]>(out var logEvents) && forwardLogs)
-                        logEvents.ForEach(((ILogContext2) Log.Context).AddEvent);
+                    if (server.TryReadMessage<Event[]>(out var events) && ForwardLogs)
+                    {
+                        if (string.IsNullOrWhiteSpace(LogPrefix) == false)
+                        {
+                            for(int i = 0; i < events.Length; i++)
+                                events[i].Message = LogPrefix + ": " + events[i].Message;
+                        }
+                        events.ForEach(((ILogContext2)Log.Context).AddEvent);
+                    }
                 }
 
                 var processExitTask = Task.Run(() => p.WaitForExit(), token);

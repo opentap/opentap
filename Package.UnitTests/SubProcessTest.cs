@@ -23,7 +23,7 @@ namespace OpenTap.Package.UnitTests
                 LogMessage = "Hello World"
             };
 
-            var ph = new SubProcessHost(true);
+            var ph = new SubProcessHost(){ForwardLogs = true};
             var listener = new LoggingTraceListener();
             using (Session.Create(SessionOptions.RedirectLogging))
             {
@@ -45,7 +45,7 @@ namespace OpenTap.Package.UnitTests
                 {
                     VerdictOutput = ver
                 };
-                var verdict = new SubProcessHost(false).Run(step, false, CancellationToken.None);
+                var verdict = new SubProcessHost().Run(step, false, CancellationToken.None);
                 Assert.AreEqual(ver, verdict);
             }
         }
@@ -56,7 +56,7 @@ namespace OpenTap.Package.UnitTests
             var token = new CancellationTokenSource();
 
             var step = new DelayStep() { DelaySecs = 10 };
-            var ph = new SubProcessHost(false);
+            var ph = new SubProcessHost();
             Task.Run(() => ph.Run(step, false, token.Token));
 
             // wait for process to start

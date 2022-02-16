@@ -225,7 +225,7 @@ namespace OpenTap.Package
                         Force = Force
                     };
 
-                    var processRunner = new SubProcessHost(true);
+                    var processRunner = new SubProcessHost {ForwardLogs = true};
 
                     var result = processRunner.Run(installStep, true, cancellationToken);
                     if (result != Verdict.Pass)
