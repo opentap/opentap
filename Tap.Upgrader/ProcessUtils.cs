@@ -9,7 +9,7 @@ namespace Tap.Upgrader
     /// A utility class to determine a process parent.
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    internal struct ProcessBasicInformation
+    internal struct ProcessUtils
     {
         internal IntPtr Reserved1;
         internal IntPtr PebBaseAddress;
@@ -20,7 +20,7 @@ namespace Tap.Upgrader
 
         [DllImport("ntdll.dll")]
         private static extern int NtQueryInformationProcess(IntPtr processHandle, int processInformationClass,
-            ref ProcessBasicInformation processInformation, int processInformationLength, out int returnLength);
+            ref ProcessUtils processInformation, int processInformationLength, out int returnLength);
 
         /// <summary>
         /// Gets the parent process of the current process.
@@ -38,7 +38,7 @@ namespace Tap.Upgrader
         /// <returns>An instance of the Process class.</returns>
         public static Process GetParentProcess(IntPtr handle)
         {
-            ProcessBasicInformation pbi = new ProcessBasicInformation();
+            ProcessUtils pbi = new ProcessUtils();
             var status = NtQueryInformationProcess(handle, 0, ref pbi, Marshal.SizeOf(pbi), out var _);
             if (status != 0)
                 throw new Win32Exception(status);

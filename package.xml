@@ -58,6 +58,14 @@
         <File Path="tap.exe">
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
+        <!-- We ship an additional 'tap.exe' file because 'tap.exe' is not overwritten on Windows.
+             It is not possible to overwrite because that executable is currently installing OpenTAP.
+             This additional 'tap.exe.new' overwrites the previous 'tap.exe' file as a post-install action
+             We still need to ship the original 'tap.exe' file in the package in case the package is being deployed
+             by manually unzipping -->
+        <File Path="Packages/OpenTap/tap.exe.new" SourcePath="tap.exe" >
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+        </File>
         <!-- The tap upgrader is only necessary on Windows because we cannot overwrite tap.exe otherwise -->
         <File Path="Packages/OpenTap/Tap.Upgrader.exe" SourcePath="Tap.Upgrader.exe">
           <SetAssemblyInfo Attributes="Version"/>
@@ -111,6 +119,6 @@
         <ActionStep ActionName="install" ExeFile="chmod" Arguments="+x tap"  />
     </PackageActionExtensions>
     <PackageActionExtensions Condition="$(Platform) == Windows">
-        <ActionStep ActionName="install" ExeFile="Packages/OpenTap/Tap.Upgrader.exe" Arguments="v=$(GitVersion)" />
+        <ActionStep ActionName="install" ExeFile="Packages/OpenTap/Tap.Upgrader.exe" />
     </PackageActionExtensions>
 </Package>

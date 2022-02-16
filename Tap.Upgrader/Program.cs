@@ -11,61 +11,10 @@ namespace Tap.Upgrader
 {
     internal static class Installer
     {
-        internal static void Install(string installDir, string version)
+        internal static void Install(string installDir)
         {
-            var packageCaches = new[]
-            {
-                // Pre-9.17 package cache location
-                Path.Combine(installDir, "PackageCache"),
-                // Post-9.17 package cache location
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OpenTap",
-                    "PackageCache")
-            }.Where(Directory.Exists);
-
-            var ms = new MemoryStream();
-            bool foundTap = false;
-
-            // Look for an OpenTAP package in the package caches which matches the version we are currently installing
-            var files = new List<string>();
-            foreach (var cache in packageCaches)
-            {
-                try
-                {
-                    files.AddRange(Directory.EnumerateFiles(cache));
-                }
-                catch
-                {
-                    // There was an error enumerating files, just skip this cache
-                }
-            }
-
-            foreach (var file in files)
-            {
-                try
-                {
-                    using var fs = File.OpenRead(file);
-                    using var arch = new ZipArchive(fs);
-                    var xml = arch.GetEntry("Packages/OpenTAP/package.xml");
-                    if (xml == null) continue;
-                    var doc = XElement.Load(xml.Open());
-
-                    if (doc.Attribute("Name")?.Value != "OpenTAP" ||
-                        doc.Attribute("Version")?.Value != version) continue;
-
-                    var tapExe = arch.GetEntry("tap.exe");
-                    if (tapExe == null) continue;
-                    tapExe.Open().CopyTo(ms);
-                    foundTap = true;
-                    break;
-                }
-                catch
-                {
-                    // Some error occurred, likely either permissions or because the package was not a zip archive
-                }
-            }
-
-            // Didn't find tap -- we can't really do anything
-            if (!foundTap) return;
+            var target = Path.Combine(installDir, "tap.exe");
+            var source = Path.Combine(installDir, "Packages", "OpenTap", "tap.exe.new");
 
             var sw = Stopwatch.StartNew();
             // Retry in a loop for until tap.exe is no longer locked
@@ -73,8 +22,10 @@ namespace Tap.Upgrader
             {
                 try
                 {
-                    var oldTapExe = Path.Combine(installDir, "tap.exe");
-                    File.WriteAllBytes(oldTapExe, ms.ToArray());
+                    if (File.Exists(target))
+                        File.Delete(target);
+                    if (File.Exists(source))
+                        File.Move(source, target);
                     break;
                 }
                 catch
@@ -88,8 +39,6 @@ namespace Tap.Upgrader
 
     public static class Program
     {
-        static string ExeDir;
-
         static Dictionary<string, string> parseArgs(string[] args)
         {
             var result = new Dictionary<string, string>();
@@ -110,13 +59,13 @@ namespace Tap.Upgrader
         /// <returns></returns>
         private static Process GetNonTempAncestor()
         {
-            var parent = ProcessBasicInformation.GetParentProcess();
+            var parent = ProcessUtils.GetParentProcess();
             var tempdir = Path.GetTempPath();
             while (true)
             {
                 try
                 {
-                    var next = ProcessBasicInformation.GetParentProcess(parent.Handle);
+                    var next = ProcessUtils.GetParentProcess(parent.Handle);
                     if (next == null) return parent;
                     parent = next;
                     if (parent.MainModule.FileName.StartsWith(tempdir) == false) return parent;
@@ -131,30 +80,24 @@ namespace Tap.Upgrader
         public static void Main(string[] args)
         {
             var argTable = parseArgs(args);
-            if (argTable.ContainsKey("p"))
-            {
-                ExeDir = argTable["p"];
-                var version = argTable["v"];
-                Installer.Install(ExeDir, version);
-            }
-            else
+            if (!argTable.ContainsKey("p"))
             {
                 try
                 {
                     var parent = GetNonTempAncestor();
                     if (parent?.MainModule == null) return;
 
-                    ExeDir = Path.GetDirectoryName(parent.MainModule.FileName);
+                    var exeDir = Path.GetDirectoryName(parent.MainModule.FileName);
                     // Start this process and immediately exit
                     // This subprocess will then wait for the tap.exe instance which started this program to exit
                     // so it can overwrite tap.exe
                     var thisExe = typeof(Program).Assembly.Location;
                     Process.Start(new ProcessStartInfo(thisExe)
                     {
-                        // Specify the OpenTAP version we are installing and the directory it is being installed to
-                        Arguments = $"p=\"{ExeDir}\" v={argTable["v"]}",
-                        CreateNoWindow = true,
-                        WindowStyle = ProcessWindowStyle.Hidden
+                            // Specify the OpenTAP version we are installing and the directory it is being installed to
+                            Arguments = $"p=\"{exeDir}\"",
+                            CreateNoWindow = true,
+                            WindowStyle = ProcessWindowStyle.Hidden
                     });
                 }
                 catch
@@ -163,6 +106,11 @@ namespace Tap.Upgrader
                     // Worst case scenario the installation will complete normally without overwriting tap.exe which
                     // shouldn't be necessary anyway in the majority of cases
                 }
+            }
+            else
+            {
+                var exeDir = argTable["p"];
+                Installer.Install(exeDir);
             }
         }
     }
