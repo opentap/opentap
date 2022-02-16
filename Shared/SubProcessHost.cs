@@ -15,18 +15,12 @@ namespace OpenTap
     /// It executes a test step (which can have child test steps) in a new process
     /// It supports subscribing to log events from the child process, and forwarding the logs directly.
     /// </summary>
-    internal class ProcessHelper : EventTraceListener
+    internal class SubProcessHost
     {
-        public ProcessHelper(bool forwardLogs)
+        private bool forwardLogs = false;
+        public SubProcessHost(bool forwardLogs)
         {
-            if (forwardLogs)
-                MessageLogged += evts =>
-                {
-                    foreach (var evt in evts)
-                    {
-                        LogLine(evt);
-                    }
-                };
+            this.forwardLogs = forwardLogs;
         }
 
         public static bool IsAdmin()
@@ -97,7 +91,7 @@ namespace OpenTap
             }
         }
 
-        private static TraceSource log = Log.CreateSource(nameof(ProcessHelper));
+        private static TraceSource log = Log.CreateSource(nameof(SubProcessHost));
         internal Process LastProcessHandle;
 
         private static readonly object StdoutLock = new object();
@@ -200,24 +194,37 @@ namespace OpenTap
                 // Resume stdout after the server has connected as we now know the application has launched
                 ResumeStdout();
 
-                var stepString = new TapSerializer().SerializeToString(step);
-                server.WriteMessage(stepString);
+                server.WriteMessage(step);
 
                 while (server.IsConnected && p.HasExited == false)
                 {
                     if (token.IsCancellationRequested)
                         throw new OperationCanceledException($"Process cancelled by the user.");
 
-                    var msg = server.ReadMessage();
-                    if (msg.Length == 0) continue;
-                    var evt = SerializationHelper.StreamToEvent(msg);
-                    this.TraceEvents(new[] { evt });
+                    var msgs = server.ReadMessage<Event[]>();
+                    if (forwardLogs)
+                    {
+                        foreach (var evt in msgs)
+                            LogLine(evt);
+                    }
                 }
 
                 var processExitTask = Task.Run(() => p.WaitForExit(), token);
                 var tokenCancelledTask = Task.Run(() => token.WaitHandle.WaitOne(), token);
 
                 Task.WaitAny(processExitTask, tokenCancelledTask);
+                while (server.IsConnected)
+                {
+                    if (token.IsCancellationRequested)
+                        throw new OperationCanceledException($"Process cancelled by the user.");
+
+                    var msgs = server.ReadMessage<Event[]>();
+                    if (forwardLogs)
+                    {
+                        foreach (var evt in msgs)
+                            LogLine(evt);
+                    }
+                }
                 if (token.IsCancellationRequested)
                 {
                     throw new OperationCanceledException($"Process cancelled by the user.");

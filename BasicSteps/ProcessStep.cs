@@ -67,7 +67,7 @@ namespace OpenTap.Plugins.BasicSteps
         [EnabledIf(nameof(WaitForEnd), true)]
         public bool CheckExitCode { get; set; }
 
-        [Display("Run As Administrator", "Attempt to run the application as administrator.")]
+        [Display("Run As Administrator", "Attempt to run the application as administrator.", Order: -2.06)]
         public bool RunElevated { get; set; } = false;
         
         ManualResetEvent outputWaitHandle, errorWaitHandle;
@@ -81,7 +81,7 @@ namespace OpenTap.Plugins.BasicSteps
                 {
                     // Set RunElevated = false so ProcessHelper doesn't infinitely loop
                     RunElevated = false;
-                    var processRunner = new ProcessHelper(AddToLog);
+                    var processRunner = new SubProcessHost(AddToLog);
                     var verdict = processRunner.Run(this, true, CancellationToken.None);
                     UpgradeVerdict(verdict);
                     return;
