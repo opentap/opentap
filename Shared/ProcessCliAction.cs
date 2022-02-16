@@ -26,16 +26,15 @@ namespace OpenTap
             try
             {
                 client.Connect();
-                var step = client.ReadMessage<ITestStep>();
-                var plan = new TestPlan();
-                plan.ChildTestSteps.Add(step);
+                var plan = client.ReadMessage<TestPlan>();
 
                 Log.AddListener(listener);
-
                 return (int)plan.Execute(Array.Empty<IResultListener>()).Verdict;
             }
             finally
             {
+                // ensure the log is flushed before removing the listener.
+                Log.Flush();
                 Log.RemoveListener(listener);
                 client.Dispose();
             }

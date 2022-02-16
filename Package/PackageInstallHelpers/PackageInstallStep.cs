@@ -1,12 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading;
 
 namespace OpenTap.Package.PackageInstallHelpers
 {
-    internal class PackageInstallStep : TestStep
+    [Browsable(false)]
+    class PackageInstallStep : TestStep
     {
         public string Target { get; set; }
         public PackageDef[] Packages { get; set; }

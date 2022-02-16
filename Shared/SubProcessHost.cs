@@ -18,6 +18,7 @@ namespace OpenTap
     internal class SubProcessHost
     {
         private bool forwardLogs = false;
+
         public SubProcessHost(bool forwardLogs)
         {
             this.forwardLogs = forwardLogs;
@@ -98,9 +99,10 @@ namespace OpenTap
         private static bool stdoutSuspended;
         private static TextWriter originalOut;
         private static StringWriter tmpOut;
+
         private static void SuspendStdout()
         {
-            lock(StdoutLock)
+            lock (StdoutLock)
             {
                 if (stdoutSuspended) return;
                 originalOut = Console.Out;
@@ -110,16 +112,17 @@ namespace OpenTap
                 stdoutSuspended = true;
             }
         }
+
         private static void ResumeStdout()
         {
-            lock(StdoutLock)
+            lock (StdoutLock)
             {
                 if (stdoutSuspended == false) return;
                 // Restore stdout after the server has connected
                 Console.SetOut(originalOut);
                 var lines = tmpOut.ToString()
-                    .Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
-                
+                    .Split(new[] {Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries);
+
                 foreach (var line in lines)
                 {
                     Console.WriteLine(line);
@@ -132,6 +135,13 @@ namespace OpenTap
         }
 
         public Verdict Run(ITestStep step, bool elevate, CancellationToken token)
+        {
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step);
+            return Run(plan, elevate, token);
+        }
+
+        public Verdict Run(TestPlan step, bool elevate, CancellationToken token)
         {
             var handle = Guid.NewGuid().ToString();
             var pInfo = new ProcessStartInfo(GetTap())
@@ -163,7 +173,7 @@ namespace OpenTap
                     pInfo.RedirectStandardError = false;
                 }
             }
-            
+
             SuspendStdout();
 
             using var p = Process.Start(pInfo);
@@ -188,49 +198,39 @@ namespace OpenTap
             try
             {
                 var server = new NamedPipeServerStream(handle, PipeDirection.InOut, 1);
-                server.WaitForConnectionAsync(token).GetAwaiter().GetResult();
-                if (token.IsCancellationRequested)
+                try
+                {
+                    server.WaitForConnectionAsync(token).Wait(token);
+                }
+                catch (OperationCanceledException)
+                {
                     throw new OperationCanceledException($"Process cancelled by the user.");
+                }
                 // Resume stdout after the server has connected as we now know the application has launched
                 ResumeStdout();
 
                 server.WriteMessage(step);
+
 
                 while (server.IsConnected && p.HasExited == false)
                 {
                     if (token.IsCancellationRequested)
                         throw new OperationCanceledException($"Process cancelled by the user.");
 
-                    var msgs = server.ReadMessage<Event[]>();
-                    if (forwardLogs)
-                    {
-                        foreach (var evt in msgs)
-                            LogLine(evt);
-                    }
+                    if (server.TryReadMessage<Event[]>(out var logEvents) && forwardLogs)
+                        logEvents.ForEach(((ILogContext2) Log.Context).AddEvent);
                 }
 
                 var processExitTask = Task.Run(() => p.WaitForExit(), token);
                 var tokenCancelledTask = Task.Run(() => token.WaitHandle.WaitOne(), token);
 
                 Task.WaitAny(processExitTask, tokenCancelledTask);
-                while (server.IsConnected)
-                {
-                    if (token.IsCancellationRequested)
-                        throw new OperationCanceledException($"Process cancelled by the user.");
-
-                    var msgs = server.ReadMessage<Event[]>();
-                    if (forwardLogs)
-                    {
-                        foreach (var evt in msgs)
-                            LogLine(evt);
-                    }
-                }
                 if (token.IsCancellationRequested)
                 {
                     throw new OperationCanceledException($"Process cancelled by the user.");
                 }
 
-                return (Verdict)p.ExitCode;
+                return (Verdict) p.ExitCode;
             }
             finally
             {

@@ -7,18 +7,37 @@ namespace OpenTap
 {
     static class PipeReader
     {
+        static int ReadInt(this PipeStream stream)
+        {
+            var buffer = new byte[4];
+            for(int read = 0; read < 4;)
+            {
+                var r = stream.Read(buffer, read, 4 - read);
+                if (r == 0) return -1; // premature end of stream.
+                read += r;
+            }
+            return BitConverter.ToInt32(buffer,0);
+        }
         private static readonly TapSerializer writer = new TapSerializer();
         private static readonly TapSerializer reader = new TapSerializer();
+
         public static T ReadMessage<T>(this PipeStream stream)
         {
+            stream.TryReadMessage<T>(out var r);
+            return r;
+        }
+        public static bool TryReadMessage<T>(this PipeStream stream, out T r)
+        {
+            r = default;
             lock (reader)
             {
+                var len = stream.ReadInt();
+                if (len == -1) return false;
                 using (var rd = new BinaryReader(stream, Encoding.Default, true))
                 {
-                    var len = rd.ReadInt32();
                     MemoryStream ms = new MemoryStream(rd.ReadBytes(len));
-                    return (T) reader.Deserialize(ms, true, TypeData.FromType(typeof(T)));
-                    
+                    r = (T) reader.Deserialize(ms, true, TypeData.FromType(typeof(T)));
+                    return true;
                 }
             }
         }

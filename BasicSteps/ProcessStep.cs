@@ -68,15 +68,17 @@ namespace OpenTap.Plugins.BasicSteps
         public bool CheckExitCode { get; set; }
 
         [Display("Run As Administrator", "Attempt to run the application as administrator.", Order: -2.06)]
-        public bool RunElevated { get; set; } = false;
+        internal bool RunElevated { get; set; } = false; // this is disabled for now.
         
         ManualResetEvent outputWaitHandle, errorWaitHandle;
         StringBuilder output;
 
         public override void Run()
         {
-            if (RunElevated)
+            
+            if (RunElevated &&!SubProcessHost.IsAdmin())
             {
+                // note, this part is currently never enabled.
                 try
                 {
                     // Set RunElevated = false so ProcessHelper doesn't infinitely loop

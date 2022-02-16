@@ -13,20 +13,17 @@ using OpenTap.Plugins.BasicSteps;
 namespace OpenTap.Package.UnitTests
 {
     [TestFixture]
-    public class SubprocessTest
+    public class SubProcessTest
     {
         [Test]
         public void TestProcessIO()
         {
-            var messages = new List<string>();
-
             var step = new LogStep
             {
                 LogMessage = "Hello World"
             };
 
             var ph = new SubProcessHost(true);
-            //ph.MessageLogged += evts => messages.AddRange(evts.Select(e => e.Message));
             var listener = new LoggingTraceListener();
             using (Session.Create(SessionOptions.RedirectLogging))
             {
