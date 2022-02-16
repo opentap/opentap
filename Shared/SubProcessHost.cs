@@ -20,7 +20,7 @@ namespace OpenTap
     class SubProcessHost
     {
         public bool ForwardLogs { get; set; } 
-        public string LogPrefix { get; set; } = "Subprocess";
+        public string LogHeader { get; set; } = "Subprocess";
 
 
         public static bool IsAdmin()
@@ -196,10 +196,10 @@ namespace OpenTap
 
                     if (server.TryReadMessage<Event[]>(out var events) && ForwardLogs)
                     {
-                        if (string.IsNullOrWhiteSpace(LogPrefix) == false)
+                        if (string.IsNullOrWhiteSpace(LogHeader) == false)
                         {
                             for(int i = 0; i < events.Length; i++)
-                                events[i].Message = LogPrefix + ": " + events[i].Message;
+                                events[i].Message = LogHeader + ": " + events[i].Message;
                         }
                         events.ForEach(((ILogContext2)Log.Context).AddEvent);
                     }

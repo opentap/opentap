@@ -83,7 +83,7 @@ namespace OpenTap.Plugins.BasicSteps
                 {
                     // Set RunElevated = false so ProcessHelper doesn't infinitely loop
                     RunElevated = false;
-                    var processRunner = new SubProcessHost { ForwardLogs = AddToLog, LogPrefix = LogHeader};
+                    var processRunner = new SubProcessHost { ForwardLogs = AddToLog, LogHeader = LogHeader};
                     var verdict = processRunner.Run(this, true, CancellationToken.None);
                     UpgradeVerdict(verdict);
                     return;

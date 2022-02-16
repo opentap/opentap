@@ -23,7 +23,7 @@ namespace OpenTap.Package.UnitTests
                 LogMessage = "Hello World"
             };
 
-            var ph = new SubProcessHost(){ForwardLogs = true};
+            var ph = new SubProcessHost(){ForwardLogs = true, LogHeader = "testprefix"};
             var listener = new LoggingTraceListener();
             using (Session.Create(SessionOptions.RedirectLogging))
             {
@@ -31,7 +31,7 @@ namespace OpenTap.Package.UnitTests
                 ph.Run(step, false, CancellationToken.None);
             }
 
-            CollectionAssert.Contains(listener.Events.Select(x => x.Message), "Hello World");
+            CollectionAssert.Contains(listener.Events.Select(x => x.Message), "testprefix: Hello World");
         }
 
         [Test]
