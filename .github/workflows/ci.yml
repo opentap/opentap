@@ -351,8 +351,8 @@ jobs:
           cd ../Release-${{ matrix.Architecture }}
           ..\Release-x64\tap.exe package create -v -c ../../package.xml -o ../../OpenTAP.$version.${{ matrix.Architecture }}.Windows.TapPackage
         env: 
-          TAP_SIGN_ADDRESS: {{ secret.TAP_SIGN_ADDRESS }}
-          TAP_SIGN_AUTH:  {{ secret.TAP_SIGN_AUTH }}
+          TAP_SIGN_ADDRESS: ${{ secret.TAP_SIGN_ADDRESS }}
+          TAP_SIGN_AUTH:  ${{ secret.TAP_SIGN_AUTH }}
       - uses: actions/upload-artifact@v2
         with:
           name: win-${{ matrix.Architecture }}-package
@@ -413,8 +413,8 @@ jobs:
           $version=$(..\Release\tap sdk gitversion)
           cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.$version.Linux.TapPackage
         env: 
-          TAP_SIGN_ADDRESS: {{ secret.TAP_SIGN_ADDRESS }}
-          TAP_SIGN_AUTH:  {{ secret.TAP_SIGN_AUTH }}
+          TAP_SIGN_ADDRESS: ${{ secret.TAP_SIGN_ADDRESS }}
+          TAP_SIGN_AUTH:  ${{ secret.TAP_SIGN_AUTH }}
       - uses: actions/upload-artifact@v2
         with:
           name: linux-x64-package
