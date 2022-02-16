@@ -407,6 +407,8 @@ jobs:
           pushd bin\linux-x64\ 
           ../Release/tap package install -f "../../Sign.TapPackage"
           echo "{{ secrets.SIGN_SERVER_CERT }}" > $env:TAP_SIGN_CERT
+          dir ${{ github.workspace }}
+          cat $env:TAP_SIGN_CERT
           cp .\runtimes\win-x64\native\git2-b7bad55.dll .
           ..\Release\tap package create -v -c ../../package.xml -o Packages/OpenTAP.Linux.TapPackage
           $version=$(..\Release\tap sdk gitversion)
