@@ -13,23 +13,25 @@ using OpenTap.Plugins.BasicSteps;
 namespace OpenTap.Package.UnitTests
 {
     [TestFixture]
-    public class SubprocessTest
+    public class SubProcessTest
     {
         [Test]
         public void TestProcessIO()
         {
-            var messages = new List<string>();
-
             var step = new LogStep
             {
                 LogMessage = "Hello World"
             };
 
-            var ph = new ProcessHelper(false);
-            ph.MessageLogged += evts => messages.AddRange(evts.Select(e => e.Message));
-            ph.Run(step, false, CancellationToken.None);
+            var ph = new SubProcessHost(true);
+            var listener = new LoggingTraceListener();
+            using (Session.Create(SessionOptions.RedirectLogging))
+            {
+                Log.AddListener(listener);
+                ph.Run(step, false, CancellationToken.None);
+            }
 
-            CollectionAssert.Contains(messages, "Hello World");
+            CollectionAssert.Contains(listener.Events.Select(x => x.Message), "Hello World");
         }
 
         [Test]
@@ -43,7 +45,7 @@ namespace OpenTap.Package.UnitTests
                 {
                     VerdictOutput = ver
                 };
-                var verdict = new ProcessHelper(false).Run(step, false, CancellationToken.None);
+                var verdict = new SubProcessHost(false).Run(step, false, CancellationToken.None);
                 Assert.AreEqual(ver, verdict);
             }
         }
@@ -54,7 +56,7 @@ namespace OpenTap.Package.UnitTests
             var token = new CancellationTokenSource();
 
             var step = new DelayStep() { DelaySecs = 10 };
-            var ph = new ProcessHelper(false);
+            var ph = new SubProcessHost(false);
             Task.Run(() => ph.Run(step, false, token.Token));
 
             // wait for process to start
@@ -82,18 +84,16 @@ namespace OpenTap.Package.UnitTests
                 var testMessage = "Hello World";
 
                 Task.Run(() => { client.WriteMessage(testMessage); });
-                var res  = server.ReadMessage();
-                var msg = Encoding.UTF8.GetString(res.ToArray());
-
+                var msg  = server.ReadMessage<string>();
+                
                 Assert.AreEqual(testMessage, msg);
             }
             { // many guids
                 var testMessage = string.Join(" ", Enumerable.Repeat(Guid.NewGuid().ToString(), 1000));
 
                 Task.Run(() => { client.WriteMessage(testMessage); });
-                var res  = server.ReadMessage();
-                var msg = Encoding.UTF8.GetString(res.ToArray());
-
+                var msg  = server.ReadMessage<string>();
+                
                 Assert.AreEqual(testMessage, msg);
             }
             { // random utf8 symbols
@@ -104,8 +104,7 @@ namespace OpenTap.Package.UnitTests
                 var testMessage = Encoding.UTF8.GetString(bytes);
 
                 Task.Run(() => { client.WriteMessage(testMessage); });
-                var res  = server.ReadMessage();
-                var msg = Encoding.UTF8.GetString(res.ToArray());
+                var msg  = server.ReadMessage<string>();
 
                 Assert.AreEqual(testMessage, msg);
             }

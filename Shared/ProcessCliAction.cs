@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.IO.Pipes;
+using System.Linq;
 using System.Threading;
 using OpenTap.Cli;
 
@@ -18,28 +19,22 @@ namespace OpenTap
 
             listener.MessageLogged += evts =>
             {
-                foreach (var evt in evts)
-                {
-                    if (client.IsConnected == false) return;
-                    // The log will be flushed before the client is disposed
-                    client.WriteMessage(SerializationHelper.EventToBytes(evt));
-                }
+                if (client.IsConnected == false) return;
+                client.WriteMessage(evts.ToArray());
             };
 
             try
             {
                 client.Connect();
-                var msg = client.ReadMessage();
-                var steps = (ITestStep)new TapSerializer().Deserialize(msg);
-                var plan = new TestPlan();
-                plan.ChildTestSteps.Add(steps);
+                var plan = client.ReadMessage<TestPlan>();
 
                 Log.AddListener(listener);
-
                 return (int)plan.Execute(Array.Empty<IResultListener>()).Verdict;
             }
             finally
             {
+                // ensure the log is flushed before removing the listener.
+                Log.Flush();
                 Log.RemoveListener(listener);
                 client.Dispose();
             }

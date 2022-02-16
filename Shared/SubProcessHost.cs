@@ -15,18 +15,13 @@ namespace OpenTap
     /// It executes a test step (which can have child test steps) in a new process
     /// It supports subscribing to log events from the child process, and forwarding the logs directly.
     /// </summary>
-    internal class ProcessHelper : EventTraceListener
+    internal class SubProcessHost
     {
-        public ProcessHelper(bool forwardLogs)
+        private bool forwardLogs = false;
+
+        public SubProcessHost(bool forwardLogs)
         {
-            if (forwardLogs)
-                MessageLogged += evts =>
-                {
-                    foreach (var evt in evts)
-                    {
-                        LogLine(evt);
-                    }
-                };
+            this.forwardLogs = forwardLogs;
         }
 
         public static bool IsAdmin()
@@ -97,16 +92,17 @@ namespace OpenTap
             }
         }
 
-        private static TraceSource log = Log.CreateSource(nameof(ProcessHelper));
+        private static TraceSource log = Log.CreateSource(nameof(SubProcessHost));
         internal Process LastProcessHandle;
 
         private static readonly object StdoutLock = new object();
         private static bool stdoutSuspended;
         private static TextWriter originalOut;
         private static StringWriter tmpOut;
+
         private static void SuspendStdout()
         {
-            lock(StdoutLock)
+            lock (StdoutLock)
             {
                 if (stdoutSuspended) return;
                 originalOut = Console.Out;
@@ -116,16 +112,17 @@ namespace OpenTap
                 stdoutSuspended = true;
             }
         }
+
         private static void ResumeStdout()
         {
-            lock(StdoutLock)
+            lock (StdoutLock)
             {
                 if (stdoutSuspended == false) return;
                 // Restore stdout after the server has connected
                 Console.SetOut(originalOut);
                 var lines = tmpOut.ToString()
-                    .Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
-                
+                    .Split(new[] {Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries);
+
                 foreach (var line in lines)
                 {
                     Console.WriteLine(line);
@@ -138,6 +135,13 @@ namespace OpenTap
         }
 
         public Verdict Run(ITestStep step, bool elevate, CancellationToken token)
+        {
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step);
+            return Run(plan, elevate, token);
+        }
+
+        public Verdict Run(TestPlan step, bool elevate, CancellationToken token)
         {
             var handle = Guid.NewGuid().ToString();
             var pInfo = new ProcessStartInfo(GetTap())
@@ -169,7 +173,7 @@ namespace OpenTap
                     pInfo.RedirectStandardError = false;
                 }
             }
-            
+
             SuspendStdout();
 
             using var p = Process.Start(pInfo);
@@ -194,24 +198,27 @@ namespace OpenTap
             try
             {
                 var server = new NamedPipeServerStream(handle, PipeDirection.InOut, 1);
-                server.WaitForConnectionAsync(token).GetAwaiter().GetResult();
-                if (token.IsCancellationRequested)
+                try
+                {
+                    server.WaitForConnectionAsync(token).Wait(token);
+                }
+                catch (OperationCanceledException)
+                {
                     throw new OperationCanceledException($"Process cancelled by the user.");
+                }
                 // Resume stdout after the server has connected as we now know the application has launched
                 ResumeStdout();
 
-                var stepString = new TapSerializer().SerializeToString(step);
-                server.WriteMessage(stepString);
+                server.WriteMessage(step);
+
 
                 while (server.IsConnected && p.HasExited == false)
                 {
                     if (token.IsCancellationRequested)
                         throw new OperationCanceledException($"Process cancelled by the user.");
 
-                    var msg = server.ReadMessage();
-                    if (msg.Length == 0) continue;
-                    var evt = SerializationHelper.StreamToEvent(msg);
-                    this.TraceEvents(new[] { evt });
+                    if (server.TryReadMessage<Event[]>(out var logEvents) && forwardLogs)
+                        logEvents.ForEach(((ILogContext2) Log.Context).AddEvent);
                 }
 
                 var processExitTask = Task.Run(() => p.WaitForExit(), token);
@@ -223,7 +230,7 @@ namespace OpenTap
                     throw new OperationCanceledException($"Process cancelled by the user.");
                 }
 
-                return (Verdict)p.ExitCode;
+                return (Verdict) p.ExitCode;
             }
             finally
             {

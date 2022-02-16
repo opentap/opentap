@@ -44,7 +44,7 @@ namespace OpenTap.Package.UnitTests
             using (var mut = FileLock.Create(mutexName))
             {
                 var step = new MutexUsingTestStep() { MutexName = mutexName, AlreadyLocked = alreadyLocked };
-                var processRunner = new ProcessHelper(false);
+                var processRunner = new SubProcessHost(false);
 
                 if (alreadyLocked)
                 {

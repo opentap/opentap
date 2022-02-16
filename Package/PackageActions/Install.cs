@@ -216,7 +216,7 @@ namespace OpenTap.Package
                 var systemWide = packagesToInstall.Where(p => p.IsSystemWide()).ToArray();
 
                 // If we are already running as administrator, skip this and install normally
-                if (systemWide.Any() && ProcessHelper.IsAdmin() == false)
+                if (systemWide.Any() && SubProcessHost.IsAdmin() == false)
                 {
                     var installStep = new PackageInstallStep()
                     {
@@ -225,7 +225,7 @@ namespace OpenTap.Package
                         Force = Force
                     };
 
-                    var processRunner = new ProcessHelper(true);
+                    var processRunner = new SubProcessHost(true);
 
                     var result = processRunner.Run(installStep, true, cancellationToken);
                     if (result != Verdict.Pass)
