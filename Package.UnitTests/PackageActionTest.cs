@@ -222,7 +222,7 @@ namespace OpenTap.Package.UnitTests
         {
             var packageName = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
                 "TapPackages", "MyPlugin1.TapPackage");
-            
+
             var act = new PackageInstallAction
             {
                 Packages = new[] {packageName},
@@ -238,8 +238,8 @@ namespace OpenTap.Package.UnitTests
                 {
                     Log.AddListener(log);
                     exitCode = act.Execute(CancellationToken.None);
-                    
                 }
+
                 if (OperatingSystem.Current == OperatingSystem.Windows || specifyPlatform)
                 {
                     Assert.AreEqual(0, exitCode);
@@ -265,19 +265,19 @@ namespace OpenTap.Package.UnitTests
                 new PackageUninstallAction {Packages = new[] {packageName}}.Execute(CancellationToken.None);
             }
         }
+    }
+}
 
-        class LoggingTraceListener : ILogListener
-        {
-            public readonly List<Event> Events = new List<Event>();
+class LoggingTraceListener : ILogListener
+{
+    public readonly List<Event> Events = new List<Event>();
 
-            public void EventsLogged(IEnumerable<Event> events)
-            {
-                Events.AddRange(events);
-            }
+    public void EventsLogged(IEnumerable<Event> events)
+    {
+        Events.AddRange(events);
+    }
 
-            public void Flush()
-            {
-            }
-        }
+    public void Flush()
+    {
     }
 }

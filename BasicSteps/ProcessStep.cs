@@ -66,12 +66,39 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Check Exit Code", "Check the exit code of the application and set verdict to fail if it is non-zero, else pass. 'Wait For End' must be set for this to work.", "Set Verdict", Order: 1.1)]
         [EnabledIf(nameof(WaitForEnd), true)]
         public bool CheckExitCode { get; set; }
+
+        [Display("Run As Administrator", "Attempt to run the application as administrator.", Order: -2.06)]
+        internal bool RunElevated { get; set; } = false; // this is disabled for now.
         
         ManualResetEvent outputWaitHandle, errorWaitHandle;
         StringBuilder output;
 
         public override void Run()
         {
+            
+            if (RunElevated &&!SubProcessHost.IsAdmin())
+            {
+                // note, this part is currently never enabled.
+                try
+                {
+                    // Set RunElevated = false so ProcessHelper doesn't infinitely loop
+                    RunElevated = false;
+                    var processRunner = new SubProcessHost { ForwardLogs = AddToLog, LogHeader = LogHeader};
+                    var verdict = processRunner.Run(this, true, CancellationToken.None);
+                    UpgradeVerdict(verdict);
+                    return;
+                }
+                catch
+                {
+                    UpgradeVerdict(Verdict.Error);
+                    throw;
+                }
+                finally
+                {
+                    RunElevated = true;
+                }
+            }
+
             Int32 timeout = Timeout <= 0 ? Int32.MaxValue : Timeout;
             prepend = string.IsNullOrEmpty(LogHeader) ? "" : LogHeader + " ";
 

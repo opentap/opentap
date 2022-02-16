@@ -10,6 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using OpenTap.Cli;
+using OpenTap.Package.PackageInstallHelpers;
 
 #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
 namespace OpenTap.Package
@@ -209,6 +210,34 @@ namespace OpenTap.Package
                         log.Info("Check completed with no problems detected.");
                         return (int) ExitCodes.Success;
                     }
+                }
+
+                // System wide packages require elevated privileges. Install them in a separate elevated process.
+                var systemWide = packagesToInstall.Where(p => p.IsSystemWide()).ToArray();
+
+                // If we are already running as administrator, skip this and install normally
+                if (systemWide.Any() && SubProcessHost.IsAdmin() == false)
+                {
+                    var installStep = new PackageInstallStep()
+                    {
+                        Packages = systemWide,
+                        Target = PackageDef.SystemWideInstallationDirectory,
+                        Force = Force
+                    };
+
+                    var processRunner = new SubProcessHost {ForwardLogs = true};
+
+                    var result = processRunner.Run(installStep, true, cancellationToken);
+                    if (result != Verdict.Pass)
+                    {
+                        var ex = new Exception($"Failed installing system-wide packages. Try running the command as administrator.");
+                        RaiseError(ex);
+                    }
+
+                    var pct = ((double)systemWide.Length / systemWide.Length + packagesToInstall.Count) * 100;
+                    RaiseProgressUpdate((int)pct, "Installed system-wide packages.");
+                    // And remove the system wide packages from the list
+                    packagesToInstall = packagesToInstall.Except(p => p.IsSystemWide()).ToList();
                 }
 
                 // Download the packages
