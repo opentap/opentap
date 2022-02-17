@@ -8,10 +8,10 @@ namespace Tap.Upgrader
 {
     static class Installer
     {
-        internal static void Install(string installDir)
+        internal static void Install()
         {
-            var target = Path.Combine(installDir, "tap.exe");
-            var source = Path.Combine(installDir, "Packages", "OpenTap", "tap.exe.new");
+            var target = "../../tap.exe";
+            var source = "tap.exe.new";
 
             var sw = Stopwatch.StartNew();
             // Retry in a loop for until tap.exe is no longer locked
@@ -79,8 +79,7 @@ namespace Tap.Upgrader
             }
             else
             {
-                var exeDir = argTable["p"];
-                Installer.Install(exeDir);
+                Installer.Install();
             }
         }
     }
