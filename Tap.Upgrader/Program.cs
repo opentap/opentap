@@ -22,7 +22,7 @@ namespace Tap.Upgrader
                     if (File.Exists(target))
                         File.Delete(target);
                     if (File.Exists(source))
-                        File.Move(source, target);
+                        File.Copy(source, target);
                     break;
                 }
                 catch
@@ -67,7 +67,8 @@ namespace Tap.Upgrader
                             // Specify the OpenTAP version we are installing and the directory it is being installed to
                             Arguments = $"p=\"{exeDir}\"",
                             CreateNoWindow = true,
-                            WindowStyle = ProcessWindowStyle.Hidden
+                            WindowStyle = ProcessWindowStyle.Hidden,
+                            WorkingDirectory = exeDir
                     });
                 }
                 catch
