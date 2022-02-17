@@ -457,7 +457,19 @@ namespace OpenTap.Package
                     allVersions = allVersions.Where(v => v.Major == packageSpecifier.Version.Major);
 
                 if (packageSpecifier.Version.Minor != null)
-                    allVersions = allVersions.Where(p => p.Minor == packageSpecifier.Version.Minor);
+                {
+                    if (packageSpecifier.Version.MatchBehavior == VersionMatchBehavior.Compatible)
+                    {
+                        // This is to support the special case where the spec asks for a minor version that does not exist, but a newer compatible minor exists
+                        // In this case, we should pick the lowest compatible minor version
+                        int lowestCompatibleMinor = allVersions.Select(v => v.Minor)
+                                                               .Where(m => m >= packageSpecifier.Version.Minor)
+                                                               .OrderBy(m => m).FirstOrDefault();
+                        allVersions = allVersions.Where(p => p.Minor == lowestCompatibleMinor);
+                    }
+                    else
+                        allVersions = allVersions.Where(p => p.Minor == packageSpecifier.Version.Minor);
+                }
 
                 if (packageSpecifier.Version.PreRelease != null)
                     allVersions = allVersions.Where(p => ComparePreReleaseType(p.PreRelease, packageSpecifier.Version.PreRelease) == 0);

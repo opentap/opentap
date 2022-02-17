@@ -79,6 +79,9 @@ namespace OpenTap.Image.Tests
                     DefinePackage("E",        "2.1.0-beta.2", CpuArchitecture.x86,    "Linux"),
                     DefinePackage("E",        "2.2.0-alpha.2.1", CpuArchitecture.x86,    "Linux"),
                     DefinePackage("E",        "2.2.0-alpha.2.2", CpuArchitecture.x86,    "Linux"),
+                    DefinePackage("F",        "1.1.0", CpuArchitecture.x86,    "Linux"),
+                    DefinePackage("F",        "1.1.1", CpuArchitecture.x86,    "Linux"),
+                    DefinePackage("F",        "1.2.0", CpuArchitecture.x86,    "Linux"),
                 };
         }
 

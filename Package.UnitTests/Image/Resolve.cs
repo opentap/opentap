@@ -138,6 +138,8 @@ namespace OpenTap.Image.Tests
         [TestCase("E", "2.2.0-alpha.2.1", "Linux", CpuArchitecture.x86, "2.2.0-alpha.2.1")]
         [TestCase("E", "2.2.0-alpha.2.2", "Linux", CpuArchitecture.x86, "2.2.0-alpha.2.2")]
         [TestCase("E", "2.2.0-alpha", "Linux", CpuArchitecture.x86, "2.2.0-alpha.2.2")]
+        [TestCase("F", "1.0", "Linux", CpuArchitecture.x86, "error")]  // we ask for 1.0, but there is only 1.1 and above in the repo
+        [TestCase("F", "^1.0", "Linux", CpuArchitecture.x86, "1.1.1")] // There is only 1.1 and above in the repo, so we should get 1.1.1 (lowest compatible version in the fields we specify)
         public void FullResolveCases(string packageName, string version, string os, CpuArchitecture cpuArchitecture, string resultingVersion)
         {
             PackageRepositoryHelpers.RegisterRepository(new MockRepository("mock://localhost"));
