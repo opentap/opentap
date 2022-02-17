@@ -1608,7 +1608,19 @@ namespace OpenTap
     {
         /// <summary> Turns item into a one element array, unless it is null.</summary>
         public static T[] AsSingle<T>(this T item) => item == null ? Array.Empty<T>() : new[] {item};
-        
+
+        /// <summary>
+        /// First or null, which for struct types returns a null value instead of a default(T) that FirstOrDefault does.
+        /// </summary>
+        public static T? FirstOrNull<T>(this IEnumerable<T> items, Func<T, bool> p) where T: struct
+        {
+            foreach (var item in items)
+            {
+                if (p(item))
+                    return item;
+            }
+            return null;
+        }
         
         /// <summary>
         /// Like distinct but keeps the last item. Returns List because we need to iterate until last element anyway.
@@ -1877,7 +1889,7 @@ namespace OpenTap
         uint user;
 
         /// <summary>
-        /// Creates a memory mapepd API.
+        /// Creates a memory mapped API.
         /// </summary>
         /// <param name="name"></param>
         public MemoryMappedApi(string name)

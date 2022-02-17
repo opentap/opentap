@@ -862,7 +862,56 @@ namespace OpenTap.UnitTests
             parameterizeIcon = icons[IconNames.Unparameterize].First();
             Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
         }
-        
+
+        [Test]
+        public void ParameterizeOnParentTest()
+        {
+            var plan = new TestPlan();
+            var seqStep = new SequenceStep();
+            plan.ChildTestSteps.Add(seqStep);
+            var delayStep = new DelayStep();
+            seqStep.ChildTestSteps.Add(delayStep);
+
+            // Check can parameterize
+            var member = AnnotationCollection.Annotate(delayStep).GetMember(nameof(DelayStep.DelaySecs));
+            var menu = member.Get<MenuAnnotation>();
+            var menuItems = menu.MenuItems;
+            var icons = menuItems.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
+            var parameterizeIcon = icons[IconNames.Parameterize].First();
+            Assert.IsTrue(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+            parameterizeIcon = icons[IconNames.Unparameterize].First();
+            Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+
+            // Parameterize 
+            var delayMember = TypeData.GetTypeData(delayStep).GetMember(nameof(DelayStep.DelaySecs));
+            delayMember.Parameterize(seqStep, delayStep, "Delay");
+
+            // Check can parameterize
+            member = AnnotationCollection.Annotate(delayStep).GetMember(nameof(DelayStep.DelaySecs));
+            menu = member.Get<MenuAnnotation>();
+            menuItems = menu.MenuItems;
+            icons = menuItems.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
+            parameterizeIcon = icons[IconNames.Parameterize].First();
+            Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+            parameterizeIcon = icons[IconNames.Unparameterize].First();
+            Assert.IsTrue(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+            
+            var paramIconAnnotation = member.Get<ISettingReferenceIconAnnotation>();
+            Assert.AreEqual(seqStep.Id, paramIconAnnotation.TestStepReference);
+            Assert.AreEqual("Delay", paramIconAnnotation.MemberName);
+
+            // Set read only
+            delayStep.IsReadOnly = true;
+
+            // Check can parameterize
+            member = AnnotationCollection.Annotate(delayStep).GetMember(nameof(DelayStep.DelaySecs));
+            menu = member.Get<MenuAnnotation>();
+            menuItems = menu.MenuItems;
+            icons = menuItems.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
+            parameterizeIcon = icons[IconNames.Unparameterize].First();
+            Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+        }
+
         /// <summary>
         /// When the test plan is changed, parameters that becomes invalid needs to be removed.
         /// This is done by doing some checks in DynamicMemberTypeDataProvider.
@@ -1598,6 +1647,118 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual(instrument, step.Instrument);
                 Assert.AreEqual(instrument.Name, next);
             }
+        }
+
+
+        class ClassWithNumbers
+        {
+            [Unit("things")]
+            public int[] Values { get; set; } = new int[] {1, 2, 3};
+        }
+        
+        [Test]
+        public void TestNumberSequenceAnnotation()
+        {
+            var obj = new ClassWithNumbers();
+            var annotation = AnnotationCollection.Annotate(obj);
+            var str = annotation.GetMember(nameof(obj.Values)).Get<IStringValueAnnotation>();
+            var err = annotation.GetMember(nameof(obj.Values)).Get<IErrorAnnotation>();
+            // this should not throw.
+            str.Value = "asd";
+            Assert.IsTrue(err.Errors.Count() == 1);
+            str.Value = "1, 2, 3, 4";
+            Assert.IsTrue(err.Errors.Count() == 0);
+            annotation.Write();
+            Assert.IsTrue(obj.Values.SequenceEqual(new int[] {1, 2, 3, 4}));
+        }
+
+        [Test]
+        public void AvailableValuesUpdateTest()
+        {
+            var step = new AvailableValuesUpdateTest();
+            var annotation = AnnotationCollection.Annotate(step);
+            var a = annotation.GetMember(nameof(step.A));
+            var b = annotation.GetMember(nameof(step.B));
+            var a1 = a.Get<IAvailableValuesAnnotationProxy>();
+            var b1 = b.Get<IAvailableValuesAnnotationProxy>();
+
+            bool doTest()
+            {
+                // A available values is not allowed to contain the value of B and vice versa.
+                var test2 = b1.AvailableValues.Select(x => x.Get<IObjectValueAnnotation>().Value).Contains(a1.SelectedValue.Get<IObjectValueAnnotation>().Value);
+                var test1 = a1.AvailableValues.Select(x => x.Get<IObjectValueAnnotation>().Value).Contains(b1.SelectedValue.Get<IObjectValueAnnotation>().Value);
+                var b1val = b1.SelectedValue.Get<IObjectValueAnnotation>().Value;
+                var a1val = a1.SelectedValue.Get<IObjectValueAnnotation>().Value;
+                
+                if (Equals(b1val, a1val))
+                    return false;
+                return !test1 && !test2;
+            }
+
+            for (int i = 0; i < 10; i++)
+            {
+                Assert.IsTrue(doTest());
+                
+                b1.SelectedValue = b1.AvailableValues.FirstOrDefault(x => !Equals(x.Get<IObjectValueAnnotation>().Value,
+                    b1.SelectedValue.Get<IObjectValueAnnotation>().Value));
+                
+                annotation.Write();
+                annotation.Read();
+                Assert.IsTrue(doTest());
+                a1.SelectedValue = a1.AvailableValues.FirstOrDefault(x => !Equals(x.Get<IObjectValueAnnotation>().Value, 
+                    a1.SelectedValue.Get<IObjectValueAnnotation>().Value));
+                
+                annotation.Write();
+                annotation.Read();
+                Assert.IsTrue(doTest());
+            }
+
+            for (int i = 0; i < 5; i++)
+            {
+                var number = annotation.GetMember(nameof(step.FromIncreasingNumber));
+                var number1 = number.Get<IAvailableValuesAnnotationProxy>();
+                var numbers = number1.AvailableValues.Select(x => (int)x.Get<IObjectValueAnnotation>().Value).ToArray();
+                Assert.AreEqual(step.IncreasingNumber, numbers[0]);
+                var numberIncrease = annotation.GetMember(nameof(step.IncreaseNumber)).Get<IMethodAnnotation>();
+                numberIncrease.Invoke();
+                annotation.Read();
+            }
+        }
+
+        public enum Overlapping
+        {
+            A = 0,
+            X = 1,
+            Z = 2, // there is one constraint, which is that the selected name must be the first one. Otherwise Overlapping.Z.ToString() => "Y"
+            [Obsolete]
+            [Browsable(false)]
+            Y = 2,
+            [Browsable(false)]
+            [Obsolete]
+            Y2 = 2,
+            W = 3
+        }
+
+        class ClassWithOverlapping
+        {
+            public Overlapping Overlapping { get; set; } = Overlapping.X;
+        }
+        [Test]
+        public void OverlappingEnumTest()
+        {
+            var o = new ClassWithOverlapping();
+            var a = AnnotationCollection.Annotate(o);
+            var a2 = a.GetMember(nameof(o.Overlapping));
+            var available = a2.Get<IAvailableValuesAnnotation>().AvailableValues.Cast<Overlapping>();
+            CollectionAssert.AreEqual(available, new[] { Overlapping.A, Overlapping.X, Overlapping.Z, Overlapping.W });
+
+            var a3 = a2.Get<IAvailableValuesAnnotationProxy>();
+            var strValues = a3.AvailableValues.Select(x => x.Get<IStringReadOnlyValueAnnotation>().Value).ToArray();
+            CollectionAssert.AreEqual(strValues, new[] { "A", "X", "Z", "W" });
+            a3.SelectedValue = a3.AvailableValues.Skip(2).FirstOrDefault();
+            a.Write();
+            a.Read();
+            Assert.AreEqual(Overlapping.Z, o.Overlapping);
         }
     }
 }

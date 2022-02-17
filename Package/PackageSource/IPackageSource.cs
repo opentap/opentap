@@ -67,17 +67,24 @@ namespace OpenTap.Package
     }
 
     /// <summary>
+    /// The package definition is loaded from an package XML file.
+    /// </summary>
+    public class XmlPackageDefSource : IPackageDefSource
+    {
+        /// <summary>
+        /// The file path to the .xml file of the package definition. 
+        /// </summary>
+        public string PackageDefFilePath { get; set; }
+    }
+    
+    /// <summary>
     /// The package definition is sourced from an OpenTAP installation.
     /// </summary>
-    public class InstalledPackageDefSource : IPackageDefSource
+    public class InstalledPackageDefSource : XmlPackageDefSource
     {
         /// <summary>
         /// The installation the package definition is sourced.
         /// </summary>
         public Installation Installation { get; set; }
-        /// <summary>
-        /// The file path to the .xml file of the package definition. 
-        /// </summary>
-        public string PackageDefFilePath { get; set; }
     }
 }

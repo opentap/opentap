@@ -12,6 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml;
 
 namespace OpenTap.Package.UnitTests
 {
@@ -78,17 +79,38 @@ namespace OpenTap.Package.UnitTests
             string installDir = Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location);
             if (!File.Exists(Path.Combine(installDir, "Packages/OpenTAP/package.xml")))
             {
-                string opentapPackageXmlPath;
-                if (OperatingSystem.Current == OpenTap.OperatingSystem.Linux)
-                    opentapPackageXmlPath = "opentap_linux64.package.xml";
-                else
-                    opentapPackageXmlPath = "opentap.x86.package.xml";
+                var opentapPackageXmlPath = "package.xml";
+                Environment.SetEnvironmentVariable("Platform", OperatingSystem.Current == OperatingSystem.Windows ? "Windows" : "Linux");
+                Environment.SetEnvironmentVariable("Architecture", OperatingSystem.Current == OperatingSystem.Windows ? "x86" : "x64");
+                Environment.SetEnvironmentVariable("Sign", "false");
+                Environment.SetEnvironmentVariable("Debug", "true");
+
                 // Sign package is needed to create opentap
-                string packageXml = CreateOpenTapPackageXmlWithoutSignElement(opentapPackageXmlPath);
-                string createOpenTap = $"create -v {packageXml} --install -o Packages/OpenTAP.TapPackage";
-                string output = RunPackageCliWrapped(createOpenTap, out int exitCode, installDir);
-                Assert.AreEqual(0, exitCode, "Error creating OpenTAP package. Log:\n" + output);
-                File.Delete(packageXml);
+                var create = new PackageCreateAction()
+                {
+                    Install = true,
+                    OutputPaths = new[] { "Packages/OpenTAP.TapPackage" },
+                    PackageXmlFile = opentapPackageXmlPath,
+                };
+                using (Session.Create())
+                {
+                    var logs = new StringBuilder();
+                    var lst = new EventTraceListener();
+                    lst.MessageLogged += evt => evt.ForEach(e => logs.AppendLine(e.ToString()));
+                    Log.AddListener(lst);
+                    int? res = null;
+                    try
+                    {
+                        res = create.Execute(CancellationToken.None);
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+
+                    Assert.AreEqual(0, res, "Error creating OpenTAP package. Log:\n" + logs.ToString());
+                }
+
             }
         }
 
@@ -101,7 +123,7 @@ namespace OpenTap.Package.UnitTests
         [TestCase(false, true, null)]                // tap package download pkg -r /tmp
         public void DownloadTest(bool useOut, bool useRepo, string outFileName)
         {
-            var depDef = new PackageDef {Name = "Pkg1", Version = SemanticVersion.Parse("1.0"), OS = "Windows,Linux"};
+            var depDef = new PackageDef {Name = "Pkg1", Version = SemanticVersion.Parse("1.0"), OS = "Windows,Linux,MacOS"};
             depDef.AddFile("Dependency.txt");
             string dep0File = DummyPackageGenerator.GeneratePackage(depDef);
 
@@ -161,9 +183,9 @@ namespace OpenTap.Package.UnitTests
             package.Description = "Cached version";
 
             var file = DummyPackageGenerator.GeneratePackage(package);
-            if (File.Exists(Path.Combine("PackageCache", file)))
-                File.Delete(Path.Combine("PackageCache", file));
-            File.Move(file, Path.Combine("PackageCache", file));
+            if (File.Exists(Path.Combine(PackageCacheHelper.PackageCacheDirectory, file)))
+                File.Delete(Path.Combine(PackageCacheHelper.PackageCacheDirectory, file));
+            File.Move(file, Path.Combine(PackageCacheHelper.PackageCacheDirectory, file));
 
             package.Description = "Right version";
             var file2 = DummyPackageGenerator.GeneratePackage(package);
@@ -192,7 +214,38 @@ namespace OpenTap.Package.UnitTests
                 Assert.True(e.Message.Contains("invalid file path characters"));
             }
         }
-        
+
+        [TestCase(".test", 1, typeof(XmlException))]
+        [TestCase("t-est", 2, typeof(Exception))]
+        [TestCase("te st", 3, typeof(XmlException))]
+        [TestCase("tes.t", 4, typeof(Exception))]
+        [TestCase("1test", 1, typeof(XmlException))]
+        [TestCase("test?", 5, typeof(XmlException))]
+        public void CheckInvalidMetadata(string invalidMetadataKey, int index, Type exceptionType)
+        {
+            // Check if metadata contains invalid characters
+            var package = new PackageDef()
+            {
+                Name = "test",
+                MetaData = { {invalidMetadataKey,""} },
+                Version = SemanticVersion.Parse("1.0.0")
+            };
+
+            try
+            {
+                DummyPackageGenerator.GeneratePackage(package);
+            }
+            catch (Exception e)
+            {
+                Assert.IsAssignableFrom(exceptionType, e);
+                if (e is XmlException)
+                    return;
+
+                Assert.True(e.Message.Contains($"Found invalid character"), "Package metadata keys contains invalid");
+                Assert.True(e.Message.Contains($" in package metadata key '{invalidMetadataKey}' at position {index}."), "Package metadata keys contains invalid");
+            }
+        }
+
         [Test]
         public void ListTest()
         {
@@ -343,8 +396,8 @@ namespace OpenTap.Package.UnitTests
                 Assert.AreEqual(0, exitCode, "Unexpected exit code");
                 StringAssert.Contains("Dummy", output);
                 StringAssert.Contains("Dependency", output);
-                Assert.IsTrue(File.Exists("Dependency.txt"));
                 Assert.IsTrue(File.Exists("Dummy.txt"));
+                Assert.IsTrue(File.Exists("Dependency.txt"));
             }
             finally
             {
@@ -361,7 +414,7 @@ namespace OpenTap.Package.UnitTests
             DummyPackageGenerator.InstallDummyPackage(); // We need to have "Dummy" installed before we can create a package that depends on it.
             var depDef = new PackageDef();
             depDef.Name = "Dependency";
-            depDef.OS="Windows,Linux";
+            depDef.OS="Windows,Linux,MacOS";
             depDef.Version = SemanticVersion.Parse("1.0");
             depDef.AddFile("Dependency.txt");
             depDef.Dependencies.Add(new PackageDependency("Dummy", VersionSpecifier.Parse("1.0")));
@@ -384,8 +437,7 @@ namespace OpenTap.Package.UnitTests
                     File.Delete("Dependency.txt");
                 if (File.Exists("Dummy.txt"))
                     File.Delete("Dummy.txt");
-                int exitCode;
-                string output = RunPackageCli("install Dummy -y", out exitCode);
+                var output = RunPackageCli("install Dummy -y", out var exitCode);
                 Assert.AreEqual(0, exitCode, "Unexpected exit code.\r\n" + output);
                 StringAssert.Contains("Dummy", output);
                 StringAssert.Contains("Dependency", output);
@@ -525,7 +577,7 @@ namespace OpenTap.Package.UnitTests
         {
             var def = new PackageDef();
             def.Name = "Dummy2";
-            def.OS = "Windows,Linux";
+            def.OS = "Windows,Linux,MacOS";
             def.Version = SemanticVersion.Parse("1.0");
             def.AddFile("Dummy.txt");
             def.Dependencies.Add(new PackageDependency("Missing", VersionSpecifier.Parse("1.0")));
@@ -606,7 +658,7 @@ namespace OpenTap.Package.UnitTests
             var package = new PackageDef();
             package.Name = "ExactVersionTest";
             package.Version = SemanticVersion.Parse("1.0.1");
-            package.OS = "Windows,Linux";
+            package.OS = "Windows,Linux,MacOS";
             var path = DummyPackageGenerator.GeneratePackage(package);
 
             // Install

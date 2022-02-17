@@ -307,24 +307,19 @@ namespace OpenTap
         
         #endregion
 
-        internal bool IsBreakCondition()
+        /// <summary> Returns true if the break conditions are satisfied for the test step run.</summary>
+        public bool BreakConditionsSatisfied()
         {
             var verdict = Verdict;
             if (OutOfRetries 
                 || (verdict == Verdict.Fail && BreakCondition.HasFlag(BreakCondition.BreakOnFail)) 
                 || (verdict == Verdict.Error && BreakCondition.HasFlag(BreakCondition.BreakOnError))
-                || (verdict == Verdict.Inconclusive && BreakCondition.HasFlag(BreakCondition.BreakOnInconclusive)))
+                || (verdict == Verdict.Inconclusive && BreakCondition.HasFlag(BreakCondition.BreakOnInconclusive))
+                || (verdict == Verdict.Pass && BreakCondition.HasFlag(BreakCondition.BreakOnPass)))
             {
                 return true;
             }
-
             return false;
-        }
-        
-        internal void CheckBreakCondition()
-        {
-            if(IsBreakCondition())
-                ThrowDueToBreakConditions();
         }
         
         internal bool OutOfRetries { get; set; }

@@ -10,11 +10,7 @@ using System.Text.RegularExpressions;
 using System.Reflection;
 using System.Diagnostics;
 using Tap.Shared;
-using System.Runtime.InteropServices;
-using System.Xml;
-using System.Xml.Linq;
 using System.Xml.Serialization;
-using System.Xml.XPath;
 using OpenTap.Cli;
 
 namespace OpenTap.Package
@@ -123,6 +119,23 @@ namespace OpenTap.Package
         /// <returns></returns>
         public static PackageDef FromInputXml(string xmlFilePath, string projectDir)
         {
+            try
+            {
+                var sw = Stopwatch.StartNew();
+                var evaluator = new PackageXmlPreprocessor(xmlFilePath, projectDir);
+                var xmlDoc = evaluator.Evaluate();
+                var evaluated = Path.GetTempFileName();
+                xmlDoc.Save(evaluated);
+                xmlFilePath = evaluated;
+                log.Debug(sw, $"Package preprocessing completed.");
+            }
+            catch (Exception ex)
+            {
+                log.Warning(ex.Message);
+                log.Debug($"Unexpected error while evaluating package xml. Continuing in spite of errors.");
+                log.Debug(ex);
+            }
+
             PackageDef.ValidateXml(xmlFilePath);
             var pkgDef = PackageDef.FromXml(xmlFilePath);
             if(pkgDef.Files.Any(f => f.HasCustomData<UseVersionData>() && f.HasCustomData<SetAssemblyInfoData>()))
@@ -634,7 +647,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Creates a *.TapPackage file from the definition in this PackageDef.
         /// </summary>
-        static public void CreatePackage(this PackageDef pkg, FileStream str)
+        public static void CreatePackage(this PackageDef pkg, FileStream str)
         {
             foreach (PackageFile file in pkg.Files)
             {
@@ -685,7 +698,7 @@ namespace OpenTap.Package
                 // Concat license required from all files. But only if the property has not manually been set.
                 if (string.IsNullOrEmpty(pkg.LicenseRequired))
                 {
-                    var licenses = pkg.Files.Select(f => f.LicenseRequired).Where(l => l != null).ToList();
+                    var licenses = pkg.Files.Select(f => f.LicenseRequired).Where(l => string.IsNullOrWhiteSpace(l) == false).ToList();
                     pkg.LicenseRequired = string.Join(", ", licenses.Distinct().Select(l => LicenseBase.FormatFriendly(l, false)).ToList());
                 }
                 
@@ -703,38 +716,36 @@ namespace OpenTap.Package
         {
             [XmlAttribute]
             public string Attributes { get; set; }
+
+            internal string[] Features => Attributes.ToLower()
+                .Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim()).Distinct().ToArray();
         }
 
         private static void UpdateVersionInfo(string tempDir, List<PackageFile> files, SemanticVersion version)
         {
-            var features = files.Where(f => f.HasCustomData<SetAssemblyInfoData>()).SelectMany(f => string.Join(",", f.GetCustomData<SetAssemblyInfoData>().Select(a => a.Attributes)).Split(',').Select(str => str.Trim().ToLower())).Distinct().ToHashSet();
-
-            if (!features.Any())
-                return;
             var timer = Stopwatch.StartNew();
-            SetAsmInfo.UpdateMethod updateMethod;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                updateMethod = SetAsmInfo.UpdateMethod.ILDasm;
-            else
-                updateMethod = SetAsmInfo.UpdateMethod.Mono;
+
+            var pdbMap = new Dictionary<string, PackageFile>();
+            foreach (var file in files.GroupBy(f => Path.GetFileNameWithoutExtension(f.FileName)))
+            {
+                var symbols = file.ToArray().FirstOrDefault(f => Path.GetExtension(f.FileName).Equals(".pdb", StringComparison.OrdinalIgnoreCase));
+                if (symbols != null) pdbMap[file.Key] = symbols;
+            }
+
             foreach (var file in files)
             {
-                if (!file.HasCustomData<SetAssemblyInfoData>())
-                    continue;
+                var data = file.GetCustomData<SetAssemblyInfoData>().ToArray();
+                if (!data.Any(d => d.Features.Contains("version"))) continue;
 
-                var toSet = string.Join(",", file.GetCustomData<SetAssemblyInfoData>().Select(a => a.Attributes)).Split(',').Select(str => str.Trim().ToLower()).Distinct().ToHashSet();
-
-                if (!toSet.Any())
-                    continue;
-
-                log.Debug("Updating version info for '{0}'", file.FileName);
-
+                log.Debug(timer, "Updating version info for '{0}'", file.FileName);
 
                 // Assume we can't open the file for writing (could be because we are trying to modify TPM or the engine), and copy to the same filename in a subdirectory
                 var versionedOutput = Path.Combine(tempDir, "Versioned");
 
                 var origFilename = Path.GetFileName(file.FileName);
                 var tempName = Path.Combine(versionedOutput, origFilename);
+
                 int i = 1;
                 while (File.Exists(tempName))
                 {
@@ -742,23 +753,34 @@ namespace OpenTap.Package
                     i++;
                 }
 
+
                 Directory.CreateDirectory(Path.GetDirectoryName(tempName));
                 ProgramHelper.FileCopy(file.FileName, tempName);
                 file.SourcePath = tempName;
 
-                SemanticVersion fVersion = null;
-                Version fVersionShort = null;
+                var includePdb = true;
 
-                if (toSet.Contains("version"))
+                var basename = Path.GetFileNameWithoutExtension(file.SourcePath);
+                if (pdbMap.TryGetValue(basename, out var pdbFile) &&
+                    Path.GetFileName(pdbFile.FileName) is string symbolsFile && File.Exists(symbolsFile))
                 {
-                    fVersion = version;
-                    fVersionShort = new Version(version.ToString(3));
+                    var pdbTempName = Path.ChangeExtension(tempName, "pdb");
+                    File.Copy(symbolsFile, pdbTempName);
+                    pdbFile.SourcePath = pdbTempName;
+                }
+                else
+                {
+                    // The pdb file is not part of the package -- don't include it
+                    includePdb = false;
                 }
 
-                SetAsmInfo.SetAsmInfo.SetInfo(file.FileName, fVersionShort, fVersionShort, fVersion, updateMethod);
+                var fVersion = version;
+                var fVersionShort = new Version(version.ToString(3));
+
+                SetAsmInfo.SetAsmInfo.SetInfo(file.FileName, fVersionShort, fVersionShort, fVersion, includePdb);
                 file.RemoveCustomData<SetAssemblyInfoData>();
             }
-            log.Info(timer,"Updated assembly version info using {0} method.", updateMethod);
+            log.Info(timer,"Updated assembly version info using Mono method.");
         }
 
         /// <summary>

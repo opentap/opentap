@@ -2,19 +2,9 @@
   <PropertyGroup>
     <AssemblyName>Keysight.OpenTap.Sdk.MSBuild</AssemblyName>
     <RootNamespace>Keysight.OpenTap.Sdk.MSBuild</RootNamespace>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(IsNetStandard)'=='true'">
-    <TargetFramework>netcoreapp2.1</TargetFramework>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(IsNetStandard)'=='false'">
-    <TargetFramework>net472</TargetFramework>
-  </PropertyGroup>
-  
-  <PropertyGroup>    
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
     <TargetFrameworkVersion></TargetFrameworkVersion>
   </PropertyGroup>
@@ -23,12 +13,18 @@
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="16.0.461" />
     <PackageReference Include="Microsoft.Build" Version="16.0.461" />
     <PackageReference Include="DotNet.Glob" Version="3.0.1" />
+    <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
   </ItemGroup>
   
   <ItemGroup>
     <None Include="..\..\nuget\build\OpenTap.targets">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\..\Engine\Tap.Engine.csproj" />
+    <ProjectReference Include="..\..\Package\Tap.Package.csproj" />
   </ItemGroup>
 
 

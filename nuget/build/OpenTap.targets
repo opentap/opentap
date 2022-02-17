@@ -94,6 +94,7 @@
     <InstallOpenTapPackages 
             TapDir="$(OutDir)" 
             PackagesToInstall="@(OpenTapPackagesToInstall)"
+            Repositories="@(OpenTapPackageRepository)"
             SourceFile="$(MSBuildProjectFullPath)"
             PlatformTarget="$(PlatformTarget)"/>    
   </Target>

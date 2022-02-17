@@ -512,21 +512,21 @@ namespace OpenTap
         InputOutputRelation[] IInputOutputRelations.Inputs { get; set; }
         InputOutputRelation[] IInputOutputRelations.Outputs { get; set; }
 
-        readonly Dictionary<IMemberData, IParameterMemberData> parameterizations =
-            new Dictionary<IMemberData, IParameterMemberData>();
-        void IParameterizedMembersCache.RegisterParameterizedMember(IMemberData mem, IParameterMemberData memberData)
+        readonly Dictionary<IMemberData, ParameterMemberData> parameterizations =
+            new Dictionary<IMemberData, ParameterMemberData>();
+        void IParameterizedMembersCache.RegisterParameterizedMember(IMemberData mem, ParameterMemberData memberData)
         {
             lock (parameterizations)
                 parameterizations.Add(mem, memberData);
         }
 
-        void IParameterizedMembersCache.UnregisterParameterizedMember(IMemberData mem, IParameterMemberData memberData)
+        void IParameterizedMembersCache.UnregisterParameterizedMember(IMemberData mem, ParameterMemberData memberData)
         {
             lock (parameterizations)
                 parameterizations.Remove(mem);
         }
 
-        IParameterMemberData IParameterizedMembersCache.GetParameterFor(IMemberData mem)
+        ParameterMemberData IParameterizedMembersCache.GetParameterFor(IMemberData mem)
         {
             if (parameterizations.TryGetValue(mem, out var r))
                 return r;
@@ -679,14 +679,27 @@ namespace OpenTap
                         }
 
                         var stepidx = steps.IndexWhen(x => x.Id == id);
-                        if (stepidx != -1)
-                            i = stepidx - 1;
+                        if (stepidx >= 0)
+                            i = stepidx - 1; // next iteration will be that one.
+                        else
+                        {
+                            var seek = Step.Parent;
+                            while (seek != null)
+                            {
+                                if (seek is ITestStep step2 && id == step2.Id)
+                                {
+                                    currentStepRun.SuggestedNextStep = id;
+                                    return runs;
+                                }
+                                seek = seek.Parent;
+                            }
+                        }
                         // if skip to next step, dont add it to the wait queue.
                     }
-                    if (run.IsBreakCondition())
+                    if (run.BreakConditionsSatisfied())
                     {
-                        Step.UpgradeVerdict(Verdict.Error);
-                        run.ThrowDueToBreakConditions();
+                        run.LogBreakCondition();
+                        break;
                     }
                     
                     TapThread.ThrowIfAborted();
@@ -775,14 +788,19 @@ namespace OpenTap
                 Step.UpgradeVerdict(run.Verdict);
             }
 
-            if (run.IsBreakCondition())
+            if (run.BreakConditionsSatisfied())
             {
-                Step.UpgradeVerdict(Verdict.Error);
-                if (throwOnError)
+                run.LogBreakCondition();
+                if(run.Verdict == Verdict.Error && throwOnError)
                     run.ThrowDueToBreakConditions();
             }
 
             return run;
+        }
+
+        internal static void LogBreakCondition(this TestStepRun run)
+        {
+            Log.CreateSource("Test Step").Debug( $"Break issued from '{run.TestStepName}' due to verdict {run.Verdict}. See Break Conditions settings.");
         }
 
         internal static string GetStepPath(this ITestStep Step)

@@ -40,7 +40,8 @@ namespace OpenTap.Package
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;
 
-            var installedPackages = new Installation(Target).GetPackages();
+            var installation = new Installation(Target);
+            var installedPackages = installation.GetPackages();
 
             bool anyUnrecognizedPlugins = false;
             foreach (string pack in Packages)
@@ -51,7 +52,7 @@ namespace OpenTap.Package
                 {
                     installer.PackagePaths.Add(source.PackageDefFilePath);
                     if (package.IsBundle())
-                        installer.PackagePaths.AddRange(GetPaths(package, source, installedPackages));
+                        installer.PackagePaths.AddRange(GetPaths(package, installedPackages));
                 }
                 else if (!IgnoreMissing)
                 {
@@ -101,8 +102,7 @@ namespace OpenTap.Package
             }
         }
 
-        private List<string> GetPaths(PackageDef package, InstalledPackageDefSource source,
-            List<PackageDef> installedPackages)
+        private List<string> GetPaths(PackageDef package, List<PackageDef> installedPackages)
         {
             if (NonInteractive)
             {
@@ -119,7 +119,7 @@ namespace OpenTap.Package
             {
                 var dependencyPackage = installedPackages.FirstOrDefault(p => p.Name == dependency.Name);
                 
-                if (dependencyPackage != null && dependencyPackage.PackageSource is InstalledPackageDefSource source2)
+                if (dependencyPackage != null && dependencyPackage.PackageSource is XmlPackageDefSource source2)
                 {
                     var question =
                         $"Package '{dependency.Name}' is a member of the bundle '{package.Name}'.\nDo you wish to uninstall '{dependency.Name}'?";
@@ -138,7 +138,12 @@ namespace OpenTap.Package
         private bool CheckPackageAndDependencies(List<PackageDef> installed, List<string> packagePaths, out bool userCancelled)
         {
             userCancelled = false;
-            var packages = packagePaths.Select(PackageDef.FromXml).ToList();
+            var packages = packagePaths.Select(str =>
+            {
+                var pkg = PackageDef.FromXml(str);
+                pkg.PackageSource = new XmlPackageDefSource{PackageDefFilePath = str};
+                return pkg;
+            }).ToList();
             installed.RemoveIf(i => packages.Any(u => u.Name == i.Name && u.Version == i.Version));
             var analyzer = DependencyAnalyzer.BuildAnalyzerContext(installed);
             var packagesWithIssues = new List<PackageDef>();

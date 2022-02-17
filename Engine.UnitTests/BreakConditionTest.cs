@@ -52,6 +52,7 @@ namespace OpenTap.Engine.UnitTests
         [TestCase(Verdict.Error, BreakCondition.BreakOnError)]
         [TestCase(Verdict.Fail, BreakCondition.BreakOnFail)]
         [TestCase(Verdict.Inconclusive, BreakCondition.BreakOnInconclusive)]
+        [TestCase(Verdict.Pass, BreakCondition.BreakOnPass)]
         [TestCase(Verdict.Inconclusive,
             BreakCondition.BreakOnInconclusive | BreakCondition.BreakOnError)]
 
@@ -65,7 +66,7 @@ namespace OpenTap.Engine.UnitTests
             {
                 VerdictOutput = verdictOutput
             };
-            BreakConditionProperty.SetBreakCondition(verdict, condition);
+            BreakConditionProperty.SetBreakCondition(plan, condition);
             var verdict2 = new VerdictStep
             {
                 VerdictOutput = Verdict.Pass
@@ -231,35 +232,42 @@ namespace OpenTap.Engine.UnitTests
             var failStep = new VerdictStep() {VerdictOutput = Verdict.Fail};
             var inconclusiveStep = new VerdictStep() {VerdictOutput = Verdict.Inconclusive};
             var passStep = new VerdictStep() {VerdictOutput = Verdict.Pass};
+            var nopStep = new SequenceStep();
             
-            plan.Steps.Add(errorStep);
-            plan.Steps.Add(failStep);
-            plan.Steps.Add(inconclusiveStep);
             plan.Steps.Add(passStep);
+            plan.Steps.Add(inconclusiveStep);
+            plan.Steps.Add(failStep);
+            plan.Steps.Add(errorStep);
+            plan.Steps.Add(nopStep);
 
             var defaultValue = BreakConditionProperty.GetBreakCondition(plan);
             Assert.AreEqual(BreakCondition.Inherit, defaultValue);
             
             // break on fail, this means that 'passStep' will not get executed 
-            BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnError);
+            BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnPass);
             var col = new PlanRunCollectorListener();
-            plan.Execute(new []{col});
+            Assert.AreEqual(Verdict.Pass, plan.Execute(new []{col}).Verdict);
             Assert.AreEqual(1, col.StepRuns.Count);
-            
-            BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnFail);
-            col = new PlanRunCollectorListener();
-            plan.Execute(new []{col});
-            Assert.AreEqual(2, col.StepRuns.Count);
             
             BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnInconclusive);
             col = new PlanRunCollectorListener();
-            plan.Execute(new []{col});
+            Assert.AreEqual(Verdict.Inconclusive, plan.Execute(new []{col}).Verdict);
+            Assert.AreEqual(2, col.StepRuns.Count);
+            
+            BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnFail);
+            col = new PlanRunCollectorListener();
+            Assert.AreEqual(Verdict.Fail, plan.Execute(new []{col}).Verdict);
             Assert.AreEqual(3, col.StepRuns.Count);
+            
+            BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnError);
+            col = new PlanRunCollectorListener();
+            Assert.AreEqual(Verdict.Error, plan.Execute(new []{col}).Verdict);
+            Assert.AreEqual(4, col.StepRuns.Count);
             
             BreakConditionProperty.SetBreakCondition(plan, 0);
             col = new PlanRunCollectorListener();
-            plan.Execute(new []{col});
-            Assert.AreEqual(4, col.StepRuns.Count);
+            Assert.AreEqual(Verdict.Error, plan.Execute(new []{col}).Verdict);
+            Assert.AreEqual(5, col.StepRuns.Count);
             
         }
 

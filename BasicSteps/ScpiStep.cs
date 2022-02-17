@@ -7,11 +7,12 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Xml.Serialization;
-using OpenTap;
 
 namespace OpenTap.Plugins.BasicSteps
 {
     [Display("Generic SCPI Instrument", Description: "Allows you to configure a VISA based connection to a SCPI instrument.")]
+    [Obsolete ("Use OpenTap.ScpiInstrument instead.")]
+    [Browsable(false)]
     public class GenericScpiInstrument : ScpiInstrument
     {
         public GenericScpiInstrument()

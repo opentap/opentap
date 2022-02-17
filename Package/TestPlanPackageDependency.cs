@@ -49,10 +49,10 @@ namespace OpenTap.Package
         }
 
         // not used at the moment. Consider for TAP 8.6.
-        void interactiveInstallPackage(string name, SemanticVersion version)
+        void interactiveInstallPackage(string name, VersionSpecifier version)
         {
             InstallNeedPackage req = new InstallNeedPackage() {
-                Message = string.Format("Install package \"{0}\" version {1}?", name, version.ToString()),
+                Message = $"Install package \"{name}\" version {version}?",
                 Response = UserRequest.Ignore };
             UserInput.Request(req, true);
 
@@ -91,10 +91,11 @@ namespace OpenTap.Package
             if (element.IsEmpty)
                 element.Value = ""; // little hack to ensure that the element is not created empty. (leading to null values).
 
-            var plugins = new Installation(Path.GetDirectoryName(Assembly.GetAssembly(typeof(PluginManager)).Location)).GetPackages().ToDictionary(x => x.Name);
+            var plugins = Installation.Current.GetPackages().ToDictionary(x => x.Name);
 
             List<string> errors = new List<string>();
-            foreach (var pkg in dep.Elements(PackageDependencyName))
+            var elements = dep.Elements(PackageDependencyName).ToArray();
+            foreach (var pkg in elements)
             {
                 var nameattr = pkg.Attribute(NameName);
                 var versionattr = pkg.Attribute(VersionName);
@@ -103,7 +104,7 @@ namespace OpenTap.Package
 
                 var packageName = nameattr.Value;
                 var versionString = versionattr.Value;
-                if(!SemanticVersion.TryParse(versionString, out SemanticVersion version))
+                if(!VersionSpecifier.TryParse(versionString, out var version))
                 {
                     errors.Add($"Version '{versionString}' of dependent package '{packageName}' could not be parsed.");
                     return false;
@@ -119,7 +120,7 @@ namespace OpenTap.Package
                     }
                     else
                     {
-                        errors.Add($"Package '{packageName}' is required to load the test plan, but it is not installed.");
+                        errors.Add($"Package '{packageName}' is required to load, but it is not installed.");
                     }
 
                     if (UsePlatformInteraction)
@@ -180,7 +181,7 @@ namespace OpenTap.Package
                     {
                         var ele = new XElement(PackageDependencyName);
                         ele.Add(new XAttribute(NameName, p.Name));
-                        if (p.Version != null) ele.Add(new XAttribute(VersionName, p.Version));
+                        if (p.Version != null) ele.Add(new XAttribute(VersionName, $"^{p.Version}"));
                         
                         pluginsNode.Add(ele);
 

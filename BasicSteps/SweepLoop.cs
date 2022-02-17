@@ -483,8 +483,11 @@ namespace OpenTap.Plugins.BasicSteps
                     var AdditionalParams = RegisterAdditionalParams(i);
                     Log.Info(logMessage.ToString());
                     var runs = RunChildSteps(AdditionalParams, BreakLoopRequested).ToList();
+                    
                     if (BreakLoopRequested.IsCancellationRequested) break;
                     runs.ForEach(r => r.WaitForCompletion());
+                    if (runs.LastOrDefault()?.BreakConditionsSatisfied() == true)
+                        break;
                 }
 
                 Iteration = 0;

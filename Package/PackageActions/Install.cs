@@ -10,6 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using OpenTap.Cli;
+using OpenTap.Package.PackageInstallHelpers;
 
 #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
 namespace OpenTap.Package
@@ -79,7 +80,7 @@ namespace OpenTap.Package
             switch (Environment.OSVersion.Platform)
             {
                 case PlatformID.MacOSX:
-                    OS = "OSX";
+                    OS = "MacOS";
                     break;
                 case PlatformID.Unix:
                     OS = "Linux";
@@ -143,6 +144,27 @@ namespace OpenTap.Package
                 List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                     targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
                     InstallDependencies, IgnoreDependencies, askToInstallDependencies, NoDowngrade);
+
+                foreach (var pkg in packagesToInstall)
+                {
+                    // print a warning if the selected package is incompatible with the host platform.
+                    // or return an error if the package does not match.
+                    var platformCompatible =  pkg.IsPlatformCompatible( targetInstallation.Architecture, targetInstallation.OS);
+                    if (!platformCompatible)
+                    {
+                        var selectedPlatformCompatible =  pkg.IsPlatformCompatible(Architecture,OS);
+                        var message =
+                            $"Selected package {pkg.Name} for {pkg.OS}, {pkg.Architecture} is incompatible with the host platform {targetInstallation.OS}, {targetInstallation.Architecture}.";
+                        if (selectedPlatformCompatible)
+                            log.Warning(message);
+                        else
+                        {
+                            log.Error(message);
+                            return (int)ExitCodes.ArgumentError;
+                        }
+                    }
+                }
+                
                 if (packagesToInstall?.Any() != true)
                 {
                     if (NoDowngrade)
@@ -188,6 +210,34 @@ namespace OpenTap.Package
                         log.Info("Check completed with no problems detected.");
                         return (int) ExitCodes.Success;
                     }
+                }
+
+                // System wide packages require elevated privileges. Install them in a separate elevated process.
+                var systemWide = packagesToInstall.Where(p => p.IsSystemWide()).ToArray();
+
+                // If we are already running as administrator, skip this and install normally
+                if (systemWide.Any() && SubProcessHost.IsAdmin() == false)
+                {
+                    var installStep = new PackageInstallStep()
+                    {
+                        Packages = systemWide,
+                        Target = PackageDef.SystemWideInstallationDirectory,
+                        Force = Force
+                    };
+
+                    var processRunner = new SubProcessHost {ForwardLogs = true};
+
+                    var result = processRunner.Run(installStep, true, cancellationToken);
+                    if (result != Verdict.Pass)
+                    {
+                        var ex = new Exception($"Failed installing system-wide packages. Try running the command as administrator.");
+                        RaiseError(ex);
+                    }
+
+                    var pct = ((double)systemWide.Length / systemWide.Length + packagesToInstall.Count) * 100;
+                    RaiseProgressUpdate((int)pct, "Installed system-wide packages.");
+                    // And remove the system wide packages from the list
+                    packagesToInstall = packagesToInstall.Except(p => p.IsSystemWide()).ToList();
                 }
 
                 // Download the packages
@@ -250,7 +300,7 @@ namespace OpenTap.Package
             var installed = installation.GetPackages();
 
             var packages = packagePaths.Select(PackageDef.FromPackage).Select(x => x.Name).ToHashSet();
-            var existingPackages = installed.Where(kvp => packages.Contains(kvp.Name)).Select(x => (x.PackageSource as InstalledPackageDefSource)?.PackageDefFilePath).ToList();
+            var existingPackages = installed.Where(kvp => packages.Contains(kvp.Name)).Select(x => (x.PackageSource as XmlPackageDefSource)?.PackageDefFilePath).ToList();
 
             if (existingPackages.Count == 0) return;
 

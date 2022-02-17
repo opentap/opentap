@@ -1,8 +1,5 @@
-
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Text.RegularExpressions;
@@ -166,7 +163,7 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
     public class RunOnOs : TestStep
     {
 
-        public string[] AvailableOperatingSystems => new []{"Linux", "Windows"};
+        public string[] AvailableOperatingSystems => new []{ "MacOS", "Linux", "Windows"};
 
         [AvailableValues(nameof(AvailableOperatingSystems))]
         public string OperatingSystem { get; set; } = "Windows";
@@ -213,5 +210,4 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
             UpgradeVerdict(Verdict.Fail);
         }
     }
-    
 }

@@ -1,0 +1,811 @@
+name: CI
+
+on: [push]
+
+env:
+  #OPENTAP_COLOR: auto # github messes with the "auto" detection (i.e. it has no effect), and "always" breaks a lot of things
+  OPENTAP_ANSI_COLORS: true
+  OPENTAP_NO_UPDATE_CHECK: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_CONSOLE_ANSI_COLOR: true
+
+jobs:
+  GetVersion:
+    runs-on: ubuntu-latest
+    # Map a step output to a job output
+    outputs:
+      ShortVersion: ${{ steps.asmVer.outputs.ver }}
+      LongVersion: ${{ steps.longVer.outputs.ver }}
+      GitVersion: ${{ steps.gitVer.outputs.ver }}
+    steps:
+      - name: Create OpenTAP install dir
+        run: mkdir $HOME/.tap
+      - name: Download OpenTAP
+        run: wget -O opentap.TapPackage https://packages.opentap.io/3.0/downloadpackage/OpenTAP?os=linux
+      - name: Unzip
+        run: unzip opentap.TapPackage -d "$HOME/.tap"
+      - name: Change permission
+        run: chmod +x $HOME/.tap/tap
+      - name: Create symlink
+        run: ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: tap sdk gitversion --fields 3
+        id: asmVer
+        run: echo ::set-output name=ver::`tap sdk gitversion --fields 3`
+      - name: tap sdk gitversion --fields 4
+        id: longVer
+        run: echo ::set-output name=ver::`tap sdk gitversion --fields 4`
+      - name: tap sdk gitversion
+        id: gitVer
+        run: echo ::set-output name=ver::$(tap sdk gitversion)
+
+  ##############
+  ### BUILDS ###
+  ##############
+  Build-DevGuide:
+    runs-on: ubuntu-latest
+    container:
+      image: registry.gitlab.com/opentap/buildrunners/documentationgeneration:latest
+      credentials:
+        username: github
+        password: ${{ secrets.GITLAB_REGISTRY_TOKEN}}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - run: tap generate-pdf "doc/Developer Guide/Readme.md" --toc --skip-first-file --out "sdk/Examples/OpenTAP Developer Guide.pdf" --frontpage "doc/Developer Guide/Frontpage.html" --frontpage-file "doc/Developer Guide/Frontpage.png"
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: doc-devguide
+          retention-days: 5
+          path: |
+            sdk/Examples/OpenTAP Developer Guide.pdf
+
+  Build-ApiDoc:
+    runs-on: ubuntu-latest
+    container:
+      image: registry.gitlab.com/opentap/buildrunners/doxygen:alpine
+      credentials:
+        username: github
+        password: ${{ secrets.GITLAB_REGISTRY_TOKEN}}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - run: |
+          mkdir Help API
+          ver=$(grep ^version .gitversion | sed 's/version[ ]*=[ ]*//' | cut -d. -f 1-2)
+          sed -i "s/\$(GitVersion)/$ver/" "doc/API Documentation/Doxyfile"
+          rootdir=`pwd`
+          cd "doc/API Documentation"
+          doxygen Doxyfile
+          cd apiref/html
+          chmcmd index.hhp
+          mv OpenTapApiReference.chm $rootdir/Help/
+          cp -r . $rootdir/API/
+      - name: Upload binaries (CHM)
+        uses: actions/upload-artifact@v2
+        with:
+          name: doc-api-chm
+          retention-days: 5
+          path: Help/OpenTapApiReference.chm
+      - name: Upload binaries (HTML)
+        uses: actions/upload-artifact@v2
+        with:
+          name: doc-api-html
+          retention-days: 5
+          path: API
+
+  Build-Linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
+      - name: Build
+        run: dotnet publish -c Release OpenTAP.sln
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: linux-x64-bin
+          retention-days: 5
+          path: |
+            bin/Release/publish/*
+
+  Build-Win:
+    runs-on: windows-2022
+    strategy:
+      matrix:
+        Architecture: [x86, x64]
+    needs: GetVersion
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Nuget Cache
+        uses: actions/cache@v2
+        id: cache
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }} #hash of project files
+          restore-keys: ${{ runner.os }}-nuget-
+      - name: Stamp Version
+        run: |
+          $AssemblyVersion = "`"${{needs.GetVersion.outputs.ShortVersion}}.0`""
+          $GitVersion = "`"${{needs.GetVersion.outputs.GitVersion}}`""
+          Push-Location ./tap/Properties
+          $AssemblyInfoFile = (Get-Content AssemblyInfo.cs.Template)
+          $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyVersion"', $AssemblyVersion
+          $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyFileVersion"', $AssemblyVersion
+          $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyInformationalVersion"', $GitVersion
+          $AssemblyInfoFile | Set-Content AssemblyInfo.cs
+          cat AssemblyInfo.cs
+          Pop-Location
+      - name: Restore
+        #if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          dotnet restore
+      - name: Build
+        run: |
+          dotnet build --no-restore -c Release /p:Platform=${{ matrix.Architecture }}
+          dotnet build --no-restore tap/tap.csproj -c Release /p:Platform=${{ matrix.Architecture }}
+          get-content ./bin/Release/tap.runtimeconfig.json
+          Remove-Item -recurse "bin\Release\Packages"
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: win-${{ matrix.Architecture }}-bin
+          retention-days: 5
+          path: |
+            bin/Release/*
+
+  Build-MacOS:
+    runs-on: macos-11
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
+      - name: Build
+        run: dotnet publish -c Release OpenTAP.sln
+      - name: Upload binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: macos-bin
+          retention-days: 5
+          path: |
+            bin/Release/publish/*
+
+  ##############
+  ### TESTS ###
+  ##############
+  TestEngine:
+    runs-on: windows-2022
+    needs: Build-Win
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x64-bin
+          path: bin/
+      - name: Test
+        run: |
+          $ErrorActionPreference = "Stop"
+          dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000
+      - uses: actions/upload-artifact@v2
+        with:
+          name: win-testresults
+          path: |
+            TestResult.xml
+
+  TestPackage:
+    runs-on: windows-2022
+    needs: Build-Win
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x64-bin
+          path: bin/Release
+      - name: Test
+        run: |
+          $ErrorActionPreference = "Stop"
+          Copy-Item -r "Package.UnitTests/Packages" bin/Release
+          Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
+          dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
+      - uses: actions/upload-artifact@v2
+        with:
+          name: win-testresults
+          path: |
+            TestResult.xml
+
+  TestWindowsPlan:
+    runs-on: windows-2022
+    needs: Build-Win
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x64-bin
+          path: bin/Release/
+      - name: Test
+        run: bin/Release/tap.exe run tests/regression.TapPlan --verbose --color
+
+  TestLinuxPlan:
+    runs-on: ubuntu-20.04
+    needs: Build-Linux
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-x64-bin
+          path: bin/Release/
+      - name: Test
+        run: |
+          chmod +x bin/Release/tap
+          bin/Release/tap run tests/regression.TapPlan --verbose --color
+
+  TestMacPlan:
+    runs-on: macos-11
+    needs: Build-MacOS
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: macos-bin
+          path: bin/Release/
+      - name: Test
+        run: |
+          chmod +x bin/Release/tap
+          bin/Release/tap run tests/regression.TapPlan --verbose --color
+
+  ###############
+  ### Package ###
+  ###############
+  Package-Win:
+    runs-on: windows-2022
+    environment: sign
+    strategy:
+      matrix:
+        Architecture: [x86, x64]
+    needs:
+      - Build-Win
+      - Build-ApiDoc
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Download x64 binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x64-bin
+          path: bin/Release-x64/
+      - name: Download x86 binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x86-bin
+          path: bin/Release-x86/
+      - name: Download API Reference
+        uses: actions/download-artifact@v2
+        with:
+          name: doc-api-chm
+          path: Help/
+      - name: Caching Signing tools
+        uses: actions/cache@v2
+        id: cache
+        with:
+          path: ./sign.TapPackage
+          key: ${{ runner.os }}-signpackage-1.3.0 }}
+      - name: Copy Signing tools
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: aws s3 cp s3://ks-github-runner-tools/sign.1.3.0.TapPackage ./sign.TapPackage --region eu-central-1
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.S3_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET }}
+      - name: Package
+        run: |
+          $env:Platform = "Windows"
+          $env:Architecture =  "${{ matrix.Architecture }}"
+          if ($env:GITHUB_REF_PROTECTED -eq "true") { $env:Sign = "true" } else { $env:Sign = "false" }
+          cd bin/Release-x64
+          cp .\runtimes\win-x64\native\git2-b7bad55.dll .
+          .\tap.exe package install -f ../../sign.TapPackage
+          echo "${{ secrets.SIGN_SERVER_CERT }}" > $env:TAP_SIGN_CERT
+          $version=$(./tap sdk gitversion)
+          cd ../Release-${{ matrix.Architecture }}
+          ..\Release-x64\tap.exe package create -v -c ../../package.xml -o ../../OpenTAP.$version.${{ matrix.Architecture }}.Windows.TapPackage
+        env: 
+          TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
+          TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
+          TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
+      - uses: actions/upload-artifact@v2
+        with:
+          name: win-${{ matrix.Architecture }}-package
+          retention-days: 14
+          path: |
+            OpenTAP.*.Windows.TapPackage
+
+  Package-Linux:
+    runs-on: windows-2022
+    environment: sign
+    needs:
+      - Build-Win
+      - Build-Linux
+      - Build-ApiDoc
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Download x64 binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x64-bin
+          path: bin/Release/
+      - name: Download linux binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-x64-bin
+          path: bin/linux-x64/
+      - name: Download API Reference
+        uses: actions/download-artifact@v2
+        with:
+          name: doc-api-chm
+          path: Help/
+      - name: Caching Signing tools
+        uses: actions/cache@v2
+        id: cache
+        with:
+          path: ./sign.TapPackage
+          key: ${{ runner.os }}-signpackage-1.3.0 }}
+      - name: Copy Signing tools
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: aws s3 cp s3://ks-github-runner-tools/sign.1.3.0.TapPackage ./sign.TapPackage --region eu-central-1
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.S3_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET }}
+      - name: Package
+        run: |
+          $env:Platform = "Linux,MacOS"
+          $env:Architecture = "x64"
+          if ($env:GITHUB_REF_PROTECTED -eq "true") { $env:Sign = "true" } else { $env:Sign = "false" }
+          pushd bin\linux-x64\ 
+          ../Release/tap package install -f "../../Sign.TapPackage"
+          echo "${{ secrets.SIGN_SERVER_CERT }}" > $env:TAP_SIGN_CERT
+          cp .\runtimes\win-x64\native\git2-b7bad55.dll .
+          ..\Release\tap package create -v -c ../../package.xml -o Packages/OpenTAP.Linux.TapPackage
+          $version=$(..\Release\tap sdk gitversion)
+          cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.$version.Linux.TapPackage
+        env: 
+          TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
+          TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
+          TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
+      - uses: actions/upload-artifact@v2
+        with:
+          name: linux-x64-package
+          retention-days: 14
+          path: |
+            OpenTAP.*.Linux.TapPackage
+
+  Package-SDK:
+    runs-on: windows-2022
+    needs:
+      - Build-Win
+      - Build-DevGuide
+      - Build-ApiDoc
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x64-bin
+          path: bin/Release/
+      - name: Download Developer Guide
+        uses: actions/download-artifact@v2
+        with:
+          name: doc-devguide
+          path: sdk/Examples/
+      - name: Download API Reference
+        uses: actions/download-artifact@v2
+        with:
+          name: doc-api-chm
+          path: Help/
+      - name: Package
+        run: |
+          $env:Sign = "false"
+          $env:Architecture = "x86"
+          $env:Platform = "Windows"
+          cd bin/Release
+          cp .\runtimes\win-x64\native\git2-b7bad55.dll .
+          .\tap.exe package create ../../package.xml --install -v -c
+          Copy-Item "../../sdk/Examples" "Packages/SDK/Examples" -Recurse
+          Copy-Item "../../Package/PackageSchema.xsd" "Packages/SDK/PackageSchema.xsd"
+          cd Packages/SDK/Examples
+          $doc = New-Object System.Xml.XmlDataDocument
+          $doc.PreserveWhitespace=1
+          $doc.Load("$pwd/Directory.Build.props")
+          $ele = $doc.GetElementsByTagName("PropertyGroup") | Where-Object { $_.GetElementsByTagName("GitVersion").Count -gt 0 }
+          $doc.FirstChild.RemoveChild($ele) # First Child is the Project element
+          $doc.Save("$pwd/Directory.Build.props")
+          cd ../../..
+          ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/Directory.Build.props"
+          ./tap package create -v -c ../../sdk/sdk.package.xml
+          Move-Item "*.TapPackage" "../.."
+      - uses: actions/upload-artifact@v2
+        with:
+          name: package-sdk
+          retention-days: 14
+          path: |
+            SDK.*.TapPackage
+
+  Package-Diff:
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        Package: [win-x86, win-x64, linux-x64]
+    needs:
+      - Package-Win
+      - Package-Linux
+    steps:
+      - name: Download package
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ matrix.Package }}-package
+          path: .
+      - name: Install OpenTAP
+        run: |
+          cd $RUNNER_TEMP
+          wget -O opentap.tar https://www.opentap.io/docs/OpenTAP.9.16.2+f3c96b9f.tar
+          tar -xf opentap.tar
+          chmod u+x INSTALL.sh
+          echo 'y' | ./INSTALL.sh
+          ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
+          cd -
+      - name: Diff Package
+        run: |
+          mv OpenTAP.*.TapPackage OpenTAP.TapPackage
+          tap package install "Package Diff" --version any
+          tap package diff OpenTAP.TapPackage -o diff
+      - uses: actions/upload-artifact@v2
+        with:
+          name: api-diff-${{ matrix.Package }}
+          retention-days: 14
+          path: diff.html
+
+  Package-NuGet:
+    runs-on: windows-2022
+    needs:
+      - Build-Win
+      - Package-Win
+      - Package-Linux
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x64-bin
+          path: bin/Release/
+      - name: Download x86 package
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x86-package
+          path: .
+      - name: Download x64 package
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x64-package
+          path: .
+      - name: Download Linux package
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-x64-package
+          path: .
+      - name: Package
+        run: |
+          cp bin\Release\runtimes\win-x64\native\git2-b7bad55.dll bin\Release
+          ./bin/Release/tap sdk gitversion --replace ./nuget/OpenTAP.nuspec --fields 4
+          New-Item -Force ./nuget/build/payload -ItemType Directory | Out-Null
+          # Expand-Archive will only extract .zip extensions    
+          Move-Item OpenTAP.*.x86.Windows.TapPackage OpenTAP.x86.zip 
+          Move-Item OpenTAP.*.x64.Windows.TapPackage OpenTAP.x64.zip
+          Move-Item OpenTAP.*.Linux.TapPackage OpenTAP.Linux.zip
+
+          Move-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
+          Move-Item ./bin/Release/DotNet.Glob.dll ./nuget/build    
+          ./bin/Release/tap package install ./OpenTap.x64.zip -t ./nuget/build/payload -f
+          # package.xml, tap.dll, and tap.runtimeconfig.json of an installation should always come from 
+          # one of the Runtime directories. Delete it from the payload directory.
+          Remove-Item ./nuget/build/payload/Packages/OpenTAP/package.xml
+          Remove-Item ./nuget/build/payload/tap.dll
+          Remove-Item ./nuget/build/payload/tap.runtimeconfig.json
+
+          Move-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload
+          Move-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
+          Push-Location ./nuget/build/payload
+          Remove-Item tap.exe
+          Remove-Item ./Dependencies/LibGit2Sharp.0.27.0.0/git2*.dll
+          Pop-Location
+          Expand-Archive OpenTAP.x64.zip win-x64
+          Expand-Archive OpenTAP.x86.zip win-x86
+          Expand-Archive OpenTAP.Linux.zip linux-x64
+          ./nuget/NugetPackager.ps1
+          cd ./nuget    
+          Invoke-WebRequest -Method Get -Uri "https://dist.nuget.org/win-x86-commandline/v5.7.1/nuget.exe" -OutFile nuget.exe
+          .\nuget pack OpenTAP.nuspec -OutputDirectory ../
+      - uses: actions/upload-artifact@v2
+        with:
+          name: nuget-package
+          retention-days: 14
+          path: |
+            *.nupkg
+
+  Installer-Linux:
+    runs-on: windows-2022
+    needs:
+      - Package-Linux
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Download Linux package
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-x64-package
+          path: .
+      - name: Package
+        run: |
+          Invoke-WebRequest https://netcologne.dl.sourceforge.net/project/gnuwin32/tar/1.13-1/tar-1.13-1-bin.exe -Outfile tarsetup.exe
+          Start-process .\tarsetup.exe -NoNewWindow -Wait -ArgumentList "/SILENT"
+
+          $path=(get-item -path "./").Fullname
+          $str=[IO.File]::ReadAllText($path + "/LinuxInstall/INSTALL.sh") -replace "`r`n", "`n"
+          ([IO.File]::WriteAllText($path + "/INSTALL.sh", $str))
+
+          $str=[IO.File]::ReadAllText($path + "/LinuxInstall/README") -replace "`r`n", "`n"
+          ([IO.File]::WriteAllText($path + "/README", $str))
+
+          cmd /C '"C:\Program Files (x86)\GnuWin32\bin\tar.exe" -cf "OpenTAP.tar" OpenTAP.*.Linux.TapPackage INSTALL.sh README'
+      - uses: actions/upload-artifact@v2
+        with:
+          name: installer-linux
+          retention-days: 14
+          path: OpenTAP.tar
+          
+  Installer-Windows:
+    runs-on: ubuntu-latest
+    environment: sign
+    needs:
+      - GetVersion
+      - Package-Win
+    container:
+      image: registry.gitlab.com/opentap/buildrunners/smartinstaller:1.0.0-beta.3
+      credentials:
+        username: github
+        password: ${{ secrets.GITLAB_REGISTRY_TOKEN}}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Download Windows package
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x64-package
+          path: .
+      - run: mv OpenTAP.*.Windows.TapPackage Installer/Assets/OpenTAP.TapPackage
+      - run: ls /root/go/bin
+      #- name: Remove certificate
+      #  if: github.ref != 'refs/heads/main' && !contains(github.ref, 'refs/heads/release') && !contains(github.ref, 'refs/tags/v')
+      #  run: sed -i 's/<SignCert>Keysight Technologies, Inc<\/SignCert>/<SignCert><\/SignCert>/' 'opentap.installer.xml'
+      #  working-directory: Installer/Assets
+      - run: echo "${{ secrets.SIGN_SERVER_CERT }}" > $GITHUB_WORKSPACE/sign.cer
+      - run: tap installer create "opentap.installer.xml"
+        working-directory: Installer/Assets
+        env:
+          TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
+          TAP_SIGN_AUTH: ${{ secrets.TAP_SIGN_AUTH }}
+          TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
+      - run: mv Installer/Assets/setup.exe OpenTAP.${{needs.GetVersion.outputs.LongVersion}}.exe
+      - uses: actions/upload-artifact@v2
+        with:
+          name: installer-windows
+          retention-days: 14
+          path: OpenTAP.*.exe
+
+  Test-Installer-Linux:
+    runs-on: ubuntu-20.04
+    needs:
+      - Installer-Linux
+    steps:
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
+      - name: Download Linux Installer
+        uses: actions/download-artifact@v2
+        with:
+          name: installer-linux
+      - name: Install OpenTAP
+        run: |
+          tar xf OpenTAP.tar
+          chmod +x ./INSTALL.sh
+          echo 'y' | ./INSTALL.sh
+      - name: Test OpenTAP
+        run: |
+          $HOME/bin/tap -h
+          $HOME/bin/tap package list -v -c
+
+  Docker-Linux:
+    runs-on: ubuntu-20.04
+    environment: sign
+    strategy:
+      matrix:
+        include:
+          - target: production
+            tag-suffix: "-slim"
+          - target: development
+            tag-suffix: ""
+    needs:
+      - Package-Linux
+      - GetVersion
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Download Linux package
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-x64-package
+          path: .
+      - name: Prepare
+        run: |
+          mv OpenTAP.*.Linux.TapPackage docker/Linux/OpenTAP.Linux.TapPackage
+          echo "TAG_NAME=alpha" >> $GITHUB_ENV
+      - name: Set tag (beta)
+        if: github.ref == 'refs/heads/main'
+        run: echo "TAG_NAME=beta" >> $GITHUB_ENV
+      - name: Set tag (rc)
+        if: contains(github.ref, 'refs/heads/release')
+        run: echo "TAG_NAME=rc" >> $GITHUB_ENV
+      - name: Set tag (release)
+        if: contains(github.ref, 'refs/tags/v')
+        run: echo "TAG_NAME=${{needs.GetVersion.outputs.ShortVersion}}" >> $GITHUB_ENV
+      - name: Docker Build
+        uses: aevea/action-kaniko@master
+        with:
+          image: opentapio/opentap
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+          target: ${{ matrix.target }}
+          tag: ${{env.TAG_NAME}}-bionic${{ matrix.tag-suffix }}
+          path: docker/Linux
+
+  Package-Deb:
+    runs-on: ubuntu-20.04
+    needs:
+      - Package-Linux
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
+      - name: Download Linux package
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-x64-package
+          path: .
+      - name: Create Debian Package
+        run: |
+          cd  LinuxInstall/package
+          mv ../../OpenTAP*.TapPackage OpenTAP.TapPackage
+          cd Debian
+          bash create-deb
+      - uses: actions/upload-artifact@v2
+        with:
+          name: package-deb
+          retention-days: 14
+          path: LinuxInstall/package/Debian/OpenTAP.deb
+
+  ###############
+  ### Publish ###
+  ###############
+  Publish-NuGet:
+    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
+    environment: nuget.org
+    runs-on: windows-2022
+    needs:
+      - Package-NuGet
+    steps:
+      - name: Download nuget package
+        uses: actions/download-artifact@v2
+        with:
+          name: nuget-package
+          path: .
+      - name: Package
+        run: nuget push OpenTAP.*.nupkg ${{ secrets.NUGET_KEY }} -NonInteractive -Source https://api.nuget.org/v3/index.json
+
+  Publish-TapPackages:
+    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
+    environment: packages.opentap.io
+    runs-on: ubuntu-latest
+    needs:
+      - Package-Win
+      - Package-Linux
+      - Package-SDK
+    steps:
+      - name: Download Windows-x86 package
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x86-package
+          path: ./publish/
+      - name: Download Windows-x64 package
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x64-package
+          path: ./publish/
+      - name: Download Linux-x64 package
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-x64-package
+          path: ./publish/
+      - name: Download SDK package
+        uses: actions/download-artifact@v2
+        with:
+          name: package-sdk
+          path: ./publish/
+      - name: Install OpenTAP
+        run: |
+          wget -O opentap.tar https://www.opentap.io/docs/OpenTAP.9.16.2+f3c96b9f.tar
+          tar -xf opentap.tar
+          chmod u+x INSTALL.sh
+          echo 'y' | ./INSTALL.sh
+          ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
+      - name: Debug
+        run: ls -la ./publish
+      - name: Install PackagePublish
+        run: tap package install -f PackagePublish --version beta
+      - name: Publish
+        run: tap package publish -r http://packages.opentap.io -k ${{ secrets.REPO_PASS }} ./publish/*.TapPackage

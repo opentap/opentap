@@ -38,8 +38,12 @@ namespace OpenTap.Package
                 Target = Path.GetFullPath(Target.Trim()); 
             if (!Directory.Exists(Target))
             {
-                log.Error("Destination directory \"{0}\" does not exist.", Target);
-                return (int)ExitCodes.ArgumentError;
+                if (File.Exists(Target))
+                {
+                    log.Error("Destination directory \"{0}\" is a file.", Target);
+                    return (int)ExitCodes.ArgumentError;
+                }
+                FileSystemHelper.EnsureDirectory(Target);
             }
 
             if (ExecutorClient.IsExecutorMode) // do we support running isolated?
