@@ -2,14 +2,11 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
-using System.Linq;
 using System.Threading;
-using System.Xml.Linq;
 
 namespace Tap.Upgrader
 {
-    internal static class Installer
+    static class Installer
     {
         internal static void Install(string installDir)
         {
@@ -31,7 +28,7 @@ namespace Tap.Upgrader
                 catch
                 {
                     // Retry again in a few
-                    Thread.Sleep(100);
+                    Thread.Sleep(1000);
                 }
             }
         }
@@ -53,30 +50,6 @@ namespace Tap.Upgrader
             return result;
         }
 
-        /// <summary>
-        /// Return the first parent process which was not started from some temp path
-        /// </summary>
-        /// <returns></returns>
-        private static Process GetNonTempAncestor()
-        {
-            var parent = ProcessUtils.GetParentProcess();
-            var tempdir = Path.GetTempPath();
-            while (true)
-            {
-                try
-                {
-                    var next = ProcessUtils.GetParentProcess(parent.Handle);
-                    if (next == null) return parent;
-                    parent = next;
-                    if (parent.MainModule.FileName.StartsWith(tempdir) == false) return parent;
-                }
-                catch
-                {
-                    return parent;
-                }
-            }
-        }
-
         public static void Main(string[] args)
         {
             var argTable = parseArgs(args);
@@ -84,10 +57,7 @@ namespace Tap.Upgrader
             {
                 try
                 {
-                    var parent = GetNonTempAncestor();
-                    if (parent?.MainModule == null) return;
-
-                    var exeDir = Path.GetDirectoryName(parent.MainModule.FileName);
+                    var exeDir = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
                     // Start this process and immediately exit
                     // This subprocess will then wait for the tap.exe instance which started this program to exit
                     // so it can overwrite tap.exe
