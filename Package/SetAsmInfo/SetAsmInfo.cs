@@ -468,6 +468,7 @@ namespace OpenTap.Package.SetAsmInfo
 
         private class TapMonoResolver : BaseAssemblyResolver
         {
+            readonly GacResolver gacResolver = new GacResolver();
             ILookup<string, AssemblyData> searchedAssemblies =
                 PluginManager.GetSearcher().Assemblies.ToLookup(asm => asm.Name);
 
@@ -481,7 +482,7 @@ namespace OpenTap.Package.SetAsmInfo
                 var found = subset.FirstOrDefault(asm => asm.Version == name.Version) ??
                             subset.FirstOrDefault(asm => OpenTap.Utils.Compatible(asm.Version, name.Version));
 
-                ReaderParameters customParameters = new ReaderParameters() { AssemblyResolver = new TapMonoResolver() };
+                ReaderParameters customParameters = new ReaderParameters { AssemblyResolver = this };
 
                 if (found == null) // Try find dependency from already loaded assemblies
                 {
@@ -490,6 +491,16 @@ namespace OpenTap.Package.SetAsmInfo
                         .FirstOrDefault(s => s.GetName().Name == neededAssembly.Name);
                     if (loadedAssembly != null)
                         return AssemblyDefinition.ReadAssembly(loadedAssembly.Location, customParameters);
+                }
+                try
+                {
+                    var ld2 = gacResolver.Resolve(name, parameters);
+                    if (ld2 != null)
+                        return ld2;
+                }
+                catch
+                {  // An exception was thrown when trying to resolve the assembly in the GAC.
+                   // this is ok, if everything else fails too another exception will be thrown.
                 }
 
                 if (found != null)
