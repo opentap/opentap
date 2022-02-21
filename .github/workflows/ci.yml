@@ -138,11 +138,12 @@ jobs:
       - name: Stamp Version
         run: |
           $AssemblyVersion = "`"${{needs.GetVersion.outputs.ShortVersion}}.0`""
+          $AssemblyFileVersion = "`"${{needs.GetVersion.outputs.ShortVersion}}`""
           $GitVersion = "`"${{needs.GetVersion.outputs.GitVersion}}`""
           Push-Location ./tap/Properties
           $AssemblyInfoFile = (Get-Content AssemblyInfo.cs.Template)
           $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyVersion"', $AssemblyVersion
-          $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyFileVersion"', $AssemblyVersion
+          $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyFileVersion"', $AssemblyFileVersion
           $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyInformationalVersion"', $GitVersion
           $AssemblyInfoFile | Set-Content AssemblyInfo.cs
           cat AssemblyInfo.cs
