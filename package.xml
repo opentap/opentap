@@ -13,7 +13,7 @@
         <!-- Set Debug=true to exclude documentation files and include debugging symbols -->
         <Debug Condition="$(Debug) != true">false</Debug>
     </Variables>
-    <SourceUrl>https://gitlab.com/OpenTAP/opentap</SourceUrl>
+    <SourceUrl>https://github.com/opentap/opentap</SourceUrl>
     <Owner>OpenTAP</Owner>
     <!-- Common files  -->
     <Files Condition="$(Debug) == false">

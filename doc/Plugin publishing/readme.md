@@ -1,3 +1,5 @@
+> This doc is depricated. We are moving OpenTAP to GitHub.
+
 This process describe how an OpenTAP community member can contribute an open source plugin to the OpenTAP group. We offer this option in an effort to have OpenTAP plugins collocated in one place making it easier for developers to find all available projects related to OpenTAP. 
 
 
