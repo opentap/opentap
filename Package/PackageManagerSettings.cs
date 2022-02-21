@@ -80,7 +80,7 @@ namespace OpenTap.Package
         /// Get an IPackageRepository for each of the repos defined in <see cref="Repositories"/> plus one for the cache if <see cref="UseLocalPackageCache"/> is enabled.
         /// </summary>
         /// <returns></returns>
-        internal List<IPackageRepository> GetEnabledRepositories(IEnumerable<string> cliSpecifiedRepoUrls)
+        internal List<IPackageRepository> GetEnabledRepositories(IEnumerable<string> cliSpecifiedRepoUrls = null)
         {
             var repositories = new List<IPackageRepository>();
             if (PackageManagerSettings.Current.UseLocalPackageCache)
