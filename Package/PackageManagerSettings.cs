@@ -27,10 +27,9 @@ namespace OpenTap.Package
         public PackageManagerSettings()
         {
             Repositories = new List<RepositorySettingEntry>();
-            //Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = ExecutorClient.ExeDir });
-            //Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = PackageDef.SystemWideInstallationDirectory });
-            Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = "https://packages.opentap.io" });
+            Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = ExecutorClient.ExeDir });
             Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = PackageCacheHelper.PackageCacheDirectory });
+            Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = "https://packages.opentap.io" });
         }
 
         /// <summary>
