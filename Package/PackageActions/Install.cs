@@ -246,7 +246,8 @@ namespace OpenTap.Package
 
                 var downloadedPackageFiles = PackageActionHelpers.DownloadPackages(
                     PackageCacheHelper.PackageCacheDirectory, packagesToInstall,
-                    progressUpdate: (progress, msg) => RaiseProgressUpdate(10 + progress / 2, msg));
+                    progressUpdate: (progress, msg) => RaiseProgressUpdate(10 + progress / 2, msg),
+                    ignoreCache: NoCache );
 
                 installer.PackagePaths.AddRange(downloadedPackageFiles);
             }

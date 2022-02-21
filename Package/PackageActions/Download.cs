@@ -145,6 +145,7 @@ namespace OpenTap.Package
 
                 // Download the remaining packages
                 PackageActionHelpers.DownloadPackages(destinationDir, PackagesToDownload,
+                    ignoreCache: NoCache,
                     progressUpdate: (partialPercent, message) =>
                     {
                         var partialProgressPercentage = partialPercent * (remainingPercentage / 100);
