@@ -83,12 +83,7 @@ namespace OpenTap.Package
             string destinationDir = Target ?? Directory.GetCurrentDirectory();
             Installation destinationInstallation = new Installation(destinationDir);
 
-            List<IPackageRepository> repositories = new List<IPackageRepository>();
-
-            if (Repository == null)
-                repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager).ToList());
-            else
-                repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
+            List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
 
             List<PackageDef> PackagesToDownload = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                 destinationInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories,

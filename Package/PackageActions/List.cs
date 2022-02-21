@@ -62,10 +62,7 @@ namespace OpenTap.Package
 
             if (Installed == false)
             {
-                if (Repository == null)
-                    repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager));
-                else 
-                    repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
+                repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
             }
 
             if (Target == null)

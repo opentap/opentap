@@ -41,13 +41,11 @@ namespace OpenTap.Package
             TraceSource log = Log.CreateSource("UpdateCheck");
             var installation = new Installation(ExecutorClient.ExeDir);
             IPackageIdentifier[] installedPackages = installation.GetPackages().ToArray();
-            Parallel.ForEach(PackageManagerSettings.Current.Repositories, repo =>
+            Parallel.ForEach(PackageManagerSettings.Current.GetEnabledRepositories(null), repo =>
             {
                 try
                 {
-                    if (repo.IsEnabled == false || repo.Manager == null)
-                        return;
-                    updates.AddRange(repo.Manager.CheckForUpdates(installedPackages, cancellationToken));
+                    updates.AddRange(repo.CheckForUpdates(installedPackages, cancellationToken));
                 }
                 catch (Exception ex)
                 {

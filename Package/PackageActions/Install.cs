@@ -97,12 +97,7 @@ namespace OpenTap.Package
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
             var targetInstallation = new Installation(Target);
 
-            List<IPackageRepository> repositories = new List<IPackageRepository>();
-            if (Repository == null)
-                repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled)
-                    .Select(s => s.Manager).ToList());
-            else
-                repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
+            List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
 
             bool installError = false;
             var installer = new Installer(Target, cancellationToken)
