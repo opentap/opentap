@@ -76,6 +76,8 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
             if (false == System.IO.File.Exists(File))
                 throw new FileNotFoundException("File does not exist", File);
             var semver = GetVersion(File);
+            if(semver == null)
+                throw new System.Exception($"{File} does not have an InformationalAssemblyVersionAttribute.");
             if (string.IsNullOrWhiteSpace(MatchVersion) == false)
             {
                 if (Equals(semver.ToString(), MatchVersion))
