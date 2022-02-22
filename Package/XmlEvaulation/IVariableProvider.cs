@@ -224,6 +224,7 @@ namespace OpenTap.Package
 
         public void Expand(XElement element)
         {
+            if (!element.ToString().Contains("$(GitVersion)")) return;
             if (version == null && string.IsNullOrWhiteSpace(ProjectDir) == false)
             {
                 try
@@ -232,10 +233,10 @@ namespace OpenTap.Package
                     version = calc.GetVersion().ToString(5);
                     log.Info("Package version is {0}", version);
                 }
-                catch
+                catch (Exception ex)
                 {
                     log.ErrorOnce(this, "Failed to calculate GitVersion.");
-                    // fail silently
+                    log.Debug(ex);
                 }
             }
 

@@ -252,7 +252,15 @@ jobs:
           name: win-x64-bin
           path: bin/Release/
       - name: Test
-        run: bin/Release/tap.exe run tests/regression.TapPlan --verbose --color
+        run: |
+          cd bin/Release
+          ./tap.exe run ../../tests/regression.TapPlan --verbose --color
+      - uses: actions/upload-artifact@v2
+        if: ${{ failure() }}
+        with:
+          name: regression-files
+          path: |
+            NewProj*/**
 
   TestLinuxPlan:
     runs-on: ubuntu-20.04
