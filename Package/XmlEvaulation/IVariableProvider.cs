@@ -220,6 +220,8 @@ namespace OpenTap.Package
 
         private string version = null;
 
+        private static TraceSource log = Log.CreateSource(nameof(GitVersionExpander));
+
         public void Expand(XElement element)
         {
             if (version == null && string.IsNullOrWhiteSpace(ProjectDir) == false)
@@ -228,9 +230,11 @@ namespace OpenTap.Package
                 {
                     var calc = new GitVersionCalulator(ProjectDir);
                     version = calc.GetVersion().ToString(5);
+                    log.Info("Package version is {0}", version);
                 }
                 catch
                 {
+                    log.ErrorOnce(this, "Failed to calculate GitVersion.");
                     // fail silently
                 }
             }

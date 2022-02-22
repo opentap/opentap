@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Reflection;
 using System.Diagnostics;
 using Tap.Shared;
@@ -22,7 +21,7 @@ namespace OpenTap.Package
         // but usually PackageDefExt does something in addition to what PackageDef does.
         //
 
-        static TraceSource log =  OpenTap.Log.CreateSource("Package");
+        static TraceSource log =  Log.CreateSource("Package");
 
         private static void EnumeratePlugins(PackageDef pkg, List<AssemblyData> searchedAssemblies)
         {
@@ -196,10 +195,6 @@ namespace OpenTap.Package
                 EnumeratePlugins(pkgDef, assemblies);
             }
 
-            log.Info("Updating package version.");
-            pkgDef.updateVersion(projectDir);
-            log.Info("Package version is {0}", pkgDef.Version);
-
             pkgDef.findDependencies(excludeAdd, assemblies);
 
             if (exceptions.Count > 0)
@@ -286,118 +281,6 @@ namespace OpenTap.Package
                 }
             }
             return newEntries;
-        }
-
-        private static string TryReplaceMacro(string text, string ProjectDirectory)
-        {
-            if (string.IsNullOrEmpty(text)) return text;
-
-            // Find macro
-            var match = Regex.Match(text, @"(.*)(?:\$\()(.*)(?:\))(.*)");
-            if (match == null || match.Groups.Count < 2)
-                return text;
-
-            // Replace macro
-            if (match.Groups[2].ToString() == "GitVersion")
-            {
-                using (GitVersionCalulator calc = new GitVersionCalulator(ProjectDirectory))
-                {
-                    SemanticVersion version = calc.GetVersion();
-                    text = match.Groups[1].ToString() + version + match.Groups[3].ToString();
-                }
-            }
-            else
-                throw new NotSupportedException(string.Format("The macro \"{0}\" is not supported.", match.Groups[2].ToString()));
-
-            // Find "pre-processor funcions"
-            match = Regex.Match(text, @"(.*)(?:\$\()(.*?),(.*)(?:\))(.*)"); // With text = "Rolf$(ConvertFourValue,1.0.0.69)Asger", this regex should return 4 matching groups: "Rolf", "ConvertFourValue", "1.0.0.69" and "Asger".
-
-            if (match.Groups.Count < 4 || !match.Groups[2].Success || !match.Groups[3].Success)
-                return text;
-
-            var plugins = PluginManager.GetPlugins<IVersionTryConverter>().Concat(PluginManager.GetPlugins<IVersionConverter>());
-            Type converter = plugins.FirstOrDefault(pt => pt.GetDisplayAttribute().Name == match.Groups[2].Value);
-            SemanticVersion convertedVersion = null;
-            var str = match.Groups[3].Value;
-            if(converter != null)
-            {
-                
-                object conv = Activator.CreateInstance(converter);
-                if (conv is IVersionTryConverter cv2)
-                {
-                    if (cv2.TryConvert(match.Groups[3].Value, out convertedVersion) == false)
-                    {
-                        throw new FormatException("Unable to convert version format: " + str);
-                    }
-                }
-                else if (conv is IVersionConverter cv1)
-                {
-                    convertedVersion = cv1.Convert(str);
-                } 
-            }
-            
-            if (convertedVersion != null)
-            {
-                text = match.Groups[1].Value + convertedVersion + match.Groups[4].Value;
-                log.Warning("The version was converted from {0} to {1} using the converter '{2}'.",
-                    str, convertedVersion, converter.GetDisplayAttribute().Name);
-            }
-            else
-                throw new Exception(string.Format("No IVersionConverter found named \"{0}\". Valid ones are: {1}", match.Groups[2].Value, 
-                    String.Join(", ", plugins.Select(p => $"\"{p.GetDisplayAttribute().Name}\""))));
-            return text;
-        }
-
-        private static void updateVersion(this PackageDef pkg, string ProjectDirectory)
-        {
-            // Replace macro if possible
-            pkg.RawVersion = TryReplaceMacro(pkg.RawVersion, ProjectDirectory);
-
-            foreach (var depPackage in pkg.Dependencies)
-                ReplaceDependencyVersion(ProjectDirectory, depPackage);
-
-            if (pkg.RawVersion == null)
-            {
-                foreach (var file in pkg.Files.Where(file => file.HasCustomData<UseVersionData>()))
-                {
-                    pkg.Version = PluginManager.GetSearcher().Assemblies.FirstOrDefault(a => Path.GetFullPath(a.Location) == Path.GetFullPath(file.FileName)).SemanticVersion;
-                    break;
-                }
-            }
-            else
-            {
-                if (String.IsNullOrWhiteSpace(pkg.RawVersion))
-                    pkg.Version = new SemanticVersion(0, 0, 0, null, null);
-                else if (SemanticVersion.TryParse(pkg.RawVersion, out var semver))
-                {
-                    pkg.Version = semver;
-                }
-                else
-                {
-                    throw new FormatException("The version string in the package is not a valid semantic version.");
-                }
-            }
-        }
-
-        private static void ReplaceDependencyVersion(string ProjectDirectory, PackageDependency depPackage)
-        {
-            if (string.IsNullOrWhiteSpace(depPackage.RawVersion))
-                return;
-
-            string replaced = TryReplaceMacro(depPackage.RawVersion, ProjectDirectory);
-            if (replaced != depPackage.RawVersion)
-                if (VersionSpecifier.TryParse(replaced, out var versionSpecifier))
-                {
-                    if (versionSpecifier.MatchBehavior.HasFlag(VersionMatchBehavior.Exact))
-                        depPackage.Version = versionSpecifier;
-                    else
-                        depPackage.Version = new VersionSpecifier(versionSpecifier.Major,
-                            versionSpecifier.Minor,
-                            versionSpecifier.Patch,
-                            versionSpecifier.PreRelease,
-                            versionSpecifier.BuildMetadata,
-                            VersionMatchBehavior.Compatible | VersionMatchBehavior.AnyPrerelease);
-                }
         }
 
         internal static IEnumerable<AssemblyData> AssembliesOfferedBy(List<PackageDef> packages, IEnumerable<PackageDependency> refs, bool recursive, PackageAssemblyCache offeredFiles)

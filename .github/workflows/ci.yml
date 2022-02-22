@@ -128,6 +128,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: Nuget Cache
         uses: actions/cache@v2
         id: cache
@@ -453,6 +455,7 @@ jobs:
           $env:Architecture = "x86"
           $env:Platform = "Windows"
           cd bin/Release
+          Remove-Item -Recurse -Force ./Packages
           cp .\runtimes\win-x64\native\git2-b7bad55.dll .
           .\tap.exe package create ../../package.xml --install -v -c
           Copy-Item "../../sdk/Examples" "Packages/SDK/Examples" -Recurse
