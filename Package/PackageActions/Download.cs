@@ -25,6 +25,9 @@ namespace OpenTap.Package
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
+        [CommandLineArgument("no-cache", Description = CommandLineArgumentNoCacheDescription)]
+        public bool NoCache { get; set; }
+
         [CommandLineArgument("version", Description = CommandLineArgumentVersionDescription)]
         public string Version { get; set; }
 
@@ -83,12 +86,8 @@ namespace OpenTap.Package
             string destinationDir = Target ?? Directory.GetCurrentDirectory();
             Installation destinationInstallation = new Installation(destinationDir);
 
-            List<IPackageRepository> repositories = new List<IPackageRepository>();
-
-            if (Repository == null)
-                repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager).ToList());
-            else
-                repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
+            if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
+            List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
 
             List<PackageDef> PackagesToDownload = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                 destinationInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories,
@@ -146,6 +145,7 @@ namespace OpenTap.Package
 
                 // Download the remaining packages
                 PackageActionHelpers.DownloadPackages(destinationDir, PackagesToDownload,
+                    ignoreCache: NoCache,
                     progressUpdate: (partialPercent, message) =>
                     {
                         var partialProgressPercentage = partialPercent * (remainingPercentage / 100);

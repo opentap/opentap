@@ -33,6 +33,9 @@ namespace OpenTap.Package
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
+        [CommandLineArgument("no-cache", Description = CommandLineArgumentNoCacheDescription)]
+        public bool NoCache { get; set; }
+
         [CommandLineArgument("version", Description = CommandLineArgumentVersionDescription)]
         public string Version { get; set; }
 
@@ -47,7 +50,7 @@ namespace OpenTap.Package
         /// </summary>
         [UnnamedCommandLineArgument("package(s)", Required = true)]
         public string[] Packages { get; set; }
-        
+
         [CommandLineArgument("check-only", Description = "Checks if the selected package(s) can be installed, but does not install or download them.")]
         public bool CheckOnly { get; set; }
 
@@ -97,16 +100,12 @@ namespace OpenTap.Package
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
             var targetInstallation = new Installation(Target);
 
-            List<IPackageRepository> repositories = new List<IPackageRepository>();
-            if (Repository == null)
-                repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled)
-                    .Select(s => s.Manager).ToList());
-            else
-                repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
+            if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
+            List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
 
             bool installError = false;
             var installer = new Installer(Target, cancellationToken)
-                {DoSleep = false, ForceInstall = Force, UnpackOnly = UnpackOnly};
+            {DoSleep = false, ForceInstall = Force, UnpackOnly = UnpackOnly};
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;
             installer.Error += ex => installError = true;
@@ -118,8 +117,7 @@ namespace OpenTap.Package
                 RaiseProgressUpdate(5, "Gathering packages.");
 
                 // If exact version is specified, check if it's already installed
-                if (Version != null && VersionSpecifier.TryParse(Version, out var vs) &&
-                    vs.MatchBehavior == VersionMatchBehavior.Exact && Force == false)
+                if (Version != null && SemanticVersion.TryParse(Version, out var vs) && Force == false)
                 {
                     foreach (var pkg in Packages)
                     {
@@ -127,7 +125,7 @@ namespace OpenTap.Package
                         if (File.Exists(pkg))
                             break;
 
-                        PackageIdentifier pid = new PackageIdentifier(pkg, Version, Architecture, OS);
+                        PackageIdentifier pid = new PackageIdentifier(pkg, vs, Architecture, OS);
                         var installedPackage = targetInstallation.GetPackages().FirstOrDefault(p => p.Name == pid.Name);
                         if (installedPackage != null && pid.Version.Equals(installedPackage.Version))
                         {
@@ -164,7 +162,7 @@ namespace OpenTap.Package
                         }
                     }
                 }
-                
+
                 if (packagesToInstall?.Any() != true)
                 {
                     if (NoDowngrade)
@@ -247,7 +245,8 @@ namespace OpenTap.Package
 
                 var downloadedPackageFiles = PackageActionHelpers.DownloadPackages(
                     PackageCacheHelper.PackageCacheDirectory, packagesToInstall,
-                    progressUpdate: (progress, msg) => RaiseProgressUpdate(10 + progress / 2, msg));
+                    progressUpdate: (progress, msg) => RaiseProgressUpdate(10 + progress / 2, msg),
+                    ignoreCache: NoCache );
 
                 installer.PackagePaths.AddRange(downloadedPackageFiles);
             }
@@ -346,14 +345,14 @@ namespace OpenTap.Package
             Cancel = 2,
             [Display("Overwrite Files", Order: 1)]
             OverwriteFile = 1,
-            
+
             [Browsable(false)]
             Success = 0,
         }
         class AskAboutInstallingAnyway
         {
             public string Name { get; } = "Overwrite Files?";
-            
+
             [Browsable(true)]
             [Layout(LayoutMode.FullRow)]
             public string Message { get; private set; }

@@ -157,6 +157,7 @@ namespace OpenTap.Package.UnitTests
                     args += $" {depDef.Name} -r {Path.GetDirectoryName(tempFn)} ";
                 else
                     args += $" {Path.GetFileName(tempFn)} ";
+                args += " --no-cache";
 
                 string output = RunPackageCli(args, out var exitCode, Path.GetDirectoryName(tempFn));
                 Assert.AreEqual(0, exitCode, "Unexpected exit code");

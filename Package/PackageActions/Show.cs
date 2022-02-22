@@ -180,9 +180,7 @@ namespace OpenTap.Package
         }
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
-            repositories.AddRange(Repository == null
-                ? PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager)
-                : Repository.Select(PackageRepositoryHelpers.DetermineRepositoryType));
+            repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
 
             if (Target == null)
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();

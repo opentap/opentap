@@ -104,6 +104,11 @@ namespace OpenTap.Package
 
                 var packageName = nameattr.Value;
                 var versionString = versionattr.Value;
+
+                // for compatibility with xml files saved by OpenTAP <9.17, we have to treat all package dependencies as "this or compatible" requirements
+                if (!versionString.StartsWith("^"))
+                    versionString = "^" + versionString; 
+
                 if(!VersionSpecifier.TryParse(versionString, out var version))
                 {
                     errors.Add($"Version '{versionString}' of dependent package '{packageName}' could not be parsed.");
@@ -131,7 +136,10 @@ namespace OpenTap.Package
                 }
                 else if (!(version.IsCompatible(plugins[packageName].Version)))
                 {
-                    errors.Add($"Package '{packageName}' version {version} is required to load the saved data and the installed version ({plugins[packageName].Version}) is not compatible.");
+                    string name = element.Document.Root.Name.ToString();
+                    if(!String.IsNullOrWhiteSpace(element.BaseUri))
+                        name = element.BaseUri;
+                    errors.Add($"Package '{packageName}' version {version} is required to load '{name}' and the installed version ({plugins[packageName].Version}) is not compatible.");
                 }
                 
                 foreach (var file in pkg.Elements(FileDependencyName))

@@ -73,7 +73,7 @@ namespace OpenTap.Package
         internal ActionResult ExecutePackageActionSteps(PackageDef package, bool force, string workingDirectory)
         {
             ActionResult res = ActionResult.NothingToDo;
-            
+
             // if the package is being installed as a system wide package, we'll  want to look in the system-wide
             // package folder for the executable. Additionally, the system-wide install directory will also be used as 
             // the working directory.
@@ -93,7 +93,7 @@ namespace OpenTap.Package
                 if(!file.EndsWith(".exe", StringComparison.InvariantCultureIgnoreCase))
                     yield return Path.Combine(workingDirectory, file + ".exe");
             }
-            
+
             foreach (var step in package.PackageActionExtensions)
             {
                 if (step.ActionName != ActionName)
@@ -201,7 +201,7 @@ namespace OpenTap.Package
 
             return res;
         }
-        
+
         private void RedirectTapLog(string lines, bool IsStandardError)
         {
 
@@ -352,7 +352,7 @@ namespace OpenTap.Package
 
             CustomPackageActionHelper.RunCustomActions(package, PackageActionStage.Install,
                 new CustomPackageActionArgs(null, false));
-            
+
             return package;
         }
 
@@ -421,8 +421,8 @@ namespace OpenTap.Package
                                             File.SetAttributes(path, attrs2);
                                     }
                                 }
-                                
-                                
+
+
                                 var deflate_stream = part.Open();
                                 using (var fileStream = File.Create(path))
                                 {
@@ -574,7 +574,6 @@ namespace OpenTap.Package
             }
 
             bool ignore(string filename) => filename.ToLower() == "tap" || filename.ToLower() == "tap.exe" || filename.ToLower() == "tap.dll";
-
             foreach (var file in package.Files)
             {
                 if (ignore(file.RelativeDestinationPath)) // ignore tap, tap.dll, and tap.exe as they are not meant to be overwritten.
@@ -603,8 +602,15 @@ namespace OpenTap.Package
                 }
                 catch (Exception e)
                 {
-                    log.Debug(e);
-                    result = ActionResult.Error;
+                    if (e is FileNotFoundException || e is DirectoryNotFoundException)
+                    {
+                        log.Debug($"File not found: {file.RelativeDestinationPath}");
+                    }
+                    else
+                    {
+                        log.Debug(e);
+                        result = ActionResult.Error;
+                    }
                 }
 
                 DeleteEmptyDirectory(new FileInfo(fullPath).Directory);
@@ -628,7 +634,7 @@ namespace OpenTap.Package
                 // in case the package def XML was not in the default package definition directory
                 // it is better to delete it anyway, because otherwise it will seem like it is still installed.
                 File.Delete(f2.PackageDefFilePath);
-            
+
             return result;
         }
 

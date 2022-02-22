@@ -138,7 +138,12 @@ namespace OpenTap.Package
             var openTapPackage = packages.FirstOrDefault(p => p.Name == "OpenTAP");
             string os;
             if (oss.Count != 1)
-                os = openTapPackage?.OS ?? OperatingSystem.Current.Name;
+            {
+                if (openTapPackage != null && openTapPackage.OS != null && !openTapPackage.OS.Contains(","))
+                    os = openTapPackage.OS;
+                else
+                    os = OperatingSystem.Current.Name; // If all packages (also OpenTAP) specify 'Windows,Linux', then we should take the informed decision to roll with current platform.
+            }
             else
                 os = oss[0];
 
@@ -449,7 +454,8 @@ namespace OpenTap.Package
         {
             var allVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageSpecifier.Name, installedPackages.ToArray())
                 .Where(p => p.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS))
-                                         .Select(p => p.Version).Distinct();
+                .Where(p => p.Version != null) // Packages with versions not in Semantic format will be null. We can't take any valuable decision on these.
+                .Select(p => p.Version).Distinct();
 
             if (packageSpecifier.Version != VersionSpecifier.Any) // If user specified "any", do not filter anything!
             {
@@ -575,7 +581,7 @@ namespace OpenTap.Package
             else
                 stringBuilder.Append($"\"{from}\" -> \"{to}\" [label=\"{edge.PackageSpecifier.Version.ToString(4)}\"];");
 
-            if(edge.From is RootVertex)
+            if (edge.From is RootVertex)
             {
                 if (!verticesWritten.Contains(edge.From.Name))
                 {
