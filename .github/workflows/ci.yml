@@ -128,6 +128,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: Nuget Cache
         uses: actions/cache@v2
         id: cache
@@ -157,7 +159,6 @@ jobs:
           dotnet build --no-restore -c Release /p:Platform=${{ matrix.Architecture }}
           dotnet build --no-restore tap/tap.csproj -c Release /p:Platform=${{ matrix.Architecture }}
           get-content ./bin/Release/tap.runtimeconfig.json
-          Remove-Item -recurse "bin\Release\Packages"
       - name: Upload binaries
         uses: actions/upload-artifact@v2
         with:
@@ -229,7 +230,6 @@ jobs:
       - name: Test
         run: |
           $ErrorActionPreference = "Stop"
-          Copy-Item -r "Package.UnitTests/Packages" bin/Release
           Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
           dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
       - uses: actions/upload-artifact@v2
@@ -252,7 +252,15 @@ jobs:
           name: win-x64-bin
           path: bin/Release/
       - name: Test
-        run: bin/Release/tap.exe run tests/regression.TapPlan --verbose --color
+        run: |
+          cd bin/Release
+          ./tap.exe run ../../tests/regression.TapPlan --verbose --color
+      - uses: actions/upload-artifact@v2
+        if: ${{ failure() }}
+        with:
+          name: regression-files
+          path: |
+            NewProj*/**
 
   TestLinuxPlan:
     runs-on: ubuntu-20.04
@@ -455,6 +463,7 @@ jobs:
           $env:Architecture = "x86"
           $env:Platform = "Windows"
           cd bin/Release
+          Remove-Item -Recurse -Force ./Packages
           cp .\runtimes\win-x64\native\git2-b7bad55.dll .
           .\tap.exe package create ../../package.xml --install -v -c
           Copy-Item "../../sdk/Examples" "Packages/SDK/Examples" -Recurse

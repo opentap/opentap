@@ -8,6 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\BasicSteps\Tap.Plugins.BasicSteps.csproj" />
+    <ProjectReference Include="..\Cli\Tap.Cli.csproj" />
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
     <ProjectReference Include="..\Package\Tap.Package.csproj" />
   </ItemGroup>
@@ -18,7 +20,7 @@
   </PropertyGroup>
   <!-- Install OpenTAP as a package - this is necessary for most of the package cli actions to function normally.  -->
   <!-- CopyFilesToOutputDirectory is required for libgit native DLLs -->
-  <Target Name="InstallOpenTapAsPackage" AfterTargets="CopyFilesToOutputDirectory" Condition="'$(IsDebug)'=='true'">
-    <Exec Command="$(OutDir)tap package create ../../package.xml -o $(OutDir)OpenTap.TapPackage --install" EnvironmentVariables="Debug=true;Sign=false;Platform=$(PlatformEnv)" WorkingDirectory="$(OutDir)" />
+  <Target Name="InstallOpenTapAsPackage" AfterTargets="CopyFilesToOutputDirectory">
+    <Exec Command="$(OutDir)tap package create ../../package.xml -o $(OutDir)OpenTap.Debug.TapPackage --install" EnvironmentVariables="Debug=true;Sign=false;Platform=$(PlatformEnv)" WorkingDirectory="$(OutDir)" />
   </Target>
 </Project>
