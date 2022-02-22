@@ -166,29 +166,45 @@ namespace OpenTap
         public static bool AllowChild(Type parentType, Type childType)
         {
             if (parentType == null)
-                throw new ArgumentNullException("parentType");
+                throw new ArgumentNullException(nameof(parentType));
             if (childType == null)
-                throw new ArgumentNullException("childType");
+                throw new ArgumentNullException(nameof(childType));
+            return AllowChild(TypeData.FromType(parentType), TypeData.FromType(childType));
+        }
+
+        /// <summary>
+        /// Determines whether a TestStep of a specified type is allowed as child step to a parent of a specified type.
+        /// </summary>
+        public static bool AllowChild(ITypeData parentType, ITypeData childType)
+        {
+            if (parentType == null)
+                throw new ArgumentNullException(nameof(parentType));
+            if (childType == null)
+                throw new ArgumentNullException(nameof(childType));
             // if the parent is a TestPlan or the parent specifies "AllowAnyChild", then OK
             bool parentAllowsAnyChild = parentType.HasAttribute<AllowAnyChildAttribute>();
+            bool isChildIn = childType.HasAttribute<AllowAsChildInAttribute>();
             if (parentAllowsAnyChild)
             {
-                if (!childType.HasAttribute<AllowAsChildInAttribute>())
+                if (!isChildIn)
                 {
                     return true;
                 }
             }
 
-            // if the child specifies the parent type or the parent ancestor type in a "AllowAsChildIn" attribute, then OK
-            AllowAsChildInAttribute[] childIn = childType.GetCustomAttributes<AllowAsChildInAttribute>();
-            foreach (AllowAsChildInAttribute attribute in childIn)
+            if (isChildIn)
             {
-                if (parentType.DescendsTo(attribute.ParentStepType))
-                    return true;
+                // if the child specifies the parent type or the parent ancestor type in a "AllowAsChildIn" attribute, then OK
+                var childIn = childType.GetAttributes<AllowAsChildInAttribute>();
+                foreach (AllowAsChildInAttribute attribute in childIn)
+                {
+                    if (parentType.DescendsTo(attribute.ParentStepType))
+                        return true;
+                }
             }
 
             // if the parent specifies the childType or a base type of childType in an "AllowChildrenOfType" attribute, then OK
-            AllowChildrenOfTypeAttribute[] child = parentType.GetCustomAttributes<AllowChildrenOfTypeAttribute>();
+            var child = parentType.GetAttributes<AllowChildrenOfTypeAttribute>();
             foreach (AllowChildrenOfTypeAttribute attribute in child)
             {
                 if (childType.DescendsTo(attribute.RequiredInterface))
