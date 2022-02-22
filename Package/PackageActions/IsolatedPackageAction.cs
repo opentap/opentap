@@ -165,6 +165,14 @@ namespace OpenTap.Package
                     deps.Add(new PackageDependency(pkg.Name, new VersionSpecifier(pkg.Version, VersionMatchBehavior.Compatible)));
                 }
 
+                // Also copy the IDebugger implementation package over (the IDebugger assembly itself might depend on some things in that package, e.g. EnvDTE.dll)
+                var debuggerAsm = Environment.GetEnvironmentVariable("OPENTAP_DEBUGGER_ASSEMBLY");
+                if (!String.IsNullOrEmpty(debuggerAsm))
+                {
+                    var dpkg = findPackageWithFile(debuggerAsm);
+                    deps.Add(new PackageDependency(dpkg.Name, new VersionSpecifier(dpkg.Version, VersionMatchBehavior.Compatible)));
+                }
+
                 bool force = isolatedAction?.Force ?? false;
 
                 List<string> allFiles = new List<string>();

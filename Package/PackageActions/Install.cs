@@ -33,6 +33,9 @@ namespace OpenTap.Package
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
+        [CommandLineArgument("no-cache", Description = CommandLineArgumentNoCacheDescription)]
+        public bool NoCache { get; set; }
+
         [CommandLineArgument("version", Description = CommandLineArgumentVersionDescription)]
         public string Version { get; set; }
 
@@ -97,12 +100,8 @@ namespace OpenTap.Package
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
             var targetInstallation = new Installation(Target);
 
-            List<IPackageRepository> repositories = new List<IPackageRepository>();
-            if (Repository == null)
-                repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled)
-                    .Select(s => s.Manager).ToList());
-            else
-                repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
+            if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
+            List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
 
             bool installError = false;
             var installer = new Installer(Target, cancellationToken)
@@ -246,7 +245,8 @@ namespace OpenTap.Package
 
                 var downloadedPackageFiles = PackageActionHelpers.DownloadPackages(
                     PackageCacheHelper.PackageCacheDirectory, packagesToInstall,
-                    progressUpdate: (progress, msg) => RaiseProgressUpdate(10 + progress / 2, msg));
+                    progressUpdate: (progress, msg) => RaiseProgressUpdate(10 + progress / 2, msg),
+                    ignoreCache: NoCache );
 
                 installer.PackagePaths.AddRange(downloadedPackageFiles);
             }

@@ -21,6 +21,10 @@ namespace OpenTap.Package
         internal const string CommandLineArgumentRepositoryDescription =
             "Override the package repository.\n" +
             "The default is http://packages.opentap.io.";
+        internal const string CommandLineArgumentNoCacheDescription =
+            "A package cache is used by default.\n" +
+            "This can be controlled from ./Settings/Package Manager.xml\n" +
+            "or disabled using this option.";
         internal const string CommandLineArgumentVersionDescription =
             "Semantic version (semver) of the package.\n" +
             "The default is to select only non pre-release packages for the current OS and CPU architecture.\n" +

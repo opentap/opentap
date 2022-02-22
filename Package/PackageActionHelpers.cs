@@ -260,7 +260,7 @@ namespace OpenTap.Package
             return gatheredPackages.ToList();
         }
 
-        internal static List<string> DownloadPackages(string destinationDir, List<PackageDef> PackagesToDownload, List<string> filenames = null, Action<int, string> progressUpdate = null)
+        internal static List<string> DownloadPackages(string destinationDir, List<PackageDef> PackagesToDownload, List<string> filenames = null, Action<int, string> progressUpdate = null, bool ignoreCache = false)
         {
             progressUpdate = progressUpdate ?? ((i, s) => { });
 
@@ -301,7 +301,7 @@ namespace OpenTap.Package
                     {
                         // If the package we are installing is from a file, we should always use that file instead of a cached package.
                         // During development a package might not change version but still have different content.
-                        if (pkg.PackageSource is FilePackageDefSource == false && File.Exists(filename))
+                        if (pkg.PackageSource is FilePackageDefSource == false && File.Exists(filename) && !ignoreCache)
                             existingPkg = PackageDef.FromPackage(filename);
                     }
                     catch (Exception e)
@@ -335,7 +335,7 @@ namespace OpenTap.Package
                         {
                             r.OnProgressUpdate = innerProgress;
                         }
-                        if (PackageCacheHelper.PackageIsFromCache(pkg))
+                        if (PackageCacheHelper.PackageIsFromCache(pkg) && !ignoreCache)
                         {
                             rm.DownloadPackage(pkg, filename);
                             log.Info(timer, "Found package '{0}' in cache. Copied to '{1}'.", pkg.Name, Path.GetFullPath(filename));

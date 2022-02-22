@@ -28,9 +28,15 @@ namespace OpenTap.Package
         {
             Repositories = new List<RepositorySettingEntry>();
             Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = ExecutorClient.ExeDir });
-            Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = PackageDef.SystemWideInstallationDirectory });
             Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = "https://packages.opentap.io" });
+            UseLocalPackageCache = true;
         }
+
+        /// <summary>
+        /// When true a packages cached in the user-wide package cache (shared accross installations, but not accross users) is used when in addition to the repositories specified in <see cref="Repositories"/>.
+        /// </summary>
+        [Display("Use Local Package Cache", Group: "Package Repositories", Order: 3, Description: "Use package cache (shared accross installations, but not accross users) in addition to repositories spedified here.")]
+        public bool UseLocalPackageCache { get; set; }
 
         /// <summary>
         /// When true a package management UI should also list packages that are not compatible with the current installation.
@@ -69,6 +75,22 @@ namespace OpenTap.Package
         [Display("URLs", Group: "Package Repositories", Order: 2, Description: "URLs or file-system paths from where plugin packages can be found. Example: https://packages.opentap.io")]
         [Layout(LayoutMode.FullRow)]
         public List<RepositorySettingEntry> Repositories { get; set; }
+
+        /// <summary>
+        /// Get an IPackageRepository for each of the repos defined in <see cref="Repositories"/> plus one for the cache if <see cref="UseLocalPackageCache"/> is enabled.
+        /// </summary>
+        /// <returns></returns>
+        internal List<IPackageRepository> GetEnabledRepositories(IEnumerable<string> cliSpecifiedRepoUrls = null)
+        {
+            var repositories = new List<IPackageRepository>();
+            if (PackageManagerSettings.Current.UseLocalPackageCache)
+                repositories.Add(PackageRepositoryHelpers.DetermineRepositoryType(PackageCacheHelper.PackageCacheDirectory));
+            if (cliSpecifiedRepoUrls == null)
+                repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled && p.Manager != null).Select(s => s.Manager).ToList());
+            else
+                repositories.AddRange(cliSpecifiedRepoUrls.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
+            return repositories;
+        }
     }
 
     /// <summary>
