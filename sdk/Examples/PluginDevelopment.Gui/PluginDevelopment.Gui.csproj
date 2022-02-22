@@ -14,35 +14,11 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(IsWindows)'=='True'">
-    <!-- Developer's System is needed to debug in 'Editor' 
-         Normally you can get that in your debug folder with just:
-           <AdditionalOpenTapPackage Include="Developer's System"/>
-         or 
-           <AdditionalOpenTapPackage Include="Developer's System CE"/>
-         Here we do some optimizations that leverages an existing OpenTAP installation in OutputPath
-    -->
-    <CachedOpenTapPackages Include="$(OutputPath)\PackageCache\Developer*" />
-    
-    <!-- Editor, included dependency: WPF Controls -->
-    <AdditionalOpenTapPackage Include="Editor" Repository="$(OutputPath)\PackageCache" Version="Any" Condition="@(CachedOpenTapPackages) != '' AND Exists('$(OutputPath)\Packages\Editor')" />
-    <AdditionalOpenTapPackage Include="Editor" Condition="@(CachedOpenTapPackages) == '' AND Exists('$(OutputPath)\Packages\Editor')" />
-    <!-- Results Viewer, included dependency: CSV -->
-    <AdditionalOpenTapPackage Include="Results Viewer" Repository="$(OutputPath)\PackageCache" Version="Any" Condition="@(CachedOpenTapPackages) != '' AND Exists('$(OutputPath)\Packages\Editor')" />
-    <AdditionalOpenTapPackage Include="Results Viewer" Condition="@(CachedOpenTapPackages) == '' AND Exists('$(OutputPath)\Packages\Editor')" />
-    <!-- Timing Analyzer -->
-    <AdditionalOpenTapPackage Include="Timing Analyzer" Repository="$(OutputPath)\PackageCache" Version="Any" Condition="@(CachedOpenTapPackages) != '' AND Exists('$(OutputPath)\Packages\Editor')" />
-    <AdditionalOpenTapPackage Include="Timing Analyzer" Condition="@(CachedOpenTapPackages) == '' AND Exists('$(OutputPath)\Packages\Editor')" />
-    <!-- SQLite and PostgreSQL -->
-    <AdditionalOpenTapPackage Include="SQLite and PostgreSQL" Repository="$(OutputPath)\PackageCache" Version="Any" Condition="@(CachedOpenTapPackages) != '' AND Exists('$(OutputPath)\Packages\Editor')" />
-    <AdditionalOpenTapPackage Include="SQLite and PostgreSQL" Condition="@(CachedOpenTapPackages) == '' AND Exists('$(OutputPath)\Packages\Editor')" />
-
-    <AdditionalOpenTapPackage Include="Developer's System CE" Repository="$(OutputPath)\PackageCache" Version="Any" Condition="@(CachedOpenTapPackages) != '' AND Exists('$(OutputPath)\Packages\Editor') == false" />
-    <AdditionalOpenTapPackage Include="Developer's System CE" Condition="@(CachedOpenTapPackages) == '' AND Exists('$(OutputPath)\Packages\Editor') == false" />
+	<AdditionalOpenTapPackage Include="Developer's System CE" />
+	<OpenTapPackageReference Include="WPF Controls" />
   </ItemGroup>
 
   <ItemGroup>
-    <OpenTapPackageReference Include="WPF Controls" Repository="$(OutputPath)\PackageCache" Version="Any" Condition="@(CachedOpenTapPackages) != ''" />
-    <OpenTapPackageReference Include="WPF Controls" Condition="@(CachedOpenTapPackages) == ''" />
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
     <Reference Include="System.Windows.Forms" />
