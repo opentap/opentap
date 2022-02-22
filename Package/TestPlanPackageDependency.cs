@@ -106,7 +106,7 @@ namespace OpenTap.Package
                 var versionString = versionattr.Value;
 
                 // for compatibility with xml files saved by OpenTAP <9.17, we have to treat all package dependencies as "this or compatible" requirements
-                if (!versionString.StartsWith("^"))
+                if (!versionString.StartsWith("^") && versionString.ToLower() != "any" && !String.IsNullOrEmpty(versionString))
                     versionString = "^" + versionString; 
 
                 if(!VersionSpecifier.TryParse(versionString, out var version))
