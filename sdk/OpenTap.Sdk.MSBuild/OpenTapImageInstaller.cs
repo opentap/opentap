@@ -79,7 +79,15 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                     new VersionSpecifier(opentap.Version.Major, opentap.Version.Minor, opentap.Version.Patch,
                         opentap.Version.PreRelease, opentap.Version.BuildMetadata, VersionMatchBehavior.Exact)));
 
-                imageSpecifier.MergeAndDeploy(install, CancellationToken);
+                try
+                {
+                    imageSpecifier.MergeAndDeploy(install, CancellationToken);
+                }
+                catch (ImageResolveException ex)
+                {
+                    LogMessage(ex.Message, (int)LogEventType.Warning, null);
+                    LogMessage($"Error resolving image: {ex.DotGraph}", (int)LogEventType.Warning, null);
+                }
             }
             catch (AggregateException aex)
             {
@@ -117,9 +125,12 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
         private ImageSpecifier ImageSpecifierFromTaskItems(ITaskItem[] items)
         {
-            PackageSpecifier itemToPackageSpec(ITaskItem i)
+            var spec = new ImageSpecifier();
+            foreach (var i in items)
             {
                 var name = i.ItemSpec;
+                // The version of OpenTAP installed through nuget is added manually and should not be considered from task items
+                if (name == "OpenTAP") continue;
                 var versionString = i.GetMetadata("Version");
                 var archString = i.GetMetadata("Architecture");
                 var os = i.GetMetadata("OS");
@@ -134,11 +145,8 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                     version = VersionSpecifier.Parse("");
                 }
 
-                return new PackageSpecifier(name, version, arch, os);
+                spec.Packages.Add(new PackageSpecifier(name, version, arch, os));
             }
-
-            var spec = new ImageSpecifier();
-            spec.Packages.AddRange(items.Select(itemToPackageSpec));
 
             return spec;
         }
