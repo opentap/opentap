@@ -73,48 +73,6 @@ namespace OpenTap.Package.UnitTests
     [TestFixture]
     public class CliTests
     {
-        [OneTimeSetUp]
-        public static void CreateOpenTAPPackage()
-        {
-            string installDir = Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location);
-            if (!File.Exists(Path.Combine(installDir, "Packages/OpenTAP/package.xml")))
-            {
-                var opentapPackageXmlPath = "package.xml";
-                Environment.SetEnvironmentVariable("Platform", OperatingSystem.Current == OperatingSystem.Windows ? "Windows" : "Linux");
-                Environment.SetEnvironmentVariable("Architecture", OperatingSystem.Current == OperatingSystem.Windows ? "x86" : "x64");
-                Environment.SetEnvironmentVariable("Sign", "false");
-                Environment.SetEnvironmentVariable("Debug", "true");
-
-                // Sign package is needed to create opentap
-                var create = new PackageCreateAction()
-                {
-                    Install = true,
-                    OutputPaths = new[] { "Packages/OpenTAP.TapPackage" },
-                    PackageXmlFile = opentapPackageXmlPath,
-                };
-                using (Session.Create())
-                {
-                    var logs = new StringBuilder();
-                    var lst = new EventTraceListener();
-                    lst.MessageLogged += evt => evt.ForEach(e => logs.AppendLine(e.ToString()));
-                    Log.AddListener(lst);
-                    int? res = null;
-                    try
-                    {
-                        res = create.Execute(CancellationToken.None);
-                    }
-                    catch
-                    {
-                        // ignore
-                    }
-
-                    Assert.AreEqual(0, res, "Error creating OpenTAP package. Log:\n" + logs.ToString());
-                }
-
-            }
-        }
-
-
         [TestCase(true, true, null)]                 // tap package download --out /tmp/Nested/TargetDir/ pkg -r /tmp
         [TestCase(true, false, null)]                // tap package download --out /tmp/Nested/TargetDir/ /tmp/pkg.TapPackage
         [TestCase(true, true, "pkg.TapPackage")]     // tap package download --out /tmp/Nested/TargetDir/pkg.TapPackage pkg -r /tmp
@@ -683,25 +641,6 @@ namespace OpenTap.Package.UnitTests
         private static string RunPackageCli(string args, out int exitCode, string workingDir = null)
         {
             return RunPackageCliWrapped(args, out exitCode, workingDir);
-        }
-
-        private static string CreateOpenTapPackageXmlWithoutSignElement(string v)
-        {
-            string fakeOpenTap = "fakeOpentap.xml";
-            using (StreamWriter fsWrite = new StreamWriter(fakeOpenTap, false))
-            {
-                using (StreamReader fsRead = new StreamReader(v))
-                {
-                    while (!fsRead.EndOfStream)
-                    {
-                        string line = fsRead.ReadLine();
-                        if (!line.Contains("<Sign") && !line.Contains(".chm"))
-                            fsWrite.WriteLine(line);
-                    }
-
-                }
-            }
-            return fakeOpenTap;
         }
 
         private static string RunPackageCliWrapped(string args, out int exitCode, string workingDir, string fileName = null)

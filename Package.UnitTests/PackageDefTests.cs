@@ -52,12 +52,6 @@ namespace OpenTap.Package.UnitTests
     [TestFixture]
     public class PackageDefTests
     {
-        [OneTimeSetUp]
-        public void Init()
-        {
-            CliTests.CreateOpenTAPPackage();
-        }
-
         [Test]
         public void MetaDataTest()
         {

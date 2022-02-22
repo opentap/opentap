@@ -157,7 +157,6 @@ jobs:
           dotnet build --no-restore -c Release /p:Platform=${{ matrix.Architecture }}
           dotnet build --no-restore tap/tap.csproj -c Release /p:Platform=${{ matrix.Architecture }}
           get-content ./bin/Release/tap.runtimeconfig.json
-          Remove-Item -recurse "bin\Release\Packages"
       - name: Upload binaries
         uses: actions/upload-artifact@v2
         with:
@@ -229,7 +228,6 @@ jobs:
       - name: Test
         run: |
           $ErrorActionPreference = "Stop"
-          Copy-Item -r "Package.UnitTests/Packages" bin/Release
           Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
           dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
       - uses: actions/upload-artifact@v2
