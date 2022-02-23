@@ -105,8 +105,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
       - name: Prepare
         run: rm 'doc/User Guide/Readme.md' 'doc/Developer Guide/Readme.md'
       - name: Download API Artifacts
@@ -131,6 +129,7 @@ jobs:
         run: cp -r API public/api
       - name: Deploy
         uses: peaceiris/actions-gh-pages@v3
+        if: startsWith(github.ref, 'refs/tags/v')
         with:
           publish_dir: public
           deploy_key: ${{ secrets.PAGES_DEPLOY_TOKEN }}
