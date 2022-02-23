@@ -214,9 +214,15 @@ namespace OpenTap.Image.Tests
         [TestCase("OpenTAP", "^9.13.0", "^9.13.2-beta.1", "9.13.2-beta.1")]
         [TestCase("OpenTAP", "^9.12.0", "^9.13.2-beta.1", "9.13.2-beta.1")]
         [TestCase("OpenTAP", "^9.13.2", "^9.13.2-beta.1", "9.13.2")]
-
+        [TestCase("G", "^2.1.0-beta.2", "2.2.0-alpha.2.1", "2.2.0-alpha.2.1")]
+        [TestCase("G", "^2.0.0-rc.1", "2.2.0-alpha.2.1", "2.2.0-alpha.2.1")]
+        [TestCase("G", "^2.0.0-rc.1", "2.1.0-beta.2", "2.1.0-beta.2")]
+        [TestCase("G", "^2.1.0-beta.1", "2.1.0-beta.2", "2.1.0-beta.2")]
+        [TestCase("G", "^2.2.0-alpha.2.2", "2.3.0-rc.1", "2.3.0-rc.1")]
+        [TestCase("G", "^2.0.0-rc.1", "2.3.0-rc.1", "2.3.0-rc.1")]
+        [TestCase("G", "^2.1.0-beta.2", "2.0.0-rc.1", "error")]
+        [TestCase("G", "^2.1.0-beta.2", "2.1.0-beta.1", "error")]
         [TestCase("Cyclic", "1.0.0", null, "1.0.0")]
-
         // [TestCase("OpenTAP", "^9.13", "9.14.0", "error")] ^9.13 This does not work as intended
         public void ResolveVersionConflicts(string packageName, string firstVersion, string secondVersion, string resultingVersion)
         {

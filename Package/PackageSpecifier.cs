@@ -327,7 +327,7 @@ namespace OpenTap.Package
                 return true;
 
             // We want ^1.0.0 to accept 1.0.1-beta or 1.1.0-beta as compatible versions
-            if(PreRelease == null && actualVersion.PreRelease != null)
+            if(actualVersion.PreRelease != null)
             {
                 if (Minor.HasValue && Minor.Value < actualVersion.Minor)
                     return true;
