@@ -31,6 +31,7 @@ namespace OpenTap.Image.Tests
                     DefinePackage("OpenTAP","9.13.1"),
                     DefinePackage("OpenTAP","9.13.2-beta.1"),
                     DefinePackage("OpenTAP","9.13.2"),
+                    DefinePackage("OpenTAP","9.13.3-alpha.2"),
                     DefinePackage("OpenTAP","9.14.0"),
                     DefinePackage("Demonstration",  "9.0.0", CpuArchitecture.AnyCPU, "windows", ("OpenTAP", "^9.9.0")),
                     DefinePackage("Demonstration",  "9.0.1", CpuArchitecture.AnyCPU, "windows", ("OpenTAP", "^9.10.0")),
@@ -82,6 +83,12 @@ namespace OpenTap.Image.Tests
                     DefinePackage("F",        "1.1.0", CpuArchitecture.x86,    "Linux"),
                     DefinePackage("F",        "1.1.1", CpuArchitecture.x86,    "Linux"),
                     DefinePackage("F",        "1.2.0", CpuArchitecture.x86,    "Linux"),
+                    DefinePackage("G",        "2.0.0-rc.1"),
+                    DefinePackage("G",        "2.1.0-beta.1"),
+                    DefinePackage("G",        "2.1.0-beta.2"),
+                    DefinePackage("G",        "2.2.0-alpha.2.1"),
+                    DefinePackage("G",        "2.2.0-alpha.2.2"),
+                    DefinePackage("G",        "2.3.0-rc.1"),
                 };
         }
 
