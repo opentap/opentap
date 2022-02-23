@@ -1782,18 +1782,16 @@ namespace OpenTap
                     if (invalidated || (annotatedElements == null && Elements != null))
                     {
                         invalidated = false;
-                        List<AnnotationCollection> annotations = new List<AnnotationCollection>();
-                        foreach (var elem in Elements)
+                        if (annotatedElements != null && Elements.Cast<object>()
+                                .SequenceEqual(annotatedElements.Select(x => x.Source)))
                         {
-                            annotations.Add(fac.AnnotateSub(null, elem));
-                        }
-
-                        if (annotatedElements != null && annotations.Select(x => x.Source)
-                            .SequenceEqual(
-                                annotatedElements?.Select(x => x.Source)))
-                        {
+                            // The values has not changed. Don't create a new list of annotation, just re-use the old.
                             return annotatedElements;
                         }
+                        List<AnnotationCollection> annotations = new List<AnnotationCollection>();
+                        foreach (var elem in Elements)
+                            annotations.Add(fac.AnnotateSub(null, elem));
+                        
                         annotatedElements = annotations;
                     }
 

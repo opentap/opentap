@@ -249,12 +249,16 @@ namespace OpenTap.UnitTests
             
             a.Write();
             a.Read();
+            
+            // if we take the first element here, then previously updates would be lost after the first read. 
+            // - at least if reading from the point of view of an available values proxy.
             newelem = col.AnnotatedElements.FirstOrDefault();
             newelem.GetMember("State").Get<IStringValueAnnotation>().Value = "true";
             a.Write();
             a.Read();
             var selected = newelem.GetMember("SelectedInt").Get<IAvailableValuesAnnotationProxy>().SelectedValue; 
             var vals = newelem.GetMember("SelectedInt").Get<IAvailableValuesAnnotationProxy>().AvailableValues;
+            // verify that the available values corresponds to NestedObject.State = true;
             Assert.IsTrue(vals.Select(x => x.Source).SequenceEqual(obj.List2[0].Avail.Cast<object>()));
         }
 
