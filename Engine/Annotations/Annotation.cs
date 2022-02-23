@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 
 namespace OpenTap
 {
@@ -306,7 +307,7 @@ namespace OpenTap
 
         public IEnumerable<AnnotationCollection> Members => getMembers();
 
-        AnnotationCollection fac;
+        readonly AnnotationCollection fac;
         public MembersAnnotation(AnnotationCollection fac)
         {
             this.fac = fac;
@@ -1145,17 +1146,27 @@ namespace OpenTap
 
         public IEnumerable<string> Errors => error == null ? Array.Empty<string>() : new[] { error };
     }
-    class ObjectValueAnnotation : IObjectValueAnnotation, IReflectionAnnotation
+    class ObjectValueAnnotation : IObjectValueAnnotation, IReflectionAnnotation, IOwnedAnnotation
     {
         public object Value { get; set; }
 
-        public ITypeData ReflectionInfo { get; }
-
-        public ObjectValueAnnotation(object value, ITypeData reflect)
+        public ITypeData ReflectionInfo => cachedType ?? (cachedType = (initType ?? TypeData.GetTypeData(Value)));
+        ITypeData cachedType;
+        ITypeData initType;
+        public ObjectValueAnnotation(object value, ITypeData reflect) : this(value)
         {
-            this.Value = value;
-            this.ReflectionInfo = reflect;
+            initType = reflect;
         }
+        
+        public ObjectValueAnnotation(object value) => Value = value;
+
+        public void Read(object source)
+        {
+            // invalidate.
+            cachedType = null; 
+        }
+
+        public void Write(object source) { }
     }
     class AvailableMemberAnnotation : IAnnotation
     {
@@ -1755,22 +1766,34 @@ namespace OpenTap
         class GenericSequenceAnnotation : ICollectionAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation
         {
             public IEnumerable Elements => fac.Get<IObjectValueAnnotation>().Value as IEnumerable;
+            /// <summary>
+            /// Invalidated means that the values needs to get re-evaluated.
+            /// So it may be that the previous value is used if the values are the same.
+            /// This is also why Read needs to be called even if invalidate gets set.
+            /// </summary>
+            bool invalidated;
 
-            IEnumerable<AnnotationCollection> annotatedElements = null;
+            IEnumerable<AnnotationCollection> annotatedElements;
 
             public IEnumerable<AnnotationCollection> AnnotatedElements
             {
                 get
                 {
-                    if (annotatedElements == null && Elements != null)
+                    if (invalidated || (annotatedElements == null && Elements != null))
                     {
+                        invalidated = false;
                         List<AnnotationCollection> annotations = new List<AnnotationCollection>();
                         foreach (var elem in Elements)
                         {
-                            var elem2 = TypeData.GetTypeData(elem);
-                            annotations.Add(fac.AnnotateSub(elem2, elem));
+                            annotations.Add(fac.AnnotateSub(null, elem));
                         }
 
+                        if (annotatedElements != null && annotations.Select(x => x.Source)
+                            .SequenceEqual(
+                                annotatedElements?.Select(x => x.Source)))
+                        {
+                            return annotatedElements;
+                        }
                         annotatedElements = annotations;
                     }
 
@@ -1793,7 +1816,9 @@ namespace OpenTap
 
             public void Read(object source)     
             {
-                annotatedElements = null;
+                invalidated = true;
+                foreach (var elem in annotatedElements ?? Array.Empty<AnnotationCollection>())
+                    elem.Read();
             }
 
             bool isWriting = false;
@@ -1977,7 +2002,7 @@ namespace OpenTap
                         {
 
                         }
-                        return fac.AnnotateSub(elem2, instance);
+                        return fac.AnnotateSub(null, instance);
                     }
                 }
                 throw new InvalidOperationException();
@@ -2923,8 +2948,8 @@ namespace OpenTap
             
             public void Read(object source)
             {
-                if (annotations == null) return;
                 invalidated = true;
+                if (annotations == null) return;
             }
 
             public void Write(object source)
@@ -3481,7 +3506,7 @@ namespace OpenTap
         {
             var annotation = new AnnotationCollection { source = @object, ExtraAnnotations = extraAnnotations ?? Array.Empty<IAnnotation>() };
             annotation.AddRange(extraAnnotations);
-            annotation.Add(new ObjectValueAnnotation(@object, TypeData.GetTypeData(@object)));
+            annotation.Add(new ObjectValueAnnotation(@object));
             var resolver = new AnnotationResolver();
             resolver.Iterate(annotation);
             annotation.Read(@object);
@@ -3536,9 +3561,34 @@ namespace OpenTap
             return annotation;
         }
 
-        /// <summary> Creats a string from this. </summary>
+        /// <summary> Print the display name of this level of the annotation.</summary>
+        internal string Name
+        {
+            get
+            {
+                var disp = Get<IDisplayAnnotation>()?.Name ?? Get<IReflectionAnnotation>().ReflectionInfo?.Name;
+                return disp ?? "?";
+            }
+        }
+        /// <summary> Creates a string from this. This is useful for debugging.</summary>
         /// <returns></returns>
-        public override string ToString() => $"{ParentAnnotation?.ToString() ?? ""}/{Get<DisplayAttribute>()?.Name ?? Get<IObjectValueAnnotation>()?.Value?.ToString() ?? ""}";
+        public override string ToString()
+        {
+            // the wanted format is: "Delay Step / DelaySecs: 1.0 s"
+            StringBuilder sb = new StringBuilder();
+            sb.Append(Name);
+            sb.Append(": ");
+            sb.Append(Get<IStringValueAnnotation>()?.Value ?? Get<IObjectValueAnnotation>()?.Value?.ToString() ?? "?");
+            var p = ParentAnnotation;
+            while (p != null)
+            {
+                sb.Insert(0, " / ");
+                sb.Insert(0, p.Name);
+                p = p.ParentAnnotation;
+            }
+
+            return sb.ToString();
+        } 
 
         /// <summary> Insert an annotation at a location. </summary>
         /// <param name="index"></param>
