@@ -31,7 +31,6 @@ namespace OpenTap.Image.Tests
                     DefinePackage("OpenTAP","9.13.1"),
                     DefinePackage("OpenTAP","9.13.2-beta.1"),
                     DefinePackage("OpenTAP","9.13.2"),
-                    DefinePackage("OpenTAP","9.13.3-alpha.2"),
                     DefinePackage("OpenTAP","9.14.0"),
                     DefinePackage("Demonstration",  "9.0.0", CpuArchitecture.AnyCPU, "windows", ("OpenTAP", "^9.9.0")),
                     DefinePackage("Demonstration",  "9.0.1", CpuArchitecture.AnyCPU, "windows", ("OpenTAP", "^9.10.0")),
