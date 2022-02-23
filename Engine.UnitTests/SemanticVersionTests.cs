@@ -184,24 +184,5 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(specifier, VersionSpecifier.Parse(specifier).ToString());
             Assert.AreEqual(specifier, VersionSpecifier.Parse(specifier).ToString(fieldCount));
         }
-
-
-        static Assembly generateAssemblyInMemWithoutVersion()
-        {
-            string cs = "public class ObjectTest { public void Run(){} }";
-
-            var compilation = CodeGen.BuildCode(cs, Guid.NewGuid().ToString());
-            if(compilation.Success == false) 
-                throw new Exception("Unable to compile code");
-            return Assembly.Load(compilation.Bytes);
-        }
-
-        [Test]
-        public void TestSemVerDynamicallyLoadedAssembly()
-        {
-            var dynasm = generateAssemblyInMemWithoutVersion();
-            var semver = dynasm.GetSemanticVersion();
-            Assert.IsTrue(semver == new SemanticVersion(0, 0, 0, "", ""));
-        }
     }
 }

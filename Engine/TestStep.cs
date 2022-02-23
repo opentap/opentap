@@ -157,10 +157,14 @@ namespace OpenTap
         [Browsable(false)]
         public string Version
         {
-            get => this.GetType().Assembly?.GetSemanticVersion().ToString();
+            get
+            {
+              var type = TypeData.GetTypeData(this).AsTypeData();
+              return type?.Assembly?.SemanticVersion?.ToString();  
+            } 
             set
             {
-                var installedVersion = this.GetType().Assembly?.GetSemanticVersion();
+                var installedVersion = TypeData.GetTypeData(this).AsTypeData()?.Assembly?.SemanticVersion;
                 if (installedVersion == null)
                 {
                     Log.Warning("Could not get assembly version");
