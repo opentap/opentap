@@ -140,11 +140,12 @@ namespace OpenTap.Package
                 }
 
                 var dependencyPackage = installedPackages.FirstOrDefault(p => p.Name == dependency.Name);
-                
-                if (dependencyPackage is { PackageSource: XmlPackageDefSource source2 })
+
+                if (dependencyPackage?.PackageSource is XmlPackageDefSource source2)
                 {
                     var question =
-                        $"Package '{dependency.Name}' is a member of the bundle '{package.Name}'.\nDo you wish to uninstall '{dependency.Name}'?";
+                        $"Package '{dependency.Name}' is a member of the bundle '{package.Name}'.\n" +
+                        $"Do you wish to uninstall '{dependency.Name}'?";
 
                     var req = new UninstallRequest(question) {Response = UninstallResponse.No};
                     UserInput.Request(req, true);
@@ -227,8 +228,8 @@ namespace OpenTap.Package
     [Obfuscation(Exclude = true)]
     enum UninstallResponse
     {
+        No,
         Yes,
-        No
     }
 
     [Obfuscation(Exclude = true)]
