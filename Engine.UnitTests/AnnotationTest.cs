@@ -216,16 +216,48 @@ namespace OpenTap.UnitTests
 
         public class ClassWithListOfString : TestStep
         {
+            public class NestedObject
+            {
+                public bool State { get; set; }
+                public IEnumerable<int> Avail => Enumerable.Range(State ? 5 : 0, 5);
+                [AvailableValues(nameof(Avail))]
+                public int SelectedInt { get; set; }
+            }
+            
             public List<string> List { get; set; } = new List<string>{"A", "B"};
             
             [AvailableValues(nameof(List))]
             public string Selected { get; set; }
+            
+            public List<NestedObject> List2 { get; set; } = new List<NestedObject>{};
 
             public override void Run()
             {
                 
             }
         }
+        
+        [Test]
+        public void ListOfObjectAnnotation()
+        {
+            var obj = new ClassWithListOfString();
+            var a = AnnotationCollection.Annotate(obj);
+            var member = a.GetMember(nameof(ClassWithListOfString.List2));
+            var col = member.Get<ICollectionAnnotation>();
+            var newelem = col.NewElement();
+            col.AnnotatedElements = new[] { newelem };
+            
+            a.Write();
+            a.Read();
+            newelem = col.AnnotatedElements.FirstOrDefault();
+            newelem.GetMember("State").Get<IStringValueAnnotation>().Value = "true";
+            a.Write();
+            a.Read();
+            var selected = newelem.GetMember("SelectedInt").Get<IAvailableValuesAnnotationProxy>().SelectedValue; 
+            var vals = newelem.GetMember("SelectedInt").Get<IAvailableValuesAnnotationProxy>().AvailableValues;
+            Assert.IsTrue(vals.Select(x => x.Source).SequenceEqual(obj.List2[0].Avail.Cast<object>()));
+        }
+
 
         [Test]
         public void ListOfStringAnnotation()
