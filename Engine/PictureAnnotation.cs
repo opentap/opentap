@@ -61,10 +61,14 @@ namespace OpenTap
             {
                 var memVal = mem.GetValue(s);
 
+                if (memVal == null) continue;
+
                 var a = AnnotationCollection.Annotate(memVal);
-                var members = a.Get<IMembersAnnotation>().Members.Select(m => m.Get<IMemberAnnotation>().Member)
+                var members = a.Get<IMembersAnnotation>()?.Members.Select(m => m.Get<IMemberAnnotation>().Member)
                     .Where(m => m.Writable)
                     .ToLookup(m => m.Name);
+
+                if (members == null) continue;
 
                 members[nameof(IPicture.Source)].FirstOrDefault()?.SetValue(memVal, Source);
                 members[nameof(IPicture.Description)].FirstOrDefault()?.SetValue(memVal, Description);
