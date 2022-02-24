@@ -22,3 +22,4 @@ using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("OpenTap.UnitTests")]
 [assembly: InternalsVisibleTo("OpenTap.Sdk.Commands")]
+[assembly: InternalsVisibleTo("OpenTap.NetCoreAssemblyLoader")]

@@ -171,7 +171,7 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
-        static void GenerateAssemblyWithVersion(string assemblyFileName, string testStepName, string version, string strongNameKeyFile = null)
+        internal static void GenerateAssemblyWithVersion(string assemblyFileName, string testStepName, string version, string strongNameKeyFile = null)
         {
             string cs = "";
             cs += "using System.Reflection;\n";

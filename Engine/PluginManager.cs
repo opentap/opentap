@@ -667,6 +667,11 @@ namespace OpenTap
 
         public void AddAssembly(Assembly asm)
         {
+            if (asm.FullName.Contains("System.Text.Json"))
+            {
+
+            }
+
             if (asm.IsDynamic == false)
             {
                 var loc = asm.GetLocation();
@@ -681,7 +686,7 @@ namespace OpenTap
                     log.Debug("Loaded assembly {0}", asm.FullName);
             }
 
-            assemblyResolutionMemorizer.Add(new resolveKey { Name = asm.FullName, ReflectionOnly = asm.ReflectionOnly }, asm);
+            assemblyResolutionMemorizer.Add(new resolveKey { Name = asm.FullName, ReflectionOnly = asm.ReflectionOnly }, new WeakReference<Assembly>(asm));
         }
         HashSet<string> lastSearchedDirs = new HashSet<string>();
 
@@ -704,13 +709,16 @@ namespace OpenTap
                 FileFinder.Invalidate();
                 assemblyResolutionMemorizer.InvalidateWhere((k,v) => v == null);
             }
-            return assemblyResolutionMemorizer.Invoke(new resolveKey { Name = name, ReflectionOnly = reflectionOnly });
+
+            var asmRef = assemblyResolutionMemorizer.Invoke(new resolveKey { Name = name, ReflectionOnly = reflectionOnly });
+            if (asmRef.TryGetTarget(out var asm)) return asm;
+            return null;
         }
 
         public TapAssemblyResolver(IEnumerable<string> directoriesToSearch)
         {
             FileFinder.DirectoriesToSearch = directoriesToSearch;
-            assemblyResolutionMemorizer = new Memorizer<resolveKey, Assembly>(key => resolveAssembly(key.Name, key.ReflectionOnly))
+            assemblyResolutionMemorizer = new Memorizer<resolveKey, WeakReference<Assembly>>(key => new WeakReference<Assembly>(resolveAssembly(key.Name, key.ReflectionOnly)))
             {
                 MaxNumberOfElements = 10000,
                 CylicInvokeResponse = Memorizer.CyclicInvokeMode.ReturnDefaultValue
@@ -729,7 +737,7 @@ namespace OpenTap
             public bool ReflectionOnly;
         }
 
-        Memorizer<resolveKey, Assembly> assemblyResolutionMemorizer;
+        Memorizer<resolveKey, WeakReference<Assembly>> assemblyResolutionMemorizer;
 
         // returns an assembly name or null. (if native asm, etc.)
         static AssemblyName tryGetAssemblyName(string filePath)

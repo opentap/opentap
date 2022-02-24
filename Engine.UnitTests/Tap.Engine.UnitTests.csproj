@@ -37,6 +37,7 @@
   <ItemGroup>
     <ProjectReference Include="..\BasicSteps\Tap.Plugins.BasicSteps.csproj" />
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
+    <ProjectReference Include="..\OpenTap.NetCoreAssemblyLoader\OpenTap.NetCoreAssemblyLoader.csproj" />
     <ProjectReference Include="..\Package\Tap.Package.csproj" />
   </ItemGroup>
 </Project>
