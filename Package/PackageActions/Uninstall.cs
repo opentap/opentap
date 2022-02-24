@@ -115,14 +115,37 @@ namespace OpenTap.Package
 
             var result = new List<string>(package.Dependencies.Count);
 
+            // Get the names of all dependencies including the name of the bundle containing them
+            var depNames = package.Dependencies.Select(d => d.Name).ToHashSet();
+            depNames.Add(package.Name);
+            // Get all currently installed packages that are NOT part of this bundle
+            var currentlyInstalled = installedPackages
+                .Where(p => depNames.Contains(p.Name) == false).ToArray();
+
             foreach (var dependency in package.Dependencies)
             {
+                // Never offer to uninstall OpenTAP as this will lead to a broken install.
+                if (dependency.Name == "OpenTAP") continue;
+                // Detect if any other package depends on a package from this bundle
+                // If another package depends on it, don't offer to uninstall itg
+                var otherDepender =
+                    currentlyInstalled.FirstOrDefault(c =>
+                        c.Dependencies.Any(d => d.Name == dependency.Name));
+
+                if (otherDepender != null)
+                {
+                    log.Info(
+                        $"Package '{dependency.Name}' will not be uninstalled because '{otherDepender.Name}' still depends on it.");
+                    continue;
+                }
+
                 var dependencyPackage = installedPackages.FirstOrDefault(p => p.Name == dependency.Name);
-                
-                if (dependencyPackage != null && dependencyPackage.PackageSource is XmlPackageDefSource source2)
+
+                if (dependencyPackage?.PackageSource is XmlPackageDefSource source2)
                 {
                     var question =
-                        $"Package '{dependency.Name}' is a member of the bundle '{package.Name}'.\nDo you wish to uninstall '{dependency.Name}'?";
+                        $"Package '{dependency.Name}' is a member of the bundle '{package.Name}'.\n" +
+                        $"Do you wish to uninstall '{dependency.Name}'?";
 
                     var req = new UninstallRequest(question) {Response = UninstallResponse.No};
                     UserInput.Request(req, true);
@@ -205,10 +228,10 @@ namespace OpenTap.Package
     [Obfuscation(Exclude = true)]
     enum UninstallResponse
     {
+        No,
         Yes,
-        No
     }
-    
+
     [Obfuscation(Exclude = true)]
     [Display("Uninstall bundled package?")]
     class UninstallRequest
@@ -217,7 +240,7 @@ namespace OpenTap.Package
         {
             Message = message;
         }
-        
+
         [Browsable(true)]
         [Layout(LayoutMode.FullRow)]
         public string Message { get; }
