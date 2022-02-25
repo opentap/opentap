@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Microsoft.Build.Execution;
 
-namespace Keysight.OpenTap.Sdk.MSBuild
+namespace OpenTap.Sdk.MSBuild
 {
     internal static class ExtensionClass{
         internal static string ElemOrAttributeValue(this XElement ele, string name, string defaultValue)

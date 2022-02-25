@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2011/10/nuspec.xsd">
   <metadata minClientVersion="3.3">
     <id>OpenTAP</id>
-    <version>$(GitVersion)</version>
+    <version>9.17.0-alpha.1.91</version>
     <authors>OpenTAP.io</authors>
     <owners>OpenTAP.io</owners>
     <projectUrl>http://opentap.io</projectUrl>
@@ -18,6 +18,10 @@
     <license type="expression">MPL-2.0</license>
   </metadata>
   <files>
+    <file src="build/payload/win-x64/OpenTap.dll" target="lib/netstandard2.0" />
+    <file src="build/payload/OpenTap.xml" target="lib/netstandard2.0" />
+    <file src="build/payload/win-x64/OpenTap.Package.dll" target="lib/netstandard2.0" />
+    <file src="build/payload/OpenTap.Package.xml" target="lib/netstandard2.0" />
     <file src="build/**/*" exclude="**\.*"/>
   </files>
 </package>

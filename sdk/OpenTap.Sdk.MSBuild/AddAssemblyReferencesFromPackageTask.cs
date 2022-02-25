@@ -17,13 +17,13 @@ using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using Task = Microsoft.Build.Utilities.Task;
 
-namespace Keysight.OpenTap.Sdk.MSBuild
+namespace OpenTap.Sdk.MSBuild
 {
     internal class GlobWrapper : IComparable<GlobWrapper>
     {
         internal bool Include { get; }
 
-        private static GlobOptions _globOptions = new DotNet.Globbing.GlobOptions
+        private static GlobOptions _globOptions = new GlobOptions
             {Evaluation = {CaseInsensitive = false}};
 
         internal Glob Globber { get; }
@@ -224,7 +224,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         private HashSet<string> _added;
         private Regex dllRx = new Regex("<File +.*Path=\"(?<name>.+\\.dll)\"");
 
-        [Output] 
+        [Microsoft.Build.Framework.Output]
         public string[] Assemblies { get; set; }
 
         [Required]

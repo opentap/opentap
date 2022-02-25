@@ -607,14 +607,8 @@ jobs:
           Move-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
 
           Expand-Archive OpenTAP.x64.zip ./nuget/build/payload/win-x64
-          Copy-Item ./bin/Release/OpenTap.xml ./nuget/build/payload/win-x64
-          Copy-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload/win-x64
           Expand-Archive OpenTAP.x86.zip ./nuget/build/payload/win-x86
-          Copy-Item ./bin/Release/OpenTap.xml ./nuget/build/payload/win-x86
-          Copy-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload/win-x86
           Expand-Archive OpenTAP.Linux.zip ./nuget/build/payload/linux-x64
-          Copy-Item ./bin/Release/OpenTap.xml ./nuget/build/payload/linux-x64
-          Copy-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload/linux-x64
 
           cd ./nuget
           Invoke-WebRequest -Method Get -Uri "https://dist.nuget.org/win-x86-commandline/v5.7.1/nuget.exe" -OutFile nuget.exe

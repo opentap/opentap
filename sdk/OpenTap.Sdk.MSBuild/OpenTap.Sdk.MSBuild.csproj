@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <AssemblyName>Keysight.OpenTap.Sdk.MSBuild</AssemblyName>
-    <RootNamespace>Keysight.OpenTap.Sdk.MSBuild</RootNamespace>
+    <AssemblyName>OpenTap.Sdk.MSBuild</AssemblyName>
+    <RootNamespace>OpenTap.Sdk.MSBuild</RootNamespace>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <TargetFramework>netstandard2.0</TargetFramework>

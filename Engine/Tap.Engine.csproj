@@ -3,11 +3,11 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>OpenTap</AssemblyName>
     <RootNamespace>OpenTap</RootNamespace>
+    <DocumentationFile>$(OutputPath)\OpenTap.xml</DocumentationFile>
   </PropertyGroup>
   
   <PropertyGroup Condition="'$(IsDebug)'!='true'">
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>  
-    <DocumentationFile>$(OutputPath)\OpenTap.xml</DocumentationFile>    
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>      
   </PropertyGroup>
 
   <ItemGroup>

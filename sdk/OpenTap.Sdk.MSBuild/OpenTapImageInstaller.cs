@@ -2,18 +2,34 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Xml.Linq;
 using Microsoft.Build.Framework;
-using OpenTap;
 using OpenTap.Diagnostic;
 using OpenTap.Package;
 
-namespace Keysight.OpenTap.Sdk.MSBuild
+namespace OpenTap.Sdk.MSBuild
 {
+    public interface IImageDeployer
+    {
+        void Install(ImageSpecifier spec, Installation install, CancellationToken cts);
+    }
+
+    internal class DefaultImageDeployer : IImageDeployer
+    {
+        public void Install(ImageSpecifier spec, Installation install, CancellationToken cts)
+        {
+            if (!spec.Repositories.Any(r => r.ToLower().Contains("packages.opentap.io")))
+                spec.Repositories.Add("packages.opentap.io");
+            spec.MergeAndDeploy(install, cts);
+        }
+    }
+
     internal class OpenTapImageInstaller : IDisposable
     {
         public string TapDir { get; set; }
         public CancellationToken CancellationToken { get; set; }
+        public PackageDef OpenTapNugetPackage { get; set; }
+
+        public IImageDeployer ImageDeployer { get; set; }
 
         /// <summary>
         /// This object represents a trace listener of the type EventTraceListener from the <see cref="OpenTAP"/> assembly
@@ -63,7 +79,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         /// <param name="packagesToInstall"></param>
         /// <param name="repositories"></param>
         /// <returns></returns>
-        public bool InstallImage(ITaskItem[] packagesToInstall, string[] repositories)
+        public bool InstallImage(ITaskItem[] packagesToInstall, List<string> repositories)
         {
             bool success = true;
 
@@ -71,17 +87,21 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             {
                 var install = new Installation(TapDir);
 
+                OpenTapNugetPackage = install.GetOpenTapPackage();
+
                 var imageSpecifier = ImageSpecifierFromTaskItems(packagesToInstall);
                 imageSpecifier.Repositories.AddRange(repositories);
-                var opentap = install.GetOpenTapPackage();
 
-                imageSpecifier.Packages.Add(new PackageSpecifier(opentap.Name,
-                    new VersionSpecifier(opentap.Version.Major, opentap.Version.Minor, opentap.Version.Patch,
-                        opentap.Version.PreRelease, opentap.Version.BuildMetadata, VersionMatchBehavior.Exact)));
+                var openTapSpec = new PackageSpecifier("OpenTAP",
+                    VersionSpecifier.Parse(OpenTapNugetPackage.Version.ToString()));
+
+                imageSpecifier.Packages.Add(openTapSpec);
+
+                ImageDeployer ??= new DefaultImageDeployer();
 
                 try
                 {
-                    imageSpecifier.MergeAndDeploy(install, CancellationToken);
+                    ImageDeployer.Install(imageSpecifier, install, CancellationToken);
                 }
                 catch (ImageResolveException ex)
                 {
@@ -129,9 +149,28 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             foreach (var i in items)
             {
                 var name = i.ItemSpec;
-                // The version of OpenTAP installed through nuget is added manually and should not be considered from task items
-                if (name == "OpenTAP") continue;
                 var versionString = i.GetMetadata("Version");
+
+                // The version of OpenTAP installed through nuget is added manually and should not be considered from task items
+                if (name == "OpenTAP")
+                {
+                    // The version was omitted - this is fine
+                    if (string.IsNullOrWhiteSpace(versionString)) continue;
+                    if (VersionSpecifier.TryParse(versionString, out var versionSpecifier))
+                    {
+                        // The requested version is compatible with the installed version -- this is fine
+                        if (versionSpecifier.IsCompatible(OpenTapNugetPackage.Version)) continue;
+                    }
+
+                    LogMessage(
+                        $"This project was restored using OpenTAP version '{OpenTapNugetPackage.Version}', but version " +
+                        $"'{versionString}' was requested. Changing the version of OpenTAP installed through nuget " +
+                        $"can have unpredictable results and is not supported. Please omit the version from this element.",
+                        (int)LogEventType.Warning, i);
+
+                    continue;
+
+                }
                 var archString = i.GetMetadata("Architecture");
                 var os = i.GetMetadata("OS");
 
