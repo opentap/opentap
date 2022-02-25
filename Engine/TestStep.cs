@@ -149,6 +149,17 @@ namespace OpenTap
         [AnnotationIgnore]
         [SettingsIgnore]
         public IEnumerable<ITestStep> EnabledChildSteps => this.GetEnabledChildSteps();
+
+        string CalcVersion()
+        {
+            // sometimes Assembly does not have a well-formatted semantic version.
+            // ins this case we just use Version.ToString(3).
+            var asm = TypeData.GetTypeData(this)?.AsTypeData()?.Assembly;
+            if (asm == null) return null;
+            if (asm.SemanticVersion != null) return asm.SemanticVersion.ToString();
+            if (asm.Version != null) return asm.Version.ToString(3);
+            return null;
+        }
         
         /// <summary>
         /// Version of this test step.
@@ -157,20 +168,17 @@ namespace OpenTap
         [Browsable(false)]
         public string Version
         {
-            get
-            {
-              var type = TypeData.GetTypeData(this).AsTypeData();
-              return type?.Assembly?.SemanticVersion?.ToString();  
-            } 
+            get => CalcVersion();
             set
             {
-                var installedVersion = TypeData.GetTypeData(this).AsTypeData()?.Assembly?.SemanticVersion;
-                if (installedVersion == null)
+                var installedVersionStr = CalcVersion();
+                if (installedVersionStr == null)
                 {
                     Log.Warning("Could not get assembly version");
                     return;
                 }
-                if(SemanticVersion.TryParse(value, out SemanticVersion createdVersion))
+                
+                if(SemanticVersion.TryParse(installedVersionStr, out var installedVersion) && SemanticVersion.TryParse(value, out SemanticVersion createdVersion))
                 {
                     if (createdVersion == null)
                     {
