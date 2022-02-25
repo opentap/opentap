@@ -6,7 +6,6 @@
     <IsWindows Condition=" '$(OS)' != 'Unix' ">true</IsWindows>
     <IsX86 Condition=" '$(PlatformTarget)' == 'x86' ">true</IsX86>
     <IsX86 Condition=" '$(PlatformTarget)' != 'x86' ">false</IsX86>
-    <OpenTapCommonDir>$(MSBuildThisFileDirectory)payload</OpenTapCommonDir>
     <OpenTapRuntimeDir Condition="$(IsX86) And $(IsWindows) ">$(MSBuildThisFileDirectory)runtimes\win-x86</OpenTapRuntimeDir>
     <OpenTapRuntimeDir Condition=" '$(IsX86)' == 'false' And $(IsWindows) ">$(MSBuildThisFileDirectory)runtimes\win-x64</OpenTapRuntimeDir>
     <OpenTapRuntimeDir Condition=" '$(IsX86)' == 'false' And '$(IsWindows)' == 'false' ">$(MSBuildThisFileDirectory)runtimes\linux-x64</OpenTapRuntimeDir>
@@ -21,12 +20,7 @@
            Text="$(PlatformTarget) builds are not supported on $(OS)."/>
   </Target>
 
-  <!-- Common payload files -->
-  <ItemGroup>
-    <PackagePayloadFiles Include="$(OpenTapCommonDir)\**\*"/>
-  </ItemGroup>
-
-  <!-- Payload for runtime --> 
+  <!-- Payload files --> 
   <ItemGroup Condition=" '$(OpenTapRuntimeDir)' != '' ">
     <PackagePayloadFiles Include="$(OpenTapRuntimeDir)\**\*" />
   </ItemGroup>
