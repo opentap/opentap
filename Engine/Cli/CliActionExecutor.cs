@@ -267,7 +267,7 @@ namespace OpenTap.Cli
                         }
                     }
 
-                    return "0.0.0"; // OpenTAP is not installed. lets just return this. 
+                    return TypeData.FromType(typeof(CliActionExecutor)).Assembly.SemanticVersion.ToString(); // OpenTAP is not installed. lets just return this. 
                 }
 
                 Console.WriteLine("OpenTAP Command Line Interface ({0})", getVersion());
