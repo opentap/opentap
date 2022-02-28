@@ -13,7 +13,7 @@ The CLA can be signed either by an individual or a company. For companies, pleas
 
 * By submitting code as a **company/entity** you agree to the corporate contributor license agreement.
 
-Sign the CLA and forward it to [CLA@opentap.io](mailto:CLA@opentap.io) along with your GitLab username and your e-mail address. 
+Sign the CLA and forward it to [CLA@opentap.io](mailto:CLA@opentap.io) along with your GitHub username and your e-mail address. 
 
 > **Note:** Making minor fixes, such a correcting typos and editing non-critical information, can be accepted from anyone without a formal CLA in place. All other issues will require a CLA to be signed and submitted.
 
