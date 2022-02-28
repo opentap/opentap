@@ -15,7 +15,8 @@ module.exports = {
         editLinks: true,
         editLinkText: 'Help improve this page!',
         lastUpdated: 'Last Updated',
-        docsDir: 'doc',
+        docsDir: 'doc', 
+        docsBranch: 'main',
         logo: '/OpenTAP.png',
         algolia: {
             apiKey: 'b12f5f1ed342b1663193cb9c8fa1e29e',
