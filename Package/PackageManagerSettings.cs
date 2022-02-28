@@ -35,7 +35,7 @@ namespace OpenTap.Package
         /// <summary>
         /// When true a packages cached in the user-wide package cache (shared accross installations, but not accross users) is used when in addition to the repositories specified in <see cref="Repositories"/>.
         /// </summary>
-        [Display("Use Local Package Cache", Group: "Package Repositories", Order: 3, Description: "Use package cache (shared accross installations, but not accross users) in addition to repositories spedified here.")]
+        [Display("Use Local Package Cache", Group: "Package Repositories", Order: 3, Description: "Use package cache (shared across installations, but not across users) in addition to repositories specified here.")]
         public bool UseLocalPackageCache { get; set; }
 
         /// <summary>
