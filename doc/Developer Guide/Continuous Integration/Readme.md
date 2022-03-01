@@ -26,7 +26,7 @@ The [`image:` parameter](https://docs.gitlab.com/ee/ci/yaml/README.html#image) i
 |-|-|
 | Image with OpenTAP 9.17 installed, this image also has the .NET SDK installed. We recommended this image when building an OpenTAP .TapPackage. See more [here](https://github.com/opentap/opentap/blob/main/docker/Linux/Dockerfile).  | opentapio/opentap:9.17-bionic |
 | Image with Node.JS 9.11 installed. | node:9.11.1 |
-| Image with .NET Core 2.1 SDK installed. | mcr.microsoft.com/dotnet/sdk:6.0-focal |
+| Image with .NET 6.0 SDK installed. | mcr.microsoft.com/dotnet/sdk:6.0-focal |
 | Image with Kaniko, use this image to create your own Docker image when Docker in Docker is unavailable. Read more about the project [here](https://github.com/GoogleContainerTools/kaniko). | gcr.io/kaniko-project/executor:debug |
 
 ### Example
