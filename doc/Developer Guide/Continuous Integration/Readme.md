@@ -24,7 +24,7 @@ The [`image:` parameter](https://docs.gitlab.com/ee/ci/yaml/README.html#image) i
 
 | Description | Docker Image |
 |-|-|
-| Image with OpenTAP 9.8 installed, this image also has the .NET Core 2.1 SDK installed. We recommended this image when building an OpenTAP .TapPackage. See more [here](https://gitlab.com/OpenTAP/opentap/-/blob/master/docker/Linux/Dockerfile).  | opentapio/opentap:9.8-ubuntu18.04 |
+| Image with OpenTAP 9.8 installed, this image also has the .NET Core 2.1 SDK installed. We recommended this image when building an OpenTAP .TapPackage. See more [here](https://github.com/opentap/opentap/blob/main/docker/Linux/Dockerfile).  | opentapio/opentap:9.8-ubuntu18.04 |
 | Image with Node.JS 9.11 installed. | node:9.11.1 |
 | Image with .NET Core 2.1 SDK installed. | microsoft/dotnet:2.1-sdk-stretch |
 | Image with Kaniko, use this image to create your own Docker image when Docker in Docker is unavailable. Read more about the project [here](https://github.com/GoogleContainerTools/kaniko). | gcr.io/kaniko-project/executor:debug |
@@ -69,7 +69,7 @@ When using the Windows runners you can use any existing Windows Docker image com
 
 | Description | Docker Image |
 |-|-|
-| Image with OpenTAP 9.8 installed, this image also has the .NET 4.7.2 SDK installed. We recommended this image when building an OpenTAP .TapPackage. See more [here](https://gitlab.com/OpenTAP/opentap/-/blob/master/docker/Windows/Dockerfile).  | opentapio/opentap:9.8-windowsserver1809 |
+| Image with OpenTAP 9.8 installed, this image also has the .NET 4.7.2 SDK installed. We recommended this image when building an OpenTAP .TapPackage. See more [here](https://github.com/opentap/opentap/blob/main/docker/Windows/Dockerfile).  | opentapio/opentap:9.8-windowsserver1809 |
 | Image with .NET 4.7.2 SDK installed. | mcr.microsoft.com/dotnet/framework/sdk:4.7.2 |
 
 > Please note that Windows Docker images must be compatible with the host OS. This means that all Docker images using OpenTAP build runners must be compatible with `Windows Server 2019`.
