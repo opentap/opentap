@@ -353,7 +353,7 @@ namespace OpenTap.Package
 
                 VersionSpecifier spec = new VersionSpecifier(packageSpecifier.Version.Major, packageSpecifier.Version.Minor, packageSpecifier.Version.Patch, packageSpecifier.Version.PreRelease, packageSpecifier.Version.BuildMetadata, VersionMatchBehavior.Exact);
                 packageSpecifier = new PackageSpecifier(packageSpecifier.Name, spec, packageSpecifier.Architecture, packageSpecifier.OS);
-                IEnumerable<PackageDef> packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageSpecifier, installedPackages.ToArray());
+                IEnumerable<PackageDef> packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageSpecifier);
 
                 if (!packages.Any() && temp.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible))
                     return GetLowestCompatible(repositories, temp, installedPackages);
@@ -662,7 +662,6 @@ namespace OpenTap.Package
 
     }
 
-    [DebuggerDisplay("Edge: {PackageSpecifier.Name} needs {PackageSpecifier.Version.ToString()}, resolved {To.Version.ToString()}")]
     internal class DependencyEdge
     {
         private PackageDef to;
@@ -677,6 +676,11 @@ namespace OpenTap.Package
         public PackageSpecifier PackageSpecifier { get; set; }
         public PackageDef From { get; set; }
         public PackageDef To { get => to; set { to = value; } }
+
+        public override string ToString()
+        {
+            return $"Edge: {PackageSpecifier.Name} needs {PackageSpecifier.Version}, resolved {To.Version}";
+        }
     }
 
 
