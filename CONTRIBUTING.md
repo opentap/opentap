@@ -13,21 +13,23 @@ The CLA can be signed either by an individual or a company. For companies, pleas
 
 * By submitting code as a **company/entity** you agree to the corporate contributor license agreement.
 
-Sign the CLA and forward it to [CLA@opentap.io](mailto:CLA@opentap.io) along with your GitLab username and your e-mail address. Once received, we will promote you to a Developer role in the OpenTAP project.
+Sign the CLA and forward it to [CLA@opentap.io](mailto:CLA@opentap.io) along with your GitHub username and your e-mail address. 
 
-**Note:** Making minor fixes, such a correcting typos and editing non-critical information, can be accepted from anyone without a formal CLA in place. All other issues will require a CLA to be signed and submitted.
+> **Note:** Making minor fixes, such a correcting typos and editing non-critical information, can be accepted from anyone without a formal CLA in place. All other issues will require a CLA to be signed and submitted.
 
 ## Contibuting Code
 
-Once you have signed the CLA and have been added to the project, we will accept merge requests containing fixes and enhancements to OpenTAP code and/or documentation.
+Once you have signed the CLA, we will accept pull requests containing fixes and enhancements to OpenTAP code and/or documentation.
 
-In the issue tracker, the label `Accepting Merge Requests` indicates that we agree that the issue is valid and we are open to accepting Merge Requests (other enhancements are also welcome).
+In the issue tracker, the label `Accepting Merge Requests` indicates that we explicitly agree that the issue is valid and that we are looking for help creating a PR (other enhancements are also welcome).
 
-Issues labeled `To be Discussed` require futher discussion. Do your best to resolve these discussions, and get the label removed, before starting to work on these issues.
+Issues labeled `To be Discussed` require further discussion. Do your best to resolve these discussions, and get the label removed, before starting to work on these issues.
 
 Once you have identified an issue:
 
-1. Assign it to yourself
-2. Create a new branch using the GitLab recommended syntax: issueNumber-issue-description
-3. Commit changes
-4. Open a Merge Request on the master branch at <https://gitlab.com/OpenTAP/opentap>
+1. Identify an existing issue you want to work on, or submit a new issue
+2. Seek consensus on the idea (to make it easier to make a PR that the maintainers will agree with in the first go)
+3. Assign it to yourself
+4. Fork the repo
+5. develop and test and commit changes
+6. Submit a pull request back to [the root of the fork network](https://github.com/opentap/opentap)

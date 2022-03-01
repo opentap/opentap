@@ -25,10 +25,10 @@ We recommend that you download the Software Development Kit, or simply the Devel
 tap package install "Developer's System CE" -y
 ```
 
-For a guide on how to develop using OpenTAP, check out our __[Developer Guide](https://doc.opentap.io/Developer%20Guide/Introduction/#introduction)__, it also exists as a [PDF](https://www.opentap.io/docs/OpenTAP%20Developer%20Guide.pdf) for offline reading. Note the [source](https://gitlab.com/OpenTAP/opentap/blob/master/doc/Developer%20Guide/Readme.md) can be found at GitLab as well.
+For a guide on how to develop using OpenTAP, check out our __[Developer Guide](https://doc.opentap.io/Developer%20Guide/Introduction/#introduction)__, it also exists as a [PDF](https://www.opentap.io/docs/OpenTAP%20Developer%20Guide.pdf) for offline reading. Note the [source](https://github.com/opentap/opentap/tree/main/doc/Developer%20Guide) can be found on GitHub as well.
 
 ## Building OpenTAP
-Most users build plugins for OpenTAP but if you are interested in building OpenTAP yourself you can clone the git repository at https://gitlab.com/OpenTAP/opentap and build the OpenTAP.sln solution file.
+Most users build plugins for OpenTAP but if you are interested in building OpenTAP yourself you can clone the git repository at https://github.com/opentap/opentap and build the OpenTAP.sln solution file.
 
 **Note:** You need [Microsoft .NET Core SDK 6.0](https://dotnet.microsoft.com/download) to build OpenTAP.
 
@@ -88,7 +88,7 @@ All fixes, patches and enhancements to OpenTAP are very warmly welcomed. In orde
 
 ## Reporting Issues
 
-We track issues at https://gitlab.com/OpenTAP/opentap/issues. You are welcome to file an issue there if you have found a bug or have a concrete request for a new feature. Please include a session log file if possible or relevant. Any other files needed to reproduce an issue are also appreciated.
+We track issues at https://github.com/opentap/opentap/issues. You are welcome to file an issue there if you have found a bug or have a concrete request for a new feature. Please include a session log file if possible or relevant. Any other files needed to reproduce an issue are also appreciated.
 
 ## License
 

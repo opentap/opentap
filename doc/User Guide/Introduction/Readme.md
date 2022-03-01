@@ -154,7 +154,7 @@ OpenTAP keeps extensive session logs for debugging purposes. Session logs are ke
 
 The content of the session log files is similar to the logs collected by *Text Log*, but these also contain diagnostic messages from OpenTAP and any plugins you may have installed. They can be found in `<install dir>/SessionLogs`, and are named after the time and date at which they were created.
 
-The session logs contain the same information you would see in your terminal when running tap with the `--verbose` flag. If you encounter errors, the logs may contain useful information for discovering what went wrong. If you think you discovered a bug in OpenTAP, please file an issue on [gitlab](https://gitlab.com/OpenTAP/opentap). If applicable, please include instructions on how to
+The session logs contain the same information you would see in your terminal when running tap with the `--verbose` flag. If you encounter errors, the logs may contain useful information for discovering what went wrong. If you think you discovered a bug in OpenTAP, please file an issue on [GitHub](https://github.com/opentap/opentap). If applicable, please include instructions on how to
 replicate the issue, as well as relevant logs.
 
 ## Packages and Plugins
