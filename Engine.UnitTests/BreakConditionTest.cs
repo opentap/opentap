@@ -86,6 +86,8 @@ namespace OpenTap.Engine.UnitTests
         [TestCase(Verdict.Fail, EngineSettings.AbortTestPlanType.Step_Error, 2)]
         [TestCase(Verdict.Error, EngineSettings.AbortTestPlanType.Step_Error, 1)]
         [TestCase(Verdict.Fail, EngineSettings.AbortTestPlanType.Step_Fail, 1)]
+        [TestCase(Verdict.Pass, EngineSettings.AbortTestPlanType.Step_Pass, 1)]
+        [TestCase(Verdict.Inconclusive, EngineSettings.AbortTestPlanType.Step_Inconclusive, 1)]
         [TestCase(Verdict.Fail,
             EngineSettings.AbortTestPlanType.Step_Error | EngineSettings.AbortTestPlanType.Step_Fail, 1)]
         [TestCase(Verdict.Error,
