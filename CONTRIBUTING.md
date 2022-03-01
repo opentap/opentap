@@ -28,8 +28,8 @@ Issues labeled `To be Discussed` require further discussion. Do your best to res
 Once you have identified an issue:
 
 1. Identify an existing issue you want to work on, or submit a new issue
-1. Seek consensus on the idea (to make it easier to make a PR that the maintainers will agree with in the first go)
-1. Assign it to yourself
-2. Fork the repo
-3. develop and test and commit changes
-4. Submit a pull request back to [the root of the fork network](https://github.com/opentap/opentap)
+2. Seek consensus on the idea (to make it easier to make a PR that the maintainers will agree with in the first go)
+3. Assign it to yourself
+4. Fork the repo
+5. develop and test and commit changes
+6. Submit a pull request back to [the root of the fork network](https://github.com/opentap/opentap)
