@@ -599,11 +599,21 @@ namespace OpenTap
                     string lengthFieldText = LockRetry(() => ReadString(lengthFieldLength));
                     int length = int.Parse(lengthFieldText);
                     TerminationCharacterEnabled = false;
-                    string text = LockRetry(() => ReadString(length)) + TerminationCharacter;
+                    string text = LockRetry(() => ReadString(length));
+                    if (text.LastOrDefault() == TerminationCharacter)
+                    {
+                        // Do nothing, this is a hack to fix an issue with instruments including the termination
+                        // character as the last character in the block.
+                    }else
+                    {
+                        text += TerminationCharacter;
+                        // Read the terminating character to get it off the output buffer
+                        LockRetry(() => ReadString());    
+                    }
+                    
                     TerminationCharacterEnabled = true;
 
-                    // Read the terminating character to get it of the output buffer
-                    LockRetry(() => ReadString());
+                    
 
                     return text;
                 }
