@@ -243,6 +243,25 @@ namespace OpenTap.Image.Tests
             }
         }
 
+        [Test]
+        public void DeployDependencyMissing()
+        {
+            using var tempInstall = MockInstallHelper.CreateInstall();
+
+            var imageSpecifier = MockInstallHelper.CreateSpecifier();
+            imageSpecifier.Packages.Add(new PackageSpecifier("PackageWithMissingDependency", VersionSpecifier.Any));
+            try
+            {
+                imageSpecifier.MergeAndDeploy(tempInstall.Installation, CancellationToken.None);
+                Assert.Fail("This should fail to deploy.");
+            }
+            catch (ImageResolveException ex)
+            {
+                Assert.AreEqual(1, ex.InnerExceptions.Count);
+                StringAssert.Contains("Package 'MissingPackage' could not be found in any repository.", ex.InnerException.Message);
+            }
+        }
+
 
         [Test]
         public void DeployWithOfflineRepoNoErrors()

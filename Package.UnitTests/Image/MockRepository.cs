@@ -56,6 +56,7 @@ namespace OpenTap.Image.Tests
                     DefinePackage("Demonstration",  "9.2.0", CpuArchitecture.AnyCPU, "windows", ("OpenTAP", "^9.12.0")),
                     DefinePackage("MyDemoTestPlan", "1.0.0", CpuArchitecture.AnyCPU, "windows", ("OpenTAP", "^9.12.1"), ("Demonstration", "^9.0.2")),
                     DefinePackage("MyDemoTestPlan", "1.1.0", CpuArchitecture.AnyCPU, "windows", ("OpenTAP", "^9.13.1"), ("Demonstration", "^9.0.2")),
+                    DefinePackage("PackageWithMissingDependency","1.0.0", CpuArchitecture.AnyCPU, "windows", ("MissingPackage", "9.13.1")),
                     DefinePackage("ExactDependency","1.0.0", CpuArchitecture.AnyCPU, "windows", ("OpenTAP", "9.13.1")),
                     DefinePackage("Cyclic",         "1.0.0", CpuArchitecture.AnyCPU, "windows", ("Cyclic2", "1.0.0")),
                     DefinePackage("Cyclic2",        "1.0.0", CpuArchitecture.AnyCPU, "windows", ("Cyclic", "1.0.0")),

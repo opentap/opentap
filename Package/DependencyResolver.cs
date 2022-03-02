@@ -353,10 +353,14 @@ namespace OpenTap.Package
 
                 VersionSpecifier spec = new VersionSpecifier(packageSpecifier.Version.Major, packageSpecifier.Version.Minor, packageSpecifier.Version.Patch, packageSpecifier.Version.PreRelease, packageSpecifier.Version.BuildMetadata, VersionMatchBehavior.Exact);
                 packageSpecifier = new PackageSpecifier(packageSpecifier.Name, spec, packageSpecifier.Architecture, packageSpecifier.OS);
-                IEnumerable<PackageDef> packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageSpecifier);
+                List<PackageDef> packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageSpecifier, installedPackages.ToArray());
 
                 if (!packages.Any() && temp.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible))
-                    return GetLowestCompatible(repositories, temp, installedPackages);
+                {
+                    var pkg = GetLowestCompatible(repositories, temp, installedPackages);
+                    if (pkg != null)
+                        packages.Add(pkg);
+                }
 
                 if (!packages.Any())
                     packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageSpecifier);
