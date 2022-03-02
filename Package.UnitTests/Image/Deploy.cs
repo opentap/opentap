@@ -9,37 +9,14 @@ using OpenTap.Diagnostic;
 
 namespace OpenTap.Image.Tests
 {
-    internal static class MockInstallHelper
-    {
-        private const string repoUrl = "mock://localhost";
-        public static MockRepository MockRepo()
-        {
-            var repo = new MockRepository(repoUrl);
-            PackageRepositoryHelpers.RegisterRepository(repo);
-            return repo;
-        }
-
-        public static ImageSpecifier CreateSpecifier()
-        {
-            return new ImageSpecifier()
-            {
-                Repositories = new List<string>() { repoUrl }
-            };
-        }
-
-        public static TempInstall CreateInstall()
-        {
-            return new TempInstall(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString()));
-        }
-    }
     /// <summary>
-    /// This is a helper for creating mock OpenTAP installations that will clean up after itself
+    /// This is a helper for creating temprary OpenTAP installations that will clean up after itself
     /// </summary>
     internal class TempInstall : IDisposable
     {
-        internal TempInstall(string directoryName)
+        internal TempInstall()
         {
-            _directoryName = directoryName;
+            _directoryName = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
         }
 
         private string _directoryName;
@@ -55,18 +32,12 @@ namespace OpenTap.Image.Tests
 
     public class Deploy
     {
-        [OneTimeSetUp]
-        public void SetUpMockedRepository()
-        {
-            MockInstallHelper.MockRepo();
-        }
-
         [Test]
         public void DeployClean()
         {
-            using var tempInstall = MockInstallHelper.CreateInstall();
+            using var tempInstall = new TempInstall();
 
-            var imageSpecifier = MockInstallHelper.CreateSpecifier();
+            var imageSpecifier = MockRepository.CreateSpecifier();
             imageSpecifier.Packages.Add(new PackageSpecifier("REST-API", new VersionSpecifier(2, 6, 3, null, null, VersionMatchBehavior.Exact)));
             var identifier = imageSpecifier.Resolve(CancellationToken.None);
 
@@ -81,9 +52,9 @@ namespace OpenTap.Image.Tests
         [Test]
         public void DeployNewVersion()
         {
-            var tempInstall = MockInstallHelper.CreateInstall();
+            var tempInstall = new TempInstall();
 
-            var imageSpecifier = MockInstallHelper.CreateSpecifier();
+            var imageSpecifier = MockRepository.CreateSpecifier();
             imageSpecifier.Packages.Add(new PackageSpecifier("REST-API", new VersionSpecifier(2, 6, 3, null, null, VersionMatchBehavior.Exact)));
             var identifier = imageSpecifier.Resolve(CancellationToken.None);
 
@@ -109,9 +80,9 @@ namespace OpenTap.Image.Tests
         [Test]
         public void DeployNewPackage()
         {
-            using var tempInstall = MockInstallHelper.CreateInstall();
+            using var tempInstall = new TempInstall();
 
-            var imageSpecifier = MockInstallHelper.CreateSpecifier();
+            var imageSpecifier = MockRepository.CreateSpecifier();
             imageSpecifier.Packages.Add(new PackageSpecifier("REST-API", new VersionSpecifier(2, 6, 3, null, null, VersionMatchBehavior.Exact)));
             var identifier = imageSpecifier.Resolve(CancellationToken.None);
 
@@ -138,9 +109,9 @@ namespace OpenTap.Image.Tests
         [Test]
         public void DeployNewAndUpgrade()
         {
-            using var tempInstall = MockInstallHelper.CreateInstall();
+            using var tempInstall = new TempInstall();
 
-            var imageSpecifier = MockInstallHelper.CreateSpecifier();
+            var imageSpecifier = MockRepository.CreateSpecifier();
             imageSpecifier.Packages.Add(new PackageSpecifier("Python", new VersionSpecifier(2, 3, 0, null, null, VersionMatchBehavior.Exact)));
             var identifier = imageSpecifier.Resolve(CancellationToken.None);
 
@@ -166,9 +137,9 @@ namespace OpenTap.Image.Tests
         [Test]
         public void DeployNewAndDowngrade()
         {
-            using var tempInstall = MockInstallHelper.CreateInstall();
+            using var tempInstall = new TempInstall();
 
-            var imageSpecifier = MockInstallHelper.CreateSpecifier();
+            var imageSpecifier = MockRepository.CreateSpecifier();
             imageSpecifier.Packages.Add(new PackageSpecifier("Python", new VersionSpecifier(2, 3, 0, null, null, VersionMatchBehavior.Exact)));
             var identifier = imageSpecifier.Resolve(CancellationToken.None);
 
@@ -194,9 +165,9 @@ namespace OpenTap.Image.Tests
         [Test]
         public void DeployOverwrite()
         {
-            using var tempInstall = MockInstallHelper.CreateInstall();
+            using var tempInstall = new TempInstall();
 
-            var imageSpecifier = MockInstallHelper.CreateSpecifier();
+            var imageSpecifier = MockRepository.CreateSpecifier();
             imageSpecifier.Packages.Add(new PackageSpecifier("REST-API", new VersionSpecifier(2, 6, 3, null, null, VersionMatchBehavior.Exact)));
             var identifier = imageSpecifier.Resolve(CancellationToken.None);
 
@@ -222,19 +193,19 @@ namespace OpenTap.Image.Tests
         [Test]
         public void DeployOverwriteTransitiveDependencies()
         {
-            using var tempInstall = MockInstallHelper.CreateInstall();
+            using var tempInstall = new TempInstall();
 
             var openTapSpec = new PackageSpecifier("OpenTAP", VersionSpecifier.Parse("9.17.0-rc.4"));
 
             { // Deploy once
-                var imageSpecifier = MockInstallHelper.CreateSpecifier();
+                var imageSpecifier = MockRepository.CreateSpecifier();
                 imageSpecifier.Packages.Add(openTapSpec);
                 var res = imageSpecifier.MergeAndDeploy(tempInstall.Installation, CancellationToken.None);
                 Assert.AreEqual(1, res.GetPackages().Count);
                 Assert.AreEqual(res.FindPackage("OpenTAP").Version.ToString(), openTapSpec.Version.ToString());
             }
             { // Deploy twice
-                var imageSpecifier = MockInstallHelper.CreateSpecifier();
+                var imageSpecifier = MockRepository.CreateSpecifier();
                 imageSpecifier.Packages.Add(openTapSpec);
                 imageSpecifier.Packages.Add(new PackageSpecifier("License Injector", VersionSpecifier.Parse("9.8.0-beta.5+6fce512f")));
                 var res = imageSpecifier.MergeAndDeploy(tempInstall.Installation, CancellationToken.None);
@@ -246,9 +217,9 @@ namespace OpenTap.Image.Tests
         [Test]
         public void DeployDependencyMissing()
         {
-            using var tempInstall = MockInstallHelper.CreateInstall();
+            using var tempInstall = new TempInstall();
 
-            var imageSpecifier = MockInstallHelper.CreateSpecifier();
+            var imageSpecifier = MockRepository.CreateSpecifier();
             imageSpecifier.Packages.Add(new PackageSpecifier("PackageWithMissingDependency", VersionSpecifier.Any));
             try
             {
@@ -266,7 +237,7 @@ namespace OpenTap.Image.Tests
         [Test]
         public void DeployWithOfflineRepoNoErrors()
         {
-            using var tempInstall = MockInstallHelper.CreateInstall();
+            using var tempInstall = new TempInstall();
             using var s = Session.Create();
             var evt = new EventTraceListener();
             var logs = new List<Event>();
@@ -278,7 +249,7 @@ namespace OpenTap.Image.Tests
 
             try
             {
-                var imageSpecifier = MockInstallHelper.CreateSpecifier();
+                var imageSpecifier = MockRepository.CreateSpecifier();
                 imageSpecifier.Packages.Add(new PackageSpecifier("REST-API", new VersionSpecifier(2, 6, 3, null, null, VersionMatchBehavior.Exact)));
                 imageSpecifier.Repositories.Add("http://some-non-existing-repo.opentap.io");
                 var identifier = imageSpecifier.Resolve(CancellationToken.None);
@@ -303,7 +274,7 @@ namespace OpenTap.Image.Tests
         public void Cache()
         {
             PackageCacheHelper.ClearCache();
-            var imageSpecifier = MockInstallHelper.CreateSpecifier();
+            var imageSpecifier = MockRepository.CreateSpecifier();
             imageSpecifier.Packages.Add(new PackageSpecifier("REST-API", new VersionSpecifier(2, 6, 3, null, null, VersionMatchBehavior.Exact)));
             var identifier = imageSpecifier.Resolve(CancellationToken.None);
             Assert.IsFalse(identifier.Cached);

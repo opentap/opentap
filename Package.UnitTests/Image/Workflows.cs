@@ -12,19 +12,13 @@ namespace OpenTap.Image.Tests
 {
     public class Workflows
     {
-        [OneTimeSetUp]
-        public void SetUpMockedRepository()
-        {
-            MockInstallHelper.MockRepo();
-        }
-
         [Test]
         public void DeployImage()
         {
-            using var install1 = MockInstallHelper.CreateInstall();
-            using var install2 = MockInstallHelper.CreateInstall();
+            using var install1 = new TempInstall();
+            using var install2 = new TempInstall();
 
-            ImageSpecifier imageSpecifier = MockInstallHelper.CreateSpecifier();
+            ImageSpecifier imageSpecifier = MockRepository.CreateSpecifier();
             imageSpecifier.Packages = new List<PackageSpecifier>
             {
                 new PackageSpecifier("Demonstration"),
@@ -62,9 +56,9 @@ namespace OpenTap.Image.Tests
         [Test]
         public void DeployImageOnExistingInstallation()
         {
-            using var tempInstall = MockInstallHelper.CreateInstall();
+            using var tempInstall = new TempInstall();
 
-            ImageSpecifier imageSpecifier = MockInstallHelper.CreateSpecifier();
+            ImageSpecifier imageSpecifier = MockRepository.CreateSpecifier();
             imageSpecifier.Packages = new List<PackageSpecifier>
             {
                 new PackageSpecifier("Demonstration"),
@@ -114,9 +108,9 @@ namespace OpenTap.Image.Tests
         [Test]
         public void DoNotDownloadPackagesThatAreAlreadyInstalled()
         {
-            using var tempInstall = MockInstallHelper.CreateInstall();
+            using var tempInstall = new TempInstall();
 
-            ImageSpecifier imageSpecifier = MockInstallHelper.CreateSpecifier();
+            ImageSpecifier imageSpecifier = MockRepository.CreateSpecifier();
             imageSpecifier.Packages = new List<PackageSpecifier>
             {
                 new PackageSpecifier("OpenTAP"),
@@ -154,9 +148,9 @@ namespace OpenTap.Image.Tests
         [Test]
         public void UninstallInOrder()
         {
-            using var tempInstall = MockInstallHelper.CreateInstall();
+            using var tempInstall = new TempInstall();
 
-            ImageSpecifier imageSpecifier = MockInstallHelper.CreateSpecifier();
+            ImageSpecifier imageSpecifier = MockRepository.CreateSpecifier();
             imageSpecifier.Packages = new List<PackageSpecifier>
             {
                 new PackageSpecifier("OpenTAP"),

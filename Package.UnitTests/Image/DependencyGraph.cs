@@ -21,8 +21,7 @@ namespace OpenTap.Image.Tests
         [TestCase("OpenTAP", "^9.10.0", "Demonstration", "^9.0.6", "9.12.0", "9.1.0")]
         public void ResolveDependencies(string package1, string package1version, string package2, string package2version, string resultingVersion1, string resultingVersion2)
         {
-            var mockRepository = MockInstallHelper.MockRepo();
-            List<IPackageRepository> repositories = new List<IPackageRepository>() { mockRepository };
+            List<IPackageRepository> repositories = new List<IPackageRepository>() { MockRepository.Instance };
 
             List<PackageSpecifier> specifiers = new List<PackageSpecifier>();
             specifiers.Add(new PackageSpecifier(package1, VersionSpecifier.Parse(package1version)));
@@ -32,7 +31,7 @@ namespace OpenTap.Image.Tests
 
             string resolved = resolver.GetDotNotation();
             TestContext.WriteLine(resolved);
-            TestContext.WriteLine($"Resolve count: {mockRepository.ResolveCount}");
+            TestContext.WriteLine($"Resolve count: {MockRepository.Instance.ResolveCount}");
 
             if (resultingVersion1 is null || resultingVersion1 == "error")
                 Assert.IsTrue(resolver.DependencyIssues.Any());

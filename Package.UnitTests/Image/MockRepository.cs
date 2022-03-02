@@ -14,6 +14,36 @@ namespace OpenTap.Image.Tests
         readonly List<PackageDef> AllPackages;
         internal int ResolveCount = 0;
 
+        private static MockRepository instance;
+
+        /// <summary>
+        /// Gets a singleton instance of this class. 
+        /// This instance is already registered as a repository in that calling 
+        /// PackageRepositoryHelpers.DetermineRepositoryType("mock://localhost")
+        /// will return this instance.
+        /// </summary>
+        public static MockRepository Instance {
+            get {
+                if(instance == null)
+                {
+                    instance = new MockRepository("mock://localhost");
+                    PackageRepositoryHelpers.RegisterRepository(instance);
+                }
+                return instance;
+            }
+        }
+
+        /// <summary>
+        /// Creates an specifier that has the mock repo in its list of repositories
+        /// </summary>
+        public static ImageSpecifier CreateSpecifier()
+        {
+            return new ImageSpecifier()
+            {
+                Repositories = new List<string>() { Instance.Url }
+            };
+        }
+
 
         public MockRepository(string url)
         {

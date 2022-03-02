@@ -12,8 +12,7 @@ namespace OpenTap.Image.Tests
         [Test]
         public void DownloadToCache()
         {
-            MockInstallHelper.MockRepo();
-            ImageSpecifier specifier = MockInstallHelper.CreateSpecifier();
+            ImageSpecifier specifier = MockRepository.CreateSpecifier();
             specifier.Packages = new List<PackageSpecifier>()
             {
                 new PackageSpecifier("Demonstration", VersionSpecifier.Parse("9.0.5+3cab80c8"))
