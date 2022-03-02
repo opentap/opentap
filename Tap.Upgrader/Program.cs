@@ -140,23 +140,30 @@ namespace Tap.Upgrader
             }, TimeSpan.FromMinutes(10));
         }
 
-        private static string PackageXml = "package.xml";
-
         private static bool DeleteTapDll()
         {
-            // Check if tap.dll needs to be deleted
-            // We do this by parsing the package xml and checking if tap.dll belongs to the package
-            // This is necessary because 'tap.dll' was not part of the OpenTAP package prior to 9.17,
-            // and OpenTAP emits a warning in versions prior to 9.17 if it is present
-            var xml = XElement.Load(Path.GetFullPath(PackageXml));
-            var ns = xml.GetDefaultNamespace();
-            foreach (var fileEle in xml.Element(ns.GetName("Files")).Elements(ns.GetName("File")))
+            try
             {
-                if (fileEle.Attribute("Path").Value == "tap.dll")
-                    return false;
+                var xmlPath = Path.GetFullPath("package.xml");
+                if (File.Exists(xmlPath) == false) return false;
+                // Check if tap.dll needs to be deleted
+                // We do this by parsing the package xml and checking if tap.dll belongs to the package
+                // This is necessary because 'tap.dll' was not part of the OpenTAP package prior to 9.17,
+                // and OpenTAP emits a warning in versions prior to 9.17 if it is present
+                var xml = XElement.Load(xmlPath);
+                var ns = xml.GetDefaultNamespace();
+                foreach (var fileEle in xml.Element(ns.GetName("Files"))?.Elements(ns.GetName("File")) ?? Array.Empty<XElement>())
+                {
+                    if (fileEle.Attribute("Path")?.Value == "tap.dll")
+                        return false;
+                }
+                return true;
             }
-
-            return true;
+            catch
+            {
+                // this shouldn't happen
+                return false;
+            }
         }
 
         public static void Main(string[] args)
@@ -177,8 +184,13 @@ namespace Tap.Upgrader
                     // Start this process and immediately exit
                     // This subprocess will then wait for the tap.exe instance which started this program to exit
                     // so it can overwrite tap.exe
+                    // We also copy this executable to a temporary file which will delete itself after running
+                    // Otherwise we will cause OpenTAP reinstalls to hang while waiting for Tap.Upgrader.exe to become free
                     var thisExe = typeof(Program).Assembly.Location;
-                    Process.Start(new ProcessStartInfo(thisExe)
+                    var backup = Path.Combine(exeDir, "Tap.Upgrader.Copy.exe");
+                    if (!File.Exists(backup))
+                        File.Copy(thisExe, backup);
+                    Process.Start(new ProcessStartInfo(backup)
                     {
                             // Specify the OpenTAP version we are installing and the directory it is being installed to
                             Arguments = $"p=\"{exeDir}\"",
@@ -214,6 +226,16 @@ namespace Tap.Upgrader
                         File.Delete(tapDllLoc);
                     }, TimeSpan.FromMinutes(10));
                 }
+
+                var thisExe = typeof(Program).Assembly.Location;
+                // Exit and delete self
+                Process.Start( new ProcessStartInfo("cmd.exe")
+                {
+                    // Start a detached 'cmd.exe' command which waits for 3 seconds and deletes this file
+                    // This shouldn't fail, but it's not the end of the world if it does.
+                    Arguments = $"/C choice /C Y /N /D Y /T 3 & Del \"{thisExe}\"",
+                    WindowStyle = ProcessWindowStyle.Hidden, CreateNoWindow = true
+                });
             }
         }
     }
