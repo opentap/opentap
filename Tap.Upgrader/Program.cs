@@ -63,7 +63,7 @@ namespace Tap.Upgrader
 
         public void Install()
         {
-            Program.DumbRetry(() =>
+            Program.RetryUntilSuccess(() =>
             {
                 bool mustDeleteTarget = File.Exists(Target) && File.Exists(Source);
                 bool mustDeleteSource = File.Exists(Source) && DeleteSource;
@@ -90,7 +90,7 @@ namespace Tap.Upgrader
         /// </summary>
         /// <param name="act"></param>
         /// <param name="timeout"></param>
-        internal static void DumbRetry(Action act, TimeSpan timeout)
+        internal static void RetryUntilSuccess(Action act, TimeSpan timeout)
         {
             var sw = Stopwatch.StartNew();
 
@@ -139,7 +139,7 @@ namespace Tap.Upgrader
 
         private static void WaitForFileFree(string file)
         {
-            DumbRetry(() =>
+            RetryUntilSuccess(() =>
             {
                 using var s = File.OpenWrite(file);
             }, TimeSpan.FromMinutes(10));
@@ -226,7 +226,7 @@ namespace Tap.Upgrader
                 if (DeleteTapDll())
                 {
                     var tapDllLoc = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "../../tap.dll"));
-                    DumbRetry(() =>
+                    RetryUntilSuccess(() =>
                     {
                         File.Delete(tapDllLoc);
                     }, TimeSpan.FromMinutes(10));
