@@ -108,14 +108,19 @@ namespace Tap.Upgrader
             }
 
         }
+        /// <summary>
+        /// Note: The order of the tap.exe files is important here! The first file can be overwritten by the second file.
+        /// This is important in niche scenarios where OpenTAP is being upgraded and downgraded between 9.17.0 and releases 9.16.4 and older.
+        /// The 'tap.exe.new' file in the root folder should always take precedence over the 'tap.exe.new' in the 'Packages' folder.
+        /// </summary>
         internal static readonly UpgradePair[] UpgradePairs =
         {
+            // this file is written when installing any version of OpenTAP with OpenTAP 9.17 or later
+            new UpgradePair("../../tap.exe.new", "../../tap.exe", true),
             // this file is part of the payload for OpenTAP 9.17 and later
             new UpgradePair("tap.exe.new", "../../tap.exe", false),
             // this file is written when installing any version of OpenTAP with OpenTAP 9.17 or later
             new UpgradePair("../../tap.dll.new", "../../tap.dll", true),
-            // this file is written when installing any version of OpenTAP with OpenTAP 9.17 or later
-            new UpgradePair("../../tap.exe.new", "../../tap.exe", true),
         };
 
         static Dictionary<string, string> parseArgs(string[] args)
