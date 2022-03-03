@@ -207,22 +207,20 @@ namespace OpenTap.Package
                     specifiers.Add(p);
                     continue;
                 }
+
+                if (specifiers.FirstOrDefault(s => p.Version.IsSatisfiedBy(s.Version)) is PackageSpecifier satisfyingSpecifier)
+                    continue;
+
                 for (int i = 0; i < specifiers.Count; i++)
                 {
-                    if (p.Version.IsSatisfiedBy(specifiers[i].Version))
-                    {
-                        // the already selected package can be used in place of this
-                        continue;
-                    }
-                    else if (specifiers[i].Version.IsSatisfiedBy(p.Version))
+                    if (specifiers[i].Version.IsSatisfiedBy(p.Version))
                     {
                         // this package can satisfy the already selected specification, update to use this instead.
                         specifiers[i] = p;
                     }
-                    else
-                        specifiers.Add(p);
 
                 }
+                specifiers.Add(p);
             }
             return specifiers;
         }
@@ -336,48 +334,44 @@ namespace OpenTap.Package
 
         internal static PackageDef GetPackageDefFromRepo(List<IPackageRepository> repositories, PackageSpecifier packageSpecifier, List<PackageDef> installedPackages)
         {
+            var allVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageSpecifier.Name)
+               .Where(p => p.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS))
+               .Where(p => p.Version != null) // Packages with versions not in Semantic format will be null. We can't take any valuable decision on these.
+               .Select(p => p.Version).Distinct();
+
+            SemanticVersion resolvedVersion = null;
+
             if (packageSpecifier.Version.Minor is null || packageSpecifier.Version.Patch is null)
             {
-                PackageDef foundPackage = GetLatestCompatible(repositories, packageSpecifier, installedPackages);
-                if (foundPackage is null)
-                {
-                    string issue = DetermineResolveIssue(repositories, packageSpecifier, installedPackages);
-                    throw new InvalidOperationException(issue);
-                }
-                else
-                    return foundPackage;
+                resolvedVersion = GetLatestCompatible(allVersions, packageSpecifier, installedPackages);
             }
             else
             {
-                PackageSpecifier temp = packageSpecifier;
-
-                VersionSpecifier spec = new VersionSpecifier(packageSpecifier.Version.Major, packageSpecifier.Version.Minor, packageSpecifier.Version.Patch, packageSpecifier.Version.PreRelease, packageSpecifier.Version.BuildMetadata, VersionMatchBehavior.Exact);
-                packageSpecifier = new PackageSpecifier(packageSpecifier.Name, spec, packageSpecifier.Architecture, packageSpecifier.OS);
-                List<PackageDef> packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageSpecifier, installedPackages.ToArray());
-
-                if (!packages.Any() && temp.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible))
+                SemanticVersion semanticVersion = SemanticVersion.Parse(packageSpecifier.Version.ToString().Replace("^", ""));
+                if (allVersions.FirstOrDefault(s => s.Equals(semanticVersion)) is SemanticVersion exact)
                 {
-                    var pkg = GetLowestCompatible(repositories, temp, installedPackages);
-                    if (pkg != null)
-                        packages.Add(pkg);
+                    resolvedVersion = exact;
                 }
-
-                if (!packages.Any())
-                    packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, packageSpecifier);
-
-                if (!packages.Any())
+                if (resolvedVersion is null)// && packageSpecifier.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible))
                 {
-                    string issue = DetermineResolveIssue(repositories, packageSpecifier, installedPackages);
-                    throw new InvalidOperationException(issue);
+                    resolvedVersion = GetLowestCompatible(allVersions, packageSpecifier, installedPackages);
                 }
-
-                var selected = packages.FirstOrDefault(p => p.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS));
-                if (selected is null)
-                    return packages.FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture)); // fallback to old behavior
-                else
-                    return selected;
-
             }
+
+            if (resolvedVersion is null)
+            {
+                string issue = DetermineResolveIssue(repositories, packageSpecifier, installedPackages);
+                throw new InvalidOperationException(issue);
+            }
+
+            var exactSpec = new PackageSpecifier(packageSpecifier.Name, new VersionSpecifier(resolvedVersion, VersionMatchBehavior.Exact), packageSpecifier.Architecture, packageSpecifier.OS);
+            var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, exactSpec);
+
+            var selected = packages.FirstOrDefault(p => p.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS));
+            if (selected is null)
+                return packages.FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture)); // fallback to old behavior
+            else
+                return selected;
         }
 
         private static string DetermineResolveIssue(List<IPackageRepository> repositories, PackageSpecifier packageSpecifier, List<PackageDef> installedPackages)
@@ -431,12 +425,8 @@ namespace OpenTap.Package
             return $"Package '{packageSpecifier.Name}' could not be found in any repository.";
         }
 
-        private static PackageDef GetLowestCompatible(List<IPackageRepository> repositories, PackageSpecifier packageSpecifier, List<PackageDef> installedPackages)
+        private static SemanticVersion GetLowestCompatible(IEnumerable<SemanticVersion> allVersions, PackageSpecifier packageSpecifier, List<PackageDef> installedPackages)
         {
-            var allVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageSpecifier.Name, installedPackages.ToArray())
-                                                     .Select(p => p.Version).Distinct();
-
-
             allVersions = allVersions.Where(v => v.Major == packageSpecifier.Version.Major).Where(p => packageSpecifier.Version.IsCompatible(p));
             SemanticVersion ver = null;
 
@@ -444,23 +434,11 @@ namespace OpenTap.Package
                 ver = semanticVersion;
             else
                 ver = allVersions.OrderBy(v => v).FirstOrDefault();
-            var exactSpec = new PackageSpecifier(packageSpecifier.Name, new VersionSpecifier(ver, VersionMatchBehavior.Exact), packageSpecifier.Architecture, packageSpecifier.OS);
-            var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, exactSpec);
-
-            var selected = packages.FirstOrDefault(p => p.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS));
-            if (selected is null)
-                return packages.FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture)); // fallback to old behavior
-            else
-                return selected;
+            return ver;
         }
 
-        private static PackageDef GetLatestCompatible(List<IPackageRepository> repositories, PackageSpecifier packageSpecifier, List<PackageDef> installedPackages)
+        private static SemanticVersion GetLatestCompatible(IEnumerable<SemanticVersion> allVersions, PackageSpecifier packageSpecifier, List<PackageDef> installedPackages)
         {
-            var allVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageSpecifier.Name, installedPackages.ToArray())
-                .Where(p => p.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS))
-                .Where(p => p.Version != null) // Packages with versions not in Semantic format will be null. We can't take any valuable decision on these.
-                .Select(p => p.Version).Distinct();
-
             if (packageSpecifier.Version != VersionSpecifier.Any) // If user specified "any", do not filter anything!
             {
                 if (packageSpecifier.Version.Major != null)
@@ -492,15 +470,7 @@ namespace OpenTap.Package
 
             if (!allVersions.Any())
                 return null;
-            SemanticVersion ver = allVersions.OrderByDescending(v => v).FirstOrDefault();
-            var exactSpec = new PackageSpecifier(packageSpecifier.Name, new VersionSpecifier(ver, VersionMatchBehavior.Exact), packageSpecifier.Architecture, packageSpecifier.OS);
-            var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, exactSpec);
-
-            var selected = packages.FirstOrDefault(p => p.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS));
-            if (selected is null)
-                return packages.FirstOrDefault(pkg => ArchitectureHelper.PluginsCompatible(pkg.Architecture, ArchitectureHelper.GuessBaseArchitecture)); // fallback to old behavior
-            else
-                return selected;
+            return allVersions.OrderByDescending(v => v).FirstOrDefault();
         }
 
         private static int ComparePreReleaseType(string p1, string p2)

@@ -194,22 +194,32 @@ namespace OpenTap.Image.Tests
         public void DeployOverwriteTransitiveDependencies()
         {
             using var tempInstall = new TempInstall();
-
-            var openTapSpec = new PackageSpecifier("OpenTAP", VersionSpecifier.Parse("9.17.0-rc.4"));
+            string problemImage = @"
+{
+    ""Packages"": [
+        {
+            ""Name"": ""License Injector"",
+            ""Version"": ""9.8.0-beta.5+6fce512f""
+        }],
+    ""Repositories"": [
+        ""packages.opentap.keysight.com"",
+        ""packages.opentap.io""
+    ]
+}";
+            var openTapSpec = new PackageSpecifier("OpenTAP", VersionSpecifier.Parse("9.16.0"));
 
             { // Deploy once
                 var imageSpecifier = MockRepository.CreateSpecifier();
                 imageSpecifier.Packages.Add(openTapSpec);
                 var res = imageSpecifier.MergeAndDeploy(tempInstall.Installation, CancellationToken.None);
-                Assert.AreEqual(1, res.GetPackages().Count);
+                Assert.AreEqual(1, res.GetPackages().Where(s => s.Class != "system-wide").Count());
                 Assert.AreEqual(res.FindPackage("OpenTAP").Version.ToString(), openTapSpec.Version.ToString());
             }
             { // Deploy twice
-                var imageSpecifier = MockRepository.CreateSpecifier();
-                imageSpecifier.Packages.Add(openTapSpec);
-                imageSpecifier.Packages.Add(new PackageSpecifier("License Injector", VersionSpecifier.Parse("9.8.0-beta.5+6fce512f")));
+                PackageCacheHelper.ClearCache();
+                var imageSpecifier = ImageSpecifier.FromString(problemImage);
                 var res = imageSpecifier.MergeAndDeploy(tempInstall.Installation, CancellationToken.None);
-                Assert.AreEqual(3, res.GetPackages().Count);
+                Assert.AreEqual(5, res.GetPackages().Where(s => s.Class != "system-wide").Count());
                 Assert.AreEqual(res.FindPackage("Keg").Version.ToString(), "0.1.0-beta.17+cd0310b9");
             }
         }

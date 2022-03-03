@@ -127,12 +127,12 @@ namespace OpenTap.Image.Tests
         [TestCase("C", "^rc", "Linux", CpuArchitecture.x86, "2.0.0")]
         [TestCase("D", "^rc", "Linux", CpuArchitecture.x86, "2.1.0-rc.1")]
         [TestCase("E", "2.1.0-beta.1", "Linux", CpuArchitecture.x86, "2.1.0-beta.1")]
-        [TestCase("E", "2.1.0-beta", "Linux", CpuArchitecture.x86, "2.1.0-beta.2")]
+        [TestCase("E", "2.1.0-beta", "Linux", CpuArchitecture.x86, "2.1.0-beta.1")]
         [TestCase("E", "2.1.0-beta.2", "Linux", CpuArchitecture.x86, "2.1.0-beta.2")]
-        [TestCase("E", "2.2.0-alpha.2", "Linux", CpuArchitecture.x86, "2.2.0-alpha.2.2")]
+        [TestCase("E", "2.2.0-alpha.2", "Linux", CpuArchitecture.x86, "2.2.0-alpha.2.1")]
         [TestCase("E", "2.2.0-alpha.2.1", "Linux", CpuArchitecture.x86, "2.2.0-alpha.2.1")]
         [TestCase("E", "2.2.0-alpha.2.2", "Linux", CpuArchitecture.x86, "2.2.0-alpha.2.2")]
-        [TestCase("E", "2.2.0-alpha", "Linux", CpuArchitecture.x86, "2.2.0-alpha.2.2")]
+        [TestCase("E", "2.2.0-alpha", "Linux", CpuArchitecture.x86, "2.2.0-alpha.2.1")]
         [TestCase("F", "1.0", "Linux", CpuArchitecture.x86, "error")]  // we ask for 1.0, but there is only 1.1 and above in the repo
         [TestCase("F", "^1.0", "Linux", CpuArchitecture.x86, "1.1.1")] // There is only 1.1 and above in the repo, so we should get 1.1.1 (lowest compatible version in the fields we specify)
         public void FullResolveCases(string packageName, string version, string os, CpuArchitecture cpuArchitecture, string resultingVersion)
