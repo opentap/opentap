@@ -353,11 +353,18 @@ namespace OpenTap
             return Task.Factory.FromAsync(awaiter, x => { });
         }
 
-        internal static TapThread Start(Action action, Action onHierarchyCompleted, string name = "")
+        /// <summary> Starts a new Tap Thread.</summary>
+        /// <param name="action">The action to run.</param>
+        /// <param name="onHierarchyCompleted">Executed when this hierarchy level is completed (may be before child threads complete)</param>
+        /// <param name="name">The name of the thread.</param>
+        /// <param name="threadContext">The parent context. null if the current context should be selected.</param>
+        /// <returns>A thread instance.</returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        internal static TapThread Start(Action action, Action onHierarchyCompleted, string name = "", TapThread threadContext = null)
         {
             if (action == null)
                 throw new ArgumentNullException(nameof(action), "Action to be executed cannot be null.");
-            var newThread = new TapThread(Current, action, onHierarchyCompleted, name);
+            var newThread = new TapThread(threadContext ?? Current, action, onHierarchyCompleted, name);
             manager.Enqueue(newThread);
             return newThread;
         }

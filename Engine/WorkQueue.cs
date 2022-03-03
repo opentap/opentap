@@ -62,6 +62,7 @@ namespace OpenTap
 
         readonly object threadCreationLock = new object();
         readonly CancellationTokenSource cancel = new CancellationTokenSource();
+        readonly TapThread threadContext = null;
 
         //this should always be either 1(thread was started) or 0(thread is not started yet)
         int threadCount = 0;
@@ -87,6 +88,16 @@ namespace OpenTap
                 average = new TimeSpanAverager();
             Name = name;
         }
+        
+        /// <summary> Creates a new instance of WorkQueue.</summary>
+        /// <param name="options">Options.</param>
+        /// <param name="name">A name to identify a work queue.</param>
+        /// <param name="threadContext"> The thread context in which to run work jobs. The default value causes the context to be the parent of an enqueuing thread.</param>
+        public WorkQueue(Options options, string name = "", TapThread threadContext = null) :this(options, name)
+        {
+            this.threadContext = threadContext;
+        }
+
 
         /// <summary> Enqueue a new piece of work to be handled in the future. </summary>
         public void EnqueueWork(Action a) => EnqueueWork(new ActionInvokable(a));
@@ -104,14 +115,14 @@ namespace OpenTap
                     {
                         retry:
                         awaitArray[1] = cancel.Token.WaitHandle;
-                        int thing = 0;
+                        int cancelIndex = 0;
                         if (longRunning)
-                            thing = WaitHandle.WaitAny(awaitArray);
+                            cancelIndex = WaitHandle.WaitAny(awaitArray);
                         else
-                            thing = WaitHandle.WaitAny(awaitArray, Timeout);
-                        if (thing == 0 && !addSemaphore.Wait(0))
+                            cancelIndex = WaitHandle.WaitAny(awaitArray, Timeout);
+                        if (cancelIndex == 0 && !addSemaphore.Wait(0))
                             goto retry;
-                        bool ok = thing == 0;
+                        bool ok = cancelIndex == 0;
 
                         if (!ok)
                         {
@@ -127,18 +138,23 @@ namespace OpenTap
                         IInvokable run;
                         while (!workItems.TryDequeue(out run))
                             Thread.Yield();
-                        
-                        if (average != null)
+                        try
                         {
-                            var sw = Stopwatch.StartNew();
-                            run.Invoke();
-                            average.PushTimeSpan(sw.Elapsed);
+                            if (average != null)
+                            {
+                                var sw = Stopwatch.StartNew();
+                                run.Invoke();
+                                average.PushTimeSpan(sw.Elapsed);
+                            }
+                            else
+                            {
+                                run.Invoke();
+                            }
                         }
-                        else
+                        finally
                         {
-                            run.Invoke();
+                            Interlocked.Decrement(ref countdown);
                         }
-                        Interlocked.Decrement(ref countdown);
                     }
                 }
                 finally
@@ -155,7 +171,7 @@ namespace OpenTap
                 // #4246: this is incredibly rare, but can happen if millions of results are pushed at once.
                 //        the solution is to just slow a bit down when it happens.
                 //        100 ms sleep is OK, because it needs to do around 1M things before it's idle.
-                TapThread.Sleep(100);
+                Thread.Sleep(100);
             }
             Interlocked.Increment(ref countdown);
             workItems.Enqueue(f);
@@ -167,7 +183,7 @@ namespace OpenTap
                 {
                     if (threadCount == 0)
                     {
-                        TapThread.Start(threadGo, Name);
+                        TapThread.Start(threadGo, null, Name, threadContext);
                         threadCount++;
                     }
                 }
