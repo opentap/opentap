@@ -334,6 +334,15 @@ namespace OpenTap.Package
 
         internal static PackageDef GetPackageDefFromRepo(List<IPackageRepository> repositories, PackageSpecifier packageSpecifier, List<PackageDef> installedPackages)
         {
+            if (SemanticVersion.TryParse(packageSpecifier.Version.ToString().Replace("^", ""), out SemanticVersion tryExact))
+            {
+                VersionSpecifier spec = new VersionSpecifier(packageSpecifier.Version.Major, packageSpecifier.Version.Minor, packageSpecifier.Version.Patch, packageSpecifier.Version.PreRelease, packageSpecifier.Version.BuildMetadata, VersionMatchBehavior.Exact);
+                var exactPackageSpecifier = new PackageSpecifier(packageSpecifier.Name, spec, packageSpecifier.Architecture, packageSpecifier.OS);
+                if (PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, exactPackageSpecifier)
+                    .FirstOrDefault(p => p.IsPlatformCompatible(exactPackageSpecifier.Architecture, exactPackageSpecifier.OS)) is PackageDef exactPackage)
+                    return exactPackage;
+            }
+
             var allVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageSpecifier.Name)
                .Where(p => p.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS))
                .Where(p => p.Version != null) // Packages with versions not in Semantic format will be null. We can't take any valuable decision on these.
