@@ -233,7 +233,7 @@ namespace Tap.Upgrader
                 {
                     // Start a detached 'cmd.exe' command which waits for 3 seconds and deletes this file
                     // This shouldn't fail, but it's not the end of the world if it does.
-                    Arguments = $"/C choice /C Y /N /D Y /T 3 & Del \"{thisExe}\"",
+                    Arguments = $"/C choice /D Y /T 3 & Del \"{thisExe}\"",
                     WindowStyle = ProcessWindowStyle.Hidden, CreateNoWindow = true
                 });
             }
