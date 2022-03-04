@@ -41,6 +41,12 @@ jobs:
       - name: tap sdk gitversion
         id: gitVer
         run: echo ::set-output name=ver::$(tap sdk gitversion)
+      - name: Print version 
+        run: echo ${{ steps.gitVer.outputs.ver }}
+      - name: Setup upterm session
+        uses: lhotari/action-upterm@v1
+        with:
+          limit-access-to-actor: true # limits ssh access and adds the ssh public key for the user which triggered the workflow
 
   ##############
   ### BUILDS ###
