@@ -123,12 +123,6 @@ namespace OpenTap.Package
             var brokenFiles = new List<(PackageFile, string)>();
             foreach (var file in pkg.Files)
             {
-                var filename = Path.GetFileName(file.FileName);
-                if (pkg.Name == "OpenTAP" && (filename == "tap.exe" || filename == "tap" || filename == "tap.dll"))
-                {
-                    log.Debug("Skipping {0}.", filename);
-                    continue;
-                }
                 var hash = file.CustomData.OfType<FileHashPackageAction.Hash>().FirstOrDefault();
                 if (hash == null)
                 {
