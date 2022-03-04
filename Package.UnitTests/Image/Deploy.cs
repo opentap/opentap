@@ -210,11 +210,12 @@ namespace OpenTap.Image.Tests
             var openTapSpec = new PackageSpecifier("OpenTAP", VersionSpecifier.Parse("9.16.0"));
 
             { // Deploy once
-                var imageSpecifier = MockRepository.CreateSpecifier();
+                var imageSpecifier = new ImageSpecifier();
+                imageSpecifier.Repositories.Add("packages.opentap.io");
                 imageSpecifier.Packages.Add(openTapSpec);
                 var res = imageSpecifier.MergeAndDeploy(tempInstall.Installation, CancellationToken.None);
                 Assert.AreEqual(1, res.GetPackages().Where(s => s.Class != "system-wide").Count());
-                Assert.AreEqual(res.FindPackage("OpenTAP").Version.ToString(), openTapSpec.Version.ToString());
+                Assert.IsTrue(res.FindPackage("OpenTAP").Version.ToString().StartsWith(openTapSpec.Version.ToString()));
             }
             { // Deploy twice
                 PackageCacheHelper.ClearCache();

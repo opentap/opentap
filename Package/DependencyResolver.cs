@@ -350,22 +350,7 @@ namespace OpenTap.Package
 
             SemanticVersion resolvedVersion = null;
 
-            if (packageSpecifier.Version.Minor is null || packageSpecifier.Version.Patch is null)
-            {
-                resolvedVersion = GetLatestCompatible(allVersions, packageSpecifier, installedPackages);
-            }
-            else
-            {
-                SemanticVersion semanticVersion = SemanticVersion.Parse(packageSpecifier.Version.ToString().Replace("^", ""));
-                if (allVersions.FirstOrDefault(s => s.Equals(semanticVersion)) is SemanticVersion exact)
-                {
-                    resolvedVersion = exact;
-                }
-                if (resolvedVersion is null)// && packageSpecifier.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible))
-                {
-                    resolvedVersion = GetLowestCompatible(allVersions, packageSpecifier, installedPackages);
-                }
-            }
+            resolvedVersion = GetLatestCompatible(allVersions, packageSpecifier);
 
             if (resolvedVersion is null)
             {
@@ -434,24 +419,11 @@ namespace OpenTap.Package
             return $"Package '{packageSpecifier.Name}' could not be found in any repository.";
         }
 
-        private static SemanticVersion GetLowestCompatible(IEnumerable<SemanticVersion> allVersions, PackageSpecifier packageSpecifier, List<PackageDef> installedPackages)
-        {
-            allVersions = allVersions.Where(v => v.Major == packageSpecifier.Version.Major).Where(p => packageSpecifier.Version.IsCompatible(p));
-            SemanticVersion ver = null;
-
-            if (allVersions.FirstOrDefault(s => s.Minor == packageSpecifier.Version.Minor && s.Patch == packageSpecifier.Version.Patch && s.PreRelease == packageSpecifier.Version.PreRelease) is SemanticVersion semanticVersion)
-                ver = semanticVersion;
-            else
-                ver = allVersions.OrderBy(v => v).FirstOrDefault();
-            return ver;
-        }
-
-        private static SemanticVersion GetLatestCompatible(IEnumerable<SemanticVersion> allVersions, PackageSpecifier packageSpecifier, List<PackageDef> installedPackages)
+        private static SemanticVersion GetLatestCompatible(IEnumerable<SemanticVersion> allVersions, PackageSpecifier packageSpecifier)
         {
             if (packageSpecifier.Version != VersionSpecifier.Any) // If user specified "any", do not filter anything!
             {
-                if (packageSpecifier.Version.Major != null)
-                    allVersions = allVersions.Where(v => v.Major == packageSpecifier.Version.Major);
+                allVersions = allVersions.Where(p => packageSpecifier.Version.IsCompatible(p));
 
                 if (packageSpecifier.Version.Minor != null)
                 {
@@ -471,9 +443,6 @@ namespace OpenTap.Package
                 if (packageSpecifier.Version.PreRelease != null)
                     allVersions = allVersions.Where(p => ComparePreReleaseType(p.PreRelease, packageSpecifier.Version.PreRelease) == 0);
                 else
-                    allVersions = allVersions.Where(s => s.PreRelease == null);
-
-                if (packageSpecifier.Version.Major is null && packageSpecifier.Version.Minor is null && packageSpecifier.Version.Patch is null && packageSpecifier.Version.PreRelease is null) // If user specified "" (blank), we filter away prereleases
                     allVersions = allVersions.Where(s => s.PreRelease == null);
             }
 

@@ -96,8 +96,8 @@ namespace OpenTap.Image.Tests
         [TestCase("B", "1.0", "Linux", CpuArchitecture.x64, "error")]
         [TestCase("B", "1.0", "Windows", CpuArchitecture.x86, "error")]
         [TestCase("B", "2.0", "Windows", CpuArchitecture.x86, "error")]
-        [TestCase("B", "3.0", "Windows", CpuArchitecture.x64, "3.0.1")] // 3.0 means we want latest 3.0 release
-        [TestCase("B", "^3.0", "Windows", CpuArchitecture.x64, "3.0.1")] // ^3.0 means we want latest compatible 3.0 release
+        [TestCase("B", "3.0", "Windows", CpuArchitecture.x64, "3.0.2")] // 3.0 means we want latest 3.0 release
+        [TestCase("B", "^3.0", "Windows", CpuArchitecture.x64, "3.0.2")] // ^3.0 means we want latest compatible 3.0 release
         [TestCase("B", "^3.0.1", "Windows", CpuArchitecture.x64, "3.0.1")] // ^3.0.1 means we want 3.0.1 or compatible
         [TestCase("B", "3", "Windows", CpuArchitecture.x64, "3.1.1")] // 3 means we want latest 3 release
         [TestCase("B", "2.1.0", "Linux", CpuArchitecture.x86, "2.1.0")]
