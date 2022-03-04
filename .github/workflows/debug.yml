@@ -1,0 +1,73 @@
+name: Debug
+
+on: [push]
+
+env:
+  #OPENTAP_COLOR: auto # github messes with the "auto" detection (i.e. it has no effect), and "always" breaks a lot of things
+  OPENTAP_ANSI_COLORS: true
+  OPENTAP_NO_UPDATE_CHECK: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_CONSOLE_ANSI_COLOR: true
+
+jobs:
+  GetVersion:
+    runs-on: ubuntu-latest
+    # Map a step output to a job output
+    outputs:
+      ShortVersion: ${{ steps.asmVer.outputs.ver }}
+      LongVersion: ${{ steps.longVer.outputs.ver }}
+      GitVersion: ${{ steps.gitVer.outputs.ver }}
+    steps:
+      - name: Install OpenTAP
+        run: |
+          mkdir $HOME/.tap
+          wget -O opentap.TapPackage https://packages.opentap.io/3.0/downloadpackage/OpenTAP?os=linux
+          unzip opentap.TapPackage -d "$HOME/.tap"
+          chmod +x $HOME/.tap/tap
+          ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: tap sdk gitversion --fields 3
+        id: asmVer
+        run: echo ::set-output name=ver::`tap sdk gitversion --fields 3`
+      - name: tap sdk gitversion --fields 4
+        id: longVer
+        run: echo ::set-output name=ver::`tap sdk gitversion --fields 4`
+      - name: tap sdk gitversion
+        id: gitVer
+        run: echo ::set-output name=ver::$(tap sdk gitversion)
+      - name: Run gitversion with verbose logging
+        run: tap sdk gitversion -v
+      - name: Print version output 
+        run: echo ${{ steps.gitVer.outputs.ver }}
+      - name: Setup upterm session
+        uses: lhotari/action-upterm@v1
+        with:
+          limit-access-to-actor: true # limits ssh access and adds the ssh public key for the user which triggered the workflow
+
+  ##############
+  ### BUILDS ###
+  ##############
+
+  Build-Linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
+      - name: Build
+        run: dotnet publish -c Release OpenTAP.sln
+      - name: Run gitversion with verbose logging
+        run: tap sdk gitversion -v
+      - name: Setup upterm session
+        uses: lhotari/action-upterm@v1
+        with:
+          limit-access-to-actor: true # limits ssh access and adds the ssh public key for the user which triggered the workflow
+

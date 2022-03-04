@@ -344,7 +344,7 @@ namespace OpenTap.Package
         
         private Tag getReleaseTag(Config cfg, Commit c)
         {
-            log.Debug("Tags:");
+            log.Debug("Looking for tag matching commit {0}:",c.Sha);
             foreach (Tag t in repo.Tags)
             {
                 log.Debug("  {0,-15} {1} {2}", t.FriendlyName, t.IsAnnotated ? "*" : " ", t.Target.Peel<Commit>().Sha);
@@ -352,9 +352,11 @@ namespace OpenTap.Package
                     t.Target.Peel<Commit>() == c &&
                     cfg.ReleaseTagRegex.IsMatch(t.FriendlyName))
                 {
+                    log.Debug("Found matching tag");
                     return t;
                 }
             }
+            log.Debug("No matching tag found");
             return null;
         }
 
