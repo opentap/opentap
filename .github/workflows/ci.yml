@@ -18,16 +18,13 @@ jobs:
       LongVersion: ${{ steps.longVer.outputs.ver }}
       GitVersion: ${{ steps.gitVer.outputs.ver }}
     steps:
-      - name: Create OpenTAP install dir
-        run: mkdir $HOME/.tap
-      - name: Download OpenTAP
-        run: wget -O opentap.TapPackage https://packages.opentap.io/3.0/downloadpackage/OpenTAP?os=linux
-      - name: Unzip
-        run: unzip opentap.TapPackage -d "$HOME/.tap"
-      - name: Change permission
-        run: chmod +x $HOME/.tap/tap
-      - name: Create symlink
-        run: ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
+      - name: Install OpenTAP
+        run: |
+          mkdir $HOME/.tap
+          wget -O opentap.TapPackage https://packages.opentap.io/3.0/downloadpackage/OpenTAP?os=linux
+          unzip opentap.TapPackage -d "$HOME/.tap"
+          chmod +x $HOME/.tap/tap
+          ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
       - name: Checkout
         uses: actions/checkout@v2
         with:
