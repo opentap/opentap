@@ -36,6 +36,9 @@ namespace OpenTap.UnitTests
                 });
             });
             
+            // Abort the thread that enqueued the work (trd1). 
+            // This should not abort the work itself (i.e. jobEndWait should be released) 
+            // since the WorkQueue uses another thread (baseThread) as the parent thread for all work
             trd1.Abort();
             trd1AbortWait.Release();
 
@@ -47,6 +50,7 @@ namespace OpenTap.UnitTests
             bool workEnded2 = false;
             workQueue.EnqueueWork(() =>
             {
+                // Now that the baseThread is aborted, test that the thread running the work is also set to abort.
                 Assert.IsTrue(TapThread.Current.AbortToken.IsCancellationRequested);
                 workEnded2 = true;
             });
