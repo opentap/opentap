@@ -32,6 +32,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: tap sdk gitversion --fields 3
         id: asmVer
         run: echo ::set-output name=ver::`tap sdk gitversion --fields 3`
@@ -143,6 +146,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Setup .NET
         uses: actions/setup-dotnet@v1
         with:
@@ -168,6 +174,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Nuget Cache
         uses: actions/cache@v2
         id: cache
@@ -212,6 +221,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Setup .NET
         uses: actions/setup-dotnet@v1
         with:
@@ -237,6 +249,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Download binaries
         uses: actions/download-artifact@v2
         with:
@@ -260,6 +275,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Download binaries
         uses: actions/download-artifact@v2
         with:
@@ -284,6 +302,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Download binaries
         uses: actions/download-artifact@v2
         with:
@@ -357,6 +378,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Download x64 binaries
         uses: actions/download-artifact@v2
         with:
@@ -419,6 +443,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Download x64 binaries
         uses: actions/download-artifact@v2
         with:
@@ -480,6 +507,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Download binaries
         uses: actions/download-artifact@v2
         with:
@@ -569,6 +599,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Download binaries
         uses: actions/download-artifact@v2
         with:
@@ -637,6 +670,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Download Linux package
         uses: actions/download-artifact@v2
         with:
@@ -776,6 +812,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Setup .NET
         uses: actions/setup-dotnet@v1
         with:
