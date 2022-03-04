@@ -557,22 +557,15 @@ namespace OpenTap
             {   // AbortCondition
                 
                 var abort2 = EngineSettings.Current.AbortTestPlan;
-
+                BreakCondition = default;
+                if (abort2.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail))
+                    BreakCondition |= BreakCondition.BreakOnFail;
                 if (abort2.HasFlag(EngineSettings.AbortTestPlanType.Step_Error))
-                {
-                    if (abort2.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail))
-                    {
-                        BreakCondition = BreakCondition.BreakOnError | BreakCondition.BreakOnFail;
-                    }
-                    else
-                    {
-                        BreakCondition = BreakCondition.BreakOnError;
-                    }
-                }
-                else if (abort2.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail))
-                {
-                    BreakCondition = BreakCondition.BreakOnFail;
-                }
+                    BreakCondition |= BreakCondition.BreakOnError;
+                if (abort2.HasFlag(EngineSettings.AbortTestPlanType.Step_Inconclusive))
+                    BreakCondition |= BreakCondition.BreakOnInconclusive;
+                if (abort2.HasFlag(EngineSettings.AbortTestPlanType.Step_Pass))
+                    BreakCondition |= BreakCondition.BreakOnPass;
             }
         }
 

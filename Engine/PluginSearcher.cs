@@ -1260,44 +1260,7 @@ namespace OpenTap
                     log.Debug(ex);
                 }
             }
-            if(assembly != null)
-                AssemblyExtensions.lookup[assembly] = this.SemanticVersion;
             return assembly;
         }
     }
-
-    internal static class AssemblyExtensions
-    {
-        // TODO: Change this to mapping from Assembly to AssemblyData instead.
-        internal static ConcurrentDictionary<Assembly, SemanticVersion> lookup = new ConcurrentDictionary<Assembly, SemanticVersion>();
-        internal static SemanticVersion GetSemanticVersion(this Assembly asm)
-        {
-            if (!lookup.ContainsKey(asm) || lookup[asm] == null)
-            {
-                string verString = asm.GetCustomAttributes<AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion;
-                SemanticVersion ver = default(SemanticVersion);
-                if (String.IsNullOrEmpty(verString) || !SemanticVersion.TryParse(verString, out ver))
-                    verString = asm.GetCustomAttributes<AssemblyVersionAttribute>().FirstOrDefault()?.Version;
-                if (String.IsNullOrEmpty(verString) || !SemanticVersion.TryParse(verString, out ver))
-                    verString = asm.GetCustomAttributes<AssemblyFileVersionAttribute>().FirstOrDefault()?.Version;
-                if (String.IsNullOrEmpty(verString) || !SemanticVersion.TryParse(verString, out ver))
-                {
-                    if(asm.IsDynamic == true || string.IsNullOrWhiteSpace(asm.Location))
-                        verString = "0.0.0";
-                    else if(Version.TryParse(FileVersionInfo.GetVersionInfo(asm.Location).ProductVersion, out Version pv))
-                        verString = pv.ToString(3);
-                    else if(Version.TryParse(FileVersionInfo.GetVersionInfo(asm.Location).FileVersion, out Version fv))
-                        verString = fv.ToString(3);
-                    else
-                        verString = "0.0.0";
-
-                }
-                if (String.IsNullOrEmpty(verString) || !SemanticVersion.TryParse(verString, out ver))
-                    Debug.Assert(false);
-                lookup[asm] = ver;
-            }
-            return lookup[asm];
-        }
-    }
-
 }

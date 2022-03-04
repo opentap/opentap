@@ -4,7 +4,7 @@
     <Status>Released</Status>
     <Organisation>Keysight Technologies</Organisation>
   </Description>
-  <SourceUrl>https://gitlab.com/OpenTAP/opentap</SourceUrl>
+  <SourceUrl>https://github.com/opentap/opentap</SourceUrl>
   <Owner>OpenTAP</Owner>
   <Dependencies>
     <PackageDependency Package="OpenTAP" Version="^$(GitVersion)" />

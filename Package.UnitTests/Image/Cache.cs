@@ -1,10 +1,8 @@
 ﻿using NUnit.Framework;
 using OpenTap.Package;
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 
 namespace OpenTap.Image.Tests
@@ -14,13 +12,10 @@ namespace OpenTap.Image.Tests
         [Test]
         public void DownloadToCache()
         {
-            ImageSpecifier specifier = new ImageSpecifier()
+            ImageSpecifier specifier = MockRepository.CreateSpecifier();
+            specifier.Packages = new List<PackageSpecifier>()
             {
-                Packages = new List<PackageSpecifier>()
-                {
-                    new PackageSpecifier("Demonstration", VersionSpecifier.Parse("9.0.5+3cab80c8"))
-                },
-                Repositories = new List<string> { "packages.opentap.io" }
+                new PackageSpecifier("Demonstration", VersionSpecifier.Parse("9.0.5+3cab80c8"))
             };
 
             try

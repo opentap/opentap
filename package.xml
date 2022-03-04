@@ -13,7 +13,7 @@
         <!-- Set Debug=true to exclude documentation files and include debugging symbols -->
         <Debug Condition="$(Debug) != true">false</Debug>
     </Variables>
-    <SourceUrl>https://gitlab.com/OpenTAP/opentap</SourceUrl>
+    <SourceUrl>https://github.com/opentap/opentap</SourceUrl>
     <Owner>OpenTAP</Owner>
     <!-- Common files  -->
     <Files Condition="$(Debug) == false">
@@ -52,6 +52,7 @@
         <File Path="OpenTap.Plugins.BasicSteps.pdb"/>
         <File Path="OpenTap.Cli.dll"/>
         <File Path="OpenTap.Cli.pdb"/>
+        <File Path="Packages/OpenTap/Tap.Upgrader.pdb" SourcePath="Tap.Upgrader.pdb"/>
     </Files>
     <!-- Windows only files -->
     <Files Condition="$(Platform) == Windows">
@@ -120,5 +121,6 @@
     </PackageActionExtensions>
     <PackageActionExtensions Condition="$(Platform) == Windows">
         <ActionStep ActionName="install" ExeFile="Packages/OpenTap/Tap.Upgrader.exe" />
+        <ActionStep ActionName="uninstall" ExeFile="Packages/OpenTap/Tap.Upgrader.exe" />
     </PackageActionExtensions>
 </Package>

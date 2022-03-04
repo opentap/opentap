@@ -69,7 +69,7 @@ namespace OpenTap.Package
                             log.TraceEvent(severity, 0, $"Package '{pkg.Name}' depends on '{issue.PackageName} which itself will be broken (See message related to other plugin).");
                             break;
                         case DependencyIssueType.IncompatibleVersion:
-                            log.TraceEvent(severity, 0, $"Package '{pkg.Name}' depends on '{issue.PackageName}' version '{issue.ExpectedVersion}', but '{issue.LoadedVersion}' will be installed.");
+                            log.TraceEvent(severity, 0, $"Package '{pkg.Name}' depends on '{issue.PackageName}' version '{issue.ExpectedVersion}', but '{issue.LoadedVersion}' is requested.");
                             break;
                     }
                 }
