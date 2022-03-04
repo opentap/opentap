@@ -191,6 +191,7 @@ namespace OpenTap.Image.Tests
         }
 
         [Test]
+        [Ignore("No access to internal repository")]
         public void DeployOverwriteTransitiveDependencies()
         {
             using var tempInstall = new TempInstall();
