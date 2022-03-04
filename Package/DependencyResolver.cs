@@ -154,8 +154,10 @@ namespace OpenTap.Package
             CpuArchitecture arch;
             if (archs.Count != 1)
             {
-                if (openTapPackage?.Architecture != null && openTapPackage.Architecture != CpuArchitecture.Unspecified)
+                if (openTapPackage?.Architecture != null && openTapPackage.Architecture != CpuArchitecture.Unspecified && openTapPackage.Architecture != CpuArchitecture.AnyCPU)
                     arch = openTapPackage.Architecture;
+                else if (InstalledPackages.ContainsKey("OpenTAP"))
+                    arch = InstalledPackages["OpenTAP"].Architecture;
                 else
                     arch = ArchitectureHelper.GuessBaseArchitecture;
             }
