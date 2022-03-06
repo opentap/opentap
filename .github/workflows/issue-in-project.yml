@@ -1,0 +1,19 @@
+name: Add Closed Issue to Project
+
+on:
+  issues:
+    types: [closed]
+
+permissions:
+  contents: read
+  repository-projects: write
+  issues: write
+jobs:
+  issue-in-project:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker://ghcr.io/asgeriversen/issue-in-project:v1
+        env:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          issue-closed-to-project: opentap/opentap/projects/5
+          issue-closed-to-column: Needs Verification
