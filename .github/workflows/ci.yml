@@ -423,7 +423,7 @@ jobs:
           TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
           TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
-          SIGN: ${{github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')}}
+          Sign: ${{github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')}}
       - uses: actions/upload-artifact@v2
         with:
           name: win-${{ matrix.Architecture }}-package
@@ -488,7 +488,7 @@ jobs:
           TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
           TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
-          SIGN: ${{github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')}}
+          Sign: ${{github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')}}
       - uses: actions/upload-artifact@v2
         with:
           name: linux-x64-package
