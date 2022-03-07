@@ -1,4 +1,4 @@
-Release Notes  - OpenTAP 9.17
+Release Notes  - OpenTAP 9.17 
 =============
 
 New Features:
@@ -24,7 +24,7 @@ Bug Fixes:
 - ComponentSettings SaveAllCurrentSettings does not save all current settings [#113](https://github.com/opentap/opentap/issues/113)
 - Incompatible dll references are silently ignored [#119](https://github.com/opentap/opentap/issues/119)
 - Hidden Files cannot be overwritten by package install [#182](https://github.com/opentap/opentap/issues/182)
-- TypeData hard crash when loading dll's from incompatible frameworks [#278](https://github.com/opentap/opentap/issues/278)
+- TypeData hard crash when loading DLLs from incompatible frameworks [#278](https://github.com/opentap/opentap/issues/278)
 - Test Plan break does not work for Pass and Inconclusive [#316](https://github.com/opentap/opentap/issues/316)
 - Error displayed in log "Installed OpenTAP version is not compatible" [#327](https://github.com/opentap/opentap/issues/327)
 - Run command is returning an error on parameterized test plan [#350](https://github.com/opentap/opentap/issues/350)
