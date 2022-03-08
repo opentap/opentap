@@ -298,7 +298,7 @@ namespace OpenTap.Package.UnitTests
                     var searcher = new PluginSearcher();
                     searcher.Search(Directory.GetCurrentDirectory());
                     List<AssemblyData> assemblies = searcher.Assemblies.ToList();
-                    def.findDependencies(new List<string>(), assemblies);
+                    IncludeAssemblyDependencies.findDependencies(def, new List<string>(), assemblies);
 
                     Assert.AreEqual(0, def.Dependencies.Count);
                     Assert.AreNotEqual(0, def.Files.Count);
@@ -315,7 +315,7 @@ namespace OpenTap.Package.UnitTests
                     var searcher = new PluginSearcher();
                     searcher.Search(Directory.GetCurrentDirectory());
                     List<AssemblyData> assemblies = searcher.Assemblies.ToList();
-                    def.findDependencies(new List<string> { "OpenTap" }, assemblies);
+                    IncludeAssemblyDependencies.findDependencies(def, new List<string> { "OpenTap" }, assemblies);
 
                     Assert.AreEqual(0, def.Dependencies.Count);
                     Assert.AreNotEqual(1, def.Files.Count);
@@ -378,7 +378,7 @@ namespace OpenTap.Package.UnitTests
                     var searcher = new PluginSearcher();
                     searcher.Search(Directory.GetCurrentDirectory());
                     List<AssemblyData> assemblies = searcher.Assemblies.ToList();
-                    def.findDependencies(new List<string>(), assemblies);
+                    IncludeAssemblyDependencies.findDependencies(def, new List<string>(), assemblies);
 
                     //Assert.AreEqual(3, def.Dependencies.Count);
                     Assert.IsTrue(def.Dependencies.Any(d => d.Name == "rv"));
@@ -399,7 +399,7 @@ namespace OpenTap.Package.UnitTests
                     var searcher = new PluginSearcher();
                     searcher.Search(Directory.GetCurrentDirectory());
                     List<AssemblyData> assemblies = searcher.Assemblies.ToList();
-                    def.findDependencies(new List<string>(), assemblies);
+                    IncludeAssemblyDependencies.findDependencies(def, new List<string>(), assemblies);
 
                     //Assert.AreEqual(2, def.Dependencies.Count);
                     Assert.IsTrue(def.Dependencies.Any(d => d.Name == "gui"));
