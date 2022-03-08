@@ -454,10 +454,13 @@ namespace OpenTap
             Parameters.IncludeMetadataFromObject(plan);
 
             this.Verdict = Verdict.NotSet; // set Parameters before setting Verdict.
-            
-            foreach (var res in resultListeners)
+
+            if (resultListeners !=  null)
             {
-                AddResultListener(res);
+                foreach (var res in resultListeners)
+                {
+                    AddResultListener(res);
+                }
             }
 
             StartTime = startTime;
