@@ -293,5 +293,43 @@ namespace OpenTap.Image.Tests
             identifier.Cache();
             Assert.IsTrue(identifier.Cached);
         }
+
+
+        [TestCase("Developer's System", "", "Windows", CpuArchitecture.AnyCPU, "OpenTAP:9.14.0", new string[] { "OpenTAP:9.14.0", "Developer's System:9.14.0", "Editor:9.14.0" })]
+        public void FullResolvePackageToInstallation(string packageName, string version, string os, CpuArchitecture cpuArchitecture, string opentapInstallation, string[] resultingVersions)
+        {
+            using var tempInstall = new TempInstall();
+
+            ImageSpecifier openTapSpecifier = MockRepository.CreateSpecifier();
+            string[] opentapSplit = opentapInstallation.Split(":");
+            openTapSpecifier.Packages.Add(new PackageSpecifier(opentapSplit[0], VersionSpecifier.Parse(opentapSplit[1])));
+            openTapSpecifier.MergeAndDeploy(tempInstall.Installation, CancellationToken.None);
+
+
+            var imageSpecifier = MockRepository.CreateSpecifier();
+            imageSpecifier.Packages.Add(new PackageSpecifier(packageName, VersionSpecifier.Parse(version), cpuArchitecture, os));
+            try
+            {
+                var image = imageSpecifier.MergeAndDeploy(tempInstall.Installation, CancellationToken.None);
+
+                foreach (var result in resultingVersions)
+                {
+                    string[] resultSplit = result.Split(":");
+                    if (resultSplit[1] == "error")
+                    {
+                        Assert.IsFalse(tempInstall.Installation.GetPackages().FirstOrDefault(p => p.Name == packageName) is PackageDef);
+                    }
+                    else
+                    {
+                        StringAssert.StartsWith(resultSplit[1], tempInstall.Installation.GetPackages().First(p => p.Name == packageName).Version.ToString());
+                    }
+                }
+            }
+            catch (ImageResolveException ex)
+            {
+                Assert.Fail(ex.Message);
+            }
+        }
+
     }
 }

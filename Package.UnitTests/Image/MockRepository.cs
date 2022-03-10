@@ -50,20 +50,34 @@ namespace OpenTap.Image.Tests
             Url = url;
             AllPackages = new List<PackageDef>
                 {
-                    DefinePackage("OpenTAP","8.8.0"),
-                    DefinePackage("OpenTAP","9.10.0"),
-                    DefinePackage("OpenTAP","9.10.1"),
-                    DefinePackage("OpenTAP","9.11.0"),
-                    DefinePackage("OpenTAP","9.11.1"),
-                    DefinePackage("OpenTAP","9.12.0"),
-                    DefinePackage("OpenTAP","9.12.1"),
-                    DefinePackage("OpenTAP","9.13.0"),
-                    DefinePackage("OpenTAP","9.13.1"),
-                    DefinePackage("OpenTAP","9.13.2-beta.1"),
-                    DefinePackage("OpenTAP","9.13.2"),
-                    DefinePackage("OpenTAP","9.14.0"),
-                    DefinePackage("OpenTAP","9.15.2+39e6c2a2"),
-                    DefinePackage("OpenTAP","9.16.0"),
+                    DefinePackage("OpenTAP","8.8.0", CpuArchitecture.x86),
+                    DefinePackage("OpenTAP","9.10.0", CpuArchitecture.x86),
+                    DefinePackage("OpenTAP","9.10.1", CpuArchitecture.x86),
+                    DefinePackage("OpenTAP","9.11.0", CpuArchitecture.x86),
+                    DefinePackage("OpenTAP","9.11.1", CpuArchitecture.x86),
+                    DefinePackage("OpenTAP","9.12.0", CpuArchitecture.x86),
+                    DefinePackage("OpenTAP","9.12.1", CpuArchitecture.x86),
+                    DefinePackage("OpenTAP","9.13.0", CpuArchitecture.x86),
+                    DefinePackage("OpenTAP","9.13.1", CpuArchitecture.x86),
+                    DefinePackage("OpenTAP","9.13.2-beta.1", CpuArchitecture.x86),
+                    DefinePackage("OpenTAP","9.13.2", CpuArchitecture.x86),
+                    DefinePackage("OpenTAP","9.14.0", CpuArchitecture.x86),
+                    DefinePackage("OpenTAP","9.15.2+39e6c2a2", CpuArchitecture.x86),
+                    DefinePackage("OpenTAP","9.16.0", CpuArchitecture.x86),
+                    DefinePackage("OpenTAP","8.8.0", CpuArchitecture.x64),
+                    DefinePackage("OpenTAP","9.10.0", CpuArchitecture.x64),
+                    DefinePackage("OpenTAP","9.10.1", CpuArchitecture.x64),
+                    DefinePackage("OpenTAP","9.11.0", CpuArchitecture.x64),
+                    DefinePackage("OpenTAP","9.11.1", CpuArchitecture.x64),
+                    DefinePackage("OpenTAP","9.12.0", CpuArchitecture.x64),
+                    DefinePackage("OpenTAP","9.12.1", CpuArchitecture.x64),
+                    DefinePackage("OpenTAP","9.13.0", CpuArchitecture.x64),
+                    DefinePackage("OpenTAP","9.13.1", CpuArchitecture.x64),
+                    DefinePackage("OpenTAP","9.13.2-beta.1", CpuArchitecture.x64),
+                    DefinePackage("OpenTAP","9.13.2", CpuArchitecture.x64),
+                    DefinePackage("OpenTAP","9.14.0", CpuArchitecture.x64),
+                    DefinePackage("OpenTAP","9.15.2+39e6c2a2", CpuArchitecture.x64),
+                    DefinePackage("OpenTAP","9.16.0", CpuArchitecture.x64),
                     DefinePackage("OSIntegration","1.4.0+c70929ac", CpuArchitecture.AnyCPU, "windows", ("OpenTAP", "^9.5.0+45ab79bc"))
                         .WithPackageAction(new ActionStep { ActionName = "uninstall", ExeFile = "tap", Arguments = "package list -i" }),
                     DefinePackage("SDK","9.16.0", CpuArchitecture.AnyCPU, "windows,linux,macos", ("OpenTAP", "any")),
@@ -137,6 +151,12 @@ namespace OpenTap.Image.Tests
                     DefinePackage("G",        "2.2.0-alpha.2.1"),
                     DefinePackage("G",        "2.2.0-alpha.2.2"),
                     DefinePackage("G",        "2.3.0-rc.1"),
+                    DefinePackage("Editor", "9.14.0", CpuArchitecture.x64, "windows", ("OpenTAP", "^9.14.0")),
+                    DefinePackage("Editor", "9.14.0", CpuArchitecture.x86, "windows", ("OpenTAP", "^9.14.0")),
+                    DefineBundle("Developer's System", "9.14.0", CpuArchitecture.AnyCPU, "windows", ("Editor", "^9.14.0")),
+                    DefinePackage("Editor", "9.15.2", CpuArchitecture.x64, "windows", ("OpenTAP", "^9.15.2")),
+                    DefinePackage("Editor", "9.15.2", CpuArchitecture.x86, "windows", ("OpenTAP", "^9.15.2")),
+                    DefineBundle("Developer's System", "9.15.2", CpuArchitecture.AnyCPU, "windows", ("Editor", "^9.15.2"))
                 };
         }
 
@@ -153,6 +173,23 @@ namespace OpenTap.Image.Tests
                 {
                     RepositoryUrl = this.Url
                 },
+            };
+        }
+
+        private PackageDef DefineBundle(string name, string version, CpuArchitecture arch = CpuArchitecture.AnyCPU, string os = "windows", params (string name, string version)[] dependencies)
+        {
+            return new PackageDef
+            {
+                Name = name,
+                Version = SemanticVersion.Parse(version),
+                Architecture = arch,
+                OS = os,
+                Dependencies = dependencies.Select(d => new PackageDependency(d.name, VersionSpecifier.Parse(d.version))).ToList(),
+                PackageSource = new HttpRepositoryPackageDefSource()
+                {
+                    RepositoryUrl = this.Url
+                },
+                Class = "bundle"
             };
         }
 
