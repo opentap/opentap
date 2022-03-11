@@ -20,6 +20,9 @@
     <None Include="..\..\nuget\build\OpenTap.targets">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <Content Include="$(NugetPackageRoot)/dotnet.glob/3.0.1/lib/netstandard1.1/DotNet.Glob.dll"
+             CopyToOutputDirectory="PreserveNewest"
+             Link="DotNet.Glob.NetStandard1.1.dll" />
   </ItemGroup>
   
   <ItemGroup>

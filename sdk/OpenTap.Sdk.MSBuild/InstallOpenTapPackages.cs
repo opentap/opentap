@@ -119,10 +119,9 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             Environment.SetEnvironmentVariable("OPENTAP_NO_UPDATE_CHECK", "true");
             Environment.SetEnvironmentVariable("OPENTAP_DEBUG_INSTALL", "true");
 
-            var projectDir = Path.GetFullPath(Path.GetDirectoryName(SourceFile));
-            var buildDir = Path.Combine(projectDir, TapDir);
-            var openTapDll = Path.Combine(buildDir, "OpenTap.dll");
-            var openTapPackageDll = Path.Combine(buildDir, "OpenTap.Package.dll");
+            var thisAsmDir = Path.GetDirectoryName(typeof(OpenTapImageInstaller).Assembly.Location);
+            var openTapDll = Path.Combine(thisAsmDir, "payload", "OpenTap.dll");
+            var openTapPackageDll = Path.Combine(thisAsmDir, "payload", "OpenTap.Package.dll");
 
             // This is sort of a hack because the standard resolver will try to resolve OpenTap 9.4.0.0,
             // but we need to load whatever is in the NuGet directory
