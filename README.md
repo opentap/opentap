@@ -8,7 +8,7 @@ OpenTAP offers a range of sequencing functionality and infrastructure that makes
 
 ## Getting OpenTAP
 
-If you are looking to use OpenTAP, you can get pre-built binaries at [https://opentap.io/download.html](https://www.opentap.io/download.html).
+If you are looking to use OpenTAP, you can get pre-built binaries at [https://opentap.io/downloads](https://www.opentap.io/downloads).
 
 Using the OpenTAP CLI you are now able to download plugin packages from the OpenTAP package repository.
 
