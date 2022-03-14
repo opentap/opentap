@@ -340,23 +340,12 @@ namespace OpenTap
         {
             IEnumerable<string> files = Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories);
             files = files.Where(f => Path.GetExtension(f) == ".dll" || Path.GetExtension(f) == ".exe")
-                .Where(s => !DecendsFromOpenTapIgnore(s))
+                .Where(s => !PathUtils.DecendsFromOpenTapIgnore(s))
                 .ToList();
 
             return Search(files);
         }
 
-        private bool DecendsFromOpenTapIgnore(string path)
-        {
-            string dir = Path.GetDirectoryName(path);
-            if (File.Exists(Path.Combine(dir, ".OpenTapIgnore")))
-                return true;
-            DirectoryInfo d = new DirectoryInfo(dir);
-            if (d.Parent == null)
-                return false;
-            else
-                return DecendsFromOpenTapIgnore(dir);
-        }
 
         /// <summary> Adds an assembly outside the 'search' context. </summary>
         internal void AddAssembly(string path, Assembly loadedAssembly)

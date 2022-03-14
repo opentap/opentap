@@ -131,5 +131,17 @@ namespace Tap.Shared
             //use instead of Path.GetTempFileName()
             return Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + extension);
         }
+
+        internal static bool DecendsFromOpenTapIgnore(string location)
+        {
+            string dir = Path.GetDirectoryName(location);
+            if (File.Exists(Path.Combine(dir, ".OpenTapIgnore")))
+                return true;
+            DirectoryInfo d = new DirectoryInfo(dir);
+            if (d.Parent == null)
+                return false;
+            else
+                return DecendsFromOpenTapIgnore(dir);
+        }
     }
 }

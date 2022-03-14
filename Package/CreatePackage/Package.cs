@@ -336,7 +336,7 @@ namespace OpenTap.Package
                 foreach(var f in pkgDef.Files)
                 {
                     var asms = searchedFiles.Where(sf => PathUtils.AreEqual(f.FileName, sf.Location))
-                        .Where(sf => IsDotNetAssembly(sf.Location)).ToList();
+                        .Where(sf => IsDotNetAssembly(sf.Location) && !PathUtils.DecendsFromOpenTapIgnore(sf.Location)).ToList();
                     if (asms.Count == 0 && (Path.GetExtension(f.FileName).Equals(".dll", StringComparison.OrdinalIgnoreCase) || Path.GetExtension(f.FileName).Equals(".exe", StringComparison.OrdinalIgnoreCase)))
                     {
                         if (File.Exists(f.FileName))
