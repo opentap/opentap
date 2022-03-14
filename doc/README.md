@@ -15,7 +15,7 @@ Learn more about OpenTAP [here](http://opentap.io).
 
 ## Install OpenTAP
 ### Windows
-1. Download OpenTAP from our homepage [here](https://www.opentap.io/download.html). 
+1. Download OpenTAP from our homepage [here](https://opentap.io/downloads). 
 2. Start the installer.
 
 We recommend that you download the Software Development Kit, or simply the Developer’s System Community Edition provided by Keysight Technologies. The Developer System is a bundle that contains the SDK as well as a graphical user interface and result viewing capabilities. It can be installed by typing the following:
