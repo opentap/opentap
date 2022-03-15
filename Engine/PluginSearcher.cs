@@ -338,7 +338,7 @@ namespace OpenTap
         /// </summary>
         public IEnumerable<TypeData> Search(string dir)
         {
-            var finder = new AssemblyFinder() { OutputLog = false, IncludeDependencies = true, DirectoriesToSearch = new[] { dir } };
+            var finder = new AssemblyFinder() { Quiet = true, IncludeDependencies = true, DirectoriesToSearch = new[] { dir } };
             IEnumerable<string> files = finder.AllAssemblies();
 
             return Search(files);

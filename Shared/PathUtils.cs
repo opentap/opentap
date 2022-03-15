@@ -133,19 +133,16 @@ namespace Tap.Shared
         }
 
         /// <summary>
-        /// Checks if the relative path has any OpenTapIgnore in parent chain
+        /// Checks if the relative path has any ".OpenTapIgnore" file in parent directory chain. Throws argument error eventually if input is an absolute path and no ".OpenTapIgnore" file is present in parent directory chain.
         /// </summary>
         /// <param name="location">Relative path of file</param>
-        /// <returns>The precense of OpenTapIgnore in parent chain</returns>
+        /// <returns>Whether an .OpenTapIgnore file exists in folders.</returns>
         internal static bool DecendsFromOpenTapIgnore(string location)
         {
             string dir = Path.GetDirectoryName(location);
             if (File.Exists(Path.Combine(dir, ".OpenTapIgnore")))
                 return true;
             if (string.IsNullOrWhiteSpace(dir))
-                return false;
-            DirectoryInfo d = new DirectoryInfo(dir);
-            if (d.Parent == null)
                 return false;
             else
                 return DecendsFromOpenTapIgnore(dir);

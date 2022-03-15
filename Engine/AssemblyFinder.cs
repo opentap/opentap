@@ -20,7 +20,7 @@ namespace OpenTap
         }
 
         public bool IncludeDependencies = false;
-        public bool OutputLog = true;
+        public bool Quiet = false;
 
         public AssemblyFinder()
         {
@@ -118,7 +118,7 @@ namespace OpenTap
                         }
                         catch (Exception e)
                         {
-                            if (OutputLog)
+                            if (!Quiet)
                             {
                                 log.Error("Unable to enumerate directory '{0}': '{1}'", search_dir ?? "(null)", e.Message);
                                 log.Debug(e);
@@ -131,7 +131,7 @@ namespace OpenTap
                 allSearchFiles = searchFiles.ToArray();
                 matching.InvalidateAll();
                 lastSearch = DateTime.Now;
-                if (OutputLog)
+                if (!Quiet)
                     log.Debug(sw, "Found {0}/{1} assembly files.", searchFiles.Count, files.Count);
             }
         }
