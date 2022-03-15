@@ -336,10 +336,10 @@ namespace OpenTap.Package
                 foreach(var f in pkgDef.Files)
                 {
                     var asms = searchedFiles.Where(sf => PathUtils.AreEqual(f.FileName, sf.Location))
-                        .Where(sf => IsDotNetAssembly(sf.Location) && !PathUtils.DecendsFromOpenTapIgnore(sf.Location)).ToList();
+                        .Where(sf => IsDotNetAssembly(sf.Location)).ToList();
                     if (asms.Count == 0 && (Path.GetExtension(f.FileName).Equals(".dll", StringComparison.OrdinalIgnoreCase) || Path.GetExtension(f.FileName).Equals(".exe", StringComparison.OrdinalIgnoreCase)))
                     {
-                        if (File.Exists(f.FileName) && !PathUtils.DecendsFromOpenTapIgnore(Path.GetFullPath(f.FileName)))
+                        if (File.Exists(f.FileName) && !PathUtils.DecendsFromOpenTapIgnore(f.FileName))
                         {
                             // If the pluginSearcher found assemblies that are located somewhere not expected by the package definition, the package might appear broken.
                             // But if the file found by the pluginSearcher is the same as the one expected by the package definition we should not count it as broken.

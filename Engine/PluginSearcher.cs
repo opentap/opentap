@@ -338,10 +338,8 @@ namespace OpenTap
         /// </summary>
         public IEnumerable<TypeData> Search(string dir)
         {
-            IEnumerable<string> files = Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories);
-            files = files.Where(f => Path.GetExtension(f) == ".dll" || Path.GetExtension(f) == ".exe")
-                .Where(s => !PathUtils.DecendsFromOpenTapIgnore(s))
-                .ToList();
+            var finder = new AssemblyFinder() { OutputLog = false, IncludeDependencies = true, DirectoriesToSearch = new[] { dir } };
+            IEnumerable<string> files = finder.AllAssemblies();
 
             return Search(files);
         }
