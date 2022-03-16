@@ -322,6 +322,41 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(2, avail.AvailableValues.Cast<object>().Count());
         }
 
+        class ObjectWithList
+        {
+            public List<double> Values { get; set; } = new List<double>();
+
+            [Unit("", UseRanges: true)]
+            public List<double>Values2 { get; set; } = new List<double>();
+        }
+
+        [Test]
+        public void TestValuesAnnotation()
+        {
+            var objects = new ObjectWithList(){Values = new List<double> {1, 2, 3}, Values2 = new List<double> {1, 2, 3}};
+
+            { // test UseRanges=false
+                var member = AnnotationCollection.Annotate(objects).GetMember(nameof(ObjectWithList.Values));
+                var v = member.Get<IStringValueAnnotation>().Value;
+                Assert.AreEqual("1, 2, 3", v);
+                member.Get<IStringValueAnnotation>().Value = "1:4";
+                member.Write();
+                v = member.Get<IStringValueAnnotation>().Value;
+                Assert.AreEqual("1, 2, 3, 4", v);
+            }
+            {// test UseRanges=true
+                var member2 = AnnotationCollection.Annotate(objects).GetMember(nameof(ObjectWithList.Values2));
+                var v2 = member2.Get<IStringValueAnnotation>().Value;
+                Assert.AreEqual("1 : 3", v2);
+                member2.Get<IStringValueAnnotation>().Value = "1,2,3,4";
+                member2.Write();
+                v2 = member2.Get<IStringValueAnnotation>().Value;
+                Assert.AreEqual("1 : 4", v2);
+            }
+
+
+        }
+
         class MenuTestUserInterface : IUserInputInterface, IUserInterface
         {
             [Flags]

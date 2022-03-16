@@ -1126,7 +1126,7 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void ParseNumber()
         {
-            var parser = new NumberFormatter(CultureInfo.InvariantCulture);
+            var parser = new NumberFormatter(CultureInfo.InvariantCulture) {UseRanges = true};
             var lst = parser.Parse("4:1,4:1,4:1");
             Assert.AreEqual(30, lst.CastTo<int>().Sum());
             Assert.AreEqual(0, parser.Parse("-30, 1:4, 1:4, 1:4").CastTo<int>().Sum());
@@ -1196,7 +1196,7 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(1.0, valx);
 
             { // 3085
-                var parser2 = new NumberFormatter(CultureInfo.InvariantCulture) { Format = "N3", UsePrefix = true, Unit = "V" };
+                var parser2 = new NumberFormatter(CultureInfo.InvariantCulture) { Format = "N3", UsePrefix = true, Unit = "V"};
                 var parsed = (double)parser2.ParseNumber("2.5 V", typeof(double));
                 var revparsed = parser2.FormatNumber(parsed);
                 Assert.AreEqual(2.5, parsed);

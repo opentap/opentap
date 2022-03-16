@@ -443,7 +443,7 @@ namespace OpenTap
         /// <summary>
         /// Boolean setting. When true, numbers are parsed back into ranges. When false, separate values as used as their raw representation. 
         /// </summary>
-        public bool UseRanges = true;
+        public bool UseRanges = false;
 
         /// <summary>
         /// Print using compact representation.
