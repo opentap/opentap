@@ -1,6 +1,11 @@
 #!/bin/bash
 set -e
 
+echo "installing dotnet"
+# Install dotnet dependency using snap if not exist
+sudo snap install dotnet-sdk --classic --channel=2.1
+sudo snap install dotnet-runtime-21 --classic
+
 # create tap group if it doesn't exist
 getent group tap || groupadd tap && echo "created tap group"
 
