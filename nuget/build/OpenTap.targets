@@ -55,18 +55,22 @@
     <Delete Files="@(PackagePayloadFilesToClean)" />
   </Target>
 
+  <PropertyGroup>
+    <PackageName>$(ProjectName).TapPackage</PackageName>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(CreateOpenTapPackage)' != 'false' And
+                        '$(OutDir)' != '' And Exists('$(OutDir)') And
+                        '$(OpenTapPackageDefinitionPath)' != '' And
+                        Exists('$(OpenTapPackageDefinitionPath)')">    
+    <CreateCommands Include=".\tap package create &quot;$(ProjectDir)\$(OpenTapPackageDefinitionPath)&quot; -o $(PackageName)"/>
+    <CreateCommands Include=".\tap package install $(PackageName)" Condition="'$(InstallCreatedOpenTapPackage)' == 'true'"/>
+  </ItemGroup>
+
   <Target Name="CreateOpenTapPackage"
-          Condition="'$(CreateOpenTapPackage)' != 'false' And
-                     '$(OutDir)' != '' And
-                     Exists('$(OutDir)') And
-                     '$(OpenTapPackageDefinitionPath)' != '' And
-                     Exists('$(OpenTapPackageDefinitionPath)')"
+          Condition="'@(CreateCommands)' != ''"
           AfterTargets="Build">
-    <Exec Command=".\tap package create &quot;$(ProjectDir)\$(OpenTapPackageDefinitionPath)&quot;"
-          Condition="'$(InstallCreatedOpenTapPackage)' != 'true'"
-          WorkingDirectory="$(OutDir)" LogStandardErrorAsError="$(IsWindows)" />
-    <Exec Command=".\tap package create &quot;$(ProjectDir)\$(OpenTapPackageDefinitionPath)&quot; --install"
-          Condition="'$(InstallCreatedOpenTapPackage)' == 'true'"
+    <Exec Command="%(CreateCommands.Identity)"
           WorkingDirectory="$(OutDir)" LogStandardErrorAsError="$(IsWindows)" />
   </Target>
 
