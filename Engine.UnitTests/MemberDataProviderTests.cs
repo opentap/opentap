@@ -1703,7 +1703,7 @@ namespace OpenTap.Engine.UnitTests
             var mem = embc_type.GetMember("B.A.X");
             
             Assert.AreEqual(c.B.A2.X, (double)mem.GetValue(c));
-            mem.SetValue(c, 20);
+            mem.SetValue(c, 20.0);
             Assert.AreEqual(c.B.A2.X, 20.0);
 
             var mem2 = embc_type.GetMember("B.X");
@@ -2002,6 +2002,26 @@ namespace OpenTap.Engine.UnitTests
             var step3 = Utils.DeserializeFromString<DelayStep>(xml);
             Assert.AreEqual(descriptionString, (string)TypeData.GetTypeData(step).GetMember(descriptionName).GetValue(step3));
             
+        }
+
+        public class MemberDataListTest
+        {
+            public List<string> Value { get; set; } = new List<string>();
+        }
+        
+        [Test]
+        public void MemberDataListSetterTest()
+        {
+            var t = TypeData.FromType(typeof(MemberDataListTest));
+            var members = t.GetMembers();
+            var member = members.FirstOrDefault();
+
+            var list = new MemberDataListTest();
+            Assert.NotNull(list.Value);
+            Assert.Throws<InvalidCastException>(() => member.SetValue(list, new string[0]));
+            Assert.NotNull(list.Value);
+            member.SetValue(list, null);
+            Assert.IsNull(list.Value);
         }
     }
 }
