@@ -1890,7 +1890,6 @@ namespace OpenTap.Engine.UnitTests
                 Assert.AreEqual(expected, strversion);
         }
         public class µX_y_zµ { }
-        public class NestedUnicode﹎ࠦ { }
 
         [Test]
         public void TypeToXmlNameTest()
@@ -1902,7 +1901,6 @@ namespace OpenTap.Engine.UnitTests
             checkTypeToXml(typeof(List<>));
             checkTypeToXml(new { x = 5, c = 1 }.GetType());
             checkTypeToXml(new Action(() => { }).GetType());
-            checkTypeToXml(typeof(NestedUnicode﹎ࠦ));
             checkTypeToXml(typeof(µX_y_zµ), "_X_y_z_");
         }
 
