@@ -4,8 +4,6 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -15,27 +13,27 @@ namespace OpenTap.Package
     /// <summary>
     /// Finds dependencies for specified packages in Package Repositories
     /// </summary>
-    public class DependencyResolver
+    public class DependencyResolver : IDependencyResolver
     {
         /// <summary>
         /// List of all the dependencies including the specified packages
         /// </summary>
-        public List<PackageDef> Dependencies = new List<PackageDef>();
+        public List<PackageDef> Dependencies { get; } = new List<PackageDef>();
 
         /// <summary>
         /// List of the dependencies that are currently not installed
         /// </summary>
-        public List<PackageDef> MissingDependencies = new List<PackageDef>();
+        public List<PackageDef> MissingDependencies { get; } = new List<PackageDef>();
 
         /// <summary>
         /// List of the dependencies that could not be found in the package repositories
         /// </summary>
-        public List<PackageDependency> UnknownDependencies = new List<PackageDependency>();
+        public List<PackageDependency> UnknownDependencies { get; } = new List<PackageDependency>();
 
         /// <summary>
         /// List of dependency issues as exceptions. This can for example be version mismatches.
         /// </summary>
-        public List<Exception> DependencyIssues = new List<Exception>();
+        public List<Exception> DependencyIssues { get; } = new List<Exception>();
 
         DependencyGraph graph = new DependencyGraph();
 
@@ -149,7 +147,7 @@ namespace OpenTap.Package
 
             // Check if all package only specify compatible architectures
             var archs = packages.Select(p => p.Architecture).Distinct()
-                                                .Where(a => a != CpuArchitecture.Unspecified && a != CpuArchitecture.AnyCPU).ToList();
+                .Where(a => a != CpuArchitecture.Unspecified && a != CpuArchitecture.AnyCPU).ToList();
 
             CpuArchitecture arch;
             if (archs.Count != 1)
@@ -163,6 +161,7 @@ namespace OpenTap.Package
             }
             else
                 arch = archs[0];
+
             foreach (var edge in edges)
             {
                 if (edge.PackageSpecifier.Architecture != arch || edge.PackageSpecifier.OS != os)
@@ -172,7 +171,7 @@ namespace OpenTap.Package
 
         private void resolveEdge(List<DependencyEdge> edges, List<IPackageRepository> repositories, CancellationToken cancellationToken)
         {
-            var versions = AlignVersions(edges.Select(s => s.PackageSpecifier).ToList());
+            var versions = edges.Select(s => s.PackageSpecifier).AlignVersions();
 
             if (versions.Count > 1 && versions.Any(s => s.Version.MatchBehavior == VersionMatchBehavior.Exact))
             {
@@ -194,37 +193,6 @@ namespace OpenTap.Package
             {
                 ResolveDependency(specifier, edges.Where(s => s.PackageSpecifier.Version.IsSatisfiedBy(specifier.Version)).ToList(), repositories, cancellationToken);
             }
-        }
-
-        private List<PackageSpecifier> AlignVersions(List<PackageSpecifier> packages)
-        {
-            if (packages.Count == 1)
-                return packages;
-
-            List<PackageSpecifier> specifiers = new List<PackageSpecifier>();
-            foreach (var p in packages)
-            {
-                if (!specifiers.Any())
-                {
-                    specifiers.Add(p);
-                    continue;
-                }
-
-                if (specifiers.FirstOrDefault(s => p.Version.IsSatisfiedBy(s.Version)) is PackageSpecifier satisfyingSpecifier)
-                    continue;
-
-                for (int i = 0; i < specifiers.Count; i++)
-                {
-                    if (specifiers[i].Version.IsSatisfiedBy(p.Version))
-                    {
-                        // this package can satisfy the already selected specification, update to use this instead.
-                        specifiers[i] = p;
-                    }
-
-                }
-                specifiers.Add(p);
-            }
-            return specifiers;
         }
 
         private void ResolveDependency(PackageSpecifier packageSpecifier, List<DependencyEdge> current, List<IPackageRepository> repositories, CancellationToken cancellationToken)
@@ -270,6 +238,7 @@ namespace OpenTap.Package
                         presentEdge.To = resolvedDependency;
                 }
             }
+
             graph.AddVertex(resolvedDependency);
 
             foreach (var edge in current)
@@ -286,19 +255,27 @@ namespace OpenTap.Package
         /// Returns the resolved dependency tree
         /// </summary>
         /// <returns>Multi line dependency tree string</returns>
-        internal string GetDotNotation() => graph.CreateDotNotation();
+        public string GetDotNotation() => graph.CreateDotNotation();
+
+        /// <summary>
+        /// Start resolving dependencies.
+        /// </summary>
+        public void Resolve()
+        {
+            // This implementation does all the resolution in its constructors..
+        }
 
         /// <summary>
         /// Populates Dependencies, UnknownDependencies and DependencyIssues based on resolved dependency tree
         /// </summary>
         private void CategorizeResolvedPackages()
         {
-            var traversedEdges = graph.TraverseEdges();
-            Dependencies = traversedEdges.Where(p => !(p.To is UnknownVertex) && !InstalledPackages.Any(s => s.Value == p.To)).Select(s => s.To).Distinct().ToList();
-            UnknownDependencies = traversedEdges.Where(s => s.To is UnknownVertex).Select(p => new PackageDependency(p.PackageSpecifier.Name, p.PackageSpecifier.Version)).Distinct().ToList();
+            var traversedEdges = graph.TraverseEdges().ToArray();
+            Dependencies.AddRange(traversedEdges.Where(p => !(p.To is UnknownVertex) && !InstalledPackages.Any(s => s.Value == p.To)).Select(s => s.To).Distinct());
+            UnknownDependencies.AddRange(traversedEdges.Where(s => s.To is UnknownVertex).Select(p => new PackageDependency(p.PackageSpecifier.Name, p.PackageSpecifier.Version)).Distinct());
 
             // A dependency is only "missing" if it is not installed and has to be downloaded from a repository
-            MissingDependencies = Dependencies.Where(s => !InstalledPackages.Any(p => p.Key == s.Name && s.Version == p.Value.Version)).ToList();
+            MissingDependencies.AddRange(Dependencies.Where(s => !InstalledPackages.Any(p => p.Key == s.Name && s.Version == p.Value.Version)));
 
             foreach (var conflict in traversedEdges.Where(s => s.To is ConflictVertex).GroupBy(x => x.PackageSpecifier.Name))
             {
@@ -324,6 +301,7 @@ namespace OpenTap.Package
                     graph.AddEdge(pkg, DependencyGraph.Unresolved, spec);
                 }
             }
+
             resolveGraph(graph, repositories, CancellationToken.None);
         }
 
@@ -338,17 +316,18 @@ namespace OpenTap.Package
         {
             if (SemanticVersion.TryParse(packageSpecifier.Version.ToString().Replace("^", ""), out SemanticVersion tryExact))
             {
-                VersionSpecifier spec = new VersionSpecifier(packageSpecifier.Version.Major, packageSpecifier.Version.Minor, packageSpecifier.Version.Patch, packageSpecifier.Version.PreRelease, packageSpecifier.Version.BuildMetadata, VersionMatchBehavior.Exact);
+                VersionSpecifier spec = new VersionSpecifier(packageSpecifier.Version.Major, packageSpecifier.Version.Minor, packageSpecifier.Version.Patch, packageSpecifier.Version.PreRelease, packageSpecifier.Version.BuildMetadata,
+                    VersionMatchBehavior.Exact);
                 var exactPackageSpecifier = new PackageSpecifier(packageSpecifier.Name, spec, packageSpecifier.Architecture, packageSpecifier.OS);
                 if (PackageRepositoryHelpers.GetPackagesFromAllRepos(repositories, exactPackageSpecifier)
-                    .FirstOrDefault(p => p.IsPlatformCompatible(exactPackageSpecifier.Architecture, exactPackageSpecifier.OS)) is PackageDef exactPackage)
+                        .FirstOrDefault(p => p.IsPlatformCompatible(exactPackageSpecifier.Architecture, exactPackageSpecifier.OS)) is PackageDef exactPackage)
                     return exactPackage;
             }
 
             var allVersions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, packageSpecifier.Name)
-               .Where(p => p.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS))
-               .Where(p => p.Version != null) // Packages with versions not in Semantic format will be null. We can't take any valuable decision on these.
-               .Select(p => p.Version).Distinct();
+                .Where(p => p.IsPlatformCompatible(packageSpecifier.Architecture, packageSpecifier.OS))
+                .Where(p => p.Version != null) // Packages with versions not in Semantic format will be null. We can't take any valuable decision on these.
+                .Select(p => p.Version).Distinct();
 
             SemanticVersion resolvedVersion = null;
 
@@ -399,10 +378,11 @@ namespace OpenTap.Package
             {
                 if (packageSpecifier.Version != VersionSpecifier.Any || packageSpecifier.OS != null || packageSpecifier.Architecture != CpuArchitecture.Unspecified)
                     return string.Format("No '{0}' package {1} was found.", packageSpecifier.Name, string.Join(" and ",
-                            new string[] {
-                                    packageSpecifier.Version != VersionSpecifier.Any ? $"compatible with version '{packageSpecifier.Version}'": null,
-                                    packageSpecifier.OS != null ? $"compatible with '{packageSpecifier.OS}' operating system" : null,
-                                    packageSpecifier.Architecture != CpuArchitecture.Unspecified ? $"with '{packageSpecifier.Architecture}' architecture" : null
+                        new string[]
+                        {
+                            packageSpecifier.Version != VersionSpecifier.Any ? $"compatible with version '{packageSpecifier.Version}'" : null,
+                            packageSpecifier.OS != null ? $"compatible with '{packageSpecifier.OS}' operating system" : null,
+                            packageSpecifier.Architecture != CpuArchitecture.Unspecified ? $"with '{packageSpecifier.Architecture}' architecture" : null
                         }.Where(x => x != null).ToArray()));
                 else
                     return $"Package '{packageSpecifier.Name}' does not exist in a version compatible with this OS and architecture.";
@@ -434,8 +414,8 @@ namespace OpenTap.Package
                         // This is to support the special case where the spec asks for a minor version that does not exist, but a newer compatible minor exists
                         // In this case, we should pick the lowest compatible minor version
                         int lowestCompatibleMinor = allVersions.Select(v => v.Minor)
-                                                               .Where(m => m >= packageSpecifier.Version.Minor)
-                                                               .OrderBy(m => m).FirstOrDefault();
+                            .Where(m => m >= packageSpecifier.Version.Minor)
+                            .OrderBy(m => m).FirstOrDefault();
                         allVersions = allVersions.Where(p => p.Minor == lowestCompatibleMinor);
                     }
                     else
@@ -482,6 +462,7 @@ namespace OpenTap.Package
         internal static UnknownVertex Unknown = new UnknownVertex();
         private readonly List<PackageDef> vertices = new List<PackageDef>();
         private readonly List<DependencyEdge> edges = new List<DependencyEdge>();
+
         public void AddVertex(PackageDef vertex)
         {
             vertices.Add(vertex);
@@ -520,6 +501,7 @@ namespace OpenTap.Package
                 visited.Add(edge);
                 createDotNotation(edge, stringBuilder, visited, verticesWritten);
             }
+
             stringBuilder.Append("}");
 
             return string.Join(Environment.NewLine, stringBuilder.ToString());
@@ -560,6 +542,7 @@ namespace OpenTap.Package
                     verticesWritten.Add(edge.PackageSpecifier.Name);
                 }
             }
+
             if (edge.To is UnknownVertex || edge.To is ConflictVertex)
                 return;
 
@@ -593,6 +576,7 @@ namespace OpenTap.Package
             }
         }
     }
+
     internal class RootVertex : PackageDef
     {
         public RootVertex(string name)
@@ -629,7 +613,12 @@ namespace OpenTap.Package
 
         public PackageSpecifier PackageSpecifier { get; set; }
         public PackageDef From { get; set; }
-        public PackageDef To { get => to; set { to = value; } }
+
+        public PackageDef To
+        {
+            get => to;
+            set { to = value; }
+        }
 
         public override string ToString()
         {
@@ -645,7 +634,7 @@ namespace OpenTap.Package
             return spec.Name == pkg.Name &&
                    spec.Version.IsCompatible(pkg.Version) &&
                    (spec.Architecture is CpuArchitecture.Unspecified ||
-                   ArchitectureHelper.PluginsCompatible(pkg.Architecture, spec.Architecture)); // TODO: Should we check OS?
+                    ArchitectureHelper.PluginsCompatible(pkg.Architecture, spec.Architecture)); // TODO: Should we check OS?
         }
 
         /// <summary>
@@ -656,5 +645,40 @@ namespace OpenTap.Package
             SemanticVersion semanticVersion = new SemanticVersion(other.Major ?? 0, other.Minor ?? 0, other.Patch ?? 0, other.PreRelease, other.BuildMetadata);
             return spec.IsCompatible(semanticVersion);
         }
+
+        public static List<PackageSpecifier> AlignVersions(this IEnumerable<PackageSpecifier> _packages)
+        {
+            var packages = _packages.ToList();
+            if (packages.Count == 1)
+                return packages;
+
+            List<PackageSpecifier> specifiers = new List<PackageSpecifier>();
+            foreach (var p in packages)
+            {
+                if (!specifiers.Any())
+                {
+                    specifiers.Add(p);
+                    continue;
+                }
+
+                if (specifiers.FirstOrDefault(s => p.Version.IsSatisfiedBy(s.Version)) is PackageSpecifier satisfyingSpecifier)
+                    continue;
+
+                for (int i = 0; i < specifiers.Count; i++)
+                {
+                    if (specifiers[i].Version.IsSatisfiedBy(p.Version))
+                    {
+                        // this package can satisfy the already selected specification, update to use this instead.
+                        specifiers[i] = p;
+                    }
+
+                }
+
+                specifiers.Add(p);
+            }
+
+            return specifiers;
+        }
+
     }
 }

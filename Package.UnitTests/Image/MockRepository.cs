@@ -147,10 +147,10 @@ namespace OpenTap.Image.Tests
                     // Mirror 'Developer's System' case
                     DefinePackage("Developer's System", "9.16.4", CpuArchitecture.AnyCPU, "Windows", ("Visual Studio SDK", "any"), ("Editor", "any")),
                     DefinePackage("Developer's System", "9.17.1", CpuArchitecture.AnyCPU, "Windows", ("Visual Studio SDK", "any"), ("Editor", "^9.17.1")),
-                    DefinePackage("Developer's System", "9.17.2", CpuArchitecture.AnyCPU, "Windows", ("Visual Studio SDK", "any"), ("Editor", "^9.17.2")),
+                    DefinePackage("Developer's System", "9.17.3", CpuArchitecture.AnyCPU, "Windows", ("Visual Studio SDK", "any"), ("Editor", "^9.17.3")),
                     DefinePackage("Editor", "9.16.4", CpuArchitecture.AnyCPU, "Windows", ("OpenTAP", "^9.16.4")),
                     DefinePackage("Editor", "9.17.1", CpuArchitecture.AnyCPU, "Windows", ("OpenTAP", "^9.17.1")),
-                    DefinePackage("Editor", "9.17.2", CpuArchitecture.AnyCPU, "Windows", ("OpenTAP", "^9.17.2"))
+                    DefinePackage("Editor", "9.17.3", CpuArchitecture.AnyCPU, "Windows", ("OpenTAP", "^9.17.3"))
                 };
         }
 

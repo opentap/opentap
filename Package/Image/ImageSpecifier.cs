@@ -36,8 +36,8 @@ namespace OpenTap.Package
         {
             List<IPackageRepository> repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
 
-            DependencyResolver resolver = new DependencyResolver(Packages, repositories, cancellationToken);
-
+            IDependencyResolver resolver = new DependencyResolver(Packages, repositories, cancellationToken);
+            resolver.Resolve();
 
             if (resolver.DependencyIssues.Any())
                 throw new ImageResolveException(resolver.GetDotNotation(), $"OpenTAP packages could not be resolved", resolver.DependencyIssues);
