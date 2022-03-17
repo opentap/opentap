@@ -90,7 +90,7 @@
           Inputs="$(MSBuildProjectFullPath)"
           Outputs="@(OpenTapPackagesToInstall-> '$(OutDir)Packages/%(Identity)/package.xml')"
           DependsOnTargets="CopyOpenTapPayloadFiles;ProcessOpenTapPackageList"
-          BeforeTargets="Build" AfterTargets="CopyOpenTapPayloadFiles">
+          BeforeTargets="Build" >
     <InstallOpenTapPackages 
             TapDir="$(OutDir)" 
             PackagesToInstall="@(OpenTapPackagesToInstall)"

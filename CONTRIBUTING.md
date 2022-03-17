@@ -6,7 +6,7 @@ This guide contains details on how to contribute to OpenTAP in a way that makes 
 
 ## Contributor License Agreement
 
-OpenTAP requires contributors to sign a Contribution License Agreement (CLA), which can be downloaded from [here](https://www.opentap.io/docs/OpenTAP%20Contributor%20License%20Agreement%20v2.pdf).
+OpenTAP requires contributors to sign a Contribution License Agreement (CLA), which can be downloaded from [here](https://opentap.io/assets/OpenTAP-CLA-v2.pdf).
 The CLA can be signed either by an individual or a company. For companies, please be sure to include the company name and have a legal authorized representative endorse the document.
 
 * By submitting code as an **individual** you agree to the individual contributor license agreement.

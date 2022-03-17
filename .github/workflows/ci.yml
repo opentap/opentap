@@ -32,6 +32,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: tap sdk gitversion --fields 3
         id: asmVer
         run: echo ::set-output name=ver::`tap sdk gitversion --fields 3`
@@ -143,6 +146,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Setup .NET
         uses: actions/setup-dotnet@v1
         with:
@@ -168,6 +174,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Nuget Cache
         uses: actions/cache@v2
         id: cache
@@ -212,6 +221,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Setup .NET
         uses: actions/setup-dotnet@v1
         with:
@@ -237,6 +249,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Download binaries
         uses: actions/download-artifact@v2
         with:
@@ -260,6 +275,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Download binaries
         uses: actions/download-artifact@v2
         with:
@@ -284,6 +302,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Download binaries
         uses: actions/download-artifact@v2
         with:
@@ -357,6 +378,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Download x64 binaries
         uses: actions/download-artifact@v2
         with:
@@ -388,7 +412,6 @@ jobs:
         run: |
           $env:Platform = "Windows"
           $env:Architecture =  "${{ matrix.Architecture }}"
-          if ($env:GITHUB_REF_PROTECTED -eq "true") { $env:Sign = "true" } else { $env:Sign = "false" }
           cd bin/Release-x64
           cp .\runtimes\win-x64\native\git2-b7bad55.dll .
           .\tap.exe package install -f ../../sign.TapPackage
@@ -400,6 +423,7 @@ jobs:
           TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
           TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
+          Sign: ${{github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')}}
       - uses: actions/upload-artifact@v2
         with:
           name: win-${{ matrix.Architecture }}-package
@@ -419,6 +443,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Download x64 binaries
         uses: actions/download-artifact@v2
         with:
@@ -450,7 +477,6 @@ jobs:
         run: |
           $env:Platform = "Linux,MacOS"
           $env:Architecture = "x64"
-          if ($env:GITHUB_REF_PROTECTED -eq "true") { $env:Sign = "true" } else { $env:Sign = "false" }
           pushd bin\linux-x64\ 
           ../Release/tap package install -f "../../Sign.TapPackage"
           echo "${{ secrets.SIGN_SERVER_CERT }}" > $env:TAP_SIGN_CERT
@@ -462,6 +488,7 @@ jobs:
           TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
           TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
+          Sign: ${{github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')}}
       - uses: actions/upload-artifact@v2
         with:
           name: linux-x64-package
@@ -480,6 +507,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Download binaries
         uses: actions/download-artifact@v2
         with:
@@ -569,6 +599,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Download binaries
         uses: actions/download-artifact@v2
         with:
@@ -600,7 +633,7 @@ jobs:
           Move-Item OpenTAP.*.Linux.TapPackage OpenTAP.Linux.zip
 
           Move-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
-          Move-Item ./bin/Release/DotNet.Glob.dll ./nuget/build    
+          Move-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll    
           ./bin/Release/tap package install ./OpenTap.x64.zip -t ./nuget/build/payload -f
           # package.xml, tap.dll, and tap.runtimeconfig.json of an installation should always come from 
           # one of the Runtime directories. Delete it from the payload directory.
@@ -637,6 +670,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Download Linux package
         uses: actions/download-artifact@v2
         with:
@@ -776,6 +812,9 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
       - name: Setup .NET
         uses: actions/setup-dotnet@v1
         with:

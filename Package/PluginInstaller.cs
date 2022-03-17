@@ -387,6 +387,16 @@ namespace OpenTap.Package
         internal static List<string> UnpackPackage(string packagePath, string destinationDir)
         {
             List<string> installedParts = new List<string>();
+            string packageName = null;
+            try
+            {
+                packageName = PackageDef.FromPackage(packagePath).Name;
+            }
+            catch
+            {
+                // This is fine, it could be a bundle. The package name is only required if the package is OpenTAP
+            }
+
             try
             {
                 using (var packageStream = File.OpenRead(packagePath))
@@ -401,6 +411,14 @@ namespace OpenTap.Package
 
                         string path = Uri.UnescapeDataString(part.FullName).Replace('\\', '/');
                         path = Path.Combine(destinationDir, path).Replace('\\', '/');
+
+                        if (OperatingSystem.Current == OperatingSystem.Windows && packageName == "OpenTAP" && Path.GetFileNameWithoutExtension(part.FullName) == "tap")
+                        {
+                            // tap.dll and tap.exe cannot be overwritten because they are in use by this process -- extract them to a temp location so they can be overwritten later
+                            if (File.Exists(path))
+                                path += ".new";
+                        }
+
                         var sw = Stopwatch.StartNew();
 
                         int Retries = 0, MaxRetries = 10;

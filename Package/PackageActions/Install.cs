@@ -109,7 +109,7 @@ namespace OpenTap.Package
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;
             installer.Error += ex => installError = true;
-
+            
             try
             {
                 log.Debug("Fetching package information...");
@@ -189,12 +189,10 @@ namespace OpenTap.Package
                     log.Warning("Overwriting files. (--{0} option specified).", Overwrite ? "overwrite" : "force");
 
                 RaiseProgressUpdate(10, "Gathering dependencies.");
-
-                // Check dependencies
-                bool dependenciesRequired = (!askToInstallDependencies && !IgnoreDependencies && !Force) || CheckOnly;
+                bool checkDependencies = (!IgnoreDependencies && !Force) || CheckOnly;
                 var issue = DependencyChecker.CheckDependencies(installationPackages, packagesToInstall,
-                    dependenciesRequired ? LogEventType.Error : LogEventType.Warning);
-                if (dependenciesRequired)
+                    checkDependencies ? LogEventType.Error : LogEventType.Warning);
+                if (checkDependencies)
                 {
                     if (issue == DependencyChecker.Issue.BrokenPackages)
                     {
