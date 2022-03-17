@@ -10,7 +10,7 @@ using OpenTap.Diagnostic;
 namespace OpenTap.Image.Tests
 {
     /// <summary>
-    /// This is a helper for creating temprary OpenTAP installations that will clean up after itself
+    /// This is a helper for creating temporary OpenTAP installations that will clean up after itself
     /// </summary>
     internal class TempInstall : IDisposable
     {

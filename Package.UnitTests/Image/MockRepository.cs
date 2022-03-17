@@ -137,6 +137,20 @@ namespace OpenTap.Image.Tests
                     DefinePackage("G",        "2.2.0-alpha.2.1"),
                     DefinePackage("G",        "2.2.0-alpha.2.2"),
                     DefinePackage("G",        "2.3.0-rc.1"),
+                    // Reproduce #460: https://github.com/opentap/opentap/issues/460
+                    // Mirror 'Visual Studio SDK' case
+                    DefinePackage("OpenTAP", "9.17.2"),
+                    DefinePackage("OpenTAP", "9.17.3-rc.1"),
+                    DefinePackage("Visual Studio SDK", "1.2.4", CpuArchitecture.AnyCPU, "Windows", ("SDK", "any")),
+                    DefinePackage("SDK", "9.17.2", CpuArchitecture.AnyCPU, "Windows", ("OpenTAP", "9.17.2")),
+                    DefinePackage("SDK", "9.17.3-rc.1", CpuArchitecture.AnyCPU, "Windows", ("OpenTAP", "9.17.3-rc.1")),
+                    // Mirror 'Developer's System' case
+                    DefinePackage("Developer's System", "9.16.4", CpuArchitecture.AnyCPU, "Windows", ("Visual Studio SDK", "any"), ("Editor", "any")),
+                    DefinePackage("Developer's System", "9.17.1", CpuArchitecture.AnyCPU, "Windows", ("Visual Studio SDK", "any"), ("Editor", "^9.17.1")),
+                    DefinePackage("Developer's System", "9.17.2", CpuArchitecture.AnyCPU, "Windows", ("Visual Studio SDK", "any"), ("Editor", "^9.17.2")),
+                    DefinePackage("Editor", "9.16.4", CpuArchitecture.AnyCPU, "Windows", ("OpenTAP", "^9.16.4")),
+                    DefinePackage("Editor", "9.17.1", CpuArchitecture.AnyCPU, "Windows", ("OpenTAP", "^9.17.1")),
+                    DefinePackage("Editor", "9.17.2", CpuArchitecture.AnyCPU, "Windows", ("OpenTAP", "^9.17.2"))
                 };
         }
 
