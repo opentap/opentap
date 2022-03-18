@@ -2,7 +2,7 @@
   <PropertyGroup>
     <AssemblyName>OpenTap.UnitTests</AssemblyName>
     <RootNamespace>OpenTap.UnitTests</RootNamespace>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>$(OpenTapAppTargetFramework)</TargetFramework>
     <LangVersion>8.0</LangVersion>
   </PropertyGroup>
   

@@ -17,8 +17,8 @@
     <Owner>OpenTAP</Owner>
     <!-- Common files  -->
     <Files Condition="$(Debug) == false">
-        <File Path="tap.runtimeconfig.json"/>
-        <File Path="tap.dll">
+        <File  Condition="$(Platform) != Windows" Path="tap.runtimeconfig.json"/>
+        <File Condition="$(Platform) != Windows" Path="tap.dll">
             <SetAssemblyInfo Attributes="Version" />
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
@@ -41,9 +41,9 @@
     </Files>
     <!-- For debug builds. Includes debugging symbols and puts all the DLLs in the OpenTAP root directory.  -->
     <Files Condition="$(Debug) == true">
-        <File Path="tap.runtimeconfig.json"/>
-        <File Path="tap.dll"/>
-        <File Path="tap.pdb"/>
+        <File Condition="$(Platform) != Windows" Path="tap.runtimeconfig.json"/>
+        <File Condition="$(Platform) != Windows" Path="tap.dll"/>
+        <File Path="tap.pdb"/>  
         <File Path="OpenTap.dll"/>
         <File Path="OpenTap.pdb"/>
         <File Path="OpenTap.Package.dll"/>
