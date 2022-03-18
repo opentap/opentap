@@ -287,12 +287,13 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           #Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
-          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 bin/Release/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" 
+          cd bin/Release
+          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" 
       - uses: actions/upload-artifact@v2
         with:
           name: win-testresults
           path: |
-            TestResult.xml
+            bin/Release/TestResult.xml
 
   TestWindowsPlan:
     runs-on: windows-2022
