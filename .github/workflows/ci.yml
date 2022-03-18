@@ -287,7 +287,7 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           #Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
-          dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
+          dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" /Platform:x64
       - uses: actions/upload-artifact@v2
         with:
           name: win-testresults
@@ -639,8 +639,9 @@ jobs:
           # package.xml, tap.dll, and tap.runtimeconfig.json of an installation should always come from 
           # one of the Runtime directories. Delete it from the payload directory.
           Remove-Item ./nuget/build/payload/Packages/OpenTAP/package.xml
-          Remove-Item ./nuget/build/payload/tap.dll
-          Remove-Item ./nuget/build/payload/tap.runtimeconfig.json
+          # these files only exists when building for net6.0.
+          #Remove-Item ./nuget/build/payload/tap.dll
+          #Remove-Item ./nuget/build/payload/tap.runtimeconfig.json
 
           Move-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload
           Move-Item ./bin/Release/OpenTap.xml ./nuget/build/payload

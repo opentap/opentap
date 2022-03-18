@@ -135,7 +135,7 @@ namespace OpenTap.Engine.UnitTests
             }
             catch(ArgumentNullException ex)
             {
-                Assert.AreEqual($"Value cannot be null. (Parameter 'plan')", ex.Message);
+                Assert.IsTrue(ex.Message.Contains("Value cannot be null") && ex.Message.Contains("Parameter") && ex.Message.Contains("plan"));
                 argumentNullExceptionCaught = true;
             }
             
