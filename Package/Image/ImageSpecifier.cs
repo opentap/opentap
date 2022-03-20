@@ -36,7 +36,8 @@ namespace OpenTap.Package
         {
             List<IPackageRepository> repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
 
-            IDependencyResolver resolver = new DependencyResolver(Packages, repositories, cancellationToken);
+            // IDependencyResolver resolver = new DependencyResolver(Packages, repositories, cancellationToken);
+            IDependencyResolver resolver = new GreedyTreeResolver(Packages, repositories, cancellationToken);
             resolver.Resolve();
 
             if (resolver.DependencyIssues.Any())

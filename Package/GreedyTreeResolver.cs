@@ -10,12 +10,12 @@ namespace OpenTap.Package
     /// If a given node turns out to be unresolvable, this resolver will back up the tree
     /// to an earlier stage and retry the dependency resolution from this point.
     /// </summary>
-    internal class IterativeDFSResolver : IDependencyResolver
+    internal class GreedyTreeResolver : IDependencyResolver
     {
         private Dictionary<string, PackageDef> InstalledPackages { get; } = new Dictionary<string, PackageDef>();
         DependencyGraph graph = new DependencyGraph();
 
-        public IterativeDFSResolver(List<PackageSpecifier> packages, List<IPackageRepository> repositories, CancellationToken cancellationToken)
+        public GreedyTreeResolver(List<PackageSpecifier> packages, List<IPackageRepository> repositories, CancellationToken cancellationToken)
         {
             Packages = packages;
             Repositories = repositories;
@@ -32,34 +32,19 @@ namespace OpenTap.Package
         public string GetDotNotation() => graph.CreateDotNotation();
         public void Resolve()
         {
-            foreach (var specifier in Packages)
-                graph.AddEdge(new RootVertex("Root"), DependencyGraph.Unresolved, specifier);
-            resolveGraph();
-            CategorizeResolvedPackages();
+            var tree = new ResolverTreeNode(new PackageResolver(Repositories), "Root");
+            // 'solution' is a leaf node. The image is retrieved by traversing the tree from the leaf
+            // to the root
+            var solution = tree.Solve(Packages);
+            if (solution != null)
+            {
+                var image = solution.GetResolved();
+                Dependencies.AddRange(image);
+            }
         }
 
         private void resolveGraph()
         {
-            bool MegaResolver(PackageSpecifier packageSpecifier)
-            {
-                return false;
-            }
-
-            while (!CancellationToken.IsCancellationRequested)
-            {
-                var unresolved = graph.TraverseEdges()
-                    .Where(s => s.To is UnresolvedVertex)
-                    .GroupBy(s => s.PackageSpecifier.Name)
-                    .ToArray();
-
-                if (!unresolved.Any())
-                    break;
-
-                foreach (var edge in graph.TraverseEdges())
-                {
-
-                }
-            }
         }
 
         /// <summary>

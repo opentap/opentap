@@ -6,7 +6,7 @@ using OpenTap.Package;
 namespace OpenTap.Image.Tests
 {
     [TestFixture]
-    public class IterativeResolve
+    public class TestNestedIncompatibleAny
     {
         [SetUp]
         public void SetUp()
@@ -35,8 +35,10 @@ namespace OpenTap.Image.Tests
 
         }
 
+        [TestCase("9.17.3", "9.17.3")]
+        [TestCase("9.17.3-rc.1", "9.17.1")]
+        [TestCase("9.17.2", "9.17.1")]
         [TestCase("9.17.1", "9.17.1")]
-        [TestCase("9.17.3-rc.1", "9.16.4")]
         public void DevelopersSystemDependencyTest(string expectedOpenTAP, string expectedDevsys)
         {
             var imageSpecifier = MockRepository.CreateSpecifier();
