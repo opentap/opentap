@@ -121,6 +121,7 @@ QuickTest: # Quick test to fail as early as possible.
     # We need to build twice because 'gitversion' requires tap..
     # Netcore apps require that the 32-bit runtime is used to run a 32-bit app (though targetting that runtime is not a problem)
     # There is no 32-bit windows server .NET6 docker image. Target x64 first to get access to gitversion.
+    - dotnet restore /p:Platform=x64
     - dotnet build -c Release /p:Platform=x64
     - cp bin\Release\runtimes\win-x64\native\git2-4aecb64.dll bin\Release
     - $AssemblyVersion = "`"$(bin/Release/tap sdk gitversion --fields 3).0`""
@@ -139,7 +140,7 @@ QuickTest: # Quick test to fail as early as possible.
     # Now we actually build for the target architecture.
     - dotnet build -c Release /p:Platform=$Architecture
     - dotnet build tap/tap.csproj -c Release /p:Platform=$Architecture
-    - get-content ./bin/Release/tap.runtimeconfig.json
+    #- get-content ./bin/Release/tap.runtimeconfig.json
     - Remove-Item -recurse "bin\Release\Packages"
   artifacts:
     expire_in: 1 week
@@ -479,8 +480,9 @@ Package-NuGet:
     # package.xml, tap.dll, and tap.runtimeconfig.json of an installation should always come from 
     # one of the Runtime directories. Delete it from the payload directory.
     - Remove-Item ./nuget/build/payload/Packages/OpenTAP/package.xml
-    - Remove-Item ./nuget/build/payload/tap.dll
-    - Remove-Item ./nuget/build/payload/tap.runtimeconfig.json
+    ## .net 462: These are not included.
+    #- Remove-Item ./nuget/build/payload/tap.dll
+    #- Remove-Item ./nuget/build/payload/tap.runtimeconfig.json
     
     - Move-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload
     - Move-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
