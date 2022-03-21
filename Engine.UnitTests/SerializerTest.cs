@@ -2573,7 +2573,7 @@ namespace OpenTap.Engine.UnitTests
             var str = ser.SerializeToString(x);
             Assert.IsFalse(ser.XmlErrors.Any());
             var str2 = @"<?xml version=""1.0"" encoding=""utf-8""?>
-                <EnabledOfEnabledOfEnabledOfInt32 type=""OpenTap.Enabled`1[[OpenTap.Enabled`1[[OpenTap.Enabled`1[[System.Int32, System.Private.CoreLib, Version=6.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], OpenTap, Version=9.4.0.0, Culture=neutral, PublicKeyToken=null]], OpenTap, Version=9.4.0.0, Culture=neutral, PublicKeyToken=null]]"">
+                <EnabledOfEnabledOfEnabledOfInt32 type=""OpenTap.Enabled`1[[OpenTap.Enabled`1[[OpenTap.Enabled`1[[System.Int32]], OpenTap, Version=9.4.0.0, Culture=neutral, PublicKeyToken=null]], OpenTap, Version=9.4.0.0, Culture=neutral, PublicKeyToken=null]]"">
                 <Value>
                 <Value>
                 <Value>abc</Value>
