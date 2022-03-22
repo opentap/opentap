@@ -31,19 +31,18 @@ For a guide on how to develop using OpenTAP, check out our __[Developer Guide](h
 ## Building OpenTAP
 Most users build plugins for OpenTAP but if you are interested in building OpenTAP yourself you can clone the git repository at https://github.com/opentap/opentap and build the OpenTAP.sln solution file.
 
-**Note:** You need [Microsoft .NET SDK 6.0](https://dotnet.microsoft.com/download) to build OpenTAP.
-
 ### Microsoft Windows 10
 On Windows, Visual Studio 2017 or greater is needed to build. This can be done by opening the solution and pressing F5, or Ctrl-Shift-B.
 
 ### Linux
-On Linux, you usually need to install some dependencies in addition to .NET SDK. On Ubuntu, run the following on apt:
+On Linux you need [Microsoft .NET SDK 6.0](https://dotnet.microsoft.com/download) to build OpenTAP.
+You also need some additional dependencies. On Ubuntu, run the following on apt:
 
 ```sh
 sudo apt install libc6-dev libunwind8 curl git -y
 ```
 
-This should install the needed dependencies. Once these are installed, you can build OpenTAP using these commands:
+Once these are installed, you can build OpenTAP using these commands:
 
 ```sh
 dotnet build -c Release
@@ -54,7 +53,6 @@ dotnet publish -c Release tap/tap.csproj
 *Note, the last line is there to ensure getting the right System.Runtime.dll.*
 
 This creates a *Release* build. For a debug build, omit *-c Release* when building.
-
 
 ## Testing
 OpenTAP can be tested using NUnit.
