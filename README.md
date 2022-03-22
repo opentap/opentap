@@ -2,7 +2,7 @@
 
 OpenTAP is an Open Source project for fast and easy development and execution of automated tests.
 
-OpenTAP is built with simplicity, scalability and speed in mind, and is based on an extendable architecture that leverages .NET Core.
+OpenTAP is built with simplicity, scalability and speed in mind, and is based on an extendable architecture that leverages .NET.
 
 OpenTAP offers a range of sequencing functionality and infrastructure that makes it possible for you to quickly develop plugins tailored for your automation needs – plugins that can be shared with the OpenTAP community through the OpenTAP package repository.
 
@@ -12,10 +12,11 @@ If you are looking to use OpenTAP, you can get pre-built binaries at [https://op
 
 Using the OpenTAP CLI you are now able to download plugin packages from the OpenTAP package repository.
 
-To list and install plugin packages do the following in the command prompt:
+To list and install plugin packages do the following in the command prompt after navigating to
+the installation folder: (default: C:\Program Files\OpenTAP)
 
 ```cmd
-cd %TAP_PATH%
+cd "C:\Program Files\OpenTAP" (or the directory you selected in the installer)
 tap package list
 ```
 
@@ -25,18 +26,18 @@ We recommend that you download the Software Development Kit, or simply the Devel
 tap package install "Developer's System CE" -y
 ```
 
-For a guide on how to develop using OpenTAP, check out our __[Developer Guide](https://doc.opentap.io/Developer%20Guide/Introduction/#introduction)__, it also exists as a [PDF](https://www.opentap.io/docs/OpenTAP%20Developer%20Guide.pdf) for offline reading. Note the [source](https://github.com/opentap/opentap/tree/main/doc/Developer%20Guide) can be found on GitHub as well.
+For a guide on how to develop using OpenTAP, check out our __[Developer Guide](https://doc.opentap.io/Developer%20Guide/Introduction/#introduction)__. Note the [source](https://github.com/opentap/opentap/tree/main/doc/Developer%20Guide) can be found on GitHub as well.
 
 ## Building OpenTAP
 Most users build plugins for OpenTAP but if you are interested in building OpenTAP yourself you can clone the git repository at https://github.com/opentap/opentap and build the OpenTAP.sln solution file.
 
-**Note:** You need [Microsoft .NET Core SDK 6.0](https://dotnet.microsoft.com/download) to build OpenTAP.
+**Note:** You need [Microsoft .NET SDK 6.0](https://dotnet.microsoft.com/download) to build OpenTAP.
 
 ### Microsoft Windows 10
 On Windows, Visual Studio 2017 or greater is needed to build. This can be done by opening the solution and pressing F5, or Ctrl-Shift-B.
 
 ### Linux
-On Linux, you usually need to install some dependencies in addition to .NET Core SDK. On Ubuntu, run the following on apt:
+On Linux, you usually need to install some dependencies in addition to .NET SDK. On Ubuntu, run the following on apt:
 
 ```sh
 sudo apt install libc6-dev libunwind8 curl git -y
