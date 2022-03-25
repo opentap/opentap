@@ -17,6 +17,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.Serialization;
+using OpenTap.Login;
 using Tap.Shared;
 
 namespace OpenTap.Package
@@ -30,19 +31,16 @@ namespace OpenTap.Package
         private const string ApiVersion = "3.0";
         private VersionSpecifier MinRepoVersion = new VersionSpecifier(3, 0, 0, "", "", VersionMatchBehavior.AnyPrerelease | VersionMatchBehavior.Compatible);
         private string defaultUrl;
-        private static HttpClient httpClient;
-        private static HttpClient HttpClient
+        private HttpClient client;
+        private HttpClient HttpClient => client ?? (client = GetHttpClient(Url));
+        private static HttpClient GetHttpClient(string url)
         {
-            get
-            {
-                if (httpClient is null)
-                {
-                    httpClient = new HttpClient();
-                    httpClient.DefaultRequestHeaders.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
-                    httpClient.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/xml");
-                }
-                return httpClient;
-            }
+            var httpClient = new HttpClient(Login.LoginInfo.GetClientHandler());
+            httpClient.DefaultRequestHeaders.Add("OpenTAP",
+                PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
+            httpClient.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/xml");
+            return httpClient;
+            
         }
 
         /// <summary>
@@ -242,6 +240,9 @@ namespace OpenTap.Package
                     wc.Proxy = WebRequest.GetSystemWebProxy();
                     wc.Headers.Add(HttpRequestHeader.Accept, accept ?? "application/xml");
                     wc.Headers.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
+                    var token = LoginInfo.Current.GetValidAccessToken(new Uri(Url).Host, TapThread.Current.AbortToken);
+                    if (token != null)
+                        wc.Headers.Add("Authorization", "Bearer " + token.TokenData);
                     wc.Encoding = Encoding.UTF8;
 
                     if (data != null)
@@ -348,7 +349,7 @@ namespace OpenTap.Package
 
             // Check specific version
             var data = tryDownload($"{Url}/{ApiVersion}/version");
-
+            
             if (string.IsNullOrEmpty(data))
             {
                 // Url does not exists
