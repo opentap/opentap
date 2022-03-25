@@ -7,18 +7,23 @@ using OpenTap.Cli;
 
 namespace OpenTap.Login
 {
-    [Display("refresh-token", Group:"web")]
+    /// <summary> Refreshes tokens. </summary>
+    [Display("refresh-token", Group:"web", Description: "Refresh one or more tokens.")]
     public class RefreshTokenAction : ICliAction
     {
-        [CommandLineArgument("site")] public string Site { get; set; }
-        public string RefreshToken { get; set; }
+        /// <summary> The site</summary>
+        [CommandLineArgument("site", Description = "The site to refresh tokens for. If null, all tokens will be refreshed.")] 
+        public string Site { get; set; }
+        /// <summary>
+        /// The token. Set this if using this class as an API.
+        /// </summary>
         public TokenInfo Token { get; set; }
         
-        private static TraceSource log = Log.CreateSource("web");
+        private static readonly TraceSource log = Log.CreateSource("web");
 
+        /// <summary> Executed the action. </summary>
         public int Execute(CancellationToken cancellationToken)
         {
-
             if (Site == null)
             {
                 log.Debug("Site not specified. Refreshing all tokens.");
@@ -38,7 +43,7 @@ namespace OpenTap.Login
                 Token = LoginInfo.Current.RefreshTokens.FirstOrDefault(x => x.Site == Site);
             if (Token == null)
                 throw new ArgumentNullException(nameof(Token));
-            RefreshToken = Token.TokenData;
+            var refreshToken = Token.TokenData;
             var clientId = Token.GetClientId();
             var url = $"{Token.GetAuthUrl()}/protocol/openid-connect/token";
             
@@ -46,7 +51,7 @@ namespace OpenTap.Login
             using (var content =
                    new FormUrlEncodedContent(new Dictionary<string, string>
                    {
-                       {"refresh_token", RefreshToken},
+                       {"refresh_token", refreshToken},
                        {"grant_type", "refresh_token"}, 
                        {"client_id", clientId}
                    }))
@@ -70,7 +75,7 @@ namespace OpenTap.Login
                 var accessToken = json?.RootElement.GetProperty("access_token").GetString();
                 if(accessToken != null)
                     LoginInfo.Current.RegisterAccessToken(Site, accessToken, accessExp);
-                var refreshToken = json?.RootElement.GetProperty("refresh_token").GetString();
+                refreshToken = json?.RootElement.GetProperty("refresh_token").GetString();
                 if(refreshToken != null)
                     LoginInfo.Current.RegisterRefreshToken(Site, refreshToken, refreshExp);
                 LoginInfo.Current.Save();

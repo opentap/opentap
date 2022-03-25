@@ -8,7 +8,7 @@ namespace OpenTap.Login
 {
     [Display("get", Group: "web")]
     [Browsable(false)]
-    public class WebRequestAction : ICliAction
+    class WebRequestAction : ICliAction
     {
         private static TraceSource log = Log.CreateSource("web");
 

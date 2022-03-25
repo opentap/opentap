@@ -6,32 +6,31 @@ using OpenTap.Cli;
 
 namespace OpenTap.Login
 {
+    /// <summary>
+    /// Logs in to an Keycloak instance.
+    /// </summary>
     [Display("login", Group: "web")]
     public class LoginCliAction : ICliAction
     {
+        /// <summary> The user name</summary>
         [CommandLineArgument("username")] public string UserName { get; set; }
+        /// <summary> The password</summary>
         [CommandLineArgument("password")] public string Password { get; set; }
+        /// <summary> The URL for the keycloak instance</summary>
         [CommandLineArgument("url")] public string Url { get; set; }
+        /// <summary> the client ID </summary>
         [CommandLineArgument("client-id")] public string ClientId { get; set; }
+        /// <summary> The realm. </summary>
         [CommandLineArgument("realm")] public string Realm { get; set; }
-        [CommandLineArgument("logout")] public bool Logout { get; set; }
 
-        // site can be used if the url does not contain the service site.
+        /// <summary> This can be used if the url does not contain the service site. </summary>
         [CommandLineArgument("site")] public string Site { get; set; }
 
-        private static readonly TraceSource log = Log.CreateSource("login");
+        private static readonly TraceSource log = Log.CreateSource("web");
 
+        /// <summary> Executes the action. </summary>
         public int Execute(CancellationToken cancellationToken)
         {
-            if (Logout)
-            {
-                LoginInfo.Current.UnregisterAccessToken(Url.Replace("keycloak.", ""));
-                LoginInfo.Current.UnregisterRefreshToken(Url.Replace("keycloak.", ""));
-                LoginInfo.Current.Save();
-                log.Debug("Logout successful.");
-                return 0;
-            }
-
             var url = $"https://{Url}/auth/realms/{Realm}/protocol/openid-connect/token";
             var http = new HttpClient { };
             using (var content =
