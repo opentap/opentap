@@ -52,7 +52,7 @@
         <File Path="OpenTap.Plugins.BasicSteps.pdb"/>
         <File Path="OpenTap.Cli.dll"/>
         <File Path="OpenTap.Cli.pdb"/>
-        <File Path="Packages/OpenTap/Tap.Upgrader.pdb" SourcePath="Tap.Upgrader.pdb"/>
+        <File Path="Packages/OpenTAP/Tap.Upgrader.pdb" SourcePath="Tap.Upgrader.pdb"/>
     </Files>
     <!-- Windows only files -->
     <Files Condition="$(Platform) == Windows">
@@ -64,11 +64,11 @@
              This additional 'tap.exe.new' overwrites the previous 'tap.exe' file as a post-install action
              We still need to ship the original 'tap.exe' file in the package in case the package is being deployed
              by manually unzipping -->
-        <File Path="Packages/OpenTap/tap.exe.new" SourcePath="tap.exe" >
+        <File Path="Packages/OpenTAP/tap.exe.new" SourcePath="tap.exe" >
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <!-- The tap upgrader is only necessary on Windows because we cannot overwrite tap.exe otherwise -->
-        <File Path="Packages/OpenTap/Tap.Upgrader.exe" SourcePath="Tap.Upgrader.exe">
+        <File Path="Packages/OpenTAP/Tap.Upgrader.exe" SourcePath="Tap.Upgrader.exe">
           <SetAssemblyInfo Attributes="Version"/>
           <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
@@ -120,7 +120,7 @@
         <ActionStep ActionName="install" ExeFile="chmod" Arguments="+x tap"  />
     </PackageActionExtensions>
     <PackageActionExtensions Condition="$(Platform) == Windows">
-        <ActionStep ActionName="install" ExeFile="Packages/OpenTap/Tap.Upgrader.exe" />
-        <ActionStep ActionName="uninstall" ExeFile="Packages/OpenTap/Tap.Upgrader.exe" />
+        <ActionStep ActionName="install" ExeFile="Packages/OpenTAP/Tap.Upgrader.exe" />
+        <ActionStep ActionName="uninstall" ExeFile="Packages/OpenTAP/Tap.Upgrader.exe" />
     </PackageActionExtensions>
 </Package>
