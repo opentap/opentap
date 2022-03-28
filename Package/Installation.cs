@@ -232,7 +232,7 @@ namespace OpenTap.Package
 
                 foreach (var p in duplicatePlugins.GroupBy(p => p.Name))
                 {
-                    if(false && duplicateLogWarningsEmitted.Add(p.Key))
+                    if(duplicateLogWarningsEmitted.Add(p.Key))
                         log.Warning(
                         $"Duplicate {p.Key} packages detected. Consider removing some of the duplicate package definitions:\n" +
                         $"{string.Join("\n", p.Append(plugins[p.Key]).Select(x => " - " + ((InstalledPackageDefSource)x.PackageSource).PackageDefFilePath))}");
