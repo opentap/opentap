@@ -17,7 +17,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.Serialization;
-using OpenTap.Login;
+using OpenTap.Authentication;
 using Tap.Shared;
 
 namespace OpenTap.Package
@@ -35,7 +35,7 @@ namespace OpenTap.Package
         private HttpClient HttpClient => client ?? (client = GetHttpClient(Url));
         private static HttpClient GetHttpClient(string url)
         {
-            var httpClient = new HttpClient(Login.LoginInfo.GetClientHandler());
+            var httpClient = new HttpClient(Authentication.LoginInfo.GetClientHandler());
             httpClient.DefaultRequestHeaders.Add("OpenTAP",
                 PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
             httpClient.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/xml");

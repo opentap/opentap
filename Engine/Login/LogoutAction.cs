@@ -2,23 +2,24 @@ using System;
 using System.Threading;
 using OpenTap.Cli;
 
-namespace OpenTap.Login
+namespace OpenTap.Authentication
 {
     /// <summary> Logout action. </summary>
-    [Display("logout", "Logs out of a Keycloak instance.", Group: "web")]
+    [Display("logout", "Logs out of an OAuth domain.", Group: "auth")]
     public class LogoutAction : ICliAction
     {
-        /// <summary> The URL for the keycloak instance</summary>
-        [CommandLineArgument("url")] public string Url { get; set; }
+        static readonly TraceSource log = Log.CreateSource("web");
         
-        private static readonly TraceSource log = Log.CreateSource("web");
-        /// <summary>  Executes the action. </summary>
+        /// <summary> The domain to log out of.</summary>
+        [CommandLineArgument("domain")] public string Domain { get; set; }
+        
+        /// <summary> Executes the action. </summary>
         public int Execute(CancellationToken cancellationToken)
         {
-            if (Url == null)
-                throw new ArgumentException("Not set", nameof(Url));
-            LoginInfo.Current.UnregisterAccessToken(Url.Replace("keycloak.", ""));
-            LoginInfo.Current.UnregisterRefreshToken(Url.Replace("keycloak.", ""));
+            if (Domain == null)
+                throw new ArgumentException("Not set", nameof(Domain));
+            LoginInfo.Current.UnregisterAccessToken(Domain);
+            LoginInfo.Current.UnregisterRefreshToken(Domain);
             LoginInfo.Current.Save();
             log.Debug("Logout successful.");
             return 0;
