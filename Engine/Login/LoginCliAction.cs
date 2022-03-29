@@ -9,25 +9,34 @@ namespace OpenTap.Authentication
     /// <summary>
     /// Logs in to an OAuth provider host.
     /// </summary>
-    [Display("login", Group: "auth")]
+    [Display("login", Group: "auth", Description: "Logs in to an OAuth provider.")]
     public class LoginCliAction : ICliAction
     {
         static readonly TraceSource log = Log.CreateSource("web");
         
         /// <summary> The user name</summary>
-        [CommandLineArgument("username")] public string UserName { get; set; }
+        [CommandLineArgument("username", Description = "The username to log in with.")] public string UserName { get; set; }
         /// <summary> The password</summary>
-        [CommandLineArgument("password")] public string Password { get; set; }
+        [CommandLineArgument("password", Description="The password used to log in with.")] public string Password { get; set; }
         /// <summary> The URL for the keycloak instance</summary>
-        [CommandLineArgument("authority")] public string Authority { get; set; }
+        [CommandLineArgument("authority", Description = "HTTPS url to the OAuth authority provider. ")] public string Authority { get; set; }
         /// <summary> the client ID </summary>
-        [CommandLineArgument("client-id")] public string ClientId { get; set; }
+        [CommandLineArgument("client-id", Description = "The client ID for the application.")] public string ClientId { get; set; }
         /// <summary> This can be used if the url does not contain the service site. </summary>
-        [CommandLineArgument("domain")] public string Domain { get; set; }
+        [CommandLineArgument("domain", Description="The domain to log into. " +
+                                                   "Be default, this is the same as 'authority', but these will often be different services.")] 
+        public string Domain { get; set; }
 
         /// <summary> Executes the action. </summary>
         public int Execute(CancellationToken cancellationToken)
         {
+            this.MustBeDefined(nameof(Authority));
+            this.MustBeDefined(nameof(UserName));
+            this.MustBeDefined(nameof(Password));
+            this.MustBeDefined(nameof(ClientId));
+            
+            Domain ??= new Uri(Authority).Host;
+            
             var url = $"{Authority}/protocol/openid-connect/token";
             var http = new HttpClient { };
             var contentDict = new Dictionary<string, string>
@@ -44,7 +53,7 @@ namespace OpenTap.Authentication
                 if (!response.IsSuccessStatusCode)
                     throw new Exception("Unable to connect: " + response.StatusCode);
                 
-                Domain = Domain ?? new Uri(Authority).Host;
+                
                 var responseString = response.Content.ReadAsStringAsync().Result;
                 TokenInfo.ParseTokens(responseString, Domain, out var access, out var refresh);
                 LoginInfo.Current.RegisterTokens(access, refresh);

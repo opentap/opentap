@@ -38,7 +38,7 @@ namespace OpenTap.Authentication
             if (Token == null)
                 Token = LoginInfo.Current.RefreshTokens.FirstOrDefault(x => x.Domain == Domain);
             if (Token == null)
-                throw new ArgumentNullException(nameof(Token));
+                throw new Exception("No refresh token found matching domain: " + Domain);
             var refreshToken = Token.TokenData;
             var clientId = Token.GetClientId();
             var url = $"{Token.GetAuthority()}/protocol/openid-connect/token";

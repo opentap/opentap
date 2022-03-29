@@ -43,6 +43,7 @@ namespace OpenTap.Authentication
         }
         
         static readonly TimeSpan refreshSlack = TimeSpan.FromSeconds(30);
+        /// <summary> Parses tokens from oauth response string (json format). </summary>
         public static void ParseTokens(string responseString, string site, out TokenInfo accessToken, out TokenInfo refreshToken)
         {
             var json = System.Text.Json.JsonDocument.Parse(responseString);

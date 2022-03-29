@@ -16,8 +16,7 @@ namespace OpenTap.Authentication
         /// <summary> Executes the action. </summary>
         public int Execute(CancellationToken cancellationToken)
         {
-            if (Domain == null)
-                throw new ArgumentException("Not set", nameof(Domain));
+            this.MustBeDefined(nameof(Domain));
             LoginInfo.Current.UnregisterAccessToken(Domain);
             LoginInfo.Current.UnregisterRefreshToken(Domain);
             LoginInfo.Current.Save();

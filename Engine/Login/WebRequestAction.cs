@@ -17,6 +17,7 @@ namespace OpenTap.Authentication
 
         public int Execute(CancellationToken cancellationToken)
         {
+            this.MustBeDefined(nameof(Request));
             var cli = new HttpClient(LoginInfo.GetClientHandler());
             var response = cli.GetAsync(Request, cancellationToken).Result;
             var content = response.Content.ReadAsStringAsync().Result;

@@ -40,9 +40,6 @@ namespace OpenTap.Authentication
         public static HttpClientHandler GetClientHandler() => new AuthenticationClientHandler();
 
         /// <summary> Registers a refresh token.  </summary>
-        /// <param name="site"></param>
-        /// <param name="refreshToken"></param>
-        /// <param name="expiration"></param>
         void RegisterRefreshToken(TokenInfo token)
         {
             UnregisterRefreshToken(token.Domain);
