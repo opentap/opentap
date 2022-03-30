@@ -846,7 +846,7 @@ jobs:
   ### Publish ###
   ###############
   Publish-NuGet:
-    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
+    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/opentap.login'
     environment: nuget.org
     runs-on: windows-2022
     needs:
