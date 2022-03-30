@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Threading;
 using OpenTap.Cli;
 
@@ -6,7 +7,8 @@ namespace OpenTap.Authentication
 {
     /// <summary> Logout action. </summary>
     [Display("logout", "Logs out of an OAuth domain.", Group: "auth")]
-    public class LogoutAction : ICliAction
+    [Browsable(false)]
+    class LogoutAction : ICliAction
     {
         static readonly TraceSource log = Log.CreateSource("web");
         

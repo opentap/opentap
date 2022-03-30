@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Net.Http;
 using System.Threading;
 using OpenTap.Cli;
@@ -10,7 +11,8 @@ namespace OpenTap.Authentication
     /// Logs in to an OAuth provider host.
     /// </summary>
     [Display("login", Group: "auth", Description: "Logs in to an OAuth provider.")]
-    public class LoginCliAction : ICliAction
+    [Browsable(false)]
+    class LoginCliAction : ICliAction
     {
         static readonly TraceSource log = Log.CreateSource("web");
         

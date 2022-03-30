@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Net.Http;
 using System.Threading;
@@ -9,7 +10,8 @@ namespace OpenTap.Authentication
 {
     /// <summary> Refreshes tokens. </summary>
     [Display("refresh-token", Group:"auth", Description: "Refresh one or more tokens.")]
-    public class RefreshTokenAction : ICliAction
+    [Browsable(false)]
+    class RefreshTokenAction : ICliAction
     {
         static readonly TraceSource log = Log.CreateSource("web");
         
@@ -33,36 +35,6 @@ namespace OpenTap.Authentication
                     Execute(cancellationToken);
                 }
                 return 0;
-            }
-
-            if (Token == null)
-                Token = LoginInfo.Current.RefreshTokens.FirstOrDefault(x => x.Domain == Domain);
-            if (Token == null)
-                throw new Exception("No refresh token found matching domain: " + Domain);
-            var refreshToken = Token.TokenData;
-            var clientId = Token.GetClientId();
-            var url = $"{Token.GetAuthority()}/protocol/openid-connect/token";
-            
-            var http = new HttpClient();
-            using (var content =
-                   new FormUrlEncodedContent(new Dictionary<string, string>
-                   {
-                       {"refresh_token", refreshToken},
-                       {"grant_type", "refresh_token"}, 
-                       {"client_id", clientId}
-                   }))
-            {
-                var response = http.PostAsync(url, content, cancellationToken).Result;
-                if (!response.IsSuccessStatusCode)
-                    throw new Exception("Unable to connect: " + response.StatusCode);
-
-                var responseString = response.Content.ReadAsStringAsync().Result;
-                TokenInfo.ParseTokens(responseString, Domain, out var access, out var refresh);
-                if (access == null) throw new Exception("No access token in response.");
-                if (refresh == null) throw new Exception("No refresh token in response.");
-                LoginInfo.Current.RegisterTokens(access, refresh);
-                LoginInfo.Current.Save();
-                log.Debug("Token refreshed.");
             }
 
             return 0;

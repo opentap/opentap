@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Linq;
 using System.Threading;
 using OpenTap.Cli;
@@ -6,6 +7,7 @@ namespace OpenTap.Authentication
 {
     /// <summary> Lists current logins, active or otherwise. </summary>
     [Display("list-logins", Group: "auth", Description: "List the currently active logins.")]
+    [Browsable(false)]
     class ListLogins : ICliAction
     {
         private static readonly TraceSource log = Log.CreateSource("web");
