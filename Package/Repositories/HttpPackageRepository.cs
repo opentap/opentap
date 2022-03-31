@@ -35,7 +35,7 @@ namespace OpenTap.Package
         private HttpClient HttpClient => client ?? (client = GetHttpClient(Url));
         private static HttpClient GetHttpClient(string url)
         {
-            var httpClient = new HttpClient(Authentication.LoginInfo.GetClientHandler());
+            var httpClient = new HttpClient(Authentication.AuthenticationSettings.GetClientHandler());
             httpClient.DefaultRequestHeaders.Add("OpenTAP",
                 PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
             httpClient.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/xml");
@@ -240,7 +240,7 @@ namespace OpenTap.Package
                     wc.Proxy = WebRequest.GetSystemWebProxy();
                     wc.Headers.Add(HttpRequestHeader.Accept, accept ?? "application/xml");
                     wc.Headers.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
-                    var token = LoginInfo.Current.GetValidAccessToken(new Uri(Url).Host, TapThread.Current.AbortToken);
+                    var token = AuthenticationSettings.Current.GetValidAccessToken(new Uri(Url).Host, TapThread.Current.AbortToken);
                     if (token != null)
                         wc.Headers.Add("Authorization", "Bearer " + token.TokenData);
                     wc.Encoding = Encoding.UTF8;

@@ -11,33 +11,44 @@ namespace OpenTap.Authentication
 {
     /// <summary>  This class stores information about the logged in client. </summary>
     [Browsable(false)]
-    public class LoginInfo : ComponentSettings<LoginInfo>
+    public class AuthenticationSettings : ComponentSettings<AuthenticationSettings>
     {
         class AuthenticationClientHandler : HttpClientHandler
         {
+            private readonly string domain;
+
+            public AuthenticationClientHandler(string domain = null)
+            {
+                this.domain = domain;
+            }
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
                 CancellationToken cancellationToken)
             {
-                Current.PrepareRequest(request, cancellationToken);
+                Current.PrepareRequest(request, domain, cancellationToken);
                 return base.SendAsync(request, cancellationToken);
             }
         }
 
-        /// <summary> Access tokens. These expires within a few minutes, but can be refreshed using the refresh action. </summary>
+        /// <summary> Access tokens.</summary>
         public IList<TokenInfo> AccessTokens { get; set; } = new List<TokenInfo>();
-        /// <summary> Refresh tokens. These expires within a few hours, but can be refreshed using the refresh action. </summary>
+        /// <summary> Refresh tokens.</summary>
         public IList<TokenInfo> RefreshTokens { get; set; } = new List<TokenInfo>();
+        /// <summary> Identity tokens.</summary>
+        public IList<TokenInfo> IdentityTokens { get; set; } = new List<TokenInfo>();
 
-        void PrepareRequest(HttpRequestMessage request, CancellationToken cancellationToken)
+        void PrepareRequest(HttpRequestMessage request, string domain, CancellationToken cancellationToken)
         {
-            var host = request.RequestUri.Host;
-            var token = GetValidAccessToken(host, cancellationToken);
-            if(token != null)
+            TokenInfo token = null;
+            if (domain != null)
+                token = GetValidAccessToken(domain, cancellationToken);
+            if (token == null)
+                token = GetValidAccessToken(request.RequestUri.Host, cancellationToken);
+            if (token != null)
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.TokenData);
         }
-        
+
         /// <summary> Constructs a HttpClientHandler that can be used with HttpClient. </summary>
-        public static HttpClientHandler GetClientHandler() => new AuthenticationClientHandler();
+        public static HttpClientHandler GetClientHandler(string domain = null) => new AuthenticationClientHandler(domain);
 
         /// <summary> Registers a refresh token.  </summary>
         void RegisterRefreshToken(TokenInfo token)
@@ -53,35 +64,45 @@ namespace OpenTap.Authentication
             AccessTokens.Add(token);
         }
 
-        /// <summary> Unregisters an access token.</summary>
-        public void UnregisterAccessToken(string site)
+        void RegisterIdentityToken(TokenInfo token)
         {
-            AccessTokens.RemoveIf(x => x.Domain == site);
+            UnregisterIdentityToken(token.Domain);
+            IdentityTokens.Add(token);
+        }
+
+        private void UnregisterIdentityToken(string domain)
+        {
+            IdentityTokens.RemoveIf(x => x.Domain == domain);
+        }
+
+        /// <summary> Unregisters an access token.</summary>
+        public void UnregisterAccessToken(string domain)
+        {
+            AccessTokens.RemoveIf(x => x.Domain == domain);
         }
         /// <summary> Unregisters a refresh token.</summary>
-        public void UnregisterRefreshToken(string site)
+        public void UnregisterRefreshToken(string domain)
         {
-            RefreshTokens.RemoveIf(x => x.Domain == site);
+            RefreshTokens.RemoveIf(x => x.Domain == domain);
         }
 
         /// <summary> Gets a valid access token matching the site. If the current token has expired, the refresh action will be used to refresh it. </summary>
-        public TokenInfo GetValidAccessToken(string site, CancellationToken cancel)
+        public TokenInfo GetValidAccessToken(string domain, CancellationToken cancel)
         {
-            if (AccessTokens.FirstOrDefault(x => x.Domain == site) is TokenInfo access){
-                // if the access token is about to expire, try refreshing it - if there is a refresh token available.
-                if (access.Expiration < DateTime.Now &&
-                    RefreshTokens.FirstOrDefault(x => x.Domain == site) is TokenInfo refresh)
-                {
-                    var refresh2 = new RefreshTokenAction
-                    {
-                        Domain = site,
-                        Token = refresh
-                    };
-                    refresh2.Execute(cancel);
-                }
-            }
-
-            return AccessTokens.FirstOrDefault(x => x.Domain == site);
+            //if (AccessTokens.FirstOrDefault(x => x.Domain == site) is TokenInfo access){
+            //    // if the access token is about to expire, try refreshing it - if there is a refresh token available.
+            //    if (access.Expiration < DateTime.Now &&
+            //        RefreshTokens.FirstOrDefault(x => x.Domain == site) is TokenInfo refresh)
+            //    {
+            //        var refresh2 = new RefreshTokenAction
+            //        {
+            //            Domain = site,
+            //            Token = refresh
+            //        };
+            //        refresh2.Execute(cancel);
+            //    }
+            //}
+            return AccessTokens.FirstOrDefault(x => x.Domain == domain);
         }
 
         /// <summary> Registers a set of tokens.</summary>
@@ -95,16 +116,17 @@ namespace OpenTap.Authentication
                 switch (token.Type)
                 {
                     case TokenType.AccessToken:
-                        RegisterAccessToken(token);    
+                        RegisterAccessToken(token);
                         break;
                     case TokenType.RefreshToken:
                         RegisterRefreshToken(token);
                         break;
                     case TokenType.IdentityToken:
-                        throw new NotSupportedException("Identity token is not yet supported.");
+                        RegisterIdentityToken(token);
+                        break;
                     default:
                         throw new ArgumentOutOfRangeException();
-                }   
+                }
             }
         }
     }
