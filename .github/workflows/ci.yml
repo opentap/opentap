@@ -635,7 +635,8 @@ jobs:
           Move-Item OpenTAP.*.Linux.TapPackage OpenTAP.Linux.zip
 
           Move-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
-          Move-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll    
+          Move-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll
+          echo "Install opentap"    
           ./bin/Release/tap package install ./OpenTap.x64.zip -t ./nuget/build/payload -f
           # package.xml, tap.dll, and tap.runtimeconfig.json of an installation should always come from 
           # one of the Runtime directories. Delete it from the payload directory.
@@ -650,12 +651,14 @@ jobs:
           Remove-Item tap.exe
           Remove-Item ./Dependencies/LibGit2Sharp.0.27.0.0/git2*.dll
           Pop-Location
-          Expand-Archive OpenTAP.x64.zip win-x64
-          Expand-Archive OpenTAP.x86.zip win-x86
-          Expand-Archive OpenTAP.Linux.zip linux-x64
+          echo "Expand archive"
+          Expand-Archive OpenTAP.x64.zip win-x64 -Verbose
+          Expand-Archive OpenTAP.x86.zip win-x86 -Verbose
+          Expand-Archive OpenTAP.Linux.zip linux-x64 -Verbose
           ./nuget/NugetPackager.ps1
           cd ./nuget    
           Invoke-WebRequest -Method Get -Uri "https://dist.nuget.org/win-x86-commandline/v5.7.1/nuget.exe" -OutFile nuget.exe
+          echo "Pack nuget"
           .\nuget pack OpenTAP.nuspec -OutputDirectory ../
       - uses: actions/upload-artifact@v2
         with:
