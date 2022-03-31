@@ -90,20 +90,9 @@ namespace OpenTap.Authentication
         public TokenInfo GetValidAccessToken(string domain, CancellationToken cancel)
         {
             cancel.ThrowIfCancellationRequested();
+
+            // Try refresh
             
-            //if (AccessTokens.FirstOrDefault(x => x.Domain == site) is TokenInfo access){
-            //    // if the access token is about to expire, try refreshing it - if there is a refresh token available.
-            //    if (access.Expiration < DateTime.Now &&
-            //        RefreshTokens.FirstOrDefault(x => x.Domain == site) is TokenInfo refresh)
-            //    {
-            //        var refresh2 = new RefreshTokenAction
-            //        {
-            //            Domain = site,
-            //            Token = refresh
-            //        };
-            //        refresh2.Execute(cancel);
-            //    }
-            //}
             return AccessTokens.FirstOrDefault(x => x.Domain == domain);
         }
 
