@@ -89,6 +89,8 @@ namespace OpenTap.Authentication
         /// <summary> Gets a valid access token matching the site. If the current token has expired, the refresh action will be used to refresh it. </summary>
         public TokenInfo GetValidAccessToken(string domain, CancellationToken cancel)
         {
+            cancel.ThrowIfCancellationRequested();
+            
             //if (AccessTokens.FirstOrDefault(x => x.Domain == site) is TokenInfo access){
             //    // if the access token is about to expire, try refreshing it - if there is a refresh token available.
             //    if (access.Expiration < DateTime.Now &&
