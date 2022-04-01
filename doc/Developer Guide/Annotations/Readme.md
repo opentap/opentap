@@ -12,7 +12,7 @@ An 'annotation' describes an aspect of an object in relation to known user inter
 |![](./annotated_step_settings.png)|
 |*Annotated test step settings for a text/terminal based, a WPF based GUI and a JSON WEB API. The views are based on data from the same type of Test Step. Each view has the same properties and the same annotations, but different technologies are being used to show them.*|
 
-The annotation system has two sides to it, the User Interface and the Plugin side. This section will mostly focus on the plugin side of this. For a complete example of how to implement a User Interface using the annotation system the open-source text based user interface can be used as a reference. It is located at [https://gitlab.com/OpenTAP/Plugins/keysight/opentap-tui](https://gitlab.com/OpenTAP/Plugins/keysight/opentap-tui).
+The annotation system has two sides to it, the User Interface and the Plugin side. This section will mostly focus on the plugin side of this. For a complete example of how to implement a User Interface using the annotation system the open-source text based user interface can be used as a reference. It is located at [https://github.com/StefanHolst/opentap-tui](https://github.com/StefanHolst/opentap-tui).
 
 For plugin developers the annotation system can be used to extend the number of types that the user can interact with in the GUI.
 
