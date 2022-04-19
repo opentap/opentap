@@ -214,6 +214,7 @@ namespace OpenTap.Package
                 // If we are already running as administrator, skip this and install normally
                 if (systemWide.Any() && SubProcessHost.IsAdmin() == false)
                 {
+                    RaiseProgressUpdate(20, "Installing system-wide packages.");
                     var installStep = new PackageInstallStep()
                     {
                         Packages = systemWide,
