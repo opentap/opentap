@@ -1663,6 +1663,39 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        public class IntStep : TestStep
+        {
+            public int SomeInt { get; set; }
+
+            public override void Run()
+            {
+            }
+        }
+
+        [TestCase("asd", true)]
+        [TestCase("", true)]
+        [TestCase("163", false)]
+        public void TestExternalparameterDeserializeError(string numStr, bool fail)
+        {
+            var step = new IntStep();
+
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step);
+            plan.ExternalParameters.Add(step, TypeData.GetTypeData(step).GetMember(nameof(step.SomeInt)), "SomeInt");
+
+            var serializer = new TapSerializer();
+            var extparams = serializer.GetSerializer<Plugins.ExternalParameterSerializer>();
+            extparams.PreloadedValues["SomeInt"] = numStr;
+            using (var ms = new MemoryStream())
+            {
+                plan.Save(ms);
+                ms.Seek(0, SeekOrigin.Begin);
+                plan = TestPlan.Load(ms, "test.tapplan", false, serializer);
+            }
+            Assert.IsTrue(serializer.Errors.Any() == fail);
+            plan.Execute();
+        }
+
         [Test]
         public void SerializerNumberList()
         {
