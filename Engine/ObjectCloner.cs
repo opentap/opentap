@@ -81,15 +81,21 @@ namespace OpenTap
                     clone = null;
                     return false;
                 }
+            }else if(skipIfPossible && typeOfValue.DescendsTo(targetType))
+            {
+                clone = value;
+                return true;
             }
-
             clone = value;
             return false;
         }
 
         public object Clone(bool skipIfPossible, object context, ITypeData targetType)
         {
-            TryClone(context, targetType, skipIfPossible, out var clone);
+            if (TryClone(context, targetType, skipIfPossible, out var clone) == false)
+            {
+                throw new InvalidCastException($"Failed cloning {value} as {targetType.Name}.");
+            }
             return clone;
         }
     }
