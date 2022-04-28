@@ -1669,6 +1669,7 @@ namespace OpenTap.Engine.UnitTests
 
             public override void Run()
             {
+                throw new NotImplementedException();
             }
         }
 
@@ -1689,11 +1690,10 @@ namespace OpenTap.Engine.UnitTests
             using (var ms = new MemoryStream())
             {
                 plan.Save(ms);
-                ms.Seek(0, SeekOrigin.Begin);
+                ms.Position = 0;
                 plan = TestPlan.Load(ms, "test.tapplan", false, serializer);
             }
             Assert.IsTrue(serializer.Errors.Any() == fail);
-            plan.Execute();
         }
 
         [Test]
@@ -2447,10 +2447,18 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void NullInstrumentTest()
         {
-             object outValue = new ObjectCloner(null).Clone(true, null, TypeData.FromType(typeof(ScpiInstrument)));
-             Assert.IsNull(outValue);
+            object outValue = new ObjectCloner(null).Clone(true, null, TypeData.FromType(typeof(ScpiInstrument)));
+            Assert.IsNull(outValue);
         }
-        
+
+        [Test]
+        public void NullValueTypeTest()
+        {
+            Assert.Throws<InvalidCastException>(() => new ObjectCloner("asd").Clone(true, 1, TypeData.FromType(typeof(int))));
+            Assert.Throws<InvalidCastException>(() => new ObjectCloner("").Clone(true, 1, TypeData.FromType(typeof(int))));
+            Assert.DoesNotThrow(() => new ObjectCloner("123").Clone(true, 1, TypeData.FromType(typeof(int))));
+        }
+
         public class InPlaceProperty : ValidatingObject
         {
             int x;
