@@ -330,20 +330,31 @@ namespace OpenTap
             throw new TestStepBreakException(TestStepName, Verdict);
         }
 
-        internal void WaitForOutput(OutputAvailability mode)
+        internal bool IsStepChildOf(ITestStep step, ITestStep possibleParent)
         {
+            do
+            {
+                step = step.Parent as ITestStep;
+            }
+            while (step != null && step != possibleParent);
+            return step != null;
+        }
+
+        internal void WaitForOutput(OutputAvailability mode, ITestStep waitingFor)
+        {
+            ITestStep currentStep = TestStepExtensions.currentlyExecutingTestStep;
             var currentThread = TapThread.Current;
             switch (mode)
             {
                 case OutputAvailability.BeforeRun: 
                     return;
                 case OutputAvailability.AfterDefer:
-                    if (StepThread == currentThread && runDone.Wait(0) == false)
+                    if ((StepThread == currentThread && runDone.Wait(0) == false) || IsStepChildOf(currentStep, waitingFor))
                         throw new Exception("Deadlock detected");
                     deferDone.Wait(TapThread.Current.AbortToken);
                     break; 
                 case OutputAvailability.AfterRun:
-                    if (StepThread == currentThread && runDone.Wait(0) == false)
+                    if ((StepThread == currentThread && runDone.Wait(0) == false) || IsStepChildOf(currentStep, waitingFor))
                         throw new Exception("Deadlock detected");
                     runDone.Wait(TapThread.Current.AbortToken);
                     break;
