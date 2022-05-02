@@ -14,14 +14,18 @@
     <tags>OpenTAP</tags>
     <references>
     	<reference file="OpenTap.dll"/>
+    	<reference file="OpenTap.Package.dll"/>
     </references>
     <license type="expression">MPL-2.0</license>
+    <dependencies>
+      <group targetFramework=".NETStandard2.0"/>
+    </dependencies>
   </metadata>
   <files>
-    <file src="build/payload/OpenTap.dll" target="lib/netstandard2.0" />
-    <file src="build/payload/OpenTap.xml" target="lib/netstandard2.0" />
-    <file src="build/payload/OpenTap.Package.dll" target="lib/netstandard2.0" />
-    <file src="build/payload/OpenTap.Package.xml" target="lib/netstandard2.0" />
+    <file src="build/payload/win-x64/OpenTap.dll" target="lib/netstandard2.0" />
+    <file src="OpenTap.xml" target="lib/netstandard2.0" />
+    <file src="build/payload/win-x64/OpenTap.Package.dll" target="lib/netstandard2.0" />
+    <file src="OpenTap.Package.xml" target="lib/netstandard2.0" />
     
     <file src="build/**/*" exclude="**\.*"/>
   </files>

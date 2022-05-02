@@ -6,8 +6,10 @@
   </PropertyGroup>
   
   <PropertyGroup Condition="'$(IsDebug)'!='true'">
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>  
-    <DocumentationFile>$(OutputPath)\OpenTap.xml</DocumentationFile>    
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>         
+  </PropertyGroup>
+  <PropertyGroup>
+    <DocumentationFile>$(OutputPath)\OpenTap.xml</DocumentationFile>
   </PropertyGroup>
 
   <ItemGroup>
