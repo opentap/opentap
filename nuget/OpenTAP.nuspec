@@ -14,7 +14,6 @@
     <tags>OpenTAP</tags>
     <references>
     	<reference file="OpenTap.dll"/>
-    	<reference file="OpenTap.Package.dll"/>
     </references>
     <license type="expression">MPL-2.0</license>
     <dependencies>

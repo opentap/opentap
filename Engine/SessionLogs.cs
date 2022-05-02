@@ -418,5 +418,20 @@ namespace OpenTap
             if (traceListener != null)
                 traceListener.Flush();
         }
+        
+        /// <summary>
+        /// Deinitialize the session log. The current log is flushed, disposed, and unset.
+        /// The log may be initialized again later.
+        /// </summary>
+        public static void Deinitialize()
+        {
+            if (traceListener != null)
+            {
+                traceListener.Flush();
+                traceListener.Dispose();
+                traceListener = null;
+                currentLogFile = null;
+            }
+        }
     }
 }
