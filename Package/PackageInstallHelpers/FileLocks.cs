@@ -19,6 +19,7 @@ namespace OpenTap.Package.PackageInstallHelpers
     {
         public static IFileLock Create(string file)
         {
+            FileSystemHelper.EnsureDirectory(file);
             if (OperatingSystem.Current == OperatingSystem.Windows) return new Win32FileLock(file);
             if (OperatingSystem.Current == OperatingSystem.MacOS) return new MacOSFileLock(file);
             return new PosixFileLock(file);
