@@ -5,10 +5,28 @@ using OpenTap;
 
 namespace Keysight.OpenTap.Sdk.MSBuild
 {
-    class OpenTapContext : IDisposable
+    class SessionLogContext : IDisposable
     {
-        OpenTapContext() { }
+        /// <summary>
+        /// Calling this method forces the runtime to resolve OpenTAP because SessionLogs is from the OpenTAP assembly.
+        /// </summary>
+        public SessionLogContext()
+        {
+            PluginManager.Search();
+            SessionLogs.Initialize();
+        }
+        
+        /// <summary>
+        /// Ensure the session log is closed when this context is disposed.
+        /// </summary>
+        public void Dispose()
+        {
+            SessionLogs.Deinitialize();
+        }
+    }
 
+    class OpenTapContext
+    {
         /// <summary>
         /// Help the runtime resolve OpenTAP. The correct OpenTAP dll is in a subdirectory and will not be found by
         /// the default resolver. Also, the resolver will look for the debug version (9.4.0.0) because that's what this
@@ -31,9 +49,14 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             try
             {
                 AppDomain.CurrentDomain.AssemblyResolve += resolve;
-                var ctx = new OpenTapContext();
-                ctx.InitializeLogs();
-                return ctx;
+
+                IDisposable defer()
+                {
+                    var ctx = new SessionLogContext();
+                    return ctx;
+                }
+
+                return defer();
             }
             finally
             {
@@ -42,20 +65,5 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         }
         
         static string thisAsmDir => Path.GetDirectoryName(typeof(OpenTapContext).Assembly.Location);
-        /// <summary>
-        /// Calling this method forces the runtime to resolve OpenTAP because SessionLogs is from the OpenTAP assembly.
-        /// </summary>
-        private void InitializeLogs()
-        {
-            SessionLogs.Initialize();
-        }
-        
-        /// <summary>
-        /// Ensure the session log is closed when this context is disposed.
-        /// </summary>
-        public void Dispose()
-        {
-            SessionLogs.Deinitialize();
-        }
     }
 }
