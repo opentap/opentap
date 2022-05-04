@@ -21,9 +21,9 @@ namespace OpenTap.Package
         private static readonly TraceSource log = Log.CreateSource("GitVersion");
 
         /// <summary>
-        /// Represents the --log command line argument which prints git log for the last n commits including version numbers for each commit.
+        /// Represents the --gitlog command line argument which prints git log for the last n commits including version numbers for each commit.
         /// </summary>
-        [CommandLineArgument("log",     Description = "Print the git log for the last <arg> commits including their semantic version number.")]
+        [CommandLineArgument("gitlog",     Description = "Print the git log for the last <arg> commits including their semantic version number.")]
         public string PrintLog { get; set; }
 
         /// <summary>
@@ -90,7 +90,7 @@ namespace OpenTap.Package
                 int nLines = 0;
                 if (!int.TryParse(PrintLog, out nLines) || nLines <= 0)
                 {
-                    log.Error("The argument for --log ({0}) must be an integer greater than 0.", PrintLog);
+                    log.Error("The argument for --gitlog ({0}) must be an integer greater than 0.", PrintLog);
                     return (int)ExitCodes.ArgumentError;
                 }
                 return DoPrintLog(cancellationToken);
