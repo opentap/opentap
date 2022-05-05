@@ -189,7 +189,7 @@ namespace OpenTap
             {
                 TestStepRun run = ResolveStepRun(step);  
                 if (run != null)
-                    run.WaitForOutput(avail);
+                    run.WaitForOutput(avail, step);
             }
 
             return outputMember.GetValue(outputObject);
