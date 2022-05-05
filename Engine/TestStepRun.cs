@@ -349,12 +349,14 @@ namespace OpenTap
                 case OutputAvailability.BeforeRun: 
                     return;
                 case OutputAvailability.AfterDefer:
-                    if ((StepThread == currentThread && runDone.Wait(0) == false) || IsStepChildOf(currentStep, waitingFor))
+                    if ((StepThread == currentThread && runDone.Wait(0) == false) ||
+                        (currentStep != null && IsStepChildOf(currentStep, waitingFor)))
                         throw new Exception("Deadlock detected");
                     deferDone.Wait(TapThread.Current.AbortToken);
                     break; 
                 case OutputAvailability.AfterRun:
-                    if ((StepThread == currentThread && runDone.Wait(0) == false) || IsStepChildOf(currentStep, waitingFor))
+                    if ((StepThread == currentThread && runDone.Wait(0) == false) ||
+                        (currentStep != null && IsStepChildOf(currentStep, waitingFor)))
                         throw new Exception("Deadlock detected");
                     runDone.Wait(TapThread.Current.AbortToken);
                     break;
