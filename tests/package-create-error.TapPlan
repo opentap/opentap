@@ -9,8 +9,7 @@
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
     <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Version="0.0.0" Id="45f82fc0-8acf-41b2-8472-2c1b9db25f32">
-        <String>
-            &lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+      <String>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
                 &lt;PropertyGroup&gt;
                     &lt;TargetFrameworkIdentifier&gt;&lt;/TargetFrameworkIdentifier&gt;
                     &lt;TargetFrameworkVersion&gt;&lt;/TargetFrameworkVersion&gt;
@@ -24,8 +23,7 @@
                     &lt;PackageReference Include="SSH.NET" Version="2020.0.0"/&gt;
                     &lt;OpenTapPackageReference Include="SSH" Version="0.3.0-beta.8" Repository="packages.opentap.io" /&gt;
                 &lt;/ItemGroup&gt;
-           &lt;/Project&gt;
-        </String>
+           &lt;/Project&gt;</String>
       <File>../../NewProj/NewProj.csproj</File>
       <Enabled>true</Enabled>
       <Name>Write {File}</Name>
@@ -157,7 +155,7 @@
       <ChildTestSteps>
         <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="f63f9625-b293-4240-b75d-29183ae2b290">
           <Application>tap</Application>
-          <Arguments>package create ../../package.xml</Arguments>
+          <Arguments>package create ../../package.xml --out ../</Arguments>
           <WorkingDirectory>../../NewProj/bin/Debug</WorkingDirectory>
           <WaitForEnd>true</WaitForEnd>
           <Timeout>0</Timeout>
@@ -211,4 +209,9 @@
     </TestStep>
   </Steps>
   <BreakConditions>Inherit</BreakConditions>
+  <OpenTap.Description />
+  <Package.Dependencies>
+    <Package Name="OpenTAP" Version="^9.18.0-alpha.7.2+aa5cfdec.502-PackageCreateOutDirectory" />
+    <Package Name="FakePackageReferencingFile" Version="^3.4.5" />
+  </Package.Dependencies>
 </TestPlan>
