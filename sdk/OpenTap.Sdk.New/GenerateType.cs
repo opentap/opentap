@@ -10,13 +10,15 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.CodeDom.Compiler;
 
 namespace OpenTap.Sdk.New
 {
     public abstract class GenerateType : ICliAction
     {
-        internal bool Validate(string name, bool allowWhiteSpace, bool allowLeadingNumbers)
+        internal bool Validate(string name, bool allowWhiteSpace, bool allowLeadingNumbers, bool allowAlphaNumericOnly)
         {
+
             bool anyInvalid = false;
             var invalid = Path.GetInvalidFileNameChars();
             var sb = new StringBuilder();
@@ -35,7 +37,8 @@ namespace OpenTap.Sdk.New
                 leading = false;
 
                 // Then detect any invalid filename or C# identifier chars
-                if (invalid.Contains(ch) || (!allowWhiteSpace && char.IsWhiteSpace(ch)))
+                if (invalid.Contains(ch) || (!allowWhiteSpace && char.IsWhiteSpace(ch)) ||
+                    (allowAlphaNumericOnly && !char.IsLetterOrDigit(ch)))
                 {
                     sb.Append("^");
                     anyInvalid = true;
