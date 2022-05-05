@@ -844,6 +844,7 @@ namespace OpenTap
                 step.Verdict = newVerdict;
         }
 
+        /// <summary> This is the currently executing test step or null, used to detect deadlock when a step is waiting for its parent. </summary>
         [ThreadStatic]
         internal static ITestStep currentlyExecutingTestStep = null;
 
