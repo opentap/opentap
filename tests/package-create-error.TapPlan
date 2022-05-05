@@ -148,6 +148,41 @@
       <ChildTestSteps />
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep" Version="0.0.0" Id="e00535ae-8152-4ee1-ab61-f14ed3f4d12d">
+      <ExpectedVerdict>Pass</ExpectedVerdict>
+      <Enabled>true</Enabled>
+      <Name>Expect {ExpectedVerdict}</Name>
+      <ChildTestSteps>
+        <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="68e9af36-4263-4370-bf79-d5671ac8bf5e">
+          <Application>tap</Application>
+          <Arguments>package create ../../package.xml</Arguments>
+          <WorkingDirectory>../../NewProj/bin/Debug</WorkingDirectory>
+          <WaitForEnd>true</WaitForEnd>
+          <Timeout>0</Timeout>
+          <AddToLog>true</AddToLog>
+          <LogHeader />
+          <CheckExitCode>true</CheckExitCode>
+          <RegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </RegularExpressionPattern>
+          <VerdictOnMatch>Error</VerdictOnMatch>
+          <VerdictOnNoMatch>NotSet</VerdictOnNoMatch>
+          <ResultRegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </ResultRegularExpressionPattern>
+          <ResultName>Regex Result</ResultName>
+          <Behavior>GroupsAsDimensions</Behavior>
+          <DimensionTitles></DimensionTitles>
+          <Enabled>true</Enabled>
+          <Name>Run: {Application} {Command Line Arguments}</Name>
+          <ChildTestSteps />
+          <BreakConditions>Inherit</BreakConditions>
+        </TestStep>
+      </ChildTestSteps>
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
     <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep" Version="0.0.0" Id="83f384d0-fbef-4fcb-8024-282e2304b1c0">
       <ExpectedVerdict>Pass</ExpectedVerdict>
       <Enabled>true</Enabled>
@@ -209,9 +244,4 @@
     </TestStep>
   </Steps>
   <BreakConditions>Inherit</BreakConditions>
-  <OpenTap.Description />
-  <Package.Dependencies>
-    <Package Name="OpenTAP" Version="^9.18.0-alpha.7.2+aa5cfdec.502-PackageCreateOutDirectory" />
-    <Package Name="FakePackageReferencingFile" Version="^3.4.5" />
-  </Package.Dependencies>
 </TestPlan>
