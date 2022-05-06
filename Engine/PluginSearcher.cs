@@ -375,10 +375,7 @@ namespace OpenTap
             return PluginTypes;
         }
 
-        internal TypeData PluginMarkerType = new TypeData
-        {
-            Name = typeof(ITapPlugin).FullName
-        };
+        internal readonly TypeData PluginMarkerType = new TypeData(typeof(ITapPlugin).FullName);
 
         private void PluginsInAssemblyRecursive(AssemblyData asm)
         {
@@ -504,11 +501,12 @@ namespace OpenTap
                     return null;
             }
 
-            TypeData plugin = new TypeData();
+            string typeName;
+            
             TypeDefinitionHandle declaringTypeHandle = typeDef.GetDeclaringType();
             if (declaringTypeHandle.IsNil)
             {
-                plugin.Name = string.Format("{0}.{1}", CurrentReader.GetString(typeDef.Namespace), CurrentReader.GetString(typeDef.Name));
+                typeName = string.Format("{0}.{1}", CurrentReader.GetString(typeDef.Namespace), CurrentReader.GetString(typeDef.Name));
             }
             else
             {
@@ -516,11 +514,10 @@ namespace OpenTap
                 TypeData declaringType = PluginFromTypeDefRecursive(declaringTypeHandle);
                 if (declaringType == null)
                     return null;
-                plugin.Name = string.Format("{0}+{1}", declaringType.Name, CurrentReader.GetString(typeDef.Name));
+                typeName = string.Format("{0}+{1}", declaringType.Name, CurrentReader.GetString(typeDef.Name));
             }
-            if (AllTypes.ContainsKey(plugin.Name))
+            if (AllTypes.TryGetValue(typeName, out var existingPlugin))
             {
-                var existingPlugin = AllTypes[plugin.Name];
                 if (existingPlugin.Assembly.Name == CurrentAsm.Name)
                 {
                     // we assume this is the same plugin, just in another copy of the dll
@@ -536,6 +533,7 @@ namespace OpenTap
                 }
                 return existingPlugin;
             }
+            TypeData plugin = new TypeData(typeName);
             if (plugin.Name == PluginMarkerType.Name)
             {
                 PluginMarkerType.Assembly = CurrentAsm;
@@ -865,12 +863,12 @@ namespace OpenTap
 
             public TypeData GetPrimitiveType(PrimitiveTypeCode typeCode)
             {
-                return new TypeData { Name = "System." + typeCode.ToString() };
+                return new TypeData("System." + typeCode);
             }
 
             public TypeData GetSZArrayType(TypeData elementType)
             {
-                return elementType != null ? new TypeData { Name = elementType.Name } : null;
+                return elementType != null ? new TypeData(elementType.Name) : null;
             }
 
             public TypeData GetTypeFromDefinition(MetadataReader reader, TypeDefinitionHandle handle, byte rawTypeKind)

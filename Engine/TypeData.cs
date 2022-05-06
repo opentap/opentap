@@ -22,7 +22,7 @@ namespace OpenTap
         /// <summary>
         /// Gets the fully qualified name of the type, including its namespace but not its assembly.
         /// </summary>
-        public string Name { get; internal set; }
+        public string Name { get;}
 
         /// <summary>
         /// Gets the TypeAttributes for this type. This can be used to check if the type is abstract, nested, an interface, etc.
@@ -291,16 +291,17 @@ namespace OpenTap
             }
         }
 
-        internal TypeData()
+        internal TypeData(string typeName)
         {
+            Name = typeName;
             IsBrowsable = true;
         }
 
-        TypeData(Type type)
+        TypeData(Type type): this(type.FullName)
         {
             this.type = type;
-            this.Name = type.FullName;
             PostLoad();
+            IsBrowsable = this.GetAttribute<BrowsableAttribute>()?.Browsable ?? true;
         }
 
         /// <summary>
