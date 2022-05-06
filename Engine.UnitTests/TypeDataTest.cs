@@ -1,12 +1,8 @@
 ﻿using NUnit.Framework;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace OpenTap.UnitTests
 {
@@ -15,6 +11,19 @@ namespace OpenTap.UnitTests
         public class IntObject
         {
             public int SomeInt { get; set; }
+        }
+
+        [Browsable(false)]
+        class Class1 { }
+        class Class2 : Class1 { }
+        [Test]
+        public void InheritedAttributesTest()
+        {
+            var type1 = TypeData.FromType(typeof(Class1));
+            var type2 = TypeData.FromType(typeof(Class2));
+            Assert.IsEmpty(type2.Attributes);
+            Assert.IsTrue(type1.HasAttribute<BrowsableAttribute>());
+            Assert.IsTrue(type2.BaseType.HasAttribute<BrowsableAttribute>());
         }
 
         [Test]
