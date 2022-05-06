@@ -9,22 +9,15 @@ namespace OpenTap.Engine.UnitTests
 {
     public class SelfReferentialTypeDataProvider : IStackedTypeDataProvider
     {
-        private static int fn(int a)
-        {
-            TypeData.GetTypeData(a);
-            return a;
-        }
-        
-        static IMemorizer<int, int> circularMemorizer = new Memorizer<int, int, int>(null, fn);
         public ITypeData GetTypeData(string identifier, TypeDataProviderStack stack)
         {
-            circularMemorizer.Invoke(2);
+            Installation.Current.GetPackages();
             return stack.GetTypeData(identifier);
         }
 
         public ITypeData GetTypeData(object obj, TypeDataProviderStack stack)
         {
-            circularMemorizer.Invoke(2);
+            Installation.Current.GetPackages();
             return stack.GetTypeData(obj);
         }
 
@@ -46,7 +39,7 @@ namespace OpenTap.Engine.UnitTests
                     Log.AddListener(l);
                     l.MessageLogged += (msg) => errors.AddRange(msg.Where(m => m.EventType == (int)LogEventType.Error));
                     // Trigger typedata search
-                    TypeData.GetTypeData(1);
+                    Installation.Current.GetPackages();
                     CollectionAssert.IsEmpty(errors, $"Operation had errors: {string.Join(", ", errors)}");
                 }
             }
