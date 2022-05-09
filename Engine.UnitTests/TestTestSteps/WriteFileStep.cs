@@ -105,7 +105,7 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
                 {
                     
                     CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
-                    
+                    Log.Info("attribute: {0}",attr.Constructor.Kind);
                     if (attr.Constructor.Kind == HandleKind.MemberReference)
                     {
                         var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle) attr.Constructor);
@@ -120,7 +120,7 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
                             var r = CurrentReader.GetTypeReference((TypeReferenceHandle)ctor.Parent);
                             attributeFullName = string.Format("{0}.{1}", CurrentReader.GetString(r.Namespace), CurrentReader.GetString(r.Name));
                         }
-                        Log.Info("Found assembly: {0}", attributeFullName);
+                        Log.Info("Found attribute: {0}", attributeFullName);
 
                         if (attributeFullName == typeof(System.Reflection.AssemblyInformationalVersionAttribute).FullName)
                         {

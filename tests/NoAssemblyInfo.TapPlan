@@ -26,7 +26,7 @@
    &lt;OutputPath&gt;bin/Debug&lt;/OutputPath&gt;
   &lt;/PropertyGroup&gt;
   &lt;ItemGroup&gt;
-    &lt;PackageReference Include="OpenTAP" Version="9.16.4" /&gt;
+    &lt;PackageReference Include="OpenTAP" Version="9.17.4" /&gt;
   &lt;/ItemGroup&gt;
 &lt;/Project&gt;</String>
       <File>../../NewProj3/NewProj3.csproj</File>
@@ -73,6 +73,34 @@
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
     <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="ef81482d-125b-4f3f-a1d5-eaf212d302fe">
+      <Application>../../NewProj3/bin/Debug/tap</Application>
+      <Arguments>package install ../../../bin/Debug/OpenTap.Debug.TapPackage</Arguments>
+      <WorkingDirectory>../../NewProj3/bin/Debug</WorkingDirectory>
+      <WaitForEnd>true</WaitForEnd>
+      <Timeout>0</Timeout>
+      <AddToLog>true</AddToLog>
+      <LogHeader />
+      <CheckExitCode>true</CheckExitCode>
+      <RegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </RegularExpressionPattern>
+      <VerdictOnMatch>Pass</VerdictOnMatch>
+      <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+      <ResultRegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </ResultRegularExpressionPattern>
+      <ResultName>Regex Result</ResultName>
+      <Behavior>GroupsAsDimensions</Behavior>
+      <DimensionTitles></DimensionTitles>
+      <Enabled>true</Enabled>
+      <Name>Run: {Application} {Command Line Arguments}</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+      <OpenTap.Description>Install the current debug OpenTAP version instead of the one coming from the build.</OpenTap.Description>
+    </TestStep>
+    <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="9d65286c-5ada-4be1-ac31-647d0f7837ea">
       <Application>tap</Application>
       <Arguments>package create ../../package.xml</Arguments>
       <WorkingDirectory>../../NewProj3/bin/Debug</WorkingDirectory>
