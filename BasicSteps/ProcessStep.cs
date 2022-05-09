@@ -112,6 +112,7 @@ namespace OpenTap.Plugins.BasicSteps
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
+                    RedirectStandardInput = true,
                     CreateNoWindow = true
                 }
             };
@@ -120,7 +121,16 @@ namespace OpenTap.Plugins.BasicSteps
                 Log.Debug("Ending process '{0}'.", Application);
                 try
                 {  // process.Kill may throw if it has already exited.
-                    process.Kill();
+                    try
+                    {
+                        process.StandardInput.Close();
+                    }
+                    catch
+                    {
+                        // this might be ok. It probably means that the input has already been closed.
+                    }
+                    if (!process.WaitForExit(1000))
+                        process.Kill();
                 }
                 catch(Exception ex)
                 {
