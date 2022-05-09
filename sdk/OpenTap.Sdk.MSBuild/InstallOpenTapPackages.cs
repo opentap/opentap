@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Xml;
 using System.Xml.Linq;
@@ -105,44 +104,8 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         {
             if (!PackagesToInstall.Any()) return true;
 
-            // This alters the value returned by 'ExecutorClient.ExeDir' which would otherwise return the location of
-            // OpenTap.dll which in an MSBuild context would be the nuget directory which leads to unexpected behavior
-            // because the expected location is the build directory in all common use cases.
-            Environment.SetEnvironmentVariable("OPENTAP_INIT_DIRECTORY", TapDir, EnvironmentVariableTarget.Process);
-
-            var tapInstall = Path.Combine(TapDir, "tap");
-            if (File.Exists(tapInstall) == false)
-                tapInstall = Path.Combine(TapDir, "tap.exe");
-            if (File.Exists(tapInstall) == false)
-                throw new Exception($"No tap install found in directory {TapDir}");
-
-            Environment.SetEnvironmentVariable("OPENTAP_NO_UPDATE_CHECK", "true");
-            Environment.SetEnvironmentVariable("OPENTAP_DEBUG_INSTALL", "true");
-
-            var thisAsmDir = Path.GetDirectoryName(typeof(OpenTapImageInstaller).Assembly.Location);
-            var openTapDll = Path.Combine(thisAsmDir, "payload", "OpenTap.dll");
-            var openTapPackageDll = Path.Combine(thisAsmDir, "payload", "OpenTap.Package.dll");
-
-            // This is sort of a hack because the standard resolver will try to resolve OpenTap 9.4.0.0,
-            // but we need to load whatever is in the NuGet directory
-            Assembly resolve(object sender, ResolveEventArgs args)
-            {
-                if (args.Name.StartsWith("OpenTap.Package"))
-                    return Assembly.LoadFile(openTapPackageDll);
-                if (args.Name.StartsWith("OpenTap"))
-                    return Assembly.LoadFile(openTapDll);
-                return null;
-            }
-
-            try
-            {
-                AppDomain.CurrentDomain.AssemblyResolve += resolve;
+            using (OpenTapContext.Create(TapDir))
                 return InstallPackages();
-            }
-            finally
-            {
-                AppDomain.CurrentDomain.AssemblyResolve -= resolve;
-            }
         }
 
         private CancellationTokenSource cts = new CancellationTokenSource();
