@@ -94,16 +94,18 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
         {
             var searcher = new PluginSearcher();
             searcher.Search(new[] {path});
-
+            Log.Debug("Searching {0}", path);
             var asm = searcher.Assemblies.First();
             using (FileStream file = new FileStream(asm.Location, FileMode.Open, FileAccess.Read))
             using (PEReader header = new PEReader(file, PEStreamOptions.LeaveOpen))
             {
                 var CurrentReader = header.GetMetadataReader();
-
+                Log.Debug("Opened file");
                 foreach (CustomAttributeHandle attrHandle in CurrentReader.GetAssemblyDefinition().GetCustomAttributes())
                 {
+                    
                     CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
+                    
                     if (attr.Constructor.Kind == HandleKind.MemberReference)
                     {
                         var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle) attr.Constructor);
@@ -118,6 +120,7 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
                             var r = CurrentReader.GetTypeReference((TypeReferenceHandle)ctor.Parent);
                             attributeFullName = string.Format("{0}.{1}", CurrentReader.GetString(r.Namespace), CurrentReader.GetString(r.Name));
                         }
+                        Log.Info("Found assembly: {0}", attributeFullName);
 
                         if (attributeFullName == typeof(System.Reflection.AssemblyInformationalVersionAttribute).FullName)
                         {
@@ -128,7 +131,7 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
                     }
                 }
             }
-
+            Log.Warning("No Version found");
             return null;
         }
 
