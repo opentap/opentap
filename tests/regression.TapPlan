@@ -125,12 +125,14 @@
             </TestStep>
             <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="33283dfc-1947-4ba9-b845-d62df5472597">
               <Filepath>../../tests/test-sdk-templates.TapPlan</Filepath>
-              <StepMapping>
-                <GuidMapping>
-                  <Guid1>154cf1ab-d46d-4533-9a0e-2b5b5eeca0f7</Guid1>
-                  <Guid2>1cfd4c46-a9be-4fc2-9c80-89b559e26eb3</Guid2>
-                </GuidMapping>
-              </StepMapping>
+              <StepMapping />
+              <Enabled>true</Enabled>
+              <Name>Test Plan {Referenced Plan}</Name>
+              <BreakConditions>Inherit</BreakConditions>
+            </TestStep>
+            <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="75c66fa0-969f-4395-a209-0492abeda5de">
+              <Filepath>../../tests/run-parse-test.TapPlan</Filepath>
+              <StepMapping />
               <Enabled>true</Enabled>
               <Name>Test Plan {Referenced Plan}</Name>
               <BreakConditions>Inherit</BreakConditions>

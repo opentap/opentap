@@ -35,12 +35,11 @@ namespace OpenTap.Package
         private HttpClient HttpClient => client ?? (client = GetHttpClient(Url));
         private static HttpClient GetHttpClient(string url)
         {
-            var httpClient = new HttpClient(Authentication.AuthenticationSettings.GetClientHandler());
+            var httpClient = new HttpClient(Authentication.AuthenticationSettings.GetClientHandler(withRetryPolicy: true));
             httpClient.DefaultRequestHeaders.Add("OpenTAP",
                 PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
             httpClient.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/xml");
             return httpClient;
-            
         }
 
         /// <summary>
@@ -48,6 +47,7 @@ namespace OpenTap.Package
         /// </summary>
         public bool IsSilent;
         private SemanticVersion _version;
+        bool failedToReadVersion;
 
         /// <summary>
         /// Get or set the version of the repository
@@ -339,37 +339,70 @@ namespace OpenTap.Package
             return url;
         }
 
+        DateTime updatedRepoVersionAt = DateTime.MinValue;
+        TimeSpan updateRepoVersionHoldoff = TimeSpan.FromSeconds(20);
+        readonly object updateLock = new object();
         private void CheckRepoApiVersion()
         {
             string tryDownload(string url)
             {
-                try { return HttpClient.GetStringAsync(url).Result; }
-                catch { return null; }
+                try
+                {
+                    return HttpClient.GetStringAsync(url).Result;
+                }
+                catch (AggregateException ae)
+                {
+                    throw ae.InnerException;
+                }
             }
 
-            // Check specific version
-            var data = tryDownload($"{Url}/{ApiVersion}/version");
-            
-            if (string.IsNullOrEmpty(data))
+            lock (updateLock)
             {
-                // Url does not exists
-                if (tryDownload(Url) == null)
-                    throw new WebException($"Unable to connect to '{defaultUrl}'.");
+                if (updatedRepoVersionAt + updateRepoVersionHoldoff > DateTime.Now)
+                    return;
 
-                // Check old repo
-                if (tryDownload($"{Url}/2.0/version") != null)
-                    throw new NotSupportedException($"The repository '{defaultUrl}' is only compatible with TAP 8.x or ealier.");
+                try
+                {
+                    // Check specific version
+                    string data = null;
+                    try
+                    {
+                        data = tryDownload($"{Url}/{ApiVersion}/version");
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        log.Debug("HTTP Exception {0}", ex);    
+                    }
+                    log.Debug("Data: {0}", data);
+                    if (string.IsNullOrEmpty(data))
+                    {
+                        // Url does not exists
+                        if (tryDownload(Url) == null)
+                            throw new WebException($"Unable to connect to '{defaultUrl}'.");
 
-                throw new NotSupportedException($"'{defaultUrl}' is not a package repository.");
+                        // Check old repo
+                        if (tryDownload($"{Url}/2.0/version") != null)
+                            throw new NotSupportedException(
+                                $"The repository '{defaultUrl}' is only compatible with TAP 8.x or ealier.");
+                        throw new NotSupportedException($"'{defaultUrl}' is not a package repository.");
+                    }
+
+                    var reader = XmlReader.Create(new StringReader(data));
+                    var serializer = new XmlSerializer(typeof(string));
+                    if (serializer.CanDeserialize(reader) == false)
+                        throw new NotSupportedException($"'{defaultUrl}' is not a package repository.");
+                    var version = serializer.Deserialize(reader) as string;
+                    if (SemanticVersion.TryParse(version, out _version) &&
+                        MinRepoVersion.IsCompatible(_version) == false)
+                        throw new NotSupportedException($"The repository '{defaultUrl}' is not supported.",
+                            new Exception(
+                                $"Repository version '{Version}' is not compatible with min required version '{MinRepoVersion}'."));
+                }
+                catch
+                {
+                    updatedRepoVersionAt = DateTime.Now;
+                }
             }
-
-            var reader = XmlReader.Create(new StringReader(data));
-            var serializer = new XmlSerializer(typeof(string));
-            if (serializer.CanDeserialize(reader) == false)
-                throw new NotSupportedException($"'{defaultUrl}' is not a package repository.");
-            var version = serializer.Deserialize(reader) as string;
-            if (SemanticVersion.TryParse(version, out _version) && MinRepoVersion.IsCompatible(_version) == false)
-                throw new NotSupportedException($"The repository '{defaultUrl}' is not supported.", new Exception($"Repository version '{Version}' is not compatible with min required version '{MinRepoVersion}'."));
         }
 
         PackageDef[] packagesFromXml(string xmlText)

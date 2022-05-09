@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
@@ -16,15 +17,76 @@ namespace OpenTap.Authentication
         class AuthenticationClientHandler : HttpClientHandler
         {
             private readonly string domain;
+            readonly bool withRetryPolicy;
 
-            public AuthenticationClientHandler(string domain = null)
+            static readonly TimeSpan[] waits = new[]
+            {
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(2),
+                TimeSpan.FromSeconds(5),
+                TimeSpan.FromSeconds(10),
+                TimeSpan.Zero
+            };
+
+            static HttpRequestMessage clone(HttpRequestMessage req)
+            {
+                var req2 = new HttpRequestMessage();
+                req2.Content = req.Content;
+                foreach (var x in req2.Headers)
+                    req2.Headers.Add(x.Key, x.Value);
+                foreach (var x in req2.Properties)
+                    req2.Properties.Add(x.Key, x.Value);
+                req2.RequestUri = req.RequestUri;
+
+                return req2;
+
+            }
+            async Task<HttpResponseMessage> SendWithRetry(HttpRequestMessage request,
+                CancellationToken cancellationToken)
+            {
+                var req2 = clone(request);
+                
+                foreach (var wait in waits)
+                {
+                    var result = await base.SendAsync(request, cancellationToken);
+                    if (result.IsSuccessStatusCode == false && wait != TimeSpan.Zero)
+                    {
+                        if (TransientStatusCode(result.StatusCode))
+                        {
+                           await Task.Delay(wait, cancellationToken);
+                            continue;
+                        }
+                    }
+
+                    return result;
+                }
+
+                throw new InvalidOperationException();
+            }
+
+            static bool TransientStatusCode(HttpStatusCode resultStatusCode)
+            {
+                //429: too may requests
+                //5xx: server error
+                int statusCode = (int)resultStatusCode;
+                if (statusCode == 429 || (statusCode >= 500 && statusCode < 600))
+                    return true;
+                return false;
+
+            }
+
+
+            public AuthenticationClientHandler(string domain = null, bool withRetryPolicy = false)
             {
                 this.domain = domain;
+                this.withRetryPolicy = withRetryPolicy;
             }
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
                 CancellationToken cancellationToken)
             {
                 Current.PrepareRequest(request, domain, cancellationToken);
+                if (withRetryPolicy)
+                    return SendWithRetry(request, cancellationToken);
                 return base.SendAsync(request, cancellationToken);
             }
         }
@@ -48,7 +110,7 @@ namespace OpenTap.Authentication
         }
 
         /// <summary> Constructs a HttpClientHandler that can be used with HttpClient. </summary>
-        public static HttpClientHandler GetClientHandler(string domain = null) => new AuthenticationClientHandler(domain);
+        public static HttpClientHandler GetClientHandler(string domain = null, bool withRetryPolicy = false) => new AuthenticationClientHandler(domain, withRetryPolicy: withRetryPolicy);
 
         /// <summary> Registers a refresh token.  </summary>
         void RegisterRefreshToken(TokenInfo token)

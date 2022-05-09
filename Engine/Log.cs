@@ -720,15 +720,16 @@ namespace OpenTap
 
         static void WriteException(TraceSource trace, Exception exception, LogEventType level, bool appendStack = true, bool isInner = false)
         {
+            var exceptionName = exception.GetType().Name;
             try
             {
                 var exceptionMessage = exception.Message
                     .Replace("{", "{{")
                     .Replace("}", "}}");
                 if (isInner)
-                    trace.TraceEvent(level, 2, "  Inner exception: " + exceptionMessage, false);
+                    trace.TraceEvent(level, 2, "  Inner " + exceptionName + ": " + exceptionMessage, false);
                 else
-                    trace.TraceEvent(level, 2, "Exception: " + exceptionMessage);
+                    trace.TraceEvent(level, 2, exceptionName + ": " + exceptionMessage);
                 if (exception.StackTrace != null)
                 {
                     string[] lines = exception.StackTrace.Split(new char[] {'\n'});
