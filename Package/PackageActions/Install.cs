@@ -191,7 +191,7 @@ namespace OpenTap.Package
                 RaiseProgressUpdate(10, "Gathering dependencies.");
                 bool checkDependencies = (!IgnoreDependencies && !Force) || CheckOnly;
                 var issue = DependencyChecker.CheckDependencies(installationPackages, packagesToInstall,
-                    checkDependencies ? LogEventType.Error : LogEventType.Warning);
+                    IgnoreDependencies ? LogEventType.Information : checkDependencies ? LogEventType.Error : LogEventType.Warning);
                 if (checkDependencies)
                 {
                     if (issue == DependencyChecker.Issue.BrokenPackages)
@@ -218,6 +218,7 @@ namespace OpenTap.Package
                     var installStep = new PackageInstallStep()
                     {
                         Packages = systemWide,
+                        Repositories = repositories.Select(r => r.Url).ToArray(),
                         Target = PackageDef.SystemWideInstallationDirectory,
                         Force = Force
                     };

@@ -202,7 +202,7 @@ namespace OpenTap.Package
                 if (force)
                     log.Info($"Ignoring potential depencencies (--force option specified).");
                 else
-                    log.Info($"Ignoring potential depencencies (--no-dependencies option specified).");
+                    log.Debug($"Ignoring potential depencencies (--no-dependencies option specified).");
                 return gatheredPackages.ToList();
             }
 
