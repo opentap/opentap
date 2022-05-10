@@ -18,13 +18,13 @@ namespace OpenTap.Authentication
             private readonly string domain;
             readonly bool withRetryPolicy;
 
-            static readonly TimeSpan[] waits = new[]
+            static readonly TimeSpan[] waits =
             {
+                TimeSpan.Zero,
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(2),
                 TimeSpan.FromSeconds(5),
-                TimeSpan.FromSeconds(10),
-                TimeSpan.Zero
+                TimeSpan.FromSeconds(10),  
             };
 
             async Task<HttpResponseMessage> SendWithRetry(HttpRequestMessage request,
@@ -33,19 +33,14 @@ namespace OpenTap.Authentication
                 
                 foreach (var wait in waits)
                 {
+                    await Task.Delay(wait, cancellationToken);
                     var result = await base.SendAsync(request, cancellationToken);
-                    if (result.IsSuccessStatusCode == false && wait != TimeSpan.Zero)
-                    {
-                        if (HttpUtils.TransientStatusCode(result.StatusCode))
-                        {
-                           await Task.Delay(wait, cancellationToken);
-                            continue;
-                        }
-                    }
-
+                    if (result.IsSuccessStatusCode == false && HttpUtils.TransientStatusCode(result.StatusCode) && wait != waits.Last())
+                        continue;
                     return result;
                 }
 
+                // There is no chance of getting down here. result from SendAsync is never null.
                 throw new InvalidOperationException();
             }
 

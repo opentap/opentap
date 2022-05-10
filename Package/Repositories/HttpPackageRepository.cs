@@ -135,7 +135,8 @@ namespace OpenTap.Package
                     int maxRetries = 5;
                     for(int retry = 0; retry < maxRetries; retry++)
                     {
-                        log.Debug($"Retrying download {retry + 1}/4");
+                        if(retry > 0)
+                            log.Debug($"Retrying download {retry}/{maxRetries - 1}");
                         hc.DefaultRequestHeaders.Range = RangeHeaderValue.Parse($"bytes={downloadedBytes}-");
 
                         try
@@ -210,7 +211,7 @@ namespace OpenTap.Package
                             if (response != null)
                             {
                                 var code = response.StatusCode;
-                                bool isError = response.IsSuccessStatusCode;
+                                bool isError = response.IsSuccessStatusCode == false;
                                 response.Dispose();
                                 response = null;
                                 if (isError && HttpUtils.TransientStatusCode(code))
