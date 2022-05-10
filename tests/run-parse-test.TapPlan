@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="OpenTap.TestPlan" Locked="false">
+  <Steps>
+    <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="c5633ef7-f83a-4b0d-acb1-03962cbf26ce">
+      <Application>tap</Application>
+      <Arguments>package install CSV -f</Arguments>
+      <WorkingDirectory></WorkingDirectory>
+      <WaitForEnd>true</WaitForEnd>
+      <Timeout>120000</Timeout>
+      <AddToLog>false</AddToLog>
+      <CheckExitCode>false</CheckExitCode>
+      <RegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </RegularExpressionPattern>
+      <VerdictOnMatch>Pass</VerdictOnMatch>
+      <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+      <ResultRegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </ResultRegularExpressionPattern>
+      <ResultName>Regex Result</ResultName>
+      <Behavior>GroupsAsDimensions</Behavior>
+      <DimensionTitles></DimensionTitles>
+      <Enabled>true</Enabled>
+      <Name>Run Program</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Plugins.BasicSteps.SweepParameterStep" Version="9.4.0-Development" Id="91e27594-d0d9-4f48-b4d6-91caefd97942">
+      <SweepValues>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>91e27594-d0d9-4f48-b4d6-91caefd97942</Loop>
+          <Expected_x0020_Verdict>Pass</Expected_x0020_Verdict>
+          <arguments>
+            <Base64>cnVuIC4uLy4uL3Rlc3RzL3ZlcmRpY3RQbGFuLlRhcFBsYW4gLWUgdmVyZGljdD1QYXNzIA==</Base64>
+          </arguments>
+        </SweepRow>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>91e27594-d0d9-4f48-b4d6-91caefd97942</Loop>
+          <Expected_x0020_Verdict>Fail</Expected_x0020_Verdict>
+          <arguments>run ../../tests/verdictPlan.TapPlan -e verdict=Fail</arguments>
+        </SweepRow>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>91e27594-d0d9-4f48-b4d6-91caefd97942</Loop>
+          <Expected_x0020_Verdict>Pass</Expected_x0020_Verdict>
+          <arguments>run ../../tests/verdictPlan.TapPlan -e verdict="Not Set"</arguments>
+        </SweepRow>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>91e27594-d0d9-4f48-b4d6-91caefd97942</Loop>
+          <Expected_x0020_Verdict>Fail</Expected_x0020_Verdict>
+          <arguments>run ../../tests/verdictPlan.TapPlan -e verdict=Error</arguments>
+        </SweepRow>
+      </SweepValues>
+      <Selected>
+        <KeyValuePairOfString>
+          <Key>arguments</Key>
+          <Value>true</Value>
+        </KeyValuePairOfString>
+        <KeyValuePairOfString>
+          <Key>Expected Verdict</Key>
+          <Value>true</Value>
+        </KeyValuePairOfString>
+      </Selected>
+      <Enabled>true</Enabled>
+      <Name>Sweep {Parameters}</Name>
+      <ChildTestSteps>
+        <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep" Version="0.0.0" Id="66ddb666-f317-4e0d-b5b4-773d4f18bc30">
+          <ExpectedVerdict Parameter="Expected Verdict" Scope="91e27594-d0d9-4f48-b4d6-91caefd97942">Fail</ExpectedVerdict>
+          <Enabled>true</Enabled>
+          <Name>Expect</Name>
+          <ChildTestSteps>
+            <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="8bf0e1df-3e0e-4b85-b460-45cf89920e22">
+              <Application>tap</Application>
+              <Arguments Parameter="arguments" Scope="91e27594-d0d9-4f48-b4d6-91caefd97942">run ../../tests/verdictPlan.TapPlan -e verdict=Error</Arguments>
+              <WaitForEnd>true</WaitForEnd>
+              <Timeout>0</Timeout>
+              <AddToLog>true</AddToLog>
+              <CheckExitCode>true</CheckExitCode>
+              <RegularExpressionPattern>
+                <Value>(.*)</Value>
+                <IsEnabled>false</IsEnabled>
+              </RegularExpressionPattern>
+              <VerdictOnMatch>Pass</VerdictOnMatch>
+              <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+              <ResultRegularExpressionPattern>
+                <Value>(.*)</Value>
+                <IsEnabled>false</IsEnabled>
+              </ResultRegularExpressionPattern>
+              <ResultName>Regex Result</ResultName>
+              <Behavior>GroupsAsDimensions</Behavior>
+              <DimensionTitles></DimensionTitles>
+              <Enabled>true</Enabled>
+              <Name>Run Program</Name>
+              <ChildTestSteps />
+              <BreakConditions>Inherit</BreakConditions>
+            </TestStep>
+          </ChildTestSteps>
+          <BreakConditions>Inherit</BreakConditions>
+        </TestStep>
+      </ChildTestSteps>
+      <BreakConditions>Inherit</BreakConditions>
+      <Expected_x0020_Verdict>Fail</Expected_x0020_Verdict>
+      <arguments>run ../../tests/verdictPlan.TapPlan -e verdict=Error</arguments>
+    </TestStep>
+  </Steps>
+  <BreakConditions>Inherit</BreakConditions>
+</TestPlan>

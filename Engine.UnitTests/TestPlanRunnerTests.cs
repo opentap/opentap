@@ -55,7 +55,7 @@ namespace OpenTap.Engine.UnitTests
             var fileName = CreateCsvTestFile(new string[] { "verdict" }, new object[] { "pass" });
             {
                 string[] passingThings = new[] { "verdict=\"pass\"", "verdict=\"Not Set\"", "verdict=\"not set\"", fileName };
-                foreach(var v in passingThings)
+                passingThings.AsParallel().ForAll(v =>
                 {
 
                     var args = string.Format("run verdictPlan.TapPlan -e {0}", v);
@@ -63,13 +63,13 @@ namespace OpenTap.Engine.UnitTests
                     var proc = TapProcessContainer.StartFromArgs(string.Format("run verdictPlan.TapPlan -e {0}", v),TimeSpan.FromMinutes(5));
                     proc.WaitForEnd();
                     Assert.AreEqual(0, proc.TapProcess.ExitCode);
-                }
+                });
             }
             plan.ExternalParameters.Get("verdict").Value = "Not Set";
             plan.Save("verdictPlan.TapPlan");
             {
                 string[] passingThings = new[] { "fail", "Error" };
-                foreach(var v in passingThings)
+                passingThings.AsParallel().ForAll(v =>
                 {
                     var args = string.Format("run verdictPlan.TapPlan -e verdict=\"{0}\"", v);
                     Log.CreateSource("RunParseTest").Debug("Running tap {0}", args);
@@ -79,7 +79,7 @@ namespace OpenTap.Engine.UnitTests
                         Assert.AreEqual((int) ExitStatus.TestPlanError, proc.TapProcess.ExitCode);
                     else
                         Assert.AreEqual((int) ExitStatus.TestPlanFail, proc.TapProcess.ExitCode);
-                }
+                });
             }
         }
 
