@@ -131,7 +131,7 @@ namespace OpenTap.Plugins.BasicSteps
                     {
                         // this might be ok. It probably means that the input has already been closed.
                     }
-                    if (!process.WaitForExit(100)) // give some time for the process to close by itself.
+                    if (!process.WaitForExit(500)) // give some time for the process to close by itself.
                         process.Kill();
                 }
                 catch(Exception ex)

@@ -359,7 +359,7 @@ namespace OpenTap.Package
                 catch (Exception ex)
                 {
                     log.Error("Failed to download OpenTAP package.");
-                    throw ex;
+                    throw;
                 }
 
                 downloadedPackages.Add(filename);
