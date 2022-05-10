@@ -86,7 +86,7 @@ namespace OpenTap.Authentication
         }
 
         /// <summary> Constructs a HttpClientHandler that can be used with HttpClient. </summary>
-        public static HttpClientHandler GetClientHandler(string domain = null, bool withRetryPolicy = false) => new AuthenticationClientHandler(domain, withRetryPolicy: withRetryPolicy);
+        public static HttpClientHandler GetClientHandler(string domain = null) => new AuthenticationClientHandler(domain);
         
         /// <summary> Constructs a HttpClientHandler that can be used with HttpClient. </summary>
         public static HttpClientHandler GetClientHandleWithRetryPolicy(string domain = null) => new AuthenticationClientHandler(domain, withRetryPolicy: true);
