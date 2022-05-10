@@ -21,11 +21,11 @@
         <File Condition="$(Platform) != Windows" Path="tap.dll">
             <SetAssemblyInfo Attributes="Version" />
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
-            <IgnoreDependency>System.Security.Principal.Windows</IgnoreDependency>
         </File>
         <File Path="OpenTap.dll">
             <SetAssemblyInfo Attributes="Version" />
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+            <!-- we specifically don't want to include this since there are conflicting versions for .net framework and .netstandard -->
             <IgnoreDependency>System.Security.Principal.Windows</IgnoreDependency>
         </File>
         <File Path="OpenTap.Package.dll">

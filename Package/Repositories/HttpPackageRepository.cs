@@ -346,8 +346,8 @@ namespace OpenTap.Package
         // The value indicates the next time at which the repo should be tried connected to.
         DateTime nextUpdateAt = DateTime.MinValue;
         
-        static TimeSpan updateRepoVersionHoldOff = TimeSpan.FromSeconds(60);
-        readonly object updateLock = new object();
+        static readonly TimeSpan updateRepoVersionHoldOff = TimeSpan.FromSeconds(60);
+        readonly object updateVersionLock = new object();
         private void CheckRepoApiVersion()
         {
             string tryDownload(string url)
@@ -362,7 +362,7 @@ namespace OpenTap.Package
                 }
             }
 
-            lock (updateLock)
+            lock (updateVersionLock)
             {
                 if (IsInError())
                     return;
