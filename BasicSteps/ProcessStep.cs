@@ -123,13 +123,15 @@ namespace OpenTap.Plugins.BasicSteps
                 {  // process.Kill may throw if it has already exited.
                     try
                     {
+                        // signal to the sub process that no more input will arrive.
+                        // For many process this has the same effect as CTRL+C as stdin is closed.
                         process.StandardInput.Close();
                     }
                     catch
                     {
                         // this might be ok. It probably means that the input has already been closed.
                     }
-                    if (!process.WaitForExit(1000))
+                    if (!process.WaitForExit(100)) // give some time for the process to close by itself.
                         process.Kill();
                 }
                 catch(Exception ex)

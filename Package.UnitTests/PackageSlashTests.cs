@@ -38,7 +38,7 @@ namespace OpenTap.Package.UnitTests
         private const string dir2 = "Subdir";
         private const string name = "PackageName";
         private const string os = "Windows,Linux";
-        private string FullName => Path.Combine(dir1, dir2, name).Replace("\\", "/");
+        private string FullName => name;
         private string PackageDirRelative => Path.Combine("Packages", FullName);
         private string PackageDir => Path.Combine(TapDir, PackageDirRelative);
         string PackageCache => PackageCacheHelper.PackageCacheDirectory;
@@ -47,7 +47,7 @@ namespace OpenTap.Package.UnitTests
         private const string packageFileName = "TestPackage.xml";
         private const string sampleText = "Sample File Content";
 
-        private string Filenameify(string path) => path.Replace('\\', '/').Replace('/', '.');
+        private string Filenameify(string path) => path.Replace('\\', '/');
 
         private string outputPackagePath => Filenameify(Path.Combine(dir1, dir2, $"{name}.{version}.TapPackage"));
                 
@@ -60,6 +60,8 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void SlashTests([Values(true, false)] bool usePackageReference)
         {
+            // note, we do not support slashes in package paths so this unit test has been changed to reflect that.
+            
             if (Directory.Exists(dir1))
                 Directory.Delete(dir1, true);
             
@@ -87,7 +89,7 @@ namespace OpenTap.Package.UnitTests
             File.WriteAllText(filename, sampleText);
             File.WriteAllText(packageFileName, packageXml);
 
-            var create = new PackageCreateAction {Install = false, PackageXmlFile = packageFileName};
+            var create = new PackageCreateAction {Install = false, PackageXmlFile = packageFileName, OutputPaths = new []{outputPackagePath}};
             Assert.AreEqual(0, create.Execute(CancellationToken.None));
         }
 
@@ -146,8 +148,8 @@ namespace OpenTap.Package.UnitTests
             
             Assert.AreEqual(0, download.Execute(CancellationToken.None));
 
-            FileAssert.Exists(outputPath);
-            FileAssert.Exists(Path.Combine(PackageCache, outputPath));
+            FileAssert.Exists($"{name}.{version}.TapPackage");
+            FileAssert.Exists(Path.Combine(PackageCache,  $"{name}.{version}.{os}.TapPackage"));
         }
 
         public void InstallPackage()

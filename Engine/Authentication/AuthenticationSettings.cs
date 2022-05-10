@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
@@ -28,30 +27,16 @@ namespace OpenTap.Authentication
                 TimeSpan.Zero
             };
 
-            static HttpRequestMessage clone(HttpRequestMessage req)
-            {
-                var req2 = new HttpRequestMessage();
-                req2.Content = req.Content;
-                foreach (var x in req2.Headers)
-                    req2.Headers.Add(x.Key, x.Value);
-                foreach (var x in req2.Properties)
-                    req2.Properties.Add(x.Key, x.Value);
-                req2.RequestUri = req.RequestUri;
-
-                return req2;
-
-            }
             async Task<HttpResponseMessage> SendWithRetry(HttpRequestMessage request,
                 CancellationToken cancellationToken)
-            {
-                var req2 = clone(request);
+            {;
                 
                 foreach (var wait in waits)
                 {
                     var result = await base.SendAsync(request, cancellationToken);
                     if (result.IsSuccessStatusCode == false && wait != TimeSpan.Zero)
                     {
-                        if (TransientStatusCode(result.StatusCode))
+                        if (HttpUtils.TransientStatusCode(result.StatusCode))
                         {
                            await Task.Delay(wait, cancellationToken);
                             continue;
@@ -64,16 +49,7 @@ namespace OpenTap.Authentication
                 throw new InvalidOperationException();
             }
 
-            static bool TransientStatusCode(HttpStatusCode resultStatusCode)
-            {
-                //429: too may requests
-                //5xx: server error
-                int statusCode = (int)resultStatusCode;
-                if (statusCode == 429 || (statusCode >= 500 && statusCode < 600))
-                    return true;
-                return false;
-
-            }
+            
 
 
             public AuthenticationClientHandler(string domain = null, bool withRetryPolicy = false)
