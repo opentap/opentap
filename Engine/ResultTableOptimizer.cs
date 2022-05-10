@@ -23,6 +23,8 @@ namespace OpenTap
                 var c2 = table2.Columns[columnIdx];
                 if (c1.Name != c2.Name || c1.ObjectType != c2.ObjectType)
                     return false;
+                if (!c1.Parameters.SequenceEqual(c2.Parameters))
+                    return false;
             }
 
             return true;
