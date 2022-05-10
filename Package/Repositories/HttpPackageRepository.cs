@@ -47,7 +47,6 @@ namespace OpenTap.Package
         /// </summary>
         public bool IsSilent;
         private SemanticVersion _version;
-        bool failedToReadVersion;
 
         bool IsInError() => _version == null && nextUpdateAt > DateTime.Now;
         
@@ -206,7 +205,7 @@ namespace OpenTap.Package
                             if (finished)
                                 break;
                         }
-                        catch (Exception e)
+                        catch (Exception)
                         {
                             if (response != null)
                             {
