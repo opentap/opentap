@@ -74,7 +74,7 @@
     </TestStep>
     <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="ef81482d-125b-4f3f-a1d5-eaf212d302fe">
       <Application>../../NewProj3/bin/Debug/tap</Application>
-      <Arguments>package install ../../../bin/Debug/OpenTap.Debug.TapPackage</Arguments>
+      <Arguments>package install ../../../bin/Release/OpenTap.Debug.TapPackage</Arguments>
       <WorkingDirectory>../../NewProj3/bin/Debug</WorkingDirectory>
       <WaitForEnd>true</WaitForEnd>
       <Timeout>0</Timeout>

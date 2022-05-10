@@ -35,7 +35,7 @@ namespace OpenTap.Package
         private HttpClient HttpClient => client ?? (client = GetHttpClient(Url));
         private static HttpClient GetHttpClient(string url)
         {
-            var httpClient = new HttpClient(Authentication.AuthenticationSettings.GetClientHandler(withRetryPolicy: true));
+            var httpClient = new HttpClient(Authentication.AuthenticationSettings.GetClientHandleWithRetryPolicy());
             httpClient.DefaultRequestHeaders.Add("OpenTAP",
                 PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
             httpClient.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/xml");
