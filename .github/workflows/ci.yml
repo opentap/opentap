@@ -710,7 +710,7 @@ jobs:
       - GetVersion
       - Package-Win
     container:
-      image: registry.gitlab.com/opentap/buildrunners/smartinstaller:1.0.0-beta.3
+      image: registry.gitlab.com/opentap/buildrunners/smartinstaller:1.1.0-beta.7
       credentials:
         username: github
         password: ${{ secrets.GITLAB_REGISTRY_TOKEN}}
