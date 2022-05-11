@@ -45,7 +45,7 @@ namespace OpenTap
         static string currentLogFile;
 
         // This controls whether or not session logs should keep files locked
-        private static bool canDeleteLog = false;
+        private static bool NoExclusiveWriteLock = false;
 
         /// <summary>
         /// Initializes the logging. Uses the following file name formatting: SessionLogs\\[Application Name]\\[Application Name] [yyyy-MM-dd HH-mm-ss].txt.
@@ -72,22 +72,30 @@ namespace OpenTap
         /// <summary>
         /// Initializes the logging. 
         /// </summary>
-        public static void Initialize(string tempLogFileName)
+        public static void Initialize(string logFileName)
         {
             // We can't just add this as a parameter with a default value because
             // it isn't backwards compatible with plugins compiled against older versions.
-            Initialize(tempLogFileName, canDeleteLog);
+            // On the IL level, this would be equivalent to removing this method and adding
+            // a new method with a different signature.
+            Initialize(logFileName, NoExclusiveWriteLock);
         }
         
         /// <summary>
-        /// Initializes the logging. 
+        /// Initializes the logging.
         /// </summary>
-        public static void Initialize(string tempLogFileName, bool canDelete)
+        /// <param name="logFileName">The name of the log file</param>
+        /// <param name="noExclusiveWriteLock">
+        /// Controls whether or not the file should have an exclusive write lock.
+        /// If true, the log file may be deleted while it is in use, in which case
+        /// session logs will be written into the void.
+        /// </param>
+        public static void Initialize(string logFileName, bool noExclusiveWriteLock)
         {
-            canDeleteLog = canDelete;
+            NoExclusiveWriteLock = noExclusiveWriteLock;
             if (currentLogFile == null)
             {
-                Rename(tempLogFileName);
+                Rename(logFileName);
                 SystemInfoTask = Task.Factory
                     // Ensure that the plugin manager is loaded before running SystemInfo.
                     // this ensures that System.Runtime.InteropServices.RuntimeInformation.dll is loaded. (issue #4000).
@@ -100,11 +108,11 @@ namespace OpenTap
             }
             else
             {
-                if (currentLogFile != tempLogFileName)
-                    Rename(tempLogFileName);
+                if (currentLogFile != logFileName)
+                    Rename(logFileName);
             }
 
-            currentLogFile = tempLogFileName;
+            currentLogFile = logFileName;
 
             // Log debugging information of the current process.
             log.Debug($"Running '{Environment.CommandLine}' in '{Directory.GetCurrentDirectory()}'.");
@@ -322,7 +330,7 @@ namespace OpenTap
                     {
                         if (string.IsNullOrWhiteSpace(dir) == false)
                             Directory.CreateDirectory(Path.GetDirectoryName(path));
-                        if (canDeleteLog)
+                        if (NoExclusiveWriteLock)
                         {
                             // Initialize a stream where the underlying file can be deleted. If the file is deleted, writes just go into the void.
                             var stream = new FileStream(path, FileMode.Append, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete);
