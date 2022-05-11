@@ -21,8 +21,7 @@ namespace OpenTap
     {
         public bool ForwardLogs { get; set; } 
         public string LogHeader { get; set; } = "";
-        public string[] MutedSources { get; set; } = Array.Empty<string>();
-
+        public HashSet<string> MutedSources { get; } = new HashSet<string>();
 
         public static bool IsAdmin()
         {

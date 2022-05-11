@@ -226,7 +226,7 @@ namespace OpenTap.Package
                     var processRunner = new SubProcessHost
                     {
                         ForwardLogs = true,
-                        MutedSources = new[] { "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan", "UpdateCheck", "Installation" }
+                        MutedSources = { "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan", "UpdateCheck", "Installation" }
                     };
 
                     var result = processRunner.Run(installStep, true, cancellationToken);
