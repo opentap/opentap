@@ -28,8 +28,22 @@ namespace OpenTap
             public static readonly InitTraceListener Instance = new InitTraceListener();  
         }
 
+        static string OpenTapLocation
+        {
+            get
+            {
+                var loc = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+                return Path.Combine(loc, "OpenTap.dll");
+            }
+        }
+
         internal static void Initialize()
         {
+            // This current assembly looks for the opentap DLL in the wrong location.
+            // we know that we are going to load it, so let's just load it as the first thing.
+            if(File.Exists(OpenTapLocation))
+                Assembly.LoadFrom(OpenTapLocation);
+            
             ContinueInitialization();
         }
 
