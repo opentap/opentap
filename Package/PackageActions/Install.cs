@@ -142,6 +142,18 @@ namespace OpenTap.Package
                 List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                     targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
                     InstallDependencies, IgnoreDependencies, askToInstallDependencies, NoDowngrade);
+                
+                if (packagesToInstall?.Any() != true)
+                {
+                    if (NoDowngrade)
+                    {
+                        log.Info("No package(s) were upgraded.");
+                        return (int) ExitCodes.Success;
+                    }
+
+                    log.Info("Could not find one or more packages.");
+                    return (int) PackageExitCodes.PackageDependencyError;
+                }
 
                 foreach (var pkg in packagesToInstall)
                 {
@@ -161,18 +173,6 @@ namespace OpenTap.Package
                             return (int)ExitCodes.ArgumentError;
                         }
                     }
-                }
-
-                if (packagesToInstall?.Any() != true)
-                {
-                    if (NoDowngrade)
-                    {
-                        log.Info("No package(s) were upgraded.");
-                        return (int) ExitCodes.Success;
-                    }
-
-                    log.Info("Could not find one or more packages.");
-                    return (int) PackageExitCodes.InvalidPackageName;
                 }
 
                 var installationPackages = targetInstallation.GetPackages();
