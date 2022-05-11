@@ -124,6 +124,7 @@ namespace OpenTap
     {
         readonly Mutex userInputMutex = new Mutex();
         readonly object readerLock = new object();
+
         void IUserInputInterface.RequestUserInput(object dataObject, TimeSpan timeout, bool modal)
         {
             if(readerThread == null)
@@ -137,6 +138,7 @@ namespace OpenTap
                             try
                             {
                                 var sb = new StringBuilder();
+                                
                                 while (true)
                                 {
                                     
@@ -155,11 +157,11 @@ namespace OpenTap
 
                                     if (chr.Key == ConsoleKey.Backspace)
                                     {
-                                        if(sb.Length > 0)
+                                        if(sb.Length > 0){
                                             sb.Remove(sb.Length - 1, 1);
-                                        
-                                        // delete current char and move back.
-                                        Console.Write("\b \b");
+                                            // delete current char and move back.
+                                            Console.Write("\b \b");
+                                        }
                                         
                                     }
                                     else
@@ -308,9 +310,13 @@ namespace OpenTap
                     {
                         Console.Write($"{name}: ");
                     }else if (showName)
-                        Console.Write($"{name} ({str.Value}): ");
-                    else
+                        if(string.IsNullOrEmpty(str.Value))
+                            Console.Write($"{name}: ");
+                        else
+                            Console.Write($"{name} ({str.Value}): ");
+                    else if(string.IsNullOrEmpty(str.Value) == false)
                         Console.Write($"({str.Value}): ");
+                    else Console.WriteLine(":");
                     
                     
                     if (secure)
