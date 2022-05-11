@@ -96,7 +96,7 @@ namespace OpenTap.Package
         Action<string, long, long> IPackageDownloadProgress.OnProgressUpdate { get; set; }
         internal static string GetUserId()
         {
-            var idPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTAP", "OpenTapGeneratedId");
+            var idPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTap", "OpenTapGeneratedId");
             string id = default(Guid).ToString(); // 00000000-0000-0000-0000-000000000000
 
             try
