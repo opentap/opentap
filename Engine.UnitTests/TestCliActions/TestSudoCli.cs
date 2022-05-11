@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using OpenTap.Cli;
 
@@ -10,6 +11,11 @@ namespace OpenTap.UnitTests
         private TraceSource log = Log.CreateSource("sudo");
         public int Execute(CancellationToken cancellationToken)
         {
+            if (OperatingSystem.Current == OperatingSystem.Windows)
+            {
+                throw new Exception("This does not work on windows.");
+            }
+            
             if (SudoHelper.IsSudoAuthenticated())
             {
                 log.Info("Already authenticated.");

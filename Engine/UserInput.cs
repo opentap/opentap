@@ -140,20 +140,12 @@ namespace OpenTap
                                 while (true)
                                 {
                                     
-                                    var chr = Console.ReadKey();
-                                    var left = Console.CursorLeft;
-                                    var top = Console.CursorTop;
-                                    if (left > 0)
-                                    {
-                                        Console.SetCursorPosition(left - 1, top);
-                                        if(IsSecure)
-                                            Console.Write(" ");
-                                        else if(chr.Key != ConsoleKey.Enter || chr.Key != ConsoleKey.Backspace)
-                                            Console.Write(chr.KeyChar);
-                                    }
-
+                                    var chr = Console.ReadKey(true);
                                     if (chr.KeyChar == 0)
                                         continue;
+                                    if (chr.Key != ConsoleKey.Enter && chr.Key != ConsoleKey.Backspace)
+                                        Console.Write(IsSecure ? '*' : chr.KeyChar);
+                                    
                                     if (chr.Key == ConsoleKey.Enter)
                                     {
                                         lines.Add(sb.ToString());
@@ -165,7 +157,10 @@ namespace OpenTap
                                     {
                                         if(sb.Length > 0)
                                             sb.Remove(sb.Length - 1, 1);
-                                        Console.SetCursorPosition(left -1, top);
+                                        
+                                        // delete current char and move back.
+                                        Console.Write("\b \b");
+                                        
                                     }
                                     else
                                     {
