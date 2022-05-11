@@ -37,6 +37,8 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         /// </summary>
         public void Dispose()
         {
+            Log.Flush();
+            SessionLogs.Flush();
             _onDispose();
         }
     }
