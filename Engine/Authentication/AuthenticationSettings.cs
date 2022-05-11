@@ -16,15 +16,48 @@ namespace OpenTap.Authentication
         class AuthenticationClientHandler : HttpClientHandler
         {
             private readonly string domain;
+            readonly bool withRetryPolicy;
 
-            public AuthenticationClientHandler(string domain = null)
+            static readonly TimeSpan[] waits =
+            {
+                TimeSpan.Zero,
+                TimeSpan.FromSeconds(1),
+                TimeSpan.FromSeconds(2),
+                TimeSpan.FromSeconds(5),
+                TimeSpan.FromSeconds(10),  
+            };
+
+            async Task<HttpResponseMessage> SendWithRetry(HttpRequestMessage request,
+                CancellationToken cancellationToken)
+            {;
+                
+                foreach (var wait in waits)
+                {
+                    await Task.Delay(wait, cancellationToken);
+                    var result = await base.SendAsync(request, cancellationToken);
+                    if (result.IsSuccessStatusCode == false && HttpUtils.TransientStatusCode(result.StatusCode) && wait != waits.Last())
+                        continue;
+                    return result;
+                }
+
+                // There is no chance of getting down here. result from SendAsync is never null.
+                throw new InvalidOperationException();
+            }
+
+            
+
+
+            public AuthenticationClientHandler(string domain = null, bool withRetryPolicy = false)
             {
                 this.domain = domain;
+                this.withRetryPolicy = withRetryPolicy;
             }
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
                 CancellationToken cancellationToken)
             {
                 Current.PrepareRequest(request, domain, cancellationToken);
+                if (withRetryPolicy)
+                    return SendWithRetry(request, cancellationToken);
                 return base.SendAsync(request, cancellationToken);
             }
         }
@@ -49,6 +82,9 @@ namespace OpenTap.Authentication
 
         /// <summary> Constructs a HttpClientHandler that can be used with HttpClient. </summary>
         public static HttpClientHandler GetClientHandler(string domain = null) => new AuthenticationClientHandler(domain);
+        
+        /// <summary> Constructs a HttpClientHandler that can be used with HttpClient. </summary>
+        public static HttpClientHandler GetClientHandleWithRetryPolicy(string domain = null) => new AuthenticationClientHandler(domain, withRetryPolicy: true);
 
         /// <summary> Registers a refresh token.  </summary>
         void RegisterRefreshToken(TokenInfo token)

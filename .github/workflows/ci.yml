@@ -249,6 +249,9 @@ jobs:
   TestEngine:
     runs-on: windows-2022
     needs: Build-Win
+    strategy:
+      matrix:
+        retries: [ 0, 1 ]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -303,6 +306,9 @@ jobs:
   TestWindowsPlan:
     runs-on: windows-2022
     needs: Build-Win
+    strategy:
+      matrix:
+        retries: [ 0, 1 ]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -330,6 +336,9 @@ jobs:
   TestLinuxPlan:
     runs-on: ubuntu-20.04
     needs: Build-Linux
+    strategy:
+      matrix:
+        retries: [ 0, 1 ]
     steps:
       - name: Checkout
         uses: actions/checkout@v2

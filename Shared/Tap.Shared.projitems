@@ -19,6 +19,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)ExecutorInterop.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FileSystemHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ICliActionExtensions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HttpUtils.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)License\LicenseParser.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)License\LicenseScanner.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)License\LicenseTree.cs" />

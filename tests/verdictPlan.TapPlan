@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="OpenTap.TestPlan" Locked="false">
+  <Steps>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.VerdictStep" Version="0.0.0" Id="37ced205-1263-48d9-9579-2ecdb90bed05">
+      <VerdictOutput Parameter="verdict">Pass</VerdictOutput>
+      <RequestAbort>false</RequestAbort>
+      <Enabled>true</Enabled>
+      <Name>Set Verdict</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+  </Steps>
+  <BreakConditions>Inherit</BreakConditions>
+  <OpenTap.Description />
+  <verdict>Pass</verdict>
+</TestPlan>

@@ -25,6 +25,8 @@
         <File Path="OpenTap.dll">
             <SetAssemblyInfo Attributes="Version" />
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+            <!-- we specifically don't want to include this since there are conflicting versions for .net framework and .netstandard -->
+            <IgnoreDependency>System.Security.Principal.Windows</IgnoreDependency>
         </File>
         <File Path="OpenTap.Package.dll">
             <SetAssemblyInfo Attributes="Version" />
@@ -44,7 +46,9 @@
         <File Condition="$(Platform) != Windows" Path="tap.runtimeconfig.json"/>
         <File Condition="$(Platform) != Windows" Path="tap.dll"/>
         <File Path="tap.pdb"/>  
-        <File Path="OpenTap.dll"/>
+        <File Path="OpenTap.dll">
+            <IgnoreDependency>System.Security.Principal.Windows</IgnoreDependency> 
+        </File>
         <File Path="OpenTap.pdb"/>
         <File Path="OpenTap.Package.dll"/>
         <File Path="OpenTap.Package.pdb"/>
