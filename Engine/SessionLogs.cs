@@ -333,7 +333,7 @@ namespace OpenTap
                         if (NoExclusiveWriteLock)
                         {
                             // Initialize a stream where the underlying file can be deleted. If the file is deleted, writes just go into the void.
-                            var stream = new FileStream(path, FileMode.Append, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete);
+                            var stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read | FileShare.Delete);
                             traceListener = new FileTraceListener(stream);
                         }
                         else

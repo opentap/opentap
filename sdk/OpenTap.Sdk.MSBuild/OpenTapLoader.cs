@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Reflection;
-using System.Runtime.InteropServices;
 using OpenTap;
 
 namespace Keysight.OpenTap.Sdk.MSBuild
@@ -39,8 +38,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             var timestamp = buildProc.StartTime.ToString("yyyy-MM-dd HH-mm-ss");
             var pid = buildProc.Id;
 
-            // Path example: <TapDir>/SessionLogs/SessionLog <timestamp>.txt
-            string pathEnding = $"SessionLog {timestamp}";
+            string pathEnding = $"SessionLog.{pid} {timestamp}";
 
             if (Assembly.GetEntryAssembly() != null && !String.IsNullOrWhiteSpace(Assembly.GetEntryAssembly().Location))
             {
@@ -48,8 +46,8 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 // Path example: <TapDir>/SessionLogs/tap/tap <timestamp>.txt
                 pathEnding = $"{exeName}.{pid} {timestamp}";
             }
-            
-            var logName = $"{tapDir}/SessionLogs/{pathEnding}.txt";
+
+            var logName = Path.GetFullPath(Path.Combine(tapDir, "SessionLogs", pathEnding + ".txt"));
             logName = numberedFileName(logName);
 
             SessionLogs.Initialize(logName, true);
