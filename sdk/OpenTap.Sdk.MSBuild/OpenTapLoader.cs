@@ -11,13 +11,33 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         private Action _onDispose;
 
         /// <summary>
+        /// Increment a number until we find a filename which is not in use.
+        /// </summary>
+        /// <param name="logName"></param>
+        /// <returns></returns>
+        string numberedFileName(string logName)
+        {
+            var logNameNoExt = Path.GetFileNameWithoutExtension(logName);
+            var num = 1;
+            while (File.Exists(logName))
+            {
+                logName = $"{logNameNoExt} ({num}).txt";
+                num += 1;
+            }
+
+            return logName;
+        }
+
+        /// <summary>
         /// Calling this method forces the runtime to resolve OpenTAP because SessionLogs is from the OpenTAP assembly.
         /// </summary>
         public SessionLogContext(string tapDir, Action OnDispose)
         {
             _onDispose = OnDispose;
             
-            var timestamp = System.Diagnostics.Process.GetCurrentProcess().StartTime.ToString("yyyy-MM-dd HH-mm-ss");
+            var buildProc = System.Diagnostics.Process.GetCurrentProcess();
+            var timestamp = buildProc.StartTime.ToString("yyyy-MM-dd HH-mm-ss");
+            var pid = buildProc.Id;
 
             // Path example: <TapDir>/SessionLogs/SessionLog <timestamp>.txt
             string pathEnding = $"SessionLog {timestamp}";
@@ -26,10 +46,13 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             {
                 string exeName = Path.GetFileNameWithoutExtension(Assembly.GetEntryAssembly().Location);
                 // Path example: <TapDir>/SessionLogs/tap/tap <timestamp>.txt
-                pathEnding = $"{exeName} {timestamp}";
+                pathEnding = $"{exeName}.{pid} {timestamp}";
             }
+            
+            var logName = $"{tapDir}/SessionLogs/{pathEnding}.txt";
+            logName = numberedFileName(logName);
 
-            SessionLogs.Initialize($"{tapDir}/SessionLogs/{pathEnding}.txt", true);
+            SessionLogs.Initialize(logName, true);
         }
 
         /// <summary>
