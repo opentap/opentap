@@ -4,13 +4,13 @@ Release Notes  - OpenTAP 9.17
 New Features:
 -------
 
-- System-wide package cache [#102]https://github.com/opentap/opentap/issues/102
+- System-wide package cache [#102](https://github.com/opentap/opentap/issues/102)
 - Add Url -> Add Package Location [#272](https://github.com/opentap/opentap/issues/272)
 - Support for adding IResultListener when the test plan starts [#298](https://github.com/opentap/opentap/issues/298)
 - Create an Admin Flag in PackageActions [#40](https://github.com/opentap/opentap/issues/40)
 - Cannot update system packages, admin rights required [#47](https://github.com/opentap/opentap/issues/47)
 - Dynamic Package XML: Conditions and Targets, Platforms, Configurations, etc [#76](https://github.com/opentap/opentap/issues/76)
-- CliActions to support more argument types [#82] (https://github.com/opentap/opentap/issues/82)
+- CliActions to support more argument types [#82](https://github.com/opentap/opentap/issues/82)
 - IfVerdict Continue only works if the step is the immediate child of a loop step [#88](https://github.com/opentap/opentap/issues/88)
 
 
