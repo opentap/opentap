@@ -55,6 +55,74 @@ Bug Fixes:
 - Incompatible dll references are silently ignored [#119](https://github.com/opentap/opentap/issues/119)
 
 
+No labels, need to be assigned: 
+-------
+
+- .NET 6 MonoResolver cannot resolve GAC assemblies [#337](https://github.com/opentap/opentap/issues/337)
+- Ubuntu: Incorrect cache message when not using --repository [#337](https://github.com/opentap/opentap/issues/337)
+- Tap.Upgrader should not try to update tap.exe if the input is the same as the output [#339](https://github.com/opentap/opentap/issues/339)
+- Uninstall HTML5 does not work properly. Exception in log [#343](https://github.com/opentap/opentap/issues/343)
+- Could not install packages from Package Cache [#345](https://github.com/opentap/opentap/issues/345)
+- tap package show compatible platform Linux shown twice [#346](https://github.com/opentap/opentap/issues/346)
+- TestStepList.AllowType(Type,Type) throws exception for .net 6 references [#352](https://github.com/opentap/opentap/issues/352)
+- Image install Msbuild does not download all packages [#386](https://github.com/opentap/opentap/issues/386)
+- Typos for 'Use Local Package Cache' tooltip [#391](https://github.com/opentap/opentap/issues/391)
+- Cannot downgrade OpenTAP 9.17 to 9.16 [#394](https://github.com/opentap/opentap/issues/394)
+- Update PluginDevelopment.Gui in Examples to use .NET Framework 4.7.2 [#398](https://github.com/opentap/opentap/issues/398)
+- Implement downloading from MockRepository [#402](https://github.com/opentap/opentap/issues/402)
+- Allow controlling the WorkQueue.EnqueueWork thread context [#408](https://github.com/opentap/opentap/issues/408)
+- Unhandled GUI error when adding a sweep value in sweep loop: parameter name source null [#468](https://github.com/opentap/opentap/issues/468)
+- Version resolution can't handle simple usecases [#188](https://github.com/opentap/opentap/issues/188)
+- PackageDependencies are not written to XML files! [#241](https://github.com/opentap/opentap/issues/241)
+- PackageDependencies should always be prepended with ^ [#243](https://github.com/opentap/opentap/issues/243)
+- Install OpenTAP as package in debug builds [#248](https://github.com/opentap/opentap/issues/248)
+- OpenTAP Picture Example: Default path incorrect [#256](https://github.com/opentap/opentap/issues/256)
+- Remove VS2015 needed software required - "Getting Started" section from Developer Guide [#258](https://github.com/opentap/opentap/issues/258)
+- Recommend against using Snap for dotnet on linux [#259](https://github.com/opentap/opentap/issues/259)
+- Support overlapping enum values [#264](https://github.com/opentap/opentap/issues/264)
+- tap.exe and tap.dll have different versions [#315](https://github.com/opentap/opentap/issues/315)
+- OpenTAP nuget installs 32bit OpenTAP in bin folders [#330](https://github.com/opentap/opentap/issues/330)
+- Ubuntu - Installing plugins to target folder does not work [#336](https://github.com/opentap/opentap/issues/336)
+- Upgrade to .NET 6 [#50](https://github.com/opentap/opentap/issues/50)
+- Document scoped parameters in user guide [#57](https://github.com/opentap/opentap/issues/57)
+- Make ScpiInstrument Not Abstract [#84](https://github.com/opentap/opentap/issues/84)
+- Version injection using the Mono method cannot add a version attribute [#89](https://github.com/opentap/opentap/issues/89)
+- Parent Verdict is set to Error on Break Condition of Child Step [#90](https://github.com/opentap/opentap/issues/90)
+- Step Break Conditions - break on Pass? [#91](https://github.com/opentap/opentap/issues/91)
+- Migrate to using 'SmartInstaller' instead of Inno [#98](https://github.com/opentap/opentap/issues/98)
+- GenerateOpenTapReferenceProps sometimes fails on 2nd build [#107](https://github.com/opentap/opentap/issues/107)
+- Obsolete Newtonsoft APIs [#110](https://github.com/opentap/opentap/issues/110)
+- Add key/value list for additional custom metadata to PackageDef [#114](https://github.com/opentap/opentap/issues/114)
+- OpenTap Picture SDK example [#116](https://github.com/opentap/opentap/issues/116)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
