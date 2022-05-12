@@ -189,7 +189,10 @@ namespace OpenTap
         {
             PluginSearcher searcher = GetSearcher();
             return searcher.PluginTypes
-                .Where(st => !st.TypeAttributes.HasFlag(TypeAttributes.Interface) && !st.TypeAttributes.HasFlag(TypeAttributes.Abstract))
+                .Where(st =>
+                    !st.TypeAttributes.HasFlag(TypeAttributes.Interface)
+                    && !st.TypeAttributes.HasFlag(TypeAttributes.Abstract)
+                    && st.Status != LoadStatus.FailedToLoad)
                 .ToList().AsReadOnly();
         }
 
