@@ -347,7 +347,7 @@ namespace OpenTap
                     }
                     else
                     {
-                        traceListener.ChangeFileName(path);
+                        traceListener.ChangeFileName(path, NoExclusiveWriteLock);
                     }
                     fileNameChanged = true;
                     break;

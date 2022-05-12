@@ -16,7 +16,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         /// <returns></returns>
         string numberedFileName(string logName)
         {
-            var logNameNoExt = Path.GetFileNameWithoutExtension(logName);
+            var logNameNoExt = Path.Combine(Path.GetDirectoryName(logName), Path.GetFileNameWithoutExtension(logName));
             var num = 1;
             while (File.Exists(logName))
             {
