@@ -84,9 +84,28 @@ namespace OpenTap.Plugins.BasicSteps
         ManualResetEvent outputWaitHandle, errorWaitHandle;
         StringBuilder output;
 
+        public ProcessStep()
+        {
+            Rules.Add(HasNoDuplicateEnvironmentVariables, "Cannot have multiple environment variables with the same name.", nameof(EnvironmentVariables));
+        }
+
+        private bool HasNoDuplicateEnvironmentVariables()
+        {
+            HashSet<string> seenVariables = new HashSet<string>();
+            foreach (var variable in EnvironmentVariables)
+            {
+                if (seenVariables.Contains(variable.Name))
+                {
+                    return false;
+                }
+                seenVariables.Add(variable.Name);
+            }
+            return true;
+        }
+
         public override void Run()
         {
-            
+            ThrowOnValidationError(true);
             if (RunElevated &&!SubProcessHost.IsAdmin())
             {
                 // note, this part is currently never enabled.
