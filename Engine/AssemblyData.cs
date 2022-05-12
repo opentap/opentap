@@ -13,7 +13,7 @@ namespace OpenTap
     /// Representation of an assembly including its dependencies. Part of the object model used in the PluginManager
     /// </summary>
     [DebuggerDisplay("{Name} ({Location})")]
-    public class AssemblyData
+    public class AssemblyData : ITypeDataSource
     {
         private static readonly TraceSource log = Log.CreateSource("PluginManager");
         /// <summary>
@@ -26,6 +26,11 @@ namespace OpenTap
         /// </summary>
         public string Location { get; }
 
+        /// <summary> Gets the attributes of this .net assembly. </summary>
+        public IEnumerable<object> Attributes => Load()?.GetCustomAttributes() ?? Enumerable.Empty<object>();
+
+        IEnumerable<ITypeData> ITypeDataSource.Types => PluginTypes;
+
         /// <summary>
         /// <see cref="PluginAssemblyAttribute"/> decorating assembly, if included
         /// </summary>
@@ -35,6 +40,8 @@ namespace OpenTap
         /// A list of Assemblies that this Assembly references.
         /// </summary>
         public IEnumerable<AssemblyData> References { get; internal set; }
+
+        IEnumerable<ITypeDataSource> ITypeDataSource.References => References;
 
         List<TypeData> pluginTypes;
         
@@ -54,6 +61,8 @@ namespace OpenTap
 
         /// <summary> The loaded state of the assembly. </summary>
         internal LoadStatus Status => assembly != null ? LoadStatus.Loaded : (failedLoad ? LoadStatus.FailedToLoad : LoadStatus.NotLoaded);
+        
+        
 
         /// <summary>
         /// Gets the version of this Assembly
@@ -77,7 +86,7 @@ namespace OpenTap
 
         bool failedLoad;
         internal bool IsSemanticVersionSet;
-
+        
         /// <summary>
         /// Returns the System.Reflection.Assembly corresponding to this. 
         /// If the assembly has not yet been loaded, this call will load it.

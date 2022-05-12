@@ -72,7 +72,7 @@ namespace OpenTap.Engine.UnitTests
             }
 
 
-            public class TypeDataTestImpl : ITypeData
+            public class TypeDataTestImpl : ITypeDataWithSource
             {
                 public ITypeData BaseType { get; set; }
 
@@ -115,19 +115,41 @@ namespace OpenTap.Engine.UnitTests
                         DeclaringType = this
                     };
                 }
+
+                public ITypeDataSource Source { get; internal set; }
             }
-            static ObservableCollection<ITypeData> hardcodedTypes = new ObservableCollection<ITypeData>
+
+            class TestTypeSource : ITypeDataSource
             {
-                new TypeDataTestImpl( "UnitTestType", TypeData.FromType(typeof(IResultListener)),null),
-                new TypeDataTestImpl( "UnitTestCliActionType", TypeData.FromType(typeof(ICliAction)),() => new SomeTestAction())
+                List<ITypeData> types = new List<ITypeData>();
+                public string Location => ":test:";
+                public IEnumerable<ITypeData> Types => types.AsReadOnly();
+                public IEnumerable<object> Attributes => Array.Empty<object>();
+                public IEnumerable<ITypeDataSource> References { get; } = Array.Empty<ITypeDataSource>();
+                internal void AddType(ITypeData type) => types.Add(type);
+                
+            }
+
+            static readonly TestTypeSource TypeSource = new TestTypeSource();
+            
+            static readonly ObservableCollection<ITypeData> hardcodedTypes = new ObservableCollection<ITypeData>
+            {
+                new TypeDataTestImpl( "UnitTestType", TypeData.FromType(typeof(IResultListener)),null){Source = TypeSource},
+                new TypeDataTestImpl( "UnitTestCliActionType", TypeData.FromType(typeof(ICliAction)),() => new SomeTestAction()){Source = TypeSource}
             };
+
+            static TypeDataSearcherTestImpl()
+            {
+                hardcodedTypes.ForEach(TypeSource.AddType);
+            }
 
             public static void AddType(string name, ITypeData baseType)
             {
                 hardcodedTypes.Add(new TypeDataTestImpl(name, baseType, null));
             }
 
-            public static bool Enable { get; set; }
+            static SessionLocal<bool> enabled = new SessionLocal<bool>();
+            public static bool Enable { get => enabled.Value; set => enabled.Value = value; }
 
             private List<ITypeData> _types = new List<ITypeData>();
             public IEnumerable<ITypeData> Types => Enable ? (_types.Count != hardcodedTypes.Count ? null : _types) : Enumerable.Empty<ITypeData>();
@@ -272,6 +294,24 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        [Test]
+        public void ITypeDataSourceTest2()
+        {
+            var td2= TypeData.GetTypeData(new DelayStep());
+            var td3= TypeData.GetTypeData(new DialogStep());
+            var source = td2.GetTypeSource();
+            Assert.IsTrue(source.Location.Contains("OpenTap.Plugins.BasicSteps.dll"));
+            Assert.IsTrue(td3.GetTypeSource() == td2.GetTypeSource());
+            Assert.IsTrue(source.Types.Contains(td2.AsTypeData()));
+            Assert.IsTrue(source.Types.Contains(td3.AsTypeData()));
+            
+            using (Session.Create())
+            {
+                TypeDataSearcherTestImpl.Enable = true;
+                var td = TypeData.GetTypeData("UnitTestType");
+                Assert.AreEqual(2, td.GetTypeSource().Types.Count());
+            }
+        }
     }
 
     public interface IExpandedObject
@@ -315,8 +355,9 @@ namespace OpenTap.Engine.UnitTests
         }
     }
 
-    public class ExpandedTypeInfo : ITypeData
+    public class ExpandedTypeInfo : ITypeDataWithSource
     {
+        public ITypeDataSource Source => (BaseType as ITypeDataWithSource)?.Source;
         public ITypeData InnerDescriptor;
         public IExpandedObject Object;
         public ITypeDataProvider Provider { get; set; }

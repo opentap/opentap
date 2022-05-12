@@ -200,7 +200,7 @@ namespace OpenTap
 
     }
 
-    class EmbeddedTypeData : ITypeData
+    class EmbeddedTypeData : ITypeDataWithSource
     {
         public ITypeData BaseType { get; set; }
         public bool CanCreateInstance => BaseType.CanCreateInstance;
@@ -252,6 +252,7 @@ namespace OpenTap
             return embeddedMembers.ToArray();
         }
         public override string ToString() => $"EmbType:{Name}";
+        public ITypeDataSource Source => (BaseType as ITypeDataWithSource)?.Source;
     }
 
     class EmbeddedTypeDataProvider : IStackedTypeDataProvider

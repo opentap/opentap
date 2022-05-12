@@ -96,7 +96,7 @@ namespace OpenTap.Plugins.BasicSteps
                 .SelectMany(x => x.Value.Select(y => ((object)x.Key, y)));
     }
 
-    class ExpandedTypeData : ITypeData
+    class ExpandedTypeData : ITypeDataWithSource
     {
         private static readonly Regex propRegex = new Regex(@"^prop(?<index>[0-9]+)$", RegexOptions.Compiled);
 
@@ -182,6 +182,8 @@ namespace OpenTap.Plugins.BasicSteps
             names = names2;
             return members;
         }
+        
+        public ITypeDataSource Source => (BaseType as ITypeDataWithSource)?.Source;
     }
 
 

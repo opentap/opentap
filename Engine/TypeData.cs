@@ -14,7 +14,7 @@ namespace OpenTap
     /// Representation of a C#/dotnet type including its inheritance hierarchy. Part of the object model used in the PluginManager
     /// </summary>
     [DebuggerDisplay("{Name}")]
-    public class TypeData : ITypeData
+    public class TypeData : ITypeDataWithSource
     {
         // Used to mark when no display attribute is present.
         static readonly DisplayAttribute noDisplayAttribute = new DisplayAttribute("<<Null>>");
@@ -731,8 +731,7 @@ namespace OpenTap
                     type.LoadCache();
                 cache.Value = new ConcurrentDictionary<object, ITypeData>();
             }
-
-
+            
             public void Dispose()
             {
                 cache.Value = null;
@@ -740,5 +739,9 @@ namespace OpenTap
                     cache.UnloadCache();
             }
         }
+
+        /// <summary>  Returns the .NET DLL from which this type came. This DLL may be loaded and/or dynamic - meaning generated at runtime.  </summary>
+        public ITypeDataSource Source => Assembly;
+        
     }
 }
