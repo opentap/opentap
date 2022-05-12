@@ -110,6 +110,11 @@
           <Loop>8a6aa2a3-b87d-416a-b264-91886d44b78e</Loop>
           <Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>sdk new project HasNumbers123</Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>
         </SweepRow>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>8a6aa2a3-b87d-416a-b264-91886d44b78e</Loop>
+          <Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>sdk new project Has_Underscore</Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>
+        </SweepRow>
       </SweepValues>
       <Selected>
         <KeyValuePairOfString>
@@ -127,7 +132,7 @@
           <ChildTestSteps>
             <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="f8fc45cd-7757-4bb2-b64c-6818166927c9">
               <Application>tap</Application>
-              <Arguments Parameter="Parameters \ Command Line Arguments" Scope="8a6aa2a3-b87d-416a-b264-91886d44b78e">sdk new project HasNumbers123</Arguments>
+              <Arguments Parameter="Parameters \ Command Line Arguments" Scope="8a6aa2a3-b87d-416a-b264-91886d44b78e">sdk new project Has_Underscore</Arguments>
               <WorkingDirectory Parameter="Parameters \ Directory">SdkTest/Test</WorkingDirectory>
               <WaitForEnd>true</WaitForEnd>
               <Timeout>0</Timeout>
@@ -156,7 +161,7 @@
         </TestStep>
       </ChildTestSteps>
       <BreakConditions>Inherit</BreakConditions>
-      <Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>sdk new project HasNumbers123</Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>
+      <Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>sdk new project Has_Underscore</Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>
     </TestStep>
     <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.RemoveDirectory" Version="0.0.0" Id="64e78f64-481a-4c1c-a477-6b482f9774f3">
       <Path>SdkTest</Path>

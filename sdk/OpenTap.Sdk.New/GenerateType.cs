@@ -38,7 +38,7 @@ namespace OpenTap.Sdk.New
 
                 // Then detect any invalid filename or C# identifier chars
                 if (invalid.Contains(ch) || (!allowWhiteSpace && char.IsWhiteSpace(ch)) ||
-                    (allowAlphaNumericOnly && !char.IsLetterOrDigit(ch)))
+                    (allowAlphaNumericOnly && !char.IsLetterOrDigit(ch) && ch != '_'))
                 {
                     sb.Append("^");
                     anyInvalid = true;
