@@ -43,7 +43,7 @@ namespace OpenTap.Package
         public static Installation Current => _current ?? (_current = new Installation(ExecutorClient.ExeDir));
 
         /// <summary> Target installation architecture. This could be anything as 32-bit is supported on 64bit systems.</summary>
-        internal CpuArchitecture Architecture => GetOpenTapPackage()?.Architecture ?? CpuArchitecture.AnyCPU;
+        internal CpuArchitecture Architecture => GetOpenTapPackage()?.Architecture ?? ArchitectureHelper.GuessBaseArchitecture;
 
         /// <summary> The target installation OS, should be either Windows, MacOS or Linux. </summary>
         internal string OS
@@ -203,8 +203,16 @@ namespace OpenTap.Package
                 // Add normal package from OpenTAP folder
                 package_files.AddRange(PackageDef.GetPackageMetadataFilesInTapInstallation(Directory));
 
+                string normalizePath(string s)
+                {
+                    return Path.GetFullPath(s)
+                        .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                        .ToUpperInvariant();
+                }
+
                 // Add system wide packages
-                package_files.AddRange(PackageDef.GetSystemWidePackages());
+                if (normalizePath(Directory) != normalizePath(PackageDef.SystemWideInstallationDirectory))
+                    package_files.AddRange(PackageDef.GetSystemWidePackages());
 
                 foreach (var file in package_files)
                 {
@@ -254,8 +262,6 @@ namespace OpenTap.Package
         {
             if (GetPackagesLookup().TryGetValue("OpenTAP", out var opentap))
                 return opentap;
-            
-            log.Warning($"Could not find OpenTAP in {Directory}.");
             return null;
         }
 

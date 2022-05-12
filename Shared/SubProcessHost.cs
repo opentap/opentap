@@ -20,8 +20,8 @@ namespace OpenTap
     class SubProcessHost
     {
         public bool ForwardLogs { get; set; } 
-        public string LogHeader { get; set; } = "Subprocess";
-
+        public string LogHeader { get; set; } = "";
+        public HashSet<string> MutedSources { get; } = new HashSet<string>();
 
         public static bool IsAdmin()
         {
@@ -201,7 +201,13 @@ namespace OpenTap
                             for(int i = 0; i < events.Length; i++)
                                 events[i].Message = LogHeader + ": " + events[i].Message;
                         }
-                        events.ForEach(((ILogContext2)Log.Context).AddEvent);
+
+                        var _evt = events;
+                        if (MutedSources.Any())
+                        {
+                            _evt = events.Where(e => !MutedSources.Contains(e.Source)).ToArray();
+                        }
+                        _evt.ForEach(((ILogContext2)Log.Context).AddEvent);
                     }
                 }
 
