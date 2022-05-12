@@ -95,10 +95,16 @@ namespace OpenTap
 
         internal static void PrintWaitingMessage(IEnumerable<IResource> resources)
         {
-            Log.Info("Waiting for resources to open:");
-            foreach (var resource in resources)
+            // Save disconnected ressources to avoid race conditions.
+            var waitingRessources = resources.Where(r => !r.IsConnected).ToList();
+            if (waitingRessources.Count == 0)
             {
-                if (resource.IsConnected) continue;
+                return;
+            }
+
+            Log.Info("Waiting for resources to open:");
+            foreach (var resource in waitingRessources)
+            {
                 Log.Info(" - {0}", resource);
             }
         }
