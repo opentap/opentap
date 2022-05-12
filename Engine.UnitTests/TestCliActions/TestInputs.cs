@@ -1,5 +1,7 @@
+using System;
 using System.Security;
 using System.Threading;
+using System.Threading.Tasks;
 using OpenTap.Cli;
 
 namespace OpenTap.UnitTests
@@ -23,9 +25,30 @@ namespace OpenTap.UnitTests
             [Submit] public string Response { get; set; } = "";
         }
 
+        [Display("Validate Prompt")]
+        class SubmitValidatePrompt
+        {
+            public double Delay { get; set; }
+            
+            [Layout(LayoutMode.FloatBottom)]
+            [Display("Normal Input")]
+            [Submit(nameof(Validate))] 
+            public string Response { get; set; } = "";
+
+            public async Task Validate()
+            {
+                await Task.Delay(TimeSpan.FromSeconds(Delay));
+                
+                if (string.IsNullOrEmpty(Response))
+                    throw new UserInputRetryException("Response not set", new string[]{});
+            }
+        }
         
         [CommandLineArgument("secure")]
         public bool Secure { get; set; }
+        
+        [CommandLineArgument("validate")]
+        public bool Validate { get; set; }
         
         public int Execute(CancellationToken cancellationToken)
         {
@@ -35,6 +58,12 @@ namespace OpenTap.UnitTests
                 var x = new PasswordPrompt();
                 UserInput.Request(x);
                 written = x.Response.ConvertToUnsecureString();
+            }
+            else if (Validate)
+            {
+                var x = new SubmitValidatePrompt();
+                UserInput.Request(x);
+                written = x.Response;
             }
             else
             {
