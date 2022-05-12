@@ -47,16 +47,7 @@ namespace OpenTap
             {
                 try
                 {
-                    if (Environment.GetEnvironmentVariable("OPENTAP_ANSI_COLORS") != null)
-                    {
-                        isAnsiColorCodes = true;
-                        // This is a "isolated" process that has its stdoout redirected to the parent process. 
-                        // The parent process already successfully enabled ansi color codes. No need to do anything else here.
-                        return;
-                    }
                     isAnsiColorCodes = AnsiColorCodeFix.TryEnableForWin10();
-                    if (isAnsiColorCodes)
-                        Environment.SetEnvironmentVariable("OPENTAP_ANSI_COLORS", "1");
                 }
                 catch (Exception ex)
                 {

@@ -126,7 +126,6 @@ namespace OpenTap.Package
 
                 pi.CreateNoWindow = step.CreateNoWindow;
                 pi.WorkingDirectory = isSystemWide ? systemWideDir : workingDirectory;
-                pi.Environment.Remove(ExecutorSubProcess.EnvVarNames.ParentProcessExeDir);
                 // If OPENTAP_COLOR is set, the escape symbols for colors in the child process will break the parsing of the forwarded logs.
                 // Ensure color is never set in the child process. Colors will still be set in the parent process.
                 pi.Environment["OPENTAP_COLOR"] = "never";

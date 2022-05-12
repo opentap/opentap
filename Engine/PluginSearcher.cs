@@ -1002,10 +1002,10 @@ namespace OpenTap
                         }
                         else
                         {
-                            assembly = Assembly.LoadFrom(Path.GetFullPath(this.Location));
+                            assembly = PluginManager.LoadAssembly(Path.GetFullPath(Location));
                         }
                     }
-                    //TODO 
+
                     try
                     {
                         // Find attribute
@@ -1042,17 +1042,17 @@ namespace OpenTap
                     {
                         failedLoad = true;
                         assembly = null;
-                        log.Error($"Failed to load plugins from {this.Location}");
+                        log.Error($"Failed to load plugins from {Location}");
                         log.Debug(ex);
 
                         return null;
                     }
-                    log.Debug(watch, "Loaded {0}.", this.Name);
+                    log.Debug(watch, "Loaded {0}.", Name);
                 }
                 catch (SystemException ex)
                 {
                     failedLoad = true;
-                    StringBuilder sb = new StringBuilder(String.Format("Failed to load plugins from {0}", this.Location));
+                    StringBuilder sb = new StringBuilder($"Failed to load plugins from {Location}");
                     bool addedZoneInfo = false;
                     try
                     {
@@ -1060,7 +1060,7 @@ namespace OpenTap
                         if (zonetype != null)
                         {               
                             // Hack to support .net core without having to build separate assemblies.
-                            dynamic zone = zonetype.GetMethod("CreateFromUrl").Invoke(null, new object[] { this.Location });
+                            dynamic zone = zonetype.GetMethod("CreateFromUrl").Invoke(null, new object[] { Location });
                             var sec = zone.SecurityZone.ToString();
                             if (sec.Contains("Internet") || sec.Contains("Untrusted"))
 

@@ -37,8 +37,7 @@ namespace OpenTap
             Console.WriteLine("Attaching debugger " + assembly);
             try
             {
-                var bytes = System.IO.File.ReadAllBytes(assembly);
-                var asm = Assembly.Load(bytes);
+                var asm = PluginManager.LoadAssembly(assembly);
                 var types = asm.GetExportedTypes();
                 foreach (Type t in types)
                 {

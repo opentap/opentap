@@ -134,11 +134,11 @@ namespace OpenTap.Cli
                 return (int)ExitCodes.ArgumentError;
             }
 
-            EngineSettings.LoadWorkingDirectory(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+            EngineSettings.LoadWorkingDirectory(ExecutorClient.ExeDir);
             
             Assembly assembly = Assembly.GetExecutingAssembly();
 
-            Console.WriteLine($"OpenTAP Command Line Interface {FileVersionInfo.GetVersionInfo(assembly.Location).ProductVersion}\n");
+            Console.WriteLine($"OpenTAP Command Line Interface {FileVersionInfo.GetVersionInfo(assembly.GetLocation()).ProductVersion}\n");
 
             if (!string.IsNullOrWhiteSpace(Settings))
             {

@@ -107,7 +107,7 @@ namespace OpenTap.Package
     class VerifyPackageHashes : ICliAction
     {
         static TraceSource log = Log.CreateSource("Verify");
-        static string Target = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        private static string Target = ExecutorClient.ExeDir;
 
         /// <summary> Verify a specific package. </summary>
         [UnnamedCommandLineArgument("package", Required = false)]

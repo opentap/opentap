@@ -331,7 +331,7 @@ namespace OpenTap
                 }
                 else
                 {
-                    var message = string.Format("Unable to locate type '{0}'. Are you missing a plugin?", typeattribute.Value);
+                    var message = $"Unable to locate type '{typeattribute.Value}'. Are you missing a plugin?";
                     log.Warning(element, message);
                     PushError(element, message);
                     if (t == null)

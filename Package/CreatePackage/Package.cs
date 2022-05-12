@@ -372,11 +372,11 @@ namespace OpenTap.Package
             // First update the pre-entered dependencies            
             bool foundNew = false;
             var notFound = new HashSet<string>();
-           
+
             // find the current installation
             var currentInstallation = new Installation(Directory.GetCurrentDirectory());
             if (!currentInstallation.IsInstallationFolder) // if there is no installation in the current folder look where tap is executed from
-                currentInstallation = new Installation(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+                currentInstallation = Installation.Current;
 
             var installed = currentInstallation.GetPackages().Where(p => p.Name != pkg.Name).ToList();
             // check versions of any hardcoded dependencies against what is currently installed
@@ -511,14 +511,14 @@ namespace OpenTap.Package
         private static void AddFileDependencies(PackageDef pkg, AssemblyData dependency, AssemblyData foundAsm)
         {
             var depender = pkg.Files.FirstOrDefault(f => f.DependentAssemblies.Contains(dependency));
-            var destPath = string.Format("Dependencies/{0}.{1}/{2}", Path.GetFileNameWithoutExtension(foundAsm.Location), foundAsm.Version.ToString(), Path.GetFileName(foundAsm.Location));
+            var destPath = $"Dependencies/{Path.GetFileNameWithoutExtension(foundAsm.Location)}.{foundAsm.Version}/{Path.GetFileName(foundAsm.Location)}";
+            
             if (pkg.Files.Any(x => x.RelativeDestinationPath == destPath))
                 return;//throw new Exception("File already added to package: " + destPath);
             if (depender == null)
                 log.Warning("Adding dependent assembly '{0}' to package. It was not found in any other packages.", Path.GetFileName(foundAsm.Location));
             else
                 log.Info($"'{Path.GetFileName(depender.FileName)}' depends on '{dependency.Name}' version '{dependency.Version}'. Adding dependency to package, it was not found in any other packages.");
-
 
             pkg.Files.Add(new PackageFile { SourcePath = foundAsm.Location, RelativeDestinationPath = destPath, DependentAssemblies = foundAsm.References.ToList() });
 
