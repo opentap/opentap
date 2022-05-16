@@ -249,7 +249,7 @@ namespace OpenTap.Package.UnitTests
                     File.Delete(outputFilename);
             }
         }
-
+#if NET6_0
         [Test]
         public void CreatePackageVersioningMono()
         {
@@ -274,7 +274,7 @@ namespace OpenTap.Package.UnitTests
             Assert.AreEqual("0.1.2", FileVersionInfo.GetVersionInfo(tmpFile).ProductVersion, "GetVersionInfo().ProductVersion");
             Assert.AreEqual("0.1.2", FileSystemHelper.GetAssemblyVersion(tmpFile), "FileSystemHelper.GetAssemblyVersion");
         }
-
+#endif
         [Test]
         public void CreatePackageDepVersions()
         {

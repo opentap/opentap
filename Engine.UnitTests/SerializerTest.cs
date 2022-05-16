@@ -1663,6 +1663,39 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        public class IntStep : TestStep
+        {
+            public int SomeInt { get; set; }
+
+            public override void Run()
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        [TestCase("asd", true)]
+        [TestCase("", true)]
+        [TestCase("163", false)]
+        public void TestExternalparameterDeserializeError(string numStr, bool fail)
+        {
+            var step = new IntStep();
+
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step);
+            plan.ExternalParameters.Add(step, TypeData.GetTypeData(step).GetMember(nameof(step.SomeInt)), "SomeInt");
+
+            var serializer = new TapSerializer();
+            var extparams = serializer.GetSerializer<Plugins.ExternalParameterSerializer>();
+            extparams.PreloadedValues["SomeInt"] = numStr;
+            using (var ms = new MemoryStream())
+            {
+                plan.Save(ms);
+                ms.Position = 0;
+                plan = TestPlan.Load(ms, "test.tapplan", false, serializer);
+            }
+            Assert.IsTrue(serializer.Errors.Any() == fail);
+        }
+
         [Test]
         public void SerializerNumberList()
         {
@@ -2414,10 +2447,18 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void NullInstrumentTest()
         {
-             object outValue = new ObjectCloner(null).Clone(true, null, TypeData.FromType(typeof(ScpiInstrument)));
-             Assert.IsNull(outValue);
+            object outValue = new ObjectCloner(null).Clone(true, null, TypeData.FromType(typeof(ScpiInstrument)));
+            Assert.IsNull(outValue);
         }
-        
+
+        [Test]
+        public void NullValueTypeTest()
+        {
+            Assert.Throws<InvalidCastException>(() => new ObjectCloner("asd").Clone(true, 1, TypeData.FromType(typeof(int))));
+            Assert.Throws<InvalidCastException>(() => new ObjectCloner("").Clone(true, 1, TypeData.FromType(typeof(int))));
+            Assert.DoesNotThrow(() => new ObjectCloner("123").Clone(true, 1, TypeData.FromType(typeof(int))));
+        }
+
         public class InPlaceProperty : ValidatingObject
         {
             int x;
@@ -2573,7 +2614,7 @@ namespace OpenTap.Engine.UnitTests
             var str = ser.SerializeToString(x);
             Assert.IsFalse(ser.XmlErrors.Any());
             var str2 = @"<?xml version=""1.0"" encoding=""utf-8""?>
-                <EnabledOfEnabledOfEnabledOfInt32 type=""OpenTap.Enabled`1[[OpenTap.Enabled`1[[OpenTap.Enabled`1[[System.Int32, System.Private.CoreLib, Version=6.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e]], OpenTap, Version=9.4.0.0, Culture=neutral, PublicKeyToken=null]], OpenTap, Version=9.4.0.0, Culture=neutral, PublicKeyToken=null]]"">
+                <EnabledOfEnabledOfEnabledOfInt32 type=""OpenTap.Enabled`1[[OpenTap.Enabled`1[[OpenTap.Enabled`1[[System.Int32]], OpenTap, Version=9.4.0.0, Culture=neutral, PublicKeyToken=null]], OpenTap, Version=9.4.0.0, Culture=neutral, PublicKeyToken=null]]"">
                 <Value>
                 <Value>
                 <Value>abc</Value>

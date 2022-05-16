@@ -97,6 +97,8 @@ namespace OpenTap.Package
                     var version = Version;
                     if (Path.GetExtension(packageName).ToLower().EndsWith("tappackages"))
                     {
+                        if(!File.Exists(packageName))
+                            throw new FileNotFoundException($"Unable to find the file {packageName}.");
                         var tempDir = Path.GetTempPath();
                         var bundleFiles = PluginInstaller.UnpackPackage(packageName, tempDir);
                         var packagesInBundle = bundleFiles.Select(PackageDef.FromPackage);
@@ -163,6 +165,11 @@ namespace OpenTap.Package
                 }
                 else
                 {
+                    // assumption: packages ending with .TapPackage are files, not on external repos.
+                    // so if this is the case and the file does not exist, throw an exception.
+                    if(string.Compare(Path.GetExtension(packageSpecifier.Name), ".TapPackage", StringComparison.InvariantCultureIgnoreCase) == 0)
+                        throw new FileNotFoundException($"Unable to find the file {packageSpecifier.Name}");
+                    
                     PackageDef package = DependencyResolver.GetPackageDefFromRepo(repositories, packageSpecifier, new List<PackageDef>());
 
                     if (noDowngrade)
@@ -195,7 +202,7 @@ namespace OpenTap.Package
                 if (force)
                     log.Info($"Ignoring potential depencencies (--force option specified).");
                 else
-                    log.Info($"Ignoring potential depencencies (--no-dependencies option specified).");
+                    log.Debug($"Ignoring potential depencencies (--no-dependencies option specified).");
                 return gatheredPackages.ToList();
             }
 
@@ -349,10 +356,10 @@ namespace OpenTap.Package
                         }
                     }
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     log.Error("Failed to download OpenTAP package.");
-                    throw ex;
+                    throw;
                 }
 
                 downloadedPackages.Add(filename);

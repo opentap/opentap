@@ -8,8 +8,17 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <IsDebug>false</IsDebug>
+    <OpenTapAppTargetFramework>net6.0</OpenTapAppTargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
+    <TargetFrameworkVersion></TargetFrameworkVersion>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(OS)' != 'Unix'">
+    <!-- .net462 revert: on windows we build -->   
+    <OpenTapAppTargetFramework>net462</OpenTapAppTargetFramework>
+  </PropertyGroup>
+  
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
     <IsDebug>true</IsDebug>
   </PropertyGroup>
@@ -26,12 +35,6 @@
     <DefineConstants>TRACE</DefineConstants>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-  </PropertyGroup>
-
-  <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-    <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
-    <TargetFrameworkVersion></TargetFrameworkVersion>
   </PropertyGroup>
 
   <Target Name="RemoveSatelliteAssemblies" AfterTargets="ResolveAssemblyReferences">

@@ -94,7 +94,9 @@ namespace OpenTap.Package
                 FileSystemHelper.EnsureDirectory(Target);
             }
 
-            using var fileLock = FileLock.Create(Path.Combine(Target, ".lock"));
+            var lockfile = Path.Combine(Target, ".lock");
+            FileSystemHelper.EnsureDirectory(lockfile);
+            using var fileLock = FileLock.Create(lockfile);
             bool useLocking = Unlocked == false;
             if (useLocking && !fileLock.WaitOne(0))
             {

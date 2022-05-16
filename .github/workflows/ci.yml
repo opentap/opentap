@@ -1,6 +1,11 @@
 name: CI
 
-on: [push]
+on:
+  push:
+    branches:
+      - main
+      - release9x
+  pull_request:
 
 env:
   #OPENTAP_COLOR: auto # github messes with the "auto" detection (i.e. it has no effect), and "always" breaks a lot of things
@@ -200,7 +205,7 @@ jobs:
       - name: Restore
         #if: steps.cache.outputs.cache-hit != 'true'
         run: |
-          dotnet restore
+          dotnet restore /p:Platform=${{ matrix.Architecture }}
       - name: Build
         run: |
           dotnet build --no-restore -c Release /p:Platform=${{ matrix.Architecture }}
@@ -244,6 +249,9 @@ jobs:
   TestEngine:
     runs-on: windows-2022
     needs: Build-Win
+    strategy:
+      matrix:
+        retries: [ 0, 1 ]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -286,17 +294,21 @@ jobs:
       - name: Test
         run: |
           $ErrorActionPreference = "Stop"
-          Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
-          dotnet vstest bin/Release/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
+          #Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
+          cd bin/Release
+          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" 
       - uses: actions/upload-artifact@v2
         with:
           name: win-testresults
           path: |
-            TestResult.xml
+            bin/Release/TestResult.xml
 
   TestWindowsPlan:
     runs-on: windows-2022
     needs: Build-Win
+    strategy:
+      matrix:
+        retries: [ 0, 1 ]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -324,6 +336,9 @@ jobs:
   TestLinuxPlan:
     runs-on: ubuntu-20.04
     needs: Build-Linux
+    strategy:
+      matrix:
+        retries: [ 0, 1 ]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -413,7 +428,8 @@ jobs:
           $env:Platform = "Windows"
           $env:Architecture =  "${{ matrix.Architecture }}"
           cd bin/Release-x64
-          cp .\runtimes\win-x64\native\git2-b7bad55.dll .
+          # this is only needed for .net6 
+          #cp .\runtimes\win-x64\native\git2-b7bad55.dll .
           .\tap.exe package install -f ../../sign.TapPackage
           echo "${{ secrets.SIGN_SERVER_CERT }}" > $env:TAP_SIGN_CERT
           $version=$(./tap sdk gitversion)
@@ -532,7 +548,7 @@ jobs:
           $env:Platform = "Windows"
           cd bin/Release
           Remove-Item -Recurse -Force ./Packages
-          cp .\runtimes\win-x64\native\git2-b7bad55.dll .
+          #cp .\runtimes\win-x64\native\git2-b7bad55.dll .
           .\tap.exe package create ../../package.xml --install -v -c
           Copy-Item "../../sdk/Examples" "Packages/SDK/Examples" -Recurse
           Copy-Item "../../Package/PackageSchema.xsd" "Packages/SDK/PackageSchema.xsd"
@@ -624,7 +640,7 @@ jobs:
           path: .
       - name: Package
         run: |
-          cp bin\Release\runtimes\win-x64\native\git2-b7bad55.dll bin\Release
+          #cp bin\Release\runtimes\win-x64\native\git2-b7bad55.dll bin\Release
           ./bin/Release/tap sdk gitversion --replace ./nuget/OpenTAP.nuspec --fields 4
           New-Item -Force ./nuget/build/payload -ItemType Directory | Out-Null
           # Expand-Archive will only extract .zip extensions    
@@ -633,13 +649,15 @@ jobs:
           Move-Item OpenTAP.*.Linux.TapPackage OpenTAP.Linux.zip
 
           Move-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
-          Move-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll    
+          Move-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll
+          echo "Install opentap"    
           ./bin/Release/tap package install ./OpenTap.x64.zip -t ./nuget/build/payload -f
           # package.xml, tap.dll, and tap.runtimeconfig.json of an installation should always come from 
           # one of the Runtime directories. Delete it from the payload directory.
           Remove-Item ./nuget/build/payload/Packages/OpenTAP/package.xml
-          Remove-Item ./nuget/build/payload/tap.dll
-          Remove-Item ./nuget/build/payload/tap.runtimeconfig.json
+          # these files only exists when building for net6.0.
+          #Remove-Item ./nuget/build/payload/tap.dll
+          #Remove-Item ./nuget/build/payload/tap.runtimeconfig.json
 
           Move-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload
           Move-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
@@ -647,12 +665,14 @@ jobs:
           Remove-Item tap.exe
           Remove-Item ./Dependencies/LibGit2Sharp.0.27.0.0/git2*.dll
           Pop-Location
-          Expand-Archive OpenTAP.x64.zip win-x64
-          Expand-Archive OpenTAP.x86.zip win-x86
-          Expand-Archive OpenTAP.Linux.zip linux-x64
+          echo "Expand archive"
+          Expand-Archive OpenTAP.x64.zip win-x64 -Verbose
+          Expand-Archive OpenTAP.x86.zip win-x86 -Verbose
+          Expand-Archive OpenTAP.Linux.zip linux-x64 -Verbose
           ./nuget/NugetPackager.ps1
           cd ./nuget    
           Invoke-WebRequest -Method Get -Uri "https://dist.nuget.org/win-x86-commandline/v5.7.1/nuget.exe" -OutFile nuget.exe
+          echo "Pack nuget"
           .\nuget pack OpenTAP.nuspec -OutputDirectory ../
       - uses: actions/upload-artifact@v2
         with:
@@ -704,7 +724,7 @@ jobs:
       - GetVersion
       - Package-Win
     container:
-      image: registry.gitlab.com/opentap/buildrunners/smartinstaller:1.0.0-beta.3
+      image: registry.gitlab.com/opentap/buildrunners/smartinstaller:1.1.0-beta.7
       credentials:
         username: github
         password: ${{ secrets.GITLAB_REGISTRY_TOKEN}}

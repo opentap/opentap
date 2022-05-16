@@ -58,6 +58,11 @@ namespace OpenTap.Engine.UnitTests
         [CommandLineArgument("test")]
         public string Test { get; set; }
         
+        [CommandLineArgument("type-data-attributes")]
+        public bool TypeDataAttributes { get; set; }
+
+        static TraceSource log = Log.CreateSource("profile"); 
+        
         public int Execute(CancellationToken cancellationToken)
         {
             if (Test != null)
@@ -388,6 +393,25 @@ namespace OpenTap.Engine.UnitTests
                 }
             }
 
+            if (TypeDataAttributes)
+            {
+                // loop through all types and get attributes.
+                int total = 0;
+                var sw = Stopwatch.StartNew();
+                var allTypes = PluginManager.GetSearcher().AllTypes.Values.ToArray();
+                for (int i = 0; i < Iterations; i++)
+                {
+                    TapThread.Current.AbortToken.ThrowIfCancellationRequested();
+                    foreach (var tp in allTypes)
+                    {
+                        foreach (var _ in tp.GetAttributes<DisplayAttribute>())
+                        {
+                            total += 1;
+                        }
+                    }
+                }
+                log.Info(sw, "TypeData (test number {0})", total);
+            }
             return 0;
         }
     }
