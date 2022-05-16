@@ -5,16 +5,76 @@ using OpenTap;
 
 namespace Keysight.OpenTap.Sdk.MSBuild
 {
-    class SessionLogContext : IDisposable
+    /// <summary>
+    /// Build actions which require OpenTAP should enter this context before referencing any OpenTAP types.
+    /// This is necessary because the OpenTAP dll is not in the same directory as this dll.
+    /// In addition, this context initializes session logs with a specific name, and with
+    /// a flag that allows them to be deleted so e.g. bin/Debug can be deleted without errors. 
+    /// </summary>
+    class OpenTapContext : IDisposable
     {
-        private Action _onDispose;
+        // The static portion of this type MUST NOT reference OpenTAP.
+        #region Static Members
+        /// <summary>
+        /// Compute the payload directory based on the current platform
+        /// </summary>
+        /// <returns></returns>
+        private static string CorrectPayloadDir()
+        {
+            var thisAsmDir = Path.GetDirectoryName(typeof(OpenTapContext).Assembly.Location)!;
+            return Path.Combine(thisAsmDir, "payload");
+        }
+
+        private static bool loaded = false;
+        private static object loadLock = new object();
+        private static void loadOnce(string tapDir)
+        {
+            lock (loadLock)
+            {
+                if (loaded) return;
+                loaded = true;
+
+                // This alters the value returned by 'ExecutorClient.ExeDir' which would otherwise return the location of
+                // OpenTap.dll which in an MSBuild context would be the nuget directory which leads to unexpected behavior
+                // because the expected location is the build directory in all common use cases.
+                Environment.SetEnvironmentVariable("OPENTAP_INIT_DIRECTORY", tapDir, EnvironmentVariableTarget.Process);
+
+                var tapInstall = Path.Combine(tapDir, "tap");
+                if (File.Exists(tapInstall) == false)
+                    tapInstall = Path.Combine(tapDir, "tap.exe");
+                if (File.Exists(tapInstall) == false)
+                    throw new Exception($"No tap install found in directory {tapDir}");
+
+                Environment.SetEnvironmentVariable("OPENTAP_NO_UPDATE_CHECK", "true");
+                Environment.SetEnvironmentVariable("OPENTAP_DEBUG_INSTALL", "true");
+
+                var root = CorrectPayloadDir();
+                var openTapDll = Path.Combine(root, "OpenTap.dll");
+                var openTapPackageDll = Path.Combine(root, "OpenTap.Package.dll");
+
+                Assembly.LoadFile(openTapPackageDll);
+                Assembly.LoadFile(openTapDll);
+            }
+        }
 
         /// <summary>
-        /// Increment a number until we find a filename which is not in use.
+        /// Help the runtime resolve OpenTAP. The correct OpenTAP dll is in a subdirectory and will not be found by
+        /// the default resolver. Also, the resolver will look for the debug version (9.4.0.0) because that's what this
+        /// assembly was compiled against. This is sort of a hack, but it should be fine.
+        /// </summary>
+        /// <param name="tapDir"></param>
+        public static IDisposable Create(string tapDir)
+        {
+            loadOnce(tapDir);
+            return new OpenTapContext(tapDir);
+        }
+        
+        /// <summary>
+        /// Increment a number until we find an available filename.
         /// </summary>
         /// <param name="logName"></param>
         /// <returns></returns>
-        string numberedFileName(string logName)
+        static string numberedFileName(string logName)
         {
             var logNameNoExt = Path.Combine(Path.GetDirectoryName(logName), Path.GetFileNameWithoutExtension(logName));
             var num = 1;
@@ -26,14 +86,16 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
             return logName;
         }
+        
+        #endregion
 
+        #region Instance Members
+        
         /// <summary>
         /// Calling this method forces the runtime to resolve OpenTAP because SessionLogs is from the OpenTAP assembly.
         /// </summary>
-        public SessionLogContext(string tapDir, Action OnDispose)
+        public OpenTapContext(string tapDir)
         {
-            _onDispose = OnDispose;
-            
             var buildProc = System.Diagnostics.Process.GetCurrentProcess();
             var timestamp = buildProc.StartTime.ToString("yyyy-MM-dd HH-mm-ss");
             var pid = buildProc.Id;
@@ -54,75 +116,13 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         }
 
         /// <summary>
-        /// Ensure the session log is closed when this context is disposed.
+        /// Ensure the session log is flushed when this context is disposed.
         /// </summary>
         public void Dispose()
         {
             Log.Flush();
             SessionLogs.Flush();
-            _onDispose();
         }
-    }
-
-    class OpenTapContext
-    {
-        /// <summary>
-        /// Compute the payload directory based on the current platform
-        /// </summary>
-        /// <returns></returns>
-        private static string CorrectPayloadDir()
-        {
-            var thisAsmDir = Path.GetDirectoryName(typeof(OpenTapContext).Assembly.Location)!;
-            return Path.Combine(thisAsmDir, "payload");
-        }
-
-        /// <summary>
-        /// Help the runtime resolve OpenTAP. The correct OpenTAP dll is in a subdirectory and will not be found by
-        /// the default resolver. Also, the resolver will look for the debug version (9.4.0.0) because that's what this
-        /// assembly was compiled against. This is sort of a hack, but it should be fine.
-        /// </summary>
-        /// <param name="tapDir"></param>
-        public static IDisposable Create(string tapDir)
-        {
-            // This alters the value returned by 'ExecutorClient.ExeDir' which would otherwise return the location of
-            // OpenTap.dll which in an MSBuild context would be the nuget directory which leads to unexpected behavior
-            // because the expected location is the build directory in all common use cases.
-            Environment.SetEnvironmentVariable("OPENTAP_INIT_DIRECTORY", tapDir, EnvironmentVariableTarget.Process);
-
-            var tapInstall = Path.Combine(tapDir, "tap");
-            if (File.Exists(tapInstall) == false)
-                tapInstall = Path.Combine(tapDir, "tap.exe");
-            if (File.Exists(tapInstall) == false)
-                throw new Exception($"No tap install found in directory {tapDir}");
-            
-            Environment.SetEnvironmentVariable("OPENTAP_NO_UPDATE_CHECK", "true");
-            Environment.SetEnvironmentVariable("OPENTAP_DEBUG_INSTALL", "true");
-            
-            var root = CorrectPayloadDir();
-            var openTapDll = Path.Combine(root, "OpenTap.dll");
-            var openTapPackageDll = Path.Combine(root, "OpenTap.Package.dll");
-
-            Assembly resolve(object sender, ResolveEventArgs args)
-            {
-                if (args.Name.StartsWith("OpenTap.Package"))
-                    return Assembly.LoadFile(openTapPackageDll);
-                if (args.Name.StartsWith("OpenTap"))
-                    return Assembly.LoadFile(openTapDll);
-                return null;
-            }
-
-            AppDomain.CurrentDomain.AssemblyResolve += resolve;
-
-            IDisposable defer()
-            {
-                var ctx = new SessionLogContext(tapDir, () =>
-                {
-                    AppDomain.CurrentDomain.AssemblyResolve -= resolve;
-                });
-                return ctx;
-            }
-
-            return defer();
-        }
+        #endregion
     }
 }
