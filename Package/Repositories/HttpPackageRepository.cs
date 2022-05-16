@@ -27,6 +27,9 @@ namespace OpenTap.Package
     /// </summary>
     public class HttpPackageRepository : IPackageRepository, IPackageDownloadProgress
     {
+        // from Stream.cs: pick a value that is the largest multiple of 4096 that is still smaller than the large object heap threshold (85K).
+        private const int _DefaultCopyBufferSize = 81920;
+        
         private static TraceSource log = Log.CreateSource("HttpPackageRepository");
         private const string ApiVersion = "3.0";
         private VersionSpecifier MinRepoVersion = new VersionSpecifier(3, 0, 0, "", "", VersionMatchBehavior.AnyPrerelease | VersionMatchBehavior.Compatible);
@@ -130,14 +133,13 @@ namespace OpenTap.Package
                     HttpResponseMessage response = null;
                     hc.DefaultRequestHeaders.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
                     
-                    var downloadedBytes = 0;
                     var totalSize = -1L;
-                    int maxRetries = 5;
+                    int maxRetries = 10;
                     for(int retry = 0; retry < maxRetries; retry++)
                     {
                         if(retry > 0)
                             log.Debug($"Retrying download {retry}/{maxRetries - 1}");
-                        hc.DefaultRequestHeaders.Range = RangeHeaderValue.Parse($"bytes={downloadedBytes}-");
+                        hc.DefaultRequestHeaders.Range = RangeHeaderValue.Parse($"bytes={fileStream.Position}-");
 
                         try
                         {
@@ -179,20 +181,7 @@ namespace OpenTap.Package
                                 if (response.IsSuccessStatusCode == false)
                                     throw new HttpRequestException($"The download request failed with {response.StatusCode}.");
 
-                                var buffer = new byte[4096];
-                                int read = 0;
-
-                                var task = Task.Run(() =>
-                                {
-                                    do
-                                    {
-                                        read = responseStream.Read(buffer, 0, 4096);
-                                        fileStream.Write(buffer, 0, read);
-                                        downloadedBytes += read;
-                                    } while (read > 0);
-
-                                    finished = true;
-                                }, cancellationToken);
+                                var task = responseStream.CopyToAsync(fileStream, _DefaultCopyBufferSize, cancellationToken);
                                 ConsoleUtils.ReportProgressTillEnd(task, "Downloading",
                                     () => fileStream.Position,
                                     () => totalSize,
@@ -201,12 +190,14 @@ namespace OpenTap.Package
                                         ConsoleUtils.printProgress(header, pos, len);
                                         (this as IPackageDownloadProgress).OnProgressUpdate?.Invoke(header, pos, len);
                                     });
+                                finished = true;
                             }
 
                             if (finished)
                                 break;
                         }
-                        catch (Exception)
+                        
+                        catch (Exception ex)
                         {
                             if (response != null)
                             {
@@ -215,7 +206,14 @@ namespace OpenTap.Package
                                 response.Dispose();
                                 response = null;
                                 if (isError && HttpUtils.TransientStatusCode(code))
+                                {
+                                    await Task.Delay(TimeSpan.FromSeconds(1));
                                     continue;
+                                }
+                            } else if (ex is IOException)
+                            {
+                                await Task.Delay(TimeSpan.FromSeconds(1));
+                                continue;
                             }
 
                             log.Debug("Failed to download package.");
