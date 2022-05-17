@@ -52,8 +52,8 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 var openTapDll = Path.Combine(root, "OpenTap.dll");
                 var openTapPackageDll = Path.Combine(root, "OpenTap.Package.dll");
 
-                Assembly.LoadFile(openTapPackageDll);
-                Assembly.LoadFile(openTapDll);
+                Assembly.LoadFrom(openTapPackageDll);
+                Assembly.LoadFrom(openTapDll);
             }
         }
 
