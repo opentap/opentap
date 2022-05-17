@@ -241,7 +241,7 @@ namespace OpenTap
                                 throw new Exception("Assembly name does not match the file name.");
                             var thisRef = new AssemblyRef(thisAssembly.Name, def.Version);
 
-                            thisAssembly.Version = def.Version;
+                            thisAssembly.RawVersion = def.Version.ToString();
 
                             if (!nameToAsmMap.ContainsKey(thisRef))
                             {
@@ -689,10 +689,7 @@ namespace OpenTap
                             if(attributeFullName == typeof(System.Reflection.AssemblyInformationalVersionAttribute).FullName)
                             {
                                 var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
-                                if(SemanticVersion.TryParse(GetStringIfNotNull(valueString.FixedArguments[0].Value), out SemanticVersion infoVer)) // the first argument to the DisplayAttribute constructor is the InformationalVersion string
-                                {
-                                    plugin.Assembly.SemanticVersion = infoVer;
-                                }
+                                plugin.Assembly.RawVersion = GetStringIfNotNull(valueString.FixedArguments[0].Value);
                             }
                         }
                     }

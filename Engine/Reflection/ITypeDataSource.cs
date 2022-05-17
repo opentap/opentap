@@ -16,5 +16,8 @@ namespace OpenTap
         
         /// <summary> Which other type data sources this type data source references. </summary>
         IEnumerable<ITypeDataSource> References { get; }
+
+        /// <summary> The version of the type data source.</summary>
+        string Version { get; }
     }
 }

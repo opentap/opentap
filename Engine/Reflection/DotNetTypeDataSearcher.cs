@@ -6,7 +6,7 @@ using System.Collections.Generic;
 
 namespace OpenTap
 {
-    internal class DotNetTypeDataSearcher : ITypeDataSearcher
+    internal class DotNetTypeDataSearcher : ITypeDataSourceProvider
     {
         /// <summary>
         /// Get all types found by the search. 
@@ -19,6 +19,11 @@ namespace OpenTap
         public void Search()
         {
             Types = PluginManager.GetSearcher().AllTypes.Values;
+        }
+
+        ITypeDataSource ITypeDataSourceProvider.GetSource(ITypeData typeData)
+        {
+            return (typeData as TypeData)?.Assembly;
         }
     }
 }

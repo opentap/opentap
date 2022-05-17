@@ -511,7 +511,7 @@ namespace OpenTap
             }
         }
 
-        public class DynamicTestStepTypeData : ITypeDataWithSource
+        public class DynamicTestStepTypeData : ITypeData
         {
             public DynamicTestStepTypeData(TestStepTypeData innerType, object target)
             {
@@ -564,12 +564,10 @@ namespace OpenTap
             public object CreateInstance(object[] arguments) => BaseType.CreateInstance(arguments);
 
             public bool CanCreateInstance => BaseType.CanCreateInstance;
-            
-            public ITypeDataSource Source => (BaseType as ITypeDataWithSource)?.Source;
 
         }
 
-        internal class TestStepTypeData : ITypeDataWithSource
+        internal class TestStepTypeData : ITypeData
         {
             internal static readonly DynamicMember BreakConditions = new BreakConditionDynamicMember
             {
@@ -698,8 +696,6 @@ namespace OpenTap
             public string Name => innerType.Name;
             public ITypeData BaseType => innerType;
             
-            public ITypeDataSource Source => (BaseType as ITypeDataWithSource)?.Source;
-
             public IEnumerable<IMemberData> GetMembers()
             {
                 return innerType.GetMembers().Concat(members);

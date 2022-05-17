@@ -61,19 +61,38 @@ namespace OpenTap
 
         /// <summary> The loaded state of the assembly. </summary>
         internal LoadStatus Status => assembly != null ? LoadStatus.Loaded : (failedLoad ? LoadStatus.FailedToLoad : LoadStatus.NotLoaded);
-        
-        
 
         /// <summary>
-        /// Gets the version of this Assembly
+        /// Gets the version of this Assembly. This will return null if the version cannot be parsed.
         /// </summary>
-        public Version Version { get; internal set; }
-        
-        /// <summary>
-        /// Gets the version of this Assembly as a <see cref="SemanticVersion"/>
-        /// </summary>
-        public SemanticVersion SemanticVersion { get; internal set; }
+        public Version Version
+        {
+            get
+            {
+                if (Version.TryParse(RawVersion, out var version))
+                    return version;
+                return null;
+            }
+        }
 
+        /// <summary>
+        /// Gets the version of this Assembly as a <see cref="SemanticVersion"/>. Will return null if the version is not well formatted.
+        /// </summary>
+        public SemanticVersion SemanticVersion
+        {
+            get
+            {
+                if (SemanticVersion.TryParse(RawVersion, out var version))
+                    return version;
+                return null;
+            }
+        }
+
+        string ITypeDataSource.Version => RawVersion;
+        
+        /// <summary> Raw version as set by the assembly. </summary>
+        internal string RawVersion { get; set; }
+        
         internal AssemblyData(string location, Assembly preloadedAssembly = null)
         {
             Location = location;
