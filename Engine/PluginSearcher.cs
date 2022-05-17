@@ -215,6 +215,8 @@ namespace OpenTap
                 }
                 try
                 {
+                    if (file.Contains(".resources.dll"))
+                        return null;
                     var thisAssembly = new AssemblyData(file, loadedAssembly);
                     
                     List<AssemblyRef> refNames = new List<AssemblyRef>();
@@ -222,6 +224,8 @@ namespace OpenTap
                     {
                         if(str.Length > int.MaxValue)
                             return null; // otherwise PEReader() will throw.
+                        if(str.Length < 50) 
+                            return null; // Don't consider super small assemblies.
                         using (PEReader header = new PEReader(str, PEStreamOptions.LeaveOpen))
                         {
                             if (!header.HasMetadata)
@@ -405,7 +409,7 @@ namespace OpenTap
                     if(isPluginAssemblyAttribute)
                     {
                         var valueString = attr.DecodeValue(new CustomAttributeTypeProvider());
-                        ReadPrivateTypesInCurrentAsm = bool.Parse(valueString.FixedArguments.First().Value.ToString());
+                        ReadPrivateTypesInCurrentAsm = (bool)valueString.FixedArguments[0].Value;
                         if (valueString.FixedArguments.Count() > 1)
                         {
                             string initMethodName = valueString.FixedArguments.ElementAt(1).Value.ToString();
@@ -474,10 +478,9 @@ namespace OpenTap
         private TypeData PluginFromTypeRef(TypeReferenceHandle handle)
         {
             string ifaceFullName = GetFullName(CurrentReader,handle);
-            if (AllTypes.ContainsKey(ifaceFullName))
-                return AllTypes[ifaceFullName];
-            else
-                return null; // This is not a type that we care about (not defined in any of the files the searcher is given)
+            if (AllTypes.TryGetValue(ifaceFullName, out var tp))
+                return tp;
+            return null; // This is not a type that we care about (not defined in any of the files the searcher is given)
         }
 
         private TypeData PluginFromTypeDefRecursive(TypeDefinitionHandle handle)
