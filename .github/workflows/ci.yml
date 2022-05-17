@@ -564,7 +564,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        Package: [win-x86, win-x64, linux-x64]
+        Package: [win-x64, linux-x64]
     needs:
       - Package-Win
       - Package-Linux
