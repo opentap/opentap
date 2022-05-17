@@ -269,11 +269,6 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000
-      - uses: actions/upload-artifact@v2
-        with:
-          name: win-testresults
-          path: |
-            TestResult.xml
 
   TestPackage:
     runs-on: windows-2022
@@ -296,12 +291,7 @@ jobs:
           $ErrorActionPreference = "Stop"
           #Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
           cd bin/Release
-          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" 
-      - uses: actions/upload-artifact@v2
-        with:
-          name: win-testresults
-          path: |
-            bin/Release/TestResult.xml
+          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
 
   TestWindowsPlan:
     runs-on: windows-2022
@@ -598,11 +588,6 @@ jobs:
           mv OpenTAP.*.TapPackage OpenTAP.TapPackage
           tap package install "Package Diff" --version any
           tap package diff OpenTAP.TapPackage -o diff
-      - uses: actions/upload-artifact@v2
-        with:
-          name: api-diff-${{ matrix.Package }}
-          retention-days: 14
-          path: diff.html
 
   Package-NuGet:
     runs-on: windows-2022
@@ -854,7 +839,7 @@ jobs:
         with:
           name: package-deb
           retention-days: 14
-          path: LinuxInstall/package/Debian/OpenTAP.deb
+          path: LinuxInstall/package/OpenTAP.deb
 
   ###############
   ### Publish ###
