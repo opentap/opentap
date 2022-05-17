@@ -388,6 +388,7 @@ jobs:
     needs:
       - Build-Win
       - Build-ApiDoc
+      - GetVersion
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -432,9 +433,8 @@ jobs:
           #cp .\runtimes\win-x64\native\git2-b7bad55.dll .
           .\tap.exe package install -f ../../sign.TapPackage
           echo "${{ secrets.SIGN_SERVER_CERT }}" > $env:TAP_SIGN_CERT
-          $version=$(./tap sdk gitversion)
           cd ../Release-${{ matrix.Architecture }}
-          ..\Release-x64\tap.exe package create -v -c ../../package.xml -o ../../OpenTAP.$version.${{ matrix.Architecture }}.Windows.TapPackage
+          ..\Release-x64\tap.exe package create -v -c ../../package.xml -o ../../OpenTAP.${{needs.GetVersion.outputs.GitVersion}}.${{ matrix.Architecture }}.Windows.TapPackage
         env: 
           TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
           TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
@@ -454,6 +454,7 @@ jobs:
       - Build-Win
       - Build-Linux
       - Build-ApiDoc
+      - GetVersion
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -498,8 +499,7 @@ jobs:
           echo "${{ secrets.SIGN_SERVER_CERT }}" > $env:TAP_SIGN_CERT
           cp .\runtimes\win-x64\native\git2-b7bad55.dll .
           ..\Release\tap package create -v -c ../../package.xml -o Packages/OpenTAP.Linux.TapPackage
-          $version=$(..\Release\tap sdk gitversion)
-          cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.$version.Linux.TapPackage
+          cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.${{needs.GetVersion.outputs.GitVersion}}.Linux.TapPackage
         env: 
           TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
           TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
