@@ -328,5 +328,7 @@ namespace OpenTap.Diagnostic
 
             string ILog.Source =>  _source;
         }
+
+        public long GetProcessedMessages() => processedMessages;
     }
 }

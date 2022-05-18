@@ -6,7 +6,11 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using System.Security;
+using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace OpenTap
 {
@@ -35,9 +39,12 @@ namespace OpenTap
         /// <summary> Currently selected interface. </summary>
         public static object Interface => inputInterface;
 
-        static readonly SessionLocal<IUserInputInterface> _inputInterface = new SessionLocal<IUserInputInterface>(false);
+        static readonly SessionLocal<IUserInputInterface>
+            _inputInterface = new SessionLocal<IUserInputInterface>(false);
+
         static IUserInputInterface inputInterface => _inputInterface.Value;
         static IUserInterface userInterface => inputInterface as IUserInterface;
+
         /// <summary> Sets the current user input interface. This should almost never be called from user code. </summary>
         /// <param name="inputInterface"></param>
         public static void SetInterface(IUserInputInterface inputInterface)
@@ -76,7 +83,7 @@ namespace OpenTap
         /// <param name="dataObject">The object the user should fill out with data.</param>
         /// <param name="Timeout">How long the user should have.</param>
         /// <param name="modal"> True if a modal request is wanted</param>
-        void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal);   
+        void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal);
     }
 
     /// <summary> The supported layout modes. </summary>
@@ -96,6 +103,7 @@ namespace OpenTap
     {
         /// <summary> Specifies the mode of layout.</summary>
         public LayoutMode Mode { get; }
+
         /// <summary> How much height should the input take.  </summary>
         public int RowHeight { get; }
 
@@ -114,17 +122,42 @@ namespace OpenTap
         }
     }
 
-    /// <summary> Specifies that a property finalizes input.</summary>
-    public class SubmitAttribute : Attribute { }
-
     /// <summary> Standard implementation of UserInputInterface for Command Line interfaces</summary>
     public class CliUserInputInterface : IUserInputInterface
     {
         readonly Mutex userInputMutex = new Mutex();
         readonly object readerLock = new object();
+        bool started = false;
+
+        void WriteLine(string str= "")
+        {
+            if(str != null)
+                Write(str);
+            Write(Environment.NewLine);
+        }
+
+        /// <summary> Waits for and reads a key from the console.</summary>
+        /// <returns></returns>
+        protected virtual ConsoleKeyInfo ReadKey()
+        {
+            return Console.ReadKey(true);
+        }
+        void WriteLine(string fmt, params object[] args) => WriteLine(string.Format(fmt, args: args));
+        void Write(string fmt, params object[] args) => Write(string.Format(fmt, args: args));
+        void Write(char chr) => Write(chr.ToString());
+        
+        /// <summary>
+        /// Writes a string to the Console.
+        /// </summary>
+        /// <param name="str"></param>
+        protected virtual void Write(string str)
+        {
+            Console.Write(str);    
+        }
+
         void IUserInputInterface.RequestUserInput(object dataObject, TimeSpan timeout, bool modal)
         {
-            if(readerThread == null)
+            if (readerThread == null)
             {
                 lock (readerLock)
                 {
@@ -132,12 +165,53 @@ namespace OpenTap
                     {
                         readerThread = TapThread.Start(() =>
                         {
-                            while (true)
-                                lines.Add(Console.ReadLine());
+                            while (!started)
+                            {
+                                TapThread.Sleep(10);
+                            }
+                            try
+                            {
+                                var sb = new StringBuilder();
+
+                                while (true)
+                                {
+                                    var chr = ReadKey();
+                                    if (chr.KeyChar == 0)
+                                        continue;
+                                    if (chr.Key != ConsoleKey.Enter && chr.Key != ConsoleKey.Backspace)
+                                        Write(IsSecure ? '*' : chr.KeyChar);
+
+                                    if (chr.Key == ConsoleKey.Enter)
+                                    {
+                                        lines.Add(sb.ToString());
+                                        sb.Clear();
+                                        WriteLine();
+                                    }
+
+                                    if (chr.Key == ConsoleKey.Backspace)
+                                    {
+                                        if (sb.Length > 0)
+                                        {
+                                            sb.Remove(sb.Length - 1, 1);
+                                            // delete current char and move back.
+                                            Write("\b \b");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        sb.Append(chr.KeyChar);
+                                    }
+                                }
+                            }
+                            catch (Exception e)
+                            {
+                                log.Error(e);
+                            }
                         }, "Console Reader");
                     }
                 }
             }
+
             DateTime timeoutAt;
             if (timeout == TimeSpan.MaxValue)
                 timeoutAt = DateTime.MaxValue;
@@ -156,32 +230,40 @@ namespace OpenTap
 
             try
             {
-                Log.Flush();
                 var a = AnnotationCollection.Annotate(dataObject);
                 var members = a.Get<IMembersAnnotation>()?.Members;
 
                 if (members == null) return;
-                members = members.Concat(a.Get<IForwardedAnnotations>()?.Forwarded ?? Array.Empty<AnnotationCollection>());
+                members = members.Concat(a.Get<IForwardedAnnotations>()?.Forwarded ??
+                                         Array.Empty<AnnotationCollection>());
 
                 // Order members
-                members = members.OrderBy(m => m.Get<DisplayAttribute>()?.Name ?? m.Get<IMemberAnnotation>()?.Member.Name);
-                members = members.OrderBy(m => m.Get<DisplayAttribute>()?.Order ?? -10000);
-                members = members.OrderBy(m => m.Get<IMemberAnnotation>()?.Member?.GetAttribute<LayoutAttribute>()?.Mode == LayoutMode.FloatBottom ? 1 : 0);
-                members = members.OrderBy(m => m.Get<IMemberAnnotation>()?.Member?.HasAttribute<SubmitAttribute>() == true ? 1 : 0);
+                members = members
+                    .OrderBy(m => m.Get<DisplayAttribute>()?.Name ?? m.Get<IMemberAnnotation>()?.Member.Name).ToArray();
+                members = members.OrderBy(m => m.Get<DisplayAttribute>()?.Order ?? -10000).ToArray();
+                members = members.OrderBy(m =>
+                    m.Get<IMemberAnnotation>()?.Member?.GetAttribute<LayoutAttribute>()?.Mode == LayoutMode.FloatBottom
+                        ? 1
+                        : 0).ToArray();
+                members = members.OrderBy(m =>
+                    m.Get<IMemberAnnotation>()?.Member?.HasAttribute<SubmitAttribute>() == true ? 1 : 0).ToArray();
 
                 var display = a.Get<IDisplayAnnotation>();
 
                 string title = null;
                 if (display is DisplayAttribute attr && attr.IsDefaultAttribute() == false)
                     title = display.Name;
-                
+
+                // flush and make sure that there is no new log messages coming in (0.1s span).
+                Log.Flush(TimeSpan.FromSeconds(0.1));
                 if (string.IsNullOrWhiteSpace(title))
                     // fallback magic
                     title = TypeData.GetTypeData(dataObject)?.GetMember("Name")?.GetValue(dataObject) as string;
                 if (string.IsNullOrWhiteSpace(title) == false)
                 {
-                    Console.WriteLine(title);
+                    WriteLine(title);
                 }
+
                 bool isBrowsable(IMemberData m)
                 {
                     var browsable = m.GetAttribute<System.ComponentModel.BrowsableAttribute>();
@@ -197,8 +279,11 @@ namespace OpenTap
                             return false;
                         return true;
                     }
+
                     return false;
                 }
+
+                retryAll:
                 foreach (var _message in members)
                 {
                     var mem = _message.Get<IMemberAnnotation>()?.Member;
@@ -206,9 +291,11 @@ namespace OpenTap
                     {
                         if (!isBrowsable(mem)) continue;
                     }
-                    log.Flush();
+
+                    bool secure =
+                        _message.Get<IReflectionAnnotation>()?.ReflectionInfo.DescendsTo(typeof(SecureString)) ?? false;
                     var str = _message.Get<IStringValueAnnotation>();
-                    if (str == null) continue;
+                    if (str == null && !secure) continue;
                     var name = _message.Get<DisplayAttribute>()?.Name;
 
                     start:
@@ -219,7 +306,7 @@ namespace OpenTap
                     var isReadOnly = _message.Get<IAccessAnnotation>()?.IsReadOnly ?? false;
                     if (isReadOnly)
                     {
-                        Console.WriteLine($"{str.Value}");
+                        WriteLine($"{str.Value}");
                         continue;
                     }
 
@@ -238,70 +325,145 @@ namespace OpenTap
                             var v = value.Get<IStringValueAnnotation>();
                             if (v != null)
                             {
-
-                                Console.Write("{1}: '{0}'", v.Value, index);
+                                Write("{1}: '{0}'", v.Value, index);
                                 if (value == current_value)
                                 {
-                                    Console.WriteLine(" (default)");
+                                    WriteLine(" (default)");
                                 }
                                 else
                                 {
-                                    Console.WriteLine();
+                                    WriteLine();
                                 }
                             }
                             options.Add(v?.Value);
                             index++;
                         }
-                        Console.Write("Please enter a number or name ");
+                        Write("Please enter a number or name ");
                     }
 
                     var layout = _message.Get<IMemberAnnotation>()?.Member.GetAttribute<LayoutAttribute>();
                     bool showName = layout?.Mode.HasFlag(LayoutMode.FullRow) == true ? false : true;
                     if (pleaseEnter)
                     {
-                        Console.Write("Please enter ");
+                        Write("Please enter ");
                     }
-                    if (showName)
-                        Console.Write($"{name} ({str.Value}): ");
-                    else
-                        Console.Write($"({str.Value}): ");
 
-
-                    var read = (awaitReadLine(timeoutAt) ?? "").Trim();
-                    if (read == "")
+                    if (secure && showName)
                     {
-                        // accept the default value.
-                        continue;
+                        Write($"{name}: ");
                     }
+                    else if (showName)
+                        if (string.IsNullOrEmpty(str.Value))
+                            Write($"{name}: ");
+                        else
+                            Write($"{name} ({str.Value}): ");
+                    else if (string.IsNullOrEmpty(str.Value) == false)
+                        Write($"({str.Value}): ");
+                    else WriteLine(":");
+
+                    void handleSubmit()
+                    {
+                        var submit = _message.Get<IMemberAnnotation>()?.Member?.GetAttribute<SubmitAttribute>();
+                        if (submit == null) return;
+
+                        var callback = submit.CallbackMethodName;
+                        if (callback == null) return;
+                        Action submitAction = null;
+                        Func<Task> asyncSubmit = null;
+                        var m = a.GetMember(callback)?.Get<IMethodAnnotation>();
+                        if (m != null)
+                            submitAction = m.Invoke;
+                        else
+                        {
+                            var method = a.Source.GetType().GetMethod(callback);
+                            if (method != null)
+                            {
+                                if (method.ReturnType.DescendsTo(typeof(Task)))
+                                    asyncSubmit = () => method.Invoke(a.Source, Array.Empty<object>()) as Task;
+                                else
+                                    submitAction = () => method.Invoke(a.Source, Array.Empty<object>());
+                            }
+                        }
+
+                        if (submitAction == null && asyncSubmit == null) throw new Exception("Unable to invoke callback: " + callback);
+                        if (submitAction != null)
+                            try
+                            {
+                                submitAction();
+                            }
+                            catch (TargetInvocationException te)
+                            {
+                                throw te.InnerException;
+                            }
+                        else
+                        {
+                            try
+                            {
+                                asyncSubmit().Wait();
+                            }
+                            catch (AggregateException ae)
+                            {
+                                throw ae.InnerException;
+                            }
+                        }
+                    }
+
                     try
                     {
-
-                        if (options != null && int.TryParse(read, out int result))
+                        if (secure)
                         {
-                            if (result < options.Count)
-                                read = options[result];
-                            else goto start;
+                            var read2 = (awaitReadLine(timeoutAt, true) ?? "").Trim();
+                            _message.Get<IObjectValueAnnotation>().Value = read2.ToSecureString();
                         }
-                        str.Value = read;
-                        
-                        var err = a.Get<IErrorAnnotation>();
-                        IEnumerable<string> errors = err?.Errors;
-
-                        _message.Write();
-                        if (errors?.Any() == true)
+                        else
                         {
-                            Console.WriteLine("Unable to parse value {0}", read);
-                            goto start;
+
+                            var read = (awaitReadLine(timeoutAt, false) ?? "").Trim();
+                            if (read == "")
+                            {
+                                handleSubmit();
+                                // accept the default value.
+                                continue;
+                            }
+
+                            try
+                            {
+                                if (options != null && int.TryParse(read, out int result))
+                                {
+                                    if (result < options.Count)
+                                        read = options[result];
+                                    else goto start;
+                                }
+
+                                str.Value = read;
+
+                                var err = a.Get<IErrorAnnotation>();
+                                IEnumerable<string> errors = err?.Errors;
+
+                                _message.Write();
+                                if (errors?.Any() == true)
+                                {
+                                    WriteLine("Unable to parse value {0}", read);
+                                    goto start;
+                                }
+                            }
+                            catch (Exception)
+                            {
+                                WriteLine("Unable to parse '{0}'", read);
+                                goto start;
+                            }
                         }
+                        a.Write();
+                        handleSubmit();
 
                     }
-                    catch (Exception)
+                    catch (UserInputRetryException ex)
                     {
-                        Console.WriteLine("Unable to parse '{0}'", read);
-                        goto start;
+                        log.Error("{0}", ex.Message);
+                        log.Flush();
+                        goto retryAll;
                     }
-                }
-                a.Write();
+                }                
             }
             finally
             {
@@ -309,29 +471,41 @@ namespace OpenTap
             }
         }
 
+        private bool IsSecure;
+
         /// <summary>
         /// AwaitReadline reads the line asynchronously.  
         /// This has to be done in a thread, otherwise we cannot abort the test plan in the meantime. </summary>
-        /// <param name="TimeOut"></param>
+        /// <param name="timeOut"></param>
+        /// <param name="secure"></param>
         /// <returns></returns>
-        string awaitReadLine(DateTime TimeOut)
+        string awaitReadLine(DateTime timeOut, bool secure)
         {
-            while (DateTime.Now <= TimeOut)
+            started = true;
+            try
             {
-                if (lines.TryTake(out string line, 20, TapThread.Current.AbortToken))
-                    return line;
-            }
+                IsSecure = secure;
+                while (DateTime.Now <= timeOut)
+                {
+                    if (lines.TryTake(out string line, 20, TapThread.Current.AbortToken))
+                        return line;
+                }
 
-            Console.WriteLine();
-            log.Info("Timed out while waiting for user input.");
-            throw new TimeoutException("Request user input timed out");
+                WriteLine();
+                log.Info("Timed out while waiting for user input.");
+                throw new TimeoutException("Request user input timed out");
+            }
+            finally
+            {
+                IsSecure = false;
+            }
         }
 
         TapThread readerThread = null;
-        BlockingCollection<string> lines = new BlockingCollection<string>();
-        
+        readonly BlockingCollection<string> lines = new BlockingCollection<string>();
+
         static readonly SessionLocal<bool> isLoaded = new SessionLocal<bool>();
-        
+
         /// <summary> Loads the CLI user input interface. Note, once it is loaded it cannot be unloaded. </summary>
         public static void Load()
         {

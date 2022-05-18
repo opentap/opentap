@@ -789,6 +789,24 @@ namespace OpenTap
         }
 
         /// <summary>
+        /// Flushes all waiting log trace events, waits a specified amount of time and flushes again.
+        /// If new messages has been added in the meantime the process repeats.
+        /// This maybe have a delay between 'bufferTime' and infinity if something is happening in the background.
+        /// </summary>
+        public static void Flush(TimeSpan bufferTime)
+        {
+            rootLogContext.Flush();
+            while (true)
+            {
+                var logCount1 = rootLogContext.GetProcessedMessages();
+                TapThread.Sleep(bufferTime);
+                rootLogContext.Flush();
+                var logCount2 = rootLogContext.GetProcessedMessages();
+                if (logCount1 == logCount2) break;
+            }
+        }
+
+        /// <summary>
         /// Puts the current log context into synchronous mode.
         /// All TraceSources will now wait for their trace events to be handled by all TraceListeners before returning.
         /// </summary>

@@ -5,7 +5,9 @@
 using System;
 using System.ComponentModel;
 using System.IO;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace OpenTap.Engine.UnitTests
@@ -92,6 +94,87 @@ namespace OpenTap.Engine.UnitTests
                 }
             }
         }
+
+        class UserInputWithCallback
+        {
+            public int A { get; set; }
+            [Submit(nameof(InvokeCalculation))]
+            public int B { get; set; }
+            public int C { get; private set; }
+
+            public void InvokeCalculation()
+            {
+                if (B == 0) throw new UserInputRetryException("B cannot be 0", nameof(B));
+                C = A * B;
+            }
+        }
+
+        class TestInputInterface : CliUserInputInterface
+        {
+            CancellationToken cancel;
+            public TestInputInterface(CancellationToken cancel) => this.cancel = cancel;
+            public string Input { get; set; }
+            int i;
+            protected override ConsoleKeyInfo ReadKey()
+            {
+                if (i >= Input.Length)
+                {
+                    Task.Delay(-1, cancel).Wait();
+                }
+                    
+                var chr = Input[i++];
+                if (chr == '\n')
+                {
+                    return new ConsoleKeyInfo('\n', ConsoleKey.Enter, false, false, false);
+                }
+                return new ConsoleKeyInfo(chr, (ConsoleKey)chr, false, false, false);
+            }
+        }
+        
+        [Test]
+        public void UserInputSubmitCallbackTest()
+        {
+            using (Session.Create())
+            {
+                var src = new CancellationTokenSource(); 
+                UserInput.SetInterface(new TestInputInterface(src.Token){Input = "3\n2\n"});
+                var request = new UserInputWithCallback();
+
+                try
+                {
+                    UserInput.Request(request, TimeSpan.FromMinutes(2));
+                    Assert.AreEqual(6, request.C);
+                }
+                finally
+                {
+                    src.Cancel();
+                }
+            }
+        }
+        
+        [Test]
+        public void UserInputSubmitCallbackTest2()
+        {
+            using (Session.Create())
+            {
+                var src = new CancellationTokenSource(); 
+                // the first 3, 0 fails and the 4, 10 is inserted.
+                UserInput.SetInterface(new TestInputInterface(src.Token){Input = "3\n0\n4\n10\n"});
+                var request = new UserInputWithCallback();
+
+                try
+                {
+                    UserInput.Request(request, TimeSpan.FromMinutes(2));
+                    Assert.AreEqual(40, request.C);
+                }
+                finally
+                {
+                    src.Cancel();
+                }
+            }
+        }
+        
+        
     }
     
     public class TestRequest
