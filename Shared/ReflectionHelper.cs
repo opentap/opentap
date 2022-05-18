@@ -179,7 +179,7 @@ namespace OpenTap
         static readonly ConditionalWeakTable<MemberInfo, object[]> attrslookupNoInherit = new ConditionalWeakTable<MemberInfo, object[]>();
         public static object[] GetAllCustomAttributes(this MemberInfo prop, bool inherit)
         {
-            if(inherit)
+            if(!inherit)
                 return attrslookupNoInherit.GetValue(prop, getAttributesNoInherit);
             return GetAllCustomAttributes(prop);
         }

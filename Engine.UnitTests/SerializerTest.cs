@@ -2580,6 +2580,7 @@ namespace OpenTap.Engine.UnitTests
         }
 
         /// <summary> This class just inhertis from test plan </summary>
+        [AllowAnyChild] 
         public class TestPlanTest2 : TestPlan
         {
             
