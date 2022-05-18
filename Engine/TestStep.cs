@@ -166,8 +166,7 @@ namespace OpenTap
         /// <summary>
         /// Version of this test step.
         /// </summary>
-        [XmlAttribute("Version")]
-        [Browsable(false)]
+        [XmlIgnore]
         public string Version
         {
             get => CalcVersion();
@@ -550,12 +549,13 @@ namespace OpenTap
 
         readonly DynamicMembersLookup dynamicMemberValues = new DynamicMembersLookup();
 
-        public bool TryGetValue(IMemberData member, out object obj)
+        
+        bool IDynamicMemberValue.TryGetValue(IMemberData member, out object obj)
         {
             return dynamicMemberValues.TryGetValue(member, out obj);
         }
 
-        public void SetValue(IMemberData member, object value)
+        void IDynamicMemberValue.SetValue(IMemberData member, object value)
         {
             dynamicMemberValues[member] = value;
         }
