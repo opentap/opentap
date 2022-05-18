@@ -17,7 +17,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
     [Serializable]
     public class InstallOpenTapPackages : Task, ICancelableTask
     {
-        public IImageDeployer ImageDeployer { get; set; }
+        internal IImageDeployer ImageDeployer { get; set; }
         /// <summary>
         /// Full qualified path to the .csproj file for which packages are being installed
         /// </summary>
