@@ -155,6 +155,54 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void SweepPropertiesUpdateTest()
+        {
+            var savestream = new MemoryStream();
+            
+            var tp = new TestPlan();
+            {
+                var range = new SweepLoopRange()
+                {
+                    SweepPoints = 3,
+                    SweepStart = 1,
+                    SweepEnd = 2
+                };
+
+                tp.ChildTestSteps.Add(range);
+                tp.Save(savestream);
+            }
+
+            savestream.Seek(0, SeekOrigin.Begin);
+            
+            // Verify that the removal event is triggered both on new and serialized sweep ranges
+            var plans = new[] { tp, TestPlan.Load(savestream, Path.GetTempFileName()) };
+
+            foreach (var plan in plans)
+            {
+                var sweep = plan.ChildTestSteps[0] as SweepLoopRange;
+                
+                CollectionAssert.IsEmpty(sweep.SweepProperties);
+                var delay1 = new DelayStep();
+                var delay2 = new DelayStep();
+                sweep.ChildTestSteps.Add(delay1);
+                sweep.ChildTestSteps.Add(delay2);
+                sweep.SweepProperties = new List<IMemberData>() { TypeData.FromType(typeof(DelayStep)).GetMember(nameof(DelayStep.DelaySecs)) };
+                
+                // Verify that the sweep property was added
+                Assert.AreEqual(1, sweep.SweepProperties.Count);
+
+                // Removing the first delay should do nothing
+                sweep.ChildTestSteps.Remove(delay1);
+                Assert.AreEqual(1, sweep.SweepProperties.Count);
+                
+                // Removing the final delay should remove the property
+                sweep.ChildTestSteps.Remove(delay2);
+                CollectionAssert.IsEmpty(sweep.SweepProperties);
+            }
+
+        }
+
+        [Test]
         public void SerializeNestedSweepLoopRange()
         {
             var tp = new TestPlan();
