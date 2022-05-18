@@ -178,7 +178,7 @@ namespace OpenTap
                     }
                 }
             }
-            TapThread.Sleep(1000);
+            
             DateTime timeoutAt;
             if (timeout == TimeSpan.MaxValue)
                 timeoutAt = DateTime.MaxValue;
@@ -216,8 +216,8 @@ namespace OpenTap
                 if (display is DisplayAttribute attr && attr.IsDefaultAttribute() == false)
                     title = display.Name;
                 
-                // flush and make sure that there is no new log messages coming in (0.1s span).
-                Log.Flush(TimeSpan.FromSeconds(0.1));    
+                // flush and make sure that there is no new log messages coming in before starting to message the user.
+                Log.Flush();    
                 if (string.IsNullOrWhiteSpace(title))
                     // fallback magic
                     title = TypeData.GetTypeData(dataObject)?.GetMember("Name")?.GetValue(dataObject) as string;
