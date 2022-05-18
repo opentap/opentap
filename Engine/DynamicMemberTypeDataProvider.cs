@@ -649,7 +649,7 @@ namespace OpenTap
                 TypeDescriptor = TypeData.FromType(typeof((Object,IMemberData)[]))
             };
 
-            static readonly IMemberData[] extraTestStepMembers = {BreakConditions, DynamicMembers, UiFolding.UiFoldingProperty};
+            static readonly IMemberData[] extraTestStepMembers = {BreakConditions, DynamicMembers, ChildItemVisibility.VisibilityProperty};
             static readonly IMemberData[] extraTestPlanMembers = {TestPlanBreakConditions, DynamicMembers};
             
             readonly IMemberData[] members;
