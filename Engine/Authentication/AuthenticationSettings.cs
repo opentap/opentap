@@ -123,7 +123,7 @@ namespace OpenTap.Authentication
             RefreshTokens.RemoveIf(x => x.Domain == domain);
         }
 
-        TokenInfo GetTokenInfoForDomain(string domain)
+        TokenInfo GetAccessTokenForDomain(string domain)
         {
             return AccessTokens.OrderByDescending(x => x.Domain.Length).FirstOrDefault(x => domain.EndsWith(x.Domain));
         }
@@ -131,13 +131,13 @@ namespace OpenTap.Authentication
         /// <summary> Gets a valid access token matching the site. If the current token has expired, the refresh action will be used to refresh it. </summary>
         public TokenInfo GetValidAccessToken(string domain, CancellationToken cancel)
         {
-            var access = GetTokenInfoForDomain(domain);
+            var access = GetAccessTokenForDomain(domain);
             if (access?.Expired == true)
             {
                 var refresh = new RefreshTokenAction { Domain = domain };
                 refresh.Execute(cancel);
             }
-            return GetTokenInfoForDomain(domain);
+            return GetAccessTokenForDomain(domain);
         }
 
         /// <summary> Registers a set of tokens.</summary>

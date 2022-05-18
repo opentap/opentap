@@ -23,28 +23,29 @@ namespace OpenTap.Cli
         {
             this.MustBeDefined(nameof(Domain));
             var token = AuthenticationSettings.Current.RefreshTokens.FirstOrDefault(x => x.Domain == Domain);
-            if(token != null){
-                var refreshToken = token.TokenData;
-                var clientId = token.GetClientId();
-                var url = $"{token.GetAuthority()}/protocol/openid-connect/logout";
-                var http = new HttpClient();
-                using (var content =
-                       new FormUrlEncodedContent(new Dictionary<string, string>
-                       {
-                           {"refresh_token", refreshToken},
-                           {"grant_type", "refresh_token"},
-                           {"client_id", clientId}
-                       }))
-                {
-                    var response = http.PostAsync(url, content, cancellationToken).Result;
-                    if (!response.IsSuccessStatusCode)
-                        throw new Exception("Unable to connect: " + response.StatusCode);
+            if (token == null) throw new ArgumentException("Not logged into: " + Domain);
 
-                }
+            var refreshToken = token.TokenData;
+            var clientId = token.GetClientId();
+            var url = $"{token.GetAuthority()}/protocol/openid-connect/logout";
+            var http = new HttpClient();
+            using (var content =
+                   new FormUrlEncodedContent(new Dictionary<string, string>
+                   {
+                       {"refresh_token", refreshToken},
+                       {"grant_type", "refresh_token"},
+                       {"client_id", clientId}
+                   }))
+            {
+                var response = http.PostAsync(url, content, cancellationToken).Result;
+                if (!response.IsSuccessStatusCode)
+                    throw new Exception("Unable to connect: " + response.StatusCode);
+                AuthenticationSettings.Current.UnregisterAccessToken(Domain);
+                AuthenticationSettings.Current.UnregisterRefreshToken(Domain);
+
+                AuthenticationSettings.Current.Save();
             }
-            //AuthenticationSettings.Current.UnregisterAccessToken(Domain);
-            //AuthenticationSettings.Current.UnregisterRefreshToken(Domain);
-            //AuthenticationSettings.Current.Save();
+            
             log.Debug("Logout successful.");
             return 0;
         }
