@@ -266,7 +266,26 @@ namespace OpenTap.Package
         }
 
 
-        static IMemorizer<string, PackageDef> installedPackageMemorizer = new Memorizer<string, PackageDef, string>(null, loadPackageDef)
+        /// <summary>
+        /// Memorizer which returns null when a cyclic memorizer call is detected.
+        /// This prevents ugly and misleading error messages from occurring during
+        /// calls to Installation.Current.GetPackages() from ITypeDataProvider implementations
+        /// </summary>
+        class IgnoreCyclicCallMemorizer<T1, T2, T3> : Memorizer<T1, T2, T3>
+        {
+            public IgnoreCyclicCallMemorizer(Func<T1, T2> func) : base(null, func)
+            {
+                
+            }
+
+            public override T2 OnCyclicCallDetected(T1 key)
+            {
+                return default;
+            }
+        }
+
+
+        static IMemorizer<string, PackageDef> installedPackageMemorizer = new IgnoreCyclicCallMemorizer<string, PackageDef, string>(loadPackageDef)
         {
             Validator = file => new FileInfo(file).LastWriteTimeUtc.Ticks
         };

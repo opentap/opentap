@@ -649,6 +649,11 @@ namespace OpenTap
             return getKey == null ? (MemorizerKey)(object)arg : getKey(arg);
         }
 
+        public virtual ResultT OnCyclicCallDetected(ArgT key)
+        {
+            throw new Exception("Cyclic memorizer invoke detected.");
+        }
+
         public ResultT this[ArgT arg] => Invoke(arg);
 
         public ResultT Invoke(ArgT arg)
@@ -688,7 +693,7 @@ namespace OpenTap
                 {   // Avoid running into a StackOverflowException.
 
                     if (CylicInvokeResponse == CyclicInvokeMode.ThrowException)
-                        throw new Exception("Cyclic memorizer invoke detected."); 
+                        return OnCyclicCallDetected(arg);
                     return default(ResultT);
                 }
                 try
