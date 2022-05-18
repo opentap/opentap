@@ -408,6 +408,7 @@ namespace OpenTap.Plugins.BasicSteps
             TapSerializer tapSerializer;
             object cloneIfPossible(object value, object context)
             {
+                if (value == null) return null;
                 if (StringConvertProvider.TryGetString(value, out string result))
                 {
                     if (StringConvertProvider.TryFromString(result, TypeData.GetTypeData(value), context, out object result2))

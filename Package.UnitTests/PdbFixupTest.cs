@@ -17,9 +17,6 @@ namespace OpenTap.Package.UnitTests
             var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>
 <Package Name=""TestPackage""   Version=""1.0.0"" OS=""{OperatingSystem.Current}"" Architecture=""x64"">
     <Files>
-         <File Path=""tap.dll"">
-            <SetAssemblyInfo Attributes=""Version"" />
-        </File>
         <File Path=""OpenTap.dll"">
             <SetAssemblyInfo Attributes=""Version"" />
         </File>
@@ -44,7 +41,7 @@ namespace OpenTap.Package.UnitTests
             var outFile = Path.GetTempFileName();
             
             var files = new string[]
-                { "tap", "OpenTap.Package", "OpenTap.Plugins.BasicSteps", "OpenTap.Cli" };
+                { "OpenTap.Package", "OpenTap.Plugins.BasicSteps", "OpenTap.Cli" };
 
             var create = new PackageCreateAction()
             {

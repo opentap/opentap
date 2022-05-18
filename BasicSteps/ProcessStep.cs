@@ -28,7 +28,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         [Display("Working Directory", Order: -2.3, Description: "The directory where the program will be started in.")]
         [DirectoryPath]
-        public string WorkingDirectory { get; set; } = Directory.GetCurrentDirectory();
+        public string WorkingDirectory { get; set; } = "";
 
         [Display("Wait For Process to End", Order: -2.2,
             Description: "Wait for the process to terminate before continuing.")]
@@ -108,10 +108,11 @@ namespace OpenTap.Plugins.BasicSteps
                 {
                     FileName = Application,
                     Arguments = Arguments,
-                    WorkingDirectory = Path.GetFullPath(WorkingDirectory),
+                    WorkingDirectory = string.IsNullOrEmpty(WorkingDirectory) ? Directory.GetCurrentDirectory() : Path.GetFullPath(WorkingDirectory),
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
+                    RedirectStandardInput = true,
                     CreateNoWindow = true
                 }
             };
@@ -120,7 +121,18 @@ namespace OpenTap.Plugins.BasicSteps
                 Log.Debug("Ending process '{0}'.", Application);
                 try
                 {  // process.Kill may throw if it has already exited.
-                    process.Kill();
+                    try
+                    {
+                        // signal to the sub process that no more input will arrive.
+                        // For many process this has the same effect as CTRL+C as stdin is closed.
+                        process.StandardInput.Close();
+                    }
+                    catch
+                    {
+                        // this might be ok. It probably means that the input has already been closed.
+                    }
+                    if (!process.WaitForExit(500)) // give some time for the process to close by itself.
+                        process.Kill();
                 }
                 catch(Exception ex)
                 {

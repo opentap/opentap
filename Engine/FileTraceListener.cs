@@ -7,6 +7,7 @@ using System.IO;
 using OpenTap.Diagnostic;
 using System.Threading;
 using System.Collections.Generic;
+using System.Text;
 
 namespace OpenTap
 {
@@ -46,15 +47,25 @@ namespace OpenTap
         {
         }
         
-        internal void ChangeFileName(string fileName)
+        internal void ChangeFileName(string fileName, bool noExclusiveWriteLock)
         {
             string dir = Path.GetDirectoryName(fileName);
             if (string.IsNullOrWhiteSpace(dir) == false)
                 Directory.CreateDirectory(Path.GetDirectoryName(fileName));
 
+            StreamWriter newwriter = null;
+            if (noExclusiveWriteLock)
+            {
+                // Initialize a stream where the underlying file can be deleted. If the file is deleted, writes just go into the void.
+                var stream = new FileStream(fileName, FileMode.Append, FileAccess.Write, FileShare.Read | FileShare.Delete);
+                newwriter = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+            }
+            else
+            {
+                newwriter = new StreamWriter(fileName, true, System.Text.Encoding.UTF8) { AutoFlush = true };
+            }
+            
             var OldWriter = base.Writer;
-
-            var newwriter = new StreamWriter(fileName, true, System.Text.Encoding.UTF8) { AutoFlush = true };
             base.Writer = newwriter;
             
             OldWriter.Close();

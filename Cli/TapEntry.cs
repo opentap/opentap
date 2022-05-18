@@ -178,6 +178,7 @@ namespace OpenTap.Cli
                 var cliTraceListener = new ConsoleTraceListener(isVerbose, isQuiet, IsColor());
                 Log.AddListener(cliTraceListener);
                 cliTraceListener.TraceEvents(TapInitializer.InitTraceListener.Instance.AllEvents.ToArray());
+                TapInitializer.InitTraceListener.Instance.AllEvents.Clear();
                 AppDomain.CurrentDomain.ProcessExit += (s, e) => cliTraceListener.Flush();
 
             }

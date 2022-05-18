@@ -7,7 +7,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
     <PackageReference Include="System.Reflection.Metadata" Version="1.6.0" />
-    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.1" />
+    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
   </ItemGroup>
   <Import Project="..\Shared\Tap.Shared.projitems" Label="Shared" />

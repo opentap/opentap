@@ -95,7 +95,30 @@ namespace OpenTap.UnitTests
                 Assert.IsTrue(ex.Message.Contains(content));
             }
         }
-        
+
+        [Display("Test Settings", Groups: new []{"Test Settings", "With Groups"})]
+        public class TestSettingsWithGroups : ComponentSettings<TestSettingsWithGroups>
+        {
+            public int Value { get; set; }
+        }
+
+        [Test]
+        public void TestSaveSettingsWithGroup()
+        {
+            var s = ComponentSettings<TestSettingsWithGroups>.Current;
+            s.Value = 0;
+            Assert.AreEqual(0, s.Value);
+            s.Save();
+            var newValue = 123;
+            s.Value = newValue;
+            Assert.AreEqual(newValue, s.Value);
+            s.Save();
+            s.Reload();
+            s.Invalidate();
+            s = ComponentSettings<TestSettingsWithGroups>.Current;
+            Assert.AreEqual(newValue, s.Value);
+        }
+
         [Test]
         public void TestPersistenceOfSaveAll()
         {

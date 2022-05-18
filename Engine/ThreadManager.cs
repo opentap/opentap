@@ -330,18 +330,22 @@ namespace OpenTap
 
         internal static Task StartAwaitable(Action action, string name = "")
         {
-            return StartAwaitable(action, CancellationToken.None, name);
+            return StartAwaitable(action, null, name);
         }
         
-        internal static Task StartAwaitable(Action action, CancellationToken token, string name = "")
+        internal static Task StartAwaitable(Action action, CancellationToken? token, string name = "")
         {
             var wait = new ManualResetEventSlim(false);
             Start(() =>
             {
                 try
                 {
-                    var trd = TapThread.Current;
-                    using(token.Register(() => trd.Abort()))
+                    if (token.HasValue)
+                    {
+                        var trd = TapThread.Current;
+                        using (token.Value.Register(() => trd.Abort()))
+                            action();
+                    }else
                         action();
                 }
                 finally

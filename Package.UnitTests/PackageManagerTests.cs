@@ -61,7 +61,7 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void TestUserId()
         {
-            var idPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTAP", "OpenTapGeneratedId");
+            var idPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTap", "OpenTapGeneratedId");
             string orgId = null;
             if (File.Exists(idPath))
                 orgId = File.ReadAllText(idPath);

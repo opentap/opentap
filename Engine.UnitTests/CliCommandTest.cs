@@ -15,7 +15,7 @@ namespace OpenTap.UnitTests
     public class CliCommandTest
     {
         [Test]
-        public void test()
+        public void CliActionTreeTest()
         {
             var root = new CliActionTree();
             Assert.IsTrue(root.GetSubCommand(Array.Empty<string>()) == null);
@@ -25,7 +25,6 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(root.GetSubCommand("test action testaction".Split(' ')).Name == "testaction");
             Assert.IsTrue(root.GetSubCommand("test action testaction arg".Split(' ')).Name == "testaction");
         }
-        
     }
 
     [Display("testaction", Groups: new[] { "test", "action" }, Description:"Runs TestAction")]

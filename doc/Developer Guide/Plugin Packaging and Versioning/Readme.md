@@ -111,7 +111,28 @@ The **Dependency** element can be used to manually specify such dependencies:
 </Package>
 ```
 
+
+
+
 #### File Element
+
+The File element inside the Files element denotes files that are included inside the package file. Any type of file can be added to be inserted anywhere in the deployment folder. 
+
+If the file is a .NET DLL, DLL reference dependencies will automatically get included in the package, for example if your project references System.Text.Json.dll, the DLL will be added automatically to the TapPackage file. So this is how the package.xml file looks after creating the package.
+```xml
+<Files>
+    <File Path="Packages/MyPlugin/OpenTAP.Plugins.MyPlugin.dll">
+        <!-- This plugin file 'needs' System.Text.Json.dll --> 
+    </File>
+    <File Path="Dependencies/System.Text.Json.4.0.1.2/System.Text.Json.dll">
+        <!-- This dependency is automatically added when the package is created.-->
+    </File>
+</Files>
+```
+
+If it is not wanted to include a .NET DLL dependency, the `IgnoreDependency` element can be added. See the example below.
+
+
 The **File** element inside the configuration file supports the following attributes:
 
 | **Attribute** | **Description** |
@@ -122,6 +143,7 @@ The **File** element inside the configuration file supports the following attrib
 
 The **File** element can optionally contain custom elements supported by OpenTAP packages. The example below includes the `SetAssemblyInfo` element, which is supported by the OpenTAP package. When `SetAssemblyInfo` is set to `Version`, AssemblyVersion, AssemblyFileVersion and AssemblyInformationalVersion attributes of the file are set according to the package's version.
 
+
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://myplugin.com"
@@ -129,13 +151,15 @@ The **File** element can optionally contain custom elements supported by OpenTAP
      ...
  <Files>
     <File Path="Packages/MyPlugin/OpenTAP.Plugins.MyPlugin.dll">
+      
+      <!-- Set the Assembly Version to the same version as this package (GitVersion). -->
       <SetAssemblyInfo Attributes="Version"/>
+        
+      <!-- Ignore the System.Text.Json.dll DLL dependency. -->
+      <IgnoreDependency>System.Text.Json</IgnoreDependency>
     </File>
     <File Path="Packages/MyPlugin/waveform1.wfm"/>
     <File Path="Packages/MyPlugin/waveform2.wfm"/>
-    <File Path="Packages/MyPlugin/Example Icon.ico">
-      <PackageIcon/>
-    </File>
   </Files>
   ...
 </Package>

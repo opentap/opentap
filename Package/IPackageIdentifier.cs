@@ -64,7 +64,7 @@ namespace OpenTap.Package
 
         private static bool IsOsCompatible(IPackageIdentifier pkg, string os)
         {
-            return string.IsNullOrWhiteSpace(pkg.OS) || string.IsNullOrWhiteSpace(os) || pkg.OS.ToLower().Split(',').Any(os.ToLower().Contains) || os.Split(',').Intersect(pkg.OS.Split(','), StringComparer.OrdinalIgnoreCase).Any();
+            return string.IsNullOrWhiteSpace(pkg.OS) || string.IsNullOrWhiteSpace(os) || pkg.OS.ToLower().Split(',').Select(p => p.Trim()).Any(os.ToLower().Contains) || os.Split(',').Select(p => p.Trim()).Intersect(pkg.OS.Split(','), StringComparer.OrdinalIgnoreCase).Any();
         }
 
     }

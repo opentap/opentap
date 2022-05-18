@@ -339,7 +339,7 @@ namespace OpenTap.Package
                         .Where(sf => IsDotNetAssembly(sf.Location)).ToList();
                     if (asms.Count == 0 && (Path.GetExtension(f.FileName).Equals(".dll", StringComparison.OrdinalIgnoreCase) || Path.GetExtension(f.FileName).Equals(".exe", StringComparison.OrdinalIgnoreCase)))
                     {
-                        if (File.Exists(f.FileName))
+                        if (File.Exists(f.FileName) && !PathUtils.DecendsFromOpenTapIgnore(f.FileName))
                         {
                             // If the pluginSearcher found assemblies that are located somewhere not expected by the package definition, the package might appear broken.
                             // But if the file found by the pluginSearcher is the same as the one expected by the package definition we should not count it as broken.
@@ -511,12 +511,15 @@ namespace OpenTap.Package
         private static void AddFileDependencies(PackageDef pkg, AssemblyData dependency, AssemblyData foundAsm)
         {
             var depender = pkg.Files.FirstOrDefault(f => f.DependentAssemblies.Contains(dependency));
+            var destPath = string.Format("Dependencies/{0}.{1}/{2}", Path.GetFileNameWithoutExtension(foundAsm.Location), foundAsm.Version.ToString(), Path.GetFileName(foundAsm.Location));
+            if (pkg.Files.Any(x => x.RelativeDestinationPath == destPath))
+                return;//throw new Exception("File already added to package: " + destPath);
             if (depender == null)
                 log.Warning("Adding dependent assembly '{0}' to package. It was not found in any other packages.", Path.GetFileName(foundAsm.Location));
             else
                 log.Info($"'{Path.GetFileName(depender.FileName)}' depends on '{dependency.Name}' version '{dependency.Version}'. Adding dependency to package, it was not found in any other packages.");
 
-            var destPath = string.Format("Dependencies/{0}.{1}/{2}", Path.GetFileNameWithoutExtension(foundAsm.Location), foundAsm.Version.ToString(), Path.GetFileName(foundAsm.Location));
+
             pkg.Files.Add(new PackageFile { SourcePath = foundAsm.Location, RelativeDestinationPath = destPath, DependentAssemblies = foundAsm.References.ToList() });
 
             // Copy the file to the actual directory so we can rely on it actually existing where we say the package has it.

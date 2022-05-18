@@ -71,14 +71,15 @@ namespace OpenTap
         /// <typeparam name="T"></typeparam>
         /// <param name="mem"></param>
         /// <returns></returns>
-        static public T GetAttribute<T>(this IReflectionData mem)
+        public static T GetAttribute<T>(this IReflectionData mem)
         {
             if(typeof(T) == typeof(DisplayAttribute) && mem is TypeData td)
             {
-                
                 return (T)((object)td.Display);
             }
-            if (mem.Attributes is object[] array)
+
+            var attributes = mem.Attributes;
+            if (attributes is object[] array)
             {
                 // performance optimization: faster iterations if we know its an array.
                 foreach (var thing in array)
@@ -87,7 +88,7 @@ namespace OpenTap
             }
             else
             {
-                foreach (var thing in mem.Attributes)
+                foreach (var thing in attributes)
                     if (thing is T x)
                         return x;
             }
@@ -111,9 +112,41 @@ namespace OpenTap
         /// <typeparam name="T"></typeparam>
         /// <param name="mem"></param>
         /// <returns></returns>
-        static public IEnumerable<T> GetAttributes<T>(this IReflectionData mem)
+        public static IEnumerable<T> GetAttributes<T>(this IReflectionData mem)
         {
-            return mem.Attributes.OfType<T>();
+            var attrs = mem.Attributes;
+            bool once = false;
+            T first = default;
+            if (attrs is object[] attrsArray)
+            {
+                // performance optimization: faster iterations if we know its an array.
+                foreach (var elem in attrsArray)
+                {
+                    if (elem is T x)
+                    {
+                        if (once) // multiple instances of T, lets just use OfType.
+                            return attrsArray.OfType<T>();
+                        once = true;
+                        first = x;
+                    }
+                }
+            }
+            else
+            {
+                foreach (var elem in attrs)
+                {
+                    if (elem is T x)
+                    {
+                        if (once) // multiple instances of T, lets just use OfType. 
+                            return attrs.OfType<T>();
+                        once = true;
+                        first = x;
+                    }
+                }
+            }
+
+            if (once) return new [] { first };
+            return Array.Empty<T>();
         }
 
         /// <summary> Gets the display attribute of mem. </summary>
@@ -143,7 +176,5 @@ namespace OpenTap
                 return meminfo.DeclaringType.GetHelpLink();
             return null;
         }
-
-
     }
 }

@@ -265,37 +265,83 @@ Never prompt for user input:
 
 ### External Settings
 
-Test step settings can be marked as *External*. This means they can be set from the CLI, or from a file. This makes it
-possible to reuse the same test plan for a variety of tests.
+Test step settings can be *parameterized* on a parent. This way, multiple child test steps in
+a test plan can share the same setting, which can then be configured in one place. 
 
-To see what external parameters a test plan contains, try:
+Because the test plan itself is the parent of all test steps, settings can naturally be
+parameterized on that as well. Settings that are parameterized on the test plan are considered
+*external*, and can be modified from outside the test plan. This makes it possible to reuse the
+same test plans and easily run them with different parameters.
 
-`tap run My.TapPlan --list-external-parameters`.
+Imagine the following testplan:
 
-If the output is:
 ```
-TestPlan: My
-Listing 3 external test plan parameters.
-      value1 = x
-      value2 = y
-      value3 = z
+Test Plan
+   Delay -> Parameterize Time Delay on TestPlan as 'Parameters \ Time Delay 1'
+   Delay -> Parameterize Time Delay on TestPlan as 'Parameters \ Time Delay 2'
+   Delay -> Parameterize Time Delay on TestPlan as 'Parameters \ Time Delay 3'
 ```
-then you can set these values from the command line with:
 
-`tap run My.TapPlan -e value1=hello -e value2=3 -e value3=0.75`.
+Let's see how these external settings can be modified.
+
+#### Modifying settings from the CLI
+
+To see what external parameters the plan contains, run:
+
+`tap run VariableDelay.TapPlan --list-external-parameters`
+
+This should output something like:
+
+```
+Test Plan: VariableDelay
+Listing 3 External Test Plan Parameters:
+  Parameters \ Time Delay 1 = 0.1 s
+  Parameters \ Time Delay 2 = 0.1 s
+  Parameters \ Time Delay 3 = 0.1 s
+```
+
+Here we see they all have the default value `0.1 s`. Those values can be overriden when running the
+test plan with the `-e` (`--external`) flag:
+
+`tap run VariableDelay.TapPlan -e "Parameters \ Time Delay 1=0.2" -e "Parameters \ Time Delay 2=0.3"`
+
+To verify that the parameters are set correctly, `--list-external-parameters` can be used in conjunction with `-e`:
+
+`tap run VariableDelay.TapPlan -e "Parameters \ Time Delay 1=0.2" -e "Parameters \ Time Delay 2=0.3" --list-external-parameters`
+
+```
+Test Plan: VariableDelay
+Listing 3 External Test Plan Parameters:
+  Parameters \ Time Delay 1 = 0.2 s
+  Parameters \ Time Delay 2 = 0.3 s
+  Parameters \ Time Delay 3 = 0.1 s
+```
+
+Note that each parameter along with its assignment and value are quoted. This is required if the parameter name or the assigned value contains a space. 
+In addition, there must be no space between the assignment operator (`=`) and the assigned value. In addition, units such as `s` in this case, should
+be omitted.
+
 
 Alternatively, if the [CSV](https://packages.opentap.io/index.html#/?name=CSV) plugin is installed,
-you can create a csv file named `values.csv` containing:
+you can create a csv file named `MyExternalParameters.csv` containing the parameters and values:
 
-```
-value1,hello
-value2,3
-value3,0.75
+```csv
+Parameters \ Time Delay 1,0.7
+Parameters \ Time Delay 2,1.4
+Parameters \ Time Delay 3,2.1
 ```
 
 and then use it with:
 
-`tap run My.TapPlan -e values.csv`.
+`tap run VariableDelay.TapPlan -e MyExternalParameters.csv`.
+
+#### Modifying settings from a Test Plan Reference
+
+If a test plan with external parameters is used in a `Test Plan Reference` step,
+its parameters will appear as regular step settings, and they can be easily modified.
+This means that a collection of test steps can easily be abstracted away to appear as a single,
+fully configurable test step.
+
 
 ### Metadata
 

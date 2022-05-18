@@ -386,5 +386,38 @@ namespace OpenTap.Engine.UnitTests
             validatedResult(rl.Results[0], "Test Result");
             validatedResult(rl.Results[1], "ResultCommentTest");
         }
+
+        [Test]
+        public void ResultOptimizerTest()
+        {
+            ResultColumn createColumn<T>(string name)
+            {
+                return new ResultColumn("x", new T[2]);
+            }
+
+            {
+                var rc1x = createColumn<int>("X");
+                var rc1y = createColumn<int>("Y");
+                var rt1 = new ResultTable("XY", new[] {rc1x, rc1y});
+
+                var rc2x =  createColumn<int>("X");
+                var rc2y = createColumn<int>("X");
+                var rt2 = new ResultTable("XY", new[] {rc2x, rc2y});
+                Assert.IsTrue(ResultTableOptimizer.CanMerge(rt1, rt2));
+                var merged = ResultTableOptimizer.MergeTables(new []{rt1, rt2});
+                Assert.AreEqual(4, merged.Columns[0].Data.Length);
+            }
+            {
+                var rc1x = createColumn<int>("X");
+                var rc1y = createColumn<int>("Y");
+                var rt1 = new ResultTable("XY", new[] {rc1x, rc1y});
+
+                var rc2x =  createColumn<int>("X");
+                var rc2y = createColumn<int>("X");
+                rc2y = rc2y.AddParameters(new ResultParameter("Unit", "X"));
+                var rt2 = new ResultTable("XY", new[] {rc2x, rc2y});
+                Assert.IsTrue(ResultTableOptimizer.CanMerge(rt1, rt2) == false);
+            }
+        }
     }
 }

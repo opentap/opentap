@@ -844,6 +844,10 @@ namespace OpenTap
                 step.Verdict = newVerdict;
         }
 
+        /// <summary> This is the currently executing test step or null, used to detect deadlock when a step is waiting for its parent. </summary>
+        [ThreadStatic]
+        internal static ITestStep currentlyExecutingTestStep = null;
+
         internal static TestStepRun DoRun(this ITestStep Step, TestPlanRun planRun, TestRun parentRun, IEnumerable<ResultParameter> attachedParameters = null)
         {
             {
@@ -868,6 +872,8 @@ namespace OpenTap
                 TestStepPath = Step.GetStepPath(),
             };
 
+            var previouslyExecutingTestStep = currentlyExecutingTestStep;
+            currentlyExecutingTestStep = Step;
             var stepPath = stepRun.TestStepPath;
             //Raise an event prior to starting the actual run of the TestStep. 
             Step.OfferBreak(stepRun, true);
@@ -905,6 +911,7 @@ namespace OpenTap
                     finally
                     {
                         planRun.AddTestStepStateUpdate(stepRun.TestStepId, stepRun, StepState.Deferred);
+                        currentlyExecutingTestStep = previouslyExecutingTestStep;
                     }
                 }
                 finally

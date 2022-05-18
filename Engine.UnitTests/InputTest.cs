@@ -139,6 +139,28 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(10)]
+        public void ParallelIfVerdictDeadlock(int n)
+        {
+            var plan = new TestPlan();
+            ParallelStep parallelStep = new ParallelStep();
+            plan.Steps.Add(parallelStep);
+            for (int i = 1; i < n; i++)
+            {
+                var step = new ParallelStep();
+                parallelStep.ChildTestSteps.Add(step);
+                parallelStep = step;
+            }
+            var ifVerdictStep = new IfStep();
+            parallelStep.ChildTestSteps.Add(ifVerdictStep);
+            ifVerdictStep.InputVerdict.Step = parallelStep;
+            ifVerdictStep.InputVerdict.Property = TypeData.GetTypeData(parallelStep).GetMember(nameof(parallelStep.Verdict));
+            
+            Assert.AreEqual(plan.Execute().Verdict, Verdict.Error);
+        }
+
         [Test]
         public void RepeatVerdictTest()
         {

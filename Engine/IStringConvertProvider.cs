@@ -165,7 +165,7 @@ namespace OpenTap
         static IEnumerable<IStringConvertProvider> Providers => StringConvertCacheOptimizer.GetValue();
         
         /// <summary>
-        /// Turn value to a string if an IStringConvertProvider plugin supports the value.
+        /// Turn value to a string if an IStringConvertProvider plugin supports the value. Returns null if the input value is null.
         /// </summary>
         /// <param name="value">The value to be converted to a string.</param>
         /// <param name="culture">If null, invariant culture is used.</param>

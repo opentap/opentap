@@ -341,6 +341,18 @@ namespace OpenTap.Image.Tests
         }
 
         [Test]
+        public void TrimOperatingSystemEntries()
+        {
+            IPackageIdentifier packageIdentifier = new PackageIdentifier("TrimOperatingSystemPackage", new SemanticVersion(1, 1, 1, null, null), CpuArchitecture.AnyCPU, "Windows , Linux");
+            Assert.IsTrue(packageIdentifier.IsPlatformCompatible(CpuArchitecture.x86, "Linux"));
+            Assert.IsTrue(packageIdentifier.IsPlatformCompatible(CpuArchitecture.x64, "linux"));
+            Assert.IsTrue(packageIdentifier.IsPlatformCompatible(CpuArchitecture.x86, "Windows"));
+            Assert.IsTrue(packageIdentifier.IsPlatformCompatible(CpuArchitecture.x64, "windows"));
+            Assert.IsTrue(packageIdentifier.IsPlatformCompatible(CpuArchitecture.x86, "Linux, windows"));
+            Assert.IsTrue(packageIdentifier.IsPlatformCompatible(CpuArchitecture.x64, "linux, Windows"));
+        }
+
+        [Test]
         public void TestUnknownDependencies()
         {
             var packages = new List<PackageSpecifier>();

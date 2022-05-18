@@ -159,16 +159,15 @@ namespace OpenTap.Package
                     {
                         var path = outputPath;
 
-                        if (String.IsNullOrEmpty(path))
+                        if (String.IsNullOrEmpty(path) || path.EndsWith(Path.DirectorySeparatorChar.ToString()) || path.EndsWith(Path.AltDirectorySeparatorChar.ToString()))
                         {
-                            path = GetRealFilePathFromName(pkg.Name, pkg.Version.ToString(), DefaultEnding);
                             // Package names support path separators now -- avoid writing the newly created package into a nested folder and
                             // replace the path separators with dots instead
-                            path = path.Replace('/', '.');
+                            var name = pkg.Name.Replace(Path.DirectorySeparatorChar, '.').Replace(Path.AltDirectorySeparatorChar, '.');
+                            path = Path.Combine(path, GetRealFilePathFromName(name, pkg.Version.ToString(), DefaultEnding));
                         }
 
                         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)));
-
                         ProgramHelper.FileCopy(tmpFile, path);
                         log.Info("OpenTAP plugin package '{0}' containing '{1}' successfully created.", path, pkg.Name);
                     }

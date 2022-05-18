@@ -5,6 +5,7 @@
 
 using System;
 using System.IO;
+using Tap.Shared;
 
 namespace OpenTap.Package
 {
@@ -41,6 +42,9 @@ namespace OpenTap.Package
                 throw new FileNotFoundException(filename);
 
             string newFilename = Path.Combine(PackageCacheDirectory, Path.GetFileName(filename));
+            
+            // return early to avoid multiple processes interfering with each other. 
+            if (File.Exists(newFilename) && PathUtils.CompareFiles(filename,newFilename)) return;
 
             if (filename == newFilename)
                 return;
