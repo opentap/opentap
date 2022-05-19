@@ -272,7 +272,7 @@ namespace OpenTap.Package
                 else
                     log.Debug(exception);
 
-                throw exception;
+                throw;
             }
             return xmlText;
         }

@@ -676,7 +676,7 @@ namespace OpenTap
                 PluginTypes.Add(plugin);
                 CurrentAsm.AddPluginType(plugin);
 
-                if(!plugin.Assembly.IsSemanticVersionSet)
+                if(plugin.Assembly.RawVersion == null)
                 {
                     foreach (CustomAttributeHandle attrHandle in CurrentReader.GetAssemblyDefinition().GetCustomAttributes())
                     {
@@ -686,14 +686,13 @@ namespace OpenTap
                         {
                             var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle)attr.Constructor);
                             string attributeFullName = GetFullName(CurrentReader, ctor.Parent);
-                            if(attributeFullName == typeof(System.Reflection.AssemblyInformationalVersionAttribute).FullName)
+                            if(attributeFullName == typeof(AssemblyInformationalVersionAttribute).FullName)
                             {
                                 var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
                                 plugin.Assembly.RawVersion = GetStringIfNotNull(valueString.FixedArguments[0].Value);
                             }
                         }
                     }
-                    plugin.Assembly.IsSemanticVersionSet = true;
                 }
             }
             return plugin;

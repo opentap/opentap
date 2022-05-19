@@ -62,6 +62,9 @@ namespace OpenTap
         /// <summary> The loaded state of the assembly. </summary>
         internal LoadStatus Status => assembly != null ? LoadStatus.Loaded : (failedLoad ? LoadStatus.FailedToLoad : LoadStatus.NotLoaded);
 
+        // NoVersion - marker version instead of null to show that no version has been parsed. Null is a valid value for version.
+        static readonly Version NoVersion = new Version(Int32.MaxValue, 0, 0, 0);
+        Version version = NoVersion;
         /// <summary>
         /// Gets the version of this Assembly. This will return null if the version cannot be parsed.
         /// </summary>
@@ -69,12 +72,29 @@ namespace OpenTap
         {
             get
             {
-                if (Version.TryParse(RawVersion, out var version))
-                    return version;
-                return null;
+                if (ReferenceEquals(version, NoVersion))
+                {
+                    if (Version.TryParse(RawVersion, out var versionParsed))
+                    {
+                        version = versionParsed;
+                    }
+                    else if (SemanticVersion is SemanticVersion semver)
+                    {
+                        version = new Version(semver.Major, semver.Minor, 0, semver.Patch);
+                    }
+                    else
+                        version = null;
+                }
+                
+                return version;
             }
         }
-
+        
+        // NoSemanticVersion - marker version instead of null to show that no version has been parsed. Null is a valid value for version.
+        static readonly SemanticVersion NoSemanticVersion = new SemanticVersion(-1, 0, 0, "", "invalidversion");
+        
+        SemanticVersion semanticVersion = NoSemanticVersion;
+        
         /// <summary>
         /// Gets the version of this Assembly as a <see cref="SemanticVersion"/>. Will return null if the version is not well formatted.
         /// </summary>
@@ -82,9 +102,17 @@ namespace OpenTap
         {
             get
             {
-                if (SemanticVersion.TryParse(RawVersion, out var version))
-                    return version;
-                return null;
+                if (ReferenceEquals(semanticVersion, NoSemanticVersion))
+                {
+                    if (SemanticVersion.TryParse(RawVersion, out var version))
+                        semanticVersion = version;
+                    else if (Version.TryParse(RawVersion, out var version2))
+                        semanticVersion = new SemanticVersion(version2.Major, version2.Minor, version2.Revision, null, null);
+                    else
+                        semanticVersion = null;
+                }
+
+                return semanticVersion;
             }
         }
 
@@ -104,7 +132,6 @@ namespace OpenTap
         Assembly assembly;
 
         bool failedLoad;
-        internal bool IsSemanticVersionSet;
         
         /// <summary>
         /// Returns the System.Reflection.Assembly corresponding to this. 
@@ -220,5 +247,8 @@ namespace OpenTap
             }
             return assembly;
         }
+
+        /// <summary> Returns name and version as a string. </summary>
+        public override string ToString() =>  $"{Name}, {RawVersion}";
     }
 }

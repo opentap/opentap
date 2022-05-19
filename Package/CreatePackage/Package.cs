@@ -450,6 +450,10 @@ namespace OpenTap.Package
                             var requiredAsm = dependentAssemblyNames.FirstOrDefault(dep => dep.Name == candidateAsm.Name);
                             if (requiredAsm != null)
                             {
+                                if (candidateAsm.Version == null)
+                                    throw new Exception($"Assembly {candidateAsm} version is null");
+                                if (requiredAsm.Version == null)
+                                    throw new Exception($"Assembly {requiredAsm} version is null");
 							    if(OpenTap.Utils.Compatible(candidateAsm.Version, requiredAsm.Version))
                                 {
                                     log.Info($"Satisfying assembly reference to {requiredAsm.Name} by adding dependency on package {candidatePkg.Name}");
