@@ -50,10 +50,28 @@ jobs:
         id: gitVer
         run: echo ::set-output name=ver::$(tap sdk gitversion)
 
+  CheckSecrets:
+    runs-on: ubuntu-latest
+    outputs:
+      gitlab_registry_token_is_set: ${{ steps.check_GITLAB_REGISTRY_TOKEN.outputs.is_set }}
+    steps:
+      - id: check_GITLAB_REGISTRY_TOKEN
+        name: Check whether GITLAB_REGISTRY_TOKEN is set
+        run: |
+          if [ -z "${{ secrets.GITLAB_REGISTRY_TOKEN }}" ]; then
+            echo "Not set"
+            echo "::set-output name=is_set::false"
+          else
+            echo "Set"
+            echo "::set-output name=is_set::true"
+          fi
+
   ##############
   ### BUILDS ###
   ##############
   Build-DevGuide:
+    needs: CheckSecrets
+    if: needs.CheckSecrets.outputs.gitlab_registry_token_is_set == 'true'
     runs-on: ubuntu-latest
     container:
       image: registry.gitlab.com/opentap/buildrunners/documentationgeneration:latest
@@ -73,6 +91,8 @@ jobs:
             sdk/Examples/OpenTAP Developer Guide.pdf
 
   Build-ApiDoc:
+    needs: CheckSecrets
+    if: needs.CheckSecrets.outputs.gitlab_registry_token_is_set == 'true'
     runs-on: ubuntu-latest
     container:
       image: registry.gitlab.com/opentap/buildrunners/doxygen:alpine
