@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using OpenTap;
 
@@ -25,35 +26,29 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             return Path.Combine(thisAsmDir, "payload");
         }
 
-        private static bool loaded = false;
         private static object loadLock = new object();
-        private static void loadOnce(string tapDir)
+        private static void loadOpenTap(string tapDir)
         {
+            // This alters the value returned by 'ExecutorClient.ExeDir' which would otherwise return the location of
+            // OpenTap.dll which in an MSBuild context would be the nuget directory which leads to unexpected behavior
+            // because the expected location is the build directory in all common use cases.
+            Environment.SetEnvironmentVariable("OPENTAP_INIT_DIRECTORY", tapDir, EnvironmentVariableTarget.Process);
+            Environment.SetEnvironmentVariable("OPENTAP_NO_UPDATE_CHECK", "true");
+            Environment.SetEnvironmentVariable("OPENTAP_DEBUG_INSTALL", "true");
+            string root = null;
+            
             lock (loadLock)
             {
-                if (loaded) return;
-                loaded = true;
+                var loaded = AppDomain.CurrentDomain.GetAssemblies().Select(l => l.GetName().Name).ToArray();
+                string[] assemblies = { "OpenTap", "OpenTap.Package" };
+                foreach (var asmName in assemblies)
+                {
+                    if (loaded.Contains(asmName))
+                        continue; // already loaded - continue
 
-                // This alters the value returned by 'ExecutorClient.ExeDir' which would otherwise return the location of
-                // OpenTap.dll which in an MSBuild context would be the nuget directory which leads to unexpected behavior
-                // because the expected location is the build directory in all common use cases.
-                Environment.SetEnvironmentVariable("OPENTAP_INIT_DIRECTORY", tapDir, EnvironmentVariableTarget.Process);
-
-                var tapInstall = Path.Combine(tapDir, "tap");
-                if (File.Exists(tapInstall) == false)
-                    tapInstall = Path.Combine(tapDir, "tap.exe");
-                if (File.Exists(tapInstall) == false)
-                    throw new Exception($"No tap install found in directory {tapDir}");
-
-                Environment.SetEnvironmentVariable("OPENTAP_NO_UPDATE_CHECK", "true");
-                Environment.SetEnvironmentVariable("OPENTAP_DEBUG_INSTALL", "true");
-
-                var root = CorrectPayloadDir();
-                var openTapDll = Path.Combine(root, "OpenTap.dll");
-                var openTapPackageDll = Path.Combine(root, "OpenTap.Package.dll");
-
-                Assembly.LoadFrom(openTapPackageDll);
-                Assembly.LoadFrom(openTapDll);
+                    root ??= CorrectPayloadDir();
+                    Assembly.LoadFrom(Path.Combine(root, $"{asmName}.dll"));
+                }
             }
         }
 
@@ -65,7 +60,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         /// <param name="tapDir"></param>
         public static IDisposable Create(string tapDir)
         {
-            loadOnce(tapDir);
+            loadOpenTap(tapDir);
             return new OpenTapContext(tapDir);
         }
         
