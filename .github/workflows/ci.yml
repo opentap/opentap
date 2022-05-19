@@ -685,9 +685,7 @@ jobs:
           path: .
       - name: Package
         run: |
-          Invoke-WebRequest https://netcologne.dl.sourceforge.net/project/gnuwin32/tar/1.13-1/tar-1.13-1-bin.exe -Outfile tarsetup.exe
-          Start-process .\tarsetup.exe -NoNewWindow -Wait -ArgumentList "/SILENT"
-
+          
           $path=(get-item -path "./").Fullname
           $str=[IO.File]::ReadAllText($path + "/LinuxInstall/INSTALL.sh") -replace "`r`n", "`n"
           ([IO.File]::WriteAllText($path + "/INSTALL.sh", $str))
@@ -695,7 +693,7 @@ jobs:
           $str=[IO.File]::ReadAllText($path + "/LinuxInstall/README") -replace "`r`n", "`n"
           ([IO.File]::WriteAllText($path + "/README", $str))
 
-          cmd /C '"C:\Program Files (x86)\GnuWin32\bin\tar.exe" -cf "OpenTAP.tar" OpenTAP.*.Linux.TapPackage INSTALL.sh README'
+          cmd /C '"C:\Windows\System32\tar.exe" -cf "OpenTAP.tar" OpenTAP.*.Linux.TapPackage INSTALL.sh README'
       - uses: actions/upload-artifact@v2
         with:
           name: installer-linux
