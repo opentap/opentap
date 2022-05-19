@@ -18,7 +18,7 @@ namespace OpenTap
         
         internal static readonly DynamicMember VisibilityProperty = new DynamicMember
         {
-            Name = "UI.Visibility",
+            Name = "OpenTap.Visibility",
             Attributes = new object[] { new BrowsableAttribute(false), new DefaultValueAttribute(Visibility.Visible), new XmlAttributeAttribute() },
             DefaultValue = Visibility.Visible,
             TypeDescriptor = TypeData.FromType(typeof(Visibility)),
