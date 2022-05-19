@@ -10,6 +10,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -125,7 +126,7 @@ namespace OpenTap.Package
 
         async Task DoDownloadPackage(PackageDef package, FileStream fileStream, CancellationToken cancellationToken)
         {
-            bool finished = false;
+            
             try
             {
                 var hc = HttpClient;
@@ -134,7 +135,13 @@ namespace OpenTap.Package
                     hc.DefaultRequestHeaders.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
                     
                     var totalSize = -1L;
-                    int maxRetries = 10;
+                    // this retry loop is to robustly to download the package even if the connection is intermittently lost
+                    // to test, try
+                    // - Switching network interface
+                    // - Entering into airplane mode
+                    // - Enabling / disabling a VPN connection
+                    // It should try to continue for a while unless the cancellation token signals to stop.
+                    int maxRetries = 60;
                     for(int retry = 0; retry < maxRetries; retry++)
                     {
                         hc.DefaultRequestHeaders.Range = RangeHeaderValue.Parse($"bytes={fileStream.Position}-");
@@ -189,17 +196,34 @@ namespace OpenTap.Package
                                         ConsoleUtils.printProgress(header, pos, len);
                                         (this as IPackageDownloadProgress).OnProgressUpdate?.Invoke(header, pos, len);
                                     });
-                                finished = true;
+                                
                             }
 
-                            if (finished)
-                                break;
+                            break;
                         }
                         
                         catch (Exception ex)
                         {
+                            if (ex is IOException)
+                            {
+                                log.Debug("IO Error Detected.");
+                                await Task.Delay(TimeSpan.FromSeconds(1));
+                                continue;
+                            }
+                            if (ex is HttpRequestException)
+                            {
+                                // This occurs if the initial connection cannot be made.
+                                // usually during transitioning to/from VPN connections.
+                                log.Debug("Socket error detected.");
+                                await Task.Delay(TimeSpan.FromSeconds(1));
+                                continue;
+                            }
+                                
                             if (response != null)
                             {
+                                // The connection was broken while a http request was active.
+                                // If the error is transient or we got partial data we can try continuing.
+                                
                                 var code = response.StatusCode;
                                 bool isError = response.IsSuccessStatusCode == false;
                                 response.Dispose();
@@ -214,6 +238,7 @@ namespace OpenTap.Package
                                 }
                             } else if (ex is IOException)
                             {
+                                // IO Exceptions usually calls for retrying.
                                 await Task.Delay(TimeSpan.FromSeconds(1));
                                 continue;
                             }
