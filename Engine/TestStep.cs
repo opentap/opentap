@@ -1294,6 +1294,9 @@ namespace OpenTap
         }
     }
 
+    /// <summary>
+    /// Marks a property as not a setting. This is a performance optimization for when finding resources throughout the test plan.
+    /// </summary>
     internal class SettingsIgnoreAttribute : Attribute
     { }
 }
