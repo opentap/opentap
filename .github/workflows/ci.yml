@@ -52,13 +52,29 @@ jobs:
 
   CheckSecrets:
     runs-on: ubuntu-latest
+    environment: sign
     outputs:
       gitlab_registry_token_is_set: ${{ steps.check_GITLAB_REGISTRY_TOKEN.outputs.is_set }}
+      sign_is_set: ${{ steps.check_sign.outputs.is_set }}
     steps:
       - id: check_GITLAB_REGISTRY_TOKEN
         name: Check whether GITLAB_REGISTRY_TOKEN is set
         run: |
           if [ -z "${{ secrets.GITLAB_REGISTRY_TOKEN }}" ]; then
+            echo "Not set"
+            echo "::set-output name=is_set::false"
+          else
+            echo "Set"
+            echo "::set-output name=is_set::true"
+          fi
+      - id: check_sign
+        name: Check whether sign secrets are set
+        run: |
+          if [ -z "${{ secrets.SIGN_SERVER_CERT }}" -o \
+               -z "${{ secrets.TAP_SIGN_ADDRESS }}" -o \
+               -z "${{ secrets.TAP_SIGN_AUTH }}"    -o \
+               -z "${{ secrets.S3_KEY_ID }}"        -o \
+               -z "${{ secrets.S3_SECRET }}" ]; then
             echo "Not set"
             echo "::set-output name=is_set::false"
           else
@@ -390,12 +406,14 @@ jobs:
   ### Package ###
   ###############
   Package-Win:
+    if: needs.CheckSecrets.outputs.sign_is_set == 'true'
     runs-on: windows-2022
     environment: sign
     strategy:
       matrix:
         Architecture: [x86, x64]
     needs:
+      - CheckSecrets
       - Build-Win
       - Build-ApiDoc
       - GetVersion
@@ -458,9 +476,11 @@ jobs:
             OpenTAP.*.Windows.TapPackage
 
   Package-Linux:
+    if: needs.CheckSecrets.outputs.sign_is_set == 'true'
     runs-on: windows-2022
     environment: sign
     needs:
+      - CheckSecrets
       - Build-Win
       - Build-Linux
       - Build-ApiDoc
