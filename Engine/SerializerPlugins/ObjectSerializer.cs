@@ -124,22 +124,23 @@ namespace OpenTap.Plugins
                     if (attr == null) continue;
                     var name = string.IsNullOrWhiteSpace(attr.AttributeName) ? prop.Name : attr.AttributeName;
                     var attr_value = element.Attribute(Serializer.PropertyXmlName(name));
-                    var p = prop as MemberData;
+                    
 
-                    if (p != null && attr_value != null && p.Member is PropertyInfo csprop)
+                    if (attr_value != null)
                     {
                         try
                         {
-                            readContentInternal(csprop.PropertyType, false, () => attr_value.Value, element, out object value);
+                            var typeData = prop.TypeDescriptor.AsTypeData();
+                            readContentInternal(typeData.Type, false, () => attr_value.Value, element, out object value);
                             
-                            p.SetValue(newobj, value);
+                            prop.SetValue(newobj, value);
                             
                         }
                         catch (Exception e)
                         {
                             if (logWarnings)
                             {
-                                Log.Warning(element, "Attribute value '{0}' was not read correctly as a {1}", attr_value.Value, p);
+                                Log.Warning(element, "Attribute value '{0}' was not read correctly as a {1}", attr_value.Value, prop);
                                 Log.Debug(e);
                             }
                         }

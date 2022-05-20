@@ -649,20 +649,18 @@ namespace OpenTap
                 TypeDescriptor = TypeData.FromType(typeof((Object,IMemberData)[]))
             };
 
+            static readonly IMemberData[] extraTestStepMembers = {BreakConditions, DynamicMembers, ChildItemVisibility.VisibilityProperty};
+            static readonly IMemberData[] extraTestPlanMembers = {TestPlanBreakConditions, DynamicMembers};
             
-
-            static readonly IMemberData[] extraMembers = {BreakConditions, DynamicMembers};
-            static readonly IMemberData[] extraMembersTestPlan = {TestPlanBreakConditions, DynamicMembers}; 
-
             readonly IMemberData[] members;
 
-            static IMemberData[] getMembers(ITypeData innerType)
+            static IMemberData[] GetMembersRaw(ITypeData innerType)
             {
                 IMemberData[] members;
                 if (innerType.DescendsTo(typeof(TestPlan)))
-                    members = extraMembersTestPlan;
+                    members = extraTestPlanMembers;
                 else
-                    members = extraMembers;
+                    members = extraTestStepMembers;
                 var d = DescriptionMember(innerType);
                 members = members.Append(d).ToArray();
                 return members;
@@ -671,7 +669,7 @@ namespace OpenTap
             // memorize the arrays to avoid generating for each instance of test step.
             static readonly ConditionalWeakTable<ITypeData, IMemberData[]> memberMemorizer =
                 new ConditionalWeakTable<ITypeData, IMemberData[]>();
-            static IMemberData[] GetMembers(ITypeData innerType) =>  memberMemorizer.GetValue(innerType, getMembers);
+            static IMemberData[] GetMembers(ITypeData innerType) =>  memberMemorizer.GetValue(innerType, GetMembersRaw);
             
             
             readonly IMemberData descriptionMember;
