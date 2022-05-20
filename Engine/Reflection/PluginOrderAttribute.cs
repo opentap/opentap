@@ -36,13 +36,13 @@ namespace OpenTap
         {
             get
             {
-                var lut = new Dictionary<object, PluginOrderAttribute>();
+                var cache = new Dictionary<object, PluginOrderAttribute>();
                 return (o, o1) =>
                 {
-                    if (lut.TryGetValue(o, out var x) == false)
-                        lut[o] = x = o.GetType().GetAttribute<PluginOrderAttribute>() ?? @default;
-                    if (lut.TryGetValue(o1, out var y) == false)
-                        lut[o1] = y = o1.GetType().GetAttribute<PluginOrderAttribute>() ?? @default;
+                    if (cache.TryGetValue(o, out var x) == false)
+                        cache[o] = x = o.GetType().GetAttribute<PluginOrderAttribute>() ?? @default;
+                    if (cache.TryGetValue(o1, out var y) == false)
+                        cache[o1] = y = o1.GetType().GetAttribute<PluginOrderAttribute>() ?? @default;
 
                     if (x.Before != null && o1.GetType().DescendsTo(x.Before))
                         return -1;

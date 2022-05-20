@@ -620,6 +620,8 @@ namespace OpenTap
             var typeData0 = typeData;
             lock (lockSearchers)
             {
+                // if 'lock' actually caused a lock and it was that same typeData, we want to use it instead
+                // of calculating it again.
                 if (typeDataSourceLookup.TryGetValue(typeData, out var src2))
                     return src2;
                 GetDerivedTypes<ITypeDataSearcher>(); // update cache.

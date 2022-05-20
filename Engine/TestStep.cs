@@ -175,6 +175,9 @@ namespace OpenTap
                     Log.Warning("Could not get assembly version.");
                     return;
                 }
+
+                if (installedVersionStr == value)
+                    return;
                 
                 if(SemanticVersion.TryParse(installedVersionStr, out var installedVersion) && SemanticVersion.TryParse(value, out SemanticVersion createdVersion))
                 {
@@ -190,7 +193,7 @@ namespace OpenTap
                 }
                 else
                 {
-                    //Log.Warning("Could not parse test plan file specified version {0} of step '{1}' as a semantic version, but version {2} is installed, compatibility issues may occur.", value, Name, installedVersion);
+                    Log.Warning("Could not parse test plan file specified version {0} of step '{1}' as a semantic version, but version {2} is installed, compatibility issues may occur.", value, Name, installedVersion);
                 }
             }
         }

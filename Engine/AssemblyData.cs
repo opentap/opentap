@@ -15,7 +15,7 @@ namespace OpenTap
     [DebuggerDisplay("{Name} ({Location})")]
     public class AssemblyData : ITypeDataSource
     {
-        private static readonly TraceSource log = Log.CreateSource("PluginManager");
+        private static readonly TraceSource log = Log.CreateSource("AssemblyData");
         /// <summary>
         /// The name of the assembly. This is the same as the filename without extension
         /// </summary>
