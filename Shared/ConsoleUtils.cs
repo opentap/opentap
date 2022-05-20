@@ -58,10 +58,13 @@ namespace OpenTap
                 do
                 {
                     updateProgress(header, pos(), len());
-                } 
-                while (task != await Task.WhenAny(task, Task.Delay(updateDelayMs)));
+                    
+                    //Task.WhenAny returns the completed task.
+                    // if task is completed we can stop iterating.
+                } while (task != await Task.WhenAny(task, Task.Delay(updateDelayMs)));
+                
                 if(task.IsCanceled == false && task.IsFaulted == false)
-                    updateProgress(header, len(), len());
+                    updateProgress(header, len(), len()); // print 100%
                 await task; // throw exceptions if necessary.
             }
             finally

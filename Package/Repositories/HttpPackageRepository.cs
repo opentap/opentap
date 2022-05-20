@@ -206,7 +206,6 @@ namespace OpenTap.Package
                         {
                             if (ex is IOException)
                             {
-                                log.Debug("IO Error Detected.");
                                 await Task.Delay(TimeSpan.FromSeconds(1));
                                 continue;
                             }
@@ -214,7 +213,6 @@ namespace OpenTap.Package
                             {
                                 // This occurs if the initial connection cannot be made.
                                 // usually during transitioning to/from VPN connections.
-                                log.Debug("Socket error detected.");
                                 await Task.Delay(TimeSpan.FromSeconds(1));
                                 continue;
                             }
@@ -236,11 +234,6 @@ namespace OpenTap.Package
                                     await Task.Delay(TimeSpan.FromSeconds(1));
                                     continue;
                                 }
-                            } else if (ex is IOException)
-                            {
-                                // IO Exceptions usually calls for retrying.
-                                await Task.Delay(TimeSpan.FromSeconds(1));
-                                continue;
                             }
 
                             if (cancellationToken.IsCancellationRequested == false)
@@ -542,7 +535,7 @@ namespace OpenTap.Package
                         OS = package.OS
                     };
 
-                    Task.WaitAll(new []{DoDownloadPackage(packageDef, tmpFile, cancellationToken)}, cancellationToken);
+                    DoDownloadPackage(packageDef, tmpFile, cancellationToken).Wait(cancellationToken);
 
                     if (cancellationToken.IsCancellationRequested == false)
                     {
