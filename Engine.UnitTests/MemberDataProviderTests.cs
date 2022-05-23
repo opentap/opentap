@@ -120,6 +120,7 @@ namespace OpenTap.Engine.UnitTests
 
             class TestTypeSource : ITypeDataSource
             {
+                public string Name => "TestTypeSource";
                 List<ITypeData> types = new List<ITypeData>();
                 public string Location => ":test:";
                 public IEnumerable<ITypeData> Types => types.AsReadOnly();

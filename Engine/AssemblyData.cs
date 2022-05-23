@@ -48,7 +48,7 @@ namespace OpenTap
         /// <summary>
         /// Gets a list of plugin types that this Assembly defines
         /// </summary>
-        public IEnumerable<TypeData> PluginTypes =>pluginTypes;
+        public IEnumerable<TypeData> PluginTypes => pluginTypes;
 
         internal void AddPluginType(TypeData typename)
         {
