@@ -42,7 +42,8 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(types.All(t => t.DescendsTo(baseType)));
         }
 
-        public class TypeDataSearcherTestImpl : ITypeDataSearcher, ITypeDataProvider, ITypeDataSearcherCacheInvalidated
+        [PluginOrder(before: typeof(DotNetTypeDataSearcher))]
+        public class TypeDataSearcherTestImpl : ITypeDataSearcher, ITypeDataProvider, ITypeDataSearcherCacheInvalidated, ITypeDataSourceProvider
         {
             public class MemberDataTestImpl : IMemberData
             {
@@ -116,18 +117,40 @@ namespace OpenTap.Engine.UnitTests
                     };
                 }
             }
-            static ObservableCollection<ITypeData> hardcodedTypes = new ObservableCollection<ITypeData>
+
+            class TestTypeSource : ITypeDataSource
+            {
+                public string Name => "TestTypeSource";
+                List<ITypeData> types = new List<ITypeData>();
+                public string Location => ":test:";
+                public IEnumerable<ITypeData> Types => types.AsReadOnly();
+                public IEnumerable<object> Attributes => Array.Empty<object>();
+                public IEnumerable<ITypeDataSource> References { get; } = Array.Empty<ITypeDataSource>();
+                public string Version => "1.0.0";
+                internal void AddType(ITypeData type) => types.Add(type);
+                
+            }
+
+            static readonly TestTypeSource TypeSource = new TestTypeSource();
+            
+            static readonly ObservableCollection<ITypeData> hardcodedTypes = new ObservableCollection<ITypeData>
             {
                 new TypeDataTestImpl( "UnitTestType", TypeData.FromType(typeof(IResultListener)),null),
                 new TypeDataTestImpl( "UnitTestCliActionType", TypeData.FromType(typeof(ICliAction)),() => new SomeTestAction())
             };
+
+            static TypeDataSearcherTestImpl()
+            {
+                hardcodedTypes.ForEach(TypeSource.AddType);
+            }
 
             public static void AddType(string name, ITypeData baseType)
             {
                 hardcodedTypes.Add(new TypeDataTestImpl(name, baseType, null));
             }
 
-            public static bool Enable { get; set; }
+            static SessionLocal<bool> enabled = new SessionLocal<bool>();
+            public static bool Enable { get => enabled.Value; set => enabled.Value = value; }
 
             private List<ITypeData> _types = new List<ITypeData>();
             public IEnumerable<ITypeData> Types => Enable ? (_types.Count != hardcodedTypes.Count ? null : _types) : Enumerable.Empty<ITypeData>();
@@ -135,6 +158,13 @@ namespace OpenTap.Engine.UnitTests
             public void Search()
             {
                 _types = hardcodedTypes.ToList();
+            }
+
+            public ITypeDataSource GetSource(ITypeData typeData)
+            {
+                if (typeData is TypeDataTestImpl)
+                    return TypeSource;
+                return null;
             }
 
             public double Priority => 1;
@@ -272,6 +302,28 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        [Test]
+        public void ITypeDataSourceTest2()
+        {
+            var td2= TypeData.GetTypeData(new DelayStep());
+            var td3= TypeData.GetTypeData(new DialogStep());
+            var source = TypeData.GetTypeDataSource(td2);
+            var v1 = source.Version;
+            var a1 =td2.AsTypeData().Assembly;
+            var v2 = a1.Version;
+            var v3 = a1.SemanticVersion;
+            Assert.IsTrue(source.Location.Contains("OpenTap.Plugins.BasicSteps.dll"));
+            Assert.IsTrue(TypeData.GetTypeDataSource(td3) == TypeData.GetTypeDataSource(td2));
+            Assert.IsTrue(source.Types.Contains(td2.AsTypeData()));
+            Assert.IsTrue(source.Types.Contains(td3.AsTypeData()));
+            
+            using (Session.Create())
+            {
+                TypeDataSearcherTestImpl.Enable = true;
+                var td = TypeData.GetTypeData("UnitTestType");
+                Assert.AreEqual(2, TypeData.GetTypeDataSource(td).Types.Count());
+            }
+        }
     }
 
     public interface IExpandedObject

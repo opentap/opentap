@@ -12,7 +12,6 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
-using System.Text;
 using Tap.Shared;
 
 [assembly: OpenTap.PluginAssembly(true)]
@@ -246,7 +245,7 @@ namespace OpenTap
                                 throw new Exception("Assembly name does not match the file name.");
                             var thisRef = new AssemblyRef(thisAssembly.Name, def.Version);
 
-                            thisAssembly.Version = def.Version;
+                            thisAssembly.RawVersion = def.Version.ToString();
 
                             if (!nameToAsmMap.ContainsKey(thisRef))
                             {
@@ -680,7 +679,7 @@ namespace OpenTap
                 PluginTypes.Add(plugin);
                 CurrentAsm.AddPluginType(plugin);
 
-                if(!plugin.Assembly.IsSemanticVersionSet)
+                if(plugin.Assembly.RawVersion == null)
                 {
                     foreach (CustomAttributeHandle attrHandle in CurrentReader.GetAssemblyDefinition().GetCustomAttributes())
                     {
@@ -690,17 +689,13 @@ namespace OpenTap
                         {
                             var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle)attr.Constructor);
                             string attributeFullName = GetFullName(CurrentReader, ctor.Parent);
-                            if(attributeFullName == typeof(System.Reflection.AssemblyInformationalVersionAttribute).FullName)
+                            if(attributeFullName == typeof(AssemblyInformationalVersionAttribute).FullName)
                             {
                                 var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
-                                if(SemanticVersion.TryParse(GetStringIfNotNull(valueString.FixedArguments[0].Value), out SemanticVersion infoVer)) // the first argument to the DisplayAttribute constructor is the InformationalVersion string
-                                {
-                                    plugin.Assembly.SemanticVersion = infoVer;
-                                }
+                                plugin.Assembly.RawVersion = GetStringIfNotNull(valueString.FixedArguments[0].Value);
                             }
                         }
                     }
-                    plugin.Assembly.IsSemanticVersionSet = true;
                 }
             }
             return plugin;
@@ -890,204 +885,5 @@ namespace OpenTap
             }
         }
         #endregion
-    }
-
-    /// <summary>
-    /// The status of the loading operation for TypeData and AssemblyData.
-    /// </summary>
-    internal enum LoadStatus
-    {
-        /// <summary> Loading has not been done yet. </summary>
-        NotLoaded = 1,
-        /// <summary> This has been loaded. </summary>
-        Loaded = 2,
-        /// <summary> It failed to load. </summary>
-        FailedToLoad = 3
-    }
-    
-
-    /// <summary>
-    /// Representation of an assembly including its dependencies. Part of the object model used in the PluginManager
-    /// </summary>
-    [DebuggerDisplay("{Name} ({Location})")]
-    public class AssemblyData
-    {
-        private static readonly TraceSource log = Log.CreateSource("PluginManager");
-        /// <summary>
-        /// The name of the assembly. This is the same as the filename without extension
-        /// </summary>
-        public string Name { get; internal set; }
-
-        /// <summary>
-        /// The file from which this assembly can be loaded. The information contained in this AssemblyData object comes from this file.
-        /// </summary>
-        public string Location { get; }
-
-        /// <summary>
-        /// <see cref="PluginAssemblyAttribute"/> decorating assembly, if included
-        /// </summary>
-        public PluginAssemblyAttribute PluginAssemblyAttribute { get; internal set; }
-
-        /// <summary>
-        /// A list of Assemblies that this Assembly references.
-        /// </summary>
-        public IEnumerable<AssemblyData> References { get; internal set; }
-
-        List<TypeData> pluginTypes;
-        
-        /// <summary>
-        /// Gets a list of plugin types that this Assembly defines
-        /// </summary>
-        public IEnumerable<TypeData> PluginTypes =>pluginTypes;
-
-        internal void AddPluginType(TypeData typename)
-        {
-            if (typename == null)
-                return;
-            if (pluginTypes == null)
-                pluginTypes = new List<TypeData>();
-            pluginTypes.Add(typename);
-        }
-
-        /// <summary> The loaded state of the assembly. </summary>
-        internal LoadStatus Status => assembly != null ? LoadStatus.Loaded : (failedLoad ? LoadStatus.FailedToLoad : LoadStatus.NotLoaded);
-
-        /// <summary>
-        /// Gets the version of this Assembly
-        /// </summary>
-        public Version Version { get; internal set; }
-        
-        /// <summary>
-        /// Gets the version of this Assembly as a <see cref="SemanticVersion"/>
-        /// </summary>
-        public SemanticVersion SemanticVersion { get; internal set; }
-
-        internal AssemblyData(string location, Assembly preloadedAssembly = null)
-        {
-            Location = location;
-            this.preloadedAssembly = preloadedAssembly;
-        }
-
-        /// <summary>  Optionally set for preloaded assemblies.  </summary>
-        readonly Assembly preloadedAssembly;
-        Assembly assembly;
-
-        bool failedLoad;
-        internal bool IsSemanticVersionSet;
-
-        /// <summary>
-        /// Returns the System.Reflection.Assembly corresponding to this. 
-        /// If the assembly has not yet been loaded, this call will load it.
-        /// </summary>
-        public Assembly Load()
-        {
-            if (failedLoad)
-                return null;
-            if (assembly == null)
-            {
-                try
-                {
-                    var watch = Stopwatch.StartNew();
-                    if (preloadedAssembly != null)
-                        assembly = preloadedAssembly;
-                    else
-                    {
-                        var _asm = AppDomain.CurrentDomain.GetAssemblies()
-                            .FirstOrDefault(asm => !asm.IsDynamic && !string.IsNullOrWhiteSpace(asm.Location) && PathUtils.AreEqual(asm.Location, this.Location));
-                        assembly = _asm;
-                    }
-
-                    if (assembly == null)
-                    {
-                        if (this.Name == "OpenTap")
-                        {
-                            assembly = typeof(PluginSearcher).Assembly;
-                        }
-                        else
-                        {
-                            assembly = Assembly.LoadFrom(Path.GetFullPath(this.Location));
-                        }
-                    }
-                    //TODO 
-                    try
-                    {
-                        // Find attribute
-                        if (PluginAssemblyAttribute != null && PluginAssemblyAttribute.PluginInitMethod != null)
-                        {
-                            string fullName = PluginAssemblyAttribute.PluginInitMethod;
-                            // Break into namespace, class, and method name
-                            string[] names = fullName.Split('.');
-                            if (names.Count() < 3)
-                                throw new Exception($"Could not find method {fullName} in assembly: {Location}");
-                            string methodName = names.Last();
-                            string className = names.ElementAt(names.Count() - 2);
-                            string namespacePath = string.Join(".", names.Take(names.Count() - 2));
-                            Type initClass = assembly.GetType($"{namespacePath}.{className}");
-                            // Check if loaded class exists and is static (abstract and sealed) and is public
-                            if (initClass == null || !initClass.IsClass || !initClass.IsAbstract || !initClass.IsSealed || !initClass.IsPublic)
-                                throw new Exception($"Could not find method {fullName} in assembly: {Location}");
-                            MethodInfo initMethod = initClass.GetMethod(methodName);
-                            // Check if loaded method exists and is static and returns void and is public
-                            if (initMethod == null || !initMethod.IsStatic || initMethod.ReturnType != typeof(void) || !initMethod.IsPublic)
-                                throw new Exception($"Could not find method {fullName} in assembly: {Location}");
-                            // Invoke the method and unwrap the InnerException to get meaningful error message
-                            try
-                            {
-                                initMethod.Invoke(null, null);
-                            }
-                            catch (TargetInvocationException exc)
-                            {
-                                throw exc.InnerException;
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        failedLoad = true;
-                        assembly = null;
-                        log.Error($"Failed to load plugins from {this.Location}");
-                        log.Debug(ex);
-
-                        return null;
-                    }
-                    log.Debug(watch, "Loaded {0}.", this.Name);
-                }
-                catch (SystemException ex)
-                {
-                    failedLoad = true;
-                    StringBuilder sb = new StringBuilder(String.Format("Failed to load plugins from {0}", this.Location));
-                    bool addedZoneInfo = false;
-                    try
-                    {
-                        var zonetype = Type.GetType("System.Security.Policy.Zone");
-                        if (zonetype != null)
-                        {               
-                            // Hack to support .net core without having to build separate assemblies.
-                            dynamic zone = zonetype.GetMethod("CreateFromUrl").Invoke(null, new object[] { this.Location });
-                            var sec = zone.SecurityZone.ToString();
-                            if (sec.Contains("Internet") || sec.Contains("Untrusted"))
-
-                            {
-                                // The file is in an NTFS Windows operating system blocked state
-                                sb.Append(" The file came from another computer and might be blocked to help protect this computer. Please unblock the file in Windows.");
-                                addedZoneInfo = true;
-                            }
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        log.Error("Failed to check Security policy for file.");
-                        log.Debug(e);
-                        addedZoneInfo = true;
-                    }
-
-                    if (!addedZoneInfo)
-                        sb.Append(" Error: "  + ex.Message);
-                    log.Error(sb.ToString());
-                    log.Debug(ex);
-                }
-            }
-            return assembly;
-        }
     }
 }

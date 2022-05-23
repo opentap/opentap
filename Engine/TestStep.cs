@@ -154,11 +154,9 @@ namespace OpenTap
         {
             // sometimes Assembly does not have a well-formatted semantic version.
             // ins this case we just use Version.ToString(3).
-            var asm = TypeData.GetTypeData(this)?.AsTypeData()?.Assembly;
+            var asm = TypeData.GetTypeDataSource(TypeData.GetTypeData(this));
             if (asm == null) return null;
-            if (asm.SemanticVersion != null) return asm.SemanticVersion.ToString();
-            if (asm.Version != null) return asm.Version.ToString(3);
-            return null;
+            return asm.Version;
         }
         
         /// <summary>
@@ -174,9 +172,12 @@ namespace OpenTap
                 var installedVersionStr = CalcVersion();
                 if (installedVersionStr == null)
                 {
-                    Log.Warning("Could not get assembly version");
+                    Log.Warning("Could not get assembly version.");
                     return;
                 }
+
+                if (installedVersionStr == value)
+                    return;
                 
                 if(SemanticVersion.TryParse(installedVersionStr, out var installedVersion) && SemanticVersion.TryParse(value, out SemanticVersion createdVersion))
                 {
