@@ -693,7 +693,7 @@ namespace OpenTap
             public IEnumerable<object> Attributes => innerType.Attributes;
             public string Name => innerType.Name;
             public ITypeData BaseType => innerType;
-
+            
             public IEnumerable<IMemberData> GetMembers()
             {
                 return innerType.GetMembers().Concat(members);
