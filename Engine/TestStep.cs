@@ -27,7 +27,7 @@ namespace OpenTap
     [ComVisible(true)]
     [Guid("d0b06600-7bac-47fb-9251-f834e420623f")]
     public abstract class TestStep : ValidatingObject, ITestStep, IBreakConditionProvider, IDescriptionProvider, 
-        IDynamicMembersProvider, IInputOutputRelations, IParameterizedMembersCache
+        IDynamicMembersProvider, IInputOutputRelations, IParameterizedMembersCache, IDynamicMemberValue
     {
         #region Properties
         /// <summary>
@@ -52,6 +52,7 @@ namespace OpenTap
                             "This value should not be changed during test plan run.", Group: "Common", Order: 20000, Collapsed: true)]
         [Unsweepable]
         [NonMetaData]
+        [DefaultValue(true)]
         public bool Enabled
         {
             get => enabled; 
@@ -116,6 +117,7 @@ namespace OpenTap
         [Browsable(false)]
         [AnnotationIgnore]
         [SettingsIgnore]
+        [DefaultValue(new object[]{})]
         public TestStepList ChildTestSteps
         {
             get => childTestSteps; 
@@ -164,8 +166,7 @@ namespace OpenTap
         /// <summary>
         /// Version of this test step.
         /// </summary>
-        [XmlAttribute("Version")]
-        [Browsable(false)]
+        [XmlIgnore]
         public string Version
         {
             get => CalcVersion();
@@ -526,6 +527,7 @@ namespace OpenTap
 
         readonly Dictionary<IMemberData, ParameterMemberData> parameterizations =
             new Dictionary<IMemberData, ParameterMemberData>();
+
         void IParameterizedMembersCache.RegisterParameterizedMember(IMemberData mem, ParameterMemberData memberData)
         {
             lock (parameterizations)
@@ -543,6 +545,27 @@ namespace OpenTap
             if (parameterizations.TryGetValue(mem, out var r))
                 return r;
             return null;
+        }
+
+        readonly DynamicMembersLookup dynamicMemberValues = new DynamicMembersLookup();
+
+        
+        bool IDynamicMemberValue.TryGetValue(IMemberData member, out object obj)
+        {
+            return dynamicMemberValues.TryGetValue(member, out obj);
+        }
+
+        void IDynamicMemberValue.SetValue(IMemberData member, object value)
+        {
+            dynamicMemberValues[member] = value;
+        }
+    }
+
+    class DynamicMembersLookup : ConcurrentDictionary<IMemberData, object>
+    {
+        public DynamicMembersLookup() : base(1, 4)
+        {
+            
         }
     }
 

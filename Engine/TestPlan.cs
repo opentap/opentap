@@ -140,6 +140,7 @@ namespace OpenTap
         /// </summary>
         [XmlAttribute]
         [Display("Locked", "Checking this makes the test plan read-only.", Order: 2)]
+        [DefaultValue(false)]
         public bool Locked
         {
             get => locked;

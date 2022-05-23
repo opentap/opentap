@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Linq;
@@ -16,6 +17,18 @@ namespace OpenTap.Plugins
         public override double Order => 10;
 
         HashSet<XElement> elems = new HashSet<XElement>();
+
+        readonly Dictionary<XElement, object> defaultValueLookup = new Dictionary<XElement, object>();
+        
+        /// <summary>
+        /// Registers a default value for an XML element.
+        /// </summary>
+        /// <param name="elem"></param>
+        /// <param name="value"></param>
+        public void RegisterDefaultValue(XElement elem, object value)
+        {
+            defaultValueLookup[elem] = value;
+        }
 
         /// <summary> Deserialization implementation. </summary>
         public override bool Deserialize(XElement element, ITypeData t, Action<object> setter)
@@ -34,10 +47,16 @@ namespace OpenTap.Plugins
                 elems.Add(elem);
                 bool ok = Serializer.Serialize(elem, obj, expectedType);
 
-                var defaultAttr = elem.Attribute(ObjectSerializer.DefaultValue);
-                if (defaultAttr != null)
+                if (defaultValueLookup.TryGetValue(elem, out var defaultValue))
                 {
-                    if (object.Equals(defaultAttr.Value, obj?.ToString()) && elem.Attributes().Count() == 1)
+                    if (defaultValue is object[] objs && obj is IEnumerable e)
+                    {
+                        if (e.Cast<object>().SequenceEqual(objs) && elem.HasAttributes == false)
+                        {
+                            elem.Remove();    
+                        }
+                    }
+                    if (object.Equals(defaultValue, obj) && elem.HasAttributes == false)
                     {
                         // To remove this case since default value is same as specified value 
                         // <TimeDelay HasDefaultValue="True">0.1</TimeDelay>.
@@ -47,11 +66,6 @@ namespace OpenTap.Plugins
                         // <TimeDelay UserDefinedAttribute="??" HasDefaultValue="True">0.1</TimeDelay>.
 
                         elem.Remove();
-                    }
-                    else
-                    {
-                        // Remove the default value attribute from the element after verification
-                        elem.SetAttributeValue(ObjectSerializer.DefaultValue, null);
                     }
                 }
                

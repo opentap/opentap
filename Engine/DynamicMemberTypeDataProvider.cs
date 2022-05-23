@@ -12,6 +12,11 @@ namespace OpenTap
     {
         IDictionary<string, IMemberData> DynamicMembers { get; set; }
     }
+    interface IDynamicMemberValue
+    {
+        bool TryGetValue(IMemberData member, out object value);
+        void SetValue(IMemberData member, object value);
+    }
     
 
     /// <summary>  Extensions for parameter operations. </summary>
@@ -285,14 +290,25 @@ namespace OpenTap
         
         public virtual void SetValue(object owner, object value)
         {
-                dict.Remove(owner);
-                if (Equals(value, DefaultValue) == false)
-                    dict.Add(owner, value);
+            if (owner is IDynamicMemberValue dmv)
+            {
+                dmv.SetValue(this, value);
+                return;
+            }
+            dict.Remove(owner);
+            if (Equals(value, DefaultValue) == false)
+                dict.Add(owner, value);
         }
 
         public virtual object GetValue(object owner)
         {
-            // TODO: use IDynamicMembersProvider
+            if (owner is IDynamicMemberValue dmv)
+            {
+                if (dmv.TryGetValue(this, out var value2))
+                    return value2;
+                return DefaultValue;
+            }
+
             if (dict.TryGetValue(owner, out object value))
                 return value ?? DefaultValue;
             return DefaultValue;
@@ -579,7 +595,8 @@ namespace OpenTap
                         "When enabled, specify new break conditions. When disabled conditions are inherited from the parent test step, test plan, or engine settings.",
                         "Common", 20001.1),
                     new UnsweepableAttribute(),
-                    new NonMetaDataAttribute()
+                    new NonMetaDataAttribute(),
+                    new DefaultValueAttribute(BreakCondition.Inherit)
                 },
                 DeclaringType = TypeData.FromType(typeof(ITestStep)),
                 Readable = true,
@@ -600,7 +617,8 @@ namespace OpenTap
                         "When enabled, specify new break conditions. When disabled conditions are inherited from the engine settings.", Order: 3),
                     new UnsweepableAttribute(),
                     new EnabledIfAttribute("Locked", false),
-                    new NonMetaDataAttribute()
+                    new NonMetaDataAttribute(),
+                    new DefaultValueAttribute(BreakCondition.Inherit)
                 },
                 DeclaringType = TypeData.FromType(typeof(TestPlan)),
                 Readable = true,
