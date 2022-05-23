@@ -10,6 +10,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -27,6 +28,9 @@ namespace OpenTap.Package
     /// </summary>
     public class HttpPackageRepository : IPackageRepository, IPackageDownloadProgress
     {
+        // from Stream.cs: pick a value that is the largest multiple of 4096 that is still smaller than the large object heap threshold (85K).
+        private const int _DefaultCopyBufferSize = 81920;
+        
         private static TraceSource log = Log.CreateSource("HttpPackageRepository");
         private const string ApiVersion = "3.0";
         private VersionSpecifier MinRepoVersion = new VersionSpecifier(3, 0, 0, "", "", VersionMatchBehavior.AnyPrerelease | VersionMatchBehavior.Compatible);
@@ -122,7 +126,7 @@ namespace OpenTap.Package
 
         async Task DoDownloadPackage(PackageDef package, FileStream fileStream, CancellationToken cancellationToken)
         {
-            bool finished = false;
+            
             try
             {
                 var hc = HttpClient;
@@ -130,20 +134,24 @@ namespace OpenTap.Package
                     HttpResponseMessage response = null;
                     hc.DefaultRequestHeaders.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
                     
-                    var downloadedBytes = 0;
                     var totalSize = -1L;
-                    int maxRetries = 5;
+                    // this retry loop is to robustly to download the package even if the connection is intermittently lost
+                    // to test, try
+                    // - Switching network interface
+                    // - Entering into airplane mode
+                    // - Enabling / disabling a VPN connection
+                    // It should try to continue for a while unless the cancellation token signals to stop.
+                    int maxRetries = 60;
                     for(int retry = 0; retry < maxRetries; retry++)
                     {
-                        if(retry > 0)
-                            log.Debug($"Retrying download {retry}/{maxRetries - 1}");
-                        hc.DefaultRequestHeaders.Range = RangeHeaderValue.Parse($"bytes={downloadedBytes}-");
+                        hc.DefaultRequestHeaders.Range = RangeHeaderValue.Parse($"bytes={fileStream.Position}-");
 
                         try
                         {
                             if (package.PackageSource is HttpRepositoryPackageDefSource httpSource && string.IsNullOrEmpty(httpSource.DirectUrl) == false)
                             {
-                                log.Info($"Downloading package directly from: '{httpSource.DirectUrl}'.");
+                                if(retry == 0)
+                                    log.Info($"Downloading package directly from: '{httpSource.DirectUrl}'.");
                                 var message = new HttpRequestMessage(HttpMethod.Get, new Uri(httpSource.DirectUrl));
 
                                 try
@@ -179,21 +187,8 @@ namespace OpenTap.Package
                                 if (response.IsSuccessStatusCode == false)
                                     throw new HttpRequestException($"The download request failed with {response.StatusCode}.");
 
-                                var buffer = new byte[4096];
-                                int read = 0;
-
-                                var task = Task.Run(() =>
-                                {
-                                    do
-                                    {
-                                        read = responseStream.Read(buffer, 0, 4096);
-                                        fileStream.Write(buffer, 0, read);
-                                        downloadedBytes += read;
-                                    } while (read > 0);
-
-                                    finished = true;
-                                }, cancellationToken);
-                                ConsoleUtils.ReportProgressTillEnd(task, "Downloading",
+                                var task = responseStream.CopyToAsync(fileStream, _DefaultCopyBufferSize, cancellationToken);
+                                await ConsoleUtils.ReportProgressTillEndAsync(task, "Downloading",
                                     () => fileStream.Position,
                                     () => totalSize,
                                     (header, pos, len) =>
@@ -201,24 +196,48 @@ namespace OpenTap.Package
                                         ConsoleUtils.printProgress(header, pos, len);
                                         (this as IPackageDownloadProgress).OnProgressUpdate?.Invoke(header, pos, len);
                                     });
+                                
                             }
 
-                            if (finished)
-                                break;
+                            break;
                         }
-                        catch (Exception)
+                        
+                        catch (Exception ex)
                         {
+                            if (ex is IOException)
+                            {
+                                await Task.Delay(TimeSpan.FromSeconds(1));
+                                continue;
+                            }
+                            if (ex is HttpRequestException)
+                            {
+                                // This occurs if the initial connection cannot be made.
+                                // usually during transitioning to/from VPN connections.
+                                await Task.Delay(TimeSpan.FromSeconds(1));
+                                continue;
+                            }
+                                
                             if (response != null)
                             {
+                                // The connection was broken while a http request was active.
+                                // If the error is transient or we got partial data we can try continuing.
+                                
                                 var code = response.StatusCode;
                                 bool isError = response.IsSuccessStatusCode == false;
                                 response.Dispose();
                                 response = null;
-                                if (isError && HttpUtils.TransientStatusCode(code))
+                                
+                                // PartialContent usually happens when 'ex' is IOException.
+                                
+                                if (code == HttpStatusCode.PartialContent || (isError && HttpUtils.TransientStatusCode(code)))
+                                {
+                                    await Task.Delay(TimeSpan.FromSeconds(1));
                                     continue;
+                                }
                             }
 
-                            log.Debug("Failed to download package.");
+                            if (cancellationToken.IsCancellationRequested == false)
+                                log.Error("Failed to download package.");   
                             throw;
                         }
                     }
@@ -525,9 +544,10 @@ namespace OpenTap.Package
                         File.Copy(tmpFile.Name, destination);
                     }
                 }
-                catch
+                catch(Exception)
                 {
-                    log.Warning("Download failed.");
+                    if(cancellationToken.IsCancellationRequested == false)
+                        log.Warning("Download failed.");
                     throw;
                 }
                 finally
