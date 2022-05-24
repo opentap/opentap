@@ -254,6 +254,11 @@ namespace OpenTap.Package
 
                 installer.PackagePaths.AddRange(downloadedPackageFiles);
             }
+            catch (OperationCanceledException e)
+            {
+                log.Info(e.Message);
+                return (int) ExitCodes.UserCancelled;
+            }
             catch (Exception e)
             {
                 log.Info("Could not download one or more packages.");
