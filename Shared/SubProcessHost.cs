@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
@@ -115,7 +116,17 @@ namespace OpenTap
         {
             var plan = new TestPlan();
             plan.ChildTestSteps.Add(step);
-            return Run(plan, elevate, token);
+            try
+            {
+                return Run(plan, elevate, token);
+            }
+            catch (Win32Exception ex)
+            {
+                // This happens when the UAC dialog is cancelled. It should be treated as an OperationCanceledException.
+                if (ex.Message.Contains("The operation was canceled by the user"))
+                    throw new OperationCanceledException(ex.Message);
+                throw;
+            }
         }
 
         public Verdict Run(TestPlan step, bool elevate, CancellationToken token)
