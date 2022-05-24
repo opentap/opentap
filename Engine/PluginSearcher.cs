@@ -428,6 +428,7 @@ namespace OpenTap
                     }
                     catch
                     {
+                        // fixes an issue in the plugin searcher if it tries to scan an assembly with native types in it.
                     }
                 }
             }
