@@ -9,11 +9,17 @@ namespace OpenTap
     /// </summary>
     public class ExpectedException : Exception
     {
+        /// <summary>
+        /// Creates a new expected exception with an optional message and verdict.
+        /// </summary>
         public ExpectedException(string message = "", Verdict verdict = Verdict.Error): base(message)
         {
             Verdict = verdict;
         }
 
+        /// <summary>
+        /// The verdict of this teststep.
+        /// </summary>
         public Verdict Verdict { get; set; }
 
         
