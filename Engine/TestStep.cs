@@ -925,6 +925,18 @@ namespace OpenTap
                 TestPlan.Log.Info(e.Message);
                 Step.Verdict = Verdict.Error;
             }
+            catch (ExpectedException e)
+            {
+                if (string.IsNullOrWhiteSpace(e.Message))
+                {
+                    TestPlan.Log.Info("Test step {0} stopped expectedly.", Step.Name);
+                }
+                else
+                {
+                    TestPlan.Log.Info("Test step {0} stopped expectedly with message {1}.", Step.Name, e.Message);
+                }
+                Step.Verdict = e.Verdict;
+            }
             catch (Exception e)
             {
                 
