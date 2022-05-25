@@ -36,6 +36,21 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        public class TestStepExpectedExceptionTest : TestStep
+        {
+            private Verdict _verdict;
+
+            public TestStepExpectedExceptionTest(Verdict verdict)
+            {
+                _verdict = verdict;
+            }
+
+            public override void Run()
+            {
+                throw new ExpectedException("", _verdict);
+            }
+        }
+
         public class TestStepPreExceptionTest : TestStep
         {
             public override void PrePlanRun()
@@ -177,6 +192,23 @@ namespace OpenTap.Engine.UnitTests
             {
                 EngineSettings.Current.AbortTestPlan = preAbortTestPlan;
             }
+        }
+
+        [TestCase(Verdict.Pass)]
+        [TestCase(Verdict.Aborted)]
+        [TestCase(Verdict.Inconclusive)]
+        [TestCase(Verdict.NotSet)]
+        [TestCase(Verdict.Error)]
+        [TestCase(Verdict.Fail)]
+        public void TestPlanStepExpectedExceptionTest(Verdict verdict)
+        {
+            TestPlan plan = new TestPlan();
+            TestStepExpectedExceptionTest step = new TestStepExpectedExceptionTest(verdict);
+
+            plan.Steps.Add(step);
+
+            TestPlanRun result = plan.Execute();
+            Assert.AreEqual(verdict, result.Verdict);
         }
 
         [Test]
