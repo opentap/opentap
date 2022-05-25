@@ -272,13 +272,9 @@ namespace OpenTap.Cli
                 string tapCommand = OperatingSystem.Current == OperatingSystem.Windows ? "tap.exe" : "tap";
 
                 log.Info("OpenTAP Command Line Interface ({0})", getVersion());
-                if (args.Length == 0)
+                if (args.Length != 0)
                 {
-                    log.Info($"\"{tapCommand}\" is not a recognized command.");
-                }
-                else
-                {
-                    log.Info($"\"{tapCommand} {string.Join(" ", args)}\" is not a recognized command.");
+                    log.Error($"\"{tapCommand} {string.Join(" ", args)}\" is not a recognized command.");
                 }
                 log.Info($"Usage: \"{tapCommand} <command> [<subcommand(s)>] [<args>]\"\n");
 
