@@ -302,6 +302,25 @@ jobs:
           $ErrorActionPreference = "Stop"
           dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000
 
+  TestEngine-Linux:
+    runs-on: ubuntu-20.04
+    needs: Build-Linux
+    strategy:
+      matrix:
+        retries: [ 0, 1 ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-x64-bin
+          path: bin/
+      - name: Test
+        run: |
+          chmod +x bin/tap
+          dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed"
+
   TestPackage:
     runs-on: windows-2022
     needs: Build-Win
@@ -324,6 +343,22 @@ jobs:
           #Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
           cd bin/Release
           dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
+
+  TestPackage-Linux:
+    runs-on: ubuntu-20.04
+    needs: Build-Linux
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-x64-bin
+          path: bin/
+      - name: Test
+        run: |
+          chmod +x bin/tap
+          dotnet vstest bin/OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
 
   TestWindowsPlan:
     runs-on: windows-2022
