@@ -96,8 +96,8 @@ namespace OpenTap
         internal static void PrintWaitingMessage(IEnumerable<IResource> resources)
         {
             // Save disconnected ressources to avoid race conditions.
-            var waitingRessources = resources.Where(r => !r.IsConnected).ToList();
-            if (waitingRessources.Count == 0)
+            var waitingRessources = resources.Where(r => !r.IsConnected).ToArray();
+            if (waitingRessources.Length == 0)
             {
                 return;
             }
