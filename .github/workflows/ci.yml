@@ -454,7 +454,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET }}
       - name: Install Sign
         working-directory: bin/Release-x64
-        run: .\tap.exe package install -f ../../sign.TapPackage        
+        run: .\tap.exe package install -f -v ../../sign.TapPackage        
       - name: Write Sign Cert
         env: 
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
@@ -468,7 +468,7 @@ jobs:
           Sign: ${{github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')}}          
           Platform: "Windows"
           Architecture:  "${{ matrix.Architecture }}"
-        run: .\tap.exe package create -v -c ../../package.xml -o ../../OpenTAP.${{steps.gitversion.outputs.GitVersion}}.${{ matrix.Architecture }}.Windows.TapPackage          
+        run: ..\Release-x64\tap.exe package create -v -c ../../package.xml -o ../../OpenTAP.${{steps.gitversion.outputs.GitVersion}}.${{ matrix.Architecture }}.Windows.TapPackage          
       - uses: actions/upload-artifact@v2
         with:
           name: win-${{ matrix.Architecture }}-package
