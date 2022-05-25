@@ -13,12 +13,6 @@ using System.Threading;
 
 namespace OpenTap.Plugins.BasicSteps
 {
-    public class EnvironmentVariable
-    {
-        public string Name { get; set; }
-        public string Value { get; set; }
-    }
-
     [Display("Run Program", Group: "Basic Steps", Description: "Runs a program, and optionally applies regular expressions (regex) to the output.")]
     public class ProcessStep : RegexOutputStep
     {
@@ -39,7 +33,7 @@ namespace OpenTap.Plugins.BasicSteps
         public string WorkingDirectory { get; set; } = "";
 
         [Display("Environment Variables", Order: -2.25, Description: "The enironment variables passed to the program.")]
-        public VirtualCollection<EnvironmentVariable> EnvironmentVariables { get; set; } = new VirtualCollection<EnvironmentVariable>();
+        public VirtualCollection<KeyValuePair<string, string>> EnvironmentVariables { get; set; } = new VirtualCollection<KeyValuePair<string, string>>();
 
         [Display("Wait For Process to End", Order: -2.2,
             Description: "Wait for the process to terminate before continuing.")]
@@ -94,11 +88,10 @@ namespace OpenTap.Plugins.BasicSteps
             HashSet<string> seenVariables = new HashSet<string>();
             foreach (var variable in EnvironmentVariables)
             {
-                if (seenVariables.Contains(variable.Name))
+                if (!seenVariables.Add(variable.Key))
                 {
                     return false;
                 }
-                seenVariables.Add(variable.Name);
             }
             return true;
         }
@@ -132,11 +125,6 @@ namespace OpenTap.Plugins.BasicSteps
             Int32 timeout = Timeout <= 0 ? Int32.MaxValue : Timeout;
             prepend = string.IsNullOrEmpty(LogHeader) ? "" : LogHeader + " ";
 
-            foreach (var environmentVariable in EnvironmentVariables)
-            {
-                Environment.SetEnvironmentVariable(environmentVariable.Name, environmentVariable.Value);
-            }
-
             var process = new Process
             {
                 StartInfo =
@@ -151,6 +139,10 @@ namespace OpenTap.Plugins.BasicSteps
                     CreateNoWindow = true
                 }
             };
+            foreach (var environmentVariable in EnvironmentVariables)
+            {
+                process.StartInfo.Environment.Add(environmentVariable.Key, environmentVariable.Value);
+            }
             var abortRegistration = TapThread.Current.AbortToken.Register(() =>
             {
                 Log.Debug("Ending process '{0}'.", Application);
