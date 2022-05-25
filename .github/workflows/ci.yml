@@ -16,7 +16,7 @@ env:
 
 jobs:
   GetVersion:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     # Map a step output to a job output
     outputs:
       ShortVersion: ${{ steps.asmVer.outputs.ver }}
@@ -51,7 +51,7 @@ jobs:
         run: echo ::set-output name=ver::$(tap sdk gitversion)
 
   CheckSecrets:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     environment: sign
     outputs:
       gitlab_registry_token_is_set: ${{ steps.check_GITLAB_REGISTRY_TOKEN.outputs.is_set }}
@@ -88,7 +88,7 @@ jobs:
   Build-DevGuide:
     needs: CheckSecrets
     if: needs.CheckSecrets.outputs.gitlab_registry_token_is_set == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     container:
       image: registry.gitlab.com/opentap/buildrunners/documentationgeneration:latest
       credentials:
@@ -109,7 +109,7 @@ jobs:
   Build-ApiDoc:
     needs: CheckSecrets
     if: needs.CheckSecrets.outputs.gitlab_registry_token_is_set == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     container:
       image: registry.gitlab.com/opentap/buildrunners/doxygen:alpine
       credentials:
@@ -143,7 +143,7 @@ jobs:
           path: API
 
   Build-Pages:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs:
       - Build-ApiDoc
     steps:
@@ -181,7 +181,7 @@ jobs:
           external_repository: opentap/opentap.github.io
 
   Build-Linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -742,7 +742,7 @@ jobs:
           path: OpenTAP.tar
           
   Installer-Windows:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     environment: sign
     needs:
       - GetVersion
@@ -901,7 +901,7 @@ jobs:
   Publish-TapPackages:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: packages.opentap.io
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     needs:
       - Package-Win
       - Package-Linux
