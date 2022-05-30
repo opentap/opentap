@@ -293,5 +293,47 @@ namespace OpenTap.Image.Tests
             identifier.Cache();
             Assert.IsTrue(identifier.Cached);
         }
+        
+        public class CustomPackageActionBomb : ICustomPackageAction
+        {
+            public CustomPackageActionBomb()
+            {
+                if (BombArmed)
+                    throw new Exception("Boom");
+            }
+            public static bool BombArmed = false;
+            public int Order()
+            {
+                return 0;
+            }
+
+            public PackageActionStage ActionStage => PackageActionStage.Install;
+            public bool Execute(PackageDef package, CustomPackageActionArgs customActionArgs)
+            {
+                return true;
+            }
+        }
+
+        [Test]
+        public void TestThrowingCustomPackageAction()
+        {
+            try
+            {
+                CustomPackageActionBomb.BombArmed = true;
+                
+                using var tempInstall = new TempInstall();
+
+                var imageSpecifier = MockRepository.CreateSpecifier();
+                imageSpecifier.Packages.Add(new PackageSpecifier("REST-API", new VersionSpecifier(2, 6, 3, null, null, VersionMatchBehavior.Exact)));
+                var identifier = imageSpecifier.Resolve(CancellationToken.None);
+
+                Assert.DoesNotThrow(() => identifier.Deploy(tempInstall.Directory, CancellationToken.None));
+            }
+            finally
+            {
+                CustomPackageActionBomb.BombArmed = false;
+            }
+            
+        }
     }
 }
