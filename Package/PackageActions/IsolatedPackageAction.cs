@@ -27,9 +27,12 @@ namespace OpenTap.Package
         [CommandLineArgument("force", Description = "Try to run in spite of errors.", ShortName = "f")]
         public bool Force { get; set; }
         
+        /// <summary>
+        /// Avoid starting an isolated process. This can cause installations to fail if the DLLs that must be overwritten are loaded.
+        /// </summary>
         [Browsable(false)]
         [CommandLineArgument("no-isolation", Description = "Avoid starting an isolated process.")]
-        internal bool NoIsolation { get; set; }
+        public bool NoIsolation { get; set; }
         
 
         /// <summary>
