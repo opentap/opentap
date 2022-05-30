@@ -4,7 +4,6 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -143,14 +142,22 @@ namespace OpenTap.Package
                 // The total remaining progress - 100.0 if not using the --out parameter - ((nPackages - 1) / nPackages) otherwise
                 var remainingPercentage = 100.0f - progressPercentage;
 
-                // Download the remaining packages
-                PackageActionHelpers.DownloadPackages(destinationDir, PackagesToDownload,
-                    ignoreCache: NoCache,
-                    progressUpdate: (partialPercent, message) =>
-                    {
-                        var partialProgressPercentage = partialPercent * (remainingPercentage / 100);
-                        RaiseProgressUpdate((int) (progressPercentage + partialProgressPercentage), message);
-                    });
+                try
+                {
+                    // Download the remaining packages
+                    PackageActionHelpers.DownloadPackages(destinationDir, PackagesToDownload,
+                        ignoreCache: NoCache,
+                        progressUpdate: (partialPercent, message) =>
+                        {
+                            var partialProgressPercentage = partialPercent * (remainingPercentage / 100);
+                            RaiseProgressUpdate((int)(progressPercentage + partialProgressPercentage), message);
+                        });
+                }
+                catch(OperationCanceledException)
+                {
+                    log.Debug("Download canceled.");
+                    return (int)ExitCodes.UserCancelled;
+                }
             }
             else
                 log.Info("Dry run completed. Specified packages are available.");

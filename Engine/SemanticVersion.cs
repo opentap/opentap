@@ -25,6 +25,7 @@ namespace OpenTap
     [DebuggerDisplay("{Major}.{Minor}.{Patch}-{PreRelease}+{BuildMetadata}")]
     public class SemanticVersion : IComparable
     {
+        
         /// <summary>
         /// Major version. Incrementing this number signifies a backward incompatible change in the API.
         /// </summary>

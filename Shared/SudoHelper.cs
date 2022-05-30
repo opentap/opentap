@@ -1,7 +1,6 @@
 using System;
-using System.ComponentModel;
 using System.Diagnostics;
-using System.Linq;
+using System.Security;
 
 namespace OpenTap
 {
@@ -10,7 +9,7 @@ namespace OpenTap
     {
         [Layout(LayoutMode.FloatBottom)]
         [Display("Sudo Password")]
-        [Submit] public string Response { get; set; } = "";
+        [Submit] public SecureString Response { get; set; } = new SecureString();
     }
     
     /// <summary>
@@ -34,8 +33,16 @@ namespace OpenTap
         public static bool Authenticate()
         {
             var passwordQuestion = new PasswordPrompt();
-            UserInput.Request(passwordQuestion, true);
-            if (string.IsNullOrWhiteSpace(passwordQuestion.Response))
+            try
+            {
+                UserInput.Request(passwordQuestion, TimeSpan.FromMinutes(2), true);
+            }
+            catch(TimeoutException)
+            {
+                throw new TimeoutException("Request timed while waiting for password input.");
+            }
+
+            if (string.IsNullOrWhiteSpace(passwordQuestion.Response.ConvertToUnsecureString()))
                 return false;
             var p = Process.Start(new ProcessStartInfo("sudo")
             {
@@ -45,7 +52,7 @@ namespace OpenTap
                 RedirectStandardError = true,
             });
             if (p == null) throw new Exception($"Sudo is not installed.");
-            p.StandardInput.WriteLine(passwordQuestion.Response);
+            p.StandardInput.WriteLine(passwordQuestion.Response.ConvertToUnsecureString());
             p.WaitForExit(100);
             if (p.HasExited == false) p.Kill();
             return p.HasExited && p.ExitCode == 0;

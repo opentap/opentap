@@ -577,6 +577,7 @@ namespace OpenTap
                     Log.CreateSource("TypeData").Debug(ex);
                 }
 
+                searchers.Sort(PluginOrderAttribute.Comparer);
                 var derivedTypes = new List<ITypeData>();
                 foreach (var searcher in searchers)
                 {
@@ -603,6 +604,45 @@ namespace OpenTap
             }
         }
 
+        static readonly ConditionalWeakTable<ITypeData, ITypeDataSource> typeDataSourceLookup =
+            new ConditionalWeakTable<ITypeData, ITypeDataSource>();
+        /// <summary>
+        /// Gets the type data source for an ITypeData. For most types this will return the AssemblyData, but for types for which
+        /// an ITypeDataSourceProvider exists it will return that instead. The base AssemblyData will often be associated to one
+        /// of the typedatas base classes.
+        /// </summary>
+        /// <param name="typeData"></param>
+        /// <returns></returns>
+        public static ITypeDataSource GetTypeDataSource(ITypeData typeData)
+        {
+            if (typeDataSourceLookup.TryGetValue(typeData, out var src))
+                return src;
+            var typeData0 = typeData;
+            lock (lockSearchers)
+            {
+                // if 'lock' actually caused a lock and it was that same typeData, we want to use it instead
+                // of calculating it again.
+                if (typeDataSourceLookup.TryGetValue(typeData, out var src2))
+                    return src2;
+                GetDerivedTypes<ITypeDataSearcher>(); // update cache.
+                while (typeData != null)
+                {
+                    foreach (var searcher in searchers)
+                    {
+                        if (searcher is ITypeDataSourceProvider sp)
+                        {
+                            var source = sp.GetSource(typeData);
+                            if (source != null)
+                                return typeDataSourceLookup.GetValue(typeData0, td => source);
+                        }
+                    }
+                    typeData = typeData.BaseType;
+                }
+            }
+
+            return typeDataSourceLookup.GetValue(typeData0, td => null);
+        }
+        
         static void OnSearcherCacheInvalidated(TypeDataCacheInvalidatedEventArgs args)
         {
             lastCount = 0;
@@ -715,10 +755,10 @@ namespace OpenTap
 
         class TypeDataCache : IDisposable
         {
-            static ThreadField<ConcurrentDictionary<object, ITypeData>> cache =
-                new ThreadField<ConcurrentDictionary<object, ITypeData>>();
+            static ThreadField<IDictionary<object, ITypeData>> cache =
+                new ThreadField<IDictionary<object, ITypeData>>();
 
-            public static ConcurrentDictionary<object, ITypeData> Current => cache.Value;
+            public static IDictionary<object, ITypeData> Current => cache.Value;
 
             ICacheOptimizer[] caches;
 
@@ -731,8 +771,7 @@ namespace OpenTap
                     type.LoadCache();
                 cache.Value = new ConcurrentDictionary<object, ITypeData>();
             }
-
-
+            
             public void Dispose()
             {
                 cache.Value = null;

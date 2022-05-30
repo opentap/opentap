@@ -710,7 +710,7 @@ namespace OpenTap.Engine.UnitTests
                     deserializedPlan.ChildTestSteps.First() is UnbalancedListStep s && s.ReadOnlyList.Count == 2,
                     "Expected list to contain 2 element.");
                 
-                Assert.AreEqual(trace.WarningMessage.Count, 1);
+                Assert.AreEqual(1, trace.WarningMessage.Count);
                 CollectionAssert.Contains(trace.WarningMessage, "Deserialized unbalanced list.");
             }
         }

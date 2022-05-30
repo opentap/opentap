@@ -356,9 +356,12 @@ namespace OpenTap.Package
                         }
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    if (ex is OperationCanceledException)
+                        throw;
                     log.Error("Failed to download OpenTAP package.");
+                    log.Debug(ex);
                     throw;
                 }
 

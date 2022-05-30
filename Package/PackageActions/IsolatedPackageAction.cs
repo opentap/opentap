@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -25,6 +26,14 @@ namespace OpenTap.Package
         /// </summary>
         [CommandLineArgument("force", Description = "Try to run in spite of errors.", ShortName = "f")]
         public bool Force { get; set; }
+        
+        /// <summary>
+        /// Avoid starting an isolated process. This can cause installations to fail if the DLLs that must be overwritten are loaded.
+        /// </summary>
+        [Browsable(false)]
+        [CommandLineArgument("no-isolation", Description = "Avoid starting an isolated process.")]
+        public bool NoIsolation { get; set; }
+        
 
         /// <summary>
         /// Executes this the action. Derived types should override LockedExecute instead of this.
@@ -46,7 +55,7 @@ namespace OpenTap.Package
                 FileSystemHelper.EnsureDirectory(Target);
             }
 
-            if (ExecutorClient.IsExecutorMode) // do we support running isolated?
+            if (ExecutorClient.IsExecutorMode && NoIsolation == false) // do we support running isolated?
             {
                 if (!ExecutorClient.IsRunningIsolated) // are we already running isolated?
                 {
