@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenTap.Package.PackageInstallHelpers;
 using Tap.Shared;
 
 namespace OpenTap.Package
@@ -131,7 +132,7 @@ namespace OpenTap.Package
                     if (string.IsNullOrEmpty(path) == false)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        fileCopy(path, destination);
+                        FileCopy(path, destination);
                         finished = true;
                     }
 
@@ -144,7 +145,7 @@ namespace OpenTap.Package
                 else
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    fileCopy(packageFilePath, destination);
+                    FileCopy(packageFilePath, destination);
                     finished = true;
                 }
             }
@@ -164,27 +165,39 @@ namespace OpenTap.Package
 
         // Copying files can be very slow if it is from a network location.
         // this file-copy action copies and notifies of progress.
-        void fileCopy(string source, string destination)
+        void FileCopy(string source, string destination)
         {
             var tmpDestination = destination + ".part-" + Guid.NewGuid();
-            
-            using(var readStream = File.OpenRead(source))
-            using (var writeStream = File.OpenWrite(tmpDestination))
+            using (FileLock.Create(destination + ".lock"))
             {
-                var task = Task.Run(() => readStream.CopyTo(writeStream));
-                ConsoleUtils.ReportProgressTillEnd(task, "Downloading",
-                    () => writeStream.Position,
-                    () => readStream.Length,
-                    (header, pos, len) =>
-                    {
-                        ConsoleUtils.printProgress(header, pos, len);
-                        (this as IPackageDownloadProgress).OnProgressUpdate?.Invoke(header, pos, len);
-                    });
-            }
+                if (File.Exists(destination) && PathUtils.CompareFiles(source, destination))
+                    return;
 
-            File.Delete(destination);
-            // on most operative systems the same folder would be on the same disk, so this is a no-op.
-            File.Move(tmpDestination, destination);
+                using (var readStream = File.OpenRead(source))
+                using (var writeStream = File.OpenWrite(tmpDestination))
+                {
+                    var task = Task.Run(() => readStream.CopyTo(writeStream));
+                    ConsoleUtils.ReportProgressTillEnd(task, "Downloading", 
+                        () => writeStream.Position,
+                        () => readStream.Length,
+                        (header, pos, len) =>
+                        {
+                            ConsoleUtils.printProgress(header, pos, len);
+                            (this as IPackageDownloadProgress).OnProgressUpdate?.Invoke(header, pos, len);
+                        });
+                }
+
+                File.Delete(destination);
+                // on most operative systems the same folder would be on the same disk, so this is a no-op.
+                try
+                {
+                    File.Move(tmpDestination, destination);
+                }
+                catch
+                {
+
+                }
+            }
         }
         public string[] GetPackageNames(CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {

@@ -76,6 +76,11 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
             if (false == System.IO.File.Exists(File))
                 throw new FileNotFoundException("File does not exist", File);
             var semver = GetVersion(File);
+            if (semver == null)
+            {
+                Log.Error("Unable to read version info.");
+            }
+
             if (string.IsNullOrWhiteSpace(MatchVersion) == false)
             {
                 if (Equals(semver.ToString(), MatchVersion))
@@ -94,16 +99,18 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
         {
             var searcher = new PluginSearcher();
             searcher.Search(new[] {path});
-
+            Log.Debug("Searching {0}", path);
             var asm = searcher.Assemblies.First();
             using (FileStream file = new FileStream(asm.Location, FileMode.Open, FileAccess.Read))
             using (PEReader header = new PEReader(file, PEStreamOptions.LeaveOpen))
             {
                 var CurrentReader = header.GetMetadataReader();
-
+                Log.Debug("Opened file");
                 foreach (CustomAttributeHandle attrHandle in CurrentReader.GetAssemblyDefinition().GetCustomAttributes())
                 {
+                    
                     CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
+                    Log.Info("attribute: {0}",attr.Constructor.Kind);
                     if (attr.Constructor.Kind == HandleKind.MemberReference)
                     {
                         var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle) attr.Constructor);
@@ -118,6 +125,7 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
                             var r = CurrentReader.GetTypeReference((TypeReferenceHandle)ctor.Parent);
                             attributeFullName = string.Format("{0}.{1}", CurrentReader.GetString(r.Namespace), CurrentReader.GetString(r.Name));
                         }
+                        Log.Info("Found attribute: {0}", attributeFullName);
 
                         if (attributeFullName == typeof(System.Reflection.AssemblyInformationalVersionAttribute).FullName)
                         {
@@ -128,7 +136,7 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
                     }
                 }
             }
-
+            Log.Warning("No Version found");
             return null;
         }
 

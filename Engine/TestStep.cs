@@ -154,11 +154,9 @@ namespace OpenTap
         {
             // sometimes Assembly does not have a well-formatted semantic version.
             // ins this case we just use Version.ToString(3).
-            var asm = TypeData.GetTypeData(this)?.AsTypeData()?.Assembly;
+            var asm = TypeData.GetTypeDataSource(TypeData.GetTypeData(this));
             if (asm == null) return null;
-            if (asm.SemanticVersion != null) return asm.SemanticVersion.ToString();
-            if (asm.Version != null) return asm.Version.ToString(3);
-            return null;
+            return asm.Version;
         }
         
         /// <summary>
@@ -174,9 +172,12 @@ namespace OpenTap
                 var installedVersionStr = CalcVersion();
                 if (installedVersionStr == null)
                 {
-                    Log.Warning("Could not get assembly version");
+                    Log.Warning("Could not get assembly version.");
                     return;
                 }
+
+                if (installedVersionStr == value)
+                    return;
                 
                 if(SemanticVersion.TryParse(installedVersionStr, out var installedVersion) && SemanticVersion.TryParse(value, out SemanticVersion createdVersion))
                 {
@@ -844,6 +845,10 @@ namespace OpenTap
                 step.Verdict = newVerdict;
         }
 
+        /// <summary> This is the currently executing test step or null, used to detect deadlock when a step is waiting for its parent. </summary>
+        [ThreadStatic]
+        internal static ITestStep currentlyExecutingTestStep = null;
+
         internal static TestStepRun DoRun(this ITestStep Step, TestPlanRun planRun, TestRun parentRun, IEnumerable<ResultParameter> attachedParameters = null)
         {
             {
@@ -868,6 +873,8 @@ namespace OpenTap
                 TestStepPath = Step.GetStepPath(),
             };
 
+            var previouslyExecutingTestStep = currentlyExecutingTestStep;
+            currentlyExecutingTestStep = Step;
             var stepPath = stepRun.TestStepPath;
             //Raise an event prior to starting the actual run of the TestStep. 
             Step.OfferBreak(stepRun, true);
@@ -905,6 +912,7 @@ namespace OpenTap
                     finally
                     {
                         planRun.AddTestStepStateUpdate(stepRun.TestStepId, stepRun, StepState.Deferred);
+                        currentlyExecutingTestStep = previouslyExecutingTestStep;
                     }
                 }
                 finally
@@ -1287,6 +1295,9 @@ namespace OpenTap
         }
     }
 
+    /// <summary>
+    /// Marks a property as not a setting. This is a performance optimization for when finding resources throughout the test plan.
+    /// </summary>
     internal class SettingsIgnoreAttribute : Attribute
     { }
 }
