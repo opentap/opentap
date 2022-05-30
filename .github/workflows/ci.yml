@@ -677,7 +677,7 @@ jobs:
           Move-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
           Move-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll
           echo "Install opentap"    
-          ./bin/Release/tap package install ./OpenTap.x64.zip -t ./nuget/build/payload -f
+          ./bin/Release/tap package install ./OpenTap.x64.zip -t ./nuget/build/payload -f -v --no-isolation
           # package.xml, tap.dll, and tap.runtimeconfig.json of an installation should always come from 
           # one of the Runtime directories. Delete it from the payload directory.
           Remove-Item ./nuget/build/payload/Packages/OpenTAP/package.xml
