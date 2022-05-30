@@ -2007,12 +2007,26 @@ namespace OpenTap
             }
         }
 
-        class ResourceAnnotation : IAvailableValuesAnnotation, IStringValueAnnotation, ICopyStringValueAnnotation
+        
+        class ResourceAnnotation : IAvailableValuesAnnotation, IStringValueAnnotation, ICopyStringValueAnnotation, IErrorAnnotation
         {
             readonly Type baseType;
             readonly AnnotationCollection a;
-            
-            public IEnumerable AvailableValues => ComponentSettingsList.GetContainer(baseType).Cast<object>().Where(x => x.GetType().DescendsTo(baseType));
+
+            public IEnumerable AvailableValues 
+            {
+                get
+                {
+                    var x = ComponentSettingsList.GetContainer(baseType);
+                    var cv = a.Get<IObjectValueAnnotation>()?.Value as IResource;
+                    var result = x.Cast<object>().Where(y => y.GetType().DescendsTo(baseType)).ToList();
+                    // if the selected value is not in the list show it anyway.
+                    if (cv != null && result.Contains(cv) == false)
+                        result.Add(cv);
+
+                    return result;
+                }
+            }
             
             string IStringReadOnlyValueAnnotation.Value => (a.Get<IObjectValueAnnotation>()?.Value as IResource)?.ToString();
 
@@ -2037,6 +2051,19 @@ namespace OpenTap
             {
                 baseType = lowerstType;
                 this.a = a;
+            }
+
+            static readonly string[] errorResponse = {"The selected value has been deleted."};
+            public IEnumerable<string> Errors
+            {
+                get
+                {
+                    var list = ComponentSettingsList.GetContainer(baseType) as IComponentSettingsList;
+                    // if the selected value has been deleted. This can occur with resources referencing other resources.
+                    if (a.Get<IObjectValueAnnotation>()?.Value is IResource cv && list?.GetRemovedAliveResources().Contains(cv) == true) 
+                        return errorResponse;
+                    return Array.Empty<string>();   
+                }
             }
         }
 
