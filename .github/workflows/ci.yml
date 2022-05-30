@@ -454,7 +454,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET }}
       - name: Install Sign
         working-directory: bin/Release-x64
-        run: .\tap.exe package install -f -v ../../sign.TapPackage        
+        run: .\tap.exe package install -f -v --no-isolation ../../sign.TapPackage        
       - name: Write Sign Cert
         env: 
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
@@ -468,7 +468,7 @@ jobs:
           Sign: ${{github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')}}          
           Platform: "Windows"
           Architecture:  "${{ matrix.Architecture }}"
-        run: ..\Release-x64\tap.exe package create -v -c ../../package.xml -o ../../OpenTAP.${{steps.gitversion.outputs.GitVersion}}.${{ matrix.Architecture }}.Windows.TapPackage          
+        run: ..\Release-x64\tap.exe package create -v -c ../../package.xml -o ../../OpenTAP.${{ needs.GetVersion.outputs.GitVersion }}.${{ matrix.Architecture }}.Windows.TapPackage          
       - uses: actions/upload-artifact@v2
         with:
           name: win-${{ matrix.Architecture }}-package
@@ -530,7 +530,7 @@ jobs:
           echo "${{ secrets.SIGN_SERVER_CERT }}" > $env:TAP_SIGN_CERT
           cp .\runtimes\win-x64\native\git2-b7bad55.dll .
           ..\Release\tap package create -v -c ../../package.xml -o Packages/OpenTAP.Linux.TapPackage
-          cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.${{needs.GetVersion.outputs.GitVersion}}.Linux.TapPackage
+          cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.${{ needs.GetVersion.outputs.GitVersion }}.Linux.TapPackage
         env: 
           TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
           TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
