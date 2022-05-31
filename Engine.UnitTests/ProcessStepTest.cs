@@ -59,7 +59,7 @@ namespace OpenTap.UnitTests
             foreach (var variable in variables)
             {
                 string[] strs = variable.Split('=');
-                processStep.EnvironmentVariables.Add(new KeyValuePair<string, string>(strs[0], strs[1]));
+                processStep.EnvironmentVariables.Add(new ProcessStep.EnvironmentVariable { Name = strs[0], Value = strs[1] });
             }
             plan.Steps.Add(processStep);
 

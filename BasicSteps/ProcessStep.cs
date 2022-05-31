@@ -16,6 +16,19 @@ namespace OpenTap.Plugins.BasicSteps
     [Display("Run Program", Group: "Basic Steps", Description: "Runs a program, and optionally applies regular expressions (regex) to the output.")]
     public class ProcessStep : RegexOutputStep
     {
+        public class EnvironmentVariable : ValidatingObject
+        {
+            [Display("Name", "The name of the environment variable.")]
+            public string Name { get; set; }
+            [Display("Value", "The value of the environment variable.")]
+            public string Value { get; set; }
+
+            public EnvironmentVariable()
+            {
+                Rules.Add(() => !string.IsNullOrEmpty(Name), "Name must not be empty.", nameof(Name));
+            }
+        }
+
         public override bool GeneratesOutput => WaitForEnd; 
 
         [Display("Application", Order: -2.5,
@@ -32,8 +45,8 @@ namespace OpenTap.Plugins.BasicSteps
         [DirectoryPath]
         public string WorkingDirectory { get; set; } = "";
 
-        [Display("Environment Variables", Order: -2.25, Description: "The enironment variables passed to the program.")]
-        public VirtualCollection<KeyValuePair<string, string>> EnvironmentVariables { get; set; } = new VirtualCollection<KeyValuePair<string, string>>();
+        [Display("Environment Variables", Order: -2.25, Description: "The environment variables passed to the program.")]
+        public List<EnvironmentVariable> EnvironmentVariables { get; set; } = new List<EnvironmentVariable>();
 
         [Display("Wait For Process to End", Order: -2.2,
             Description: "Wait for the process to terminate before continuing.")]
@@ -80,7 +93,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         public ProcessStep()
         {
-            Rules.Add(HasNoDuplicateEnvironmentVariables, "Cannot have multiple environment variables with the same name.", nameof(EnvironmentVariables));
+            Rules.Add(HasNoDuplicateEnvironmentVariables, "Environment variable names must be unique.", nameof(EnvironmentVariables));
         }
 
         private bool HasNoDuplicateEnvironmentVariables()
@@ -88,7 +101,7 @@ namespace OpenTap.Plugins.BasicSteps
             HashSet<string> seenVariables = new HashSet<string>();
             foreach (var variable in EnvironmentVariables)
             {
-                if (!seenVariables.Add(variable.Key))
+                if (!seenVariables.Add(variable.Name))
                 {
                     return false;
                 }
@@ -141,7 +154,7 @@ namespace OpenTap.Plugins.BasicSteps
             };
             foreach (var environmentVariable in EnvironmentVariables)
             {
-                process.StartInfo.Environment.Add(environmentVariable.Key, environmentVariable.Value);
+                process.StartInfo.Environment.Add(environmentVariable.Name, environmentVariable.Value);
             }
             var abortRegistration = TapThread.Current.AbortToken.Register(() =>
             {
