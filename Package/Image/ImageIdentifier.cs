@@ -183,8 +183,11 @@ namespace OpenTap.Package
             List<string> paths = new List<string>();
             foreach (var package in packagesInOrder)
             {
-                if (CachedLocation(package) is null)
+                if (CachedLocation(package) is string cachedLocation)
+                    log.Info($"Package {package.Name} exists in cache: {cachedLocation}");
+                else
                     Download(package);
+                    
                 paths.Add(CachedLocation(package));
             }
             installer.PackagePaths.Clear();
@@ -243,8 +246,11 @@ namespace OpenTap.Package
 
         private static void Download(PackageDef package)
         {
-            if (CachedLocation(package) != null)
+            if (CachedLocation(package) is string cachedLocation)
+            {
+                log.Info($"Package {package.Name} exists in cache: {cachedLocation}");
                 return;
+            }
 
             string filename = PackageCacheHelper.GetCacheFilePath(package);
             Directory.CreateDirectory(Path.GetDirectoryName(filename));
@@ -267,7 +273,6 @@ namespace OpenTap.Package
 
             if (File.Exists(filename))
             {
-                log.Info($"Package {package.Name} exists in cache: {filename}");
                 return filename;
             }
             return null;
