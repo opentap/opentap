@@ -8,10 +8,18 @@
     <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
     <AssemblyName>OpenTap.Plugins.PluginDevelopment</AssemblyName>
     <RootNamespace>OpenTap.Plugins.PluginDevelopment</RootNamespace>
+    <Configurations>Release;DebugEditorCE;DebugTUI;DebugEditor</Configurations>
+    <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(IsWindows)'=='True'">
+  <ItemGroup Condition="'$(Configuration)'=='DebugEditorCE'">
 	<AdditionalOpenTapPackage Include="Developer's System CE" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(Configuration)'=='DebugEditor'">
+    <AdditionalOpenTapPackage Include="Developer's System" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(Configuration)'=='DebugTUI'">
+    <AdditionalOpenTapPackage Include="TUI" Version="beta" />
   </ItemGroup>
 
   <ItemGroup>
@@ -23,5 +31,17 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <!-- Copy the launch json based on the currently selected configuration.
+  this should only be done for these examples -->
+  <Target Name="CleanLaunchSettings" AfterTargets="Clean">
+    <Message Importance="high" Text="Deleting launchSettings.json..." />
+    <Delete Files="Properties/launchSettings.json" />
+  </Target>
+
+  <Target Name="CopyLaunchSettings" AfterTargets="Build" Inputs="Properties/launchSettings.$(Configuration).json" Outputs="Properties/launchSettings.json">
+    <Message Importance="high" Text="Copying launchSettings.$(Configuration).json..." />
+    <Copy SourceFiles="Properties/launchSettings.$(Configuration).json" DestinationFiles="Properties/launchSettings.json" />
+  </Target>
 
 </Project>

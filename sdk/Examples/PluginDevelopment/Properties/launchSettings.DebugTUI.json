@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Editor": {
+      "commandName": "Executable",
+      "executablePath": "tap.dll",
+      "commandLineArgs": "tui"
+    }
+  }
+}

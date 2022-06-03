@@ -7,11 +7,9 @@
     <!-- If your plugin should be cross platform but does not build in release mode, please verify that all API's you used are available. You might need references or nuget packages for API's that are available in NET framework, but not in NetStandard -->
     <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
     <AssemblyName>OpenTap.Plugins.ExamplePlugin</AssemblyName>
+    <Configurations>Release;DebugEditorCE;DebugTUI;DebugEditor</Configurations>
+    <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
-
-  <ItemGroup Condition="'$(IsWindows)'=='True'">
-	  <AdditionalOpenTapPackage Include="Developer's System CE" />
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="OpenTAP" Version="$(OpenTapVersion)" />
@@ -22,5 +20,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-
+  <Target Name="ErrorLaunchSettings" BeforeTargets="Build">
+    <Error Text="This project cannot bebuild on windows" Condition="'$(IsWindows)'!='True'"" />
+  </Target>
 </Project>
