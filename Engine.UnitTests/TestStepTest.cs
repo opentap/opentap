@@ -10,6 +10,7 @@ using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using OpenTap.EngineUnitTestUtils;
+using OpenTap.UnitTests;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -229,6 +230,11 @@ namespace OpenTap.Engine.UnitTests
     public class DummyInstrument : Instrument
     {
 
+    }
+
+    public class DummyReferencingInstrument : Instrument
+    {
+        public Instrument Other { get; set; }
     }
 
     [DisplayName("Test\\UnitTest resultListener2")]
@@ -683,6 +689,33 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(Verdict.Pass, run2.Verdict);
         }
         
+        [Test]
+        public void RefInstrumentDeletedTest()
+        {
+            using (Session.Create())
+            {
+                InstrumentSettings.Current.Clear();
+                var inst1 = new DummyInstrument();
+                var inst2 = new DummyReferencingInstrument
+                {
+                    Other = inst1
+                };
+                InstrumentSettings.Current.AddRange(new Instrument[]{inst1, inst2});
+
+                InstrumentSettings.Current.Remove(inst1);
+
+                var plan = new TestPlan();
+                plan.ChildTestSteps.Add(new AnnotationTest.InstrumentStep {Instrument = inst2});
+                var r = plan.Execute();
+                Assert.IsTrue(r.FailedToStart);
+                
+                var xml = new TapSerializer().SerializeToString(InstrumentSettings.Current);
+                var inst3 = (new TapSerializer().DeserializeFromString(xml) as InstrumentSettings)[0] as DummyReferencingInstrument;
+                Assert.IsNull(inst3.Other);
+            }
+        }
+
+        
     }
 
     public class FormattedNameTests
@@ -766,6 +799,7 @@ namespace OpenTap.Engine.UnitTests
                 AssertFormatName("{Input String Array}", "tom, dick");
                 AssertFormatName("{Input String List}", "One, Two, Three");
             }
+            
 
             private void SetOutputProperty(AnnotationCollection inputAnnotation)
             {
