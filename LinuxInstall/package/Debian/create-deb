@@ -10,21 +10,21 @@ pushd "$GIT_ROOT/LinuxInstall/package/Debian"
 rm -rf ./OpenTAP
 mkdir -p OpenTAP/DEBIAN
 mkdir -p OpenTAP/usr/bin
-mkdir -p OpenTAP/usr/share/tap
-mkdir -p OpenTAP/usr/share/doc/tap
+mkdir -p OpenTAP/usr/share/OpenTAP
+mkdir -p OpenTAP/usr/share/doc/OpenTAP
 mkdir -p OpenTAP/var/log/SessionLogs
 
-cp "$GIT_ROOT/LICENSE.txt" OpenTAP/usr/share/doc/tap/copyright
+cp "$GIT_ROOT/LICENSE.txt" OpenTAP/usr/share/doc/OpenTAP/copyright
 
 echo "Extracting OpenTAP"
-unzip -q ../OpenTAP.TapPackage -d OpenTAP/usr/share/tap
+unzip -q ../OpenTAP.TapPackage -d OpenTAP/usr/share/OpenTAP
 
-pushd OpenTAP/usr/share/tap
+pushd OpenTAP/usr/share/OpenTAP
 chmod +x tap
 ln -s ../../../var/log/SessionLogs
 popd
 pushd OpenTAP/usr/bin
-ln -s ../share/tap/tap
+ln -s ../share/OpenTAP/tap
 popd
 
 BYTES=$(du -sb OpenTAP | cut -f1)
@@ -38,7 +38,7 @@ cp postinst.in OpenTAP/DEBIAN/postinst
 chmod 0555 OpenTAP/DEBIAN/postinst
 chmod +x OpenTAP/DEBIAN/postinst
 
-VERSION="$(./OpenTAP/usr/share/tap/tap sdk gitversion)"
+VERSION="$(./OpenTAP/usr/share/OpenTAP/tap sdk gitversion)"
 # The last character in the version specifier cannot be a '-'
 while [ "${VERSION: -1}" = "-" ]; do
     VERSION="${VERSION::-1}"
