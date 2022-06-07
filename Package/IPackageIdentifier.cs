@@ -53,13 +53,7 @@ namespace OpenTap.Package
             var cpu = selectedArch == CpuArchitecture.Unspecified ? ArchitectureHelper.GuessBaseArchitecture : selectedArch;
             var os = selectedOS ?? RuntimeInformation.OSDescription;
 
-            if (ArchitectureHelper.CompatibleWith(cpu, pkg.Architecture) == false)
-                return false;
-
-            if (IsOsCompatible(pkg,os) == false)
-                return false;
-
-            return true;
+            return ArchitectureHelper.CompatibleWith(cpu, pkg.Architecture) && IsOsCompatible(pkg,os);
         }
 
         private static bool IsOsCompatible(IPackageIdentifier pkg, string os)
