@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenTap.Cli;
 
 namespace OpenTap.Authentication
 {
@@ -122,14 +123,21 @@ namespace OpenTap.Authentication
             RefreshTokens.RemoveIf(x => x.Domain == domain);
         }
 
+        TokenInfo GetAccessTokenForDomain(string domain)
+        {
+            return AccessTokens.OrderByDescending(x => x.Domain.Length).FirstOrDefault(x => domain.EndsWith(x.Domain));
+        }
+
         /// <summary> Gets a valid access token matching the site. If the current token has expired, the refresh action will be used to refresh it. </summary>
         public TokenInfo GetValidAccessToken(string domain, CancellationToken cancel)
         {
-            cancel.ThrowIfCancellationRequested();
-
-            // Try refresh
-            
-            return AccessTokens.FirstOrDefault(x => x.Domain == domain);
+            var access = GetAccessTokenForDomain(domain);
+            if (access?.Expired == true)
+            {
+                var refresh = new RefreshTokenAction { Domain = domain };
+                refresh.Execute(cancel);
+            }
+            return GetAccessTokenForDomain(domain);
         }
 
         /// <summary> Registers a set of tokens.</summary>
