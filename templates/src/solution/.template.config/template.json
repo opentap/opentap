@@ -2,12 +2,12 @@
   "$schema": "http://json.schemastore.org/template",
   "author": "OpenTap.io",
   "classifications": [ "OpenTap", "Test" ],
-  "identity": "OpenTap.Project",
-  "name": "OpenTap project",
-  "shortName": "opentap.project",
+  "identity": "OpenTap.Solution",
+  "name": "OpenTap solution",
+  "shortName": "opentap.solution",
   "tags": {
     "language": "C#",
-    "type": "project"
+    "type": "solution"
   },
   "sources": [
     {
@@ -16,7 +16,6 @@
       "exclude": [
         "**/[Bb]in/**",
         "**/[Oo]bj/**",
-        "sln/**/*",
         ".template.config/**/*"
       ],
       "modifiers": [
@@ -57,10 +56,6 @@
           ]
         }
       ]
-    },
-    {
-      "source": "./sln/",
-      "target": "./../"
     }
   ],
   "sourceName": "ProjectName",

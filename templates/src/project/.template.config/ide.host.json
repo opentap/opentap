@@ -1,0 +1,49 @@
+{
+    "$schema": "https://json.schemastore.org/ide.host.json",
+    "icon": "OpenTAP.png",
+    "symbolInfo": [
+        {
+            "id": "CliAction",
+            "name": {
+                "text": "Include CliAction"
+            },
+            "isVisible": true
+        },
+        {
+            "id": "ComponentSettings",
+            "name": {
+                "text": "Include ComponentSettings"
+            },
+            "isVisible": true
+        },
+        {
+            "id": "DUT",
+            "name": {
+                "text": "Include DUT"
+            },
+            "isVisible": true
+        },
+        {
+            "id": "Instrument",
+            "name": {
+                "text": "Include Instrument"
+            },
+            "isVisible": true
+        },
+        {
+            "id": "ResultListener",
+            "name": {
+                "text": "Include ResultListener"
+            },
+            "isVisible": true
+        },
+        {
+            "id": "TestStep",
+            "name": {
+                "text": "Include TestStep"
+            },
+            "isVisible": true
+        }
+    ]
+
+}
