@@ -11,12 +11,16 @@
   },
   "sources": [
     {
+      "source": "./sln/",
+      "target": "./../"
+    },
+    {
       "source": "./",
       "target": "./",
       "exclude": [
+        "sln/**/*",
         "**/[Bb]in/**",
         "**/[Oo]bj/**",
-        "sln/**/*",
         ".template.config/**/*"
       ],
       "modifiers": [
@@ -55,12 +59,28 @@
           "exclude": [
             "*TestStep.cs"
           ]
+        },
+        {
+          "condition": "(TUIRegex)",
+          "rename": {
+            "TUI.LaunchSettings.json": "LaunchSettings.json"
+          }
+        },
+        {
+          "condition": "(!TUIRegex)",
+          "exclude": [ "**/TUI.*" ]
+        },
+        {
+          "condition": "(EditorRegex || EditorCERegex)",
+          "rename": {
+            "Editor.LaunchSettings.json": "LaunchSettings.json"
+          }
+        },
+        {
+          "condition": "(!EditorRegex && !EditorCERegex)",
+          "exclude": [ "**/Editor.*" ]
         }
       ]
-    },
-    {
-      "source": "./sln/",
-      "target": "./../"
     }
   ],
   "sourceName": "ProjectName",
@@ -103,6 +123,57 @@
       "dataType": "bool",
       "defaultValue": "true",
       "description": "Include a TestStep in the project."
+    },
+    "Editor": {
+      "type": "parameter",
+      "datatype": "choice",
+      "defaultValue": "TUI",
+      "replaces": "Editor",
+      "description": "The default editor to debug with.",
+      "choices": [
+        {
+          "choice": "TUI",
+          "displayName": "OpenTAP TUI",
+          "description": "Set TUI (Terminal User Interface) as the debugging editor."
+        },
+        {
+          "choice": "Editor",
+          "displayName": "Keysight Test Automation",
+          "description": "This is not implemented yet."
+        },
+        {
+          "choice": "EditorCE",
+          "displayName": "Keysight Test Automation - Community Edition",
+          "description": "This is not implemented yet."
+        }
+      ]
+    },
+    "TUIRegex": {
+      "type": "generated",
+      "generator": "regexMatch",
+      "dataType": "bool",
+      "parameters": {
+        "source": "Editor",
+        "pattern": "TUI"
+      }
+    },
+    "EditorRegex": {
+      "type": "generated",
+      "generator": "regexMatch",
+      "dataType": "bool",
+      "parameters": {
+        "source": "Editor",
+        "pattern": "Editor"
+      }
+    },
+    "EditorCERegex": {
+      "type": "generated",
+      "generator": "regexMatch",
+      "dataType": "bool",
+      "parameters": {
+        "source": "Editor",
+        "pattern": "Editor CE"
+      }
     }
   }
 }
