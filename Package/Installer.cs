@@ -207,6 +207,7 @@ namespace OpenTap.Package
                 if (ex is OperationCanceledException)
                     return (int)ExitCodes.UserCancelled;
 
+                log.Debug(ex);
                 return (int) ExitCodes.GeneralException;
             }
 
@@ -354,6 +355,11 @@ namespace OpenTap.Package
             {
                 // the file doesn't even exist!
                 return false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+              log.Warning($"File {file.FullName} cannot be deleted by the current user. ({Environment.UserName})");
+              throw;
             }
             catch (IOException)
             {

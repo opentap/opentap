@@ -1,4 +1,13 @@
 #!/bin/bash
+
+# umask sets the calling process' file mode creation mask
+# 002 is the default mask for users. The default mask for root is 0022.
+
+# set umask to 002 which is equivalent to &'ing the permission flags of files created by OpenTAP with -rw-rw-r--
+# the default umask for the 'root' user is 022, which would & with -rw-r--r--
+# This would cause files created by sudo to be non-writable by the OpenTAP group,
+# which can brick the functionality of the installation.
+umask 002
 if [[ $(uname) == Darwin ]]; then
     # Mac uses BSD readlink which supports different flags
 
