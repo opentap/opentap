@@ -20,4 +20,8 @@
     <Compile Remove="**\*" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="src\solution\ProjectName\package.xml" />
+  </ItemGroup>
+
 </Project>
