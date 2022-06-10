@@ -6,16 +6,17 @@ getent group OpenTAP || groupadd OpenTAP && echo "Created OpenTAP group"
 
 echo "Changing permissions of OpenTAP folder (/usr/share/OpenTAP)"
 chgrp -R OpenTAP /usr/share/OpenTAP
+# set sticky bit for the directory so new files will belong to the OpenTAP group
 chmod -R g+rwxs /usr/share/OpenTAP
 
 echo "OpenTAP group configured."
 
-# Attempt to add a user to the sudo group if a regular user installed OpenTAP using sudo.
+# Attempt to add a user to the OpenTAP group if a regular user installed OpenTAP using sudo.
 if [ ! -z "$SUDO_USER" ]; then
-    if [ ! "$SUDO_USER" == "root" ]; then
-        usermod -a -G OpenTAP "$SUDO_USER"
-        echo "Added user $SUDO_USER to the OpenTAP group"
-    fi
+  if [ ! "$SUDO_USER" == "root" ]; then
+    usermod -a -G OpenTAP "$SUDO_USER"
+    echo "Added user $SUDO_USER to the OpenTAP group"
+  fi
 fi
 
 echo "A user must be a member of the OpenTAP group to use OpenTAP."
