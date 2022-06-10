@@ -3,6 +3,7 @@
         <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
         <TargetFrameworkVersion></TargetFrameworkVersion>
         <TargetFramework>netstandard2.0</TargetFramework>
+		<DebugWith>Editor</DebugWith>
     </PropertyGroup>
     
   <PropertyGroup>
@@ -13,6 +14,9 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <CreateOpenTapPackage>true</CreateOpenTapPackage>
   </PropertyGroup>
+	<ItemGroup Condition="'$(DebugWith)' == 'Editor'">
+		<OpenTapPackageReference Include="Editor" version="beta"></OpenTapPackageReference>
+	</ItemGroup>
   <ItemGroup>
     <PackageReference Include="OpenTAP" Version="$(OpenTapVersion)" />
   </ItemGroup>
