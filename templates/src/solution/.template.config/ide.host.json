@@ -1,9 +1,0 @@
-﻿{
-  "$schema": "https://json.schemastore.org/ide.host.json",
-  "unsupportedHosts": [
-    {
-      "id": "vs",
-      "version": "1.0"
-    }
-  ]
-}
