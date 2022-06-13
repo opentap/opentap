@@ -839,6 +839,16 @@ namespace OpenTap.Plugins
                                 else
                                 {
                                     XElement elem2 = new XElement(Serializer.PropertyXmlName(subProp.Name));
+                                    
+                                    { // MetaDataAttribute -> save the metadata name in the test plan xml.
+                                        if (subProp.GetAttribute<MetaDataAttribute>() is MetaDataAttribute metaDataAttr)
+                                        {
+                                            string name = metaDataAttr.Name ??
+                                                          subProp.GetDisplayAttribute()?.Name ?? subProp.Name;
+                                            elem2.SetAttributeValue("MetaData", name);
+                                        }
+                                    }
+                                    
                                     SetHasDefaultValueAttribute(subProp, val, elem2);
                                     elem.Add(elem2);
                                     Serializer.Serialize(elem2, val, subProp.TypeDescriptor);
