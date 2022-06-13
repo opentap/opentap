@@ -44,7 +44,7 @@ echo "Unzipping tap"
 unzip "$(pwd)/*.TapPackage" -d "$DEST_DIR" # *: match OpenTAPLinux and just TAPLinux.
 
 cd "$DEST_DIR" || exit 1
-chmod -R +w .
+chmod -R +rws "$DEST_DIR"
 
 chmod +x tap
 

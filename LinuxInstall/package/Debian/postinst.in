@@ -1,27 +1,27 @@
 #!/bin/bash
 set -e
 
-# create tap group if it doesn't exist
-getent group tap || groupadd tap && echo "created tap group"
+# create opentap group if it doesn't exist
+getent group opentap || groupadd opentap && echo "Created opentap group"
 
-echo "changing permissions of tap folder (/usr/share/tap)"
-chgrp -R tap /usr/share/tap
-chmod -R g+rwx /usr/share/tap
+echo "Changing permissions of opentap folder (/usr/share/opentap)"
+chgrp -R opentap /usr/share/opentap
+# set sticky bit for the directory so new files will belong to the opentap group
+chmod -R g+rwxs /usr/share/opentap
 
-echo "tap group configured."
+echo "opentap group configured."
 
-# Only attempt to add a user to the sudo group if
-# The SUDO_USER variable is defined, meaning the script was called in a sudo shell, and not by root itself, and
-# The sudo user is not root. No point in adding root to the tap group
+# Attempt to add a user to the opentap group if a regular user installed opentap using sudo.
 if [ ! -z "$SUDO_USER" ]; then
-    if [ ! "$SUDO_USER" == "root" ]; then
-        usermod -a -G tap "$SUDO_USER"
-        echo "Added user $SUDO_USER to tap group"
-    fi
+  if [ ! "$SUDO_USER" == "root" ]; then
+    usermod -a -G opentap "$SUDO_USER"
+    echo "Added user $SUDO_USER to the opentap group"
+  fi
 fi
 
-echo "A user must be a member of the tap group to use OpenTAP."
-echo "Add users to the tap group with the following command:"
-echo "    usermod -a -G tap \$USER"
-echo "This tap install is global. If this is a multi-user system, consider creating a user-level tap install with"
+echo "A user must be a member of the 'opentap' group to use opentap."
+echo "Add users to the 'opentap' group with the following command:"
+echo "    usermod -a -G opentap \$USER"
+echo "This OpenTAP installation is global. If this is a multi-user system, consider creating a user-level OpenTAP
+installation with"
 echo "    tap package install OpenTAP --target /local/install/dir"
