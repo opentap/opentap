@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Threading;
 
 namespace OpenTap
 {
@@ -99,6 +101,8 @@ namespace OpenTap
         /// <summary> The default/root session. This session is active when no other session is. </summary>
         public static readonly Session RootSession;
 
+        readonly ManualResetEventSlim disposedEvent = new ManualResetEventSlim();
+
         TapThread threadContext;
         internal readonly ConcurrentDictionary<ISessionLocal, object> sessionLocals = new ConcurrentDictionary<ISessionLocal, object>();
 
@@ -109,6 +113,8 @@ namespace OpenTap
         {
             // TapThread needs a RootSession to start, so the first time, the TapThread cannot be set.
             RootSession = new Session(Guid.NewGuid(), SessionOptions.None, true);
+            RootSession.disposables.Push(TapThread.UsingThreadContext(RootSession.DisposeSessionLocals));
+
             RootSession.threadContext = TapThread.Current;
         }
         
@@ -122,6 +128,7 @@ namespace OpenTap
                 }
             }
             sessionLocals.Clear();
+            disposedEvent.Set();
         }
 
         /// <summary>
@@ -244,6 +251,22 @@ namespace OpenTap
                 Dispose();
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Waits for the session to finally become disposed.
+        /// Note, this cannot be done from inside the session itself.
+        /// For the session to become disposed all sub threads and sessions must also be stopped or disposed
+        /// as well.
+        /// </summary>
+        /// <param name="timeout">The amount of time to wait before continuing.</param>
+        /// <exception cref="InvalidOperationException"> If this is called from within the session or child session.</exception>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public void WaitForDispose(TimeSpan timeout)
+        {
+            if (Current == this || Current.Parent == this) 
+                throw new InvalidOperationException("Deadlock detected was when waiting for session to become disposed.");
+            disposedEvent.Wait(timeout);
         }
     }
 }

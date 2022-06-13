@@ -19,6 +19,11 @@
           <Name>Test Plan: {Referenced Plan}</Name>
           <BreakConditions>Inherit</BreakConditions>
         </TestStep>
+        <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="f05ae695-da0b-47c1-9562-32a89c3c424c">
+          <Filepath>../../tests/session-dispose.TapPlan</Filepath>
+          <Enabled>true</Enabled>
+          <Name>Test Plan: {Referenced Plan}</Name>
+        </TestStep>
         <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="321543e3-31fc-4923-ae06-674cc13bc232">
           <Filepath>../../tests/ILGitVersionBug.TapPlan</Filepath>
           <StepMapping>
