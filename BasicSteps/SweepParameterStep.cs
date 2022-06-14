@@ -245,8 +245,9 @@ namespace OpenTap.Plugins.BasicSteps
             var originalValues = sets.Select(set => set.GetValue(this)).ToArray();
 
             var rowType = SweepValues.Select(TypeData.GetTypeData).FirstOrDefault();
-            foreach (var Value in SweepValues)
+            for (int i = 0; i < SweepValues.Count; i++)
             {
+                SweepRow Value = SweepValues[i];
                 if (Value.Enabled == false) continue;
                 var AdditionalParams = new ResultParameters();
 
@@ -267,7 +268,21 @@ namespace OpenTap.Plugins.BasicSteps
                     AdditionalParams.Add(new ResultParameter(disp.Group.FirstOrDefault() ?? "", disp.Name,
                         valueString));
 
-                    set.SetValue(this, value);
+                    try
+                    {
+                        set.SetValue(this, value);
+                    }
+                    catch (TargetInvocationException ex)
+                    {
+                        if (ex.InnerException is ArgumentException arEx)
+                        {
+                            throw new ArgumentException($"Invocation exception on row {i}: {ex.InnerException.Message}", ex);
+                        }
+                        Log.Error("Unable to set '{0}' to value '{2}': {1}", set.GetDisplayAttribute().Name,
+                            ex.InnerException?.Message, valueString);
+                        Log.Debug(ex.InnerException);
+                        UpgradeVerdict(Verdict.Error);
+                    }
                 }
 
                 iteration += 1;
