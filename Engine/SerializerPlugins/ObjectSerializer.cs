@@ -592,7 +592,14 @@ namespace OpenTap.Plugins
             }
             catch(Exception ex)
             {
-                Serializer.PushError(element, $"Object value was not read correctly.", ex);
+                if (ex is TargetInvocationException tarEx && tarEx.InnerException is ArgumentException arEx)
+                {
+                    Serializer.PushError(element, arEx.Message, tarEx);
+                }
+                else
+                {
+                    Serializer.PushError(element, $"Object value was not read correctly.", ex);
+                }
                 return false;
             }
             try
