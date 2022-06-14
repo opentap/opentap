@@ -845,7 +845,7 @@ namespace OpenTap.Plugins
                                         {
                                             string name = metaDataAttr.Name ??
                                                           subProp.GetDisplayAttribute()?.Name ?? subProp.Name;
-                                            elem2.SetAttributeValue("MetaData", name);
+                                            elem2.SetAttributeValue("Metadata", name);
                                         }
                                     }
                                     
