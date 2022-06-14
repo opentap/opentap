@@ -267,17 +267,7 @@ namespace OpenTap.Plugins.BasicSteps
                     AdditionalParams.Add(new ResultParameter(disp.Group.FirstOrDefault() ?? "", disp.Name,
                         valueString));
 
-                    try
-                    {
-                        set.SetValue(this, value);
-                    }
-                    catch (TargetInvocationException ex)
-                    {
-                        Log.Error("Unable to set '{0}' to value '{2}': {1}", set.GetDisplayAttribute().Name,
-                            ex.InnerException?.Message, valueString);
-                        Log.Debug(ex.InnerException);
-                        UpgradeVerdict(Verdict.Error);
-                    }
+                    set.SetValue(this, value);
                 }
 
                 iteration += 1;
