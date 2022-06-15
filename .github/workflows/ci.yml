@@ -5,6 +5,8 @@ on:
     branches:
       - main
       - release9x
+    tags:
+      - v*
   pull_request:
 
 env:
