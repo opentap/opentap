@@ -26,7 +26,43 @@ namespace OpenTap.Engine.UnitTests
     [TestFixture]
     public class TestPlanTest 
     {
+        [AllowAnyChild]
+        public class ChildStepHaver : TestStep
+        {
+            public bool Caught { get; set; } = false;
+            public override void Run()
+            {
+                try
+                {
+                    RunChildSteps();
+                }
+                catch
+                {
+                    Caught = true;
+                }
+            }
+        }
+        public class ThrowingStep : TestStep
+        {
+            public bool Throws { get; set; }
+            public override void Run()
+            {
+                if (Throws)
+                    throw new Exception();
+            }
+        }
 
+        [Test]
+        public void TestRunChildStepsExceptionsPropgate()
+        {
+            var plan = new TestPlan();
+            var csh = new ChildStepHaver();
+            plan.ChildTestSteps.Add(csh);
+            csh.ChildTestSteps.Add(new ThrowingStep() { Throws = true });
+            plan.Execute();
+            
+            Assert.IsTrue(csh.Caught);
+        }
 
         public class TestStepExceptionTest : TestStep
         {
