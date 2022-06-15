@@ -20,8 +20,8 @@ namespace OpenTap.Engine.UnitTests
             var plan = new TestPlanWithMetaData();
             var xml = plan.SerializeToString();
             var xdoc = XDocument.Parse(xml);
-            Assert.AreEqual("X Setting", xdoc.Root.Element("X").Attribute("MetaData").Value);
-            Assert.AreEqual("Y", xdoc.Root.Element("Y").Attribute("MetaData").Value);
+            Assert.AreEqual("X Setting", xdoc.Root.Element("X").Attribute("Metadata").Value);
+            Assert.AreEqual("Y", xdoc.Root.Element("Y").Attribute("Metadata").Value);
         }
     
     }
