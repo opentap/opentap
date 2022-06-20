@@ -245,7 +245,23 @@ namespace OpenTap
                                 throw new Exception("Assembly name does not match the file name.");
                             var thisRef = new AssemblyRef(thisAssembly.Name, def.Version);
 
-                            thisAssembly.RawVersion = def.Version.ToString();
+                            var prov = new CustomAttributeTypeProvider();
+                            foreach (CustomAttributeHandle attrHandle in def.GetCustomAttributes())
+                            {
+                                CustomAttribute attr = metadata.GetCustomAttribute(attrHandle);
+
+                                if (attr.Constructor.Kind == HandleKind.MemberReference)
+                                {
+                                    var ctor = metadata.GetMemberReference((MemberReferenceHandle)attr.Constructor);
+                                    string attributeFullName = GetFullName(metadata, ctor.Parent);
+                                    if (attributeFullName == typeof(AssemblyInformationalVersionAttribute).FullName)
+                                    {
+                                        var valueString = attr.DecodeValue(prov);
+                                        thisAssembly.RawVersion = GetStringIfNotNull(valueString.FixedArguments[0].Value);
+                                        break;
+                                    }
+                                }
+                            }
 
                             if (!nameToAsmMap.ContainsKey(thisRef))
                             {
