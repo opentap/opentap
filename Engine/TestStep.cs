@@ -813,7 +813,7 @@ namespace OpenTap
 
         internal static void LogBreakCondition(this TestStepRun run)
         {
-            Log.CreateSource("Test Step").Debug( $"Break issued from '{run.TestStepName}' due to verdict {run.Verdict}. See Break Conditions settings.");
+            Log.CreateSource("TestStep").Debug( $"Break issued from '{run.TestStepName}' due to verdict {run.Verdict}. See Break Conditions settings.");
         }
 
         internal static string GetStepPath(this ITestStep Step)
