@@ -41,8 +41,6 @@ To finalize the input you can use the [`SubmitAttribute`](../Attributes/Readme.m
 Adding user settings to a *TapPlugin*, such as a step setting for a test step, can be done with properties.
 These properties are visible and editable in the GUI Editor. Properties typically include instrument and DUT references, instrument and DUT settings, timing and limit information, etc. Defining these properties is a major part of plugin development.
 
-These properties can be configured using attributes, see [Attributes Used by OpenTAP](../Attributes/Readme.md#attributes-used-by-opentap).
-
 An example from the repeat step: 
 ```cs
 [EnabledIf("Action",RepeatStepAction.Fixed_Count, HideIfDisabled = true)]
@@ -55,11 +53,66 @@ Turns into:
 
 The SDK provides many examples of properties for test step development in the **`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps`** folder.
 
+A C# property has a type, a name and a visibility specifier. The most basic setting has just these three components. By default the property must have public visibility to be configured by the user - otherwise it is not considered a setting.  
+A very typical example could look like this:
+```cs
+public double TxFrequency { get; set;} = 1e9; // A transmission frequency of 1 GHz.  
+```
+Let's break this down.
+ - `public`: This means that this property can be seen from outside the scope of the class. This can also be set to private, protected or internal, but in these cases they are not considered 'settings' and won't show up in UIs and won't be saved in the test plan file. 
+ - `double`: The type of the property. In this case this is a decimal value with 64 bits of precision. Here anything can be specified and it will show up in the user interface, but displaying it or configuring it may not always be possible - it has to be a type supported by the installed plugins. By default the following types are supported
+   - float, double, decimal - Respectively 32-, 64- and 128-bit precision decimal values.
+   - integer types - short, ushort, int, uint, long, ulong, byte - various precision integer types.
+   - string - a string of text.
+   - bool - A true / false value. This is often shown as a checkbox.
+   - enums - A list of selectable values. This is often shown as a drop down.
+   - Resources - A selectable resource type, e.g Instrument, DUT, ... This will be restricted by the selected subtype of resource, e.g ScpiInstrument is a specialization of Instrument and hence only ScpiInstrument types will be available in the dropdown. 
+   - Lists - A editable list of objects. Often shown as a data grid or spreadsheet.
+   - TimeSpan - A span of time. e.g 1 hour. This is shown as a text box.
+   - Enabled<T> - An enable setting encapsulating another type. This is shown as a checkbox followed by something else.
+ - `TxFrequency`: The name of the property. By default this is what will be presented to the user.
+ - `{get;set;}`: Specifies that this is a C# property. 'set' can be omitted to make it read-only.
+ - `= 1e9`: Specifies the default value of this property. 
+
+### Setting Attributes
+
+Attributes can be used to further improve the behavior of the property. For a full list of default supported attributes, see [Attributes Used by OpenTAP](../Attributes/Readme.md#attributes-used-by-opentap).
+
+In the example seem above, we could further improve the usability by adding some attributes.
+
+```cs
+// Specify that the user-friendly name is "Transmission Frequency" and provide a tooltip.
+// furthermore, the group is set to "DUT", which means the setting will be added to a group called "DUT".
+[Display("Transmission Frequency", "Transmission frequency configured on the DUT. This should be between 500MHz and 2GHz.", "DUT")]
+// Specify that the unit is hertz, Hz.
+[Unit("Hz")]
+public double TxFrequency { get; set;} = 1e9;  
+```
+
+### Best Practices For Settings
+Any code can be evaluated in property getters and setters, but this can often be the source of bugs and performance issues.
+
+1. Keep it simple: Don't use complex behavior in property setters as this can cause subtle bugs and performance issues. Avoid setting other properties' backing value in a property setter. If you want to be able to configure a preset of values, consider adding a button.
+2. Use validation rules for signaling invalid configurations.
+3. Use a guard clause to check the value before calling expensive update functions.
+   ```cs
+      public double TxFrequency 
+      { 
+         get => txFrequency;
+         set 
+         {
+            if (value == txFrequency) return; // early return.
+            txFrequency = value;
+            OnPropertyChange(nameof(TxFrequency)); // Expensive operation.
+         }
+      }
+   ```
+
 ## Best Practices for Plugin Development
 
 The following recommendations will help you get your project off to a good start and help ensure a smooth development process:
 
--	You can develop one or many plugins in one Visual Studio project. The organization is up to the developer. The following is recommended:
+-	You can develop one or many plugins in one C# project. The organization is up to the developer. The following is recommended:
     -	Encapsulate your logic. Keeping all instrument logic inside the instrument class makes it possible to swap out instruments without changing TestSteps. For example, a TestStep plugin knows to call **MeasureVoltage**, and the instrument plugin knows how to get that measurement from its specific instrument.  
     -	You can put Instruments, DUTs, and TestSteps all in separate packages and create a "plug-and-play" type of interaction for test developers. For example, you can create test steps that make a measurement and plot a result. If done properly, the steps work regardless of which instrument gets the data or what type of device is being tested.
 

@@ -286,7 +286,7 @@ namespace OpenTap.Plugins.BasicSteps
 
                 Log.Info("Running child steps with {0}", Value.GetIterationString());
 
-                var runs = RunChildSteps(AdditionalParams, BreakLoopRequested).ToList();
+                var runs = RunChildSteps(AdditionalParams, BreakLoopRequested, throwOnBreak: false).ToArray();
                 if (BreakLoopRequested.IsCancellationRequested) break;
                 runs.ForEach(r => r.WaitForCompletion());
                 if (runs.LastOrDefault()?.BreakConditionsSatisfied() == true)
