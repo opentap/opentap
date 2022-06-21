@@ -124,54 +124,9 @@
           <Name Metadata="Step Name">Test Plan {Referenced Plan}</Name>
           <BreakConditions>Inherit</BreakConditions>
         </TestStep>
-        <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Version="9.4.0-Development" Id="0126e258-ef43-47d7-bfaa-aa83f900a1f9">
-          <Filepath>../../tests/CheckSemanticVersion.TapPlan</Filepath>
-          <StepMapping>
-            <GuidMapping>
-              <Guid1>45ab17b7-0999-4a4d-8b7a-a6fd7c4cf4dc</Guid1>
-              <Guid2>f0486b16-dfe7-47e8-a1a2-7b01586f6920</Guid2>
-            </GuidMapping>
-            <GuidMapping>
-              <Guid1>3a8e33d7-d7f9-4d58-868b-c38acbf0c15e</Guid1>
-              <Guid2>38dc6d96-9b2a-4b46-bae1-a9ed14f1ad58</Guid2>
-            </GuidMapping>
-            <GuidMapping>
-              <Guid1>45f82fc0-8acf-41b2-8472-2c1b9db25f32</Guid1>
-              <Guid2>18e395d1-5b1c-4e0c-955e-ca4988752919</Guid2>
-            </GuidMapping>
-            <GuidMapping>
-              <Guid1>87ef4ac9-541e-4add-8c40-7303cdccda87</Guid1>
-              <Guid2>b70d66af-b810-49ad-a4e0-9fa39de45f86</Guid2>
-            </GuidMapping>
-            <GuidMapping>
-              <Guid1>03572f31-123d-40de-b737-74c714b8cd31</Guid1>
-              <Guid2>bc38e2d9-3d0a-4e63-bbed-5847fbd4b1eb</Guid2>
-            </GuidMapping>
-            <GuidMapping>
-              <Guid1>ef81482d-125b-4f3f-a1d5-eaf212d302fe</Guid1>
-              <Guid2>dee133cf-9279-49e2-8f5a-ee9ebbcc1e7c</Guid2>
-            </GuidMapping>
-            <GuidMapping>
-              <Guid1>9d65286c-5ada-4be1-ac31-647d0f7837ea</Guid1>
-              <Guid2>61ea50bb-3e5c-45c5-9320-603c22fa70b2</Guid2>
-            </GuidMapping>
-            <GuidMapping>
-              <Guid1>708f61c5-dab6-43be-a203-ff2541f43bc5</Guid1>
-              <Guid2>f25c6352-1e66-4382-b3ec-ef2db3823760</Guid2>
-            </GuidMapping>
-            <GuidMapping>
-              <Guid1>a3dec63f-d7a9-4dd4-a23c-d56e885c9983</Guid1>
-              <Guid2>e0f30a2e-9f14-42db-baf9-788e93477a82</Guid2>
-            </GuidMapping>
-          </StepMapping>
-          <Enabled>true</Enabled>
-          <Name Metadata="Step Name">Test Plan {Referenced Plan}</Name>
-          <BreakConditions>Inherit</BreakConditions>
-        </TestStep>
       </ChildTestSteps>
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
   </Steps>
   <BreakConditions>Inherit</BreakConditions>
-  <OpenTap.Description />
 </TestPlan>
