@@ -164,6 +164,7 @@ namespace OpenTap
         /// </summary>
         [XmlAttribute("Version")]
         [Browsable(false)]
+        [DefaultValue(null)]
         public string Version
         {
             get => CalcVersion();
@@ -172,7 +173,6 @@ namespace OpenTap
                 var installedVersionStr = CalcVersion();
                 if (installedVersionStr == null)
                 {
-                    Log.Warning("Could not get assembly version.");
                     return;
                 }
 
@@ -190,10 +190,6 @@ namespace OpenTap
                     {
                         Log.Warning("Test plan file specified version {0} of step '{1}', but version {2} is installed, compatibility issues may occur.", createdVersion, Name, installedVersion);
                     }
-                }
-                else
-                {
-                    Log.Warning("Could not parse test plan file specified version {0} of step '{1}' as a semantic version, but version {2} is installed, compatibility issues may occur.", value, Name, installedVersion);
                 }
             }
         }
