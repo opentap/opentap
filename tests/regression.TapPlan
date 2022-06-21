@@ -51,7 +51,7 @@
           <Name Metadata="Step Name">Test Plan: {Referenced Plan}</Name>
           <BreakConditions>Inherit</BreakConditions>
         </TestStep>
-        <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.RunOnOs" Version="0.0.0.0" Id="a1a83800-0036-49ad-a461-d2aa1daac281">
+        <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.RunOnOs" Id="a1a83800-0036-49ad-a461-d2aa1daac281">
           <OperatingSystem>Windows</OperatingSystem>
           <Enabled>true</Enabled>
           <Name Metadata="Step Name">Run On {OperatingSystem}</Name>
@@ -81,7 +81,7 @@
                 </GuidMapping>
               </StepMapping>
               <Enabled>true</Enabled>
-              <Name Metadata="Step Name">Test Plan: {Referenced Plan} (1)</Name>
+              <Name Metadata="Step Name">Test Plan: {Referenced Plan}</Name>
               <BreakConditions>Inherit</BreakConditions>
             </TestStep>
           </ChildTestSteps>

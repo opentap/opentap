@@ -266,7 +266,14 @@ namespace OpenTap
                             // If the semantic version was not set, fall back to using the version
                             // from the AssemblyDefinition
                             if (string.IsNullOrWhiteSpace(thisAssembly.RawVersion))
-                                thisAssembly.RawVersion = def.Version.ToString();
+                            {
+                                // if (def.Version.Major == 0 && def.Version.Minor == 0 && def.Version.Revision)
+                                var v = def.Version;
+                                if (v.Major != 0 || v.Minor != 0 || v.Build != 0 || v.Revision != 0)
+                                {
+                                    thisAssembly.RawVersion = $"{v.Major}.{v.Minor}.{v.Revision}";
+                                }
+                            }
 
                             if (!nameToAsmMap.ContainsKey(thisRef))
                             {

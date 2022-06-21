@@ -164,6 +164,7 @@ namespace OpenTap
         /// </summary>
         [XmlAttribute("Version")]
         [Browsable(false)]
+        [DefaultValue(null)]
         public string Version
         {
             get => CalcVersion();
@@ -172,7 +173,6 @@ namespace OpenTap
                 var installedVersionStr = CalcVersion();
                 if (installedVersionStr == null)
                 {
-                    Log.Warning("Could not get assembly version.");
                     return;
                 }
 
