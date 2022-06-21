@@ -3,7 +3,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -256,12 +255,18 @@ namespace OpenTap
                                     string attributeFullName = GetFullName(metadata, ctor.Parent);
                                     if (attributeFullName == typeof(AssemblyInformationalVersionAttribute).FullName)
                                     {
-                                        var valueString = attr.DecodeValue(prov);
-                                        thisAssembly.RawVersion = GetStringIfNotNull(valueString.FixedArguments[0].Value);
+                                        var valueString = attr.DecodeValue(prov).FixedArguments[0].Value?.ToString();
+                                        if (SemanticVersion.TryParse(valueString, out _))
+                                            thisAssembly.RawVersion = valueString;
                                         break;
                                     }
                                 }
                             }
+
+                            // If the semantic version was not set, fall back to using the version
+                            // from the AssemblyDefinition
+                            if (string.IsNullOrWhiteSpace(thisAssembly.RawVersion))
+                                thisAssembly.RawVersion = def.Version.ToString();
 
                             if (!nameToAsmMap.ContainsKey(thisRef))
                             {
