@@ -41,11 +41,7 @@ namespace OpenTap.Plugins.BasicSteps
                 semStarted.Release();
                 try
                 {
-                    RunChildSteps();
-                }
-                catch (Exception)
-                {
-                    
+                    RunChildSteps(throwOnBreak: false);
                 }
                 finally
                 {
