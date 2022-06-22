@@ -758,6 +758,7 @@ namespace OpenTap
                                 ExceptionDispatchInfo.Capture(run.Exception).Throw();
                             run.ThrowDueToBreakConditions();
                         }
+                        else break;
                     }
                     
                     TapThread.ThrowIfAborted();

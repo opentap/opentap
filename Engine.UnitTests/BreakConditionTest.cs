@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using NUnit.Framework;
@@ -304,12 +305,13 @@ namespace OpenTap.Engine.UnitTests
         class TestStepThatCatches : TestStep
         {
             public bool AvoidCatch { get; set; }
+            public TestStepRun[] Runs;
             public override void Run()
             {
                 if (AvoidCatch)
                 {
-                    var step = RunChildSteps(throwOnBreak: false);
-                    var run = step.Last();
+                    Runs = RunChildSteps(throwOnBreak: false).ToArray();
+                    var run = Runs.Last();
                     if(run.Verdict == Verdict.Error)
                         Assert.AreEqual("!", run.Exception.Message);
                     else 
@@ -341,7 +343,10 @@ namespace OpenTap.Engine.UnitTests
         {
             var a = new TestStepThatCatches();
             var b = new TestStepThatThrows();
+            // add a 'nop' to verify
+            a.ChildTestSteps.Add(new SequenceStep());
             a.ChildTestSteps.Add(b);
+            a.ChildTestSteps.Add(new SequenceStep());
             var plan = new TestPlan();
             plan.Steps.Add(a);
             var r = plan.Execute();
@@ -349,6 +354,7 @@ namespace OpenTap.Engine.UnitTests
             a.AvoidCatch = true;
             var r2 = plan.Execute();
             Assert.AreEqual(Verdict.Pass, r2.Verdict);
+            Assert.AreEqual(2, a.Runs.Length);
         }
         
         [Test]
@@ -357,7 +363,9 @@ namespace OpenTap.Engine.UnitTests
             var a = new TestStepThatCatches();
             var b = new VerdictStep { VerdictOutput = Verdict.Fail };
             BreakConditionProperty.SetBreakCondition(b, BreakCondition.BreakOnFail);
+            a.ChildTestSteps.Add(new SequenceStep());
             a.ChildTestSteps.Add(b);
+            a.ChildTestSteps.Add(new SequenceStep());
             var plan = new TestPlan();
             plan.Steps.Add(a);
             var r = plan.Execute();
@@ -365,6 +373,7 @@ namespace OpenTap.Engine.UnitTests
             a.AvoidCatch = true;
             var r2 = plan.Execute();
             Assert.AreEqual(Verdict.Pass , r2.Verdict);
+            Assert.AreEqual(2, a.Runs.Length);
         }
     }
 }
