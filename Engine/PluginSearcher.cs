@@ -232,10 +232,10 @@ namespace OpenTap
                             MetadataReader metadata = header.GetMetadataReader();
                             AssemblyDefinition def = metadata.GetAssemblyDefinition();
 
-                            // if we were asked to only prvide distinct assembly names and 
+                            // if we were asked to only provide distinct assembly names and 
                             // this assembly name has already been encountered, just return that.
-                            var fileIdentifer = Option.HasFlag(Options.IncludeSameAssemblies) ? file : def.GetAssemblyName().FullName;
-                            if (asmNameToAsmData.TryGetValue(fileIdentifer, out AssemblyData data))
+                            var fileIdentifier = Option.HasFlag(Options.IncludeSameAssemblies) ? file : def.GetAssemblyName().FullName;
+                            if (asmNameToAsmData.TryGetValue(fileIdentifier, out AssemblyData data))
                                 return data;
 
                             thisAssembly.Name = metadata.GetString(def.Name);
@@ -276,7 +276,7 @@ namespace OpenTap
                                 nameToAsmMap2[PathUtils.NormalizePath(thisAssembly.Location)] = thisRef;
                             }
 
-                            asmNameToAsmData[fileIdentifer] = thisAssembly;
+                            asmNameToAsmData[fileIdentifier] = thisAssembly;
 
                             foreach (var asmRefHandle in metadata.AssemblyReferences)
                             {
