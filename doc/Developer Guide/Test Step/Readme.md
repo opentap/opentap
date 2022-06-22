@@ -341,7 +341,7 @@ Test step can have any number of child test steps. Exactly which can be controll
 
 To execute child test steps within a test step run, the RunChildStep method can be used to run a single child step or RunChildSteps can be used to run all of them.
 
-Depending on the verdict of the child steps, the break condition setting of the parent step and the way RunChildSteps is called there are a number of different ways that the control flow will be affected.
+Depending on the verdict of the child steps, the break condition setting of the parent step, and the way RunChildSteps is called, there are a number of different ways that the control flow will be affected.
 
 The default implementation should look something like this:
 ```cs
@@ -354,13 +354,13 @@ The default implementation should look something like this:
 ```
 
 `RunChildSteps` will take care of setting the verdict of the calling test step based on the verdict of the child test steps. The default algorithm here is to take the most severe verdict and use that for the parent test step. 
-For example, if the child test steps has verdict Pass, Inconclusive and Fail, the parent test step will get the Fail verdict.   
+For example, if the child test steps have verdicts Pass, Inconclusive and Fail, the parent test step will get the Fail verdict.   
 
-`RunChildSteps` may throw an exception, this happens if the break conditions for the parent test step are satisfied. 
-If the break conditions are satisfied due to an exeception being thrown, resulting in an Error verdict, the same exception will be thrown.
-To avoid this behavior the overload `RunChildSteps(throwOnBreak: false)` can be used, but the exceptions are still available from the returned list of test step runs.
+`RunChildSteps` may throw an exception. This happens if the break conditions for the parent test step are satisfied. 
+If the break conditions are satisfied due to an exception being thrown, resulting in an Error verdict, the same exception will be thrown.
+To avoid this behavior, the overload `RunChildSteps(throwOnBreak: false)` can be used, but the exceptions are still available from the returned list of test step runs.
 
-To override a verdict set by `RunChildSteps` the exception need to be caught or `throwOnBreak` needs to be set. After this the `Verdict` property can be set directly.
+To override a verdict set by `RunChildSteps`, the exception must be caught, or `throwOnBreak` must be set. After this, the `Verdict` property can be set directly.
 ```cs
     public override void Run()
     {
@@ -369,7 +369,7 @@ To override a verdict set by `RunChildSteps` the exception need to be caught or 
     }
 ```
 
-Child test steps can be run in a separate thread. This should be done with the TapThread.Start method. Before returning from the parent step the child step thread should be waited for or alternatively this should be done in a Defer operation. A great example of using parallelism can be found in the [Parallel Step](https://github.com/opentap/opentap/blob/main/BasicSteps/ParallelStep.cs).
+Child test steps can be run in a separate thread. This should be done with the TapThread.Start method. Before returning from the parent step, the child step thread should be waited for, or alternatively this should be done in a Defer operation. A great example of using parallelism can be found in the [Parallel Step](https://github.com/opentap/opentap/blob/main/BasicSteps/ParallelStep.cs).
 
 ## Serialization
 Default values of properties should be defined in the constructor. Upon saving a test plan, the test plan's **OpenTAP.Serializer** adds each step's public property to the test plan's XML file. Upon loading a test plan from a file, the OpenTAP.Serializer first instantiates the class with values from the constructor and then fills the property values from the values found in the test plan file. 

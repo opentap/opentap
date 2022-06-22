@@ -60,7 +60,7 @@ namespace OpenTap
             protected internal set => Parameters.SetIndexed((nameof(Verdict), GROUP), ref verdictIndex, value);
         }
         
-        /// <summary> Exception causing the Verdict to be 'Error' in any. </summary>
+        /// <summary> Exception causing the Verdict to be 'Error'. </summary>
         public Exception Exception { get; internal set; }
         
         /// <summary> Length of time it took to run. </summary>
