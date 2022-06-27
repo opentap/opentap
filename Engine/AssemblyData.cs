@@ -74,7 +74,7 @@ namespace OpenTap
             {
                 if (ReferenceEquals(version, NoVersion))
                 {
-                    if (Version.TryParse(RawVersion, out var versionParsed))
+                    if (Version.TryParse(RawVersion, out var versionParsed) || Version.TryParse(AssemblyDefinitionRawVersion, out versionParsed))
                     {
                         version = versionParsed;
                     }
@@ -120,7 +120,9 @@ namespace OpenTap
         
         /// <summary> Raw version as set by the assembly. </summary>
         internal string RawVersion { get; set; }
-        
+
+        internal string AssemblyDefinitionRawVersion { get; set; }
+
         internal AssemblyData(string location, Assembly preloadedAssembly = null)
         {
             Location = location;

@@ -270,6 +270,8 @@ namespace OpenTap
                                 thisAssembly.RawVersion = def.Version.ToString();
                             }
 
+                            thisAssembly.AssemblyDefinitionRawVersion = def.Version.ToString();
+
                             if (!nameToAsmMap.ContainsKey(thisRef))
                             {
                                 nameToAsmMap.Add(thisRef, thisAssembly);
