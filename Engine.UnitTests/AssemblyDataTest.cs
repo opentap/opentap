@@ -12,7 +12,7 @@ namespace OpenTap.UnitTests
             // semverTest can be a bool or a SemanticVersion.
             
             
-            var testasm = new AssemblyData("./test.dll", null) { RawVersion = versionstr };
+            var testasm = new AssemblyData("./test.dll", null) { RawVersion = versionstr, Version = version == null ? null : Version.Parse(version)};
             if(semverTest is bool isSemver2 && isSemver2 == true)
                 Assert.AreEqual(SemanticVersion.Parse(versionstr), testasm.SemanticVersion);
             else if (semverTest is SemanticVersion semver2)
@@ -30,7 +30,7 @@ namespace OpenTap.UnitTests
         [Test]
         public void AssemblyDataVersionTest()
         {
-            var testasm = new AssemblyData("./test.dll", null) { RawVersion = "0.3.0-beta.8+7b4c999b" };
+            var testasm = new AssemblyData("./test.dll", null) { RawVersion = "0.3.0-beta.8+7b4c999b", Version = Version.Parse("0.3.0.0")};
             Assert.AreEqual(SemanticVersion.Parse("0.3.0-beta.8+7b4c999b"), testasm.SemanticVersion);
             Assert.AreEqual(new Version(0,3,0,0), testasm.Version);
             assemblyDataVersionTest2("0.3.0-beta.8+7b4c999b", true, "0.3.0.0");
