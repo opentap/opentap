@@ -61,14 +61,11 @@ namespace OpenTap
 
         /// <summary> The loaded state of the assembly. </summary>
         internal LoadStatus Status => assembly != null ? LoadStatus.Loaded : (failedLoad ? LoadStatus.FailedToLoad : LoadStatus.NotLoaded);
-
-        // NoVersion - marker version instead of null to show that no version has been parsed. Null is a valid value for version.
-        static readonly Version NoVersion = new Version(Int32.MaxValue, 0, 0, 0);
-
+        
         /// <summary>
         /// Gets the version of this Assembly. This will return null if the version cannot be parsed.
         /// </summary>
-        public Version Version { get; internal set; } = NoVersion;
+        public Version Version { get; internal set; } = null;
 
         // NoSemanticVersion - marker version instead of null to show that no version has been parsed. Null is a valid value for version.
         static readonly SemanticVersion NoSemanticVersion = new SemanticVersion(-1, 0, 0, "", "invalidversion");
@@ -86,7 +83,7 @@ namespace OpenTap
                 {
                     if (SemanticVersion.TryParse(RawVersion, out var version))
                         semanticVersion = version;
-                    else if (Version != NoVersion)
+                    else if (Version != null)
                         semanticVersion = new SemanticVersion(Version.Major, Version.Minor, Version.Revision, null, null);
                     else
                         semanticVersion = null;
