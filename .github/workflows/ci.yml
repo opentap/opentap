@@ -890,7 +890,7 @@ jobs:
         with:
           name: package-deb
           retention-days: 14
-          path: LinuxInstall/package/OpenTAP.deb
+          path: LinuxInstall/package/opentap.deb
 
   ###############
   ### Publish ###
