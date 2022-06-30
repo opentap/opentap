@@ -24,13 +24,14 @@ namespace OpenTap.Authentication
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(2),
                 TimeSpan.FromSeconds(5),
-                TimeSpan.FromSeconds(10),  
+                TimeSpan.FromSeconds(10),
             };
 
             async Task<HttpResponseMessage> SendWithRetry(HttpRequestMessage request,
                 CancellationToken cancellationToken)
-            {;
-                
+            {
+                ;
+
                 foreach (var wait in waits)
                 {
                     await Task.Delay(wait, cancellationToken);
@@ -44,7 +45,7 @@ namespace OpenTap.Authentication
                 throw new InvalidOperationException();
             }
 
-            
+
 
 
             public AuthenticationClientHandler(string domain = null, bool withRetryPolicy = false)
@@ -68,6 +69,7 @@ namespace OpenTap.Authentication
         public IList<TokenInfo> RefreshTokens { get; set; } = new List<TokenInfo>();
         /// <summary> Identity tokens.</summary>
         public IList<TokenInfo> IdentityTokens { get; set; } = new List<TokenInfo>();
+        public string Host { get; internal set; }
 
         void PrepareRequest(HttpRequestMessage request, string domain, CancellationToken cancellationToken)
         {
@@ -82,7 +84,7 @@ namespace OpenTap.Authentication
 
         /// <summary> Constructs a HttpClientHandler that can be used with HttpClient. </summary>
         public static HttpClientHandler GetClientHandler(string domain = null) => new AuthenticationClientHandler(domain);
-        
+
         /// <summary> Constructs a HttpClientHandler that can be used with HttpClient. </summary>
         public static HttpClientHandler GetClientHandleWithRetryPolicy(string domain = null) => new AuthenticationClientHandler(domain, withRetryPolicy: true);
 
@@ -128,7 +130,7 @@ namespace OpenTap.Authentication
             cancel.ThrowIfCancellationRequested();
 
             // Try refresh
-            
+
             return AccessTokens.FirstOrDefault(x => x.Domain == domain);
         }
 
@@ -155,6 +157,11 @@ namespace OpenTap.Authentication
                         throw new ArgumentOutOfRangeException();
                 }
             }
+        }
+
+        internal HttpClient GetClient()
+        {
+            return new HttpClient(GetClientHandler()) { BaseAddress = new Uri(Host) };
         }
     }
 }

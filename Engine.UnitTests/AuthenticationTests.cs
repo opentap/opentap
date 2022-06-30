@@ -3,6 +3,7 @@ using OpenTap.Authentication;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -51,6 +52,20 @@ namespace OpenTap.UnitTests
 }";
             tokens = TokenInfo.ParseTokens(response, "http://packages.opentap.io");
             Assert.AreEqual(1, tokens.Count);
+        }
+
+        [Test]
+        public void RelativeUrl()
+        {
+            
+            string host = "https://thisdoesnotexist.io/";
+            // REST-API
+            AuthenticationSettings.Current.Host = host;
+
+
+            // Plugin in REST-API Process
+            HttpClient client = AuthenticationSettings.Current.GetClient();
+            Assert.AreEqual(host, client.BaseAddress.ToString());
         }
     }
 }
