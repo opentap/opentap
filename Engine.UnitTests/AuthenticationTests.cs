@@ -57,10 +57,9 @@ namespace OpenTap.UnitTests
         [Test]
         public void RelativeUrl()
         {
-            
             string host = "https://thisdoesnotexist.io/";
             // REST-API
-            AuthenticationSettings.Current.Host = host;
+            AuthenticationSettings.Current.BaseAddress = host;
 
 
             // Plugin in REST-API Process

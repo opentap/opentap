@@ -67,7 +67,8 @@ namespace OpenTap.Authentication
         public IList<TokenInfo> RefreshTokens { get; set; } = new List<TokenInfo>();
         /// <summary> Identity tokens.</summary>
         public IList<TokenInfo> IdentityTokens { get; set; } = new List<TokenInfo>();
-        public string Host { get; internal set; }
+        /// <summary> Configuration which is used as BaseAddress in the GetClient() returned HttpClient.</summary>
+        public string BaseAddress { get; set; } = "http://localhost";
 
         void PrepareRequest(HttpRequestMessage request, string domain, CancellationToken cancellationToken)
         {
@@ -157,9 +158,16 @@ namespace OpenTap.Authentication
             }
         }
 
-        internal HttpClient GetClient()
+        /// <summary>
+        /// Get preconfigured HttpClient with BaseAddress and AuthenticationClientHandler.
+        /// It is up to the caller of this method to control the lifetime of the HttpClient
+        /// </summary>
+        /// <param name="domain"></param>
+        /// <param name="withRetryPolicy"></param>
+        /// <returns>HttpClient object</returns>
+        public HttpClient GetClient(string domain = null, bool withRetryPolicy = false)
         {
-            return new HttpClient(GetClientHandler()) { BaseAddress = new Uri(Host) };
+            return new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy)) { BaseAddress = new Uri(BaseAddress) };
         }
     }
 }

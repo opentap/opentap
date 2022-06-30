@@ -1,4 +1,5 @@
-﻿using OpenTap.Cli;
+﻿using OpenTap.Authentication;
+using OpenTap.Cli;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -27,6 +28,9 @@ namespace OpenTap.Package
         [CommandLineArgument("merge")]
         public bool Merge { get; set; }
 
+        [CommandLineArgument("baseaddress")]
+        public string BaseAddress { get; set; }
+
         /// <summary>
         /// Never prompt for user input.
         /// </summary>
@@ -41,9 +45,11 @@ namespace OpenTap.Package
             if (Force)
                 log.Warning($"Using --force does not force an image installation");
 
+            if(!string.IsNullOrEmpty(BaseAddress))
+                AuthenticationSettings.Current.BaseAddress = BaseAddress;
+
             var imageString = File.ReadAllText(ImagePath);
             var imageSpecifier = ImageSpecifier.FromString(imageString);
-
 
             try
             {
