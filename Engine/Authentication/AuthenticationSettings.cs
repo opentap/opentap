@@ -30,8 +30,6 @@ namespace OpenTap.Authentication
             async Task<HttpResponseMessage> SendWithRetry(HttpRequestMessage request,
                 CancellationToken cancellationToken)
             {
-                ;
-
                 foreach (var wait in waits)
                 {
                     await Task.Delay(wait, cancellationToken);
