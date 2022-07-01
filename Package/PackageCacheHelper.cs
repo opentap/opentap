@@ -17,7 +17,7 @@ namespace OpenTap.Package
         // Resolves to:
         // - Linux: /home/<USER>/.local/share/OpenTAP/PackageCache
         // - Windows: C:\Users\<USER>\AppData\Local\OpenTAP\PackageCache
-        public static string PackageCacheDirectory { get; } = new Uri(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTap", "PackageCache")).AbsoluteUri;
+        public static string PackageCacheDirectory { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTap", "PackageCache");
         readonly static TraceSource log =  Log.CreateSource("PackageCache");
 
         static PackageCacheHelper()
