@@ -18,45 +18,16 @@ env:
 
 jobs:
   GetVersion:
-    runs-on: ubuntu-latest
-    # Map a step output to a job output
+    runs-on: ubuntu-20.04
     outputs:
-      ShortVersion: ${{ steps.asmVer.outputs.ver }}
-      LongVersion: ${{ steps.longVer.outputs.ver }}
-      GitVersion: ${{ steps.gitVer.outputs.ver }}
+      ShortVersion: ${{ steps.gitversion.outputs.ShortVersion }}
+      LongVersion: ${{ steps.gitversion.outputs.LongVersion }}
+      GitVersion: ${{ steps.gitversion.outputs.GitVersion }}
     steps:
-      - name: Create OpenTAP install dir
-        run: mkdir $HOME/.tap
-      - name: Download OpenTAP
-        run: wget -O opentap.TapPackage https://packages.opentap.io/3.0/downloadpackage/OpenTAP?os=linux
-      - name: Unzip
-        run: unzip opentap.TapPackage -d "$HOME/.tap"
-      - name: Change permission
-        run: chmod +x $HOME/.tap/tap
-      - name: Create symlink
-        run: ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Fix tags
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
-      - name: tap sdk gitversion --fields 3
-        id: asmVer
-        run: |
-          echo ::set-output name=ver::$(tap sdk gitversion --fields 3)
-          echo $(tap sdk gitversion --fields 3)
-      - name: tap sdk gitversion --fields 4
-        id: longVer
-        run: |
-          echo ::set-output name=ver::$(tap sdk gitversion --fields 4)
-          echo $(tap sdk gitversion --fields 4)
-      - name: tap sdk gitversion
-        id: gitVer
-        run: |
-          echo ::set-output name=ver::$(tap sdk gitversion)
-          echo $(tap sdk gitversion)
+      # The get-gitversion action installs OpenTAP and fetches with fetch-depth: 0
+      - name: GitVersion
+        id: gitversion
+        uses: opentap/get-gitversion@v1.0
 
   CheckSecrets:
     runs-on: ubuntu-latest
