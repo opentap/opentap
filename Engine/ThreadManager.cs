@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Concurrent;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -293,6 +294,13 @@ namespace OpenTap
         public void Abort()
         {
             Abort(null);
+        }
+
+        /// <summary> Aborts the thread without throwing an exception. </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public void AbortNoThrow()
+        {
+            abortTokenSource.Cancel();
         }
 
         /// <summary>

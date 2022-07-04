@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="OpenTap.TestPlan">
+  <Steps>
+    <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0.0" Id="4f3b9fb7-adf2-4573-b7d8-0f7fcddbb811">
+      <Application>tap</Application>
+      <Arguments>test session-dispose-test</Arguments>
+      <WaitForEnd>true</WaitForEnd>
+      <Timeout>360000</Timeout>
+      <AddToLog>true</AddToLog>
+      <RegularExpressionPattern>
+        <Value>session-dispose-test disposed</Value>
+        <IsEnabled>true</IsEnabled>
+      </RegularExpressionPattern>
+      <VerdictOnMatch>Pass</VerdictOnMatch>
+      <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+      <Name>Run Program {Application}</Name>
+    </TestStep>
+  </Steps>
+</TestPlan>

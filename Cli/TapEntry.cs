@@ -6,9 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace OpenTap.Cli
@@ -194,7 +192,21 @@ namespace OpenTap.Cli
         static void wrapGoInProcess()
         {
             DebuggerAttacher.TryAttach();
-            CliActionExecutor.Execute();
+            
+            // create a session for everything to run within.
+            // this is not the root session, but a layer on top of it.
+            var session = Session.Create(SessionOptions.None);
+            using (session)
+            {
+                // make sure the root session is disposed before ending the process.
+                CliActionExecutor.Execute();
+                
+                // abort this thread and all the sub threads.
+                // note that the session itself has its own thread context, which is what gets aborted.
+                TapThread.Current.AbortNoThrow();
+            }
+             
+            session.WaitForDispose(TimeSpan.FromSeconds(1.0));
         }
 
         public static void Go()
