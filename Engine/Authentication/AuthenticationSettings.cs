@@ -4,7 +4,6 @@ using System.ComponentModel;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -116,8 +115,8 @@ namespace OpenTap.Authentication
         /// Get preconfigured HttpClient with BaseAddress and AuthenticationClientHandler.
         /// It is up to the caller of this method to control the lifetime of the HttpClient
         /// </summary>
-        /// <param name="domain"></param>
-        /// <param name="withRetryPolicy"></param>
+        /// <param name="domain">An access token will attempt to be included which are valid against this domain.</param>
+        /// <param name="withRetryPolicy">If the request should be retried in case of transient errors.</param>
         /// <returns>HttpClient object</returns>
         public HttpClient GetClient(string domain = null, bool withRetryPolicy = false)
         {

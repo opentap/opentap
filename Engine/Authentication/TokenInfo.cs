@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text.Json;
 using System.Xml.Serialization;
 
@@ -9,14 +7,14 @@ namespace OpenTap.Authentication
     /// <summary> Represents stored information about a token. </summary>
     public class TokenInfo
     {
-        /// <summary> Raw token string. </summary>
+        /// <summary>Raw token string. This value can be used as a Bearer token if <see cref="Type"/> is <see cref="TokenType.AccessToken"/></summary>
         public string TokenData { get; set; }
 
         static DateTime unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
 
         /// <summary> Expiration date of the token. </summary>
         [XmlIgnore]
-        public DateTime Expiration => unixEpoch.AddSeconds(long.Parse(this["exp"]));
+        public DateTime Expiration => unixEpoch.AddSeconds(long.Parse(GetClaim("exp")));
 
         /// <summary> The site this token belongs to. </summary>
         public string Domain { get; set; }
@@ -36,16 +34,13 @@ namespace OpenTap.Authentication
         /// <summary>
         /// Get a claim from the JWT payload
         /// </summary>
-        /// <param name="claim"></param>
-        /// <returns></returns>
-        public string this[string claim]
+        /// <param name="claim">Name of the claim, e.g. 'sub'</param>
+        /// <returns>Claim value or null if claim does not exist</returns>
+        public string GetClaim(string claim)
         {
-            get
-            {
-                if (GetPayload().RootElement.TryGetProperty(claim, out var id))
-                    return id.GetString();
-                return null;
-            }
+            if (GetPayload().RootElement.TryGetProperty(claim, out var id))
+                return id.GetString();
+            return null;
         }
 
         /// <summary>
