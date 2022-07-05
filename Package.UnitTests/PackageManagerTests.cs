@@ -514,6 +514,16 @@ namespace OpenTap.Package.UnitTests
             // Path with incorrect syntax
             result = PackageRepositoryHelpers.DetermineRepositoryType(@"C::\Users\steholst\Source\Repos\tap2\TapThatDoesNotExists");
             Assert.IsFalse(result is FilePackageRepository);
+
+            // Specific file entry
+            result = PackageRepositoryHelpers.DetermineRepositoryType(@"file:///C:/thisdoesnotexist");
+            Assert.IsTrue(result is FilePackageRepository);
+
+            // Specific file entry with casing
+            result = PackageRepositoryHelpers.DetermineRepositoryType(@"FILE:///C:/thisdoesnotexist");
+            Assert.IsTrue(result is FilePackageRepository);
+
+
             #endregion
 
             #region HTTP
@@ -524,6 +534,18 @@ namespace OpenTap.Package.UnitTests
             // Correct https address
             result = PackageRepositoryHelpers.DetermineRepositoryType(@"https://plugindemoapi.azurewebsites.net/");
             Assert.IsTrue(result is HttpPackageRepository, "DetermineRepositoryType - Correct https address");
+
+            // HttpRepo with casing
+            result = PackageRepositoryHelpers.DetermineRepositoryType(@"HTTP://thisdoesnotexist.io");
+            Assert.IsTrue(result is HttpPackageRepository);
+
+            // Relative PackageRepository URL
+            result = PackageRepositoryHelpers.DetermineRepositoryType(@"/thisdoesnotexist");
+            Assert.IsTrue(result is HttpPackageRepository);
+
+            // Relative PackageRepository URL
+            result = PackageRepositoryHelpers.DetermineRepositoryType(@"/packages");
+            Assert.IsTrue(result is HttpPackageRepository);
             #endregion
         }
     }

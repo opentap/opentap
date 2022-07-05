@@ -1,74 +1,68 @@
 using System;
-using System.Collections.Generic;
+using System.Text.Json;
+using System.Xml.Serialization;
 
 namespace OpenTap.Authentication
 {
     /// <summary> Represents stored information about a token. </summary>
     public class TokenInfo
     {
-        /// <summary> Raw token string. </summary>
+        /// <summary>Raw token string. This value can be used as a Bearer token if <see cref="Type"/> is <see cref="TokenType.AccessToken"/></summary>
         public string TokenData { get; set; }
+
+        static DateTime unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
+
         /// <summary> Expiration date of the token. </summary>
-        public DateTime Expiration { get; set; }
-        /// <summary> The site this token activates. </summary>
+        [XmlIgnore]
+        public DateTime Expiration => unixEpoch.AddSeconds(long.Parse(GetClaim("exp")));
+
+        /// <summary> The site this token belongs to. </summary>
         public string Domain { get; set; }
         /// <summary> The type of token. </summary>
         public TokenType Type { get; set; }
 
-        /// <summary> Gets if the token is expired.</summary>
-        public bool Expired => Expiration < DateTime.Now;
+        JsonDocument payload;
 
-        System.Text.Json.JsonDocument payload;
-
-        System.Text.Json.JsonDocument GetPayload()
+        JsonDocument GetPayload()
         {
             if (payload != null) return payload;
             var payloadData = TokenData.Split('.')[1];
-            payload = System.Text.Json.JsonDocument.Parse(Convert.FromBase64String(payloadData));
+            payload = JsonDocument.Parse(Convert.FromBase64String(payloadData));
             return payload;
         }
-        /// <summary> Gets the client id. </summary>
-        public string GetClientId()
+
+        /// <summary>
+        /// Get a claim from the JWT payload
+        /// </summary>
+        /// <param name="claim">Name of the claim, e.g. 'sub'</param>
+        /// <returns>Claim value or null if claim does not exist</returns>
+        public string GetClaim(string claim)
         {
-            if (GetPayload().RootElement.TryGetProperty("azp", out var id))
+            if (GetPayload().RootElement.TryGetProperty(claim, out var id))
                 return id.GetString();
             return null;
         }
 
-        /// <summary> Gets the auth URL. </summary>
-        public string GetAuthority()
+        /// <summary>
+        /// Serializable constructur
+        /// </summary>
+        public TokenInfo()
         {
-            if (GetPayload().RootElement.TryGetProperty("iss", out var id))
-                return id.GetString();
-            return null;
+
         }
 
-        static readonly TimeSpan refreshSlack = TimeSpan.FromSeconds(30);
-        /// <summary> Parses tokens from oauth response string (json format). </summary>
-
-        public static List<TokenInfo> ParseTokens(string responseString, string domain)
+        /// <summary>
+        /// Default constructor from user code
+        /// </summary>
+        /// <param name="jwtString">Token Data</param>
+        /// <param name="type">Access, Refresh or ID type</param>
+        /// <param name="domain">Domain name for which this token is valid</param>
+        public TokenInfo(string jwtString, TokenType type, string domain)
         {
-            var json = System.Text.Json.JsonDocument.Parse(responseString);
-
-            //"expires_in":300,"refresh_expires_in":1800
-            var accessExp = DateTime.Now.AddSeconds(300);
-            var refreshExp = DateTime.Now.AddSeconds(1800);
-            if (json.RootElement.TryGetProperty("expires_in", out var exp1Str) && exp1Str.TryGetInt32(out var accessAdd))
-                accessExp = DateTime.Now.AddSeconds(accessAdd).Subtract(refreshSlack);
-            if (json.RootElement.TryGetProperty("refresh_expires_in", out exp1Str) && exp1Str.TryGetInt32(out var refreshAdd))
-                refreshExp = DateTime.Now.AddSeconds(refreshAdd).Subtract(refreshSlack);
-            List<TokenInfo> tokens = new List<TokenInfo>();
-
-            if (json.RootElement.TryGetProperty("access_token", out var accessTokenData))
-                tokens.Add(new TokenInfo { Domain = domain, Expiration = accessExp, Type = TokenType.AccessToken, TokenData = accessTokenData.GetString() });
-
-            if (json.RootElement.TryGetProperty("refresh_token", out var refreshTokenData))
-                tokens.Add(new TokenInfo { Domain = domain, Expiration = refreshExp, Type = TokenType.RefreshToken, TokenData = refreshTokenData.GetString() });
-
-            if(json.RootElement.TryGetProperty("id_token", out var idTokenData))
-                tokens.Add(new TokenInfo { Domain = domain, Expiration = accessExp, Type = TokenType.IdentityToken, TokenData = idTokenData.GetString() });
-
-            return tokens;
+            TokenData = jwtString;
+            Type = type;
+            Domain = domain;
         }
+
     }
 }

@@ -318,13 +318,15 @@ namespace OpenTap.Package
         {
             if(registeredRepositories.TryGetValue(url, out var repo))
                 return repo;
-            if(url.Contains("http://") || url.Contains("https://"))
+            if(url.ToLower().StartsWith("http://") || url.ToLower().StartsWith("https://"))
                 return new HttpPackageRepository(url); // avoid throwing exceptions if it looks a lot like a URL.
+            if(url.ToLower().StartsWith("file:///"))
+                return new FilePackageRepository(url);
             if (Uri.IsWellFormedUriString(url, UriKind.Relative) && Directory.Exists(url))
                 return new FilePackageRepository(url);
             if (File.Exists(url))
                 return new FilePackageRepository(Path.GetDirectoryName(url));
-            if (Regex.IsMatch(url ?? "", @"^([A-Z|a-z]:)?(\\|/)"))
+            if (Regex.IsMatch(url ?? "", @"^([A-Z|a-z]:[/|\\])|(//|\\\\)"))
                 return new FilePackageRepository(url);
             else
                 return new HttpPackageRepository(url);

@@ -24,8 +24,9 @@ namespace OpenTap.UnitTests
     ""session_state"": ""05d7a6f2-70dd-48e3-806b-dc9ccb5e7f3e"",
     ""scope"": ""openid profile email""
 }";
-            var tokens = TokenInfo.ParseTokens(response, "http://packages.opentap.io");
-            Assert.AreEqual(3, tokens.Count);
+            AuthenticationSettings.Current.AddTokensFromResponse(response, "http://packages.opentap.io");
+            Assert.AreEqual(3, AuthenticationSettings.Current.Tokens.Count);
+            AuthenticationSettings.Current.Tokens.Clear();
 
 
             response = @"{
@@ -38,8 +39,9 @@ namespace OpenTap.UnitTests
     ""session_state"": ""05d7a6f2-70dd-48e3-806b-dc9ccb5e7f3e"",
     ""scope"": ""openid profile email""
 }";
-            tokens = TokenInfo.ParseTokens(response, "http://packages.opentap.io");
-            Assert.AreEqual(2, tokens.Count);
+            AuthenticationSettings.Current.AddTokensFromResponse(response, "http://packages.opentap.io");
+            Assert.AreEqual(2, AuthenticationSettings.Current.Tokens.Count);
+            AuthenticationSettings.Current.Tokens.Clear();
 
             response = @"{
     ""access_token"": ""eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJIaHlId25IdDRnclRDYVhtRHNlSVhHX2U3ajVNb3YzakhLTjZWVlZsZ0lNIn0.eyJleHAiOjE2NDg3MTEwMDQsImlhdCI6MTY0ODcxMDcwNCwianRpIjoiM2NkZDRkYzEtMGE2Mi00YzBjLTljNzQtMmFhZTUwNDk2YWM1IiwiaXNzIjoiaHR0cHM6Ly9rZXljbG9hay5rczg1MDAuYWxiLmlzLmtleXNpZ2h0LmNvbS9hdXRoL3JlYWxtcy9rczg1MDAiLCJhdWQiOiJhY2NvdW50Iiwic3ViIjoiMWY1NmRkMGItNzFkOS00MjAwLWI0YzYtZDE5NWNlNGUxYzJiIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoiZGVubmlzIiwic2Vzc2lvbl9zdGF0ZSI6IjA1ZDdhNmYyLTcwZGQtNDhlMy04MDZiLWRjOWNjYjVlN2YzZSIsImFjciI6IjEiLCJyZWFsbV9hY2Nlc3MiOnsicm9sZXMiOlsiZGVmYXVsdC1yb2xlcy1rczg1MDAiLCJvZmZsaW5lX2FjY2VzcyIsInVtYV9hdXRob3JpemF0aW9uIl19LCJyZXNvdXJjZV9hY2Nlc3MiOnsiYWNjb3VudCI6eyJyb2xlcyI6WyJtYW5hZ2UtYWNjb3VudCIsIm1hbmFnZS1hY2NvdW50LWxpbmtzIiwidmlldy1wcm9maWxlIl19fSwic2NvcGUiOiJvcGVuaWQgcHJvZmlsZSBlbWFpbCIsInNpZCI6IjA1ZDdhNmYyLTcwZGQtNDhlMy04MDZiLWRjOWNjYjVlN2YzZSIsImNsaWVudElkIjoiZGVubmlzIiwiY2xpZW50SG9zdCI6IjEwLjE0OS4xMDkuMjUyIiwiZW1haWxfdmVyaWZpZWQiOmZhbHNlLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJzZXJ2aWNlLWFjY291bnQtZGVubmlzIiwiY2xpZW50QWRkcmVzcyI6IjEwLjE0OS4xMDkuMjUyIn0.GWKY9EV4sqpLg0GGfmqnGcfjBGhN2NunJrfIysaeRJaYnfsmo3rt-_awpbg15q6IXFipr8N6kE965Y0rxeODxAmRVIf8pb-GkaT0qMOpUidiZrUz3FC0WDXymH3gBayOaKOIa03qVOn5fURmGV4nbQyuJemgQYXW8fcFQpu8xrsM9leYGzVXU4zdxNR-jSfYq1iNN2je9E-EhlglxmvQnirRcoGJsymLxg0s6M_s6cQnQBOihuKsEPE8C3zBeVoCXYJ3kkY0Q6GGK2e8EoRhvrNQ-pyK58yJv5YEnC6Erxe06tfFBZ_XX596YerAqkI4XlHpuEBddqGP0HSYlwtcjA"",
@@ -49,8 +51,9 @@ namespace OpenTap.UnitTests
     ""session_state"": ""05d7a6f2-70dd-48e3-806b-dc9ccb5e7f3e"",
     ""scope"": ""openid profile email""
 }";
-            tokens = TokenInfo.ParseTokens(response, "http://packages.opentap.io");
-            Assert.AreEqual(1, tokens.Count);
+            AuthenticationSettings.Current.AddTokensFromResponse(response, "http://packages.opentap.io");
+            Assert.AreEqual(1, AuthenticationSettings.Current.Tokens.Count);
+            AuthenticationSettings.Current.Tokens.Clear();
         }
     }
 }
