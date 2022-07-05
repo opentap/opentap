@@ -69,42 +69,10 @@ namespace OpenTap.Authentication
         /// <summary> Identity tokens.</summary>
         public IList<TokenInfo> IdentityTokens { get; set; } = new List<TokenInfo>();
 
-        private string baseAddress { get; set; } = "http://localhost";
-        /// <summary> Configuration which is used as BaseAddress in the GetClient() returned HttpClient.</summary>
-        public string BaseAddress
-        {
-            get { return baseAddress; }
-            set
-            {
-                baseAddress = value;
-                List<WeakReference> garbageCollected = null;
-                foreach (var client in clientReferences)
-                {
-                    if (client.Target is AuthenticationClient authClient && !authClient.IsDisposed)
-                    {
-                        try
-                        {
-                            authClient.BaseAddress = new Uri(value);
-                        }
-                        catch (ObjectDisposedException)
-                        {
-                            // Catch disposed exception in case of a race condition between the `IsAlive` check and actually fetching the Target in the try clause. Next call will return !IsAlive and list will be updated accordingly from en else clause.
-                        }
-                    }
-                    else
-                    {
-                        if (garbageCollected == null)
-                            garbageCollected = new List<WeakReference>();
-                        garbageCollected.Add(client);
-                    }
-                }
-
-                if (garbageCollected is object)
-                    foreach (var client in garbageCollected)
-                        clientReferences.Remove(client);
-            }
-        }
-
+        /// <summary> Configuration used as BaseAddress in returned HttpClients.
+        /// This string will be prepended to all relative urls, e.g. '/api/packages' will become '{BaseAddress}/api/packages'
+        /// </summary>
+        public string BaseAddress { get; set; } = "http://localhost";
 
         void PrepareRequest(HttpRequestMessage request, string domain, CancellationToken cancellationToken)
         {
@@ -194,7 +162,6 @@ namespace OpenTap.Authentication
             }
         }
 
-        internal List<WeakReference> clientReferences = new List<WeakReference>();
 
         /// <summary>
         /// Get preconfigured HttpClient with BaseAddress and AuthenticationClientHandler.
@@ -205,23 +172,7 @@ namespace OpenTap.Authentication
         /// <returns>HttpClient object</returns>
         public HttpClient GetClient(string domain = null, bool withRetryPolicy = false)
         {
-            HttpClient client = new AuthenticationClient(new AuthenticationClientHandler(domain, withRetryPolicy)) { BaseAddress = new Uri(BaseAddress) };
-            clientReferences.Add(new WeakReference(client));
-            return client;
-        }
-
-        class AuthenticationClient : HttpClient
-        {
-            public AuthenticationClient(HttpMessageHandler handler) : base(handler)
-            {
-            }
-
-            public bool IsDisposed { get; set; } = false;
-            protected override void Dispose(bool disposing)
-            {
-                IsDisposed = true;
-                base.Dispose(disposing);
-            }
+            return new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy)) { BaseAddress = new Uri(BaseAddress) };
         }
     }
 }

@@ -75,19 +75,5 @@ namespace OpenTap.UnitTests
             List<string> packageNames = JsonConvert.DeserializeObject<List<string>>(response.Content.ReadAsStringAsync().GetAwaiter().GetResult());
             Assert.IsTrue(packageNames.Any());
         }
-
-        [Test]
-        public void RelativeUrlSetAddressAfter()
-        {
-            string host = "https://ks8500.alb.is.keysight.com/";
-
-            using (HttpClient client = AuthenticationSettings.Current.GetClient())
-            {
-                AuthenticationSettings.Current.BaseAddress = host;
-                Assert.AreEqual(host, client.BaseAddress.ToString());
-            }
-
-            Assert.AreEqual(0, AuthenticationSettings.Current.clientReferences.Count);
-        }
     }
 }
