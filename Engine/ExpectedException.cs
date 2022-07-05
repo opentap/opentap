@@ -5,7 +5,7 @@ using System.Text;
 namespace OpenTap
 {
     /// <summary>
-    /// Used to cancel a teststep without printing a stacktrace, will also set the verdice if necessary,
+    /// Used to cancel a teststep without printing a stacktrace, will also set the verdict if necessary.
     /// </summary>
     public class ExpectedException : Exception
     {
@@ -20,8 +20,18 @@ namespace OpenTap
         /// <summary>
         /// The verdict of this teststep.
         /// </summary>
-        public Verdict Verdict { get; set; }
+        public virtual Verdict Verdict { get; set; }
 
-        
+        public void Handle(string stepName)
+        {
+            if (string.IsNullOrWhiteSpace(Message))
+            {
+                TestPlan.Log.Info("Test step {0} stopped.", stepName);
+            }
+            else
+            {
+                TestPlan.Log.Info("{1}", Message);
+            }
+        }
     }
 }

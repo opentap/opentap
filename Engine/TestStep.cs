@@ -927,15 +927,9 @@ namespace OpenTap
             }
             catch (ExpectedException e)
             {
-                if (string.IsNullOrWhiteSpace(e.Message))
-                {
-                    TestPlan.Log.Info("Test step {0} stopped expectedly.", Step.Name);
-                }
-                else
-                {
-                    TestPlan.Log.Info("Test step {0} stopped expectedly with message {1}.", Step.Name, e.Message);
-                }
+                e.Handle(Step.Name);
                 Step.Verdict = e.Verdict;
+                throw e;
             }
             catch (Exception e)
             {
