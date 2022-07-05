@@ -54,26 +54,5 @@ namespace OpenTap.UnitTests
             tokens = TokenInfo.ParseTokens(response, "http://packages.opentap.io");
             Assert.AreEqual(1, tokens.Count);
         }
-
-        [Test]
-        public void RelativeUrl()
-        {
-            string host = "https://ks8500.alb.is.keysight.com/";
-            // REST-API
-            AuthenticationSettings.Current.BaseAddress = host;
-
-
-            // Plugin in REST-API Process
-            HttpClient client = AuthenticationSettings.Current.GetClient();
-            Assert.AreEqual(host, client.BaseAddress.ToString());
-
-            HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Get, "/packages/3.0/GetPackageNames");
-            requestMessage.Headers.Accept.Clear();
-            requestMessage.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
-
-            var response = client.SendAsync(requestMessage).GetAwaiter().GetResult();
-            List<string> packageNames = JsonConvert.DeserializeObject<List<string>>(response.Content.ReadAsStringAsync().GetAwaiter().GetResult());
-            Assert.IsTrue(packageNames.Any());
-        }
     }
 }
