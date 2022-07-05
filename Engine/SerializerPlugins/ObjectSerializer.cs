@@ -592,9 +592,9 @@ namespace OpenTap.Plugins
             }
             catch(Exception ex)
             {
-                if (ex is TargetInvocationException tarEx && tarEx.InnerException is ArgumentException arEx)
+                if (ex is TargetInvocationException tarEx)
                 {
-                    Serializer.PushError(element, arEx.Message, tarEx);
+                    Serializer.PushError(element, tarEx.InnerException.Message, tarEx);
                 }
                 else
                 {
