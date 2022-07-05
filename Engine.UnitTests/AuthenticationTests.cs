@@ -1,4 +1,5 @@
-﻿using NUnit.Framework;
+﻿using Newtonsoft.Json;
+using NUnit.Framework;
 using OpenTap.Authentication;
 using System;
 using System.Collections.Generic;
@@ -57,7 +58,7 @@ namespace OpenTap.UnitTests
         [Test]
         public void RelativeUrl()
         {
-            string host = "https://thisdoesnotexist.io/";
+            string host = "https://ks8500.alb.is.keysight.com/";
             // REST-API
             AuthenticationSettings.Current.BaseAddress = host;
 
@@ -65,6 +66,28 @@ namespace OpenTap.UnitTests
             // Plugin in REST-API Process
             HttpClient client = AuthenticationSettings.Current.GetClient();
             Assert.AreEqual(host, client.BaseAddress.ToString());
+
+            HttpRequestMessage requestMessage = new HttpRequestMessage(HttpMethod.Get, "/packages/3.0/GetPackageNames");
+            requestMessage.Headers.Accept.Clear();
+            requestMessage.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+
+            var response = client.SendAsync(requestMessage).GetAwaiter().GetResult();
+            List<string> packageNames = JsonConvert.DeserializeObject<List<string>>(response.Content.ReadAsStringAsync().GetAwaiter().GetResult());
+            Assert.IsTrue(packageNames.Any());
+        }
+
+        [Test]
+        public void RelativeUrlSetAddressAfter()
+        {
+            string host = "https://ks8500.alb.is.keysight.com/";
+
+            using (HttpClient client = AuthenticationSettings.Current.GetClient())
+            {
+                AuthenticationSettings.Current.BaseAddress = host;
+                Assert.AreEqual(host, client.BaseAddress.ToString());
+            }
+
+            Assert.AreEqual(0, AuthenticationSettings.Current.clientReferences.Count);
         }
     }
 }
