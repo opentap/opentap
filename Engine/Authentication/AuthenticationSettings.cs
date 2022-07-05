@@ -63,6 +63,10 @@ namespace OpenTap.Authentication
             }
         }
 
+        /// <summary>
+        /// Token store containing access, refresh and identity tokens.
+        /// These tokens are used in the HttpClients returned by GetClient() to authenticate requests.
+        /// </summary>
         public IList<TokenInfo> Tokens { get; set; } = new List<TokenInfo>();
 
         /// <summary> Parses tokens from OAuth response string (json format) and adds them to current Tokens list. </summary>
