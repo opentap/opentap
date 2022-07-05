@@ -491,6 +491,13 @@ namespace OpenTap.Package
                         // add them as payload in this package in the Dependencies subfolder
                         foreach (var unknown in dependentAssemblyNames)
                         {
+                            if (unknown.Name == "netstandard")
+                            {
+                                // Packaging netstandard.dll can cause issues for some plugins, so let's always skip it.
+                                // It should always be packaged with the runtime anyway.
+                                log.Debug($"Skipping adding dependency on '{unknown.Name}'.");
+                                continue;
+                            }
                             var foundAsms = searchedFiles.Where(asm => (asm.Name == unknown.Name) && OpenTap.Utils.Compatible(asm.Version, unknown.Version)).ToList();
                             var foundAsm = foundAsms.FirstOrDefault();
 
