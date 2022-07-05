@@ -55,5 +55,31 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(1, AuthenticationSettings.Current.Tokens.Count);
             AuthenticationSettings.Current.Tokens.Clear();
         }
+
+        [Test]
+        public void TokenExpiration()
+        {
+
+            string response = @"{
+    ""access_token"": ""eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJNTGNwamN3ck9uZnNHZWFheXZ1UVppaVZ5RjRhREVweE1XdU1mdGdScU5rIn0.eyJleHAiOjE2NTcwMTg5NzYsImlhdCI6MTY1NzAxODY3NiwianRpIjoiN2RiNDkzM2UtZGIzOS00MTlhLTgxNTctMzBlOTc0YTc2M2JkIiwiaXNzIjoiaHR0cHM6Ly9rZXljbG9hay5rczg1MDAuYWxiLmlzLmtleXNpZ2h0LmNvbS9hdXRoL3JlYWxtcy9rczg1MDAiLCJhdWQiOlsiY2x0LWtzODUwMC1zZWVkIiwiYWNjb3VudCJdLCJzdWIiOiIxZWI4YmFmNC02OWUwLTQyYTQtYTNlMS0yYmM5ZjZhNGUwNzciLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJjbHQta3M4NTAwLXNlc3Npb24tbWFuYWdlciIsInNlc3Npb25fc3RhdGUiOiIzYzQyYzM5NS1iMDEyLTRhMWMtYTc5YS00NGY1MWQzMzhkOGUiLCJhY3IiOiIxIiwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbImRlZmF1bHQtcm9sZXMta3M4NTAwIiwib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoib3BlbmlkIHByb2ZpbGUgZW1haWwiLCJzaWQiOiIzYzQyYzM5NS1iMDEyLTRhMWMtYTc5YS00NGY1MWQzMzhkOGUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwicHJlZmVycmVkX3VzZXJuYW1lIjoiZGV2ZWxvcGVyIn0.AH34kCBwfPbqpXHevgyatejxtIvwZCw11wae_P_1qSKP-1EAhSYDqpepINycnORL7PBqEcbq841ohp-Ih-kPVN7K8MLDIPkHZM-FbTh5BxddjlQT0f_O7inglpwDtNNRCGr3gvVClv4eQJ1HPktyeispiFfLqlXvrDgD9_I4TPuRqRSa_fmY2wGDrMtIFSPWn1DGdpV7_-_vOxMs1eJGPH71Ghvlkhgkywccd3Gvl6RPA8L8wq4bDIlJ4v-5LoyBnznZJEalb4lPiEgOhxHLmRjUEcmXUcKhG7uaf7EgN61XqNhmVBVuTLM3gCH44EFSsNER9B3_6Am1SM_z8P1Lhg"",
+    ""expires_in"": 299,
+    ""refresh_expires_in"": 1800,
+    ""refresh_token"": ""eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI5NzgwMjU4Yi05MTVhLTQ3YzctYTA1Ni02YTkyOGY0MTc1MzkifQ.eyJleHAiOjE2NTcwMjA0NzcsImlhdCI6MTY1NzAxODY3NywianRpIjoiYzQ1ZmJlMGEtZmQ0Zi00ZTA3LWEyNTItODYwZTJjNzI5ZjA3IiwiaXNzIjoiaHR0cHM6Ly9rZXljbG9hay5rczg1MDAuYWxiLmlzLmtleXNpZ2h0LmNvbS9hdXRoL3JlYWxtcy9rczg1MDAiLCJhdWQiOiJodHRwczovL2tleWNsb2FrLmtzODUwMC5hbGIuaXMua2V5c2lnaHQuY29tL2F1dGgvcmVhbG1zL2tzODUwMCIsInN1YiI6IjFlYjhiYWY0LTY5ZTAtNDJhNC1hM2UxLTJiYzlmNmE0ZTA3NyIsInR5cCI6IlJlZnJlc2giLCJhenAiOiJjbHQta3M4NTAwLXNlc3Npb24tbWFuYWdlciIsInNlc3Npb25fc3RhdGUiOiIzYzQyYzM5NS1iMDEyLTRhMWMtYTc5YS00NGY1MWQzMzhkOGUiLCJzY29wZSI6Im9wZW5pZCBwcm9maWxlIGVtYWlsIiwic2lkIjoiM2M0MmMzOTUtYjAxMi00YTFjLWE3OWEtNDRmNTFkMzM4ZDhlIn0.OlBx9v0iRviNuCjcYM42SzvrKcpKfGgWpDE-Brf5hvc"",
+    ""token_type"": ""Bearer"",
+    ""id_token"": ""eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJNTGNwamN3ck9uZnNHZWFheXZ1UVppaVZ5RjRhREVweE1XdU1mdGdScU5rIn0.eyJleHAiOjE2NTcwMTg5NzYsImlhdCI6MTY1NzAxODY3NywiYXV0aF90aW1lIjowLCJqdGkiOiI3ZmM2YjBkZC1iOTBkLTQyOGQtODkwMS1iYzliN2JmZGQ3ZGYiLCJpc3MiOiJodHRwczovL2tleWNsb2FrLmtzODUwMC5hbGIuaXMua2V5c2lnaHQuY29tL2F1dGgvcmVhbG1zL2tzODUwMCIsImF1ZCI6WyJjbHQta3M4NTAwLXNlc3Npb24tbWFuYWdlciIsImNsdC1rczg1MDAtc2VlZCJdLCJzdWIiOiIxZWI4YmFmNC02OWUwLTQyYTQtYTNlMS0yYmM5ZjZhNGUwNzciLCJ0eXAiOiJJRCIsImF6cCI6ImNsdC1rczg1MDAtc2Vzc2lvbi1tYW5hZ2VyIiwic2Vzc2lvbl9zdGF0ZSI6IjNjNDJjMzk1LWIwMTItNGExYy1hNzlhLTQ0ZjUxZDMzOGQ4ZSIsImF0X2hhc2giOiJTSG5fWnVteUpaU3h0WU1SZDFxcVRRIiwiYWNyIjoiMSIsInNpZCI6IjNjNDJjMzk1LWIwMTItNGExYy1hNzlhLTQ0ZjUxZDMzOGQ4ZSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJwcmVmZXJyZWRfdXNlcm5hbWUiOiJkZXZlbG9wZXIifQ.ZN4zNnZ_dUeIBs51vi-EFD615J0RkVxG3eQ7Sy0Rv5dHFLE2t-xx7zLE_CXytQtbGe_JCzbmH9KbF9pPQixzuJ_Nq5fR0zHU1SwRK3eetpMIq8KjzHnbTL0SMwMuDsBevkMGIXeBry1CGLInbJHkSayq8vE7XhL0tDmd9od-9mczAeXOILX7Z2n06Iu6V8Ja6BmGYCcOsibvV94alahcmg9mIhRcr4Jlg2Bb3La1zCAHhcFU6qvuIvxLZ-gakmcgQ7EqY7zqEgsDIVc1-o1SxE7owt3qU79PYRvjv1cp6u5s3pLBO9xZZoGcKIybsEXxf6bTB6ZVQXkdnWmguHzDXQ"",
+    ""not-before-policy"": 1656576311,
+    ""session_state"": ""3c42c395-b012-4a1c-a79a-44f51d338d8e"",
+    ""scope"": ""openid profile email""
+}";
+
+            AuthenticationSettings.Current.AddTokensFromResponse(response, "http://packages.opentap.io");
+            Assert.AreEqual(3, AuthenticationSettings.Current.Tokens.Count);
+            DateTime dateTime = new DateTime(2022, 7, 5, 13, 02, 56).ToUniversalTime();
+            TimeSpan timeSpan = AuthenticationSettings.Current.Tokens.FirstOrDefault(s => s.Type == TokenType.AccessToken).Expiration - dateTime;
+            Assert.IsTrue(timeSpan.Days == 0);
+            Assert.IsTrue(timeSpan.Hours == 0);
+            Assert.IsTrue(timeSpan.Minutes == 0);
+            Assert.IsTrue(timeSpan.Seconds == 0);
+        }
     }
 }

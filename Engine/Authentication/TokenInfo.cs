@@ -27,8 +27,13 @@ namespace OpenTap.Authentication
         {
             if (payload != null) return payload;
             var payloadData = TokenData.Split('.')[1];
-            payload = JsonDocument.Parse(Convert.FromBase64String(payloadData));
+            payload = JsonDocument.Parse(Decode(payloadData));
             return payload;
+        }
+
+        private byte[] Decode(string payloadData)
+        {
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -39,7 +44,7 @@ namespace OpenTap.Authentication
         public string GetClaim(string claim)
         {
             if (GetPayload().RootElement.TryGetProperty(claim, out var id))
-                return id.GetString();
+                return id.GetRawText();
             return null;
         }
 
@@ -63,6 +68,5 @@ namespace OpenTap.Authentication
             Type = type;
             Domain = domain;
         }
-
     }
 }
