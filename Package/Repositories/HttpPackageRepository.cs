@@ -263,9 +263,9 @@ namespace OpenTap.Package
                     wc.Proxy = WebRequest.GetSystemWebProxy();
                     wc.Headers.Add(HttpRequestHeader.Accept, accept ?? "application/xml");
                     wc.Headers.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
-                    var token = AuthenticationSettings.Current.Tokens.FirstOrDefault(s => s.Type == TokenType.AccessToken && s.Domain == new Uri(Url).Host);
+                    var token = AuthenticationSettings.Current.Tokens.FirstOrDefault(s => s.Domain == new Uri(Url).Host);
                     if (token != null)
-                        wc.Headers.Add("Authorization", "Bearer " + token.TokenData);
+                        wc.Headers.Add("Authorization", "Bearer " + token.AccessToken);
                     wc.Encoding = Encoding.UTF8;
 
                     if (data != null)

@@ -63,29 +63,12 @@ namespace OpenTap.Authentication
         }
 
         /// <summary>
-        /// Token store containing access, refresh and identity tokens.
-        /// These tokens are used in the HttpClients returned by GetClient() to authenticate requests.
+        /// Token store containing access and refresh tokens.
+        /// These tokens are used in the HttpClients returned by <see cref="GetClient"/> to authenticate requests.
         /// </summary>
         public IList<TokenInfo> Tokens { get; set; } = new List<TokenInfo>();
 
-        /// <summary> Parses tokens from OAuth response string (json format) and adds them to current Tokens list. </summary>
-        public void AddTokensFromResponse(string response, string domain)
-        {
-
-            var json = JsonDocument.Parse(response);
-
-            if (json.RootElement.TryGetProperty("access_token", out var accessTokenData))
-                Tokens.Add(new TokenInfo(accessTokenData.GetString(), TokenType.AccessToken, domain));
-
-            if (json.RootElement.TryGetProperty("refresh_token", out var refreshTokenData))
-                Tokens.Add(new TokenInfo(refreshTokenData.GetString(), TokenType.RefreshToken, domain));
-
-            if (json.RootElement.TryGetProperty("id_token", out var idTokenData))
-                Tokens.Add(new TokenInfo(idTokenData.GetString(), TokenType.IdentityToken, domain));
-
-        }
-
-        /// <summary> Configuration used as BaseAddress in returned HttpClients.
+        /// <summary> Configuration used as BaseAddress in HttpClients returned by <see cref="GetClient"/>.
         /// This string will be prepended to all relative urls, e.g. '/api/packages' will become '{BaseAddress}/api/packages'
         /// </summary>
         public string BaseAddress { get; set; } = "http://localhost";
@@ -94,20 +77,19 @@ namespace OpenTap.Authentication
         {
             TokenInfo token = null;
             if (domain != null)
-                token = Tokens.FirstOrDefault(t => t.Domain == domain && t.Type == TokenType.AccessToken);
+                token = Tokens.FirstOrDefault(t => t.Domain == domain);
             if (token == null)
-                token = Tokens.FirstOrDefault(t => t.Domain == request.RequestUri.Host && t.Type == TokenType.AccessToken);
+                token = Tokens.FirstOrDefault(t => t.Domain == request.RequestUri.Host);
             if (token != null)
             {
                 if (token.Expiration < DateTime.Now.AddSeconds(10))
                 {
-                    var rToken = Tokens.FirstOrDefault(t => t.Domain == domain && t.Type == TokenType.RefreshToken);
-                    if (rToken != null)
+                    if (token.RefreshToken != null)
                     {
-                        // refresh
+                        // TODO: refresh
                     }
                 }
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.TokenData);
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
             }
         }
 
