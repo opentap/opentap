@@ -30,7 +30,7 @@ namespace OpenTap.Package
     {
         // from Stream.cs: pick a value that is the largest multiple of 4096 that is still smaller than the large object heap threshold (85K).
         private const int _DefaultCopyBufferSize = 81920;
-        
+
         private static TraceSource log = Log.CreateSource("HttpPackageRepository");
         private const string ApiVersion = "3.0";
         private VersionSpecifier MinRepoVersion = new VersionSpecifier(3, 0, 0, "", "", VersionMatchBehavior.AnyPrerelease | VersionMatchBehavior.Compatible);
@@ -39,7 +39,7 @@ namespace OpenTap.Package
         private HttpClient HttpClient => client ?? (client = GetHttpClient(Url));
         private static HttpClient GetHttpClient(string url)
         {
-            var httpClient = new HttpClient(Authentication.AuthenticationSettings.GetClientHandleWithRetryPolicy());
+            var httpClient = AuthenticationSettings.Current.GetClient(null, true);
             httpClient.DefaultRequestHeaders.Add("OpenTAP",
                 PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
             httpClient.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/xml");
@@ -53,7 +53,7 @@ namespace OpenTap.Package
         private SemanticVersion _version;
 
         bool IsInError() => _version == null && nextUpdateAt > DateTime.Now;
-        
+
         /// <summary>
         /// Get or set the version of the repository
         /// </summary>
@@ -126,14 +126,14 @@ namespace OpenTap.Package
 
         async Task DoDownloadPackage(PackageDef package, FileStream fileStream, CancellationToken cancellationToken)
         {
-            
+
             try
             {
                 var hc = HttpClient;
                 {
                     HttpResponseMessage response = null;
                     hc.DefaultRequestHeaders.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
-                    
+
                     var totalSize = -1L;
                     // this retry loop is to robustly to download the package even if the connection is intermittently lost
                     // to test, try
@@ -196,12 +196,12 @@ namespace OpenTap.Package
                                         ConsoleUtils.printProgress(header, pos, len);
                                         (this as IPackageDownloadProgress).OnProgressUpdate?.Invoke(header, pos, len);
                                     });
-                                
+
                             }
 
                             break;
                         }
-                        
+
                         catch (Exception ex)
                         {
                             if (ex is IOException)
@@ -216,19 +216,19 @@ namespace OpenTap.Package
                                 await Task.Delay(TimeSpan.FromSeconds(1));
                                 continue;
                             }
-                                
+
                             if (response != null)
                             {
                                 // The connection was broken while a http request was active.
                                 // If the error is transient or we got partial data we can try continuing.
-                                
+
                                 var code = response.StatusCode;
                                 bool isError = response.IsSuccessStatusCode == false;
                                 response.Dispose();
                                 response = null;
-                                
+
                                 // PartialContent usually happens when 'ex' is IOException.
-                                
+
                                 if (code == HttpStatusCode.PartialContent || (isError && HttpUtils.TransientStatusCode(code)))
                                 {
                                     await Task.Delay(TimeSpan.FromSeconds(1));
@@ -237,7 +237,7 @@ namespace OpenTap.Package
                             }
 
                             if (cancellationToken.IsCancellationRequested == false)
-                                log.Error("Failed to download package.");   
+                                log.Error("Failed to download package.");
                             throw;
                         }
                     }
@@ -263,9 +263,9 @@ namespace OpenTap.Package
                     wc.Proxy = WebRequest.GetSystemWebProxy();
                     wc.Headers.Add(HttpRequestHeader.Accept, accept ?? "application/xml");
                     wc.Headers.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
-                    var token = AuthenticationSettings.Current.GetValidAccessToken(new Uri(Url).Host, TapThread.Current.AbortToken);
+                    var token = AuthenticationSettings.Current.Tokens.FirstOrDefault(s => s.Domain == new Uri(Url).Host);
                     if (token != null)
-                        wc.Headers.Add("Authorization", "Bearer " + token.TokenData);
+                        wc.Headers.Add("Authorization", "Bearer " + token.AccessToken);
                     wc.Encoding = Encoding.UTF8;
 
                     if (data != null)
@@ -303,7 +303,7 @@ namespace OpenTap.Package
                 {
                     var versionUrl = $"{url}/{ApiVersion}/version";
                     var response = HttpClient.GetAsync(versionUrl).Result;
-                   
+
                     // Check for http server redirects
                     url = checkServerRedirect(url, versionUrl, response);
 
@@ -364,7 +364,7 @@ namespace OpenTap.Package
 
         // The value indicates the next time at which the repo should be tried connected to.
         DateTime nextUpdateAt = DateTime.MinValue;
-        
+
         static readonly TimeSpan updateRepoVersionHoldOff = TimeSpan.FromSeconds(60);
         readonly object updateVersionLock = new object();
         private void CheckRepoApiVersion()
@@ -396,9 +396,9 @@ namespace OpenTap.Package
                     }
                     catch (HttpRequestException ex)
                     {
-                        log.Debug("HTTP Exception {0}", ex);    
+                        log.Debug("HTTP Exception {0}", ex);
                     }
-                    
+
                     if (string.IsNullOrEmpty(data))
                     {
                         // Url does not exists
@@ -665,7 +665,7 @@ namespace OpenTap.Package
         public PackageVersion[] GetPackageVersions(string packageName, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             // force update version to check for errors.
-            Version?.ToString(); 
+            Version?.ToString();
             if (IsInError()) return Array.Empty<PackageVersion>();
             string response;
             string arg = string.Format("/{0}/GetPackageVersions/{1}", ApiVersion, Uri.EscapeDataString(packageName));
