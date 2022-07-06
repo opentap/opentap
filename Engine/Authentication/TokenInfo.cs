@@ -1,32 +1,60 @@
 using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
 using System.Text.Json;
 using System.Xml.Serialization;
 
 namespace OpenTap.Authentication
 {
-    /// <summary> Represents stored information about a token. </summary>
+    /// <summary> 
+    /// Represents a set of Oauth2/OpenID Connect jwt tokens (access and possibly refresh token) that grants access to a given domain.
+    /// </summary>
     public class TokenInfo
     {
-        /// <summary>Raw token string. This value can be used as a Bearer token if <see cref="Type"/> is <see cref="TokenType.AccessToken"/></summary>
-        public string TokenData { get; set; }
-
         static DateTime unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
 
-        /// <summary> Expiration date of the token. </summary>
-        [XmlIgnore]
-        public DateTime Expiration => unixEpoch.AddSeconds(long.Parse(GetClaim("exp")));
+        /// <summary>
+        /// Raw access token string. This value can be used as a Bearer token. The HttpClient 
+        /// returned from <see cref="AutneticationSettings.GetClient"/> will automatically do 
+        /// this for requests that go to domains that match <see cref="Domain"/>.
+        /// </summary>
+        public string AccessToken { get; set; }
 
-        /// <summary> The site this token belongs to. </summary>
+        /// <summary>
+        /// Raw refresh token string. May be null if no refresh token is available.
+        /// </summary>
+        public string RefreshToken { get; set; }
+
+        /// <summary> 
+        /// The site this token is intended for. Used by the HttpClient 
+        /// returned from <see cref="AutneticationSettings.GetClient"/> to determine which TokenInfo
+        /// in the <see cref="AutneticationSettings.Tokens"/> list to use for a given request.
+        /// </summary>
         public string Domain { get; set; }
-        /// <summary> The type of token. </summary>
-        public TokenType Type { get; set; }
+
+        private Dictionary<string, string> _Claims;
+        public IReadOnlyDictionary<string, string> Claims
+        {
+            get
+            {
+                if(_Claims == null)
+                    _Claims = GetPayload().RootElement.EnumerateObject().ToDictionary(c => c.Name, c => c.Value.ToString());
+                return _Claims;
+            }
+        }
+
+        /// <summary> Expiration date of the access token. </summary>
+        [XmlIgnore]
+        public DateTime Expiration => unixEpoch.AddSeconds(long.Parse(Claims["exp"]));
 
         JsonDocument payload;
 
         JsonDocument GetPayload()
         {
             if (payload != null) return payload;
-            var payloadData = TokenData.Split('.')[1];
+            var payloadData = AccessToken.Split('.')[1];
             payload = JsonDocument.Parse(Base64UrlDecode(payloadData));
             return payload;
         }
@@ -45,20 +73,9 @@ namespace OpenTap.Authentication
         }
 
         /// <summary>
-        /// Get a claim from the JWT payload
+        /// Constructor used by serializer, please use constructor with arguments from user code.
         /// </summary>
-        /// <param name="claim">Name of the claim, e.g. 'sub'</param>
-        /// <returns>Claim value or null if claim does not exist</returns>
-        public string GetClaim(string claim)
-        {
-            if (GetPayload().RootElement.TryGetProperty(claim, out var id))
-                return id.GetRawText();
-            return null;
-        }
-
-        /// <summary>
-        /// Serializable constructur
-        /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public TokenInfo()
         {
 
@@ -67,15 +84,29 @@ namespace OpenTap.Authentication
         /// <summary>
         /// Default constructor from user code
         /// </summary>
-        /// <param name="jwtString">Token Data</param>
-        /// <param name="type">Access, Refresh or ID type</param>
+        /// <param name="access_token">The raw jwt token string for the access token</param>
+        /// <param name="refresh_token">Access, Refresh or ID type</param>
         /// <param name="domain">Domain name for which this token is valid</param>
-        public TokenInfo(string jwtString, TokenType type, string domain)
+        public TokenInfo(string access_token, string refresh_token, string domain)
         {
-            TokenData = jwtString;
-            Type = type;
+            AccessToken = access_token;
+            RefreshToken = refresh_token;
             Domain = domain;
         }
 
+        /// <summary> Parses tokens from OAuth response string (json format) and adds them to current Tokens list. </summary>
+        public static TokenInfo FromResponse(string response, string domain)
+        {
+            var ti = new TokenInfo();
+            ti.Domain = domain;
+            var json = JsonDocument.Parse(response);
+
+            if (json.RootElement.TryGetProperty("access_token", out var accessTokenData))
+                ti.AccessToken = accessTokenData.GetString();
+
+            if (json.RootElement.TryGetProperty("refresh_token", out var refreshTokenData))
+                ti.RefreshToken = refreshTokenData.GetString();
+            return ti;
+        }
     }
 }

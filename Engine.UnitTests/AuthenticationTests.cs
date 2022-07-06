@@ -24,8 +24,8 @@ namespace OpenTap.UnitTests
     ""session_state"": ""05d7a6f2-70dd-48e3-806b-dc9ccb5e7f3e"",
     ""scope"": ""openid profile email""
 }";
-            AuthenticationSettings.Current.AddTokensFromResponse(response, "http://packages.opentap.io");
-            Assert.AreEqual(3, AuthenticationSettings.Current.Tokens.Count);
+            var ti = TokenInfo.FromResponse(response, "http://packages.opentap.io");
+            Assert.IsNotNull(ti.RefreshToken);
             AuthenticationSettings.Current.Tokens.Clear();
 
 
@@ -39,8 +39,8 @@ namespace OpenTap.UnitTests
     ""session_state"": ""05d7a6f2-70dd-48e3-806b-dc9ccb5e7f3e"",
     ""scope"": ""openid profile email""
 }";
-            AuthenticationSettings.Current.AddTokensFromResponse(response, "http://packages.opentap.io");
-            Assert.AreEqual(2, AuthenticationSettings.Current.Tokens.Count);
+            ti = TokenInfo.FromResponse(response, "http://packages.opentap.io");
+            Assert.IsNotNull(ti.RefreshToken);
             AuthenticationSettings.Current.Tokens.Clear();
 
             response = @"{
@@ -51,8 +51,8 @@ namespace OpenTap.UnitTests
     ""session_state"": ""05d7a6f2-70dd-48e3-806b-dc9ccb5e7f3e"",
     ""scope"": ""openid profile email""
 }";
-            AuthenticationSettings.Current.AddTokensFromResponse(response, "http://packages.opentap.io");
-            Assert.AreEqual(1, AuthenticationSettings.Current.Tokens.Count);
+            ti = TokenInfo.FromResponse(response, "http://packages.opentap.io");
+            Assert.IsNull(ti.RefreshToken);
             AuthenticationSettings.Current.Tokens.Clear();
         }
 
@@ -72,13 +72,11 @@ namespace OpenTap.UnitTests
     ""scope"": ""openid profile email""
 }";
 
-            AuthenticationSettings.Current.Tokens.Clear();
-            AuthenticationSettings.Current.AddTokensFromResponse(response, "http://packages.opentap.io");
-            Assert.AreEqual(3, AuthenticationSettings.Current.Tokens.Count);
+            var ti = TokenInfo.FromResponse(response, "http://packages.opentap.io");
             DateTime dateTime = new DateTime(2022, 7, 5, 11, 02, 56);
-            TimeSpan timeSpan = AuthenticationSettings.Current.Tokens.FirstOrDefault(s => s.Type == TokenType.AccessToken).Expiration - dateTime;
+            TimeSpan timeSpan = ti.Expiration - dateTime;
             Console.WriteLine(dateTime.ToString());
-            Console.WriteLine(AuthenticationSettings.Current.Tokens.FirstOrDefault(s => s.Type == TokenType.AccessToken).Expiration.ToString());
+            Console.WriteLine(ti.Expiration.ToString());
             Console.WriteLine(timeSpan.ToString());
 
             Assert.IsTrue(timeSpan.Days == 0);
@@ -92,8 +90,9 @@ namespace OpenTap.UnitTests
         {
             // This token has a '-' and '_' in the payload which is not in the normal base64 char set. It is in the base64-URL charset though, and should work.
             string accessToken = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJlQUFuOTYwbFpXYU1tZGliTDg4Q29CVlhZSy1VcEhTeWE0T3Z3d04tQzI4In0.eyJleHAiOjE2NTcwNjI5MzUsImlhdCI6MTY1NzA2Mjg3NSwianRpIjoiMGYwNmM3ZWYtOWI3Yi00NzQ1LWJiNTEtY2U5ZTAzOTdmYWMzIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwL3JlYWxtcy9tYXN0ZXIiLCJhdWQiOiJhY2NvdW50Iiwic3ViIjoiM2IwNDk0NzYtMzFlOC00NjljLTk3YmEtMWEwZGFmMzAxOGMzIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoicG9zdG1hbiIsInNlc3Npb25fc3RhdGUiOiI1NmU2NGQ5NC00YmFiLTRhYjYtOGZhOC1lODkzNjU2ZTlmZWIiLCJhY3IiOiIxIiwiYWxsb3dlZC1vcmlnaW5zIjpbImh0dHA6Ly9sb2NhbGhvc3QiXSwicmVhbG1fYWNjZXNzIjp7InJvbGVzIjpbImRlZmF1bHQtcm9sZXMtbWFzdGVyIiwib2ZmbGluZV9hY2Nlc3MiLCJ1bWFfYXV0aG9yaXphdGlvbiJdfSwicmVzb3VyY2VfYWNjZXNzIjp7ImFjY291bnQiOnsicm9sZXMiOlsibWFuYWdlLWFjY291bnQiLCJtYW5hZ2UtYWNjb3VudC1saW5rcyIsInZpZXctcHJvZmlsZSJdfX0sInNjb3BlIjoicHJvZmlsZSBlbWFpbCIsInNpZCI6IjU2ZTY0ZDk0LTRiYWItNGFiNi04ZmE4LWU4OTM2NTZlOWZlYiIsImVtYWlsX3ZlcmlmaWVkIjpmYWxzZSwibmFtZSI6In5-IDliODM_NTNjIiwicHJlZmVycmVkX3VzZXJuYW1lIjoiYXNnZXIiLCJnaXZlbl9uYW1lIjoifn4iLCJmYW1pbHlfbmFtZSI6IjliODM_NTNjIn0.elXy3abQHHL9-hlVOfkH1JxzgZXyiRSI8JpVJgbiFic7A9fY0qFiUC6aBrR9_FNDU7zh3A4rCAmprdbonMwFRzkRnWfnipXgPTnAtFz9q2i6M0Tcnj-AAgPvZ9sjwtKdOKyzoqoKpEsfdiFYZb31oc8M4R7dRFAixPh8ARv9Lpzx5Hnu7q7A_ewOStQWZbqD-GQvtJyslkbXJM3RaTT3VpDRSXWr67SoIff9SxcrHAJpj_gJcwrg5xrZW4IdmE87_L3LcFvaLzeUx8IvrfpmVHuR8E8yR8RMu2oxiBXD5M1LJCbD3Wx6dTszqFRUOlnR1FA4xAsSgJ8Xba4MB5PWNA";
-            var t = new TokenInfo(accessToken, TokenType.AccessToken, "localhost");
-            Assert.AreEqual("\"~~ 9b83?53c\"", t.GetClaim("name"));
+            var t = new TokenInfo(accessToken, null, "localhost");
+            Assert.AreEqual("~~ 9b83?53c", t.Claims["name"]);
+            Assert.AreEqual("1", t.Claims["acr"]);
         }
     }
 }
