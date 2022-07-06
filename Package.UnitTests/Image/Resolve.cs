@@ -1,10 +1,12 @@
 ﻿using NUnit.Framework;
 using NUnit.Framework.Internal;
+using OpenTap.Authentication;
 using OpenTap.Diagnostic;
 using OpenTap.Image;
 using OpenTap.Package;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -402,6 +404,49 @@ namespace OpenTap.Image.Tests
             {
                 var split = res.Split(':');
                 Assert.IsTrue(resolver.Dependencies.FirstOrDefault(s => s.Name == split[0]).Version.ToString().StartsWith(split[1]));
+            }
+        }
+
+        [Test] // THIS TEST SHOULD NOT BE MERGED!!!!!!!!!!!!!!!!!!! FOR DEBUGGING ONLY
+        public void TestRelative()
+        {
+            Assert.AreEqual("https://ks8500.alb.is.keysight.com/", AuthenticationSettings.Current.GetClient().BaseAddress.ToString());
+            var imageSpecifier = MockRepository.CreateSpecifier();
+            imageSpecifier.Packages.Add(new PackageSpecifier("MyTestPlan-uazj1j", VersionSpecifier.Parse("1.0.0-beta.1")));
+            imageSpecifier.Repositories.Clear();
+            imageSpecifier.Repositories.Add("/api/packages");
+            imageSpecifier.Repositories.Add("packages.opentap.io");
+            try
+            {
+                var image = imageSpecifier.Resolve(CancellationToken.None);
+            }
+            catch (AggregateException ex)
+            {
+            }
+        }
+
+        [Test]  // THIS TEST SHOULD NOT BE MERGED!!!!!!!!!!!!!!!!!!! FOR DEBUGGING ONLY
+        public void TestIfHttpPackageRepositorySupportsRelativePaths()
+        {
+            AuthenticationSettings.Current.BaseAddress = "https://ks8500.alb.is.keysight.com/";
+            HttpPackageRepository httpPackageRepository = new HttpPackageRepository("/api/packages");
+            var packages = httpPackageRepository.GetPackageNames();
+            Assert.IsTrue(packages.Any());
+            var versions = httpPackageRepository.GetPackageVersions(packages.FirstOrDefault());
+            Assert.IsTrue(versions.Any());
+            string query = "query Query {packages(class:\"testplan\", version:\"any\"){ name version description dependencies{ name version} }}";
+            var resp = httpPackageRepository.QueryGraphQL(query);
+            Assert.IsNotNull(resp);
+            string file = "C:/Temp/Test.TapPackage";
+            try
+            {
+                httpPackageRepository.DownloadPackage(new PackageIdentifier(versions.FirstOrDefault().Name, versions.FirstOrDefault().Version, CpuArchitecture.AnyCPU, "Windows"), file);
+                Assert.IsTrue(File.Exists(file));
+            }
+            finally
+            {
+                if (File.Exists(file))
+                    File.Delete(file);
             }
         }
     }
