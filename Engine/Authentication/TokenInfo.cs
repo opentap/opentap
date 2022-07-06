@@ -97,7 +97,7 @@ namespace OpenTap.Authentication
             Domain = domain;
         }
 
-        /// <summary> Parses tokens from OAuth response string (json format) and adds them to current Tokens list. </summary>
+        /// <summary> Creates a TokenInfo object based on the given OAuth response (json format). </summary>
         public static TokenInfo FromResponse(string response, string domain)
         {
             var ti = new TokenInfo();
