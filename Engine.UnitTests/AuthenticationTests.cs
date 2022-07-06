@@ -91,5 +91,45 @@ namespace OpenTap.UnitTests
             Assert.AreEqual("~~ 9b83?53c", t.Claims["name"]);
             Assert.AreEqual("1", t.Claims["acr"]);
         }
+
+        [Test]
+        public void Refresh()
+        {
+            // This token has a '-' and '_' in the payload which is not in the normal base64 char set. It is in the base64-URL charset though, and should work.
+            string accessToken = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICItdUNOU19VdkowVEViRGhRYUdCaHBia0ZRX0oyb0FCcENWUmY5RG9RRmJvIn0.eyJleHAiOjE2NTcxMDUxODEsImlhdCI6MTY1NzEwNDU4MSwianRpIjoiZTc4YTIzODctYWM0MC00ZTY1LTlmMmUtYTBlMGRlMTIzMDBkIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwL3JlYWxtcy9tYXN0ZXIiLCJhdWQiOiJhY2NvdW50Iiwic3ViIjoiODcyMjVmNmEtM2E5Ny00Njg2LThhZGQtZThjNWY3NjlmNWZjIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoidGVzdC1jbGllbnQiLCJzZXNzaW9uX3N0YXRlIjoiZWI5NjRlMTAtYjdlMS00NjllLWI2YjYtNDUwNzhkYzc2NmExIiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwOi8vbG9jYWxob3N0Il0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJkZWZhdWx0LXJvbGVzLW1hc3RlciIsIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iXX0sInJlc291cmNlX2FjY2VzcyI6eyJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzY29wZSI6InByb2ZpbGUgZW1haWwiLCJzaWQiOiJlYjk2NGUxMC1iN2UxLTQ2OWUtYjZiNi00NTA3OGRjNzY2YTEiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsInByZWZlcnJlZF91c2VybmFtZSI6ImFzZ2VyIn0.E316o1I17h9a4JO-UzTk1GOaaOOE6ES5KVn1TerBDGAI7KHyPHzcHDKNogUCLhqLvGlHPEOfzjAzX9fNRLQZz_IL75z4sJQzgvN0nWPnne24vf4IVn7TzovOYd0PTuhuGUwrBtmmSAK-VLrKPPX15KoWEyz2kQ-eeYae07giopJ0FNuyiF8Y49PYiDO7hyk00VZYe1EZCXBLa6WglK0htDEh_BZPXuHnaF00PMKym_0lnAqS5_Lk-UoTi7quvnbJmM3yfH_xNPl2mysDFxHk-E86bZ8MWudZvXHmjhlAnlAZxd-ARqAFtCImDU1Ez9nniWhg0zCpCTL9eYT0xE5bcA";
+            string refreshToken = "eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICI0MjVkNjFhNS00ZTU1LTQ2ZmUtOTk5OC04M2ZkMTNmYmJkYWYifQ.eyJleHAiOjE2NTcxMDYzODEsImlhdCI6MTY1NzEwNDU4MSwianRpIjoiZTVlYTBlZWItOTAyZC00YTU4LThjZmItNjE3ODQwMmEzYTI3IiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwL3JlYWxtcy9tYXN0ZXIiLCJhdWQiOiJodHRwOi8vbG9jYWxob3N0OjgwODAvcmVhbG1zL21hc3RlciIsInN1YiI6Ijg3MjI1ZjZhLTNhOTctNDY4Ni04YWRkLWU4YzVmNzY5ZjVmYyIsInR5cCI6IlJlZnJlc2giLCJhenAiOiJ0ZXN0LWNsaWVudCIsInNlc3Npb25fc3RhdGUiOiJlYjk2NGUxMC1iN2UxLTQ2OWUtYjZiNi00NTA3OGRjNzY2YTEiLCJzY29wZSI6InByb2ZpbGUgZW1haWwiLCJzaWQiOiJlYjk2NGUxMC1iN2UxLTQ2OWUtYjZiNi00NTA3OGRjNzY2YTEifQ.Lp15itPOVrt5bM4nyJcy4iSlViFZ_Tc19sva7sbvnv0";
+            var t = new TokenInfo(accessToken, refreshToken, "localhost");
+            t.Refresh("test-client", "Gv5aQGy3YbrxrZFVjLB6MmnF4LF4f0uu");
+        }
+
+        [Test]
+        public void RPT()
+        {
+            // This token has a '-' and '_' in the payload which is not in the normal base64 char set. It is in the base64-URL charset though, and should work.
+            string accessToken = "eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICItdUNOU19VdkowVEViRGhRYUdCaHBia0ZRX0oyb0FCcENWUmY5RG9RRmJvIn0.eyJleHAiOjE2NTcxMDU4MzMsImlhdCI6MTY1NzEwNTIzMywianRpIjoiZGRhNTI3MDktM2RlZi00M2UwLTgyNzItYjhmYWZjY2QxNTY1IiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwL3JlYWxtcy9tYXN0ZXIiLCJhdWQiOiJhY2NvdW50Iiwic3ViIjoiODcyMjVmNmEtM2E5Ny00Njg2LThhZGQtZThjNWY3NjlmNWZjIiwidHlwIjoiQmVhcmVyIiwiYXpwIjoidGVzdC1jbGllbnQiLCJzZXNzaW9uX3N0YXRlIjoiNTNlZGNlNDQtZDc0NS00ZTJkLWE3MDQtNTBiNDVkMWUxMDFmIiwiYWNyIjoiMSIsImFsbG93ZWQtb3JpZ2lucyI6WyJodHRwOi8vbG9jYWxob3N0Il0sInJlYWxtX2FjY2VzcyI6eyJyb2xlcyI6WyJkZWZhdWx0LXJvbGVzLW1hc3RlciIsIm9mZmxpbmVfYWNjZXNzIiwidW1hX2F1dGhvcml6YXRpb24iXX0sInJlc291cmNlX2FjY2VzcyI6eyJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzY29wZSI6InByb2ZpbGUgZW1haWwiLCJzaWQiOiI1M2VkY2U0NC1kNzQ1LTRlMmQtYTcwNC01MGI0NWQxZTEwMWYiLCJlbWFpbF92ZXJpZmllZCI6ZmFsc2UsInByZWZlcnJlZF91c2VybmFtZSI6ImFzZ2VyIn0.gmdN4yGgRcdy2g2wMZYxQslvxrit-Xp_1_1-UdlBe4HEBvi5vFStazTUBe0d7NFvbsLhv_ADpfav5N6TrgIk2EM3qLvwCv4gFNkBIibVjKo8XL6Rd0CN7bWFoeDxyWjfYAj3e0PwM151HvInPVIdPE9GsJ9_seFneBrwLZeTQh3fV39ERst1brXyN6UQyBgkjoqcCmej3rpnoPhtLoZztUvjNssoFuuiRa67F1KdSTTJQK-e51cOKA7pHqtV_U7hm7xtiIxoI5OCqkt8BebggoCJQfsPYlF8jP6NQgBLMncg4EGUtZofkUUc2q_z82ECD1puI87oRo-fEcGBIfpSiQ";
+            var t = new TokenInfo(accessToken, null, "localhost");
+            var rpt = t.GetRequestingPartyToken("test-client");
+            Assert.AreEqual(t.Claims["sub"], rpt.Claims["sub"]);
+        }
+
+
+        public TokenInfo Login(string authorityUrl = "http://localhost:8080/realms/master", string user, string pass)
+        {
+            using (var client = new HttpClient())
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, authorityUrl + "/.well-known/openid-configuration");
+                HttpResponseMessage response = client.SendAsync(request).Result;
+                var doc = JsonDocument.Parse(response.Content.ReadAsStreamAsync().Result);
+                string tokenEndoint = doc.RootElement.GetProperty("token_endpoint").GetString();
+                request = new HttpRequestMessage(HttpMethod.Post, tokenEndoint);
+                request.Headers.Add("Authorization", "Bearer " + AccessToken);
+                var nvc = new List<KeyValuePair<string, string>>();
+                nvc.Add(new KeyValuePair<string, string>("grant_type", "password"));
+                nvc.Add(new KeyValuePair<string, string>("audience", audience));
+                request.Content = new FormUrlEncodedContent(nvc);
+                response = client.SendAsync(request).Result;
+                return FromResponse(response.Content.ReadAsStringAsync().Result, Domain);
+            }
+        }
     }
 }

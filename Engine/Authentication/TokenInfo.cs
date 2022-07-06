@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Net.Http;
 using System.Text.Json;
 using System.Xml.Serialization;
 
@@ -110,6 +111,47 @@ namespace OpenTap.Authentication
             if (json.RootElement.TryGetProperty("refresh_token", out var refreshTokenData))
                 ti.RefreshToken = refreshTokenData.GetString();
             return ti;
+        }
+
+        public void Refresh(string client_id, string client_secret)
+        {
+            using (var client = new HttpClient())
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, Claims["iss"] + "/.well-known/openid-configuration");
+                HttpResponseMessage response = client.SendAsync(request).Result;
+                var doc = JsonDocument.Parse(response.Content.ReadAsStreamAsync().Result);
+                string tokenEndoint = doc.RootElement.GetProperty("token_endpoint").GetString();
+                request = new HttpRequestMessage(HttpMethod.Post, tokenEndoint);
+                var nvc = new List<KeyValuePair<string, string>>();
+                nvc.Add(new KeyValuePair<string, string>("grant_type", "refresh_token"));
+                nvc.Add(new KeyValuePair<string, string>("client_id", client_id));
+                nvc.Add(new KeyValuePair<string, string>("client_secret", client_secret));
+                nvc.Add(new KeyValuePair<string, string>("refresh_token", RefreshToken));
+                request.Content = new FormUrlEncodedContent(nvc);
+                response = client.SendAsync(request).Result;
+                var rt= FromResponse(response.Content.ReadAsStringAsync().Result,Domain);
+                this.AccessToken = rt.AccessToken;
+                this.RefreshToken = rt.RefreshToken;
+            }
+        }
+
+        public TokenInfo GetRequestingPartyToken(string audience)
+        {
+            using (var client = new HttpClient())
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, Claims["iss"] + "/.well-known/openid-configuration");
+                HttpResponseMessage response = client.SendAsync(request).Result;
+                var doc = JsonDocument.Parse(response.Content.ReadAsStreamAsync().Result);
+                string tokenEndoint = doc.RootElement.GetProperty("token_endpoint").GetString();
+                request = new HttpRequestMessage(HttpMethod.Post, tokenEndoint);
+                request.Headers.Add("Authorization", "Bearer " + AccessToken);
+                var nvc = new List<KeyValuePair<string, string>>();
+                nvc.Add(new KeyValuePair<string, string>("grant_type", "urn:ietf:params:oauth:grant-type:uma-ticket"));
+                nvc.Add(new KeyValuePair<string, string>("audience", audience));
+                request.Content = new FormUrlEncodedContent(nvc);
+                response = client.SendAsync(request).Result;
+                return FromResponse(response.Content.ReadAsStringAsync().Result, Domain);
+            }
         }
     }
 }
