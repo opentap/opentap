@@ -27,13 +27,21 @@ namespace OpenTap.Authentication
         {
             if (payload != null) return payload;
             var payloadData = TokenData.Split('.')[1];
-            payload = JsonDocument.Parse(Decode(payloadData));
+            payload = JsonDocument.Parse(Base64UrlDecode(payloadData));
             return payload;
         }
 
-        private byte[] Decode(string payloadData)
+
+        byte[] Base64UrlDecode(string encoded)
         {
-            throw new NotImplementedException();
+            string substituded = encoded;
+            substituded = substituded.Replace('-', '+');
+            substituded = substituded.Replace('_', '/');
+            while (substituded.Length % 4 != 0)
+            {
+                substituded += '=';
+            }
+            return Convert.FromBase64String(substituded);
         }
 
         /// <summary>
