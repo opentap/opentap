@@ -17,7 +17,7 @@ namespace OpenTap.Authentication
 
         /// <summary>
         /// Raw access token string. This value can be used as a Bearer token. The HttpClient 
-        /// returned from <see cref="AutneticationSettings.GetClient"/> will automatically do 
+        /// returned from <see cref="AuthenticationSettings.GetClient"/> will automatically do 
         /// this for requests that go to domains that match <see cref="Domain"/>.
         /// </summary>
         public string AccessToken { get; set; }
@@ -29,12 +29,15 @@ namespace OpenTap.Authentication
 
         /// <summary> 
         /// The site this token is intended for. Used by the HttpClient 
-        /// returned from <see cref="AutneticationSettings.GetClient"/> to determine which TokenInfo
-        /// in the <see cref="AutneticationSettings.Tokens"/> list to use for a given request.
+        /// returned from <see cref="AuthenticationSettings.GetClient"/> to determine which TokenInfo
+        /// in the <see cref="AuthenticationSettings.Tokens"/> list to use for a given request.
         /// </summary>
         public string Domain { get; set; }
 
         private Dictionary<string, string> _Claims;
+        /// <summary>
+        /// Claims contained in the <see cref="AccessToken"/>.
+        /// </summary>
         public IReadOnlyDictionary<string, string> Claims
         {
             get
@@ -45,7 +48,7 @@ namespace OpenTap.Authentication
             }
         }
 
-        /// <summary> Expiration date of the access token. </summary>
+        /// <summary> Expiration date of the <see cref="AccessToken"/>. </summary>
         [XmlIgnore]
         public DateTime Expiration => unixEpoch.AddSeconds(long.Parse(Claims["exp"]));
 
