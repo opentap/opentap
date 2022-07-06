@@ -31,6 +31,9 @@ namespace OpenTap.Authentication
             return payload;
         }
 
+
+        byte[] Base64UrlDecode(string encoded)
+
         byte[] Base64UrlDecode(string encoded)
         {
             string substituded = encoded;
@@ -54,8 +57,6 @@ namespace OpenTap.Authentication
                 return id.GetRawText();
             return null;
         }
-
-        //public Dictionary<string, string> Claims => GetPayload().RootElement.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.GetRawText());
 
         /// <summary>
         /// Serializable constructur
