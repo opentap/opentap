@@ -27,8 +27,21 @@ namespace OpenTap.Authentication
         {
             if (payload != null) return payload;
             var payloadData = TokenData.Split('.')[1];
-            payload = JsonDocument.Parse(Convert.FromBase64String(payloadData));
+            payload = JsonDocument.Parse(Base64UrlDecode(payloadData));
             return payload;
+        }
+
+
+        byte[] Base64UrlDecode(string encoded)
+        {
+            string substituded = encoded;
+            substituded = substituded.Replace('-', '+');
+            substituded = substituded.Replace('_', '/');
+            while (substituded.Length % 4 != 0)
+            {
+                substituded += '=';
+            }
+            return Convert.FromBase64String(substituded);
         }
 
         /// <summary>
@@ -39,7 +52,7 @@ namespace OpenTap.Authentication
         public string GetClaim(string claim)
         {
             if (GetPayload().RootElement.TryGetProperty(claim, out var id))
-                return id.GetString();
+                return id.GetRawText();
             return null;
         }
 
