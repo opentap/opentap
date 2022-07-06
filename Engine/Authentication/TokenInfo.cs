@@ -33,8 +33,6 @@ namespace OpenTap.Authentication
 
 
         byte[] Base64UrlDecode(string encoded)
-
-        byte[] Base64UrlDecode(string encoded)
         {
             string substituded = encoded;
             substituded = substituded.Replace('-', '+');
