@@ -72,10 +72,15 @@ namespace OpenTap.UnitTests
     ""scope"": ""openid profile email""
 }";
 
+            AuthenticationSettings.Current.Tokens.Clear();
             AuthenticationSettings.Current.AddTokensFromResponse(response, "http://packages.opentap.io");
             Assert.AreEqual(3, AuthenticationSettings.Current.Tokens.Count);
             DateTime dateTime = new DateTime(2022, 7, 5, 13, 02, 56).ToUniversalTime();
             TimeSpan timeSpan = AuthenticationSettings.Current.Tokens.FirstOrDefault(s => s.Type == TokenType.AccessToken).Expiration - dateTime;
+            Console.WriteLine(dateTime.ToString());
+            Console.WriteLine(AuthenticationSettings.Current.Tokens.FirstOrDefault(s => s.Type == TokenType.AccessToken).Expiration.ToString());
+            Console.WriteLine(timeSpan.ToString());
+
             Assert.IsTrue(timeSpan.Days == 0);
             Assert.IsTrue(timeSpan.Hours == 0);
             Assert.IsTrue(timeSpan.Minutes == 0);
