@@ -44,9 +44,6 @@ namespace OpenTap.Authentication
                 throw new InvalidOperationException();
             }
 
-
-
-
             public AuthenticationClientHandler(string domain = null, bool withRetryPolicy = false)
             {
                 this.domain = domain;
@@ -67,11 +64,6 @@ namespace OpenTap.Authentication
         /// These tokens are used in the HttpClients returned by <see cref="GetClient"/> to authenticate requests.
         /// </summary>
         public IList<TokenInfo> Tokens { get; set; } = new List<TokenInfo>();
-
-        /// <summary> Configuration used as BaseAddress in HttpClients returned by <see cref="GetClient"/>.
-        /// This string will be prepended to all relative urls, e.g. '/api/packages' will become '{BaseAddress}/api/packages'
-        /// </summary>
-        public string BaseAddress { get; set; } = "http://localhost";
 
         void PrepareRequest(HttpRequestMessage request, string domain, CancellationToken cancellationToken)
         {
@@ -94,7 +86,7 @@ namespace OpenTap.Authentication
         }
 
         /// <summary>
-        /// Get preconfigured HttpClient with BaseAddress and AuthenticationClientHandler.
+        /// Get preconfigured HttpClient with AuthenticationClientHandler.
         /// It is up to the caller of this method to control the lifetime of the HttpClient
         /// </summary>
         /// <param name="domain">An access token will attempt to be included which are valid against this domain.</param>
@@ -102,7 +94,7 @@ namespace OpenTap.Authentication
         /// <returns>HttpClient object</returns>
         public HttpClient GetClient(string domain = null, bool withRetryPolicy = false)
         {
-            return new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy)) { BaseAddress = new Uri(BaseAddress) };
+            return new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy));
         }
     }
 }
