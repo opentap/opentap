@@ -1828,5 +1828,34 @@ namespace OpenTap.UnitTests
             a.Read();
             Assert.AreEqual(Overlapping.Z, o.Overlapping);
         }
+
+        class DateTimeClass
+        {
+            public DateTime MyDate { get; set; }
+        }
+        [Test]
+        public void TestTimeAnnotations ()
+        {
+            var times = new DateTimeClass();
+            var a = AnnotationCollection.Annotate(times);
+            var members = a.Get<IMembersAnnotation>().Members.ToLookup(m => m.Name);
+
+            var date = members[nameof(DateTimeClass.MyDate)].First();
+            var dsv = date.Get<IStringValueAnnotation>();
+            
+            Assert.AreEqual(default(DateTime), times.MyDate);
+            StringAssert.StartsWith("1/1/0001", dsv.Value);
+            times.MyDate = DateTime.Parse("11/30/1000");
+            a.Read();
+            StringAssert.StartsWith("11/30/1000", dsv.Value);
+            
+            dsv.Value = "07/27/1978";
+            a.Write();
+            
+            Assert.AreEqual(7, times.MyDate.Month);
+            Assert.AreEqual(27, times.MyDate.Day);
+            Assert.AreEqual(1978, times.MyDate.Year);
+
+        }
     }
 }
