@@ -102,7 +102,10 @@ namespace OpenTap.Authentication
         /// <returns>HttpClient object</returns>
         public HttpClient GetClient(string domain = null, bool withRetryPolicy = false)
         {
-            return new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy)) { BaseAddress = new Uri(BaseAddress) };
+            var client = new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy)) { BaseAddress = new Uri(BaseAddress) };
+            client.DefaultRequestHeaders.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
+            client.DefaultRequestHeaders.Add("User-Agent", $"OpenTAP/{PluginManager.GetOpenTapAssembly().SemanticVersion}");
+            return client;
         }
     }
 }

@@ -40,8 +40,6 @@ namespace OpenTap.Package
         private static HttpClient GetHttpClient(string url)
         {
             var httpClient = AuthenticationSettings.Current.GetClient(null, true);
-            httpClient.DefaultRequestHeaders.Add("OpenTAP",
-                PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
             httpClient.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/xml");
             return httpClient;
         }
@@ -131,7 +129,6 @@ namespace OpenTap.Package
                 var hc = HttpClient;
                 {
                     HttpResponseMessage response = null;
-                    hc.DefaultRequestHeaders.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
 
                     var totalSize = -1L;
                     // this retry loop is to robustly to download the package even if the connection is intermittently lost

@@ -544,6 +544,10 @@ namespace OpenTap.Package.UnitTests
             Assert.IsTrue(result is HttpPackageRepository);
 
             // Relative PackageRepository URL
+            result = PackageRepositoryHelpers.DetermineRepositoryType(@"thisdoesnotexist/packages");
+            Assert.IsTrue(result is HttpPackageRepository);
+
+            // Relative PackageRepository URL
             result = PackageRepositoryHelpers.DetermineRepositoryType(@"/packages");
             Assert.IsTrue(result is HttpPackageRepository);
             #endregion
