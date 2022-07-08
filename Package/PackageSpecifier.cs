@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -391,7 +391,38 @@ namespace OpenTap.Package
 
             return ComparePreRelease(PreRelease, other.PreRelease);
         }
-        
+
+        public class PartialComparer : IComparer<SemanticVersion>
+        {
+            private VersionSpecifier pkg;
+            public PartialComparer(VersionSpecifier pkg)
+            {
+                this.pkg = pkg;
+            }
+            public int Compare(SemanticVersion a, SemanticVersion b)
+            {
+                if (pkg.Major.HasValue)
+                {
+                    var m = a.Major.CompareTo(b.Major);
+                    if (m != 0) return m;
+                }
+                if (pkg.Minor.HasValue)
+                {
+                    var m = a.Minor.CompareTo(b.Minor);
+                    if (m != 0) return m;
+                }
+                if (pkg.Patch.HasValue)
+                {
+                    var m = a.Patch.CompareTo(b.Patch);
+                    if (m != 0) return m;
+                }
+
+                return 0;
+            }
+        }
+
+        public IComparer<SemanticVersion> SortPartial => new PartialComparer(this);
+
         public int SortOrder(SemanticVersion a, SemanticVersion b)
         {
             if (Major.HasValue)

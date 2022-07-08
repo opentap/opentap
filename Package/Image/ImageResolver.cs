@@ -13,21 +13,24 @@ namespace OpenTap.Package
 {
     public class ImageResolver
     {
+
+        public long Iterations = 0; 
         public class Result
         {
-            public Result(PackageSpecifier[] pkgs)
+            public Result(PackageSpecifier[] pkgs, long iterations)
             {
                 Packages = pkgs;
+                this.Iterations = iterations;
             }
-            public PackageSpecifier[] Packages;
+            public readonly PackageSpecifier[] Packages;
+            public readonly long Iterations;
         }
         
         public Result ResolveImage(ImageSpecifier image, PackageDependencyGraph graph)
         {
-            
+            Iterations++;
             List<PackageSpecifier> packages = image.Packages.ToList();
             startOver:
-            List<string[]> allVersions = new List<string[]>();
             // make sure that specifications are consistent.
             // 1. remove redundant package specifiers
             for (int i = 0; i < packages.Count; i++)
@@ -52,6 +55,7 @@ namespace OpenTap.Package
                 }
             }
 
+            //2. expand dependecies for exact package specifiers
             bool modified = true;
             while (modified)
             {
@@ -70,6 +74,7 @@ namespace OpenTap.Package
                             var pkg2 = packages[j];
                             if (pkg2.Name == dep.Name)
                             {
+                                // this dependency can be satisfied?
                                 if (!pkg2.Version.IsSatisfiedBy(dep.Version) &&
                                     !dep.Version.IsSatisfiedBy(pkg2.Version))
                                 {
@@ -77,11 +82,12 @@ namespace OpenTap.Package
                                     return null;
                                 }
 
-                                if (pkg2.Version != dep.Version && pkg2.Version.IsSatisfiedBy(dep.Version) && pkg2.Version.MatchBehavior != VersionMatchBehavior.Exact)
+                                // this dependency is more specific than the existing.
+                                if (pkg2.Version != dep.Version && pkg2.Version.IsSuperSetOf(dep.Version) && pkg2.Version.MatchBehavior != VersionMatchBehavior.Exact)
                                 {
-                                    packages[i] = dep;
-                                    packages.RemoveAt(j);
+                                    packages[j] = dep;
                                     modified = true;
+                                    break;
                                 }
                             }
                         }
@@ -95,6 +101,9 @@ namespace OpenTap.Package
                 }
             }
 
+            List<string[]> allVersions = new List<string[]>();
+
+            // 3. foreach package specifier get all the available versions
             for (int i = 0; i < packages.Count; i++)
             {
                 var pkg = packages[i];
@@ -102,6 +111,7 @@ namespace OpenTap.Package
                allVersions.Add(pkgs);
             }
 
+            // 4. prune away the versions which dependencies conflict with the required packages.
             // ok, now we know the results is some pair-wise combination of allVersions.
             // now lets try pruning them a bit
             bool retry = false;
@@ -110,7 +120,7 @@ namespace OpenTap.Package
                 var pkg = packages[i];
                 var versions = allVersions[i];
                 var others = packages.Except(x => x == pkg).ToArray();
-                var newVersions = versions.Where(x => graph.CouldSatisfyShallow(pkg.Name, x, others)).ToArray();
+                var newVersions = versions.Where(x => graph.CouldSatisfy(pkg.Name, x, others)).ToArray();
                 //if (newVersions.Length != versions.Length)
                 {
                     allVersions[i] = newVersions;
@@ -141,52 +151,58 @@ namespace OpenTap.Package
                 bool allExact = allVersions.All(x => VersionSpecifier.Parse(x[0]).MatchBehavior == VersionMatchBehavior.Exact);
                 if (allExact)
                 {
-                    return new Result(packages.ToArray());
+                    // this is the final case.
+                    return new Result(packages.ToArray(), Iterations);
                 }
             }
             
+            // sort the versions based on priorities. ^ -> sort ascending, Exact, but undermined e.g  (9.17.*), sort descending.
             
             for (int i = 0; i < allVersions.Count; i++)
             {
                 var pkg = packages[i];
                 var versions = allVersions[i].Select(SemanticVersion.Parse).ToList();
-                versions.Sort();
+                
                 if (pkg.Version == VersionSpecifier.Any)
                 {
+                    versions.Sort();
                     // any version -> take the newest first.
                     versions.Reverse();
                 }else if(pkg.Version.MatchBehavior == VersionMatchBehavior.Exact)
                 {
                     versions.Sort(pkg.Version.SortOrder);
                     versions.Reverse();
+                }else if (pkg.Version.MatchBehavior == VersionMatchBehavior.Compatible)
+                {
+                    versions = versions.OrderBy(x => x, pkg.Version.SortPartial).ToList();
                 }
 
                 allVersions[i] = versions.Select(x => x.ToString()).ToArray();
             }
 
-            
+            // iterate fixing variables
             for (int i = 0; i < allVersions.Count; i++)
             {
                 var set = allVersions.Select(x => x[0]).ToArray();
-                var thisversions = allVersions[i];
-                if (thisversions.Length == 1) continue;
-                for (int j = 0; j < thisversions.Length; j++)
+                var pkgVersions = allVersions[i];
+                if (pkgVersions.Length == 1) continue; // skip all exact versions
+                for (int j = 0; j < pkgVersions.Length; j++)
                 {
-                    set[i] = thisversions[j];
+                    set[i] = pkgVersions[j];
 
-                    var spec = new ImageSpecifier();
+                    var newSpecifier = new ImageSpecifier();
                     for (int k3 = 0; k3 < allVersions.Count; k3++)
                     {
-                        spec.Packages.Add(new PackageSpecifier(packages[k3].Name,
-                                packages[k3].Version));
+                        newSpecifier.Packages.Add(packages[k3]);
                     }
                     for (int k2 = 0; k2 < allVersions[j].Length; k2++)
                     {
                         
-                        spec.Packages[i] = new PackageSpecifier(packages[i].Name,
+                        newSpecifier.Packages[i] = new PackageSpecifier(packages[i].Name,
                             VersionSpecifier.Parse(allVersions[i][k2]));
 
-                        var result = this.ResolveImage(spec, graph);
+                        // recursive to see if this specifier has a result.
+                        var result = this.ResolveImage(newSpecifier, graph);
                         if (result != null)
                         {
                             return result;
@@ -279,7 +295,7 @@ namespace OpenTap.Package
             }
         }
 
-        public bool CouldSatisfyShallow(string pkgName, string version, PackageSpecifier[] others)
+        public bool CouldSatisfy(string pkgName, string version, PackageSpecifier[] others)
         {
             if (name2Id.TryGetValue(pkgName, out var Id))
             {
@@ -295,11 +311,12 @@ namespace OpenTap.Package
                     var o = others.FirstOrDefault(x => x.Name == ps.Name);
                     if (o == null)
                         continue;
-                    if (ps.Version.IsSatisfiedBy(o.Version) == false)
+                    if (ps.Version.IsSatisfiedBy(o.Version) == false && o.Version.IsSatisfiedBy(ps.Version) == false)
                         return false;
                     
                     // todo protect from circular dependencies here.
-                    return CouldSatisfyShallow(ps.Name, dep.Item2, others);
+                    if (!CouldSatisfy(ps.Name, dep.Item2, others))
+                        return false;
                 }
 
                 return true;

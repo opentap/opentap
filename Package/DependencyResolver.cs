@@ -654,17 +654,30 @@ namespace OpenTap.Package
         public static bool IsSatisfiedBy(this VersionSpecifier spec, VersionSpecifier other)
         {
             if (spec == VersionSpecifier.Any) return true;
+            if (other == VersionSpecifier.Any) return false;
             SemanticVersion semanticVersion = new SemanticVersion(other.Major ?? 0, other.Minor ?? 0, other.Patch ?? 0, other.PreRelease, other.BuildMetadata);
             if (other.Patch == null || other.Minor == null)
             {
                 var spec2 = new VersionSpecifier(other.Major.HasValue ? spec.Major : 0,
                     other.Minor.HasValue ? spec.Minor : 0
-                    , other.Patch.HasValue ? spec.Patch : 0, spec.PreRelease, spec.BuildMetadata, spec.MatchBehavior);
+                    , other.Patch.HasValue ? spec.Patch : (spec.Patch.HasValue ? (int?)0 : null), spec.PreRelease, spec.BuildMetadata, spec.MatchBehavior);
                 return spec2.IsCompatible(semanticVersion);
             }
             var ok = spec.IsCompatible(semanticVersion);
 
             return ok;
+        }
+
+        public static bool IsSuperSetOf(this VersionSpecifier spec, VersionSpecifier other)
+        {
+            if (!spec.IsSatisfiedBy(other)) return false;
+            if (spec == other) return true;
+            if (spec == VersionSpecifier.Any) return true;
+            if (other == VersionSpecifier.Any) return false;
+            if (spec.Major.HasValue == false && other.Major.HasValue) return true;
+            if (spec.Minor.HasValue == false && other.Minor.HasValue) return true;
+            if (spec.Patch.HasValue == false && other.Patch.HasValue) return true;
+            return false;
         }
     }
 }
