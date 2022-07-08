@@ -476,11 +476,11 @@ namespace OpenTap.Package.UnitTests
         [TestCase("https://packages.opentap.io", typeof(HttpPackageRepository))] // Https
         [TestCase("/api/packages", typeof(HttpPackageRepository))] // Relative http from root
         [TestCase("api/packages", typeof(HttpPackageRepository))] // Relative http appended
-        [TestCase("file:///./Packages", typeof(FilePackageRepository))] // Explicit Relative file path
-        [TestCase("file:////Packages", typeof(FilePackageRepository))] // Explicit file path
+        [TestCase("file:///./Packages", typeof(FilePackageRepository))] // Explicit file path
+        [TestCase("file:///Packages", typeof(FilePackageRepository))] // Explicit file path
+        [TestCase("file:///C:/Packages", typeof(FilePackageRepository))] // Explicit absolute File Path
         [TestCase("C:/Packages", typeof(FilePackageRepository))] // File Path
         [TestCase("C:/WeirdLocation/Packages", typeof(FilePackageRepository))] // File Path
-        [TestCase("/PackageCache", typeof(FilePackageRepository))] // Relative file path that exists
         public void TestRepositoryType(string url, Type expectedRepositoryType)
         {
             if (url == "/PackageCache")
@@ -488,7 +488,7 @@ namespace OpenTap.Package.UnitTests
 
             var result = PackageRepositoryHelpers.DetermineRepositoryType(url);
             Assert.IsTrue(result.GetType().Equals(expectedRepositoryType));
-            
+
             if (url == "/PackageCache")
                 Directory.Delete(url);
         }

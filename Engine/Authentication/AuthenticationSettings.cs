@@ -105,7 +105,6 @@ namespace OpenTap.Authentication
             var client = new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy));
             if (Uri.IsWellFormedUriString(BaseAddress, UriKind.Absolute))
                 client.BaseAddress = new Uri(BaseAddress, UriKind.Absolute);
-            client.DefaultRequestHeaders.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
             client.DefaultRequestHeaders.Add("User-Agent", $"OpenTAP/{PluginManager.GetOpenTapAssembly().SemanticVersion}");
             return client;
         }

@@ -24,7 +24,7 @@ namespace OpenTap.Package
         /// The url of the repository.
         /// </summary>
         string Url { get; }
-        
+
         /// <summary>
         /// Downloads a package from this repository to a file.
         /// </summary>
@@ -78,13 +78,13 @@ namespace OpenTap.Package
         /// <summary>
         /// Initializes a new instance of a PackageVersion.
         /// </summary>
-        public PackageVersion(string name, SemanticVersion version, string os, CpuArchitecture architechture, DateTime date, List<string> licenses) : base(name,version,architechture,os)
+        public PackageVersion(string name, SemanticVersion version, string os, CpuArchitecture architechture, DateTime date, List<string> licenses) : base(name, version, architechture, os)
         {
             this.Date = date;
             this.Licenses = licenses;
         }
-        
-        internal PackageVersion() 
+
+        internal PackageVersion()
         {
 
         }
@@ -326,23 +326,33 @@ namespace OpenTap.Package
         /// <returns>Determined repository type</returns>
         internal static IPackageRepository DetermineRepositoryType(string url)
         {
-            if(registeredRepositories.TryGetValue(url, out var repo))
+            if (registeredRepositories.TryGetValue(url, out var repo))
                 return repo;
-            if(url.ToLower().StartsWith("http://") || url.ToLower().StartsWith("https://"))
-                return new HttpPackageRepository(url); // avoid throwing exceptions if it looks a lot like a URL.
-            if(url.ToLower().StartsWith("file:///"))
-                return new FilePackageRepository(url);
-            if (Uri.IsWellFormedUriString(url, UriKind.Relative) && Directory.Exists(url))
-                return new FilePackageRepository(url);
-            if (File.Exists(url))
-                return new FilePackageRepository(Path.GetDirectoryName(url));
-            if (Regex.IsMatch(url ?? "", @"^([A-Z|a-z]:[/|\\])|(\\\\)"))
+            if (Uri.IsWellFormedUriString(url, UriKind.RelativeOrAbsolute))
+            {
+                Uri uri = new Uri(url, UriKind.RelativeOrAbsolute);
+                switch (uri)
+                {
+                    case Uri u when !u.IsAbsoluteUri:
+                        if (Directory.Exists(url))
+                            return new FilePackageRepository(url);
+                        else
+                            return new HttpPackageRepository(url);
+                    case Uri u when u.Scheme == Uri.UriSchemeHttp || u.Scheme == Uri.UriSchemeHttps:
+                        return new HttpPackageRepository(url);
+                    case Uri u when u.Scheme == Uri.UriSchemeFile:
+                        return new FilePackageRepository(u.AbsolutePath);
+                    default:
+                        throw new NotSupportedException($"Scheme is not supported when determining repository type of {url}");
+                }
+            }
+            else if (Path.IsPathRooted(url))
                 return new FilePackageRepository(url);
             else
-                return new HttpPackageRepository(url);
+                throw new NotSupportedException($"When? {url}");
         }
 
-        static Dictionary<string,IPackageRepository> registeredRepositories = new Dictionary<string,IPackageRepository>();
+        static Dictionary<string, IPackageRepository> registeredRepositories = new Dictionary<string, IPackageRepository>();
 
         internal static void RegisterRepository(IPackageRepository repo)
         {
