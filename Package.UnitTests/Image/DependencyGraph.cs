@@ -56,18 +56,22 @@ namespace OpenTap.Image.Tests
             var graph = PackageDependencyQuery.LoadGraph(Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream(packagesResourceName), true);
             var img = new ImageSpecifier();
-            //img.Packages.Add("OpenTAP", "9.17.4");
-            //img.Packages.Add("SDK", "any");
-            //img.Packages.Add("Developer's System", "9.17.2");
-            //img.Packages.Add("REST-API", "^2.6.0");
-            //img.Packages.Add("Keysight Floating Licensing", "^1.4");
             
-            img.Packages.Add("OpenTAP", "9.17");
-            img.Packages.Add("Developer's System", "Any");
-            img.Packages.Add("REST-API", "any");
+            img.Packages.Add("OpenTAP", "9.17.4");
+            img.Packages.Add("SDK", "any");
+            img.Packages.Add("Developer's System", "any");
+            img.Packages.Add("REST-API", "^2.6.0");
+            img.Packages.Add("Keysight Floating Licensing", "^1.4");
+            
+            //img.Packages.Add("OpenTAP", "9.16.4");
+            
+            //img.Packages.Add("Developer's System", "Any");
+            /*img.Packages.Add("REST-API", "any");
             img.Packages.Add("TUI", "beta");
             img.Packages.Add("SDK", "9.17.2");
-
+     */
+            //img.Packages.Add("OpenTAP", "^9.16");
+            //img.Packages.Add("OSIntegration", "^1");
             
             var resolver = new ImageResolver();
             var sw = Stopwatch.StartNew();
