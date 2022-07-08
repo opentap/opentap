@@ -77,7 +77,7 @@ namespace OpenTap.Package
 
         public HttpPackageRepository(string url)
         {
-            Url = url;
+            Url = url.TrimEnd('/');
             defaultUrl = this.Url;
 
             // Get the users Uniquely generated id
