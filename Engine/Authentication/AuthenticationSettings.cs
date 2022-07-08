@@ -71,7 +71,7 @@ namespace OpenTap.Authentication
         /// <summary> Configuration used as BaseAddress in HttpClients returned by <see cref="GetClient"/>.
         /// This string will be prepended to all relative urls, e.g. '/api/packages' will become '{BaseAddress}/api/packages'
         /// </summary>
-        public string BaseAddress { get; set; } = "http://localhost";
+        public string BaseAddress { get; set; } = "";
 
         void PrepareRequest(HttpRequestMessage request, string domain, CancellationToken cancellationToken)
         {
@@ -102,7 +102,11 @@ namespace OpenTap.Authentication
         /// <returns>HttpClient object</returns>
         public HttpClient GetClient(string domain = null, bool withRetryPolicy = false)
         {
-            return new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy)) { BaseAddress = new Uri(BaseAddress) };
+            var client = new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy));
+            if (Uri.IsWellFormedUriString(BaseAddress, UriKind.Absolute))
+                client.BaseAddress = new Uri(BaseAddress, UriKind.Absolute);
+            client.DefaultRequestHeaders.Add("User-Agent", $"OpenTAP/{PluginManager.GetOpenTapAssembly().SemanticVersion}");
+            return client;
         }
     }
 }
