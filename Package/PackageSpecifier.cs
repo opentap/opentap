@@ -506,6 +506,18 @@ namespace OpenTap.Package
         {
             return !(a == b);
         }
+
+        public bool TryToSemanticVersion(out SemanticVersion semver)
+        {
+            if (MatchBehavior == VersionMatchBehavior.Exact && Major.HasValue && Minor.HasValue && Patch.HasValue)
+            {
+                semver = new SemanticVersion(Major.Value, Minor.Value, Patch.Value, PreRelease, BuildMetadata);
+                return true;
+            }
+
+            semver = default;
+            return false;
+        }
     }
 
     /// <summary>

@@ -11,22 +11,25 @@ using OpenTap.Authentication;
 
 namespace OpenTap.Package
 {
-    public class ImageResolver
+    
+    internal class ImageResolution
+    {
+        public ImageResolution(PackageSpecifier[] pkgs, long iterations)
+        {
+            Packages = pkgs.OrderBy(x => x.Name).ToArray();
+            this.Iterations = iterations;
+        }
+        public readonly PackageSpecifier[] Packages;
+        public readonly long Iterations;
+    }
+    
+    internal class ImageResolver
     {
 
         public long Iterations = 0; 
-        public class Result
-        {
-            public Result(PackageSpecifier[] pkgs, long iterations)
-            {
-                Packages = pkgs;
-                this.Iterations = iterations;
-            }
-            public readonly PackageSpecifier[] Packages;
-            public readonly long Iterations;
-        }
+
         
-        public Result ResolveImage(ImageSpecifier image, PackageDependencyGraph graph)
+        public ImageResolution ResolveImage(ImageSpecifier image, PackageDependencyGraph graph)
         {
             Iterations++;
             List<PackageSpecifier> packages = image.Packages.ToList();
@@ -63,10 +66,10 @@ namespace OpenTap.Package
                 for (int i = 0; i < packages.Count; i++)
                 {
                     var pkg1 = packages[i];
-                    if (pkg1.Version.MatchBehavior != VersionMatchBehavior.Exact)
+                    if (pkg1.Version.TryToSemanticVersion(out var v) == false)
                         continue;
 
-                    var deps = graph.GetDependencies(pkg1.Name, pkg1.Version);
+                    var deps = graph.GetDependencies(pkg1.Name, v);
                     foreach (var dep in deps)
                     {
                         for (int j = 0; j < packages.Count; j++)
@@ -101,7 +104,7 @@ namespace OpenTap.Package
                 }
             }
 
-            List<string[]> allVersions = new List<string[]>();
+            List<SemanticVersion[]> allVersions = new List<SemanticVersion[]>();
 
             // 3. foreach package specifier get all the available versions
             for (int i = 0; i < packages.Count; i++)
@@ -120,13 +123,13 @@ namespace OpenTap.Package
                 var pkg = packages[i];
                 var versions = allVersions[i];
                 var others = packages.Except(x => x == pkg).ToArray();
-                var newVersions = versions.Where(x => graph.CouldSatisfy(pkg.Name, x, others)).ToArray();
+                var newVersions = versions.Where(x => graph.CouldSatisfy(pkg.Name, new VersionSpecifier(x, VersionMatchBehavior.Exact), others)).ToArray();
                 //if (newVersions.Length != versions.Length)
                 {
                     allVersions[i] = newVersions;
                     if (newVersions.Length == 1 && pkg.Version.MatchBehavior != VersionMatchBehavior.Exact)
                     {
-                        packages[i] = new PackageSpecifier(pkg.Name, VersionSpecifier.Parse(newVersions[0]));
+                        packages[i] = new PackageSpecifier(pkg.Name, new VersionSpecifier(newVersions[0], VersionMatchBehavior.Exact));
                         retry = true;
                     }
                 }
@@ -148,11 +151,11 @@ namespace OpenTap.Package
             if (k == 0) return null; // no possible solutions
             if (k == 1)
             {
-                bool allExact = allVersions.All(x => VersionSpecifier.Parse(x[0]).MatchBehavior == VersionMatchBehavior.Exact);
+                bool allExact = allVersions.All(x => x.Length  == 1);
                 if (allExact)
                 {
                     // this is the final case.
-                    return new Result(packages.ToArray(), Iterations);
+                    return new ImageResolution(packages.ToArray(), Iterations);
                 }
             }
             
@@ -161,7 +164,7 @@ namespace OpenTap.Package
             for (int i = 0; i < allVersions.Count; i++)
             {
                 var pkg = packages[i];
-                var versions = allVersions[i].Select(SemanticVersion.Parse).ToList();
+                var versions = allVersions[i].ToList();
                 
                 if (pkg.Version == VersionSpecifier.Any)
                 {
@@ -177,7 +180,7 @@ namespace OpenTap.Package
                     versions = versions.OrderBy(x => x, pkg.Version.SortPartial).ToList();
                 }
 
-                allVersions[i] = versions.Select(x => x.ToString()).ToArray();
+                allVersions[i] = versions.ToArray();
             }
 
             // iterate fixing variables
@@ -195,11 +198,10 @@ namespace OpenTap.Package
                     {
                         newSpecifier.Packages.Add(packages[k3]);
                     }
-                    for (int k2 = 0; k2 < allVersions[j].Length; k2++)
+                    for (int k2 = 0; k2 < pkgVersions.Length; k2++)
                     {
                         
-                        newSpecifier.Packages[i] = new PackageSpecifier(packages[i].Name,
-                            VersionSpecifier.Parse(allVersions[i][k2]));
+                        newSpecifier.Packages[i] = new PackageSpecifier(packages[i].Name, new VersionSpecifier(allVersions[i][k2], VersionMatchBehavior.Exact));
 
                         // recursive to see if this specifier has a result.
                         var result = this.ResolveImage(newSpecifier, graph);
@@ -219,94 +221,134 @@ namespace OpenTap.Package
     public class PackageDependencyGraph
     {
         List<string> names = new List<string>();
-        Dictionary<string, int> name2Id = new Dictionary<string, int>(); 
-        Dictionary<int, List<string>> versions = new Dictionary<int, List<string>>();
-        Dictionary<(int, string), (int, string)[]> dependencies = new Dictionary<(int, string), (int, string)[]>();
+        List<SemanticVersion> versionLookup = new List<SemanticVersion>();
+        List<VersionSpecifier> versionLookup2 = new List<VersionSpecifier>();
+        Dictionary<SemanticVersion, int> version2Id = new Dictionary<SemanticVersion, int>();
+        Dictionary<VersionSpecifier, int> version3Id = new Dictionary<VersionSpecifier, int>();
 
+        Dictionary<string, SemanticVersion> stringToVersion = new Dictionary<string, SemanticVersion>();
+        Dictionary<string, VersionSpecifier> stringToVersion2 = new Dictionary<string, VersionSpecifier>();
+
+        Dictionary<string, int> name2Id = new Dictionary<string, int>(); 
+        Dictionary<int, List<int>> versions = new Dictionary<int, List<int>>();
+        Dictionary<(int, int), (int, int)[]> dependencies = new Dictionary<(int, int), (int, int)[]>();
+
+        int getId(ref string name)
+        {
+            if (name2Id.TryGetValue(name, out var id))
+            {
+                name = names[id];
+            }
+            else
+            {
+                name2Id[name] = names.Count;
+                id = names.Count;
+                versions[id] = new List<int>();
+                names.Add(name);
+            }
+
+            return id;
+        }
+        
+        int getVersion(ref SemanticVersion v)
+        {
+            if (version2Id.TryGetValue(v, out var id))
+                return id;
+            version2Id[v] = id = versionLookup.Count;
+            versionLookup.Add(v);
+            return id;
+        }
+        
+        int getVersion(string v2)
+        {
+            var v = stringToVersion.GetOrCreateValue(v2, SemanticVersion.Parse);
+            return getVersion(ref v);
+        }
+
+        int getVersionSpecifier(string v2)
+        {
+            var v = stringToVersion2.GetOrCreateValue(v2, VersionSpecifier.Parse);
+            return getVersionSpecifier(ref v);
+        }
+        
+        int getVersionSpecifier(ref VersionSpecifier v)
+        {
+            if (version3Id.TryGetValue(v, out var id))
+                return id;
+            version3Id[v] = id = versionLookup2.Count;
+            versionLookup2.Add(v);
+            return id;
+        }
+
+        
         public void LoadFromJson(JsonDocument json)
         {
             var packages = json.RootElement.GetProperty("packages");
 
-            int getId(ref string name)
-            {
-                if (name2Id.TryGetValue(name, out var id))
-                {
-                    name = names[id];
-                }
-                else
-                {
-                    name2Id[name] = names.Count;
-                    id = names.Count;
-                    versions[id] = new List<string>();
-                    names.Add(name);
-                }
-
-                return id;
-            }
             foreach (var elem in packages.EnumerateArray())
             {
                 var name = elem.GetProperty("name").GetString();
                 var version = elem.GetProperty("version").GetString();
+                if (!SemanticVersion.TryParse(version, out var v))
+                    continue;
 
                 var id = getId(ref name);
                 var thisVersions = versions[id];
-                thisVersions.Add(version);
+                thisVersions.Add(getVersion(version));
                 if(elem.TryGetProperty("dependencies", out var obj))
                 {
                     var l = obj.GetArrayLength();
                     if (l != 0)
                     {
-                        var deps = new (int id, string y)[l];
+                        var deps = new (int id, int y)[l];
                         int i = 0; 
                         foreach (var dep in obj.EnumerateArray())
                         {
                             var depname = dep.GetProperty("name").GetString();
                             var depid = getId(ref depname);
                             var depver = dep.GetProperty("version").GetString();
-                            deps[i] = (depid, depver);
+                            deps[i] = (depid, getVersionSpecifier(depver));
                             i++;
                         }
 
-                        this.dependencies[(id, version)] = deps;
+                        this.dependencies[(id, getVersion(version))] = deps;
                     }
                     
                 }
             }
         }
 
-        public IEnumerable<string> PackagesSatisfying(PackageSpecifier packageSpecifier)
+        public IEnumerable<SemanticVersion> PackagesSatisfying(PackageSpecifier packageSpecifier)
         {
             if (name2Id.TryGetValue(packageSpecifier.Name, out var Id))
             {
                 var thisVersions = versions[Id];
                 foreach (var v in thisVersions)
                 {
-                    if (SemanticVersion.TryParse(v, out var semv))
+                    var semv = versionLookup[v];
                     {
                         if (packageSpecifier.Version == VersionSpecifier.Any)
                         {
                             if (semv.PreRelease == null)
-                                yield return v;
+                                yield return semv;
                         }else if (packageSpecifier.Version.IsCompatible(semv))
-                            yield return v;
+                            yield return semv;
                         
                     }
                 }
             }
         }
 
-        public bool CouldSatisfy(string pkgName, string version, PackageSpecifier[] others)
+        public bool CouldSatisfy(string pkgName, VersionSpecifier version, PackageSpecifier[] others)
         {
-            if (name2Id.TryGetValue(pkgName, out var Id))
+            if (name2Id.TryGetValue(pkgName, out var Id) && version.TryToSemanticVersion(out var v))
             {
-                if (!dependencies.TryGetValue((Id, version), out var deps))
+                if (!dependencies.TryGetValue((Id, getVersion(ref v)), out var deps))
                     return true; // this package has no dependencies, so yes.
                 foreach (var dep in deps)
                 {
-                    if (!VersionSpecifier.TryParse(dep.Item2, out var depVersion))
-                    {
-                        depVersion = VersionSpecifier.Any;
-                    }
+                    var depVersion = versionLookup2[dep.Item2];
+                    
                     var ps = new PackageSpecifier(names[dep.Item1], depVersion);
                     var o = others.FirstOrDefault(x => x.Name == ps.Name);
                     if (o == null)
@@ -315,29 +357,25 @@ namespace OpenTap.Package
                         return false;
                     
                     // todo protect from circular dependencies here.
-                    if (!CouldSatisfy(ps.Name, dep.Item2, others))
+                    if (!CouldSatisfy(ps.Name, depVersion, others))
                         return false;
                 }
 
                 return true;
             }
 
-            return false;
+            return true;
         }
 
-        public IEnumerable<PackageSpecifier> GetDependencies(string pkgName, VersionSpecifier xVersion)
+        public IEnumerable<PackageSpecifier> GetDependencies(string pkgName, SemanticVersion version)
         {
-            var version = xVersion.ToString();
             if (name2Id.TryGetValue(pkgName, out var Id))
             {
-                if (dependencies.TryGetValue((Id, version), out var deps))
+                if (dependencies.TryGetValue((Id, getVersion(ref version)), out var deps))
                 {
                     foreach (var dep in deps)
                     {
-                        if (!VersionSpecifier.TryParse(dep.Item2, out var depVersion))
-                        {
-                            depVersion = VersionSpecifier.Any;
-                        }
+                        var depVersion = versionLookup2[dep.Item2];
 
                         yield return new PackageSpecifier(names[dep.Item1], depVersion);
                     }
