@@ -17,6 +17,7 @@ using System.Windows;
 using System.Threading;
 using System.Diagnostics;
 using System.Net;
+using OpenTap.Authentication;
 
 namespace OpenTap.Package.UnitTests
 {
@@ -469,6 +470,74 @@ namespace OpenTap.Package.UnitTests
                 new PackageSpecifier(os: "Windows"), compatibleWith);
 
             return packages;
+        }
+
+        [TestCase("http://packages.opentap.io", typeof(HttpPackageRepository))] // Http
+        [TestCase("https://packages.opentap.io", typeof(HttpPackageRepository))] // Https
+        [TestCase("/api/packages", typeof(HttpPackageRepository))] // Relative http from root
+        [TestCase("api/packages", typeof(HttpPackageRepository))] // Relative http appended
+        [TestCase("file:///./Packages", typeof(FilePackageRepository))] // Explicit Relative file path
+        [TestCase("file:////Packages", typeof(FilePackageRepository))] // Explicit file path
+        [TestCase("C:/Packages", typeof(FilePackageRepository))] // File Path
+        [TestCase("C:/WeirdLocation/Packages", typeof(FilePackageRepository))] // File Path
+        [TestCase("/PackageCache", typeof(FilePackageRepository))] // Relative file path that exists
+        public void TestRepositoryType(string url, Type expectedRepositoryType)
+        {
+            if (url == "/PackageCache")
+                Directory.CreateDirectory(url);
+
+            var result = PackageRepositoryHelpers.DetermineRepositoryType(url);
+            Assert.IsTrue(result.GetType().Equals(expectedRepositoryType));
+            
+            if (url == "/PackageCache")
+                Directory.Delete(url);
+        }
+
+        [Test]
+        [Ignore("For manual debugging")]
+        public void TestIfHttpPackageRepositorySupportsRelativePaths()
+        {
+            AuthenticationSettings.Current.BaseAddress = "";
+            HttpPackageRepository httpPackageRepository = new HttpPackageRepository("packages.opentap.io");
+            var packages = httpPackageRepository.GetPackageNames();
+            Assert.AreEqual($"http://packages.opentap.io", httpPackageRepository.Url); // Url was changed to valid url
+            Assert.IsTrue(packages.Any());
+            var versions = httpPackageRepository.GetPackageVersions(packages.FirstOrDefault());
+            Assert.IsTrue(versions.Any());
+            string query = "query Query {packages(class:\"package\", version:\"any\"){ name version description dependencies{ name version} }}";
+            var resp = httpPackageRepository.QueryGraphQL(query);
+            Assert.IsNotNull(resp);
+            string file = "C:/Temp/Test.TapPackage";
+            try
+            {
+                var p = versions.FirstOrDefault();
+                httpPackageRepository.DownloadPackage(new PackageIdentifier(p.Name, p.Version, p.Architecture, p.OS), file);
+                Assert.IsTrue(File.Exists(file));
+            }
+            finally
+            {
+                if (File.Exists(file))
+                    File.Delete(file);
+            }
+        }
+
+        [Test] 
+        [Ignore("For manual debugging")]
+        public void TestIfHttpPackageRepositorySupportsRelativePaths2()
+        {
+            AuthenticationSettings.Current.BaseAddress = "";
+            HttpPackageRepository httpPackageRepository = new HttpPackageRepository("packages.opentap.io");
+            string file = "C:/Temp/Test.TapPackage";
+            try
+            {
+                httpPackageRepository.DownloadPackage(new PackageIdentifier("OpenTAP", "9.18.4", CpuArchitecture.x64, "Linux,MacOS"), file);
+                Assert.IsTrue(File.Exists(file));
+            }
+            finally
+            {
+                if (File.Exists(file))
+                    File.Delete(file);
+            }
         }
 
         void DetermineRepositoryType()

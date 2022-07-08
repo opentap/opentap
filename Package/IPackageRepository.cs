@@ -314,6 +314,16 @@ namespace OpenTap.Package
             return list;
         }
 
+        /// <summary>
+        /// Returns FilePackageRepository if either of the following is true:
+        /// - Url is explicitly defined with file:/// 
+        /// - The url is relative and directory exists
+        /// - Starts with classic windows absolute path like 'C:/'
+        /// - Starts with '\\'
+        /// Otherwise returns HttpPackageRepository
+        /// </summary>
+        /// <param name="url">url to be determined to be file path or http path</param>
+        /// <returns>Determined repository type</returns>
         internal static IPackageRepository DetermineRepositoryType(string url)
         {
             if(registeredRepositories.TryGetValue(url, out var repo))
@@ -326,7 +336,7 @@ namespace OpenTap.Package
                 return new FilePackageRepository(url);
             if (File.Exists(url))
                 return new FilePackageRepository(Path.GetDirectoryName(url));
-            if (Regex.IsMatch(url ?? "", @"^([A-Z|a-z]:[/|\\])|(//|\\\\)"))
+            if (Regex.IsMatch(url ?? "", @"^([A-Z|a-z]:[/|\\])|(\\\\)"))
                 return new FilePackageRepository(url);
             else
                 return new HttpPackageRepository(url);

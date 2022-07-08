@@ -77,14 +77,7 @@ namespace OpenTap.Package
 
         public HttpPackageRepository(string url)
         {
-            this.Url = url.Trim();
-            if (url.StartsWith("/") || Regex.IsMatch(url, "http(s)?://"))
-                this.Url = url;
-            else
-                this.Url = "http://" + url;
-
-            // Trim end to fix redirection. E.g. 'packages.opentap.io/' redirects to 'packages.opentap.io'.
-            this.Url = this.Url.TrimEnd('/');
+            Url = url;
             defaultUrl = this.Url;
 
             // Get the users Uniquely generated id
@@ -197,7 +190,15 @@ namespace OpenTap.Package
 
                             break;
                         }
-
+                        catch (InvalidOperationException) // if user specified "packages.opentap.io", it looks like a relative url, so we only prepend "http://" when we are sure that it actually isnt a relative url
+                        {
+                            if (!Url.StartsWith("http://"))
+                            {
+                                Url = $"http://{Url}";
+                                DoDownloadPackage(package, fileStream, cancellationToken).Wait(cancellationToken);
+                            }
+                            else throw;
+                        }
                         catch (Exception ex)
                         {
                             if (ex is IOException)
@@ -264,6 +265,15 @@ namespace OpenTap.Package
                 }
                 var response = HttpClient.SendAsync(httpRequestMessage).GetAwaiter().GetResult();
                 xmlText = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+            }
+            catch (InvalidOperationException) // if user specified "packages.opentap.io", it looks like a relative url, so we only prepend "http://" when we are sure that it actually isnt a relative url
+            {
+                if (!Url.StartsWith("http://"))
+                {
+                    Url = $"http://{Url}";
+                    xmlText = downloadPackagesString(args, data, contentType, accept);
+                }
+                else throw;
             }
             catch (Exception ex)
             {
