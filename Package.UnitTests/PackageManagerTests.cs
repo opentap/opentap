@@ -553,8 +553,10 @@ namespace OpenTap.Package.UnitTests
             Assert.IsTrue(result is FilePackageRepository, "DetermineRepositoryType - Correct network path");
 
             // Incorrect path
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"Tap\Tap.PackageManager.UnitTests\TapPlugins");
-            Assert.IsFalse(result is FilePackageRepository, "DetermineRepositoryType - Incorrect path");
+            Assert.Catch(() =>
+            {
+                result = PackageRepositoryHelpers.DetermineRepositoryType(@"Tap\Tap.PackageManager.UnitTests\TapPlugins"); 
+            }, "DetermineRepositoryType - Incorrect path");
 
             // Path that does not exists
             result = PackageRepositoryHelpers.DetermineRepositoryType(@"C:\Users\steholst\Source\Repos\tap2\TapThatDoesNotExists");
@@ -563,10 +565,6 @@ namespace OpenTap.Package.UnitTests
             // Illegal path
             result = PackageRepositoryHelpers.DetermineRepositoryType(@"C:\Users\steholst\Source\Repos\tap2\Tap?");
             Assert.IsTrue(result is FilePackageRepository, "DetermineRepositoryType - Illegal path");
-
-            // Path with incorrect syntax
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"C::\Users\steholst\Source\Repos\tap2\TapThatDoesNotExists");
-            Assert.IsFalse(result is FilePackageRepository);
 
             // Specific file entry
             result = PackageRepositoryHelpers.DetermineRepositoryType(@"file:///C:/thisdoesnotexist");
