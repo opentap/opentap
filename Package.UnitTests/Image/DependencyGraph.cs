@@ -1,12 +1,10 @@
 ﻿using NUnit.Framework;
 using OpenTap.Package;
-using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
-using System.Text;
+using System.Reflection;
 using System.Threading;
-using System.Threading.Tasks;
-using static OpenTap.Image.Tests.Resolve;
 
 namespace OpenTap.Image.Tests
 {
@@ -40,6 +38,44 @@ namespace OpenTap.Image.Tests
                 StringAssert.StartsWith(resultingVersion1, resolver.Dependencies.First(p => p.Name == package1).Version.ToString());
                 StringAssert.StartsWith(resultingVersion2, resolver.Dependencies.First(p => p.Name == package2).Version.ToString());
             }
+        }
+    }
+
+    public class DependencyResolverGraphTest
+    {
+        [Test]
+        public void Test1()
+        {
+            var graph = PackageDependencyQuery.QueryGraph("https://packages.opentap.io").Result;
+        }
+
+        [Test]
+        public void ParsePackages()
+        {
+            var packagesResourceName = "OpenTap.Package.UnitTests.Image.opentap-packages.json.gz";
+            var graph = PackageDependencyQuery.LoadGraph(Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream(packagesResourceName), true);
+            var img = new ImageSpecifier();
+            //img.Packages.Add("OpenTAP", "9.17.4");
+            //img.Packages.Add("SDK", "any");
+            //img.Packages.Add("Developer's System", "9.17.2");
+            //img.Packages.Add("REST-API", "^2.6.0");
+            //img.Packages.Add("Keysight Floating Licensing", "^1.4");
+            
+            img.Packages.Add("OpenTAP", "9.17");
+            img.Packages.Add("Developer's System", "Any");
+            img.Packages.Add("REST-API", "any");
+            img.Packages.Add("TUI", "beta");
+            img.Packages.Add("SDK", "9.17.2");
+
+            
+            var resolver = new ImageResolver();
+            var sw = Stopwatch.StartNew();
+            
+            var result = resolver.ResolveImage(img, graph);
+            
+
+            var elapsed = sw.Elapsed;
         }
     }
 }

@@ -24,6 +24,7 @@
   </ItemGroup>
   
   <ItemGroup>
+    <EmbeddedResource Include="Image\opentap-packages.json.gz" />
     <None Include="../package.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -112,6 +113,7 @@
     <None Update="Packages/SetAsmInfoTest.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Remove="opentap-packages.json.gz" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Keysight\Tap\" />
