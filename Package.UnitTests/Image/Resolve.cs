@@ -1,12 +1,10 @@
 ﻿using NUnit.Framework;
 using NUnit.Framework.Internal;
-using OpenTap.Authentication;
 using OpenTap.Diagnostic;
 using OpenTap.Image;
 using OpenTap.Package;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;

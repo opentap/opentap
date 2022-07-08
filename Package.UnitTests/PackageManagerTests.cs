@@ -472,6 +472,7 @@ namespace OpenTap.Package.UnitTests
             return packages;
         }
 
+        [TestCase("packages.opentap.io", typeof(HttpPackageRepository))] // Http
         [TestCase("http://packages.opentap.io", typeof(HttpPackageRepository))] // Http
         [TestCase("https://packages.opentap.io", typeof(HttpPackageRepository))] // Https
         [TestCase("/api/packages", typeof(HttpPackageRepository))] // Relative http from root

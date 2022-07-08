@@ -343,13 +343,13 @@ namespace OpenTap.Package
                     case Uri u when u.Scheme == Uri.UriSchemeFile:
                         return new FilePackageRepository(u.AbsolutePath);
                     default:
-                        throw new NotSupportedException($"Scheme is not supported when determining repository type of {url}");
+                        throw new NotSupportedException($"Scheme {uri.Scheme} is not supported as a package repository ({url}).");
                 }
             }
             else if (Path.IsPathRooted(url))
                 return new FilePackageRepository(url);
             else
-                throw new NotSupportedException($"When? {url}");
+                throw new NotSupportedException($"Unable to determine repository type of '{url}'. Try specifying a scheme using 'http://' or 'file:///'.");
         }
 
         static Dictionary<string, IPackageRepository> registeredRepositories = new Dictionary<string, IPackageRepository>();

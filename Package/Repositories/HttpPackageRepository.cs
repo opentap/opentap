@@ -122,6 +122,7 @@ namespace OpenTap.Package
                 var hc = HttpClient;
                 {
                     HttpResponseMessage response = null;
+                    hc.DefaultRequestHeaders.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
 
                     var totalSize = -1L;
                     // this retry loop is to robustly to download the package even if the connection is intermittently lost
