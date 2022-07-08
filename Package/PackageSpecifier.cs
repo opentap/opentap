@@ -391,6 +391,36 @@ namespace OpenTap.Package
 
             return ComparePreRelease(PreRelease, other.PreRelease);
         }
+        
+        public int SortOrder(SemanticVersion a, SemanticVersion b)
+        {
+            if (Major.HasValue)
+            {
+                var m = a.Major.CompareTo(b.Major);
+                if (m != 0) return m;
+            }
+            if (Minor.HasValue)
+            {
+                var m = a.Minor.CompareTo(b.Minor);
+                if (m != 0) return m;
+            }
+            if (Patch.HasValue)
+            {
+                var m = a.Patch.CompareTo(b.Patch);
+                if (m != 0) return m;
+            }
+
+            if (a.PreRelease == b.PreRelease) return 0;
+            if (a.PreRelease == null && b.PreRelease != null)
+            {
+                return 1;
+            }
+            if (a.PreRelease != null && b.PreRelease == null)
+            {
+                return -1;
+            }
+            return ComparePreRelease(a.PreRelease, b.PreRelease);
+        }
 
         private static int ComparePreRelease(string p1, string p2)
         {
