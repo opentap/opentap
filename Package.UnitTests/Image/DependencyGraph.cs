@@ -49,37 +49,58 @@ namespace OpenTap.Image.Tests
             var graph = PackageDependencyQuery.QueryGraph("https://packages.opentap.io").Result;
         }
 
+        static IEnumerable<(ImageSpecifier spec, PackageSpecifier[] result)> Specifiers()
+        {
+            {
+                var img = new ImageSpecifier();
+                img.Packages.Add("OpenTAP", "9.17.4");
+                img.Packages.Add("SDK", "any");
+                img.Packages.Add("Developer's System", "any");
+                img.Packages.Add("REST-API", "^2.6.0");
+                img.Packages.Add("Keysight Floating Licensing", "^1.4");
+                yield return (img, null);
+            }
+            {
+                var img = new ImageSpecifier();
+                img.Packages.Add("OpenTAP", "9.17.4");
+                img.Packages.Add("OSIntegration", "^1");
+                yield return (img, null);
+            }
+            {
+                var img = new ImageSpecifier();
+                img.Packages.Add("OpenTAP", "9.17.4");
+                img.Packages.Add("OpenTAP", "9.17.2");
+                yield return (img, null);
+            }
+            {
+                var img = new ImageSpecifier();
+                img.Packages.Add("OpenTAP", "9.17.4");
+                img.Packages.Add("Developer's System CE", "any");
+                yield return (img, null);
+            }
+            {
+                var img = new ImageSpecifier();
+                img.Packages.Add("OpenTAP", "9.17.4");
+                img.Packages.Add("REST-API", "any");
+                yield return (img, null);
+            }
+
+        }
+        
         [Test]
         public void ParsePackages()
         {
             var packagesResourceName = "OpenTap.Package.UnitTests.Image.opentap-packages.json.gz";
             var graph = PackageDependencyQuery.LoadGraph(Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream(packagesResourceName), true);
-            var img = new ImageSpecifier();
-            
-            img.Packages.Add("OpenTAP", "9.17.4");
-            img.Packages.Add("SDK", "any");
-            img.Packages.Add("Developer's System", "any");
-            img.Packages.Add("REST-API", "^2.6.0");
-            img.Packages.Add("Keysight Floating Licensing", "^1.4");
-            
-            //img.Packages.Add("OpenTAP", "9.16.4");
-            
-            //img.Packages.Add("Developer's System", "Any");
-            /*img.Packages.Add("REST-API", "any");
-            img.Packages.Add("TUI", "beta");
-            img.Packages.Add("SDK", "9.17.2");
-     */
-            //img.Packages.Add("OpenTAP", "^9.16");
-            //img.Packages.Add("OSIntegration", "^1");
-            
-            var resolver = new ImageResolver();
-            var sw = Stopwatch.StartNew();
-            
-            var result = resolver.ResolveImage(img, graph);
-            
 
-            var elapsed = sw.Elapsed;
+            foreach (var spec in Specifiers())
+            {
+                var resolver2 = new ImageResolver();
+                var sw = Stopwatch.StartNew();
+                var result = resolver2.ResolveImage(spec.spec, graph);
+                var elapsed = sw.Elapsed;
+            }
         }
     }
 }
