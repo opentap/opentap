@@ -105,7 +105,7 @@ namespace OpenTap.Authentication
             }
         }
 
-        public static string userAgent = null;
+        private static string userAgent = null;
 
         /// <summary>
         /// Get preconfigured HttpClient with BaseAddress and AuthenticationClientHandler.
