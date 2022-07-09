@@ -235,7 +235,7 @@ namespace OpenTap.Package
                             }
 
                             if (cancellationToken.IsCancellationRequested == false)
-                                log.Error("Failed to download package.");
+                                log.Error($"Failed to download package {package.Name} from {Url}.");
                             throw;
                         }
                     }
