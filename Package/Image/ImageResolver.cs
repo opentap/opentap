@@ -174,7 +174,6 @@ namespace OpenTap.Package
                 }else if(pkg.Version.MatchBehavior == VersionMatchBehavior.Exact)
                 {
                     versions.Sort(pkg.Version.SortOrder);
-                    versions.Reverse();
                 }else if (pkg.Version.MatchBehavior == VersionMatchBehavior.Compatible)
                 {
                     versions = versions.OrderBy(x => x, pkg.Version.SortPartial).ToList();
