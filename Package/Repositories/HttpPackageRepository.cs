@@ -595,8 +595,6 @@ namespace OpenTap.Package
         /// <returns></returns>
         public PackageVersion[] GetPackageVersions(string packageName, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
-            // force update version to check for errors.
-            Version?.ToString();
             if (IsInError()) return Array.Empty<PackageVersion>();
             string response;
             string arg = string.Format("/{0}/GetPackageVersions/{1}", ApiVersion, Uri.EscapeDataString(packageName));
