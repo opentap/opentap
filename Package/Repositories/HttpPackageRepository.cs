@@ -325,6 +325,15 @@ namespace OpenTap.Package
                     {
                         data = tryDownload($"{Url}/{ApiVersion}/version");
                     }
+                    catch (InvalidOperationException) // if user specified "packages.opentap.io", it looks like a relative url, so we only prepend "http://" when we are sure that it actually isnt a relative url
+                    {
+                        if (!Url.StartsWith("http://"))
+                        {
+                            Url = $"http://{Url}";
+                            data = tryDownload($"{Url}/{ApiVersion}/version");
+                        }
+                        else throw;
+                    }
                     catch (HttpRequestException ex)
                     {
                         log.Debug("HTTP Exception {0}", ex);
