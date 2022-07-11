@@ -281,6 +281,13 @@ namespace OpenTap.Package
                 .Distinct()
                 .ToArray();
         }
+
+        public PackageDef[] GetAllPackages(CancellationToken cancellationToken)
+        {
+            LoadPath(cancellationToken);
+            return allPackages;
+        }
+        
         public PackageDef[] GetPackages(PackageSpecifier pid, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             LoadPath(cancellationToken);
