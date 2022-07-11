@@ -36,18 +36,33 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        public enum FailPoint { Run, PreRun, PostRun }
         public class TestStepExpectedExceptionTest : TestStep
         {
             private Verdict _verdict;
+            private FailPoint _failPoint;
 
-            public TestStepExpectedExceptionTest(Verdict verdict)
+            public TestStepExpectedExceptionTest(Verdict verdict, FailPoint failPoint)
             {
                 _verdict = verdict;
+                _failPoint = failPoint;
+            }
+
+            public override void PrePlanRun()
+            {
+                if (_failPoint == FailPoint.PreRun)
+                    throw new ExpectedException("", _verdict);
             }
 
             public override void Run()
             {
-                throw new ExpectedException("", _verdict);
+                if (_failPoint == FailPoint.Run)
+                    throw new ExpectedException("", _verdict);
+            }
+            public override void PostPlanRun()
+            {
+                if (_failPoint == FailPoint.PostRun)
+                    throw new ExpectedException("", _verdict);
             }
         }
 
@@ -194,16 +209,14 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
-        [TestCase(Verdict.Pass)]
-        [TestCase(Verdict.Aborted)]
-        [TestCase(Verdict.Inconclusive)]
-        [TestCase(Verdict.NotSet)]
-        [TestCase(Verdict.Error)]
-        [TestCase(Verdict.Fail)]
-        public void TestPlanStepExpectedExceptionTest(Verdict verdict)
+        [Test]
+        [Pairwise]
+        public void TestPlanStepExpectedExceptionTest(
+            [Values(Verdict.Pass, Verdict.Aborted, Verdict.Inconclusive, Verdict.NotSet, Verdict.Error, Verdict.Fail)] Verdict verdict,
+            [Values(FailPoint.PreRun, FailPoint.Run, FailPoint.PostRun)] FailPoint failPoint)
         {
             TestPlan plan = new TestPlan();
-            TestStepExpectedExceptionTest step = new TestStepExpectedExceptionTest(verdict);
+            TestStepExpectedExceptionTest step = new TestStepExpectedExceptionTest(verdict, failPoint);
 
             plan.Steps.Add(step);
 
