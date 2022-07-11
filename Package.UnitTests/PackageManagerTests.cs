@@ -405,18 +405,10 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void PackageManagerTestsExecution()
         {
-            log.Info("-----------------------------DependencyChecker CheckDependencies-----------------------------");
-
             if(Directory.Exists("DownloadedPackages"))
                 Directory.Delete("DownloadedPackages", true);
 
             // Test execution
-            GetPackages();
-            DetermineRepositoryType();
-        }
-
-        void GetPackages()
-        {
             var tap = new PackageIdentifier("OpenTAP", SemanticVersion.Parse("9.0.0-Development"), CpuArchitecture.Unspecified, "Windows");
 
             // Development, don't check build version
@@ -472,36 +464,49 @@ namespace OpenTap.Package.UnitTests
             return packages;
         }
 
-        [TestCase("http://packages.opentap.io", typeof(HttpPackageRepository))] // Http
-        [TestCase("https://packages.opentap.io", typeof(HttpPackageRepository))] // Https
-        [TestCase("/api/packages", typeof(FilePackageRepository))] // Relative http from root
-        [TestCase("api/packages", typeof(FilePackageRepository))] // Relative http appended
-        [TestCase("file:///./Packages", typeof(FilePackageRepository))] // Explicit file path
-        [TestCase("file:///Packages", typeof(FilePackageRepository))] // Explicit file path
-        [TestCase("file:///C:/Packages", typeof(FilePackageRepository))] // Explicit absolute File Path
-        [TestCase("C:/Packages", typeof(FilePackageRepository))] // File Path
-        [TestCase("C:/WeirdLocation/Packages", typeof(FilePackageRepository))] // File Path
-        public void TestRepositoryType(string url, Type expectedRepositoryType)
+        [TestCase("", "http://packages.opentap.io", typeof(HttpPackageRepository))]  // Http scheme
+        [TestCase("", "https://packages.opentap.io", typeof(HttpPackageRepository))] // Https scheme
+        [TestCase("", "ftp://packages.opentap.io", typeof(NotSupportedException))]   // Unsupported scheme
+        [TestCase("", "something illigal|", typeof(ArgumentException))]              // Illigal chars
+        [TestCase("", "C:/a", typeof(FilePackageRepository))]                        // Windows absolute path
+        [TestCase("", "/a/b", typeof(FilePackageRepository))]                        // Linux absolute path
+        [TestCase("", "a/b", typeof(FilePackageRepository))]                         // Relative path
+        [TestCase("", @"a\b", typeof(FilePackageRepository))]                        // Relative file path using backslash
+        [TestCase("", "file:///./a", typeof(FilePackageRepository))]                 // Explicit file scheme
+        [TestCase("", "file:///a", typeof(FilePackageRepository))]                   // Explicit file scheme
+        [TestCase("", "file:///C:/a", typeof(FilePackageRepository))]                // Explicit absolute File Path
+        [TestCase("", @"\\a\b", typeof(FilePackageRepository))]                      // UNC path
+        [TestCase("http://opentap.io", "http://packages.opentap.io", typeof(HttpPackageRepository))]  // Http scheme
+        [TestCase("http://opentap.io", "https://packages.opentap.io", typeof(HttpPackageRepository))] // Https scheme
+        [TestCase("http://opentap.io", "C:/a", typeof(FilePackageRepository))]                        // Windows absolute path
+        [TestCase("http://opentap.io", "/a/b", typeof(HttpPackageRepository))]                        // Linux absolute path
+        [TestCase("http://opentap.io", "a/b", typeof(HttpPackageRepository))]                         // Relative path
+        [TestCase("http://opentap.io", @"a\b", typeof(HttpPackageRepository))]                        // Relative file path using backslash
+        [TestCase("http://opentap.io", "file:///./a", typeof(FilePackageRepository))]                 // Explicit file scheme
+        [TestCase("http://opentap.io", "file:///a", typeof(FilePackageRepository))]                   // Explicit file scheme
+        [TestCase("http://opentap.io", "file:///C:/a", typeof(FilePackageRepository))]                // Explicit absolute File Path
+        [TestCase("http://opentap.io", @"\\a\b", typeof(FilePackageRepository))]                      // UNC path
+        //[TestCase("http://opentap.io", @"//a/b", typeof(FilePackageRepository))]                      // UNC path using forward slash (but also scheme relative URL)
+        public void TestRepositoryType(string baseUrl, string url, Type expectedRepositoryType)
         {
-            AuthenticationSettings.Current.BaseAddress = null;
-            var result = PackageRepositoryHelpers.DetermineRepositoryType(url);
-            Assert.AreEqual(expectedRepositoryType,result.GetType());
-        }
-
-        [TestCase("http://packages.opentap.io", typeof(HttpPackageRepository))] // Http
-        [TestCase("https://packages.opentap.io", typeof(HttpPackageRepository))] // Https
-        [TestCase("/api/packages", typeof(HttpPackageRepository))] // Relative http from root
-        [TestCase("api/packages", typeof(HttpPackageRepository))] // Relative http appended
-        [TestCase("file:///./Packages", typeof(FilePackageRepository))] // Explicit file path
-        [TestCase("file:///Packages", typeof(FilePackageRepository))] // Explicit file path
-        [TestCase("file:///C:/Packages", typeof(FilePackageRepository))] // Explicit absolute File Path
-        [TestCase("C:/Packages", typeof(FilePackageRepository))] // File Path
-        [TestCase("C:/WeirdLocation/Packages", typeof(FilePackageRepository))] // File Path
-        public void TestRepositoryTypeWithBaseAddress(string url, Type expectedRepositoryType)
-        {
-            AuthenticationSettings.Current.BaseAddress = new Uri("http://opentap.io");
-            var result = PackageRepositoryHelpers.DetermineRepositoryType(url);
-            Assert.AreEqual(expectedRepositoryType, result.GetType());
+            if(String.IsNullOrEmpty(baseUrl))
+                AuthenticationSettings.Current.BaseAddress = null;
+            else
+                AuthenticationSettings.Current.BaseAddress = new Uri(baseUrl); ;
+            try
+            {
+                var result = PackageRepositoryHelpers.DetermineRepositoryType(url);
+                if (expectedRepositoryType.DescendsTo(typeof(Exception)))
+                    Assert.Fail($"Should have thrown {expectedRepositoryType.ToString()} but returned {result.GetType()}");
+                Assert.AreEqual(expectedRepositoryType, result.GetType());
+            }
+            catch (Exception ex)
+            {
+                if (expectedRepositoryType == ex.GetType())
+                    return;
+                else
+                    throw;
+            }
         }
 
         [Test]
@@ -549,69 +554,6 @@ namespace OpenTap.Package.UnitTests
                 if (File.Exists(file))
                     File.Delete(file);
             }
-        }
-
-        void DetermineRepositoryType()
-        {
-            #region Path
-            // Correct path
-            var result = PackageRepositoryHelpers.DetermineRepositoryType(Path.Combine(Directory.GetCurrentDirectory(), "TapPackages"));
-            Assert.IsTrue(result is FilePackageRepository, "DetermineRepositoryType - Correct path");
-
-            // Correct network path
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"\\Tap\Tap.PackageManager.UnitTests\TapPlugins");
-            Assert.IsTrue(result is FilePackageRepository, "DetermineRepositoryType - Correct network path");
-
-            // Incorrect path
-            Assert.Catch(() =>
-            {
-                result = PackageRepositoryHelpers.DetermineRepositoryType(@"Tap\Tap.PackageManager.UnitTests\TapPlugins"); 
-            }, "DetermineRepositoryType - Incorrect path");
-
-            // Path that does not exists
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"C:\Users\steholst\Source\Repos\tap2\TapThatDoesNotExists");
-            Assert.IsTrue(result is FilePackageRepository, "DetermineRepositoryType - Path that does not exists");
-
-            // Illegal path
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"C:\Users\steholst\Source\Repos\tap2\Tap?");
-            Assert.IsTrue(result is FilePackageRepository, "DetermineRepositoryType - Illegal path");
-
-            // Specific file entry
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"file:///C:/thisdoesnotexist");
-            Assert.IsTrue(result is FilePackageRepository);
-
-            // Specific file entry with casing
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"FILE:///C:/thisdoesnotexist");
-            Assert.IsTrue(result is FilePackageRepository);
-
-
-            #endregion
-
-            #region HTTP
-            // Correct http address
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"http://plugindemoapi.azurewebsites.net/");
-            Assert.IsTrue(result is HttpPackageRepository, "DetermineRepositoryType - Correct http address");
-
-            // Correct https address
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"https://plugindemoapi.azurewebsites.net/");
-            Assert.IsTrue(result is HttpPackageRepository, "DetermineRepositoryType - Correct https address");
-
-            // HttpRepo with casing
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"HTTP://thisdoesnotexist.io");
-            Assert.IsTrue(result is HttpPackageRepository);
-
-            // Relative PackageRepository URL
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"/thisdoesnotexist");
-            Assert.IsTrue(result is HttpPackageRepository);
-
-            // Relative PackageRepository URL
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"thisdoesnotexist/packages");
-            Assert.IsTrue(result is HttpPackageRepository);
-
-            // Relative PackageRepository URL
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"/packages");
-            Assert.IsTrue(result is HttpPackageRepository);
-            #endregion
         }
     }
 }

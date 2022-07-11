@@ -329,27 +329,29 @@ namespace OpenTap.Package
         {
             if (registeredRepositories.TryGetValue(url, out var repo))
                 return repo;
-            if (Uri.IsWellFormedUriString(url, UriKind.Relative) && AuthenticationSettings.Current.BaseAddress != null)
+            if (Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out Uri uri))
             {
-                url = new Uri(AuthenticationSettings.Current.BaseAddress, url).AbsoluteUri;
-            }
-            if (Uri.IsWellFormedUriString(url, UriKind.RelativeOrAbsolute))
-            {
-                Uri uri = new Uri(url, UriKind.RelativeOrAbsolute);
-                switch (uri)
+                if(uri.IsAbsoluteUri)
                 {
-                    case Uri u when !u.IsAbsoluteUri:
-                        return new FilePackageRepository(url);
-                    case Uri u when u.Scheme == Uri.UriSchemeHttp || u.Scheme == Uri.UriSchemeHttps:
-                        return new HttpPackageRepository(url);
-                    case Uri u when u.Scheme == Uri.UriSchemeFile:
-                        return new FilePackageRepository(u.AbsolutePath);
-                    default:
-                        throw new NotSupportedException($"Scheme {uri.Scheme} is not supported as a package repository ({url}).");
+                    switch(uri.Scheme)
+                    {
+                        case "http":
+                        case "https":
+                            return new HttpPackageRepository(url);
+                        case "file":
+                            return new FilePackageRepository(uri.AbsolutePath);
+                        default:
+                            throw new NotSupportedException($"Scheme {uri.Scheme} is not supported as a package repository ({url}).");
+                    }
+                }
+                else
+                {
+                    if (AuthenticationSettings.Current.BaseAddress != null)
+                        return DetermineRepositoryType(new Uri(AuthenticationSettings.Current.BaseAddress, url).AbsoluteUri);
+                    else
+                        return new FilePackageRepository(Path.GetFullPath(url)); // GetFullPath throws ArgumentException if url contains illigal path chars
                 }
             }
-            else if (Path.IsPathRooted(url))
-                return new FilePackageRepository(url);
             else
                 throw new NotSupportedException($"Unable to determine repository type of '{url}'. Try specifying a scheme using 'http://' or 'file:///'.");
         }
