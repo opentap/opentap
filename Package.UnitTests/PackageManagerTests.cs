@@ -345,7 +345,7 @@ namespace OpenTap.Package.UnitTests
         public void TestDependencyPatchVersion()
         {
             // Verify that the resolver bumps from installed "9.12.0" because "^9.12.1" is required
-            var repo = "packages.opentap.io";
+            var repo = "http://packages.opentap.io";
 
             var installedOpenTap = new PackageDef() {Version = SemanticVersion.Parse("9.12.0"), Name = "OpenTAP", Architecture = CpuArchitecture.x64};
 
