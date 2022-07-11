@@ -967,6 +967,12 @@ namespace OpenTap
                 TestPlan.Log.Info(e.Message);
                 Step.UpgradeVerdict(e.Verdict);
             }
+            catch (ExpectedException e)
+            {
+                e.Handle(Step.Name);
+                Step.Verdict = e.Verdict;
+                throw e;
+            }
             catch (Exception e)
             {
                 
