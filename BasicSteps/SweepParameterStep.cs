@@ -274,14 +274,8 @@ namespace OpenTap.Plugins.BasicSteps
                     }
                     catch (TargetInvocationException ex)
                     {
-                        if (ex.InnerException is ArgumentException arEx)
-                        {
-                            throw new ArgumentException($"Invocation exception on row {i}: {ex.InnerException.Message}", ex);
-                        }
-                        Log.Error("Unable to set '{0}' to value '{2}': {1}", set.GetDisplayAttribute().Name,
-                            ex.InnerException?.Message, valueString);
-                        Log.Debug(ex.InnerException);
                         UpgradeVerdict(Verdict.Error);
+                        throw new ArgumentException($"Unable to set '{set.GetDisplayAttribute()}' to '{valueString}' on row {i}: {ex.InnerException.Message}", ex);
                     }
                 }
 
