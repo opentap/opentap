@@ -9,7 +9,7 @@ namespace OpenTap.Package
         // all the existing names and versions
         readonly List<string> names = new List<string>();
         readonly List<SemanticVersion> versionLookup = new List<SemanticVersion>();
-        readonly List<VersionSpecifier> versionLookup2 = new List<VersionSpecifier>();
+        readonly List<VersionSpecifier> versionSpecifierLookup = new List<VersionSpecifier>();
      
         // lookup of X to id, ID being the index in the above tables.
         readonly Dictionary<string, int> name2Id = new Dictionary<string, int>(); 
@@ -21,7 +21,7 @@ namespace OpenTap.Package
         readonly Dictionary<string, VersionSpecifier> stringToVersionSpecifier = new Dictionary<string, VersionSpecifier>();
         
         // versions contains all versions of a given name. Eg all versions of OpenTAP/
-        readonly Dictionary<int, List<int>> versions = new Dictionary<int, List<int>>();
+        readonly Dictionary<int, HashSet<int>> versions = new Dictionary<int, HashSet<int>>();
         
         // Dependencies for a given version 
         readonly Dictionary<(int packageNameId, int packageVersion), (int packageNameId, int versionSpecifierId)[]> dependencies = new Dictionary<(int, int), (int, int)[]>();
@@ -36,7 +36,7 @@ namespace OpenTap.Package
             {
                 name2Id[name] = names.Count;
                 id = names.Count;
-                versions[id] = new List<int>();
+                versions[id] = new HashSet<int>();
                 names.Add(name);
             }
 
@@ -68,8 +68,8 @@ namespace OpenTap.Package
         {
             if (versionSpecifier2Id.TryGetValue(v, out var id))
                 return id;
-            versionSpecifier2Id[v] = id = versionLookup2.Count;
-            versionLookup2.Add(v);
+            versionSpecifier2Id[v] = id = versionSpecifierLookup.Count;
+            versionSpecifierLookup.Add(v);
             return id;
         }
 
@@ -115,7 +115,8 @@ namespace OpenTap.Package
 
                 var id = GetId(ref name);
                 var thisVersions = versions[id];
-                thisVersions.Add(GetVersion(version));
+                if (!thisVersions.Add(GetVersion(version)))
+                    continue; // package already added.
                 if(elem.TryGetProperty("dependencies", out var obj))
                 {
                     var l = obj.GetArrayLength();
@@ -160,6 +161,34 @@ namespace OpenTap.Package
             }
         }
 
+        public IEnumerable<PackageDef> PackageSpecifiers()
+        {
+            foreach (var thing in versions)
+            {
+                var pkgName = names[thing.Key];
+                foreach (var v in thing.Value)
+                {
+                    var version = this.versionLookup[v];
+                    var pkg = new PackageDef
+                    {
+                        Name = pkgName,
+                        Version = version
+                    };
+                    if (dependencies.TryGetValue((thing.Key, v), out var deps))
+                    {
+                        foreach (var dep in deps)
+                        {
+                            var name = names[dep.packageNameId];
+                            var version2 = versionSpecifierLookup[dep.versionSpecifierId];
+                            pkg.Dependencies.Add(new PackageDependency(name, version2));
+                        }
+                    }
+
+                    yield return pkg;
+                }
+            }
+        }
+
         public bool CouldSatisfy(string pkgName, VersionSpecifier version, PackageSpecifier[] others)
         {
             if (name2Id.TryGetValue(pkgName, out var Id) && version.TryToSemanticVersion(out var v))
@@ -168,7 +197,7 @@ namespace OpenTap.Package
                     return true; // this package has no dependencies, so yes.
                 foreach (var dep in deps)
                 {
-                    var depVersion = versionLookup2[dep.Item2];
+                    var depVersion = versionSpecifierLookup[dep.Item2];
                     
                     var ps = new PackageSpecifier(names[dep.Item1], depVersion);
                     var o = others.FirstOrDefault(x => x.Name == ps.Name);
@@ -196,7 +225,7 @@ namespace OpenTap.Package
                 {
                     foreach (var dep in deps)
                     {
-                        var depVersion = versionLookup2[dep.Item2];
+                        var depVersion = versionSpecifierLookup[dep.Item2];
 
                         yield return new PackageSpecifier(names[dep.Item1], depVersion);
                     }
@@ -206,7 +235,7 @@ namespace OpenTap.Package
 
         public void Absorb(PackageDependencyGraph graph)
         {
-            
+            LoadFromPackageDefs(graph.PackageSpecifiers());
         }
     }
 }

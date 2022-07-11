@@ -44,6 +44,27 @@ namespace OpenTap.Image.Tests
 
     public class DependencyResolverGraphTest
     {
+
+        [Test]
+        public void TestMergeGraphs()
+        {
+            var graph1 = PackageDependencyQuery.LoadGraph(Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream(packagesResourceName), true);
+            var graph2 = PackageDependencyQuery.LoadGraph(Assembly.GetExecutingAssembly()
+                .GetManifestResourceStream(packagesResourceName), true);
+            var graph3 = new PackageDependencyGraph();
+            
+            var g1 = graph1.PackageSpecifiers().ToArray();
+            graph3.Absorb(graph1);
+            
+            var g3 = graph3.PackageSpecifiers().ToArray();
+            
+            graph3.Absorb(graph2);
+            var g4 = graph3.PackageSpecifiers().ToArray();
+            Assert.AreEqual(g1.Length, g3.Length);
+            Assert.AreEqual(g1.Length, g4.Length);
+        }
+        
         [Test]
         public void TestQueryGraph()
         {
@@ -125,10 +146,11 @@ namespace OpenTap.Image.Tests
             }
         }
 
+        const string packagesResourceName = "OpenTap.Package.UnitTests.Image.opentap-packages.json.gz";
         readonly PackageDependencyGraph graph;
         public DependencyResolverGraphTest()
         {
-            var packagesResourceName = "OpenTap.Package.UnitTests.Image.opentap-packages.json.gz";
+            
             graph = PackageDependencyQuery.LoadGraph(Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream(packagesResourceName), true);
         }
