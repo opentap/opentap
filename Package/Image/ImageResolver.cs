@@ -1,39 +1,18 @@
 using System.Collections.Generic;
-using System.IO;
-using System.IO.Compression;
 using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
-using OpenTap.Authentication;
 
 namespace OpenTap.Package
-{
-    
-    internal class ImageResolution
-    {
-        public ImageResolution(PackageSpecifier[] pkgs, long iterations)
-        {
-            Packages = pkgs.OrderBy(x => x.Name).ToArray();
-            this.Iterations = iterations;
-        }
-        public readonly PackageSpecifier[] Packages;
-        public readonly long Iterations;
-    }
-    
-    internal class ImageResolver
+{ 
+    class ImageResolver
     {
 
-        public long Iterations = 0; 
+        public long Iterations;
 
-        
         public ImageResolution ResolveImage(ImageSpecifier image, PackageDependencyGraph graph)
         {
             Iterations++;
             List<PackageSpecifier> packages = image.Packages.ToList();
-            startOver:
+            
             // make sure that specifications are consistent.
             // 1. remove redundant package specifiers
             for (int i = 0; i < packages.Count; i++)
@@ -123,22 +102,20 @@ namespace OpenTap.Package
                 var pkg = packages[i];
                 var versions = allVersions[i];
                 var others = packages.Except(x => x == pkg).ToArray();
-                var newVersions = versions.Where(x => graph.CouldSatisfy(pkg.Name, new VersionSpecifier(x, VersionMatchBehavior.Exact), others)).ToArray();
-                //if (newVersions.Length != versions.Length)
+                var newVersions = versions.Where(x =>
+                        graph.CouldSatisfy(pkg.Name, new VersionSpecifier(x, VersionMatchBehavior.Exact), others))
+                    .ToArray();
+                allVersions[i] = newVersions;
+                if (newVersions.Length == 1 && pkg.Version.MatchBehavior != VersionMatchBehavior.Exact)
                 {
-                    allVersions[i] = newVersions;
-                    if (newVersions.Length == 1 && pkg.Version.MatchBehavior != VersionMatchBehavior.Exact)
-                    {
-                        packages[i] = new PackageSpecifier(pkg.Name, new VersionSpecifier(newVersions[0], VersionMatchBehavior.Exact));
-                        retry = true;
-                    }
+                    packages[i] = new PackageSpecifier(pkg.Name,
+                        new VersionSpecifier(newVersions[0], VersionMatchBehavior.Exact));
+                    retry = true;
                 }
             }
 
             if (retry)
-            {
-                goto startOver;
-            }
+                return ResolveImage(new ImageSpecifier(packages.ToList()), graph);
             
             // ok now we have X * Y * Z * ... = K possible solutions all satisfying the constraints.
             // Lets sort all the versions based on version specifiers, then fix  the version and try each combination (brute force)
@@ -173,16 +150,28 @@ namespace OpenTap.Package
                     versions.Reverse();
                 }else if(pkg.Version.MatchBehavior == VersionMatchBehavior.Exact)
                 {
+                    //exact may be more than one version, even though the match behavior is 'exact'.
+                    // for example OpenTAP '9.17' is exact, but many versions matches that.
+                    // We are interested in the newest in this case, so order newest -> oldest within the span.
                     versions.Sort(pkg.Version.SortOrder);
-                }else if (pkg.Version.MatchBehavior == VersionMatchBehavior.Compatible)
+                }
+                else if (pkg.Version.MatchBehavior == VersionMatchBehavior.Compatible)
                 {
+                    // In this case we want the closest possible version. So we use an ascending sorting.
+                    
+                    // List.Sort is not stable, so we have to use OrderBy, which is guaranteed to be.
+                    
+                    // 'SortPartial' is used for sorting within an incomplete version e.g '^9.17'
+                    // ^9.17 -> We want the newest 9.17 version, but if we cannot get a 9.17.* a  newer will suffice. 
                     versions = versions.OrderBy(x => x, pkg.Version.SortPartial).ToList();
                 }
 
                 allVersions[i] = versions.ToArray();
             }
 
-            // iterate fixing variables
+            // Iterate each package, fixing one variable and iterating the whole available span.
+            // note that this is a recursive call so even though we only fix _one_ variable here
+            // the rest of the variables will be fixed in the recursions.
             for (int i = 0; i < allVersions.Count; i++)
             {
                 var set = allVersions.Select(x => x[0]).ToArray();
@@ -205,293 +194,13 @@ namespace OpenTap.Package
                         // recursive to see if this specifier has a result.
                         var result = this.ResolveImage(newSpecifier, graph);
                         if (result != null)
-                        {
                             return result;
-                        }
                     }
                 }
             }
-
+            
+            // this probably never happens as we already returned null, when K was 0.
             return null;
         }
-    }
-
-
-    public class PackageDependencyGraph
-    {
-        List<string> names = new List<string>();
-        List<SemanticVersion> versionLookup = new List<SemanticVersion>();
-        List<VersionSpecifier> versionLookup2 = new List<VersionSpecifier>();
-        Dictionary<SemanticVersion, int> version2Id = new Dictionary<SemanticVersion, int>();
-        Dictionary<VersionSpecifier, int> version3Id = new Dictionary<VersionSpecifier, int>();
-
-        Dictionary<string, SemanticVersion> stringToVersion = new Dictionary<string, SemanticVersion>();
-        Dictionary<string, VersionSpecifier> stringToVersion2 = new Dictionary<string, VersionSpecifier>();
-
-        Dictionary<string, int> name2Id = new Dictionary<string, int>(); 
-        Dictionary<int, List<int>> versions = new Dictionary<int, List<int>>();
-        Dictionary<(int, int), (int, int)[]> dependencies = new Dictionary<(int, int), (int, int)[]>();
-
-        int getId(ref string name)
-        {
-            if (name2Id.TryGetValue(name, out var id))
-            {
-                name = names[id];
-            }
-            else
-            {
-                name2Id[name] = names.Count;
-                id = names.Count;
-                versions[id] = new List<int>();
-                names.Add(name);
-            }
-
-            return id;
-        }
-        
-        int getVersion(ref SemanticVersion v)
-        {
-            if (version2Id.TryGetValue(v, out var id))
-                return id;
-            version2Id[v] = id = versionLookup.Count;
-            versionLookup.Add(v);
-            return id;
-        }
-        
-        int getVersion(string v2)
-        {
-            var v = stringToVersion.GetOrCreateValue(v2, SemanticVersion.Parse);
-            return getVersion(ref v);
-        }
-
-        int getVersionSpecifier(string v2)
-        {
-            var v = stringToVersion2.GetOrCreateValue(v2, VersionSpecifier.Parse);
-            return getVersionSpecifier(ref v);
-        }
-        
-        int getVersionSpecifier(ref VersionSpecifier v)
-        {
-            if (version3Id.TryGetValue(v, out var id))
-                return id;
-            version3Id[v] = id = versionLookup2.Count;
-            versionLookup2.Add(v);
-            return id;
-        }
-
-        
-        public void LoadFromJson(JsonDocument json)
-        {
-            var packages = json.RootElement.GetProperty("packages");
-
-            foreach (var elem in packages.EnumerateArray())
-            {
-                var name = elem.GetProperty("name").GetString();
-                var version = elem.GetProperty("version").GetString();
-                if (!SemanticVersion.TryParse(version, out var v))
-                    continue;
-
-                var id = getId(ref name);
-                var thisVersions = versions[id];
-                thisVersions.Add(getVersion(version));
-                if(elem.TryGetProperty("dependencies", out var obj))
-                {
-                    var l = obj.GetArrayLength();
-                    if (l != 0)
-                    {
-                        var deps = new (int id, int y)[l];
-                        int i = 0; 
-                        foreach (var dep in obj.EnumerateArray())
-                        {
-                            var depname = dep.GetProperty("name").GetString();
-                            var depid = getId(ref depname);
-                            var depver = dep.GetProperty("version").GetString();
-                            deps[i] = (depid, getVersionSpecifier(depver));
-                            i++;
-                        }
-
-                        this.dependencies[(id, getVersion(version))] = deps;
-                    }
-                    
-                }
-            }
-        }
-
-        public IEnumerable<SemanticVersion> PackagesSatisfying(PackageSpecifier packageSpecifier)
-        {
-            if (name2Id.TryGetValue(packageSpecifier.Name, out var Id))
-            {
-                var thisVersions = versions[Id];
-                foreach (var v in thisVersions)
-                {
-                    var semv = versionLookup[v];
-                    {
-                        if (packageSpecifier.Version == VersionSpecifier.Any)
-                        {
-                            if (semv.PreRelease == null)
-                                yield return semv;
-                        }else if (packageSpecifier.Version.IsCompatible(semv))
-                            yield return semv;
-                        
-                    }
-                }
-            }
-        }
-
-        public bool CouldSatisfy(string pkgName, VersionSpecifier version, PackageSpecifier[] others)
-        {
-            if (name2Id.TryGetValue(pkgName, out var Id) && version.TryToSemanticVersion(out var v))
-            {
-                if (!dependencies.TryGetValue((Id, getVersion(ref v)), out var deps))
-                    return true; // this package has no dependencies, so yes.
-                foreach (var dep in deps)
-                {
-                    var depVersion = versionLookup2[dep.Item2];
-                    
-                    var ps = new PackageSpecifier(names[dep.Item1], depVersion);
-                    var o = others.FirstOrDefault(x => x.Name == ps.Name);
-                    if (o == null)
-                        continue;
-                    if (ps.Version.IsSatisfiedBy(o.Version) == false && o.Version.IsSatisfiedBy(ps.Version) == false)
-                        return false;
-                    
-                    // todo protect from circular dependencies here.
-                    if (!CouldSatisfy(ps.Name, depVersion, others))
-                        return false;
-                }
-
-                return true;
-            }
-
-            return true;
-        }
-
-        public IEnumerable<PackageSpecifier> GetDependencies(string pkgName, SemanticVersion version)
-        {
-            if (name2Id.TryGetValue(pkgName, out var Id))
-            {
-                if (dependencies.TryGetValue((Id, getVersion(ref version)), out var deps))
-                {
-                    foreach (var dep in deps)
-                    {
-                        var depVersion = versionLookup2[dep.Item2];
-
-                        yield return new PackageSpecifier(names[dep.Item1], depVersion);
-                    }
-                }
-            }
-        }
-    }
-
-    public class PackageDependencyQuery
-    {
-        private const string graphQLQuery = @"query Query { packages(version: ""any"", os:""linux"", architecture:""x64"") {
-        name
-            version
-        dependencies
-        { name
-            version
-        }
-    }
-}";
-        private static HttpClient GetHttpClient(string url)
-        {
-            var httpClient = AuthenticationSettings.Current.GetClient(null, true);
-            httpClient.DefaultRequestHeaders.Add("OpenTAP",
-                PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
-            httpClient.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/xml");
-            return httpClient;
-        }
-        public static async Task<PackageDependencyGraph> QueryGraph(string repoUrl)
-        {
-            JsonDocument json;
-            using (var client = GetHttpClient(repoUrl))
-            {
-                HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, repoUrl + "/3.1/Query");
-                request.Content = new StringContent(graphQLQuery, Encoding.UTF8);
-                request.Headers.Add("Accept", "application/json");
-                
-                var response = await client.SendAsync(request); 
-                var stream = await response.Content.ReadAsStreamAsync();
-                json = await JsonDocument.ParseAsync(stream);
-            }
-
-            var graph = new PackageDependencyGraph();
-            graph.LoadFromJson(json);
-            using (var f = File.OpenWrite("opentap-packages.json"))
-            {
-                using (var writer = new Utf8JsonWriter(f))
-                {
-                    json.WriteTo(writer);
-                }
-                     
-                
-            }
-            return graph;
-        }
-
-        public static void Query()
-        {
-            var managers  = PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager);
-
-            foreach (var manager in managers)
-            {
-                if (manager is FilePackageRepository frep)
-                {
-                    
-                }
-                else if (manager is HttpPackageRepository hrep)
-                {
-                    var pkgGraph = hrep.QueryGraphQL(graphQLQuery);
-                }
-                
-            }
-            
-            foreach (var pkgManager in PackageManagerSettings.Current.Repositories)
-            {
-                
-
-            }
-            
-        }
-
-
-        public static PackageDependencyGraph LoadGraph(Stream stream, bool compressed)
-        {
-            if(compressed)
-                stream = new GZipStream(stream, CompressionMode.Decompress, leaveOpen: true); 
-            
-            var graph = new PackageDependencyGraph();
-            var doc = JsonDocument.Parse(stream);
-            graph.LoadFromJson(doc);
-            if (compressed)
-                stream.Dispose();
-            return graph;
-        }
-    }
-
-    class HttpStringContent : HttpContent
-    {
-        readonly byte[] content;
-        public HttpStringContent(string content)
-        {
-            this.content = Encoding.UTF8.GetBytes(content);
-        }
-
-        protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
-        {
-            return stream.WriteAsync(content, 0, content.Length);
-        }
-
-        protected override bool TryComputeLength(out long length)
-        {
-            length = content.LongLength;
-            return true;
-        }
-    }
-
-    public class PackageDependencyCache
-    {
-        
     }
 }

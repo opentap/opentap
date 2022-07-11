@@ -44,10 +44,37 @@ namespace OpenTap.Image.Tests
 
     public class DependencyResolverGraphTest
     {
-        public void Test1()
+        [Test]
+        public void TestQueryGraph()
         {
             var graph = PackageDependencyQuery.QueryGraph("https://packages.opentap.io").Result;
         }
+
+        [Test]
+        public void TestCollapseQueryGraph()
+        {
+            List<IPackageRepository> repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
+            var graph0 = new PackageDependencyGraph();
+            foreach (var repo in repositories)
+            {
+                if (repo is HttpPackageRepository http)
+                {
+                    var graph = PackageDependencyQuery.QueryGraph(http.Url).Result;
+                    graph0.Absorb(graph);
+                }
+
+                if (repo is FilePackageRepository fpkg)
+                {
+                    var graph = new PackageDependencyGraph();
+                    var packages = fpkg.GetAllPackages(TapThread.Current.AbortToken);
+                    graph.LoadFromPackageDefs(packages);
+                    graph0.Absorb(graph);
+                    
+                }
+            }
+        }
+        
+        public List<string> Repositories => new List<string> { PackageCacheHelper.PackageCacheDirectory, "https://packages.opentap.io" };
 
         static PackageSpecifier[] str2packages(string csv)
         {
@@ -113,7 +140,6 @@ namespace OpenTap.Image.Tests
             var sw = Stopwatch.StartNew();
             var img = image(spec);
             var r = resolver2.ResolveImage(img, graph);
-
 
             if (result == null)
                 Assert.IsNull(r);

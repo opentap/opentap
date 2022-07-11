@@ -21,6 +21,18 @@ namespace OpenTap.Package
         /// </summary>
         public List<PackageSpecifier> Packages { get; set; } = new List<PackageSpecifier>();
 
+        public ImageSpecifier(List<PackageSpecifier> packages, string name = "")
+        {
+            Packages = packages;
+            Name = name;
+        }
+
+        public ImageSpecifier()
+        {
+            
+        }
+
+        
         /// <summary>
         /// OpenTAP repositories to fetch the desired packages from
         /// These should be well formed URIs and will be interpreted relative to the BaseAddress set in AuthenticationSettings.
