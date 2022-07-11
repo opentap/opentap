@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using NUnit.Framework;
 using OpenTap.Cli;
+using OpenTap.EngineUnitTestUtils;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -209,10 +210,15 @@ namespace OpenTap.Package.UnitTests
         public void ListTest()
         {
             int exitCode;
-            string output = RunPackageCli("list", out exitCode);
-            Assert.AreEqual(0, exitCode, $"Unexpected exit code.{Environment.NewLine}{output}");
-            StringAssert.Contains("OpenTAP ", output);
-            Debug.Write(output);
+            var trace = new TestTraceListener();
+            Log.AddListener(trace);
+            var action = new PackageListAction();
+            action.Execute(CancellationToken.None);
+            Log.RemoveListener(trace);
+
+            //string output = RunPackageCli("list", out exitCode);
+            //Assert.AreEqual(0, exitCode, $"Unexpected exit code.{Environment.NewLine}{output}");
+            StringAssert.Contains("OpenTAP ", trace.GetLog());
         }
 
         [Test]

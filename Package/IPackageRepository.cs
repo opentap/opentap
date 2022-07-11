@@ -219,7 +219,6 @@ namespace OpenTap.Package
     internal class PackageRepositoryHelpers
     {
         private static TraceSource log = Log.CreateSource("PackageRepository");
-        private static VersionSpecifier RequiredApiVersion = new VersionSpecifier(3, 1, 0, "", "", VersionMatchBehavior.Compatible | VersionMatchBehavior.AnyPrerelease); // Required for GraphQL
 
         static void ParallelTryForEach<TSource>(IEnumerable<TSource> source, Action<TSource> body)
         {
@@ -254,29 +253,34 @@ namespace OpenTap.Package
 
             ParallelTryForEach(repositories, repo =>
             {
-                if (repo is HttpPackageRepository httprepo && httprepo.Version != null &&
-                    RequiredApiVersion.IsCompatible(httprepo.Version))
+                if (repo is HttpPackageRepository httprepo)
                 {
-                    var jsonString = httprepo.QueryGraphQL(query);
-                    var json = JObject.Parse(jsonString);
-                    lock (list)
+                    try
                     {
-                        foreach (var item in json["packages"])
-                            list.Add(new PackageDef()
-                            {
-                                Name = item["name"].ToString(),
-                                Version = SemanticVersion.Parse(item["version"].ToString()),
-                                PackageSource = new HttpRepositoryPackageDefSource() { RepositoryUrl = httprepo.Url }
-                            });
+                        var jsonString = httprepo.QueryGraphQL(query);
+                        var json = JObject.Parse(jsonString);
+                        lock (list)
+                        {
+                            foreach (var item in json["packages"])
+                                list.Add(new PackageDef()
+                                {
+                                    Name = item["name"].ToString(),
+                                    Version = SemanticVersion.Parse(item["version"].ToString()),
+                                    PackageSource = new HttpRepositoryPackageDefSource() { RepositoryUrl = httprepo.Url }
+                                });
+                        }
+                        return;
+                    }
+                    catch (Exception ex)
+                    {
+                        // this might be a very old repo (< 3.1) that does not have the GraphQL endpoint
                     }
                 }
-                else
+
+                var packages = repo.GetPackages(id, compatibleWith);
+                lock (list)
                 {
-                    var packages = repo.GetPackages(id, compatibleWith);
-                    lock (list)
-                    {
-                        list.AddRange(packages);
-                    }
+                    list.AddRange(packages);
                 }
             });
             return list;
