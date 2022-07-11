@@ -22,6 +22,9 @@ namespace OpenTap
         /// </summary>
         public virtual Verdict Verdict { get; set; }
 
+        /// <summary>
+        /// Handles this exception by writing the appropriate information to the log.
+        /// </summary>
         public void Handle(string stepName)
         {
             if (string.IsNullOrWhiteSpace(Message))
