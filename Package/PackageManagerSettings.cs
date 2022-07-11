@@ -84,11 +84,23 @@ namespace OpenTap.Package
         {
             var repositories = new List<IPackageRepository>();
             if (PackageManagerSettings.Current.UseLocalPackageCache)
-                repositories.Add(PackageRepositoryHelpers.DetermineRepositoryType(PackageCacheHelper.PackageCacheDirectory));
+                repositories.Add(PackageRepositoryHelpers.DetermineRepositoryType(new Uri(PackageCacheHelper.PackageCacheDirectory).AbsoluteUri));
             if (cliSpecifiedRepoUrls == null)
                 repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled && p.Manager != null).Select(s => s.Manager).ToList());
             else
-                repositories.AddRange(cliSpecifiedRepoUrls.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
+            {
+                var log = Log.CreateSource("PackageAction");
+                foreach (var repo in  cliSpecifiedRepoUrls)
+                {
+                    if (Uri.IsWellFormedUriString(repo, UriKind.Relative) && !Directory.Exists(repo))
+                    {
+                        log.Info($"Package directory '{repo}' not found. Trying using HTTP scheme.");
+                        repositories.Add(PackageRepositoryHelpers.DetermineRepositoryType("http://" + repo));
+                    }
+                    else
+                        repositories.Add(PackageRepositoryHelpers.DetermineRepositoryType(repo));
+                }
+            }
             return repositories;
         }
     }

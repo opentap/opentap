@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Newtonsoft.Json.Linq;
+using OpenTap.Authentication;
 
 namespace OpenTap.Package
 {
@@ -328,16 +329,17 @@ namespace OpenTap.Package
         {
             if (registeredRepositories.TryGetValue(url, out var repo))
                 return repo;
+            if (Uri.IsWellFormedUriString(url, UriKind.Relative) && AuthenticationSettings.Current.BaseAddress != null)
+            {
+                url = new Uri(AuthenticationSettings.Current.BaseAddress, url).AbsoluteUri;
+            }
             if (Uri.IsWellFormedUriString(url, UriKind.RelativeOrAbsolute))
             {
                 Uri uri = new Uri(url, UriKind.RelativeOrAbsolute);
                 switch (uri)
                 {
                     case Uri u when !u.IsAbsoluteUri:
-                        if (Directory.Exists(url))
-                            return new FilePackageRepository(url);
-                        else
-                            return new HttpPackageRepository(url);
+                        return new FilePackageRepository(url);
                     case Uri u when u.Scheme == Uri.UriSchemeHttp || u.Scheme == Uri.UriSchemeHttps:
                         return new HttpPackageRepository(url);
                     case Uri u when u.Scheme == Uri.UriSchemeFile:

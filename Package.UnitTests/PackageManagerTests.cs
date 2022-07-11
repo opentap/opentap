@@ -472,7 +472,22 @@ namespace OpenTap.Package.UnitTests
             return packages;
         }
 
-        [TestCase("packages.opentap.io", typeof(HttpPackageRepository))] // Http
+        [TestCase("http://packages.opentap.io", typeof(HttpPackageRepository))] // Http
+        [TestCase("https://packages.opentap.io", typeof(HttpPackageRepository))] // Https
+        [TestCase("/api/packages", typeof(FilePackageRepository))] // Relative http from root
+        [TestCase("api/packages", typeof(FilePackageRepository))] // Relative http appended
+        [TestCase("file:///./Packages", typeof(FilePackageRepository))] // Explicit file path
+        [TestCase("file:///Packages", typeof(FilePackageRepository))] // Explicit file path
+        [TestCase("file:///C:/Packages", typeof(FilePackageRepository))] // Explicit absolute File Path
+        [TestCase("C:/Packages", typeof(FilePackageRepository))] // File Path
+        [TestCase("C:/WeirdLocation/Packages", typeof(FilePackageRepository))] // File Path
+        public void TestRepositoryType(string url, Type expectedRepositoryType)
+        {
+            AuthenticationSettings.Current.BaseAddress = null;
+            var result = PackageRepositoryHelpers.DetermineRepositoryType(url);
+            Assert.AreEqual(expectedRepositoryType,result.GetType());
+        }
+
         [TestCase("http://packages.opentap.io", typeof(HttpPackageRepository))] // Http
         [TestCase("https://packages.opentap.io", typeof(HttpPackageRepository))] // Https
         [TestCase("/api/packages", typeof(HttpPackageRepository))] // Relative http from root
@@ -482,23 +497,18 @@ namespace OpenTap.Package.UnitTests
         [TestCase("file:///C:/Packages", typeof(FilePackageRepository))] // Explicit absolute File Path
         [TestCase("C:/Packages", typeof(FilePackageRepository))] // File Path
         [TestCase("C:/WeirdLocation/Packages", typeof(FilePackageRepository))] // File Path
-        public void TestRepositoryType(string url, Type expectedRepositoryType)
+        public void TestRepositoryTypeWithBaseAddress(string url, Type expectedRepositoryType)
         {
-            if (url == "/PackageCache")
-                Directory.CreateDirectory(url);
-
+            AuthenticationSettings.Current.BaseAddress = new Uri("http://opentap.io");
             var result = PackageRepositoryHelpers.DetermineRepositoryType(url);
-            Assert.IsTrue(result.GetType().Equals(expectedRepositoryType));
-
-            if (url == "/PackageCache")
-                Directory.Delete(url);
+            Assert.AreEqual(expectedRepositoryType, result.GetType());
         }
 
         [Test]
         [Ignore("For manual debugging")]
         public void TestIfHttpPackageRepositorySupportsRelativePaths()
         {
-            AuthenticationSettings.Current.BaseAddress = "";
+            AuthenticationSettings.Current.BaseAddress = null;
             HttpPackageRepository httpPackageRepository = new HttpPackageRepository("packages.opentap.io");
             var packages = httpPackageRepository.GetPackageNames();
             Assert.AreEqual($"http://packages.opentap.io", httpPackageRepository.Url); // Url was changed to valid url
@@ -526,7 +536,7 @@ namespace OpenTap.Package.UnitTests
         [Ignore("For manual debugging")]
         public void TestIfHttpPackageRepositorySupportsRelativePaths2()
         {
-            AuthenticationSettings.Current.BaseAddress = "";
+            AuthenticationSettings.Current.BaseAddress = null;
             HttpPackageRepository httpPackageRepository = new HttpPackageRepository("packages.opentap.io");
             string file = "C:/Temp/Test.TapPackage";
             try

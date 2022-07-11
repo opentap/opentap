@@ -15,7 +15,7 @@ namespace OpenTap.Authentication
     [Browsable(false)]
     public class AuthenticationSettings : ComponentSettings<AuthenticationSettings>
     {
-        private string baseAddress = "";
+        private Uri baseAddress = null;
 
         class AuthenticationClientHandler : HttpClientHandler
         {
@@ -74,14 +74,13 @@ namespace OpenTap.Authentication
         /// <summary> Configuration used as BaseAddress in HttpClients returned by <see cref="GetClient"/>.
         /// This string will be prepended to all relative urls, e.g. '/api/packages' will become '{BaseAddress}/api/packages'
         /// </summary>
-        public string BaseAddress
+        public Uri BaseAddress
         {
             get => baseAddress; set
             {
-                if (String.IsNullOrEmpty(value) || Uri.IsWellFormedUriString(value, UriKind.Absolute))
-                    baseAddress = value;
-                else
-                    throw new FormatException("BaseAddress must be a well formed absolute URI.");
+                if (value != null && !value.IsAbsoluteUri)
+                    throw new FormatException("BaseAddress must be an absolute URI.");
+                baseAddress = value;
             }
         }
 
@@ -117,8 +116,8 @@ namespace OpenTap.Authentication
         public HttpClient GetClient(string domain = null, bool withRetryPolicy = false)
         {
             var client = new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy));
-            if (!String.IsNullOrEmpty(BaseAddress))
-                client.BaseAddress = new Uri(BaseAddress, UriKind.Absolute);
+            if (BaseAddress != null)
+                client.BaseAddress = BaseAddress;
             if(userAgent == null)
             {
                 //var sw = System.Diagnostics.Stopwatch.StartNew();
