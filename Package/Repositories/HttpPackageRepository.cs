@@ -251,36 +251,44 @@ namespace OpenTap.Package
             }
         }
 
-        private string downloadPackagesString(string args, string data = null, string contentType = null, string accept = null)
+        private string sendRequest(string args, string postBody = null, string accept = null)
         {
             string xmlText = null;
             try
             {
-                HttpRequestMessage httpRequestMessage = new HttpRequestMessage(HttpMethod.Get, Url + args);
-                httpRequestMessage.Headers.Add("Accept", accept ?? "application/xml");
-                httpRequestMessage.Headers.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
-                if (data != null)
+                try
                 {
-                    httpRequestMessage.Method = HttpMethod.Post;
-                    httpRequestMessage.Content = new StringContent(data);
+                    HttpRequestMessage httpRequestMessage = new HttpRequestMessage(HttpMethod.Get, Url + args);
+                    httpRequestMessage.Headers.Add("Accept", accept ?? "application/xml");
+                    httpRequestMessage.Headers.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
+                    if (postBody != null)
+                    {
+                        httpRequestMessage.Method = HttpMethod.Post;
+                        httpRequestMessage.Content = new StringContent(postBody);
+                    }
+                    var response = HttpClient.SendAsync(httpRequestMessage).GetAwaiter().GetResult();
+                    if (response.StatusCode == HttpStatusCode.NotFound)
+                        throw new WebException("404 - Not Found.");
+                    xmlText = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
                 }
-                var response = HttpClient.SendAsync(httpRequestMessage).GetAwaiter().GetResult();
-                xmlText = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-            }
-            catch (InvalidOperationException) // if user specified "packages.opentap.io", it looks like a relative url, so we only prepend "http://" when we are sure that it actually isnt a relative url
-            {
-                if (!Url.StartsWith("http://"))
+                catch (WebException)
                 {
-                    Url = $"http://{Url}";
-                    xmlText = downloadPackagesString(args, data, contentType, accept);
+                    CheckRepoApiVersion();
+                    throw;
                 }
-                else throw;
+                catch (InvalidOperationException ex) // if user specified "packages.opentap.io", it looks like a relative url, so we only prepend "http://" when we are sure that it actually isnt a relative url
+                {
+                    System.Diagnostics.Debugger.Launch();
+                    if (!Uri.IsWellFormedUriString(Url, UriKind.Absolute))
+                    {
+                        Url = $"http://{Url}";
+                        xmlText = sendRequest(args, postBody, accept);
+                    }
+                    else throw;
+                }
             }
             catch (Exception ex)
             {
-                if (ex is WebException)
-                    CheckRepoApiVersion();
-
                 var exception = new WebException("Error communicating with repository at '" + defaultUrl + "'.", ex);
 
                 if (!IsSilent)
@@ -502,7 +510,7 @@ namespace OpenTap.Package
 
             var arg = string.Format("/{0}/GetPackageNames", ApiVersion);
             if (compatibleWith == null || compatibleWith.Length == 0)
-                response = downloadPackagesString(arg);
+                response = sendRequest(arg);
             else
             {
                 using (Stream stream = new MemoryStream())
@@ -514,7 +522,7 @@ namespace OpenTap.Package
 
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    response = downloadPackagesString(arg, data, "application/xml");
+                    response = sendRequest(arg, data, "application/xml");
                 }
             }
 
@@ -550,7 +558,7 @@ namespace OpenTap.Package
 
             var arg = string.Format("/{0}/GetPackageNames?class={1}", ApiVersion, Uri.EscapeDataString(@class));
             if (compatibleWith == null || compatibleWith.Length == 0)
-                response = downloadPackagesString(arg);
+                response = sendRequest(arg);
             else
             {
                 using (Stream stream = new MemoryStream())
@@ -562,7 +570,7 @@ namespace OpenTap.Package
 
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    response = downloadPackagesString(arg, data, "application/xml");
+                    response = sendRequest(arg, data, "application/xml");
                 }
             }
 
@@ -595,14 +603,12 @@ namespace OpenTap.Package
         /// <returns></returns>
         public PackageVersion[] GetPackageVersions(string packageName, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
-            // force update version to check for errors.
-            Version?.ToString();
             if (IsInError()) return Array.Empty<PackageVersion>();
             string response;
             string arg = string.Format("/{0}/GetPackageVersions/{1}", ApiVersion, Uri.EscapeDataString(packageName));
 
             if (compatibleWith == null || compatibleWith.Length == 0)
-                response = downloadPackagesString(arg);
+                response = sendRequest(arg);
             else
             {
                 using (Stream stream = new MemoryStream())
@@ -614,7 +620,7 @@ namespace OpenTap.Package
 
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    response = downloadPackagesString(arg, data, "application/xml");
+                    response = sendRequest(arg, data, "application/xml");
                 }
             }
 
@@ -658,7 +664,7 @@ namespace OpenTap.Package
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            return packagesFromXml(downloadPackagesString("/" + ApiVersion + endpoint));
+            return packagesFromXml(sendRequest("/" + ApiVersion + endpoint));
         }
 
         /// <summary>
@@ -707,7 +713,7 @@ namespace OpenTap.Package
                     string data = new StreamReader(stream).ReadToEnd();
 
                     string arg = string.Format("/{0}/CheckForUpdates?name={1}", ApiVersion, UpdateId);
-                    response = downloadPackagesString(arg, data);
+                    response = sendRequest(arg, data);
                     cancellationToken.ThrowIfCancellationRequested();
                 }
 
@@ -734,7 +740,7 @@ namespace OpenTap.Package
         [Obsolete("Please use SendQuery or SendQueryAsync instead.")]
         public JObject Query(string query)
         {
-            var response = downloadPackagesString($"/3.1/query", query, "application/json", "application/json");
+            var response = sendRequest($"/3.1/query", query, "application/json");
             var json = JObject.Parse(response);
             return json;
         }
@@ -745,6 +751,6 @@ namespace OpenTap.Package
         /// <param name="query">A GraphQL query string</param>
         /// <returns>A JSON string containing the GraphQL response</returns>
         public string QueryGraphQL(string query) =>
-            downloadPackagesString($"/3.1/query", query, "application/json", "application/json");
+            sendRequest($"/3.1/query", query, "application/json");
     }
 }
