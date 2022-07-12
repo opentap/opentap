@@ -118,11 +118,12 @@ namespace OpenTap.Authentication
             var client = new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy));
             if (BaseAddress != null)
                 client.BaseAddress = BaseAddress;
-            if(userAgent == null)
+
+            if (userAgent == null)
             {
-                //var sw = System.Diagnostics.Stopwatch.StartNew();
                 userAgent = $"OpenTAP/{PluginManager.GetOpenTapAssembly().SemanticVersion}";
-                if(Cli.CliActionExecutor.SelectedAction is ITypeData td)
+
+                if (Cli.CliActionExecutor.SelectedAction is ITypeData td)
                 {
                     // We are running a CLI Action. Add it's name and version to the User-Agent header
                     var source = TypeData.GetTypeDataSource(td);
@@ -141,10 +142,19 @@ namespace OpenTap.Authentication
                         }
                     }
                 }
-                //var log = Log.CreateSource("AuthSettings");
-                //log.Debug(sw, "Setting User-Agent to '{0}'", userAgent);
             }
-            client.DefaultRequestHeaders.Add("User-Agent", userAgent);
+            var callingUseAgent = userAgent;
+            var asm2 = Assembly.GetCallingAssembly(); 
+            if (asm2 != null)
+            {
+                var assemblyData = PluginManager.GetSearcher().Assemblies.FirstOrDefault(ad => ad.Location == asm2.Location);
+                if (assemblyData?.SemanticVersion is SemanticVersion ver)
+                {
+                    // The process was started from an assembly that we know about and that has a semantic version number. Add it's name and version to the User-Agent header
+                    callingUseAgent += $" {assemblyData.Name}/{ver}";
+                }
+            }
+            client.DefaultRequestHeaders.Add("User-Agent", callingUseAgent);
             return client;
         }
     }
