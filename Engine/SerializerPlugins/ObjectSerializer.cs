@@ -594,7 +594,7 @@ namespace OpenTap.Plugins
             {
                 if (ex is TargetInvocationException tarEx)
                 {
-                    Serializer.PushError(element, tarEx.InnerException.Message, tarEx);
+                    Serializer.PushError(element, tarEx.InnerException.Message, tarEx.InnerException);
                 }
                 else
                 {
