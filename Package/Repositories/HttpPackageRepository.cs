@@ -191,15 +191,6 @@ namespace OpenTap.Package
 
                             break;
                         }
-                        catch (InvalidOperationException) // if user specified "packages.opentap.io", it looks like a relative url, so we only prepend "http://" when we are sure that it actually isnt a relative url
-                        {
-                            if (!Url.StartsWith("http://"))
-                            {
-                                Url = $"http://{Url}";
-                                DoDownloadPackage(package, fileStream, cancellationToken).Wait(cancellationToken);
-                            }
-                            else throw;
-                        }
                         catch (Exception ex)
                         {
                             if (ex is IOException)
@@ -266,15 +257,6 @@ namespace OpenTap.Package
                 }
                 var response = HttpClient.SendAsync(httpRequestMessage).GetAwaiter().GetResult();
                 xmlText = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
-            }
-            catch (InvalidOperationException) // if user specified "packages.opentap.io", it looks like a relative url, so we only prepend "http://" when we are sure that it actually isnt a relative url
-            {
-                if (!Url.StartsWith("http://"))
-                {
-                    Url = $"http://{Url}";
-                    xmlText = downloadPackagesString(args, data, contentType, accept);
-                }
-                else throw;
             }
             catch (Exception ex)
             {
