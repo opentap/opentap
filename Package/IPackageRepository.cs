@@ -347,7 +347,7 @@ namespace OpenTap.Package
                 else
                 {
                     if (AuthenticationSettings.Current.BaseAddress != null)
-                        return DetermineRepositoryType(new Uri(AuthenticationSettings.Current.BaseAddress, url).AbsoluteUri);
+                        return DetermineRepositoryType(new Uri(new Uri(AuthenticationSettings.Current.BaseAddress), url).AbsoluteUri);
                     else
                         return new FilePackageRepository(Path.GetFullPath(url)); // GetFullPath throws ArgumentException if url contains illigal path chars
                 }

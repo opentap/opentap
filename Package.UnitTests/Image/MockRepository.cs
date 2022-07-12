@@ -186,7 +186,7 @@ namespace OpenTap.Image.Tests
             var list = AllPackages.Where(p => p.Name == package.Name)
                               .GroupBy(p => p.Version)
                               .OrderByDescending(g => g.Key).ToList();
-            return list.FirstOrDefault(g => package.Version.IsCompatible(g.Key)).ToArray();
+            return list.FirstOrDefault(g => package.Version.IsCompatible(g.Key))?.ToArray() ?? Array.Empty<PackageDef>();
         }
 
         public PackageVersion[] GetPackageVersions(string packageName, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)

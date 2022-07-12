@@ -489,10 +489,7 @@ namespace OpenTap.Package.UnitTests
         //[TestCase("http://opentap.io", @"//a/b", typeof(FilePackageRepository))]                      // UNC path using forward slash (but also scheme relative URL)
         public void TestRepositoryType(string baseUrl, string url, Type expectedRepositoryType)
         {
-            if(String.IsNullOrEmpty(baseUrl))
-                AuthenticationSettings.Current.BaseAddress = null;
-            else
-                AuthenticationSettings.Current.BaseAddress = new Uri(baseUrl); ;
+            AuthenticationSettings.Current.BaseAddress = baseUrl;
             try
             {
                 var result = PackageRepositoryHelpers.DetermineRepositoryType(url);

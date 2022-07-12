@@ -15,7 +15,7 @@ namespace OpenTap.Authentication
     [Browsable(false)]
     public class AuthenticationSettings : ComponentSettings<AuthenticationSettings>
     {
-        private Uri baseAddress = null;
+        private string baseAddress = null;
 
         class AuthenticationClientHandler : HttpClientHandler
         {
@@ -71,16 +71,22 @@ namespace OpenTap.Authentication
         /// </summary>
         public IList<TokenInfo> Tokens { get; set; } = new List<TokenInfo>();
 
-        /// <summary> Configuration used as BaseAddress in HttpClients returned by <see cref="GetClient"/>.
-        /// This string will be prepended to all relative urls, e.g. '/api/packages' will become '{BaseAddress}/api/packages'
+        /// <summary> 
+        /// A well formed absolute URL used as as BaseAddress in HttpClients returned by <see cref="GetClient"/>. 
+        /// This setting determines what relative URLs (e.g. a package repository URL) are relative to.
+        /// Can be null.
         /// </summary>
-        public Uri BaseAddress
+        [DefaultValue(null)]
+        public string BaseAddress
         {
             get => baseAddress; set
             {
-                if (value != null && !value.IsAbsoluteUri)
-                    throw new FormatException("BaseAddress must be an absolute URI.");
-                baseAddress = value;
+                if (Uri.IsWellFormedUriString(value, UriKind.Absolute))
+                    baseAddress = value;
+                else if (String.IsNullOrEmpty(value))
+                    baseAddress = null;
+                else
+                    throw new FormatException("BaseAddress must be a well formed absolute URI.");
             }
         }
 
@@ -112,12 +118,25 @@ namespace OpenTap.Authentication
         /// </summary>
         /// <param name="domain">An access token will attempt to be included which are valid against this domain.</param>
         /// <param name="withRetryPolicy">If the request should be retried in case of transient errors.</param>
+        /// <param name="baseAddress">The base address used in the returned client. A relative URL given here will be relative to <see cref="BaseAddress"/>. Default is <see cref="BaseAddress"/>.  </param>
         /// <returns>HttpClient object</returns>
-        public HttpClient GetClient(string domain = null, bool withRetryPolicy = false)
+        public HttpClient GetClient(string domain = null, bool withRetryPolicy = false, string baseAddress = null)
         {
             var client = new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy));
-            if (BaseAddress != null)
-                client.BaseAddress = BaseAddress;
+            if (baseAddress != null)
+            {
+                if (!Uri.IsWellFormedUriString(baseAddress, UriKind.Absolute))
+                    client.BaseAddress = new Uri(baseAddress);
+                else if (Uri.IsWellFormedUriString(baseAddress, UriKind.Relative))
+                    if (BaseAddress != null)
+                        client.BaseAddress = new Uri(new Uri(BaseAddress), baseAddress);
+                    else
+                        throw new ArgumentException("Address cannot be relative when AuthenticationSettings.BaseAddress is null.", "baseAddress");
+                else
+                    throw new ArgumentException("Address must be a well formed URL or null.", "baseAddress");
+            }
+            else if(BaseAddress != null)
+                client.BaseAddress = new Uri(BaseAddress);
 
             if (userAgent == null)
             {
