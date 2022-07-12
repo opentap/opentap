@@ -107,12 +107,12 @@ namespace OpenTap.Image.Tests
         [TestCase("B", "3.0.0", "Windows", CpuArchitecture.x64, "3.0.0")] // full version means exact
         [TestCase("B", "beta", "Windows", CpuArchitecture.x64, "3.2.1-beta.1")]
         [TestCase("B", "3.2.1-beta.1", "Windows", CpuArchitecture.x64, "3.2.1-beta.1")]
-        [TestCase("B", "beta", "", CpuArchitecture.AnyCPU, "3.2.1-beta.1")] // means we want latest, but minimum beta
-        [TestCase("B", "3-beta", "", CpuArchitecture.AnyCPU, "3.2.1-beta.1")] // means we want latest 3 beta
+        [TestCase("B", "beta", "Windows", CpuArchitecture.AnyCPU, "3.2.1-beta.1")] // means we want latest, but minimum beta
+        [TestCase("B", "3-beta", "Windows", CpuArchitecture.AnyCPU, "3.2.1-beta.1")] // means we want latest 3 beta
         [TestCase("B", "2-beta", "Linux", CpuArchitecture.x86, "2.1.0-beta.1")] // means we want latest 2 beta
-        [TestCase("B", "^3-beta", "", CpuArchitecture.AnyCPU, "3.2.1-beta.1")] // means we want latest 3, minimum beta
+        [TestCase("B", "^3-beta", "Windows", CpuArchitecture.AnyCPU, "3.2.1-beta.1")] // means we want latest 3, minimum beta
         [TestCase("B", "^2-beta", "Linux", CpuArchitecture.x86, "2.1.0-beta.1")] // means we want latest 2 beta
-        [TestCase("B", "any", "", CpuArchitecture.AnyCPU, "3.2.2-alpha.1")]  // any means we want latest, even if it is a prerelease
+        [TestCase("B", "any", "Windows", CpuArchitecture.AnyCPU, "3.2.2-alpha.1")]  // any means we want latest, even if it is a prerelease
         [TestCase("C", "^1.0-beta", "Linux", CpuArchitecture.x86, "1.0.0-beta.1")]
         [TestCase("C", "1.0-beta", "Linux", CpuArchitecture.x86, "1.0.0-beta.1")]
         [TestCase("C", "^1-beta", "Linux", CpuArchitecture.x86, "1.0.0-beta.1")]
