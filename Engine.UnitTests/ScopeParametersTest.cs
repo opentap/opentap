@@ -644,6 +644,24 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
+        public void SweepParameterErrorTest()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepParameterStep();
+            plan.ChildTestSteps.Add(sweep);
+            var testStep = new DelayStep();
+            sweep.ChildTestSteps.Add(testStep);
+            TypeData.GetTypeData(testStep).GetMember(nameof(testStep.DelaySecs)).Parameterize(sweep, testStep, "A");
+            sweep.SweepValues.Add(new SweepRow());
+            sweep.SweepValues[0].Values["A"] = -1;
+
+            var result = plan.Execute();
+            result.Start();
+
+            Assert.AreEqual(Verdict.Error, result.Verdict);
+        }
+
+        [Test]
         public void MultiStepParameterize()
         {
             var plan = new TestPlan();
