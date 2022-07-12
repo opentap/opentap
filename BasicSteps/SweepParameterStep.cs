@@ -274,8 +274,12 @@ namespace OpenTap.Plugins.BasicSteps
                     }
                     catch (TargetInvocationException ex)
                     {
-                        UpgradeVerdict(Verdict.Error);
-                        throw new ArgumentException($"Unable to set '{set.GetDisplayAttribute()}' to '{valueString}' on row {i}: {ex.InnerException.Message}", ex);
+                        throw new ArgumentException($"Unable to set '{set.GetDisplayAttribute()}' to '{valueString}' on row {i}: {ex.InnerException.Message}", ex.InnerException);
+                    }
+                    finally
+                    {
+                        for (int j = 0; j < sets.Length; j++)
+                            sets[j].SetValue(this, originalValues[j]);
                     }
                 }
 
