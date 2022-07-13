@@ -96,7 +96,7 @@ namespace OpenTap.Authentication
             if (domain != null)
                 token = Tokens.FirstOrDefault(t => t.Domain == domain);
             if (token == null)
-                token = Tokens.FirstOrDefault(t => t.Domain == request.RequestUri.Host);
+                token = Tokens.FirstOrDefault(t => new Uri(t.Domain).Host == request.RequestUri.Host && new Uri(t.Domain).Scheme == request.RequestUri.Scheme);
             if (token != null)
             {
                 if (token.Expiration < DateTime.Now.AddSeconds(10))
@@ -135,7 +135,7 @@ namespace OpenTap.Authentication
                 else
                     throw new ArgumentException("Address must be a well formed URL or null.", "baseAddress");
             }
-            else if(BaseAddress != null)
+            else if (BaseAddress != null)
                 client.BaseAddress = new Uri(BaseAddress);
 
             if (userAgent == null)
@@ -163,7 +163,7 @@ namespace OpenTap.Authentication
                 }
             }
             var callingUseAgent = userAgent;
-            var asm2 = Assembly.GetCallingAssembly(); 
+            var asm2 = Assembly.GetCallingAssembly();
             if (asm2 != null)
             {
                 var assemblyData = PluginManager.GetSearcher().Assemblies.FirstOrDefault(ad => ad.Location == asm2.Location);
