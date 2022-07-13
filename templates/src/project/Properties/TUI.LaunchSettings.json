@@ -1,0 +1,11 @@
+﻿{
+  "profiles": {
+    "Debug with editor": {
+      "commandName": "Executable",
+      "commandLineArgs": "tui ProjectName.TapPlan -c -v",
+      "workingDirectory": "./bin/Debug/",
+      "executablePath": "./tap.exe",
+      "dotnetRunMessages": true
+    }
+  }
+}

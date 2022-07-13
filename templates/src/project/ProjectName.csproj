@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="Current">
+    <PropertyGroup>
+        <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
+        <TargetFrameworkVersion></TargetFrameworkVersion>
+        <TargetFramework>netstandard2.0</TargetFramework>
+		<DebugWith>Editor</DebugWith>
+    </PropertyGroup>
+    
+  <PropertyGroup>
+    <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
+    <CreateOpenTapPackage>false</CreateOpenTapPackage>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <CreateOpenTapPackage>true</CreateOpenTapPackage>
+  </PropertyGroup>
+	<ItemGroup Condition="'$(DebugWith)' == 'Editor'">
+		<OpenTapPackageReference Include="Editor" version="beta"></OpenTapPackageReference>
+	</ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="OpenTAP" Version="$(OpenTapVersion)" />
+  </ItemGroup>
+	<PropertyGroup>
+        <OpenTapVersion>9.17.4</OpenTapVersion>
+        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+        <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+        <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+	</PropertyGroup>
+</Project>
