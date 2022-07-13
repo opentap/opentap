@@ -96,7 +96,7 @@ namespace OpenTap.Authentication
             if (domain != null)
                 token = Tokens.FirstOrDefault(t => t.Domain == domain);
             if (token == null)
-                token = Tokens.FirstOrDefault(t => new Uri(t.Domain).Host == request.RequestUri.Host && new Uri(t.Domain).Scheme == request.RequestUri.Scheme);
+                token = Tokens.FirstOrDefault(t => Uri.TryCreate(t.Domain, UriKind.Absolute, out Uri result) && result.Scheme == request.RequestUri.Scheme && result.Host == request.RequestUri.Host);
             if (token != null)
             {
                 if (token.Expiration < DateTime.Now.AddSeconds(10))
