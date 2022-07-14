@@ -203,15 +203,15 @@ namespace OpenTap.Image.Tests
             ""Version"": ""9.8.0-beta.5+6fce512f""
         }],
     ""Repositories"": [
-        ""packages.opentap.keysight.com"",
-        ""packages.opentap.io""
+        ""https://packages.opentap.keysight.com"",
+        ""https://packages.opentap.io""
     ]
 }";
             var openTapSpec = new PackageSpecifier("OpenTAP", VersionSpecifier.Parse("9.16.0"));
 
             { // Deploy once
                 var imageSpecifier = new ImageSpecifier();
-                imageSpecifier.Repositories.Add("packages.opentap.io");
+                imageSpecifier.Repositories.Add("https://packages.opentap.io");
                 imageSpecifier.Packages.Add(openTapSpec);
                 var res = imageSpecifier.MergeAndDeploy(tempInstall.Installation, CancellationToken.None);
                 Assert.AreEqual(1, res.GetPackages().Where(s => s.Class != "system-wide").Count());
