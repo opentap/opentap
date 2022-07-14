@@ -376,7 +376,7 @@ namespace OpenTap.Package.UnitTests
         public void TestDependencyNoUpgrade()
         {
             // Verify that the resolver does not try to upgrade installed "9.12.0"
-            var repo = "packages.opentap.io";
+            var repo = "https://packages.opentap.io";
 
             var installedOpenTap = new PackageDef() { Version = SemanticVersion.Parse("9.12.0"), Name = "OpenTAP" };
 
