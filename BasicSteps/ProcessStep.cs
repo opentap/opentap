@@ -3,6 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -14,6 +16,19 @@ namespace OpenTap.Plugins.BasicSteps
     [Display("Run Program", Group: "Basic Steps", Description: "Runs a program, and optionally applies regular expressions (regex) to the output.")]
     public class ProcessStep : RegexOutputStep
     {
+        public class EnvironmentVariable : ValidatingObject
+        {
+            [Display("Name", "The name of the environment variable.")]
+            public string Name { get; set; }
+            [Display("Value", "The value of the environment variable.")]
+            public string Value { get; set; }
+
+            public EnvironmentVariable()
+            {
+                Rules.Add(() => !string.IsNullOrEmpty(Name), "Name must not be empty.", nameof(Name));
+            }
+        }
+
         public override bool GeneratesOutput => WaitForEnd; 
 
         [Display("Application", Order: -2.5,
@@ -29,6 +44,9 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Working Directory", Order: -2.3, Description: "The directory where the program will be started in.")]
         [DirectoryPath]
         public string WorkingDirectory { get; set; } = "";
+
+        [Display("Environment Variables", Order: -2.25, Description: "The environment variables passed to the program.")]
+        public List<EnvironmentVariable> EnvironmentVariables { get; set; } = new List<EnvironmentVariable>();
 
         [Display("Wait For Process to End", Order: -2.2,
             Description: "Wait for the process to terminate before continuing.")]
@@ -73,9 +91,27 @@ namespace OpenTap.Plugins.BasicSteps
         ManualResetEvent outputWaitHandle, errorWaitHandle;
         StringBuilder output;
 
+        public ProcessStep()
+        {
+            Rules.Add(HasNoDuplicateEnvironmentVariables, "Environment variable names must be unique.", nameof(EnvironmentVariables));
+        }
+
+        private bool HasNoDuplicateEnvironmentVariables()
+        {
+            HashSet<string> seenVariables = new HashSet<string>();
+            foreach (var variable in EnvironmentVariables)
+            {
+                if (!seenVariables.Add(variable.Name))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
         public override void Run()
         {
-            
+            ThrowOnValidationError(true);
             if (RunElevated &&!SubProcessHost.IsAdmin())
             {
                 // note, this part is currently never enabled.
@@ -116,6 +152,10 @@ namespace OpenTap.Plugins.BasicSteps
                     CreateNoWindow = true
                 }
             };
+            foreach (var environmentVariable in EnvironmentVariables)
+            {
+                process.StartInfo.Environment.Add(environmentVariable.Name, environmentVariable.Value);
+            }
             var abortRegistration = TapThread.Current.AbortToken.Register(() =>
             {
                 Log.Debug("Ending process '{0}'.", Application);
