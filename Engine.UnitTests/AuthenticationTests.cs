@@ -24,7 +24,7 @@ namespace OpenTap.UnitTests
     ""session_state"": ""05d7a6f2-70dd-48e3-806b-dc9ccb5e7f3e"",
     ""scope"": ""openid profile email""
 }";
-            var ti = TokenInfo.FromResponse(response, "http://packages.opentap.io");
+            var ti = TokenInfo.FromResponse(response, "packages.opentap.io");
             Assert.IsNotNull(ti.RefreshToken);
 
 
@@ -38,7 +38,7 @@ namespace OpenTap.UnitTests
     ""session_state"": ""05d7a6f2-70dd-48e3-806b-dc9ccb5e7f3e"",
     ""scope"": ""openid profile email""
 }";
-            ti = TokenInfo.FromResponse(response, "http://packages.opentap.io");
+            ti = TokenInfo.FromResponse(response, "packages.opentap.io");
             Assert.IsNotNull(ti.RefreshToken);
 
             response = @"{
@@ -49,7 +49,7 @@ namespace OpenTap.UnitTests
     ""session_state"": ""05d7a6f2-70dd-48e3-806b-dc9ccb5e7f3e"",
     ""scope"": ""openid profile email""
 }";
-            ti = TokenInfo.FromResponse(response, "http://packages.opentap.io");
+            ti = TokenInfo.FromResponse(response, "packages.opentap.io");
             Assert.IsNull(ti.RefreshToken);
         }
 
@@ -69,7 +69,7 @@ namespace OpenTap.UnitTests
     ""scope"": ""openid profile email""
 }";
 
-            var ti = TokenInfo.FromResponse(response, "http://packages.opentap.io");
+            var ti = TokenInfo.FromResponse(response, "packages.opentap.io");
             DateTime dateTime = new DateTime(2022, 7, 5, 11, 02, 56);
             TimeSpan timeSpan = ti.Expiration - dateTime;
             Console.WriteLine(dateTime.ToString());

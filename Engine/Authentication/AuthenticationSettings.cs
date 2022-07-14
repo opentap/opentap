@@ -113,15 +113,17 @@ namespace OpenTap.Authentication
         private static string userAgent = null;
 
         /// <summary>
-        /// Get preconfigured HttpClient with BaseAddress and AuthenticationClientHandler.
+        /// Get a HttpClient with a preconfigued BaseAddress and preconfigured authentication using a Bearer token from <see cref="Tokens"/>.
         /// It is up to the caller of this method to control the lifetime of the HttpClient
         /// </summary>
-        /// <param name="domain">An access token will attempt to be included which are valid against this domain.</param>
+        /// <param name="domain">This value is compared to <see cref="TokenInfo.Domain"/> to find the token from <see cref="Tokens"/> to use as Bearer token for requests. If unspecified, the host part of the request URI is used.</param>
         /// <param name="withRetryPolicy">If the request should be retried in case of transient errors.</param>
-        /// <param name="baseAddress">The base address used in the returned client. A relative URL given here will be relative to <see cref="BaseAddress"/>. Default is <see cref="BaseAddress"/>.  </param>
-        /// <returns>HttpClient object</returns>
+        /// <param name="baseAddress">The base address used in the returned client. A relative URL given here will be relative to <see cref="BaseAddress"/>. Default is <see cref="BaseAddress"/>.</param>
+        /// <returns>A preconfigued HttpClient object</returns>
         public HttpClient GetClient(string domain = null, bool withRetryPolicy = false, string baseAddress = null)
         {
+            if (Uri.IsWellFormedUriString(domain, UriKind.Absolute))
+                throw new ArgumentException("Domain should only be the host part of a URI and not a full absolute URI.", "domain");
             var client = new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy));
             if (baseAddress != null)
             {
