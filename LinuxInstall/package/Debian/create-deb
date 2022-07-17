@@ -7,20 +7,19 @@ pushd "$GIT_ROOT/LinuxInstall/package/Debian"
 
 # Build Deb package
 
+TAP_DIR="opentap/usr/share/opentap"
 mkdir -p opentap/DEBIAN
 mkdir -p opentap/usr/bin
-mkdir -p opentap/usr/share/opentap
+mkdir -p $TAP_DIR
 mkdir -p opentap/usr/share/doc/opentap
-mkdir -p opentap/var/log/SessionLogs
 
 cp "$GIT_ROOT/LICENSE.txt" opentap/usr/share/doc/opentap/copyright
 
 echo "Extracting opentap"
-unzip -q ../OpenTAP.TapPackage -d opentap/usr/share/opentap
+unzip -q ../OpenTAP.TapPackage -d $TAP_DIR
 
-pushd opentap/usr/share/opentap
+pushd $TAP_DIR
 chmod +x tap
-ln -s ../../../var/log/SessionLogs
 popd
 pushd opentap/usr/bin
 ln -s ../share/opentap/tap
@@ -37,7 +36,7 @@ cp postinst.in opentap/DEBIAN/postinst
 chmod 0555 opentap/DEBIAN/postinst
 chmod +x opentap/DEBIAN/postinst
 
-VERSION="$(./opentap/usr/share/opentap/tap sdk gitversion)"
+VERSION="$(./$TAP_DIR/tap sdk gitversion)"
 # The last character in the version specifier cannot be a '-'
 while [ "${VERSION: -1}" = "-" ]; do
     VERSION="${VERSION::-1}"
@@ -46,7 +45,7 @@ done
 sed control.in -e "s/\$(GitVersion)/$VERSION/g" -e "s/@SIZE_KB@/$SIZE_KB/g" > opentap/DEBIAN/control
 
 # Don't package log file generated from gitversion
-rm -rf ./opentap/var/log/SessionLogs/*
+rm -rf ./$TAP_DIR/SessionLogs/*
 
 chmod 755 opentap/DEBIAN
 
