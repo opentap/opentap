@@ -117,7 +117,17 @@
               SourcePath="newtonsoft_mit_license.txt"/>
     </Files>
     <PackageActionExtensions Condition="$(Platform) != Windows">
-        <ActionStep ActionName="install" ExeFile="chmod" Arguments="+x tap"  />
+      <!-- An exit code of '1' means we failed to set the permission.
+        This happens when the user has read/write/execute permissions,
+        but doesn't actually own the file. This is the case for the Debian package 
+        because the user doesn't own the installation, but belongs to a group that does.
+        This is usually fine because the file is already executable.
+
+        The alternative to suppressing this error is a broken installation, so even in the case
+        where 'tap' is not executable after an upgrade, this behavior where the user can fix
+        it with 'chmod +X' is still the preferable alternative.
+      -->
+        <ActionStep ActionName="install" ExeFile="chmod" Arguments="+x tap" ExpectedExitCodes="0,1" />
     </PackageActionExtensions>
     <PackageActionExtensions Condition="$(Platform) == Windows">
         <ActionStep ActionName="install" ExeFile="Packages/OpenTAP/Tap.Upgrader.exe" />
