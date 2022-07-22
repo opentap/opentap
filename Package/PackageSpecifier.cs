@@ -14,9 +14,11 @@ namespace OpenTap.Package
     /// <summary>
     /// Holds search parameters that specifies a range of packages in the OpenTAP package system.
     /// </summary>
-    [DebuggerDisplay("{Name} ({Version.ToString()})")]
     public class PackageSpecifier
     {
+        /// <summary> Gets a readable string for this package specifier. </summary>
+        public override string ToString() => $"[{Name} ({Version})]";
+        
         /// <summary>
         /// Search for parameters that specifies a range of packages in the OpenTAP package system. Unset parameters will be treated as 'any'.
         /// </summary>
@@ -392,13 +394,11 @@ namespace OpenTap.Package
             return ComparePreRelease(PreRelease, other.PreRelease);
         }
 
-        public class PartialComparer : IComparer<SemanticVersion>
+        class PartialComparer : IComparer<SemanticVersion>
         {
-            private VersionSpecifier pkg;
-            public PartialComparer(VersionSpecifier pkg)
-            {
-                this.pkg = pkg;
-            }
+            readonly VersionSpecifier pkg;
+            public PartialComparer(VersionSpecifier pkg) => this.pkg = pkg;
+            
             public int Compare(SemanticVersion a, SemanticVersion b)
             {
                 if (pkg.Major.HasValue)
@@ -416,14 +416,19 @@ namespace OpenTap.Package
                     var m = a.Patch.CompareTo(b.Patch);
                     if (m != 0) return m;
                 }
+                // pre-release sorting is skipped for now.
 
                 return 0;
             }
         }
 
-        public IComparer<SemanticVersion> SortPartial => new PartialComparer(this);
+        /// <summary>
+        /// This sorts versions based on a partially defined version set. For example ^1 would sort based on major version only, but ignore the rest.
+        /// This is useful when using in connection with other stable sortings. 
+        /// </summary>
+        internal IComparer<SemanticVersion> SortPartial => new PartialComparer(this);
 
-        public int SortOrder(SemanticVersion a, SemanticVersion b)
+        internal int SortOrder(SemanticVersion a, SemanticVersion b)
         {
             if (Major.HasValue)
             {

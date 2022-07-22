@@ -21,12 +21,14 @@ namespace OpenTap.Package
         /// </summary>
         public List<PackageSpecifier> Packages { get; set; } = new List<PackageSpecifier>();
 
+        /// <summary> Creates a new instance. </summary>
         public ImageSpecifier(List<PackageSpecifier> packages, string name = "")
         {
             Packages = packages;
             Name = name;
         }
 
+        /// <summary> Creates a new instance. </summary>
         public ImageSpecifier()
         {
             

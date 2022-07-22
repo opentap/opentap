@@ -1,7 +1,5 @@
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
-using System.Net;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -10,38 +8,43 @@ using OpenTap.Authentication;
 
 namespace OpenTap.Package
 {
-    class PackageDependencyQuery
+    /// <summary>
+    /// This class takes care of making the right package query queries to the repository server.
+    /// </summary>
+    static class PackageDependencyQuery
     {
-        private const string graphQLQuery = @"query Query { packages(version: ""any"", os:""linux"", architecture:""x64"") {
-        name
-            version
-        dependencies
-        { name
-            version
-        }
-    }
-}";
-        static HttpClient GetHttpClient(string url)
+        static string GraphQueryPackages(string os, CpuArchitecture arch) => 
+            @"query Query { 
+                packages(version: ""any"", type:""tappackage"", os:""__OS__"", architecture:""__ARCH__"") {
+                  name version dependencies { 
+                   name version
+        }}}".Replace("__OS__", os).Replace("__ARCH__", arch.ToString());
+        static HttpClient GetHttpClient()
         {
             var httpClient = AuthenticationSettings.Current.GetClient(null, true);
             httpClient.DefaultRequestHeaders.Add("OpenTAP",
                 PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
-            httpClient.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/xml");
-            
             return httpClient;
         }
-        public static async Task<PackageDependencyGraph> QueryGraph(string repoUrl)
+        public static async Task<PackageDependencyGraph> QueryGraph(string repoUrl, string os,
+            CpuArchitecture deploymentInstallationArchitecture)
         {
             JsonDocument json;
-            using (var client = GetHttpClient(repoUrl))
+            using (var client = GetHttpClient())
             {
+                // query the package dependency graph as GZip compressed JSON code.
+                
+                var qs = GraphQueryPackages(os, deploymentInstallationArchitecture);
                 HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, repoUrl + "/3.1/Query");
-                request.Content = new StringContent(graphQLQuery, Encoding.UTF8);
+                request.Content = new StringContent(qs, Encoding.UTF8);
                 request.Headers.Add("Accept", "application/json");
+                // request a gzip compressed response - otherwise it will be several MB.
                 request.Headers.Add("Accept-encoding", "gzip");
                 
                 var response = await client.SendAsync(request); 
                 var stream = await response.Content.ReadAsStreamAsync();
+                // the gzip Accept-encoding is not mandatory for the server, so we must check if the content
+                // encoding contains gzip.
                 if (response.Content.Headers.ContentEncoding.Contains("gzip"))
                     stream = new GZipStream(stream, CompressionMode.Decompress);
                 
@@ -52,32 +55,6 @@ namespace OpenTap.Package
             graph.LoadFromJson(json);
             return graph;
         }
-
-        public static void Query()
-        {
-            var managers  = PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager);
-
-            foreach (var manager in managers)
-            {
-                if (manager is FilePackageRepository frep)
-                {
-                    
-                }
-                else if (manager is HttpPackageRepository hrep)
-                {
-                    var pkgGraph = hrep.QueryGraphQL(graphQLQuery);
-                }
-                
-            }
-            
-            foreach (var pkgManager in PackageManagerSettings.Current.Repositories)
-            {
-                
-
-            }
-            
-        }
-
 
         public static PackageDependencyGraph LoadGraph(Stream stream, bool compressed)
         {

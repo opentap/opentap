@@ -9,14 +9,17 @@ namespace OpenTap.Engine.UnitTests
 {
     public class SelfReferentialTypeDataProvider : IStackedTypeDataProvider
     {
+        public static SessionLocal<bool> Enabled = new SessionLocal<bool>();
         public ITypeData GetTypeData(string identifier, TypeDataProviderStack stack)
         {
+            if (!Enabled.Value) return null;
             Installation.Current.GetPackages();
             return stack.GetTypeData(identifier);
         }
 
         public ITypeData GetTypeData(object obj, TypeDataProviderStack stack)
         {
+            if (!Enabled.Value) return null;
             Installation.Current.GetPackages();
             return stack.GetTypeData(obj);
         }
@@ -34,6 +37,7 @@ namespace OpenTap.Engine.UnitTests
             {
                 using (Session.Create())
                 {
+                    SelfReferentialTypeDataProvider.Enabled.Value = true;
                     var errors = new List<Event>();
                     var l = new EventTraceListener();
                     Log.AddListener(l);

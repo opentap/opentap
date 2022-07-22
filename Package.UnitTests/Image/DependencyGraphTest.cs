@@ -2,14 +2,13 @@
 using NUnit.Framework;
 using OpenTap.Package;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
 
 namespace OpenTap.Image.Tests
 {
-    public class DependencyGraph
+    public class DependencyGraphTest
     {
         [TestCase("OpenTAP", "9.10.0", "Demonstration", "9.2.0", "error", "error")]
         [TestCase("OpenTAP", "9.10.0", "ExactDependency", "1.0.0", "error", "error")]
@@ -68,7 +67,7 @@ namespace OpenTap.Image.Tests
         [Test]
         public void TestQueryGraph()
         {
-            var graph = PackageDependencyQuery.QueryGraph("https://packages.opentap.io").Result;
+            var graph = PackageDependencyQuery.QueryGraph("https://packages.opentap.io", "Windows", CpuArchitecture.x64).Result;
         }
 
         [Test]
@@ -80,7 +79,7 @@ namespace OpenTap.Image.Tests
             {
                 if (repo is HttpPackageRepository http)
                 {
-                    var graph = PackageDependencyQuery.QueryGraph(http.Url).Result;
+                    var graph = PackageDependencyQuery.QueryGraph(http.Url, "Windows", CpuArchitecture.x64).Result;
                     graph0.Absorb(graph);
                 }
 
@@ -100,7 +99,7 @@ namespace OpenTap.Image.Tests
         static PackageSpecifier[] str2packages(string csv)
         {
            return csv.Split(new char[]{';'}, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Split(','))
-                .Select(x => new PackageSpecifier(x[0].Trim(), VersionSpecifier.Parse(x[1].Trim())))
+                .Select(x => new PackageSpecifier(x[0].Trim(), x.Length == 1 ? VersionSpecifier.Any : VersionSpecifier.Parse(x[1].Trim())))
                 .ToArray();
         }
         
@@ -132,6 +131,11 @@ namespace OpenTap.Image.Tests
             yield return ("OpenTAP, 9.17.4; REST-API, any", "Keysight Floating Licensing, 1.4.1+e5816333;Keysight Licensing, 1.0.0+8a228623;" +
                                                             "OpenTAP, 9.17.4;REST-API, 2.7.0+2d67ea81");
             yield return ("OpenTAP, 9.17; OSIntegration, ^1", "OpenTAP, 9.17.4;OSIntegration, 1.4.2+15f32a31");
+            yield return ("OpenTAP, 9.18.4; TUI, beta", "OpenTAP, 9.18.4;TUI, 0.1.0-beta.145+6c192a43");
+            yield return ("OpenTAP, 9.18; TUI, beta", "OpenTAP, 9.18.4;TUI, 0.1.0-beta.145+6c192a43");
+            yield return ("OpenTAP; TUI, beta", "OpenTAP, 9.18.4;TUI, 0.1.0-beta.145+6c192a43");
+            yield return ("OpenTAP; REST-API; CSV", "CSV, 9.11.0+98498e58;Keysight Licensing, 1.1.1+7a2a1fe3;OpenTAP, 9.18.4+7dec4717;REST-API, 2.9.1+e5319b91");
+            yield return ("TEST-A", "TEST-A, 1.0.0; TEST-B,1.0.0;TEST-C,1.0.0");
 
         }}
 
@@ -141,7 +145,7 @@ namespace OpenTap.Image.Tests
             {
                 foreach (var elem in Specifiers)
                 {
-                    yield return new string[] { elem.spec, elem.result };
+                    yield return new [] { elem.spec, elem.result };
                 }
             }
         }
@@ -153,13 +157,24 @@ namespace OpenTap.Image.Tests
             
             graph = PackageDependencyQuery.LoadGraph(Assembly.GetExecutingAssembly()
                 .GetManifestResourceStream(packagesResourceName), true);
+            // now add a circular reference so we can test it.
+            var pa = new PackageDef() { Name = "TEST-A", Version = SemanticVersion.Parse("1.0")};
+            var pb = new PackageDef() { Name = "TEST-B", Version = SemanticVersion.Parse("1.0") };
+            var pc = new PackageDef() { Name = "TEST-C", Version = SemanticVersion.Parse("1.0") };
+            pa.Dependencies.Add(new PackageDependency("TEST-C", VersionSpecifier.Parse("1.0.0")));
+            pb.Dependencies.Add(new PackageDependency("TEST-A", VersionSpecifier.Parse("1.0.0")));
+            pc.Dependencies.Add(new PackageDependency("TEST-B", VersionSpecifier.Parse("1.0.0")));
+            var graph2 = new PackageDependencyGraph();
+            graph2.LoadFromPackageDefs(new []{pa, pb ,pc});
+            graph.Absorb(graph2);
+
+
         }
         
         [TestCaseSource(nameof(Specifiers2))]
-        public void ParsePackages(string spec, string result)
+        public void TestResolvePackages(string spec, string result)
         {
-            var resolver2 = new ImageResolver();
-            var sw = Stopwatch.StartNew();
+            var resolver2 = new ImageResolver(TapThread.Current.AbortToken);
             var img = image(spec);
             var r = resolver2.ResolveImage(img, graph);
 
@@ -168,16 +183,21 @@ namespace OpenTap.Image.Tests
             else
             {
                 Assert.IsNotNull(r);
-                var imageString = string.Join(";", r.Packages.Select(x => $"{x.Name}, {x.Version}"));
-                if (result == null) return;
                 foreach (var pkg in str2packages(result))
                 {
                     Assert.IsTrue(r.Packages.Any(x => x.Name == pkg.Name && x.Version.Equals(pkg.Version)));
                 }
             }
+        }
 
-            var elapsed = sw.Elapsed;
-            
+        [Test]
+        public void VersionSorting()
+        {
+            string sortKey = "beta";
+            string sortValues = "1.0.0, 1.1.0,1.1.1, 1.1.0-beta.1, 1.1.0-beta.2, 1.1.0-beta.3, 2.0.0, 2.0.0-beta.4";
+            var lst = sortValues.Split(',').Select(x => SemanticVersion.Parse(x.Trim())).ToList();
+            var key = VersionSpecifier.Parse(sortKey);
+            lst.Sort(key.SortOrder);
         }
     }
 }

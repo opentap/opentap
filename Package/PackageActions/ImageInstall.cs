@@ -16,7 +16,7 @@ namespace OpenTap.Package
     internal class ImageInstallAction : IsolatedPackageAction
     {
         /// <summary>
-        /// Path to Image file containing XML or JSON formatted Image specification
+        /// Path to Image file containing XML or JSON formatted Image specification, or just the string itself.
         /// </summary>
         [UnnamedCommandLineArgument("image")]
         public string ImagePath { get; set; }
@@ -26,7 +26,7 @@ namespace OpenTap.Package
         /// </summary>
         [CommandLineArgument("merge")]
         public bool Merge { get; set; }
-
+        
         /// <summary>
         /// Never prompt for user input.
         /// </summary>
@@ -41,19 +41,37 @@ namespace OpenTap.Package
             if (Force)
                 log.Warning($"Using --force does not force an image installation");
 
-            var imageString = File.ReadAllText(ImagePath);
-            var imageSpecifier = ImageSpecifier.FromString(imageString);
+            ImageSpecifier imageSpecifier = new ImageSpecifier();
+            if (ImagePath != null)
+            {
+                var imageString = ImagePath;
+                if (File.Exists(imageString))
+                    imageString = File.ReadAllText(imageString);
+                imageSpecifier = ImageSpecifier.FromString(imageString);
+            }
 
             try
             {
+                var deploymentInstallation = new Installation(Target);
                 if (Merge)
                 {
-                    var deploymentInstallation = new Installation(Target);
                     Installation newInstallation = imageSpecifier.MergeAndDeploy(deploymentInstallation, cancellationToken);
                 }
                 else
                 {
-                    ImageIdentifier imageIdentifier = imageSpecifier.Resolve(cancellationToken);
+                    
+                    var cache = new PackageDependencyCache(deploymentInstallation.OS, deploymentInstallation.Architecture);
+                    cache.LoadFromRepositories();
+                    var resolver = new ImageResolver(cancellationToken);
+                    var image = resolver.ResolveImage(imageSpecifier, cache.Graph);
+                    if (image == null)
+                    {
+                        log.Error("Unable to resolve image");
+                        return 1;
+                    }
+                    var imageSpecifier2 = new ImageSpecifier(image.Packages.ToList(), imageSpecifier.Name);
+                    imageSpecifier2.Repositories = cache.Repositories;
+                    var imageIdentifier = imageSpecifier2.Resolve(cancellationToken);
                     imageIdentifier.Deploy(Target, cancellationToken);
                 }
                 return 0;

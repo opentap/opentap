@@ -1,15 +1,23 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace OpenTap.Package
 { 
     class ImageResolver
     {
+        CancellationToken cancelToken;
+        public ImageResolver(CancellationToken cancelToken)
+        {
+            this.cancelToken = cancelToken;
+        }
+           
 
         public long Iterations;
 
         public ImageResolution ResolveImage(ImageSpecifier image, PackageDependencyGraph graph)
         {
+            cancelToken.ThrowIfCancellationRequested();
             Iterations++;
             List<PackageSpecifier> packages = image.Packages.ToList();
             
@@ -125,7 +133,8 @@ namespace OpenTap.Package
                 k *= allVersions[i].LongLength;
             }
 
-            if (k == 0) return null; // no possible solutions
+            if (k == 0) 
+                return null; // no possible solutions
             if (k == 1)
             {
                 bool allExact = allVersions.All(x => x.Length  == 1);
@@ -153,7 +162,9 @@ namespace OpenTap.Package
                     //exact may be more than one version, even though the match behavior is 'exact'.
                     // for example OpenTAP '9.17' is exact, but many versions matches that.
                     // We are interested in the newest in this case, so order newest -> oldest within the span.
+                    versions.Sort();
                     versions.Sort(pkg.Version.SortOrder);
+                    versions.Reverse();
                 }
                 else if (pkg.Version.MatchBehavior == VersionMatchBehavior.Compatible)
                 {
