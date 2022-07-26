@@ -506,6 +506,19 @@ namespace OpenTap.Package.UnitTests
             }
         }
 
+
+        [TestCase("http://localhost", "/api/results", "http://localhost/api/results")]
+        [TestCase("http://localhost", "http://opentap.io/api/results", "http://opentap.io/api/results")]
+        [TestCase("http://localhost", "https://opentap.io/api/results", "https://opentap.io/api/results")]
+        [TestCase("http://localhost/hey", "/api/results", "http://localhost/api/results")]
+        [TestCase("http://localhost/hey/", "api/results", "http://localhost/hey/api/results")]
+        public void TestGetClient(string baseAddress, string getClientAddress, string resultingBaseAddress)
+        {
+            AuthenticationSettings.Current.BaseAddress = baseAddress;
+            var httpClient = AuthenticationSettings.Current.GetClient(baseAddress: getClientAddress);
+            Assert.AreEqual(resultingBaseAddress, httpClient.BaseAddress.ToString());
+        }
+
         [Test]
         [Ignore("For manual debugging")]
         public void TestIfHttpPackageRepositorySupportsRelativePaths()
