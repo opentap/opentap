@@ -127,7 +127,7 @@ namespace OpenTap.Authentication
             var client = new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy));
             if (baseAddress != null)
             {
-                if (!Uri.IsWellFormedUriString(baseAddress, UriKind.Absolute))
+                if (Uri.IsWellFormedUriString(baseAddress, UriKind.Absolute))
                     client.BaseAddress = new Uri(baseAddress);
                 else if (Uri.IsWellFormedUriString(baseAddress, UriKind.Relative))
                     if (BaseAddress != null)
