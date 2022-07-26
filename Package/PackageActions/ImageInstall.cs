@@ -1,13 +1,10 @@
 ﻿using OpenTap.Cli;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace OpenTap.Package
 {
@@ -32,6 +29,15 @@ namespace OpenTap.Package
         /// </summary>
         [CommandLineArgument("non-interactive", Description = "Never prompt for user input.")]
         public bool NonInteractive { get; set; } = false;
+        
+        [CommandLineArgument("OS", Description = "Never prompt for user input.")]
+        public string Os { get; set; }
+
+        [CommandLineArgument("Architecture", Description = "Never prompt for user input.")]
+        public CpuArchitecture Architecture { get; set; } = CpuArchitecture.Unspecified;
+        
+        [CommandLineArgument("dry-run", Description = "Only print the result.")]
+        public bool DryRun { get; set; }
 
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
@@ -59,15 +65,36 @@ namespace OpenTap.Package
                 }
                 else
                 {
+
+                    var cache = new PackageDependencyCache(Os ?? deploymentInstallation.OS, deploymentInstallation.Architecture);
+                    if ((imageSpecifier.Repositories?.Count ?? 0) > 0)
+                    {
+                        cache.Repositories.Clear();
+                        cache.Repositories.AddRange(imageSpecifier.Repositories);
+                    }
+
+                    log.Debug("Searching: {0}", string.Join(", ", cache.Repositories));
                     
-                    var cache = new PackageDependencyCache(deploymentInstallation.OS, deploymentInstallation.Architecture);
                     cache.LoadFromRepositories();
                     var resolver = new ImageResolver(cancellationToken);
+                    var sw = Stopwatch.StartNew();
                     var image = resolver.ResolveImage(imageSpecifier, cache.Graph);
+                    
                     if (image == null)
                     {
-                        log.Error("Unable to resolve image");
+                        log.Error(sw, "Unable to resolve image");
                         return 1;
+                    }
+                    log.Debug(sw, "Resolution done");
+                    if (DryRun)
+                    {
+                        log.Info("Resolved packages:");
+                        foreach (var pkg in image.Packages)
+                        {
+                            log.Info("   {0}:    {1}", pkg.Name, pkg.Version);
+                        }
+
+                        return 0;
                     }
                     var imageSpecifier2 = new ImageSpecifier(image.Packages.ToList(), imageSpecifier.Name);
                     imageSpecifier2.Repositories = cache.Repositories;
