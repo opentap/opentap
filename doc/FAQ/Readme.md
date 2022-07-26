@@ -26,4 +26,4 @@ A CLA ensures that the project retains full copyright of the codebase. Users wan
 
 ## How do I get support for OpenTAP?
 As an open source project, good faith support is provided to community members through the project destination on
-[http://github.com/OpenTAP/OpenTAP](http://github.com/opentap/opentap), in addition, we monitor support@opentap.io for questions concerning the project.
+[http://github.com/OpenTAP/OpenTAP](http://github.com/opentap/opentap), in addition, we monitor [https://forum.opentap.io](https://forum.opentap.io) for questions concerning the project.
