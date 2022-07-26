@@ -17,17 +17,18 @@ namespace OpenTap.Package
         {
             this.os = os;
             this.deploymentInstallationArchitecture = deploymentInstallationArchitecture;
+            
+                var urls0 = new List<string> {  PackageCacheHelper.PackageCacheDirectory};
+                var urls = PackageManagerSettings.Current.Repositories.Where(x => x.IsEnabled).Select(x => x.Url).ToList();
+            
+                urls0.AddRange(urls);
+                Repositories = urls0;
         }
         
         public void LoadFromRepositories()
         {
-            var urls0 = new List<string> {  PackageCacheHelper.PackageCacheDirectory};
-            var urls = PackageManagerSettings.Current.Repositories.Where(x => x.IsEnabled).Select(x => x.Url).ToList();
             
-            urls0.AddRange(urls);
-            Repositories = urls0;
-            
-            var repositories = urls0.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToArray();
+            var repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToArray();
             
             foreach (var graph in repositories.AsParallel().Select(GetGraph))
             {
