@@ -21,6 +21,20 @@ namespace OpenTap.Package
         /// </summary>
         public List<PackageSpecifier> Packages { get; set; } = new List<PackageSpecifier>();
 
+        /// <summary> Creates a new instance. </summary>
+        public ImageSpecifier(List<PackageSpecifier> packages, string name = "")
+        {
+            Packages = packages;
+            Name = name;
+        }
+
+        /// <summary> Creates a new instance. </summary>
+        public ImageSpecifier()
+        {
+            
+        }
+
+        
         /// <summary>
         /// OpenTAP repositories to fetch the desired packages from
         /// These should be well formed URIs and will be interpreted relative to the BaseAddress set in AuthenticationSettings.
@@ -37,6 +51,24 @@ namespace OpenTap.Package
         {
             List<IPackageRepository> repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
 
+            var arch = Packages
+                .Where(x => x.Architecture != CpuArchitecture.AnyCPU && x.Architecture != CpuArchitecture.AnyCPU)
+                .Select(x => x.Architecture).FirstOrDefault();
+            
+            var cache = new PackageDependencyCache(Installation.Current.OS, arch);
+            cache.Repositories.Clear();
+            cache.Repositories.AddRange(repositories.Select(x => x.Url));
+            
+
+            log.Debug("Searching: {0}", string.Join(", ", cache.Repositories));
+                    
+            cache.LoadFromRepositories();
+            var resolver = new ImageResolver(cancellationToken);
+            var sw = Stopwatch.StartNew();
+            var image = resolver.ResolveImage(imageSpecifier, cache.Graph);
+
+            
+            
             DependencyResolver resolver = new DependencyResolver(Packages, repositories, cancellationToken);
 
 

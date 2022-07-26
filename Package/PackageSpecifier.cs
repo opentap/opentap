@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -14,9 +14,11 @@ namespace OpenTap.Package
     /// <summary>
     /// Holds search parameters that specifies a range of packages in the OpenTAP package system.
     /// </summary>
-    [DebuggerDisplay("{Name} ({Version.ToString()})")]
     public class PackageSpecifier
     {
+        /// <summary> Gets a readable string for this package specifier. </summary>
+        public override string ToString() => $"[{Name} ({Version})]";
+        
         /// <summary>
         /// Search for parameters that specifies a range of packages in the OpenTAP package system. Unset parameters will be treated as 'any'.
         /// </summary>
@@ -392,6 +394,70 @@ namespace OpenTap.Package
             return ComparePreRelease(PreRelease, other.PreRelease);
         }
 
+        class PartialComparer : IComparer<SemanticVersion>
+        {
+            readonly VersionSpecifier pkg;
+            public PartialComparer(VersionSpecifier pkg) => this.pkg = pkg;
+            
+            public int Compare(SemanticVersion a, SemanticVersion b)
+            {
+                if (pkg.Major.HasValue)
+                {
+                    var m = a.Major.CompareTo(b.Major);
+                    if (m != 0) return m;
+                }
+                if (pkg.Minor.HasValue)
+                {
+                    var m = a.Minor.CompareTo(b.Minor);
+                    if (m != 0) return m;
+                }
+                if (pkg.Patch.HasValue)
+                {
+                    var m = a.Patch.CompareTo(b.Patch);
+                    if (m != 0) return m;
+                }
+                // pre-release sorting is skipped for now.
+
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// This sorts versions based on a partially defined version set. For example ^1 would sort based on major version only, but ignore the rest.
+        /// This is useful when using in connection with other stable sortings. 
+        /// </summary>
+        internal IComparer<SemanticVersion> SortPartial => new PartialComparer(this);
+
+        internal int SortOrder(SemanticVersion a, SemanticVersion b)
+        {
+            if (Major.HasValue)
+            {
+                var m = a.Major.CompareTo(b.Major);
+                if (m != 0) return m;
+            }
+            if (Minor.HasValue)
+            {
+                var m = a.Minor.CompareTo(b.Minor);
+                if (m != 0) return m;
+            }
+            if (Patch.HasValue)
+            {
+                var m = a.Patch.CompareTo(b.Patch);
+                if (m != 0) return m;
+            }
+
+            if (a.PreRelease == b.PreRelease) return 0;
+            if (a.PreRelease == null && b.PreRelease != null)
+            {
+                return 1;
+            }
+            if (a.PreRelease != null && b.PreRelease == null)
+            {
+                return -1;
+            }
+            return ComparePreRelease(a.PreRelease, b.PreRelease);
+        }
+
         private static int ComparePreRelease(string p1, string p2)
         {
             if (p1 == p2) return 0;
@@ -444,6 +510,19 @@ namespace OpenTap.Package
         public static bool operator !=(VersionSpecifier a, VersionSpecifier b)
         {
             return !(a == b);
+        }
+
+        
+        internal bool TryToSemanticVersion(out SemanticVersion semver)
+        {
+            if (MatchBehavior == VersionMatchBehavior.Exact && Major.HasValue && Minor.HasValue && Patch.HasValue)
+            {
+                semver = new SemanticVersion(Major.Value, Minor.Value, Patch.Value, PreRelease, BuildMetadata);
+                return true;
+            }
+
+            semver = default;
+            return false;
         }
     }
 

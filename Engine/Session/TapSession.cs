@@ -16,7 +16,7 @@ namespace OpenTap
         None = 0,
         /// <summary>
         /// Component settings are cloned for the sake of this session. Instrument, DUT etc instances are cloned.
-        /// When this is used, test plans should be reloaded in the new context.  
+        /// When this is used, test plans should be reloaded in the new context. This causes resources to be serialized.
         /// </summary>
         OverlayComponentSettings = 1,
         /// <summary> Log messages written in Sessions that redirect logging only go to LogListeners that are added in that session. </summary>
