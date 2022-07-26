@@ -50,6 +50,24 @@ namespace OpenTap.Package
         public ImageIdentifier Resolve(CancellationToken cancellationToken)
         {
             List<IPackageRepository> repositories = Repositories.Distinct().Select(PackageRepositoryHelpers.DetermineRepositoryType).GroupBy(p => p.Url).Select(g => g.First()).ToList();
+
+            var arch = Packages
+                .Where(x => x.Architecture != CpuArchitecture.AnyCPU && x.Architecture != CpuArchitecture.AnyCPU)
+                .Select(x => x.Architecture).FirstOrDefault();
+            
+            var cache = new PackageDependencyCache(Installation.Current.OS, arch);
+            cache.Repositories.Clear();
+            cache.Repositories.AddRange(repositories.Select(x => x.Url));
+            
+
+            log.Debug("Searching: {0}", string.Join(", ", cache.Repositories));
+                    
+            cache.LoadFromRepositories();
+            var resolver = new ImageResolver(cancellationToken);
+            var sw = Stopwatch.StartNew();
+            var image = resolver.ResolveImage(imageSpecifier, cache.Graph);
+
+            
             
             DependencyResolver resolver = new DependencyResolver(Packages, repositories, cancellationToken);
 

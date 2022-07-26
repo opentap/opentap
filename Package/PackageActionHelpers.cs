@@ -146,8 +146,10 @@ namespace OpenTap.Package
             {
                 var installedPackages = installation.GetPackages();
                 Stopwatch timer = Stopwatch.StartNew();
+                
                 if (File.Exists(packageSpecifier.Name))
-                {
+                { // sometimes the 'package specifier' name is just a file name with a .TapPackage extension. I am not sure when this could possibly happen though.
+
                     var package = PackageDef.FromPackage(packageSpecifier.Name);
 
                     if (noDowngrade)
