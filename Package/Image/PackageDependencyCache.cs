@@ -10,30 +10,51 @@ namespace OpenTap.Package
         readonly CpuArchitecture deploymentInstallationArchitecture;
         readonly PackageDependencyGraph graph = new PackageDependencyGraph();
         public PackageDependencyGraph Graph => graph;
-        public List<string> Repositories { get; private set; } = new List<string>();
+        public List<string> Repositories { get; } = new List<string>();
         static readonly  TraceSource log = Log.CreateSource("Package Query");
 
-        public PackageDependencyCache(string os, CpuArchitecture deploymentInstallationArchitecture)
+        public PackageDependencyCache(string os, CpuArchitecture deploymentInstallationArchitecture, IEnumerable<string> repositories = null)
         {
             this.os = os;
             this.deploymentInstallationArchitecture = deploymentInstallationArchitecture;
-            
-                var urls0 = new List<string> {  PackageCacheHelper.PackageCacheDirectory};
-                var urls = PackageManagerSettings.Current.Repositories.Where(x => x.IsEnabled).Select(x => x.Url).ToList();
-            
+            if (repositories == null)
+            {
+                var urls0 = new List<string> {PackageCacheHelper.PackageCacheDirectory};
+                var urls = PackageManagerSettings.Current.Repositories.Where(x => x.IsEnabled).Select(x => x.Url)
+                    .ToList();
+
                 urls0.AddRange(urls);
                 Repositories = urls0;
+            }
+            else
+            {
+                Repositories = repositories.ToList();
+            }
         }
-        
+
+        readonly List<PackageDependencyGraph> graphs = new List<PackageDependencyGraph>();
+        readonly Dictionary<PackageDependencyGraph, IPackageRepository> repos =
+            new Dictionary<PackageDependencyGraph, IPackageRepository>();
         public void LoadFromRepositories()
         {
             
             var repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToArray();
-            
-            foreach (var graph in repositories.AsParallel().Select(GetGraph))
+            graphs.Clear();
+            foreach (var r in repositories.AsParallel().Select(repo => (graph: GetGraph(repo), repo: repo)))
             {
-                this.graph.Absorb(graph);   
+                graphs.Add(r.graph);
+                repos[r.graph] = r.repo;
+                graph.Absorb(r.graph);   
             }
+        }
+
+        List<PackageDef> addedPackages = new List<PackageDef>();
+        public void AddPackages(IEnumerable<PackageDef> packages)
+        {
+            var graph = new PackageDependencyGraph();
+            graph.LoadFromPackageDefs(packages);
+            this.graph.Absorb(graph);
+            addedPackages.AddRange(packages);
         }
         
         PackageDependencyGraph GetGraph(IPackageRepository repo)
@@ -60,6 +81,31 @@ namespace OpenTap.Package
             }
 
             return null;
+        }
+
+        public PackageDef GetPackageDef(PackageSpecifier packageSpecifier)
+        {
+            
+            if (packageSpecifier.Version.TryAsExactSemanticVersion(out var v) == false)
+                return null;
+            var ps = new PackageSpecifier(packageSpecifier.Name, packageSpecifier.Version,
+                deploymentInstallationArchitecture, os);
+            foreach (var graph in graphs)
+            {
+                if (graph.HasPackage(packageSpecifier.Name, v))
+                {
+
+                    if (repos.TryGetValue(graph, out var repo))
+                    {
+                        var pkgs = repo.GetPackages(ps);
+                        if (pkgs.FirstOrDefault() is PackageDef r)
+                            return r;
+                    }
+                }
+            }
+
+            return addedPackages.FirstOrDefault(x =>
+                x.Name == packageSpecifier.Name && packageSpecifier.Version.IsSatisfiedBy(x.Version.AsExactSpecifier()));
         }
     }
 }

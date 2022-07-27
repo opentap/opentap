@@ -77,9 +77,11 @@ namespace OpenTap.Package
             return id;
         }
 
+        private PackageDef[] packages = null;
         public void LoadFromPackageDefs(IEnumerable<PackageDef> packages)
         {
-            foreach (var elem in packages)
+            this.packages = packages.ToArray();
+            foreach (var elem in this.packages)
             {
                 var name = elem.Name;
                 var version = elem.Version ?? new SemanticVersion(0, 1, 0 , null, null);
@@ -172,6 +174,7 @@ namespace OpenTap.Package
         /// <returns></returns>
         public IEnumerable<PackageDef> PackageSpecifiers()
         {
+            
             foreach (var thing in versions)
             {
                 var pkgName = nameLookup[thing.Key];
@@ -200,7 +203,9 @@ namespace OpenTap.Package
 
         public bool CouldSatisfy(string pkgName, VersionSpecifier version, PackageSpecifier[] others)
         {
-            if (name2Id.TryGetValue(pkgName, out var Id) && version.TryToSemanticVersion(out var v))
+            // we only do this if version can actually be interpreted as a semantic version.
+            // if version is ^ or incomplete we just assume that it 'could' satisfy the others.
+            if (name2Id.TryGetValue(pkgName, out var Id) && version.TryAsExactSemanticVersion(out var v))
             {
                 if (!dependencies.TryGetValue((Id, GetVersionId(v)), out var deps))
                     return true; // this package has no dependencies, so yes.
@@ -240,6 +245,14 @@ namespace OpenTap.Package
                     }
                 }
             }
+        }
+
+        public bool HasPackage(string pkgName, SemanticVersion version)
+        {
+            return name2Id.TryGetValue(pkgName, out var Id)
+                   && version2Id.TryGetValue(version, out var vId)
+                   && versions.TryGetValue(Id, out var set)
+                   && set.Contains(vId);
         }
 
         /// <summary> Absorbs another package dependency graph into the structure. </summary>

@@ -55,53 +55,7 @@ namespace OpenTap.Package
             CategorizeResolvedPackages();
         }
 
-        internal DependencyResolver(Dictionary<string, PackageDef> installedPackages, IEnumerable<PackageDef> packages, List<IPackageRepository> repositories)
-        {
-            InstalledPackages = installedPackages;
-            resolve(repositories, packages);
-            CategorizeResolvedPackages();
-        }
 
-        internal DependencyResolver(List<PackageSpecifier> packageSpecifiers, List<IPackageRepository> repositories, CancellationToken cancellationToken)
-        {
-            InstalledPackages = new Dictionary<string, PackageDef>();
-
-            foreach (var specifier in packageSpecifiers)
-                graph.AddEdge(new RootVertex("Root"), DependencyGraph.Unresolved, specifier);
-
-            resolveGraph(graph, repositories, cancellationToken);
-
-            CategorizeResolvedPackages();
-        }
-
-        internal DependencyResolver(Installation tapInstallation, List<PackageSpecifier> packageSpecifiers, List<IPackageRepository> repositories, CancellationToken cancellationToken)
-        {
-            InstalledPackages = new Dictionary<string, PackageDef>();
-            foreach (var pkg in tapInstallation.GetPackages())
-                InstalledPackages[pkg.Name] = pkg;
-
-            foreach (var specifier in packageSpecifiers)
-                graph.AddEdge(new RootVertex("Root"), DependencyGraph.Unresolved, specifier);
-
-            resolveGraph(graph, repositories, cancellationToken);
-
-            CategorizeResolvedPackages();
-        }
-
-        internal DependencyResolver(Dictionary<string, List<PackageSpecifier>> packages, List<IPackageRepository> repositories, CancellationToken cancellationToken)
-        {
-            InstalledPackages = new Dictionary<string, PackageDef>();
-
-            foreach (var img in packages)
-            {
-                foreach (var pack in img.Value)
-                    graph.AddEdge(new RootVertex(img.Key), DependencyGraph.Unresolved, pack);
-            }
-
-            resolveGraph(graph, repositories, cancellationToken);
-
-            CategorizeResolvedPackages();
-        }
 
         private void resolveGraph(DependencyGraph graph, List<IPackageRepository> repositories, CancellationToken cancellationToken)
         {
@@ -678,6 +632,15 @@ namespace OpenTap.Package
             if (spec.Minor.HasValue == false && other.Minor.HasValue) return true;
             if (spec.Patch.HasValue == false && other.Patch.HasValue) return true;
             return false;
+        }
+
+        public static VersionSpecifier AsCompatibleSpecifier(this SemanticVersion semver)
+        {
+            return new VersionSpecifier(semver, VersionMatchBehavior.Compatible);
+        }
+        public static VersionSpecifier AsExactSpecifier(this SemanticVersion semver)
+        {
+            return new VersionSpecifier(semver, VersionMatchBehavior.Exact);
         }
     }
 }

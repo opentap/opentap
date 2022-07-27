@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
 using System.Threading;
 
@@ -20,6 +22,8 @@ namespace OpenTap.Package
         /// Desired packages in the installation
         /// </summary>
         public List<PackageSpecifier> Packages { get; set; } = new List<PackageSpecifier>();
+        
+        public ImmutableArray<PackageDef> InstalledPackages { get; set; } = ImmutableArray<PackageDef>.Empty;
 
         /// <summary> Creates a new instance. </summary>
         public ImageSpecifier(List<PackageSpecifier> packages, string name = "")
@@ -32,6 +36,41 @@ namespace OpenTap.Package
         public ImageSpecifier()
         {
             
+        }
+
+        public static ImageSpecifier FromAddedPackages(Installation installation, IEnumerable<PackageSpecifier> newPackages)
+        {
+            var toInstall = new List<PackageSpecifier>();
+            var installed = installation.GetPackages().ToList();
+            foreach (var package in newPackages)
+            {
+                var ext = installed.FirstOrDefault(x => x.Name == package.Name);
+                if (ext != null)
+                {
+                    installed.Remove(ext);
+                    // warn about downgrade.
+                }
+
+                if (File.Exists(package.Name))
+                {
+                    var package2 = PackageDef.FromPackage(package.Name);
+                    toInstall.Add(new PackageSpecifier(package2.Name, package2.Version.AsExactSpecifier()));
+                    installed.Add(package2);
+                    continue;
+                }
+                toInstall.Add(package);
+            }
+
+            foreach (var pkg in installed)
+            {
+                toInstall.Add(new PackageSpecifier(pkg.Name, pkg.Version.AsCompatibleSpecifier()));
+            }
+
+            return new ImageSpecifier
+            {
+                Packages = toInstall,
+                InstalledPackages = installed.ToImmutableArray()
+            };
         }
 
         
@@ -51,33 +90,24 @@ namespace OpenTap.Package
         {
             List<IPackageRepository> repositories = Repositories.Distinct().Select(PackageRepositoryHelpers.DetermineRepositoryType).GroupBy(p => p.Url).Select(g => g.First()).ToList();
 
-            var arch = Packages
-                .Where(x => x.Architecture != CpuArchitecture.AnyCPU && x.Architecture != CpuArchitecture.AnyCPU)
-                .Select(x => x.Architecture).FirstOrDefault();
+            var os = Installation.Current.OS;
+            var arch = Installation.Current.Architecture;
             
-            var cache = new PackageDependencyCache(Installation.Current.OS, arch);
-            cache.Repositories.Clear();
-            cache.Repositories.AddRange(repositories.Select(x => x.Url));
+            var cache = new PackageDependencyCache(os, arch);
             
-
-            log.Debug("Searching: {0}", string.Join(", ", cache.Repositories));
-                    
             cache.LoadFromRepositories();
+            cache.AddPackages(InstalledPackages);
+            
             var resolver = new ImageResolver(cancellationToken);
-            var sw = Stopwatch.StartNew();
-            var image = resolver.ResolveImage(imageSpecifier, cache.Graph);
-
+            var image = resolver.ResolveImage(this, cache.Graph);
+            if (image == null)
+            {
+                throw new Exception($"OpenTAP packages could not be resolved");
+            }
             
-            
-            DependencyResolver resolver = new DependencyResolver(Packages, repositories, cancellationToken);
+            ImageIdentifier image2 = new ImageIdentifier(image.Packages.Select(x => cache.GetPackageDef(x)).ToArray(), repositories.Select(s => s.Url));
 
-
-            if (resolver.DependencyIssues.Any())
-                throw new ImageResolveException(resolver.GetDotNotation(), $"OpenTAP packages could not be resolved", resolver.DependencyIssues);
-
-            ImageIdentifier image = new ImageIdentifier(resolver.Dependencies, repositories.Select(s => s.Url));
-
-            return image;
+            return image2;
         }
 
         /// <summary>
@@ -89,23 +119,8 @@ namespace OpenTap.Package
         /// <exception cref="ImageResolveException">The exception thrown if the image could not be resolved</exception>
         public static ImageIdentifier MergeAndResolve(IEnumerable<ImageSpecifier> images, CancellationToken cancellationToken)
         {
-            List<IPackageRepository> repositories = images.SelectMany(s => s.Repositories).Distinct().Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
-
-            Dictionary<string, List<PackageSpecifier>> packages = new Dictionary<string, List<PackageSpecifier>>();
-            foreach (var img in images)
-            {
-                if (img.Name is null)
-                    img.Name = "Unnamed";
-                packages[img.Name] = img.Packages;
-            }
-            DependencyResolver resolver = new DependencyResolver(packages, repositories, cancellationToken);
-
-            if (resolver.DependencyIssues.Any())
-                throw new ImageResolveException(resolver.GetDotNotation(), $"OpenTAP packages could not be resolved", resolver.DependencyIssues);
-
-            ImageIdentifier image = new ImageIdentifier(resolver.Dependencies, repositories.Select(s => s.Url));
-
-            return image;
+            var img = new ImageSpecifier(images.SelectMany(x =>x.Packages).Distinct().ToList());
+            return img.Resolve(cancellationToken);
         }
 
         /// <summary>
@@ -119,23 +134,21 @@ namespace OpenTap.Package
         /// <exception cref="ImageResolveException">In case of resolve errors, this method will throw ImageResolveExceptions.</exception>
         public Installation MergeAndDeploy(Installation deploymentInstallation, CancellationToken cancellationToken)
         {
-            List<IPackageRepository> repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
+            var installedSpecifiers = deploymentInstallation.GetPackages()
+                .Select(x => new PackageSpecifier(x.Name, x.Version.AsCompatibleSpecifier()));
 
-            DependencyResolver resolver = new DependencyResolver(deploymentInstallation, Packages, repositories, cancellationToken);
+            var imageSpecifier2 = new ImageSpecifier(Packages.Concat(installedSpecifiers).ToList(), Name)
+            {
+                InstalledPackages = deploymentInstallation.GetPackages().ToImmutableArray()
+            };
+            var image = imageSpecifier2.Resolve(cancellationToken);
+            
+            if (image == null)
+                throw new Exception($"Packages could not be resolved");
 
-            if (resolver.DependencyIssues.Any())
-                throw new ImageResolveException(resolver.GetDotNotation(), $"OpenTAP packages could not be resolved", resolver.DependencyIssues);
-
-            var result = resolver.Dependencies.Concat(deploymentInstallation.GetPackages().Where(s => !resolver.Dependencies.Any(p => s.Name == p.Name)));
-
-            ImageIdentifier image = new ImageIdentifier(result, Repositories);
             image.Deploy(deploymentInstallation.Directory, cancellationToken);
-            //ImageDeployer.Deploy(deploymentInstallation, result.ToList(), cancellationToken);
-
             return new Installation(deploymentInstallation.Directory);
         }
-
-
 
         /// <summary>
         /// Create an <see cref="ImageSpecifier"/> from JSON or XML value. Throws <see cref="InvalidOperationException"/> if value is not valid JSON or XML
@@ -145,18 +158,6 @@ namespace OpenTap.Package
         public static ImageSpecifier FromString(string value)
         {
             return ImageHelper.GetImageFromString(value);
-        }
-    }
-
-    class ImageSpecifierResolveArgs
-    {
-        public ImageSpecifier ImageSpecifier { get; set; }
-        public PackageSpecifier PackageSpecifier { get; set; }
-
-        public ImageSpecifierResolveArgs(ImageSpecifier ImageSpecifier, PackageSpecifier PackageSpecifier)
-        {
-            this.ImageSpecifier = ImageSpecifier;
-            this.PackageSpecifier = PackageSpecifier;
         }
     }
 

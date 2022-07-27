@@ -324,20 +324,7 @@ namespace OpenTap.Image.Tests
         [Test]
         public void TreeWithMissing()
         {
-            var packages = new List<PackageSpecifier>();
 
-            packages.Add("OpenTAP", "^9.10.0"); // this depends on Demo ^9.0.2
-            packages.Add("MyDemoTestPlan", "1.0.0"); // this depends on Demo ^9.0.2
-            packages.Add("Unknown", "1.0.0"); // this does not exist
-
-            var repositories = new List<IPackageRepository> { MockRepository.Instance };
-
-            DependencyResolver resolver = new DependencyResolver(packages, repositories, CancellationToken.None);
-
-            string resolved = resolver.GetDotNotation();
-            var unknownLine = resolved.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(p => p.Contains("Unknown"));
-            Assert.IsNotNull(unknownLine);
-            TestContext.WriteLine(resolved);
         }
 
         [Test]
@@ -355,54 +342,13 @@ namespace OpenTap.Image.Tests
         [Test]
         public void TestUnknownDependencies()
         {
-            var packages = new List<PackageSpecifier>();
 
-            packages.Add("OpenTAP", "^9.10.0");
-            packages.Add("MyDemoTestPlan", "1.0.0"); // this depends on Demo ^9.0.2
-            packages.Add("Unknown", "1.0.0"); // this does not exist
-
-            var repositories = new List<IPackageRepository> { MockRepository.Instance };
-
-            DependencyResolver resolver = new DependencyResolver(packages, repositories, CancellationToken.None);
-            Assert.AreEqual(1, resolver.UnknownDependencies.Count);
-            Assert.AreEqual("Unknown", resolver.UnknownDependencies.FirstOrDefault().Name);
-        }
-
-        [Test]
-        public void TestMissingDependencies()
-        {
-            var packages = new List<PackageSpecifier>();
-
-            packages.Add("OpenTAP", "^9.10.0");
-            packages.Add("MyDemoTestPlan", "1.0.0"); // this depends on Demo ^9.0.2
-            packages.Add("Unknown", "1.0.0"); // this does not exist
-
-            var repositories = new List<IPackageRepository> { MockRepository.Instance };
-
-            DependencyResolver resolver = new DependencyResolver(packages, repositories, CancellationToken.None);
-            Assert.AreEqual(3, resolver.MissingDependencies.Count);
-            Assert.IsTrue(resolver.MissingDependencies.Any(s => s.Name == "OpenTAP"));
-            Assert.IsTrue(resolver.MissingDependencies.Any(s => s.Name == "MyDemoTestPlan"));
-            Assert.IsTrue(resolver.MissingDependencies.Any(s => s.Name == "Demonstration"));
         }
 
         [TestCase("OpenTAP", "^9.10.0", "MyDemoTestPlan", "1.0.0", 3, "OpenTAP:9.12.1", "MyDemoTestPlan:1.0.0", "Demonstration:9.0.2")]
         public void TestDependencies(string packageName, string firstVersion, string secondPackageName, string secondVersion, int dependenciesCount, params string[] resolved)
         {
-            var packages = new List<PackageSpecifier>();
 
-            packages.Add(packageName, firstVersion);
-            packages.Add(secondPackageName, secondVersion); // this depends on Demo ^9.0.2
-
-            var repositories = new List<IPackageRepository> { MockRepository.Instance };
-
-            DependencyResolver resolver = new DependencyResolver(packages, repositories, CancellationToken.None);
-            Assert.AreEqual(dependenciesCount, resolver.Dependencies.Count);
-            foreach (var res in resolved)
-            {
-                var split = res.Split(':');
-                Assert.IsTrue(resolver.Dependencies.FirstOrDefault(s => s.Name == split[0]).Version.ToString().StartsWith(split[1]));
-            }
         }
     }
 

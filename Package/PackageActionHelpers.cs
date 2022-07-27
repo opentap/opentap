@@ -59,27 +59,7 @@ namespace OpenTap.Package
             }
         }
 
-        internal static string NormalizeRepoUrl(string path)
-        {
-            if (path == null)
-                return null;
-            if (Uri.IsWellFormedUriString(path, UriKind.Relative) && Directory.Exists(path) || Regex.IsMatch(path ?? "", @"^([A-Z|a-z]:)?(\\|/)"))
-            {
-                if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
-                    return Path.GetFullPath(path)
-                               .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                               .ToUpperInvariant();
-                else
-                    return Path.GetFullPath(path)
-                               .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            }
-            else if (path.StartsWith("http"))
-                return path.ToUpperInvariant();
-            else
-                return String.Format("http://{0}", path).ToUpperInvariant();
-
-        }
-
+        static bool test = false;
         internal static List<PackageDef> GatherPackagesAndDependencyDefs(Installation installation, PackageSpecifier[] pkgRefs, string[] packageNames, string Version, CpuArchitecture arch, string OS, List<IPackageRepository> repositories,
             bool force, bool includeDependencies, bool ignoreDependencies, bool askToIncludeDependencies, bool noDowngrade)
         {
@@ -142,54 +122,72 @@ namespace OpenTap.Package
                 }
             }
 
-            foreach (var packageSpecifier in packages)
+            var img = ImageSpecifier.FromAddedPackages(installation, packages);
+            img.Repositories = repositories.Select(x => x.Url).ToList();
+            var result = img.Resolve(TapThread.Current.AbortToken);
+            if (result == null)
             {
-                var installedPackages = installation.GetPackages();
-                Stopwatch timer = Stopwatch.StartNew();
-                
-                if (File.Exists(packageSpecifier.Name))
-                { // sometimes the 'package specifier' name is just a file name with a .TapPackage extension. I am not sure when this could possibly happen though.
+                throw new Exception("Unable to resolve package combination.");
+            }
 
-                    var package = PackageDef.FromPackage(packageSpecifier.Name);
-
-                    if (noDowngrade)
-                    {
-                        var installedPackage = installedPackages.FirstOrDefault(p => p.Name == package.Name);
-                        if (installedPackage != null && installedPackage.Version.CompareTo(package.Version) >= 0)
-                        {
-                            log.Info($"The same or a newer version of package '{package.Name}' in already installed.");
-                            continue;
-                        }
-                    }
-
-                    gatheredPackages.Add(package);
-                    log.Debug(timer, "Found package {0} locally.", packageSpecifier.Name);
-                }
-                else
+            
+            if (test)
+            {
+                foreach (var packageSpecifier in packages)
                 {
-                    // assumption: packages ending with .TapPackage are files, not on external repos.
-                    // so if this is the case and the file does not exist, throw an exception.
-                    if(string.Compare(Path.GetExtension(packageSpecifier.Name), ".TapPackage", StringComparison.InvariantCultureIgnoreCase) == 0)
-                        throw new FileNotFoundException($"Unable to find the file {packageSpecifier.Name}");
-                    
-                    PackageDef package = DependencyResolver.GetPackageDefFromRepo(repositories, packageSpecifier, new List<PackageDef>());
+                    var installedPackages = installation.GetPackages();
+                    Stopwatch timer = Stopwatch.StartNew();
 
-                    if (noDowngrade)
+                    if (File.Exists(packageSpecifier.Name))
                     {
-                        var installedPackage = installedPackages.FirstOrDefault(p => p.Name == package.Name);
-                        if (installedPackage != null && installedPackage.Version.CompareTo(package.Version) >= 0)
+                        // sometimes the 'package specifier' name is just a file name with a .TapPackage extension. I am not sure when this could possibly happen though.
+
+                        var package = PackageDef.FromPackage(packageSpecifier.Name);
+
+                        if (noDowngrade)
                         {
-                            log.Info($"The same or a newer version of package '{package.Name}' in already installed.");
-                            continue;
+                            var installedPackage = installedPackages.FirstOrDefault(p => p.Name == package.Name);
+                            if (installedPackage != null && installedPackage.Version.CompareTo(package.Version) >= 0)
+                            {
+                                log.Info(
+                                    $"The same or a newer version of package '{package.Name}' in already installed.");
+                                continue;
+                            }
                         }
+
+                        gatheredPackages.Add(package);
+                        log.Debug(timer, "Found package {0} locally.", packageSpecifier.Name);
                     }
-
-                    if (PackageCacheHelper.PackageIsFromCache(package))
-                        log.Debug(timer, "Found package {0} version {1} in local cache", package.Name, package.Version);
                     else
-                        log.Debug(timer, "Found package {0} version {1}", package.Name, package.Version);
+                    {
+                        // assumption: packages ending with .TapPackage are files, not on external repos.
+                        // so if this is the case and the file does not exist, throw an exception.
+                        if (string.Compare(Path.GetExtension(packageSpecifier.Name), ".TapPackage",
+                                StringComparison.InvariantCultureIgnoreCase) == 0)
+                            throw new FileNotFoundException($"Unable to find the file {packageSpecifier.Name}");
 
-                    gatheredPackages.Add(package);
+                        PackageDef package = DependencyResolver.GetPackageDefFromRepo(repositories, packageSpecifier,
+                            new List<PackageDef>());
+
+                        if (noDowngrade)
+                        {
+                            var installedPackage = installedPackages.FirstOrDefault(p => p.Name == package.Name);
+                            if (installedPackage != null && installedPackage.Version.CompareTo(package.Version) >= 0)
+                            {
+                                log.Info(
+                                    $"The same or a newer version of package '{package.Name}' in already installed.");
+                                continue;
+                            }
+                        }
+
+                        if (PackageCacheHelper.PackageIsFromCache(package))
+                            log.Debug(timer, "Found package {0} version {1} in local cache", package.Name,
+                                package.Version);
+                        else
+                            log.Debug(timer, "Found package {0} version {1}", package.Name, package.Version);
+
+                        gatheredPackages.Add(package);
+                    }
                 }
             }
 
@@ -202,26 +200,26 @@ namespace OpenTap.Package
             if (force || ignoreDependencies)
             {
                 if (force)
-                    log.Info($"Ignoring potential depencencies (--force option specified).");
+                    log.Info($"Ignoring potential dependencies (--force option specified).");
                 else
-                    log.Debug($"Ignoring potential depencencies (--no-dependencies option specified).");
+                    log.Debug($"Ignoring potential dependencies (--no-dependencies option specified).");
                 return gatheredPackages.ToList();
             }
+            // missing dependencies are those which are not installed
 
-            log.Debug("Resolving dependencies.");
-            var resolver = new DependencyResolver(installation, gatheredPackages, repositories);
-
-            var actualMissingDependencies = resolver.MissingDependencies.Where(s => !gatheredPackages.Any(p => s.Name == p.Name));
-
-            if (resolver.UnknownDependencies.Any())
+            List<PackageDef> actualMissingDependencies = new List<PackageDef>();
+            foreach (var pkg in result.Packages)
             {
-                foreach (var dep in resolver.UnknownDependencies)
-                    log.Error($"A package dependency named '{dep.Name}' with a version compatible with {dep.Version} could not be found in any repository.");
-
-                log.Info("To download package dependencies despite the conflicts, use the --force option.");
-                return null;
+                log.Info("{0}", pkg);
+                var installed = img.InstalledPackages.FirstOrDefault(x => x.Name == pkg.Name && x.Version == pkg.Version);
+                if (installed != null) continue; // this package is provided by the installation.
+                var gathered = gatheredPackages.FirstOrDefault(x => x.Name == pkg.Name);
+                if(gathered != null)
+                    actualMissingDependencies.Add(gathered);
+                else gatheredPackages.Add(pkg);
             }
-            else if (actualMissingDependencies.Any())
+
+            if (actualMissingDependencies.Any())
             {
                 if (includeDependencies == false)
                 {

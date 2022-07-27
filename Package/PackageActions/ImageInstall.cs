@@ -39,6 +39,9 @@ namespace OpenTap.Package
         [CommandLineArgument("dry-run", Description = "Only print the result.")]
         public bool DryRun { get; set; }
 
+        [CommandLineArgument("repository", ShortName = "r", Description = "Repositories to use for resolving the image.")]
+        public string[] Repositories { get; set; } = null;
+
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
             if (NonInteractive)
@@ -46,6 +49,12 @@ namespace OpenTap.Package
 
             if (Force)
                 log.Warning($"Using --force does not force an image installation");
+
+            if (Repositories == null)
+                Repositories = PackageManagerSettings.Current.Repositories
+                    .Where(x => x.IsEnabled)
+                    .Select(x => x.Url)
+                    .ToArray();
 
             ImageSpecifier imageSpecifier = new ImageSpecifier();
             if (ImagePath != null)
@@ -55,32 +64,24 @@ namespace OpenTap.Package
                     imageString = File.ReadAllText(imageString);
                 imageSpecifier = ImageSpecifier.FromString(imageString);
             }
+            if (imageSpecifier.Repositories == null || imageSpecifier.Repositories.Count == 0)
+            {
+                imageSpecifier.Repositories = Repositories.ToList();
+            }
 
             try
             {
-                var deploymentInstallation = new Installation(Target);
                 if (Merge)
                 {
+                    var deploymentInstallation = new Installation(Target);
                     Installation newInstallation = imageSpecifier.MergeAndDeploy(deploymentInstallation, cancellationToken);
                 }
                 else
-                {
-
-                    var cache = new PackageDependencyCache(Os ?? deploymentInstallation.OS, deploymentInstallation.Architecture);
-                    if ((imageSpecifier.Repositories?.Count ?? 0) > 0)
-                    {
-                        cache.Repositories.Clear();
-                        cache.Repositories.AddRange(imageSpecifier.Repositories);
-                    }
-
-                    log.Debug("Searching: {0}", string.Join(", ", cache.Repositories));
-                    
-                    cache.LoadFromRepositories();
-                    var resolver = new ImageResolver(cancellationToken);
+                {       
                     var sw = Stopwatch.StartNew();
-                    var image = resolver.ResolveImage(imageSpecifier, cache.Graph);
-                    
-                    if (image == null)
+                    var r= imageSpecifier.Resolve(TapThread.Current.AbortToken);
+
+                    if (r == null)
                     {
                         log.Error(sw, "Unable to resolve image");
                         return 1;
@@ -89,17 +90,13 @@ namespace OpenTap.Package
                     if (DryRun)
                     {
                         log.Info("Resolved packages:");
-                        foreach (var pkg in image.Packages)
+                        foreach (var pkg in r.Packages)
                         {
                             log.Info("   {0}:    {1}", pkg.Name, pkg.Version);
                         }
-
                         return 0;
                     }
-                    var imageSpecifier2 = new ImageSpecifier(image.Packages.ToList(), imageSpecifier.Name);
-                    imageSpecifier2.Repositories = cache.Repositories;
-                    var imageIdentifier = imageSpecifier2.Resolve(cancellationToken);
-                    imageIdentifier.Deploy(Target, cancellationToken);
+                    r.Deploy(Target, cancellationToken);
                 }
                 return 0;
             }
