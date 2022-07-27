@@ -564,7 +564,7 @@ namespace OpenTap
                             error = true;
                         }
 
-                        if (error)
+                        if (error)      
                             WarnOnce($"Failed to instantiate {nameof(ITypeDataSearcher)} {searcherType}", searcherType);
                     }
                 }

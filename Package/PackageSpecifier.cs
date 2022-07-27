@@ -513,7 +513,7 @@ namespace OpenTap.Package
         }
 
         
-        internal bool TryToSemanticVersion(out SemanticVersion semver)
+        internal bool TryAsExactSemanticVersion(out SemanticVersion semver)
         {
             if (MatchBehavior == VersionMatchBehavior.Exact && Major.HasValue && Minor.HasValue && Patch.HasValue)
             {

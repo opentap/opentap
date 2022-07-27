@@ -4,6 +4,10 @@ using System.Threading;
 
 namespace OpenTap.Package
 { 
+    /// <summary>
+    /// Resolves packages dependencies for an image.This should be able to resolve any set of package dependencies, but
+    /// it may take a long time in some edge cases. In most cases however it seems to settle quite quickly.
+    /// </summary>
     class ImageResolver
     {
         CancellationToken cancelToken;
@@ -53,7 +57,7 @@ namespace OpenTap.Package
                 for (int i = 0; i < packages.Count; i++)
                 {
                     var pkg1 = packages[i];
-                    if (pkg1.Version.TryToSemanticVersion(out var v) == false)
+                    if (pkg1.Version.TryAsExactSemanticVersion(out var v) == false)
                         continue;
 
                     var deps = graph.GetDependencies(pkg1.Name, v);
@@ -103,7 +107,7 @@ namespace OpenTap.Package
 
             // 4. prune away the versions which dependencies conflict with the required packages.
             // ok, now we know the results is some pair-wise combination of allVersions.
-            // now lets try pruning them a bit
+            // now let's try pruning them a bit
             bool retry = false;
             for (int i = 0; i < packages.Count; i++)
             {
@@ -125,7 +129,7 @@ namespace OpenTap.Package
             if (retry)
                 return ResolveImage(new ImageSpecifier(packages.ToList()), graph);
             
-            // ok now we have X * Y * Z * ... = K possible solutions all satisfying the constraints.
+            // 5. ok now we have X * Y * Z * ... = K possible solutions all satisfying the constraints.
             // Lets sort all the versions based on version specifiers, then fix  the version and try each combination (brute force)
             long k = allVersions.FirstOrDefault()?.LongLength ?? 0;
             for (int i = 1; i < allVersions.Count; i++)
@@ -134,7 +138,7 @@ namespace OpenTap.Package
             }
 
             if (k == 0) 
-                return null; // no possible solutions
+                return null; // no possible solutions,
             if (k == 1)
             {
                 bool allExact = allVersions.All(x => x.Length  == 1);
