@@ -887,9 +887,10 @@ namespace OpenTap.Plugins
 
         private void SetHasDefaultValueAttribute(IMemberData subProp, object val, XElement elem2)
         {
+            
             var attr = subProp.GetAttribute<DefaultValueAttribute>();
             if (attr != null && !(subProp is IParameterMemberData))
-                elem2.SetAttributeValue(DefaultValue, attr.Value);
+                Serializer.GetSerializer<DefaultValueSerializer>().RegisterDefaultValue(elem2, attr.Value);
         }
     }
 }
