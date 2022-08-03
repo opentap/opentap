@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests.TestTestSteps;
@@ -169,7 +171,7 @@ namespace OpenTap.Engine.UnitTests
             public override void Run()
             {
                 foreach (var step in EnabledChildSteps)
-                    RunChildStep(step, throwOnError: false);
+                    RunChildStep(step, throwOnBreak: false);
                 this.Verdict = Verdict.Pass;
             }
         }
@@ -290,6 +292,88 @@ namespace OpenTap.Engine.UnitTests
             a.Read();
             Assert.IsFalse(mem.Get<IAccessAnnotation>().IsReadOnly);
         }
+
+        class TestStepThatThrows : TestStep
+        {
+            public override void Run()
+            {
+                throw new Exception("!");
+            }
+        }
         
+        [AllowAnyChild]
+        class TestStepThatCatches : TestStep
+        {
+            public bool AvoidCatch { get; set; }
+            public TestStepRun[] Runs;
+            public override void Run()
+            {
+                if (AvoidCatch)
+                {
+                    Runs = RunChildSteps(throwOnBreak: false).ToArray();
+                    var run = Runs.Last();
+                    if(run.Verdict == Verdict.Error)
+                        Assert.AreEqual("!", run.Exception.Message);
+                    else 
+                        Assert.IsNull(run.Exception);
+                    Verdict = Verdict.Pass;
+                }
+                else
+                {
+                    try
+                    {
+                        RunChildSteps(throwOnBreak: true);
+                        Assert.Fail("The child steps should have thrown an exception");
+                    }
+                    catch (TestStepBreakException)
+                    {
+                        Verdict = Verdict.Pass;
+                    }
+                    catch (Exception e)
+                    {
+                        Assert.AreEqual(e.Message, "!");
+                        Verdict = Verdict.Pass;
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public void TestStepThrowsException()
+        {
+            var a = new TestStepThatCatches();
+            var b = new TestStepThatThrows();
+            // add a 'nop' to verify
+            a.ChildTestSteps.Add(new SequenceStep());
+            a.ChildTestSteps.Add(b);
+            a.ChildTestSteps.Add(new SequenceStep());
+            var plan = new TestPlan();
+            plan.Steps.Add(a);
+            var r = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, r.Verdict);
+            a.AvoidCatch = true;
+            var r2 = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, r2.Verdict);
+            Assert.AreEqual(2, a.Runs.Length);
+        }
+        
+        [Test]
+        public void TestStepThrowsBreakException()
+        {
+            var a = new TestStepThatCatches();
+            var b = new VerdictStep { VerdictOutput = Verdict.Fail };
+            BreakConditionProperty.SetBreakCondition(b, BreakCondition.BreakOnFail);
+            a.ChildTestSteps.Add(new SequenceStep());
+            a.ChildTestSteps.Add(b);
+            a.ChildTestSteps.Add(new SequenceStep());
+            var plan = new TestPlan();
+            plan.Steps.Add(a);
+            var r = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, r.Verdict);
+            a.AvoidCatch = true;
+            var r2 = plan.Execute();
+            Assert.AreEqual(Verdict.Pass , r2.Verdict);
+            Assert.AreEqual(2, a.Runs.Length);
+        }
     }
 }

@@ -1149,6 +1149,14 @@ namespace OpenTap
             foreach (var value in values)
                 lst.Add(value);
         }
+        
+        [Obsolete("Cannot add to array", true)]
+        public static void AddRange<T>(this T[] lst, IEnumerable<T> values)
+        {
+            // This function is intentionally added to avoid adding the arrays.
+            // They also implement IList, so they normally hit the other overload.
+            throw new NotSupportedException();
+        }
 
         /// <summary>
         /// Creates a HashSet from an IEnumerable.

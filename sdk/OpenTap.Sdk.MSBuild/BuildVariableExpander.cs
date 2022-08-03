@@ -7,7 +7,8 @@ using Microsoft.Build.Execution;
 
 namespace Keysight.OpenTap.Sdk.MSBuild
 {
-    internal static class ExtensionClass{
+    internal static class ExtensionClass
+    {
         internal static string ElemOrAttributeValue(this XElement ele, string name, string defaultValue)
         {
             return ele.Attribute(name)?.Value ?? ele.Element(name)?.Value ?? defaultValue;
@@ -15,7 +16,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
         internal static XElement[] GetPackageElements(this XElement ele, string packageName)
         {
-            var tagNames = new[] {"OpenTapPackageReference", "AdditionalOpenTapPackage"};
+            var tagNames = new[] { "OpenTapPackageReference", "AdditionalOpenTapPackage" };
 
             var itemGroups = ele.Elements().Where(e => e.Name.LocalName == "ItemGroup");
             var packageInstallElements = new List<XElement>();
@@ -30,6 +31,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             return packageInstallElements.ToArray();
         }
     }
+
     internal class BuildVariableExpander
     {
 

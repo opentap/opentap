@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using System.Reflection.Metadata;
@@ -63,6 +64,12 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
         }
     }
 
+    public enum VersionType
+    {
+        FileVersion,
+        SemanticVersion
+    }
+
     [Display("Read Assembly Version", Group: "Tests")]
     public class ReadAssemblyVersionStep : TestStep
     {
@@ -70,11 +77,10 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
         public string File { get; set; }
         
         public string MatchVersion { get; set; }
-        
-        public override void Run()
+        public VersionType VersionType { get; set; }
+
+        void CheckFileVersion()
         {
-            if (false == System.IO.File.Exists(File))
-                throw new FileNotFoundException("File does not exist", File);
             var semver = GetVersion(File);
             if (semver == null)
             {
@@ -93,6 +99,65 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
                 }
             }
             Log.Info("Read Version {0}", semver.ToString());
+            
+        }
+
+        void CheckSemanticVersion()
+        {
+            if (!SemanticVersion.TryParse(MatchVersion, out var semver))
+            {
+                Log.Error($"{MatchVersion} is not a semantic version.");
+                UpgradeVerdict(Verdict.Error);
+                return;
+            }
+            
+            var s = PluginManager.GetSearcher();
+            s.AddAssembly(File, null);
+
+            string normalize(string s)
+            {
+                return Path.GetFullPath(s).TrimEnd('/', '\\');
+            }
+
+            var nf = normalize(File);
+            var asm = s.Assemblies.FirstOrDefault(a => normalize(a.Location).Equals(nf, StringComparison.InvariantCultureIgnoreCase));
+
+            if (asm == null)
+            {
+                Log.Error("Assembly not loaded.");
+                UpgradeVerdict(Verdict.Error);
+                return;
+            }
+
+            var asmVer = asm.SemanticVersion;
+
+            if (Equals(asmVer.ToString(), semver.ToString()))
+            {
+                UpgradeVerdict(Verdict.Pass);
+            }
+            else
+            {
+                UpgradeVerdict(Verdict.Fail);
+            }
+            Log.Info("Read Version {0}", asmVer.ToString());
+        }
+
+        public override void Run()
+        {
+            if (false == System.IO.File.Exists(File))
+                throw new FileNotFoundException("File does not exist", File);
+
+            switch (VersionType)
+            {
+                case VersionType.FileVersion:
+                    CheckFileVersion();
+                    break;
+                case VersionType.SemanticVersion:
+                    CheckSemanticVersion();
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
         }
 
         public static SemanticVersion GetVersion(string path)

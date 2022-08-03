@@ -17,6 +17,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
     [Serializable]
     public class InstallOpenTapPackages : Task, ICancelableTask
     {
+        internal IImageDeployer ImageDeployer { get; set; }
         /// <summary>
         /// Full qualified path to the .csproj file for which packages are being installed
         /// </summary>
@@ -48,6 +49,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         {
             get
             {
+                if (string.IsNullOrWhiteSpace(SourceFile)) return null;
                 if (_document != null)
                     return _document;
 
@@ -69,7 +71,10 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 var version = item.GetMetadata("Version");
                 var repository = item.GetMetadata("Repository");
 
-                foreach (var elem in Document.GetPackageElements(packageName))
+                var doc = Document;
+                if (doc == null) return new[] { 0 };
+
+                foreach (var elem in doc.GetPackageElements(packageName))
                 {
                     if (elem is IXmlLineInfo lineInfo && lineInfo.HasLineInfo())
                     {
@@ -114,26 +119,31 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         {
             cts.Cancel();
         }
-
+        
+        /// <summary>
+        /// We *must* be in an OpenTapContext before calling this method because
+        /// it depends on OpenTAP DLLs.
+        /// </summary>
+        /// <returns></returns>
         private bool InstallPackages()
         {
-            using (var installer = new OpenTapImageInstaller(TapDir, cts.Token))
+            var repos = Repositories?.SelectMany(r =>
+                    r.ItemSpec.Split(new[] { ";" }, StringSplitOptions.RemoveEmptyEntries))
+                .ToList() ?? new List<string>();
+
+            repos.AddRange(PackagesToInstall.Select(p => p.GetMetadata("Repository"))
+                .Where(m => string.IsNullOrWhiteSpace(m) == false));
+
+            repos = repos.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+            using (var imageInstaller = new OpenTapImageInstaller(TapDir, cts.Token))
             {
-                installer.LogMessage += OnInstallerLogMessage;
-
-                var repos = Repositories?.SelectMany(r =>
-                        r.ItemSpec.Split(new[] { ";" }, StringSplitOptions.RemoveEmptyEntries))
-                    .ToList() ?? new List<string>();
-
-                repos.AddRange(PackagesToInstall.Select(p => p.GetMetadata("Repository"))
-                    .Where(m => string.IsNullOrWhiteSpace(m) == false));
-
-                if (!repos.Any(r => r.ToLower().Contains("packages.opentap.io")))
-                    repos.Add("packages.opentap.io");
+                imageInstaller.LogMessage += OnInstallerLogMessage;
+                imageInstaller.ImageDeployer = ImageDeployer;
 
                 try
                 {
-                    return installer.InstallImage(PackagesToInstall, repos.Distinct(StringComparer.OrdinalIgnoreCase).ToArray());
+                    return imageInstaller.InstallImage(PackagesToInstall, repos);
                 }
                 catch (Exception ex)
                 {

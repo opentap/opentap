@@ -124,22 +124,23 @@ namespace OpenTap.Plugins
                     if (attr == null) continue;
                     var name = string.IsNullOrWhiteSpace(attr.AttributeName) ? prop.Name : attr.AttributeName;
                     var attr_value = element.Attribute(Serializer.PropertyXmlName(name));
-                    var p = prop as MemberData;
+                    
 
-                    if (p != null && attr_value != null && p.Member is PropertyInfo csprop)
+                    if (attr_value != null)
                     {
                         try
                         {
-                            readContentInternal(csprop.PropertyType, false, () => attr_value.Value, element, out object value);
+                            var typeData = prop.TypeDescriptor.AsTypeData();
+                            readContentInternal(typeData.Type, false, () => attr_value.Value, element, out object value);
                             
-                            p.SetValue(newobj, value);
+                            prop.SetValue(newobj, value);
                             
                         }
                         catch (Exception e)
                         {
                             if (logWarnings)
                             {
-                                Log.Warning(element, "Attribute value '{0}' was not read correctly as a {1}", attr_value.Value, p);
+                                Log.Warning(element, "Attribute value '{0}' was not read correctly as a {1}", attr_value.Value, prop);
                                 Log.Debug(e);
                             }
                         }
@@ -591,7 +592,14 @@ namespace OpenTap.Plugins
             }
             catch(Exception ex)
             {
-                Serializer.PushError(element, $"Object value was not read correctly.", ex);
+                if (ex is TargetInvocationException tarEx)
+                {
+                    Serializer.PushError(element, tarEx.InnerException.Message, tarEx.InnerException);
+                }
+                else
+                {
+                    Serializer.PushError(element, $"Object value was not read correctly.", ex);
+                }
                 return false;
             }
             try
@@ -838,6 +846,16 @@ namespace OpenTap.Plugins
                                 else
                                 {
                                     XElement elem2 = new XElement(Serializer.PropertyXmlName(subProp.Name));
+                                    
+                                    { // MetaDataAttribute -> save the metadata name in the test plan xml.
+                                        if (subProp.GetAttribute<MetaDataAttribute>() is MetaDataAttribute metaDataAttr)
+                                        {
+                                            string name = metaDataAttr.Name ??
+                                                          subProp.GetDisplayAttribute()?.Name ?? subProp.Name;
+                                            elem2.SetAttributeValue("Metadata", name);
+                                        }
+                                    }
+                                    
                                     SetHasDefaultValueAttribute(subProp, val, elem2);
                                     elem.Add(elem2);
                                     Serializer.Serialize(elem2, val, subProp.TypeDescriptor);

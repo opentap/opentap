@@ -39,8 +39,8 @@ namespace OpenTap.Image.Tests
                     }
                 ],
                 ""Repositories"": [
-                    ""packages.opentap.io"",
-                    ""packages.opentap.keysight.com""
+                    ""https://packages.opentap.io"",
+                    ""https://packages.opentap.keysight.com""
                 ]
             }";
 
@@ -56,9 +56,9 @@ namespace OpenTap.Image.Tests
             Assert.True(specifier.Packages[1].OS == "Windows");
 
             Assert.True(specifier.Repositories.Count == 3);
-            Assert.True(specifier.Repositories[0] == PackageCacheHelper.PackageCacheDirectory);
-            Assert.True(specifier.Repositories[1] == "packages.opentap.io");
-            Assert.True(specifier.Repositories[2] == "packages.opentap.keysight.com");
+            Assert.True(specifier.Repositories[0] == new Uri(PackageCacheHelper.PackageCacheDirectory).AbsoluteUri);
+            Assert.True(specifier.Repositories[1] == "https://packages.opentap.io");
+            Assert.True(specifier.Repositories[2] == "https://packages.opentap.keysight.com");
 
         }
 

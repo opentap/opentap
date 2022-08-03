@@ -50,7 +50,8 @@ namespace OpenTap.Plugins.BasicSteps
         [EnabledIf("SweepBehavior", SweepBehavior.Linear, HideIfDisabled = true)]
         [XmlIgnore] // this is inferred from the other properties and should not be set by the serializer
         [Browsable(true)]
-        public decimal SweepStep {
+        public decimal SweepStep
+        {
             get
             {
                 if (SweepPoints == 0) return 0;
@@ -185,8 +186,15 @@ namespace OpenTap.Plugins.BasicSteps
             Rules.Add(() => ((SweepBehavior != SweepBehavior.Exponential)) || (Math.Sign(SweepStop) == Math.Sign(SweepStart)), "Sweep start and end value must have the same sign.", "SweepEnd", "SweepStart");
 
             ChildTestSteps.ChildStepsChanged += childStepsChanged;
+            PropertyChanged += SweepLoopRange_PropertyChanged;
         }
-        
+
+        void SweepLoopRange_PropertyChanged(object sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(ChildTestSteps))
+                ChildTestSteps.ChildStepsChanged += childStepsChanged;
+        }
+
         readonly Dictionary<IMemberData, object> membersCache = new Dictionary<IMemberData, object>();
         void childStepsChanged(TestStepList sender, TestStepList.ChildStepsChangedAction Action, ITestStep Object, int Index)
         {
@@ -339,7 +347,7 @@ namespace OpenTap.Plugins.BasicSteps
 
                 Log.Info("Running child steps with {0} = {1} ", names, Value);
 
-                var runs = RunChildSteps(AdditionalParams, BreakLoopRequested).ToList();
+                var runs = RunChildSteps(AdditionalParams, BreakLoopRequested, throwOnBreak: false).ToArray();
                 if (BreakLoopRequested.IsCancellationRequested) break;
                 runs.ForEach(r => r.WaitForCompletion());
                 if (runs.LastOrDefault()?.BreakConditionsSatisfied() == true)

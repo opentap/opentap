@@ -4,6 +4,8 @@ using System.ComponentModel;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Reflection;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,6 +15,8 @@ namespace OpenTap.Authentication
     [Browsable(false)]
     public class AuthenticationSettings : ComponentSettings<AuthenticationSettings>
     {
+        private string baseAddress = null;
+
         class AuthenticationClientHandler : HttpClientHandler
         {
             private readonly string domain;
@@ -24,13 +28,12 @@ namespace OpenTap.Authentication
                 TimeSpan.FromSeconds(1),
                 TimeSpan.FromSeconds(2),
                 TimeSpan.FromSeconds(5),
-                TimeSpan.FromSeconds(10),  
+                TimeSpan.FromSeconds(10),
             };
 
             async Task<HttpResponseMessage> SendWithRetry(HttpRequestMessage request,
                 CancellationToken cancellationToken)
-            {;
-                
+            {
                 foreach (var wait in waits)
                 {
                     await Task.Delay(wait, cancellationToken);
@@ -44,7 +47,7 @@ namespace OpenTap.Authentication
                 throw new InvalidOperationException();
             }
 
-            
+
 
 
             public AuthenticationClientHandler(string domain = null, bool withRetryPolicy = false)
@@ -62,99 +65,118 @@ namespace OpenTap.Authentication
             }
         }
 
-        /// <summary> Access tokens.</summary>
-        public IList<TokenInfo> AccessTokens { get; set; } = new List<TokenInfo>();
-        /// <summary> Refresh tokens.</summary>
-        public IList<TokenInfo> RefreshTokens { get; set; } = new List<TokenInfo>();
-        /// <summary> Identity tokens.</summary>
-        public IList<TokenInfo> IdentityTokens { get; set; } = new List<TokenInfo>();
+        /// <summary>
+        /// Token store containing access and refresh tokens.
+        /// These tokens are used in the HttpClients returned by <see cref="GetClient"/> to authenticate requests.
+        /// </summary>
+        public IList<TokenInfo> Tokens { get; set; } = new List<TokenInfo>();
+
+        /// <summary> 
+        /// A well formed absolute URL used as as BaseAddress in HttpClients returned by <see cref="GetClient"/>. 
+        /// This setting determines what relative URLs (e.g. a package repository URL) are relative to.
+        /// Can be null.
+        /// </summary>
+        [DefaultValue(null)]
+        public string BaseAddress
+        {
+            get => baseAddress; set
+            {
+                if (Uri.IsWellFormedUriString(value, UriKind.Absolute))
+                    baseAddress = value;
+                else if (String.IsNullOrEmpty(value))
+                    baseAddress = null;
+                else
+                    throw new FormatException("BaseAddress must be a well formed absolute URI.");
+            }
+        }
 
         void PrepareRequest(HttpRequestMessage request, string domain, CancellationToken cancellationToken)
         {
             TokenInfo token = null;
             if (domain != null)
-                token = GetValidAccessToken(domain, cancellationToken);
+                token = Tokens.FirstOrDefault(t => t.Domain == domain);
             if (token == null)
-                token = GetValidAccessToken(request.RequestUri.Host, cancellationToken);
+                token = Tokens.FirstOrDefault(t => t.Domain == request.RequestUri.Host);
             if (token != null)
-                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.TokenData);
-        }
-
-        /// <summary> Constructs a HttpClientHandler that can be used with HttpClient. </summary>
-        public static HttpClientHandler GetClientHandler(string domain = null) => new AuthenticationClientHandler(domain);
-        
-        /// <summary> Constructs a HttpClientHandler that can be used with HttpClient. </summary>
-        public static HttpClientHandler GetClientHandleWithRetryPolicy(string domain = null) => new AuthenticationClientHandler(domain, withRetryPolicy: true);
-
-        /// <summary> Registers a refresh token.  </summary>
-        void RegisterRefreshToken(TokenInfo token)
-        {
-            UnregisterRefreshToken(token.Domain);
-            RefreshTokens.Add(token);
-        }
-
-        /// <summary> Registers an access token.  </summary>
-        void RegisterAccessToken(TokenInfo token)
-        {
-            UnregisterAccessToken(token.Domain);
-            AccessTokens.Add(token);
-        }
-
-        void RegisterIdentityToken(TokenInfo token)
-        {
-            UnregisterIdentityToken(token.Domain);
-            IdentityTokens.Add(token);
-        }
-
-        private void UnregisterIdentityToken(string domain)
-        {
-            IdentityTokens.RemoveIf(x => x.Domain == domain);
-        }
-
-        /// <summary> Unregisters an access token.</summary>
-        public void UnregisterAccessToken(string domain)
-        {
-            AccessTokens.RemoveIf(x => x.Domain == domain);
-        }
-        /// <summary> Unregisters a refresh token.</summary>
-        public void UnregisterRefreshToken(string domain)
-        {
-            RefreshTokens.RemoveIf(x => x.Domain == domain);
-        }
-
-        /// <summary> Gets a valid access token matching the site. If the current token has expired, the refresh action will be used to refresh it. </summary>
-        public TokenInfo GetValidAccessToken(string domain, CancellationToken cancel)
-        {
-            cancel.ThrowIfCancellationRequested();
-
-            // Try refresh
-            
-            return AccessTokens.FirstOrDefault(x => x.Domain == domain);
-        }
-
-        /// <summary> Registers a set of tokens.</summary>
-        /// <param name="tokens"></param>
-        /// <exception cref="NotImplementedException"></exception>
-        /// <exception cref="ArgumentOutOfRangeException"></exception>
-        public void RegisterTokens(params TokenInfo[] tokens)
-        {
-            foreach (var token in tokens)
             {
-                switch (token.Type)
+                if (token.Expiration < DateTime.Now.AddSeconds(10))
                 {
-                    case TokenType.AccessToken:
-                        RegisterAccessToken(token);
-                        break;
-                    case TokenType.RefreshToken:
-                        RegisterRefreshToken(token);
-                        break;
-                    case TokenType.IdentityToken:
-                        RegisterIdentityToken(token);
-                        break;
-                    default:
-                        throw new ArgumentOutOfRangeException();
+                    if (token.RefreshToken != null)
+                    {
+                        // TODO: refresh
+                    }
+                }
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
+            }
+        }
+
+        private static string userAgent = null;
+
+        /// <summary>
+        /// Get a HttpClient with a preconfigued BaseAddress and preconfigured authentication using a Bearer token from <see cref="Tokens"/>.
+        /// It is up to the caller of this method to control the lifetime of the HttpClient
+        /// </summary>
+        /// <param name="domain">This value is compared to <see cref="TokenInfo.Domain"/> to find the token from <see cref="Tokens"/> to use as Bearer token for requests. If unspecified, the host part of the request URI is used.</param>
+        /// <param name="withRetryPolicy">If the request should be retried in case of transient errors.</param>
+        /// <param name="baseAddress">The base address used in the returned client. A relative URL given here will be relative to <see cref="BaseAddress"/>. Default is <see cref="BaseAddress"/>.</param>
+        /// <returns>A preconfigued HttpClient object</returns>
+        public HttpClient GetClient(string domain = null, bool withRetryPolicy = false, string baseAddress = null)
+        {
+            if (Uri.IsWellFormedUriString(domain, UriKind.Absolute))
+                throw new ArgumentException("Domain should only be the host part of a URI and not a full absolute URI.", "domain");
+            var client = new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy));
+            if (baseAddress != null)
+            {
+                if (Uri.IsWellFormedUriString(baseAddress, UriKind.Absolute))
+                    client.BaseAddress = new Uri(baseAddress);
+                else if (Uri.IsWellFormedUriString(baseAddress, UriKind.Relative))
+                    if (BaseAddress != null)
+                        client.BaseAddress = new Uri(new Uri(BaseAddress), baseAddress);
+                    else
+                        throw new ArgumentException("Address cannot be relative when AuthenticationSettings.BaseAddress is null.", "baseAddress");
+                else
+                    throw new ArgumentException("Address must be a well formed URL or null.", "baseAddress");
+            }
+            else if(BaseAddress != null)
+                client.BaseAddress = new Uri(BaseAddress);
+
+            if (userAgent == null)
+            {
+                userAgent = $"OpenTAP/{PluginManager.GetOpenTapAssembly().SemanticVersion}";
+
+                if (Cli.CliActionExecutor.SelectedAction is ITypeData td)
+                {
+                    // We are running a CLI Action. Add it's name and version to the User-Agent header
+                    var source = TypeData.GetTypeDataSource(td);
+                    userAgent += $" {td.Name}/{source.Version}";
+                }
+                else
+                {
+                    var asm = Assembly.GetEntryAssembly();
+                    if (asm != null)
+                    {
+                        var assemblyData = PluginManager.GetSearcher().Assemblies.FirstOrDefault(ad => ad.Location == asm.Location);
+                        if (assemblyData?.SemanticVersion is SemanticVersion ver)
+                        {
+                            // The process was started from an assembly that we know ablout and that has a semantic version number. Add it's name and version to the User-Agent header
+                            userAgent += $" {assemblyData.Name}/{ver}";
+                        }
+                    }
                 }
             }
+            var callingUseAgent = userAgent;
+            var asm2 = Assembly.GetCallingAssembly(); 
+            if (asm2 != null)
+            {
+                var assemblyData = PluginManager.GetSearcher().Assemblies.FirstOrDefault(ad => ad.Location == asm2.Location);
+                if (assemblyData?.SemanticVersion is SemanticVersion ver)
+                {
+                    // The process was started from an assembly that we know about and that has a semantic version number. Add it's name and version to the User-Agent header
+                    callingUseAgent += $" {assemblyData.Name}/{ver}";
+                }
+            }
+            client.DefaultRequestHeaders.Add("User-Agent", callingUseAgent);
+            return client;
         }
     }
 }
