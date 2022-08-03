@@ -154,7 +154,7 @@ namespace OpenTap.Image.Tests
             imageSpecifier.Packages = new List<PackageSpecifier>
             {
                 new PackageSpecifier("OpenTAP"),
-                new PackageSpecifier("OSIntegration")
+                new PackageSpecifier("OSIntegration", os: "Windows")
             };
 
             Stopwatch stopwatch = Stopwatch.StartNew();

@@ -138,6 +138,7 @@ namespace OpenTap.Package.UnitTests
         {
             var package = new PackageDef();
             package.Name = "Dummy Something";
+            package.OS = "Windows,Linux";
             package.Version = SemanticVersion.Parse("1.0.0");
             package.Description = "Cached version";
 
@@ -262,6 +263,7 @@ namespace OpenTap.Package.UnitTests
         {
             var depDef = new PackageDef();
             depDef.Name = "Pkg1";
+            depDef.OS = "Windows,Linux";
             depDef.Version = SemanticVersion.Parse("1.0");
             depDef.AddFile("Dependency.txt");
             string dep0File = DummyPackageGenerator.GeneratePackage(depDef);
@@ -295,6 +297,7 @@ namespace OpenTap.Package.UnitTests
         {
             var depDef = new PackageDef();
             depDef.Name = "Pkg1";
+            depDef.OS = "Windows,Linux";
             depDef.Version = SemanticVersion.Parse("1.0");
             depDef.AddFile("Dependency.txt");
             string dep0File = DummyPackageGenerator.GeneratePackage(depDef);
@@ -449,12 +452,14 @@ namespace OpenTap.Package.UnitTests
         {
             var dep0Def = new PackageDef();
             dep0Def.Name = "UninstallPackage";
+            dep0Def.OS = "Windows,Linux";
             dep0Def.Version = SemanticVersion.Parse("0.1");
             dep0Def.AddFile("UninstallText.txt");
             string dep0File = DummyPackageGenerator.GeneratePackage(dep0Def);
 
             var dep1Def = new PackageDef();
             dep1Def.Name = "UninstallPackage";
+            dep1Def.OS = "Windows,Linux";
             dep1Def.Version = SemanticVersion.Parse("0.2");
             dep1Def.AddFile("SubDir/UninstallText.txt");
             Directory.CreateDirectory("SubDir");
@@ -478,18 +483,21 @@ namespace OpenTap.Package.UnitTests
         {
             var dep0Def = new PackageDef();
             dep0Def.Name = "Dependency";
+            dep0Def.OS = "Windows,Linux";
             dep0Def.Version = SemanticVersion.Parse("0.1");
             dep0Def.AddFile("Dependency0.txt");
             string dep0File = DummyPackageGenerator.GeneratePackage(dep0Def);
 
             var dep1Def = new PackageDef();
             dep1Def.Name = "Dependency";
+            dep1Def.OS = "Windows,Linux";
             dep1Def.Version = SemanticVersion.Parse("1.0");
             dep1Def.AddFile("Dependency1.txt");
             string dep1File = DummyPackageGenerator.GeneratePackage(dep1Def);
 
             var dummyDef = new PackageDef();
             dummyDef.Name = "Dummy";
+            dummyDef.OS = "Windows,Linux";
             dummyDef.Version = SemanticVersion.Parse("1.0");
             dummyDef.AddFile("Dummy.txt");
             dummyDef.Dependencies.Add(new PackageDependency("Dependency", VersionSpecifier.Parse("1.0")));
@@ -586,6 +594,7 @@ namespace OpenTap.Package.UnitTests
 
             var package = new PackageDef();
             package.Name = "NoDowngradeTest";
+            package.OS = "Windows,Linux";
             package.Version = SemanticVersion.Parse("1.0.1");
             var newPath = DummyPackageGenerator.GeneratePackage(package);
 
