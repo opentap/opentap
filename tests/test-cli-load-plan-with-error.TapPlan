@@ -6,7 +6,7 @@
       <Name Metadata="Step Name">Expect: {ExpectedVerdict}</Name>
       <ChildTestSteps>
         <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Id="e3dc8692-52b8-4eb0-87a1-eb3cbb005a49">
-          <Application>tap.exe</Application>
+          <Application>tap</Application>
           <Arguments>run ../../tests/planWithLoadErrors.TapPlan --non-interactive</Arguments>
           <AddToLog>true</AddToLog>
           <CheckExitCode>true</CheckExitCode>
