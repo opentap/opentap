@@ -292,7 +292,8 @@ namespace OpenTap
             public string Name { get; private set; } = "Errors occured while loading test plan.";
             [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
             [Submit]
-            public PlanLoadErrorResponse Response { get; set; } = PlanLoadErrorResponse.Ignore;
+            // this should be Abort by default, so that --non-interactive fails to start.
+            public PlanLoadErrorResponse Response { get; set; } = PlanLoadErrorResponse.Abort; 
         }
 
         /// <summary> Load a TestPlan. </summary>

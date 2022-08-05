@@ -188,7 +188,9 @@ namespace OpenTap.Cli
             }
             catch (TestPlan.PlanLoadException ex)
             {
-                log.Error(ex.Message);
+                // at this point the log messages are already written out saying what went wrong.
+                log.Error("Unable to load test plan.");
+                log.Debug(ex);
                 return (int)ExitStatus.LoadError;
             }
             catch (OperationCanceledException) when (TapThread.Current.AbortToken.IsCancellationRequested)
