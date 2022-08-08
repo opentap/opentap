@@ -61,6 +61,7 @@ module.exports = {
             {
                 title: 'Release Notes',
                 children: [
+                    ['/Release Notes/ReleaseNote_OpenTAP9.17.md', "Release Notes - OpenTAP 9.17"],
                     ['/Release Notes/ReleaseNote_OpenTAP9.16.md', "Release Notes - OpenTAP 9.16"],
                     ['/Release Notes/ReleaseNote_OpenTAP9.15.md', "Release Notes - OpenTAP 9.15"],
                     ['/Release Notes/ReleaseNote_OpenTAP9.14.md', "Release Notes - OpenTAP 9.14"],
