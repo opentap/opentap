@@ -1,6 +1,13 @@
 name: CI
 
-on: [push]
+on:
+  push:
+    branches:
+      - main
+      - release9x
+    tags:
+      - v*
+  pull_request:
 
 env:
   #OPENTAP_COLOR: auto # github messes with the "auto" detection (i.e. it has no effect), and "always" breaks a lot of things
@@ -11,44 +18,55 @@ env:
 
 jobs:
   GetVersion:
-    runs-on: ubuntu-latest
-    # Map a step output to a job output
+    runs-on: ubuntu-20.04
     outputs:
-      ShortVersion: ${{ steps.asmVer.outputs.ver }}
-      LongVersion: ${{ steps.longVer.outputs.ver }}
-      GitVersion: ${{ steps.gitVer.outputs.ver }}
+      ShortVersion: ${{ steps.gitversion.outputs.ShortVersion }}
+      LongVersion: ${{ steps.gitversion.outputs.LongVersion }}
+      GitVersion: ${{ steps.gitversion.outputs.GitVersion }}
     steps:
-      - name: Create OpenTAP install dir
-        run: mkdir $HOME/.tap
-      - name: Download OpenTAP
-        run: wget -O opentap.TapPackage https://packages.opentap.io/3.0/downloadpackage/OpenTAP?os=linux
-      - name: Unzip
-        run: unzip opentap.TapPackage -d "$HOME/.tap"
-      - name: Change permission
-        run: chmod +x $HOME/.tap/tap
-      - name: Create symlink
-        run: ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Fix tags
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
-      - name: tap sdk gitversion --fields 3
-        id: asmVer
-        run: echo ::set-output name=ver::`tap sdk gitversion --fields 3`
-      - name: tap sdk gitversion --fields 4
-        id: longVer
-        run: echo ::set-output name=ver::`tap sdk gitversion --fields 4`
-      - name: tap sdk gitversion
-        id: gitVer
-        run: echo ::set-output name=ver::$(tap sdk gitversion)
+      # The get-gitversion action installs OpenTAP and fetches with fetch-depth: 0
+      - name: GitVersion
+        id: gitversion
+        uses: opentap/get-gitversion@v1.0
+
+  CheckSecrets:
+    runs-on: ubuntu-latest
+    environment: sign
+    outputs:
+      gitlab_registry_token_is_set: ${{ steps.check_GITLAB_REGISTRY_TOKEN.outputs.is_set }}
+      sign_is_set: ${{ steps.check_sign.outputs.is_set }}
+    steps:
+      - id: check_GITLAB_REGISTRY_TOKEN
+        name: Check whether GITLAB_REGISTRY_TOKEN is set
+        run: |
+          if [ -z "${{ secrets.GITLAB_REGISTRY_TOKEN }}" ]; then
+            echo "Not set"
+            echo "::set-output name=is_set::false"
+          else
+            echo "Set"
+            echo "::set-output name=is_set::true"
+          fi
+      - id: check_sign
+        name: Check whether sign secrets are set
+        run: |
+          if [ -z "${{ secrets.SIGN_SERVER_CERT }}" -o \
+               -z "${{ secrets.TAP_SIGN_ADDRESS }}" -o \
+               -z "${{ secrets.TAP_SIGN_AUTH }}"    -o \
+               -z "${{ secrets.S3_KEY_ID }}"        -o \
+               -z "${{ secrets.S3_SECRET }}" ]; then
+            echo "Not set"
+            echo "::set-output name=is_set::false"
+          else
+            echo "Set"
+            echo "::set-output name=is_set::true"
+          fi
 
   ##############
   ### BUILDS ###
   ##############
   Build-DevGuide:
+    needs: CheckSecrets
+    if: needs.CheckSecrets.outputs.gitlab_registry_token_is_set == 'true'
     runs-on: ubuntu-latest
     container:
       image: registry.gitlab.com/opentap/buildrunners/documentationgeneration:latest
@@ -68,6 +86,8 @@ jobs:
             sdk/Examples/OpenTAP Developer Guide.pdf
 
   Build-ApiDoc:
+    needs: CheckSecrets
+    if: needs.CheckSecrets.outputs.gitlab_registry_token_is_set == 'true'
     runs-on: ubuntu-latest
     container:
       image: registry.gitlab.com/opentap/buildrunners/doxygen:alpine
@@ -244,6 +264,9 @@ jobs:
   TestEngine:
     runs-on: windows-2022
     needs: Build-Win
+    strategy:
+      matrix:
+        retries: [ 0, 1 ]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -261,11 +284,6 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000
-      - uses: actions/upload-artifact@v2
-        with:
-          name: win-testresults
-          path: |
-            TestResult.xml
 
   TestPackage:
     runs-on: windows-2022
@@ -288,16 +306,14 @@ jobs:
           $ErrorActionPreference = "Stop"
           #Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
           cd bin/Release
-          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" 
-      - uses: actions/upload-artifact@v2
-        with:
-          name: win-testresults
-          path: |
-            bin/Release/TestResult.xml
+          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
 
   TestWindowsPlan:
     runs-on: windows-2022
     needs: Build-Win
+    strategy:
+      matrix:
+        retries: [ 0, 1 ]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -325,6 +341,9 @@ jobs:
   TestLinuxPlan:
     runs-on: ubuntu-20.04
     needs: Build-Linux
+    strategy:
+      matrix:
+        retries: [ 0, 1 ]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -366,14 +385,17 @@ jobs:
   ### Package ###
   ###############
   Package-Win:
+    if: needs.CheckSecrets.outputs.sign_is_set == 'true'
     runs-on: windows-2022
     environment: sign
     strategy:
       matrix:
         Architecture: [x86, x64]
     needs:
+      - CheckSecrets
       - Build-Win
       - Build-ApiDoc
+      - GetVersion
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -409,23 +431,23 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.S3_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET }}
-      - name: Package
-        run: |
-          $env:Platform = "Windows"
-          $env:Architecture =  "${{ matrix.Architecture }}"
-          cd bin/Release-x64
-          # this is only needed for .net6 
-          #cp .\runtimes\win-x64\native\git2-b7bad55.dll .
-          .\tap.exe package install -f ../../sign.TapPackage
-          echo "${{ secrets.SIGN_SERVER_CERT }}" > $env:TAP_SIGN_CERT
-          $version=$(./tap sdk gitversion)
-          cd ../Release-${{ matrix.Architecture }}
-          ..\Release-x64\tap.exe package create -v -c ../../package.xml -o ../../OpenTAP.$version.${{ matrix.Architecture }}.Windows.TapPackage
+      - name: Install Sign
+        working-directory: bin/Release-x64
+        run: .\tap.exe package install -f -v --no-isolation ../../sign.TapPackage        
+      - name: Write Sign Cert
+        env: 
+          TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
+        run:  echo "${{ secrets.SIGN_SERVER_CERT }}" > $env:TAP_SIGN_CERT
+      - name: Create Package
+        working-directory: bin/Release-${{ matrix.Architecture }}
         env: 
           TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
           TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
-          Sign: ${{github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')}}
+          Sign: ${{github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')}}          
+          Platform: "Windows"
+          Architecture:  "${{ matrix.Architecture }}"
+        run: ..\Release-x64\tap.exe package create -v -c ../../package.xml -o ../../OpenTAP.${{ needs.GetVersion.outputs.GitVersion }}.${{ matrix.Architecture }}.Windows.TapPackage          
       - uses: actions/upload-artifact@v2
         with:
           name: win-${{ matrix.Architecture }}-package
@@ -434,12 +456,15 @@ jobs:
             OpenTAP.*.Windows.TapPackage
 
   Package-Linux:
+    if: needs.CheckSecrets.outputs.sign_is_set == 'true'
     runs-on: windows-2022
     environment: sign
     needs:
+      - CheckSecrets
       - Build-Win
       - Build-Linux
       - Build-ApiDoc
+      - GetVersion
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -484,8 +509,7 @@ jobs:
           echo "${{ secrets.SIGN_SERVER_CERT }}" > $env:TAP_SIGN_CERT
           cp .\runtimes\win-x64\native\git2-b7bad55.dll .
           ..\Release\tap package create -v -c ../../package.xml -o Packages/OpenTAP.Linux.TapPackage
-          $version=$(..\Release\tap sdk gitversion)
-          cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.$version.Linux.TapPackage
+          cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.${{ needs.GetVersion.outputs.GitVersion }}.Linux.TapPackage
         env: 
           TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
           TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
@@ -504,6 +528,7 @@ jobs:
       - Build-Win
       - Build-DevGuide
       - Build-ApiDoc
+      - GetVersion
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -546,7 +571,8 @@ jobs:
           $doc.FirstChild.RemoveChild($ele) # First Child is the Project element
           $doc.Save("$pwd/Directory.Build.props")
           cd ../../..
-          ./tap sdk gitversion --fields 4 --replace "Packages/SDK/Examples/Directory.Build.props"
+          $content=(Get-Content Packages/SDK/Examples/Directory.Build.props).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
+          Set-Content Packages/SDK/Examples/Directory.Build.props $content
           ./tap package create -v -c ../../sdk/sdk.package.xml
           Move-Item "*.TapPackage" "../.."
       - uses: actions/upload-artifact@v2
@@ -560,7 +586,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        Package: [win-x86, win-x64, linux-x64]
+        Package: [win-x64, linux-x64]
     needs:
       - Package-Win
       - Package-Linux
@@ -584,11 +610,6 @@ jobs:
           mv OpenTAP.*.TapPackage OpenTAP.TapPackage
           tap package install "Package Diff" --version any
           tap package diff OpenTAP.TapPackage -o diff
-      - uses: actions/upload-artifact@v2
-        with:
-          name: api-diff-${{ matrix.Package }}
-          retention-days: 14
-          path: diff.html
 
   Package-NuGet:
     runs-on: windows-2022
@@ -596,6 +617,7 @@ jobs:
       - Build-Win
       - Package-Win
       - Package-Linux
+      - GetVersion
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -627,7 +649,8 @@ jobs:
       - name: Package
         run: |
           #cp bin\Release\runtimes\win-x64\native\git2-b7bad55.dll bin\Release
-          ./bin/Release/tap sdk gitversion --replace ./nuget/OpenTAP.nuspec --fields 4
+          $content=(Get-Content ./nuget/OpenTAP.nuspec).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
+          Set-Content ./nuget/OpenTAP.nuspec $content
           New-Item -Force ./nuget/build/payload -ItemType Directory | Out-Null
           # Expand-Archive will only extract .zip extensions    
           Move-Item OpenTAP.*.x86.Windows.TapPackage OpenTAP.x86.zip 
@@ -635,8 +658,9 @@ jobs:
           Move-Item OpenTAP.*.Linux.TapPackage OpenTAP.Linux.zip
 
           Move-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
-          Move-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll    
-          ./bin/Release/tap package install ./OpenTap.x64.zip -t ./nuget/build/payload -f
+          Move-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll
+          echo "Install opentap"    
+          ./bin/Release/tap package install ./OpenTap.x64.zip -t ./nuget/build/payload -f -v --no-isolation
           # package.xml, tap.dll, and tap.runtimeconfig.json of an installation should always come from 
           # one of the Runtime directories. Delete it from the payload directory.
           Remove-Item ./nuget/build/payload/Packages/OpenTAP/package.xml
@@ -650,12 +674,14 @@ jobs:
           Remove-Item tap.exe
           Remove-Item ./Dependencies/LibGit2Sharp.0.27.0.0/git2*.dll
           Pop-Location
-          Expand-Archive OpenTAP.x64.zip win-x64
-          Expand-Archive OpenTAP.x86.zip win-x86
-          Expand-Archive OpenTAP.Linux.zip linux-x64
+          echo "Expand archive"
+          Expand-Archive OpenTAP.x64.zip win-x64 -Verbose
+          Expand-Archive OpenTAP.x86.zip win-x86 -Verbose
+          Expand-Archive OpenTAP.Linux.zip linux-x64 -Verbose
           ./nuget/NugetPackager.ps1
           cd ./nuget    
           Invoke-WebRequest -Method Get -Uri "https://dist.nuget.org/win-x86-commandline/v5.7.1/nuget.exe" -OutFile nuget.exe
+          echo "Pack nuget"
           .\nuget pack OpenTAP.nuspec -OutputDirectory ../
       - uses: actions/upload-artifact@v2
         with:
@@ -683,9 +709,7 @@ jobs:
           path: .
       - name: Package
         run: |
-          Invoke-WebRequest https://netcologne.dl.sourceforge.net/project/gnuwin32/tar/1.13-1/tar-1.13-1-bin.exe -Outfile tarsetup.exe
-          Start-process .\tarsetup.exe -NoNewWindow -Wait -ArgumentList "/SILENT"
-
+          
           $path=(get-item -path "./").Fullname
           $str=[IO.File]::ReadAllText($path + "/LinuxInstall/INSTALL.sh") -replace "`r`n", "`n"
           ([IO.File]::WriteAllText($path + "/INSTALL.sh", $str))
@@ -693,7 +717,7 @@ jobs:
           $str=[IO.File]::ReadAllText($path + "/LinuxInstall/README") -replace "`r`n", "`n"
           ([IO.File]::WriteAllText($path + "/README", $str))
 
-          cmd /C '"C:\Program Files (x86)\GnuWin32\bin\tar.exe" -cf "OpenTAP.tar" OpenTAP.*.Linux.TapPackage INSTALL.sh README'
+          cmd /C '"C:\Windows\System32\tar.exe" -cf "OpenTAP.tar" OpenTAP.*.Linux.TapPackage INSTALL.sh README'
       - uses: actions/upload-artifact@v2
         with:
           name: installer-linux
@@ -707,7 +731,7 @@ jobs:
       - GetVersion
       - Package-Win
     container:
-      image: registry.gitlab.com/opentap/buildrunners/smartinstaller:1.0.0-beta.3
+      image: registry.gitlab.com/opentap/buildrunners/smartinstaller:1.1.0-beta.7
       credentials:
         username: github
         password: ${{ secrets.GITLAB_REGISTRY_TOKEN}}
@@ -837,7 +861,7 @@ jobs:
         with:
           name: package-deb
           retention-days: 14
-          path: LinuxInstall/package/Debian/OpenTAP.deb
+          path: LinuxInstall/package/opentap.deb
 
   ###############
   ### Publish ###

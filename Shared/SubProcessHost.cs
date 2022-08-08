@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
@@ -20,8 +21,8 @@ namespace OpenTap
     class SubProcessHost
     {
         public bool ForwardLogs { get; set; } 
-        public string LogHeader { get; set; } = "Subprocess";
-
+        public string LogHeader { get; set; } = "";
+        public HashSet<string> MutedSources { get; } = new HashSet<string>();
 
         public static bool IsAdmin()
         {
@@ -115,7 +116,17 @@ namespace OpenTap
         {
             var plan = new TestPlan();
             plan.ChildTestSteps.Add(step);
-            return Run(plan, elevate, token);
+            try
+            {
+                return Run(plan, elevate, token);
+            }
+            catch (Win32Exception ex)
+            {
+                // This happens when the UAC dialog is cancelled. It should be treated as an OperationCanceledException.
+                if (ex.Message.Contains("The operation was canceled by the user"))
+                    throw new OperationCanceledException(ex.Message);
+                throw;
+            }
         }
 
         public Verdict Run(TestPlan step, bool elevate, CancellationToken token)
@@ -201,7 +212,13 @@ namespace OpenTap
                             for(int i = 0; i < events.Length; i++)
                                 events[i].Message = LogHeader + ": " + events[i].Message;
                         }
-                        events.ForEach(((ILogContext2)Log.Context).AddEvent);
+
+                        var _evt = events;
+                        if (MutedSources.Any())
+                        {
+                            _evt = events.Where(e => !MutedSources.Contains(e.Source)).ToArray();
+                        }
+                        _evt.ForEach(((ILogContext2)Log.Context).AddEvent);
                     }
                 }
 

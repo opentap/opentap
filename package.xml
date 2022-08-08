@@ -52,7 +52,7 @@
         <File Path="OpenTap.Plugins.BasicSteps.pdb"/>
         <File Path="OpenTap.Cli.dll"/>
         <File Path="OpenTap.Cli.pdb"/>
-        <File Path="Packages/OpenTap/Tap.Upgrader.pdb" SourcePath="Tap.Upgrader.pdb"/>
+        <File Path="Packages/OpenTAP/Tap.Upgrader.pdb" SourcePath="Tap.Upgrader.pdb"/>
     </Files>
     <!-- Windows only files -->
     <Files Condition="$(Platform) == Windows">
@@ -64,11 +64,11 @@
              This additional 'tap.exe.new' overwrites the previous 'tap.exe' file as a post-install action
              We still need to ship the original 'tap.exe' file in the package in case the package is being deployed
              by manually unzipping -->
-        <File Path="Packages/OpenTap/tap.exe.new" SourcePath="tap.exe" >
+        <File Path="Packages/OpenTAP/tap.exe.new" SourcePath="tap.exe" >
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <!-- The tap upgrader is only necessary on Windows because we cannot overwrite tap.exe otherwise -->
-        <File Path="Packages/OpenTap/Tap.Upgrader.exe" SourcePath="Tap.Upgrader.exe">
+        <File Path="Packages/OpenTAP/Tap.Upgrader.exe" SourcePath="Tap.Upgrader.exe">
           <SetAssemblyInfo Attributes="Version"/>
           <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
@@ -117,10 +117,20 @@
               SourcePath="newtonsoft_mit_license.txt"/>
     </Files>
     <PackageActionExtensions Condition="$(Platform) != Windows">
-        <ActionStep ActionName="install" ExeFile="chmod" Arguments="+x tap"  />
+      <!-- An exit code of '1' means we failed to set the permission.
+        This happens when the user has read/write/execute permissions,
+        but doesn't actually own the file. This is the case for the Debian package 
+        because the user doesn't own the installation, but belongs to a group that does.
+        This is usually fine because the file is already executable.
+
+        The alternative to suppressing this error is a broken installation, so even in the case
+        where 'tap' is not executable after an upgrade, this behavior where the user can fix
+        it with 'chmod +X' is still the preferable alternative.
+      -->
+        <ActionStep ActionName="install" ExeFile="chmod" Arguments="+x tap" ExpectedExitCodes="0,1" />
     </PackageActionExtensions>
     <PackageActionExtensions Condition="$(Platform) == Windows">
-        <ActionStep ActionName="install" ExeFile="Packages/OpenTap/Tap.Upgrader.exe" />
-        <ActionStep ActionName="uninstall" ExeFile="Packages/OpenTap/Tap.Upgrader.exe" />
+        <ActionStep ActionName="install" ExeFile="Packages/OpenTAP/Tap.Upgrader.exe" />
+        <ActionStep ActionName="uninstall" ExeFile="Packages/OpenTAP/Tap.Upgrader.exe" />
     </PackageActionExtensions>
 </Package>

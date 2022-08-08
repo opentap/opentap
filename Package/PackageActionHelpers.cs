@@ -97,6 +97,8 @@ namespace OpenTap.Package
                     var version = Version;
                     if (Path.GetExtension(packageName).ToLower().EndsWith("tappackages"))
                     {
+                        if(!File.Exists(packageName))
+                            throw new FileNotFoundException($"Unable to find the file {packageName}.");
                         var tempDir = Path.GetTempPath();
                         var bundleFiles = PluginInstaller.UnpackPackage(packageName, tempDir);
                         var packagesInBundle = bundleFiles.Select(PackageDef.FromPackage);
@@ -163,6 +165,11 @@ namespace OpenTap.Package
                 }
                 else
                 {
+                    // assumption: packages ending with .TapPackage are files, not on external repos.
+                    // so if this is the case and the file does not exist, throw an exception.
+                    if(string.Compare(Path.GetExtension(packageSpecifier.Name), ".TapPackage", StringComparison.InvariantCultureIgnoreCase) == 0)
+                        throw new FileNotFoundException($"Unable to find the file {packageSpecifier.Name}");
+                    
                     PackageDef package = DependencyResolver.GetPackageDefFromRepo(repositories, packageSpecifier, new List<PackageDef>());
 
                     if (noDowngrade)
@@ -195,7 +202,7 @@ namespace OpenTap.Package
                 if (force)
                     log.Info($"Ignoring potential depencencies (--force option specified).");
                 else
-                    log.Info($"Ignoring potential depencencies (--no-dependencies option specified).");
+                    log.Debug($"Ignoring potential depencencies (--no-dependencies option specified).");
                 return gatheredPackages.ToList();
             }
 
@@ -326,11 +333,21 @@ namespace OpenTap.Package
                     }
                     else
                     {
-                        string source = (pkg.PackageSource as IRepositoryPackageDefSource)?.RepositoryUrl;
-                        if (source == null && pkg.PackageSource is FilePackageDefSource fileSource)
-                            source = fileSource.PackageFilePath;
-
-                        IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(source);
+                        IPackageRepository rm = null;
+                        switch (pkg.PackageSource)
+                        {
+                            case HttpRepositoryPackageDefSource repoSource:
+                                rm = new HttpPackageRepository(repoSource.RepositoryUrl);
+                                break;
+                            case FileRepositoryPackageDefSource repoSource:
+                                rm = new FilePackageRepository(repoSource.RepositoryUrl);
+                                break;
+                            case IFilePackageDefSource fileSource:
+                                rm = new FilePackageRepository(System.IO.Path.GetDirectoryName(fileSource.PackageFilePath));
+                                break;
+                            default:
+                                throw new Exception($"Unable to determine repositoy type for package source {pkg.PackageSource.GetType()}.");
+                        }
                         if (rm is IPackageDownloadProgress r)
                         {
                             r.OnProgressUpdate = innerProgress;
@@ -342,7 +359,7 @@ namespace OpenTap.Package
                         }
                         else
                         {
-                            log.Debug("Downloading '{0}' version '{1}' from '{2}'", pkg.Name, pkg.Version, source);
+                            log.Debug("Downloading '{0}' version '{1}' from '{2}'", pkg.Name, pkg.Version, rm.Url);
                             rm.DownloadPackage(pkg, filename);
                             log.Info(timer, "Downloaded '{0}' to '{1}'.", pkg.Name, Path.GetFullPath(filename));
                             PackageCacheHelper.CachePackage(filename);
@@ -351,8 +368,11 @@ namespace OpenTap.Package
                 }
                 catch (Exception ex)
                 {
+                    if (ex is OperationCanceledException)
+                        throw;
                     log.Error("Failed to download OpenTAP package.");
-                    throw ex;
+                    log.Debug(ex);
+                    throw;
                 }
 
                 downloadedPackages.Add(filename);

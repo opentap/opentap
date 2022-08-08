@@ -147,7 +147,7 @@ namespace OpenTap
  
         CancellationTokenSource _abortTokenSource;
 
-        object tokenCreateLock = new object();
+        readonly object tokenCreateLock = new object();
         CancellationTokenSource abortTokenSource
         {
             get
@@ -156,6 +156,9 @@ namespace OpenTap
                 {
                     lock (tokenCreateLock)
                     {
+                        if (_abortTokenSource != null) 
+                            return _abortTokenSource;
+                        
                         if (Parent is TapThread parentThread)
                         {
                             // Create a new cancellation token source and link it to the thread's parent abort token.
@@ -330,18 +333,22 @@ namespace OpenTap
 
         internal static Task StartAwaitable(Action action, string name = "")
         {
-            return StartAwaitable(action, CancellationToken.None, name);
+            return StartAwaitable(action, null, name);
         }
         
-        internal static Task StartAwaitable(Action action, CancellationToken token, string name = "")
+        internal static Task StartAwaitable(Action action, CancellationToken? token, string name = "")
         {
             var wait = new ManualResetEventSlim(false);
             Start(() =>
             {
                 try
                 {
-                    var trd = TapThread.Current;
-                    using(token.Register(() => trd.Abort()))
+                    if (token.HasValue)
+                    {
+                        var trd = TapThread.Current;
+                        using (token.Value.Register(() => trd.Abort()))
+                            action();
+                    }else
                         action();
                 }
                 finally
@@ -635,7 +642,6 @@ namespace OpenTap
             {
                 Interlocked.Decrement(ref freeWorkers);
                 Interlocked.Decrement(ref threads);
-                //log.Debug("ThreadManager: Ending thread {0}", trd);
             }
         }
 
@@ -660,7 +666,7 @@ namespace OpenTap
     /// </summary>
     class ThreadHierarchyLocal<T> where T : class
     {
-        ConditionalWeakTable<TapThread, T> threadObjects = new ConditionalWeakTable<TapThread, T>();
+        readonly ConditionalWeakTable<TapThread, T> threadObjects = new ConditionalWeakTable<TapThread, T>();
         /// <summary>
         /// Has a separate value for each hierarchy of Threads that it is set on.
         /// If a thread sets this to a value, that value will be visible only to that thread and its child threads (as started using <see cref="TapThread.Start(Action, string)"/>)

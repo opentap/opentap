@@ -450,6 +450,10 @@ namespace OpenTap.Package
                             var requiredAsm = dependentAssemblyNames.FirstOrDefault(dep => dep.Name == candidateAsm.Name);
                             if (requiredAsm != null)
                             {
+                                if (candidateAsm.Version == null)
+                                    throw new Exception($"Assembly {candidateAsm} version is null");
+                                if (requiredAsm.Version == null)
+                                    throw new Exception($"Assembly {requiredAsm} version is null");
 							    if(OpenTap.Utils.Compatible(candidateAsm.Version, requiredAsm.Version))
                                 {
                                     log.Info($"Satisfying assembly reference to {requiredAsm.Name} by adding dependency on package {candidatePkg.Name}");
@@ -511,12 +515,15 @@ namespace OpenTap.Package
         private static void AddFileDependencies(PackageDef pkg, AssemblyData dependency, AssemblyData foundAsm)
         {
             var depender = pkg.Files.FirstOrDefault(f => f.DependentAssemblies.Contains(dependency));
+            var destPath = string.Format("Dependencies/{0}.{1}/{2}", Path.GetFileNameWithoutExtension(foundAsm.Location), foundAsm.Version.ToString(), Path.GetFileName(foundAsm.Location));
+            if (pkg.Files.Any(x => x.RelativeDestinationPath == destPath))
+                return;//throw new Exception("File already added to package: " + destPath);
             if (depender == null)
                 log.Warning("Adding dependent assembly '{0}' to package. It was not found in any other packages.", Path.GetFileName(foundAsm.Location));
             else
                 log.Info($"'{Path.GetFileName(depender.FileName)}' depends on '{dependency.Name}' version '{dependency.Version}'. Adding dependency to package, it was not found in any other packages.");
 
-            var destPath = string.Format("Dependencies/{0}.{1}/{2}", Path.GetFileNameWithoutExtension(foundAsm.Location), foundAsm.Version.ToString(), Path.GetFileName(foundAsm.Location));
+
             pkg.Files.Add(new PackageFile { SourcePath = foundAsm.Location, RelativeDestinationPath = destPath, DependentAssemblies = foundAsm.References.ToList() });
 
             // Copy the file to the actual directory so we can rely on it actually existing where we say the package has it.

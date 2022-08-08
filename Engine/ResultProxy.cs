@@ -113,7 +113,7 @@ namespace OpenTap
     }
 
     /// <summary>
-    /// A vector containing a number of results with matching names, column name, and types. 
+    /// A result table containing rows of results with matching names, column name, and types. 
     /// </summary>
     [Serializable]
     public class ResultTable : IResultTable
@@ -133,7 +133,7 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Indicates how many rows of results this vector contains.
+        /// Indicates how many rows of results this table contains.
         /// </summary>
         public int Rows { get; private set; }
 
@@ -162,7 +162,7 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Creates an empty vector.
+        /// Creates an empty results table.
         /// </summary>
         public ResultTable()
         {
@@ -172,10 +172,10 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Creates a new vector.
+        /// Creates a new result table.
         /// </summary>
-        /// <param name="name">The name of the result vector.</param>
-        /// <param name="resultColumns">The columns of the vector.</param>
+        /// <param name="name">The name of the result table.</param>
+        /// <param name="resultColumns">The columns of the table.</param>
         public ResultTable(string name, ResultColumn[] resultColumns)
         {
             if (name == null) throw new ArgumentNullException(nameof(name));
@@ -590,7 +590,7 @@ namespace OpenTap
                 List<ResultTable> mergeTables = null;
                 while (workQueue?.Peek() is PublishResultTableInvokable p)
                 {
-                    if (!CanMerge(p.table, table))
+                    if (!ResultTableOptimizer.CanMerge(p.table, table))
                         break;
                     if (mergeTables == null)
                         mergeTables = new List<ResultTable>();
@@ -601,7 +601,7 @@ namespace OpenTap
                 if (mergeTables != null)
                 {
                     mergeTables.Add(table);
-                    return MergeTables(mergeTables);
+                    return ResultTableOptimizer.MergeTables(mergeTables);
                 }
 
                 return table;
@@ -621,48 +621,7 @@ namespace OpenTap
                 }
             }
 
-            /// <summary>
-            /// Tables can be merged if they have the same name, and the same count, types and names of columns.
-            /// </summary>
-            static bool CanMerge(ResultTable table1, ResultTable table2)
-            {
-                if (table2.Name != table1.Name)
-                    return false;
 
-                if (table2.Columns.Length != table1.Columns.Length)
-                    return false;
-                var count = table1.Columns.Length;
-                for (var columnIdx = 0; columnIdx < count; columnIdx++)
-                {
-                    var c1 = table1.Columns[columnIdx];
-                    var c2 = table2.Columns[columnIdx];
-                    if (c1.Name != c2.Name || c1.ObjectType != c2.ObjectType)
-                        return false;
-                }
-
-                return true;
-            }
-
-            /// <summary> Merges a set of result tables. This assumes that CanMerge has been called and returned true for all elements in the list. </summary>
-            static ResultTable MergeTables(IReadOnlyList<ResultTable> tables)
-            {
-                int columnSize = tables.Sum(x => x.Rows);
-                var columns = tables[0].Columns.Select((v, i) =>
-                {
-                    var elem = v.Data.GetType().GetElementType();
-                    int offset = 0;
-                    var newA = Array.CreateInstance(elem, columnSize);
-                    for (var j = 0; j < tables.Count; j++)
-                    {
-                        var newData = tables[j].Columns[i].Data;
-                        newData.CopyTo(newA, offset);
-                        offset += newData.Length;
-                    }
-
-                    return new ResultColumn(v.Name, newA);
-                }).ToArray();
-                return new ResultTable(tables[0].Name, columns);
-            }
         }
     }
 }

@@ -12,6 +12,11 @@ namespace OpenTap
     {
         IDictionary<string, IMemberData> DynamicMembers { get; set; }
     }
+    interface IDynamicMemberValue
+    {
+        bool TryGetValue(IMemberData member, out object value);
+        void SetValue(IMemberData member, object value);
+    }
     
 
     /// <summary>  Extensions for parameter operations. </summary>
@@ -285,14 +290,25 @@ namespace OpenTap
         
         public virtual void SetValue(object owner, object value)
         {
-                dict.Remove(owner);
-                if (Equals(value, DefaultValue) == false)
-                    dict.Add(owner, value);
+            if (owner is IDynamicMemberValue dmv)
+            {
+                dmv.SetValue(this, value);
+                return;
+            }
+            dict.Remove(owner);
+            if (Equals(value, DefaultValue) == false)
+                dict.Add(owner, value);
         }
 
         public virtual object GetValue(object owner)
         {
-            // TODO: use IDynamicMembersProvider
+            if (owner is IDynamicMemberValue dmv)
+            {
+                if (dmv.TryGetValue(this, out var value2))
+                    return value2;
+                return DefaultValue;
+            }
+
             if (dict.TryGetValue(owner, out object value))
                 return value ?? DefaultValue;
             return DefaultValue;
@@ -579,7 +595,8 @@ namespace OpenTap
                         "When enabled, specify new break conditions. When disabled conditions are inherited from the parent test step, test plan, or engine settings.",
                         "Common", 20001.1),
                     new UnsweepableAttribute(),
-                    new NonMetaDataAttribute()
+                    new NonMetaDataAttribute(),
+                    new DefaultValueAttribute(BreakCondition.Inherit)
                 },
                 DeclaringType = TypeData.FromType(typeof(ITestStep)),
                 Readable = true,
@@ -600,7 +617,8 @@ namespace OpenTap
                         "When enabled, specify new break conditions. When disabled conditions are inherited from the engine settings.", Order: 3),
                     new UnsweepableAttribute(),
                     new EnabledIfAttribute("Locked", false),
-                    new NonMetaDataAttribute()
+                    new NonMetaDataAttribute(),
+                    new DefaultValueAttribute(BreakCondition.Inherit)
                 },
                 DeclaringType = TypeData.FromType(typeof(TestPlan)),
                 Readable = true,
@@ -649,20 +667,18 @@ namespace OpenTap
                 TypeDescriptor = TypeData.FromType(typeof((Object,IMemberData)[]))
             };
 
+            static readonly IMemberData[] extraTestStepMembers = {BreakConditions, DynamicMembers, ChildItemVisibility.VisibilityProperty};
+            static readonly IMemberData[] extraTestPlanMembers = {TestPlanBreakConditions, DynamicMembers};
             
-
-            static readonly IMemberData[] extraMembers = {BreakConditions, DynamicMembers};
-            static readonly IMemberData[] extraMembersTestPlan = {TestPlanBreakConditions, DynamicMembers}; 
-
             readonly IMemberData[] members;
 
-            static IMemberData[] getMembers(ITypeData innerType)
+            static IMemberData[] GetMembersRaw(ITypeData innerType)
             {
                 IMemberData[] members;
                 if (innerType.DescendsTo(typeof(TestPlan)))
-                    members = extraMembersTestPlan;
+                    members = extraTestPlanMembers;
                 else
-                    members = extraMembers;
+                    members = extraTestStepMembers;
                 var d = DescriptionMember(innerType);
                 members = members.Append(d).ToArray();
                 return members;
@@ -671,7 +687,7 @@ namespace OpenTap
             // memorize the arrays to avoid generating for each instance of test step.
             static readonly ConditionalWeakTable<ITypeData, IMemberData[]> memberMemorizer =
                 new ConditionalWeakTable<ITypeData, IMemberData[]>();
-            static IMemberData[] GetMembers(ITypeData innerType) =>  memberMemorizer.GetValue(innerType, getMembers);
+            static IMemberData[] GetMembers(ITypeData innerType) =>  memberMemorizer.GetValue(innerType, GetMembersRaw);
             
             
             readonly IMemberData descriptionMember;
@@ -695,7 +711,7 @@ namespace OpenTap
             public IEnumerable<object> Attributes => innerType.Attributes;
             public string Name => innerType.Name;
             public ITypeData BaseType => innerType;
-
+            
             public IEnumerable<IMemberData> GetMembers()
             {
                 return innerType.GetMembers().Concat(members);

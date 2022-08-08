@@ -13,24 +13,10 @@ namespace OpenTap.Package.PackageInstallHelpers
         public string Target { get; set; }
         public PackageDef[] Packages { get; set; }
         public bool Force { get; set; }
+        public string[] Repositories { get; set; }
 
         public override void Run()
         {
-            var repositories = new HashSet<string>();
-
-            foreach (var pkg in Packages)
-            {
-                switch (pkg.PackageSource)
-                {
-                    case IRepositoryPackageDefSource s1:
-                        repositories.Add(s1.RepositoryUrl);
-                        break;
-                    case IFilePackageDefSource s2:
-                        repositories.Add(Path.GetDirectoryName(s2.PackageFilePath));
-                        break;
-                }
-            }
-
             var action = new PackageInstallAction()
             {
                 InstallDependencies = false,
@@ -41,7 +27,7 @@ namespace OpenTap.Package.PackageInstallHelpers
                         new VersionSpecifier(p.Version, VersionMatchBehavior.Exact), p.Architecture, p.OS))
                     .ToArray(),
                 Target = Target,
-                Repository = repositories.ToArray()
+                Repository = Repositories
             };
 
             try

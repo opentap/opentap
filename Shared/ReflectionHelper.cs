@@ -179,7 +179,7 @@ namespace OpenTap
         static readonly ConditionalWeakTable<MemberInfo, object[]> attrslookupNoInherit = new ConditionalWeakTable<MemberInfo, object[]>();
         public static object[] GetAllCustomAttributes(this MemberInfo prop, bool inherit)
         {
-            if(inherit)
+            if(!inherit)
                 return attrslookupNoInherit.GetValue(prop, getAttributesNoInherit);
             return GetAllCustomAttributes(prop);
         }
@@ -649,6 +649,11 @@ namespace OpenTap
             return getKey == null ? (MemorizerKey)(object)arg : getKey(arg);
         }
 
+        public virtual ResultT OnCyclicCallDetected(ArgT key)
+        {
+            throw new Exception("Cyclic memorizer invoke detected.");
+        }
+
         public ResultT this[ArgT arg] => Invoke(arg);
 
         public ResultT Invoke(ArgT arg)
@@ -688,7 +693,7 @@ namespace OpenTap
                 {   // Avoid running into a StackOverflowException.
 
                     if (CylicInvokeResponse == CyclicInvokeMode.ThrowException)
-                        throw new Exception("Cyclic memorizer invoke detected."); 
+                        return OnCyclicCallDetected(arg);
                     return default(ResultT);
                 }
                 try
@@ -1143,6 +1148,14 @@ namespace OpenTap
         {
             foreach (var value in values)
                 lst.Add(value);
+        }
+        
+        [Obsolete("Cannot add to array", true)]
+        public static void AddRange<T>(this T[] lst, IEnumerable<T> values)
+        {
+            // This function is intentionally added to avoid adding the arrays.
+            // They also implement IList, so they normally hit the other overload.
+            throw new NotSupportedException();
         }
 
         /// <summary>

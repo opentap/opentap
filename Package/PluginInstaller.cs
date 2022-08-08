@@ -660,6 +660,7 @@ namespace OpenTap.Package
         {
             if (dir == null) return;
             if (!dir.Exists) return;
+            if (dir.EnumerateFiles().Any() || dir.EnumerateDirectories().Any()) return;
 
             try
             {

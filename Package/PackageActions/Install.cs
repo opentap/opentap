@@ -142,6 +142,18 @@ namespace OpenTap.Package
                 List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                     targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
                     InstallDependencies, IgnoreDependencies, askToInstallDependencies, NoDowngrade);
+                
+                if (packagesToInstall?.Any() != true)
+                {
+                    if (NoDowngrade)
+                    {
+                        log.Info("No package(s) were upgraded.");
+                        return (int) ExitCodes.Success;
+                    }
+
+                    log.Info("Could not find one or more packages.");
+                    return (int) PackageExitCodes.PackageDependencyError;
+                }
 
                 foreach (var pkg in packagesToInstall)
                 {
@@ -163,18 +175,6 @@ namespace OpenTap.Package
                     }
                 }
 
-                if (packagesToInstall?.Any() != true)
-                {
-                    if (NoDowngrade)
-                    {
-                        log.Info("No package(s) were upgraded.");
-                        return (int) ExitCodes.Success;
-                    }
-
-                    log.Info("Could not find one or more packages.");
-                    return (int) PackageExitCodes.InvalidPackageName;
-                }
-
                 var installationPackages = targetInstallation.GetPackages();
 
                 var overWriteCheckExitCode = CheckForOverwrittenPackages(installationPackages, packagesToInstall,
@@ -191,7 +191,7 @@ namespace OpenTap.Package
                 RaiseProgressUpdate(10, "Gathering dependencies.");
                 bool checkDependencies = (!IgnoreDependencies && !Force) || CheckOnly;
                 var issue = DependencyChecker.CheckDependencies(installationPackages, packagesToInstall,
-                    checkDependencies ? LogEventType.Error : LogEventType.Warning);
+                    IgnoreDependencies ? LogEventType.Information : checkDependencies ? LogEventType.Error : LogEventType.Warning);
                 if (checkDependencies)
                 {
                     if (issue == DependencyChecker.Issue.BrokenPackages)
@@ -214,14 +214,20 @@ namespace OpenTap.Package
                 // If we are already running as administrator, skip this and install normally
                 if (systemWide.Any() && SubProcessHost.IsAdmin() == false)
                 {
+                    RaiseProgressUpdate(20, "Installing system-wide packages.");
                     var installStep = new PackageInstallStep()
                     {
                         Packages = systemWide,
+                        Repositories = repositories.Select(r => r.Url).ToArray(),
                         Target = PackageDef.SystemWideInstallationDirectory,
                         Force = Force
                     };
 
-                    var processRunner = new SubProcessHost {ForwardLogs = true};
+                    var processRunner = new SubProcessHost
+                    {
+                        ForwardLogs = true,
+                        MutedSources = { "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan", "UpdateCheck", "Installation" }
+                    };
 
                     var result = processRunner.Run(installStep, true, cancellationToken);
                     if (result != Verdict.Pass)
@@ -247,6 +253,11 @@ namespace OpenTap.Package
                     ignoreCache: NoCache );
 
                 installer.PackagePaths.AddRange(downloadedPackageFiles);
+            }
+            catch (OperationCanceledException e)
+            {
+                log.Info(e.Message);
+                return (int) ExitCodes.UserCancelled;
             }
             catch (Exception e)
             {
