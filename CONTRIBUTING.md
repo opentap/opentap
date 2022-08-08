@@ -1,8 +1,10 @@
 ## Contribute to OpenTAP
 
-Thank you for your interest in contributing to the OpenTAP project. Contributions include feature enhancement requests, issue reporting, bug fixes, etc. as well as plugins and other new code.
+Thank you for your interest in contributing to the OpenTAP project. Contributions to the OpenTAP platform include feature enhancement requests, issue reporting, bug fixes, etc.  
 
 This guide contains details on how to contribute to OpenTAP in the simplest and most efficient way.
+
+Contribution of plugins to the OpenTAP project do not require execution of the CLA and are governed under a separate process.
 
 ## Contributor License Agreement
 
