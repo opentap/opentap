@@ -170,7 +170,7 @@ namespace OpenTap.Package
             // ask the TestPlanPackageDependency serializer (the one that writes the 
             // <Package.Dependencies> tag in the bottom of e.g. TestPlan files) to
             // not write the tag for this file.
-            var depSerializer = Serializer.GetSerializer<TestPlanPackageDependency>();
+            var depSerializer = Serializer.GetSerializer<TestPlanPackageDependencySerializer>();
             if (depSerializer != null)
                 depSerializer.WritePackageDependencies = false;
 
