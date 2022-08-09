@@ -101,7 +101,9 @@ namespace OpenTap.Package
         /// </summary>
         public override bool Serialize(XElement node, object obj, ITypeData expectedType)
         {
-            if (expectedType.DescendsTo(typeof(IPackageIdentifier)) == false)
+            if (expectedType.IsA(typeof(PackageDef)) == false 
+                && expectedType.IsA(typeof(PackageIdentifier)) == false
+                && expectedType.IsA(typeof(PackageVersion)) == false)
                 return false;
             XNamespace ns = "http://opentap.io/schemas/package";
             node.Name = ns + (expectedType.IsA(typeof(PackageIdentifier)) ? nameof(PackageIdentifier) : "Package");
