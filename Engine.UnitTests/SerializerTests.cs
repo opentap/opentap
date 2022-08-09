@@ -43,7 +43,7 @@ namespace OpenTap.Engine.UnitTests
                 var elem = XElement.Parse(str);
                 Assert.AreEqual(1, elem.Elements("Package.Dependencies").Count());
             }
-            { // verify that a serialized collection of plans has no package dependencies
+            { // verify that a serialized collection of plans has package dependencies
                 var plans = new TestPlan[]
                 {
                     plan,
@@ -52,7 +52,7 @@ namespace OpenTap.Engine.UnitTests
                 var str = ser.SerializeToString(plans);
                 CollectionAssert.IsEmpty(ser.Errors);
                 var elem = XElement.Parse(str);
-                Assert.AreEqual(0, elem.Elements("Package.Dependencies").Count());            
+                Assert.AreEqual(1, elem.Elements("Package.Dependencies").Count());            
             }
             { // verify that a serialized list of package versions does not have package dependencies
                 var versions = new PackageVersion[]
@@ -62,7 +62,15 @@ namespace OpenTap.Engine.UnitTests
                 var str = ser.SerializeToString(versions);
                 CollectionAssert.IsEmpty(ser.Errors);
                 var elem = XElement.Parse(str);
-                Assert.AreEqual(0, elem.Elements("Package.Dependencies").Count());  
+                Assert.AreEqual(0, elem.Elements("Package.Dependencies").Count());
+
+                var deserialized = ser.DeserializeFromString(str);
+                if (deserialized is PackageVersion[] versions2)
+                {
+                    CollectionAssert.AreEqual(versions, versions2, "Deserialized versions were different from the serialized versions.");
+                }
+                else
+                    Assert.Fail($"Failed to deserialize serialized version array.");
             }
         }
     }
