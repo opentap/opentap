@@ -57,7 +57,12 @@ namespace OpenTap.Engine.UnitTests
             { // verify that a serialized list of package versions does not have package dependencies
                 var versions = new PackageVersion[]
                 {
-                    new PackageVersion("pkg", SemanticVersion.Parse("1.0.0"), "Linux", CpuArchitecture.AnyCPU, DateTime.Now, new List<string>())
+                    new PackageVersion("pkg", SemanticVersion.Parse("1.0.0"), "Linux", CpuArchitecture.AnyCPU, DateTime.Now, 
+                        new List<string>()
+                        {
+                            "Lic1",
+                            "Lic2"
+                        })
                 };
                 var str = ser.SerializeToString(versions);
                 CollectionAssert.IsEmpty(ser.Errors);
@@ -67,7 +72,9 @@ namespace OpenTap.Engine.UnitTests
                 var deserialized = ser.DeserializeFromString(str);
                 if (deserialized is PackageVersion[] versions2)
                 {
+                    Assert.AreEqual(1, versions2.Count());
                     CollectionAssert.AreEqual(versions, versions2, "Deserialized versions were different from the serialized versions.");
+                    CollectionAssert.AreEqual(versions[0].Licenses, versions2[0].Licenses);
                 }
                 else
                     Assert.Fail($"Failed to deserialize serialized version array.");

@@ -145,7 +145,14 @@ namespace OpenTap.Package
             foreach (var element in elements)
             {
                 if (element.IsEmpty) continue;
-                setProp(element.Name.LocalName, element.Value);
+                if (element.HasElements)
+                {
+                    setProp(element.Name.LocalName, element.Elements().Select(e => e.Value).ToList());
+                }
+                else
+                {
+                    setProp(element.Name.LocalName, element.Value);
+                }
             }
             foreach (var attribute in attributes)
             {
@@ -154,7 +161,7 @@ namespace OpenTap.Package
 
             return version;
 
-            void setProp(string propertyName, string value)
+            void setProp(string propertyName, object value)
             {
                 if (propertyName == "CPU") // CPU was removed in OpenTAP 9.0. This is to support packages created by TAP 8x
                     propertyName = "Architecture";
@@ -162,23 +169,17 @@ namespace OpenTap.Package
                 var prop = typeof(PackageVersion).GetProperty(propertyName);
                 if (prop == null) return;
                 if (prop.PropertyType.IsEnum)
-                    prop.SetValue(version, Enum.Parse(prop.PropertyType, value));
-                else if (prop.PropertyType.HasInterface<IList<string>>())
-                {
-                    var list = new List<string>();
-                    list.Add(value);
-                    prop.SetValue(version, list);
-                }
+                    prop.SetValue(version, Enum.Parse(prop.PropertyType, (string)value));
                 else if (prop.PropertyType == typeof(SemanticVersion))
                 {
-                    if (SemanticVersion.TryParse(value, out var semver))
+                    if (SemanticVersion.TryParse((string)value, out var semver))
                         prop.SetValue(version, semver);
                     else
                         Log.Warning($"Cannot parse version '{value}' of package '{version.Name ?? "Unknown"}'.");
                 }
                 else if (prop.PropertyType == typeof(DateTime))
                 {
-                    if (DateTime.TryParse(value, out var date))
+                    if (DateTime.TryParse((string)value, out var date))
                         prop.SetValue(version, date);
                 }
                 else
