@@ -458,7 +458,7 @@ namespace OpenTap.Package
                             catch (IOException ex) when (ex.Message.Contains("There is not enough space on the disk"))
                             {
                                 log.Error(ex.Message);
-                                var req = new AbortOrRetryRequest($"File '{part.FullName}' requires {Utils.BytesToReadable(part.Length)} of free space. " +
+                                var req = new AbortOrRetryRequest("Not enough disk space", $"File '{part.FullName}' requires {Utils.BytesToReadable(part.Length)} of free space. " +
                                                                   $"Please free some space to continue.") {Response = AbortOrRetryResponse.Abort};
                                 UserInput.Request(req, true);
                                 if (req.Response == AbortOrRetryResponse.Abort)

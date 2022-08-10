@@ -274,7 +274,7 @@ namespace OpenTap.Package
 
                 while (isPackageFilesInUse(tapDir, packagePaths, exclude))
                 {
-                    var req = new AbortOrRetryRequest(inUseString) {Response = AbortOrRetryResponse.Abort};
+                    var req = new AbortOrRetryRequest("Package files are in use", inUseString) {Response = AbortOrRetryResponse.Abort};
                     UserInput.Request(req, waitForFilesTimeout, true);
 
                     if (req.Response == AbortOrRetryResponse.Abort)
@@ -407,10 +407,13 @@ namespace OpenTap.Package
     [Obfuscation(Exclude = true)]
     class AbortOrRetryRequest
     {
-        public AbortOrRetryRequest(string message)
+        public AbortOrRetryRequest(string title, string message)
         {
             Message = message;
+            Name = title;
         }
+        
+        [Browsable(false)] public string Name { get; }
 
         [Browsable(true)]
         [Layout(LayoutMode.FullRow)]
