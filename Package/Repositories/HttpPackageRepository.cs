@@ -354,11 +354,10 @@ namespace OpenTap.Package
                     var packages = PackageDef.ManyFromXml(stream).ToArray();
                     packages.ForEach(p =>
                     {
-                        if (p.PackageSource == null)
-                            p.PackageSource = new HttpRepositoryPackageDefSource
-                            {
-                                RepositoryUrl = Url
-                            };
+                        p.PackageSource = new HttpRepositoryPackageDefSource
+                        {
+                            RepositoryUrl = Url
+                        };
                     });
 
                     return packages;
