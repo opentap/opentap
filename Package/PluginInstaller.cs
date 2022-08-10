@@ -462,7 +462,7 @@ namespace OpenTap.Package
                                                                   $"Please free some space to continue.") {Response = AbortOrRetryResponse.Abort};
                                 UserInput.Request(req, true);
                                 if (req.Response == AbortOrRetryResponse.Abort)
-                                    throw new OperationCanceledException("User aborted installation.");
+                                    throw new OperationCanceledException("Installation aborted due to missing disk space.");
                             }
                             catch (Exception ex)
                             {
