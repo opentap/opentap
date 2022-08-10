@@ -884,7 +884,7 @@ namespace OpenTap
         {
             var name = Step.GetFormattedName();
 
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = StringBuilderCache.GetStringBuilder();
             sb.Append('"');
 
             void getParentNames(ITestStep step)
@@ -939,7 +939,7 @@ namespace OpenTap
 
             var previouslyExecutingTestStep = currentlyExecutingTestStep;
             currentlyExecutingTestStep = Step;
-            var stepPath = stepRun.TestStepPath;
+            
             //Raise an event prior to starting the actual run of the TestStep. 
             Step.OfferBreak(stepRun, true);
             if (stepRun.SuggestedNextStep != null) {
@@ -964,7 +964,7 @@ namespace OpenTap
                     {
                         if (Step is TestStep _step)
                             _step.Results = new ResultSource(stepRun, Step.PlanRun);
-                        TestPlan.Log.Info("{0} started.", stepRun.TestStepPath);
+                        //TestPlan.Log.Info("{0} started.", stepRun.TestStepPath);
                         stepRun.StartStepRun(); // set verdict to running, set Timestamp.
                         parentRun.ChildStarted(stepRun);
                         planRun.AddTestStepRunStart(stepRun);
@@ -1055,11 +1055,11 @@ namespace OpenTap
                         stepRun.CompleteStepRun(planRun, Step, time);
                         if (Step.Verdict == Verdict.NotSet)
                         {
-                            TestPlan.Log.Info(time, "{0} completed.", stepRun.TestStepPath);
+                            //TestPlan.Log.Info(time, "{0} completed.", stepRun.TestStepPath);
                         }
                         else
                         {
-                            TestPlan.Log.Info(time, "{0} completed with verdict '{1}'.", stepRun.TestStepPath, Step.Verdict);
+                            //TestPlan.Log.Info(time, "{0} completed with verdict '{1}'.", stepRun.TestStepPath, Step.Verdict);
                         }
 
                         planRun.AddTestStepRunCompleted(stepRun);

@@ -15,7 +15,7 @@ namespace OpenTap
 {
     partial class TestPlan
     {
-        bool runPrePlanRunMethods(IEnumerable<ITestStep> steps, TestPlanRun planRun)
+        bool runPrePlanRunMethods(IList<ITestStep> steps, TestPlanRun planRun)
         {
             Stopwatch preTimer = Stopwatch.StartNew(); // try to avoid calling Stopwatch.StartNew too often.
             TimeSpan elaps = preTimer.Elapsed;
@@ -485,7 +485,8 @@ namespace OpenTap
         /// <returns>TestPlanRun results, no StepResults.</returns>
         public TestPlanRun Execute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters = null, HashSet<ITestStep> stepsOverride = null)
         {
-            return executeInContext( resultListeners, metaDataParameters, stepsOverride);
+            using(TypeData.WithTypeDataCache())
+                return executeInContext( resultListeners, metaDataParameters, stepsOverride);
         }
 
         TestPlanRun executeInContext(IEnumerable<IResultListener> resultListeners,

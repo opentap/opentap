@@ -121,8 +121,8 @@ namespace OpenTap
             var providers1 = TypeData.FromType(typeof(IStackedTypeDataProvider)).DerivedTypes;
             var providers2 = TypeData.FromType(typeof(ITypeDataProvider)).DerivedTypes;
 
-            int l1 = providers1.Count();
-            int l2 = providers2.Count();
+            int l1 = providers1 is ICollection<TypeData> x1 ? x1.Count : providers1.Count();
+            int l2 = providers2 is ICollection<TypeData> x2 ? x2.Count : providers2.Count();
 
             if (lastCount == l1 + l2) return providersCache;
 

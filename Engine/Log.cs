@@ -449,7 +449,7 @@ namespace OpenTap
             var timespan = ShortTimeSpan.FromSeconds(elapsed.TotalSeconds);
 
             if (sb == null)
-                sb = new StringBuilder();
+                sb = StringBuilderCache.GetStringBuilder();
             sb.Clear();
             if (args.Length == 0)
             {
@@ -841,6 +841,19 @@ namespace OpenTap
                 ex.Rethrow();
             else
                 (ex.InnerException ?? ex).Rethrow();
+        }
+    }
+
+    static class StringBuilderCache
+    {
+        [ThreadStatic]
+        static StringBuilder sb;
+
+        public static StringBuilder GetStringBuilder()
+        {
+            var sb2 = sb ?? (sb = new StringBuilder());
+            sb2.Clear();
+            return sb2;   
         }
     }
 }

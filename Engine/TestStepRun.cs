@@ -262,35 +262,36 @@ namespace OpenTap
             completedEvent.Set();
         }
 
+        ITypeData stepTypeData;
+        
+        TestStepRun(ITestStep step)
+        {
+            TestStepId = step.Id;
+            TestStepName = step.GetFormattedName();
+            stepTypeData = TypeData.GetTypeData(step);
+            TestStepTypeName = stepTypeData.AsTypeData().AssemblyQualifiedName;
+            Parameters = ResultParameters.GetParams(step);
+            Verdict = Verdict.NotSet;
+        }
+        
         /// <summary>
         /// Constructor for TestStepRun.
         /// </summary>
         /// <param name="step">Property Step.</param>
         /// <param name="parent">Property Parent. </param>
         /// <param name="attachedParameters">Parameters that will be stored together with the actual parameters of the steps.</param>
-        public TestStepRun(ITestStep step, Guid parent, IEnumerable<ResultParameter> attachedParameters = null)
+        public TestStepRun(ITestStep step, Guid parent, IEnumerable<ResultParameter> attachedParameters = null): this(step)
         {
-            TestStepId = step.Id;
-            TestStepName = step.GetFormattedName();
-            TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
-            Parameters = ResultParameters.GetParams(step);
-            Verdict = Verdict.NotSet;
             if (attachedParameters != null) Parameters.AddRange(attachedParameters);
             Parent = parent;
         }
-        
-        internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters = null)
+
+        internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters = null): this(step)
         {
-            TestStepId = step.Id;
-            TestStepName = step.GetFormattedName();
-            TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
-            Parameters = ResultParameters.GetParams(step);
-            Verdict = Verdict.NotSet;
             if (attachedParameters != null) Parameters.AddRange(attachedParameters);
             Parent = parent.Id;
             BreakCondition = calculateBreakCondition(step, parent);
         }
-        
         
         static BreakCondition calculateBreakCondition(ITestStep step, TestRun parentStepRun)
         {
@@ -371,7 +372,7 @@ namespace OpenTap
         
         internal void AfterRun(ITestStep step)
         {
-            var resultMembers = TypeData.GetTypeData(step)
+            var resultMembers = stepTypeData
                 .GetMembers()
                 .Where(member => member.HasAttribute<ResultAttribute>())
                 .ToArray();
@@ -399,13 +400,13 @@ namespace OpenTap
                 ResultSource.Defer(() =>
                 {
                     deferDone.Set();
-                    stepRuns.Clear();
+                    stepRuns = null;
                 });
             }
             else
             {
                 deferDone.Set();
-                stepRuns.Clear();
+                stepRuns = null;
             }
         }
 

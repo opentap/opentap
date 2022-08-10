@@ -766,15 +766,6 @@ namespace OpenTap
             return false;
         }
 
-        [ThreadStatic] static StringBuilder stringBuilder;
-
-        StringBuilder getStringBuilder()
-        {
-            var sb =stringBuilder ?? (stringBuilder = new StringBuilder());
-            sb.Clear();
-            return sb;
-        }
-        
         /// <summary>
         /// Parses a sequence of numbers back into a string.
         /// </summary>
@@ -789,7 +780,7 @@ namespace OpenTap
                 var seqs = values as _ICombinedNumberSequence;
                 if (seqs != null)
                 {
-                    StringBuilder sb = getStringBuilder();
+                    StringBuilder sb = StringBuilderCache.GetStringBuilder();
                     foreach (var subseq in seqs.Sequences)
                     {
                         var range = subseq as Range;
@@ -814,7 +805,7 @@ namespace OpenTap
             }
             if (UseRanges)
             { // Parse the slow way.
-                StringBuilder sb = getStringBuilder();
+                StringBuilder sb = StringBuilderCache.GetStringBuilder();
                 List<BigFloat> sequence = new List<BigFloat>();
                 BigFloat seq_step = 0;
                 foreach (var _val in values)
@@ -855,7 +846,7 @@ namespace OpenTap
             if (!UsePrefix)
             {
                 // this ca be done really fast since we dont have to use BigFloat.
-                var sb = getStringBuilder();
+                var sb =StringBuilderCache.GetStringBuilder();
                 foreach (var _val in values)
                 {
                     if (sb.Length != 0)
@@ -887,7 +878,7 @@ namespace OpenTap
             }
             
             {
-                StringBuilder sb = getStringBuilder();
+                StringBuilder sb = StringBuilderCache.GetStringBuilder();
                 foreach (var _val in values)
                 {
                     var val = BigFloat.Convert(_val);
