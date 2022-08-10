@@ -274,7 +274,7 @@ namespace OpenTap.Package
 
                 while (isPackageFilesInUse(tapDir, packagePaths, exclude))
                 {
-                    var req = new AbortOrRetryRequest("Package files are in use", inUseString) {Response = AbortOrRetryResponse.Abort};
+                    var req = new AbortOrRetryRequest("Package Files Are In Use", inUseString) {Response = AbortOrRetryResponse.Abort};
                     UserInput.Request(req, waitForFilesTimeout, true);
 
                     if (req.Response == AbortOrRetryResponse.Abort)
