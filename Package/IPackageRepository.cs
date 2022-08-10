@@ -140,14 +140,64 @@ namespace OpenTap.Package
         PackageVersion DeserializePackageVersion(XElement node)
         {
             var version = new PackageVersion();
+            
+            void setProp(string propertyName, string value)
+            {
+                if (propertyName == "CPU") // CPU was removed in OpenTAP 9.0. This is to support packages created by TAP 8x
+                    propertyName = "Architecture";
+
+                var prop = typeof(PackageVersion).GetProperty(propertyName);
+                if (prop == null) return;
+                if (prop.PropertyType.IsEnum)
+                    prop.SetValue(version, Enum.Parse(prop.PropertyType, value));
+                else if (prop.PropertyType == typeof(SemanticVersion))
+                {
+                    if (SemanticVersion.TryParse(value, out var semver))
+                        prop.SetValue(version, semver);
+                    else
+                        Log.Warning($"Cannot parse version '{value}' of package '{version.Name ?? "Unknown"}'.");
+                }
+                else if (prop.PropertyType == typeof(DateTime))
+                {
+                    if (DateTime.TryParse(value, out var date))
+                        prop.SetValue(version, date);
+                }
+                else
+                {
+                    prop.SetValue(version, value);
+                }
+            }
+
+            void addProp(string collectionName, string value)
+            {
+                var prop = typeof(PackageVersion).GetProperty(collectionName);
+                if (prop == null) return;
+                if (prop.PropertyType.HasInterface<IList<string>>())
+                {
+                    // Instantiate the list if it is not set. Add the element to the list.
+                    var list = prop.GetValue(version);
+                    if (!(list is IList<string> lst))
+                    {
+                        lst = new List<string>();
+                        prop.SetValue(version, lst);
+                    }
+                    lst.Add(value);
+                }
+            }
+
             var elements = node.Elements().ToList();
             var attributes = node.Attributes().ToList();
             foreach (var element in elements)
             {
                 if (element.IsEmpty) continue;
-                if (element.HasElements)
+                // 'Licenses' is a list and can have multiple values
+                // Add each license element to the license list
+                if (element.Name.LocalName == "Licenses" && element.HasElements)
                 {
-                    setProp(element.Name.LocalName, element.Elements().Select(e => e.Value).ToList());
+                    foreach (var childEle in element.Elements())
+                    {
+                        addProp(element.Name.LocalName, childEle.Value);
+                    }
                 }
                 else
                 {
@@ -160,33 +210,6 @@ namespace OpenTap.Package
             }
 
             return version;
-
-            void setProp(string propertyName, object value)
-            {
-                if (propertyName == "CPU") // CPU was removed in OpenTAP 9.0. This is to support packages created by TAP 8x
-                    propertyName = "Architecture";
-
-                var prop = typeof(PackageVersion).GetProperty(propertyName);
-                if (prop == null) return;
-                if (prop.PropertyType.IsEnum)
-                    prop.SetValue(version, Enum.Parse(prop.PropertyType, (string)value));
-                else if (prop.PropertyType == typeof(SemanticVersion))
-                {
-                    if (SemanticVersion.TryParse((string)value, out var semver))
-                        prop.SetValue(version, semver);
-                    else
-                        Log.Warning($"Cannot parse version '{value}' of package '{version.Name ?? "Unknown"}'.");
-                }
-                else if (prop.PropertyType == typeof(DateTime))
-                {
-                    if (DateTime.TryParse((string)value, out var date))
-                        prop.SetValue(version, date);
-                }
-                else
-                {
-                    prop.SetValue(version, value);
-                }
-            }
         }
     }
 
