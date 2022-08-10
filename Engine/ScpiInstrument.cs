@@ -548,15 +548,30 @@ namespace OpenTap
 
             return sent;
         }
+        
+        static readonly byte asciiNewLine = Encoding.ASCII.GetBytes("\n")[0];
 
+        // write buffer performance improvements
+        [ThreadStatic]
+        static byte[] writeBuffer;
         private void WriteString(string data)
         {
-            if (SendEndEnabled && !data.EndsWith("\n"))
-                data = data + "\n";
+            bool addNewline = SendEndEnabled && !data.EndsWith("\n"); 
+            int count = Encoding.ASCII.GetByteCount(data);
+            if (addNewline)
+                count += 1;
 
-            byte[] buf = System.Text.Encoding.ASCII.GetBytes(data);
-
-            Write(buf, buf.Length);
+            var thisWriteBuffer = writeBuffer;
+            if ((thisWriteBuffer?.Length ?? -1) < count)
+            {
+                thisWriteBuffer = new byte[count];
+                writeBuffer = thisWriteBuffer;
+            }
+            
+            Encoding.ASCII.GetBytes(data, 0, data.Length, thisWriteBuffer, 0);
+            if (addNewline)
+                thisWriteBuffer[count - 1] = asciiNewLine; // newline in ascii
+            Write(thisWriteBuffer, count);
         }
 
         private void WriteIEEEBlock(string command, byte[] data)
