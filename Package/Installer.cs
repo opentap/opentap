@@ -405,7 +405,6 @@ namespace OpenTap.Package
     }
 
     [Obfuscation(Exclude = true)]
-    [Display("Package files are in use")]
     class AbortOrRetryRequest
     {
         public AbortOrRetryRequest(string message)
