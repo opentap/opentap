@@ -74,8 +74,10 @@ namespace OpenTap.Package.UnitTests
             {
                 expectedUrl = expectedUrl.Replace("{CurrentDirectory}", Directory.GetCurrentDirectory().Replace('\\', '/'));
                 expectedUrl = expectedUrl.Replace("{Drive}", new DriveInfo(Directory.GetCurrentDirectory()).Name).Replace('\\', '/');
-                if (input.Contains("MyFile"))
+                if (input.Contains("MyFile")) { 
+                    Directory.CreateDirectory(input);
                     File.Create(input).Dispose();
+                }
                 FilePackageRepository repository = new FilePackageRepository(input);
                 Assert.AreEqual(expectedUrl, repository.Url);
             }

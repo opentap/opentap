@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using OpenTap.Diagnostic;
+using OpenTap.Authentication;
 
 namespace OpenTap.Image.Tests
 {
@@ -32,6 +33,21 @@ namespace OpenTap.Image.Tests
 
     public class Deploy
     {
+        [Test]
+        public void DeleteMe()
+        {
+            using var tempInstall = new TempInstall();
+            Directory.Delete(PackageCacheHelper.PackageCacheDirectory, true);
+            Directory.CreateDirectory(PackageCacheHelper.PackageCacheDirectory);
+            AuthenticationSettings.Current.BaseAddress = "http://localhost";
+            var imageString = File.ReadAllText("C:/Temp/Relativeimage.json");
+            var imageSpecifier = ImageSpecifier.FromString(imageString);
+            var imageSpecifier2 = new ImageSpecifier();
+            imageSpecifier.Repositories.AddRange(imageSpecifier2.Repositories);
+            var identifier = imageSpecifier.Resolve(CancellationToken.None);
+            //identifier.Deploy(tempInstall.Directory, CancellationToken.None);
+        }
+
         [Test]
         public void DeployClean()
         {
