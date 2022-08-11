@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using OpenTap.Diagnostic;
-using OpenTap.Authentication;
 
 namespace OpenTap.Image.Tests
 {
