@@ -53,10 +53,10 @@ namespace OpenTap.Package.UnitTests
 
         [TestCase("file:///C:/Packages", "file:///C:/Packages", "Windows")]
         [TestCase("file:///C:/Packages/", "file:///C:/Packages", "Windows")]
-        [TestCase("file:///Packages/", "file:///C:/Packages", "Windows")]
+        [TestCase("file:///Packages/", "file:///{Drive}Packages", "Windows")]
         [TestCase("file:///Packages", "file:///Packages", "Linux")]
         [TestCase("file:///Packages/", "file:///Packages", "Linux")]
-        [TestCase("/Temp/MyFile2.txt", "file:///C:/Temp", "Windows")]
+        [TestCase("/Temp/MyFile2.txt", "file:///{Drive}Temp", "Windows")]
         [TestCase("/Temp/MyFile2.txt", "file:///Temp", "Linux")]
         [TestCase("C:/Packages", "file:///C:/Packages", "Windows")]
         [TestCase("C:/Packages/", "file:///C:/Packages", "Windows")]
@@ -73,6 +73,7 @@ namespace OpenTap.Package.UnitTests
             try
             {
                 expectedUrl = expectedUrl.Replace("{CurrentDirectory}", Directory.GetCurrentDirectory().Replace('\\', '/'));
+                expectedUrl = expectedUrl.Replace("{Drive}", new DriveInfo(Directory.GetCurrentDirectory()).Name).Replace('\\', '/');
                 if (input.Contains("MyFile"))
                     File.Create(input).Dispose();
                 FilePackageRepository repository = new FilePackageRepository(input);
