@@ -56,7 +56,6 @@ namespace OpenTap.Package.UnitTests
         [TestCase("file:///Packages/", "file:///{Drive}Packages", "Windows")]
         [TestCase("file:///Packages", "file:///Packages", "Linux")]
         [TestCase("file:///Packages/", "file:///Packages", "Linux")]
-        [TestCase("/Temp/MyFile2.txt", "file:///{Drive}Temp", "Windows")]
         [TestCase("/Temp/MyFile2.txt", "file:///Temp", "Linux")]
         [TestCase("C:/Packages", "file:///C:/Packages", "Windows")]
         [TestCase("C:/Packages/", "file:///C:/Packages", "Windows")]
