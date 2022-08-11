@@ -51,6 +51,46 @@ namespace OpenTap.Package.UnitTests
             TestDownload(manager);
         }
 
+        [TestCase("file:///C:/Packages", "file:///C:/Packages", "Windows")]
+        [TestCase("file:///C:/Packages/", "file:///C:/Packages", "Windows")]
+        [TestCase("file:///Packages/", "file:///{Drive}Packages", "Windows")]
+        [TestCase("file:///Packages", "file:///Packages", "Linux")]
+        [TestCase("file:///Packages/", "file:///Packages", "Linux")]
+        [TestCase("/Temp/MyFile2.txt", "file:///Temp", "Linux")]
+        [TestCase("C:/Packages", "file:///C:/Packages", "Windows")]
+        [TestCase("C:/Packages/", "file:///C:/Packages", "Windows")]
+        [TestCase("/Packages", "file:///Packages", "Linux")]
+        [TestCase("/Packages/", "file:///Packages", "Linux")]
+        [TestCase("C:\\Packages/", "file:///C:/Packages", "Windows")]
+        [TestCase("PackageCache", "file:///{CurrentDirectory}/PackageCache")]
+        [TestCase("PackageCache/", "file:///{CurrentDirectory}/PackageCache")]
+        public void FileRepositoryUrls(string input, string expectedUrl, string os = "Windows,Linux")
+        {
+            if (!os.Contains(OperatingSystem.Current.ToString()))
+                return;
+
+            try
+            {
+                expectedUrl = expectedUrl.Replace("{CurrentDirectory}", Directory.GetCurrentDirectory().Replace('\\', '/'));
+                expectedUrl = expectedUrl.Replace("{Drive}", new DriveInfo(Directory.GetCurrentDirectory()).Name).Replace('\\', '/');
+                if (input.Contains("MyFile")) { 
+                    Directory.CreateDirectory(input);
+                    File.Create(input).Dispose();
+                }
+                FilePackageRepository repository = new FilePackageRepository(input);
+                Assert.AreEqual(expectedUrl, repository.Url);
+            }
+            finally
+            {
+                if (input.Contains("MyFile"))
+                {
+                    if (File.Exists(input))
+                        File.Delete(input);
+                }
+
+            }
+        }
+
         [Test]
         public void HttpRepositoryManagerTest()
         {
@@ -155,7 +195,7 @@ namespace OpenTap.Package.UnitTests
     [TestFixture]
     public class RepositoryManagerTests
     {
-        static TraceSource log =  OpenTap.Log.CreateSource("Test");
+        static TraceSource log =OpenTap.Log.CreateSource("Test");
         [Test]
         public void RepositoryManagerLoadAllPackagesTest()
         {
@@ -195,7 +235,7 @@ namespace OpenTap.Package.UnitTests
     [TestFixture]
     public class DependencyAnalyzerTests
     {
-        static TraceSource log =  OpenTap.Log.CreateSource("Test");
+        static TraceSource log =OpenTap.Log.CreateSource("Test");
         [Test]
         public void DependencyAnalyzerGetIssuesTest()
         {
@@ -347,7 +387,7 @@ namespace OpenTap.Package.UnitTests
             // Verify that the resolver bumps from installed "9.12.0" because "^9.12.1" is required
             var repo = "http://packages.opentap.io";
 
-            var installedOpenTap = new PackageDef() {Version = SemanticVersion.Parse("9.12.0"), Name = "OpenTAP", Architecture = CpuArchitecture.x64};
+            var installedOpenTap = new PackageDef() {Version = SemanticVersion.Parse("9.12.0"), Name = "OpenTAP", Architecture = CpuArchitecture.x64 };
 
             var toInstall = new PackageDef()
             {
@@ -547,7 +587,7 @@ namespace OpenTap.Package.UnitTests
             }
         }
 
-        [Test] 
+        [Test]
         [Ignore("For manual debugging")]
         public void TestIfHttpPackageRepositorySupportsRelativePaths2()
         {

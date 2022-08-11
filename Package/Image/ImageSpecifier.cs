@@ -35,8 +35,8 @@ namespace OpenTap.Package
         /// <exception cref="ImageResolveException">The exception thrown if the image could not be resolved</exception>
         public ImageIdentifier Resolve(CancellationToken cancellationToken)
         {
-            List<IPackageRepository> repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
-
+            List<IPackageRepository> repositories = Repositories.Distinct().Select(PackageRepositoryHelpers.DetermineRepositoryType).GroupBy(p => p.Url).Select(g => g.First()).ToList();
+            
             DependencyResolver resolver = new DependencyResolver(Packages, repositories, cancellationToken);
 
 
