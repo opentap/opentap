@@ -134,6 +134,17 @@ namespace OpenTap.Package
 
         public override bool Serialize(XElement node, object obj, ITypeData expectedType)
         {
+            if (expectedType.IsA(typeof(PackageVersion)) == false)
+                return false;
+
+            // ask the TestPlanPackageDependency serializer (the one that writes the 
+            // <Package.Dependencies> tag in the bottom of e.g. TestPlan files) to
+            // not write the tag for this file.
+            var depSerializer = Serializer.GetSerializer<TestPlanPackageDependencySerializer>();
+            if (depSerializer != null)
+                depSerializer.WritePackageDependencies = false;
+            
+            // The serialization of this element should be handled by the object serializer
             return false;
         }
 
@@ -168,9 +179,9 @@ namespace OpenTap.Package
                 }
             }
 
-            void addProp(string collectionName, string value)
+            void addProp(string propName, string value)
             {
-                var prop = typeof(PackageVersion).GetProperty(collectionName);
+                var prop = typeof(PackageVersion).GetProperty(propName);
                 if (prop == null) return;
                 if (prop.PropertyType.HasInterface<IList<string>>())
                 {
@@ -181,6 +192,7 @@ namespace OpenTap.Package
                         lst = new List<string>();
                         prop.SetValue(version, lst);
                     }
+                    // Add the value
                     lst.Add(value);
                 }
             }
@@ -199,6 +211,7 @@ namespace OpenTap.Package
                         addProp(element.Name.LocalName, childEle.Value);
                     }
                 }
+                // Otherwise try to assign the property
                 else
                 {
                     setProp(element.Name.LocalName, element.Value);
