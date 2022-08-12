@@ -45,6 +45,7 @@ namespace OpenTap.Package
 
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
+            bool checkOs = OS != null;
             if (OS == null)
             {
                 switch (Environment.OSVersion.Platform)
@@ -73,6 +74,8 @@ namespace OpenTap.Package
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
 
             HashSet<PackageDef> installed = new Installation(Target).GetPackages().ToHashSet();
+            if (checkOs)
+                installed = installed.Where(p => p.OS.Split(',').Any(o => o.Equals(OS, StringComparison.OrdinalIgnoreCase))).ToHashSet();
 
 
             VersionSpecifier versionSpec = VersionSpecifier.Parse("^");
