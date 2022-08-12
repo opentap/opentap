@@ -190,7 +190,7 @@ namespace OpenTap.Package
 
                 RaiseProgressUpdate(10, "Gathering dependencies.");
                 bool checkDependencies = (!IgnoreDependencies && !Force) || CheckOnly;
-                var issue = DependencyChecker.CheckDependencies(installationPackages, packagesToInstall,
+                var issue = DependencyChecker.CheckDependencies(installationPackages.Where(p => p.IsSystemWide() == false), packagesToInstall,
                     IgnoreDependencies ? LogEventType.Information : checkDependencies ? LogEventType.Error : LogEventType.Warning);
                 if (checkDependencies)
                 {
