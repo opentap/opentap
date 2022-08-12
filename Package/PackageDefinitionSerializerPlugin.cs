@@ -97,7 +97,9 @@ namespace OpenTap.Package
         }
 
         /// <summary>
-        /// Called as part for the serialization chain. Returns false if it cannot serialize the XML element.  
+        /// Called as part for the serialization chain. Returns false if it cannot serialize the XML element.
+        /// Disables the 'WritePackageDependencies' feature of the <see cref="TestPlanPackageDependencySerializer"/>
+        /// further up the chain when it runs.
         /// </summary>
         public override bool Serialize(XElement node, object obj, ITypeData expectedType)
         {
@@ -170,7 +172,7 @@ namespace OpenTap.Package
             // ask the TestPlanPackageDependency serializer (the one that writes the 
             // <Package.Dependencies> tag in the bottom of e.g. TestPlan files) to
             // not write the tag for this file.
-            var depSerializer = Serializer.GetSerializer<TestPlanPackageDependency>();
+            var depSerializer = Serializer.GetSerializer<TestPlanPackageDependencySerializer>();
             if (depSerializer != null)
                 depSerializer.WritePackageDependencies = false;
 

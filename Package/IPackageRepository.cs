@@ -134,6 +134,34 @@ namespace OpenTap.Package
 
         public override bool Serialize(XElement node, object obj, ITypeData expectedType)
         {
+            if (expectedType.IsA(typeof(PackageVersion)) == false)
+                return false;
+
+            // We want to disable dependency writing either if:
+            // 1: we are serializing a single PackageVersion
+            // 2: we are serializing a single collection of PackageVersions
+            // In any other case, we do want to write package dependencies.
+            bool shouldDisableDependencyWriter()
+            {
+                if (node.Parent == null)
+                    return true;
+                if (node.Parent.Name.LocalName == "ArrayOfPackageVersion" ||
+                    node.Parent.Name.LocalName == "ListOfPackageVersion")
+                    return node.Parent.Parent == null;
+                return false;
+            }
+
+            if (shouldDisableDependencyWriter() == false)
+                return false;
+
+            // ask the TestPlanPackageDependency serializer (the one that writes the 
+            // <Package.Dependencies> tag in the bottom of e.g. TestPlan files) to
+            // not write the tag for this file.
+            var depSerializer = Serializer.GetSerializer<TestPlanPackageDependencySerializer>();
+            if (depSerializer != null)
+                depSerializer.WritePackageDependencies = false;
+            
+            // The serialization of this element should be handled by a generic serializer
             return false;
         }
 
