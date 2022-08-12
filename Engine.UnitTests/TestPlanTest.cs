@@ -403,6 +403,7 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void MissingInstReferencesIntoResultListener()
         {
+            InstrumentSettings.Current.Clear();
             PlanRunCollectorListener pl = new PlanRunCollectorListener();
             TestPlan testPlan = new TestPlan();
             ScpiTestStep step = new ScpiTestStep();
@@ -2553,6 +2554,5 @@ namespace OpenTap.Engine.UnitTests
             
         }
     }
-
 }
 

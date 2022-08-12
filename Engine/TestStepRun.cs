@@ -47,13 +47,22 @@ namespace OpenTap
         {
             get
             {
-                var result = Parameters.GetIndexed((nameof(Verdict), GROUP), ref verdictIndex);
-                if (result is Verdict verdict) return verdict;
-                return (Verdict) StringConvertProvider.FromString((string)result, TypeData.FromType(typeof(Verdict)), null);
+                switch ( Parameters.GetIndexed((nameof(Verdict), GROUP), ref verdictIndex))
+                {
+                    case Verdict verdict:
+                        return verdict;
+                    case string r:
+                        return (Verdict) StringConvertProvider.FromString(r, TypeData.FromType(typeof(Verdict)), null);
+                    default:
+                        return Verdict.NotSet; // unexpected, but let's not fail.
+                }
             }
             protected internal set => Parameters.SetIndexed((nameof(Verdict), GROUP), ref verdictIndex, value);
         }
-
+        
+        /// <summary> Exception causing the Verdict to be 'Error'. </summary>
+        public Exception Exception { get; internal set; }
+        
         /// <summary> Length of time it took to run. </summary>
         public virtual TimeSpan Duration
         {
@@ -82,7 +91,7 @@ namespace OpenTap
                 }
                 return new DateTime();
             }
-            set => Parameters[nameof(StartTime), GROUP] = value;
+            set => Parameters[nameof(StartTime), GROUP] = value;    
         }
         /// <summary>
         /// Time when the test started as ticks of the high resolution hardware counter. 
@@ -91,12 +100,23 @@ namespace OpenTap
         [DataMember]
         public long StartTimeStamp { get; protected set; }
 
+        ResultParameters parameters;
+        
         /// <summary>
         /// A list of parameters associated with this run that can be used by <see cref="ResultListener"/>. 
         /// </summary>
         [DataMember]
-        public ResultParameters Parameters { get; protected set; }
-
+        public ResultParameters Parameters
+        {
+            get => parameters;
+            protected set
+            {
+                if (ReferenceEquals(parameters, value)) return;
+                parameters = value;
+                verdictIndex = -1;
+            }
+        }
+        
         /// <summary>
         /// Upgrades <see cref="Verdict"/>.
         /// </summary>
@@ -290,24 +310,19 @@ namespace OpenTap
         
         #endregion
 
-        internal bool IsBreakCondition()
+        /// <summary> Returns true if the break conditions are satisfied for the test step run.</summary>
+        public bool BreakConditionsSatisfied()
         {
             var verdict = Verdict;
             if (OutOfRetries 
                 || (verdict == Verdict.Fail && BreakCondition.HasFlag(BreakCondition.BreakOnFail)) 
                 || (verdict == Verdict.Error && BreakCondition.HasFlag(BreakCondition.BreakOnError))
-                || (verdict == Verdict.Inconclusive && BreakCondition.HasFlag(BreakCondition.BreakOnInconclusive)))
+                || (verdict == Verdict.Inconclusive && BreakCondition.HasFlag(BreakCondition.BreakOnInconclusive))
+                || (verdict == Verdict.Pass && BreakCondition.HasFlag(BreakCondition.BreakOnPass)))
             {
                 return true;
             }
-
             return false;
-        }
-        
-        internal void CheckBreakCondition()
-        {
-            if(IsBreakCondition())
-                ThrowDueToBreakConditions();
         }
         
         internal bool OutOfRetries { get; set; }
@@ -318,20 +333,33 @@ namespace OpenTap
             throw new TestStepBreakException(TestStepName, Verdict);
         }
 
-        internal void WaitForOutput(OutputAvailability mode)
+        internal bool IsStepChildOf(ITestStep step, ITestStep possibleParent)
         {
+            do
+            {
+                step = step.Parent as ITestStep;
+            }
+            while (step != null && step != possibleParent);
+            return step != null;
+        }
+
+        internal void WaitForOutput(OutputAvailability mode, ITestStep waitingFor)
+        {
+            ITestStep currentStep = TestStepExtensions.currentlyExecutingTestStep;
             var currentThread = TapThread.Current;
             switch (mode)
             {
                 case OutputAvailability.BeforeRun: 
                     return;
                 case OutputAvailability.AfterDefer:
-                    if (StepThread == currentThread && runDone.Wait(0) == false)
+                    if ((StepThread == currentThread && runDone.Wait(0) == false) ||
+                        (currentStep != null && IsStepChildOf(currentStep, waitingFor)))
                         throw new Exception("Deadlock detected");
                     deferDone.Wait(TapThread.Current.AbortToken);
                     break; 
                 case OutputAvailability.AfterRun:
-                    if (StepThread == currentThread && runDone.Wait(0) == false)
+                    if ((StepThread == currentThread && runDone.Wait(0) == false) ||
+                        (currentStep != null && IsStepChildOf(currentStep, waitingFor)))
                         throw new Exception("Deadlock detected");
                     runDone.Wait(TapThread.Current.AbortToken);
                     break;

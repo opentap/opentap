@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="OpenTap.TestPlan" Locked="false">
+  <Steps>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.RemoveDirectory" Version="0.0.0" Id="68a767cd-28a1-44d7-b17e-6657081e1152">
+      <Path>SdkTest</Path>
+      <Enabled>true</Enabled>
+      <Name>Remove Directory</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.CreateDirectoryStep" Version="0.0.0" Id="79329711-3ab4-4c99-b2ed-69ccd36e46dd">
+      <Directory Parameter="Parameters \ Directory">SdkTest/Test</Directory>
+      <Enabled>true</Enabled>
+      <Name>Create Directory</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Version="0.0.0" Id="dc9a0594-f60d-4a98-ba32-fc7847d97ec7">
+      <String></String>
+      <File>SdkTest/.OpenTapIgnore</File>
+      <Enabled>true</Enabled>
+      <Name>Write OpenTapIgnore</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Plugins.BasicSteps.SweepParameterStep" Version="9.4.0-Development" Id="5c686743-7dcc-49e6-afb6-8e30a11212f2">
+      <SweepValues>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>5c686743-7dcc-49e6-afb6-8e30a11212f2</Loop>
+          <Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>sdk new project "has space"</Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>
+        </SweepRow>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>5c686743-7dcc-49e6-afb6-8e30a11212f2</Loop>
+          <Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>sdk new project 123-starts-with-number</Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>
+        </SweepRow>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>5c686743-7dcc-49e6-afb6-8e30a11212f2</Loop>
+          <Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>sdk new project contains/path\separators</Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>
+        </SweepRow>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>5c686743-7dcc-49e6-afb6-8e30a11212f2</Loop>
+          <Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>sdk new project non_alpha.numeric</Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>
+        </SweepRow>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>5c686743-7dcc-49e6-afb6-8e30a11212f2</Loop>
+          <Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>sdk new project symbols?&amp;/()=</Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>
+        </SweepRow>
+      </SweepValues>
+      <Selected>
+        <KeyValuePairOfString>
+          <Key>Parameters \ Command Line Arguments</Key>
+          <Value>true</Value>
+        </KeyValuePairOfString>
+      </Selected>
+      <Enabled>true</Enabled>
+      <Name>Sweep Invalid Project Names</Name>
+      <ChildTestSteps>
+        <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep" Version="0.0.0" Id="55e45ad2-1b26-414f-b109-aa0979ef423a">
+          <ExpectedVerdict>Fail</ExpectedVerdict>
+          <Enabled>true</Enabled>
+          <Name>Expect {ExpectedVerdict}</Name>
+          <ChildTestSteps>
+            <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="077f6709-5d32-495c-9204-5e7aed521a28">
+              <Application>tap</Application>
+              <Arguments Parameter="Parameters \ Command Line Arguments" Scope="5c686743-7dcc-49e6-afb6-8e30a11212f2">sdk new project symbols?&amp;/()=</Arguments>
+              <WorkingDirectory Parameter="Parameters \ Directory">SdkTest/Test</WorkingDirectory>
+              <WaitForEnd>true</WaitForEnd>
+              <Timeout>0</Timeout>
+              <AddToLog>true</AddToLog>
+              <CheckExitCode>true</CheckExitCode>
+              <RegularExpressionPattern>
+                <Value>(.*)</Value>
+                <IsEnabled>false</IsEnabled>
+              </RegularExpressionPattern>
+              <VerdictOnMatch>Pass</VerdictOnMatch>
+              <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+              <ResultRegularExpressionPattern>
+                <Value>(.*)</Value>
+                <IsEnabled>false</IsEnabled>
+              </ResultRegularExpressionPattern>
+              <ResultName>Regex Result</ResultName>
+              <Behavior>GroupsAsDimensions</Behavior>
+              <DimensionTitles></DimensionTitles>
+              <Enabled>true</Enabled>
+              <Name>run {Command Line Arguments}</Name>
+              <ChildTestSteps />
+              <BreakConditions>Inherit</BreakConditions>
+            </TestStep>
+          </ChildTestSteps>
+          <BreakConditions>Inherit</BreakConditions>
+        </TestStep>
+      </ChildTestSteps>
+      <BreakConditions>Inherit</BreakConditions>
+      <Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>sdk new project symbols?&amp;/()=</Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>
+    </TestStep>
+    <TestStep type="OpenTap.Plugins.BasicSteps.SweepParameterStep" Version="9.4.0-Development" Id="8a6aa2a3-b87d-416a-b264-91886d44b78e">
+      <SweepValues>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>8a6aa2a3-b87d-416a-b264-91886d44b78e</Loop>
+          <Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>sdk new project NoSpace</Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>
+        </SweepRow>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>8a6aa2a3-b87d-416a-b264-91886d44b78e</Loop>
+          <Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>sdk new project HasNumbers123</Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>
+        </SweepRow>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>8a6aa2a3-b87d-416a-b264-91886d44b78e</Loop>
+          <Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>sdk new project Has_Underscore</Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>
+        </SweepRow>
+      </SweepValues>
+      <Selected>
+        <KeyValuePairOfString>
+          <Key>Parameters \ Command Line Arguments</Key>
+          <Value>true</Value>
+        </KeyValuePairOfString>
+      </Selected>
+      <Enabled>true</Enabled>
+      <Name>Sweep Valid Project Names</Name>
+      <ChildTestSteps>
+        <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep" Version="0.0.0" Id="49f18b7d-c8f8-461f-ad53-b72bbaa029ec">
+          <ExpectedVerdict>Pass</ExpectedVerdict>
+          <Enabled>true</Enabled>
+          <Name>Expect {ExpectedVerdict}</Name>
+          <ChildTestSteps>
+            <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="f8fc45cd-7757-4bb2-b64c-6818166927c9">
+              <Application>tap</Application>
+              <Arguments Parameter="Parameters \ Command Line Arguments" Scope="8a6aa2a3-b87d-416a-b264-91886d44b78e">sdk new project Has_Underscore</Arguments>
+              <WorkingDirectory Parameter="Parameters \ Directory">SdkTest/Test</WorkingDirectory>
+              <WaitForEnd>true</WaitForEnd>
+              <Timeout>0</Timeout>
+              <AddToLog>true</AddToLog>
+              <CheckExitCode>true</CheckExitCode>
+              <RegularExpressionPattern>
+                <Value>(.*)</Value>
+                <IsEnabled>false</IsEnabled>
+              </RegularExpressionPattern>
+              <VerdictOnMatch>Pass</VerdictOnMatch>
+              <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+              <ResultRegularExpressionPattern>
+                <Value>(.*)</Value>
+                <IsEnabled>false</IsEnabled>
+              </ResultRegularExpressionPattern>
+              <ResultName>Regex Result</ResultName>
+              <Behavior>GroupsAsDimensions</Behavior>
+              <DimensionTitles></DimensionTitles>
+              <Enabled>true</Enabled>
+              <Name>run {Command Line Arguments}</Name>
+              <ChildTestSteps />
+              <BreakConditions>Inherit</BreakConditions>
+            </TestStep>
+          </ChildTestSteps>
+          <BreakConditions>Inherit</BreakConditions>
+        </TestStep>
+      </ChildTestSteps>
+      <BreakConditions>Inherit</BreakConditions>
+      <Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>sdk new project Has_Underscore</Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.RemoveDirectory" Version="0.0.0" Id="64e78f64-481a-4c1c-a477-6b482f9774f3">
+      <Path>SdkTest</Path>
+      <Enabled>true</Enabled>
+      <Name>Remove Directory</Name>
+      <ChildTestSteps />
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+  </Steps>
+  <BreakConditions>Inherit</BreakConditions>
+  <Parameters_x0020__x005C__x0020_Directory>SdkTest/Test</Parameters_x0020__x005C__x0020_Directory>
+</TestPlan>

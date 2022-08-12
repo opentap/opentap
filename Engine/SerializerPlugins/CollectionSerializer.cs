@@ -261,6 +261,10 @@ namespace OpenTap.Plugins
                 foreach (object obj in sourceEnumerable)
                 {
                     var step = new XElement(Element);
+                    // We need to add the step to the document immediately so each serializer call 
+                    // has access to the element's parents.
+                    elem.Add(step);
+
                     if (obj != null)
                     {
                         type = obj.GetType();
@@ -271,6 +275,12 @@ namespace OpenTap.Plugins
                         {
                             Serializer.Serialize(step, obj, expectedType: TypeData.FromType(genericTypeArg));
                         }
+                        catch
+                        {
+                            // Remove the element from the document in case serialization fails
+                            step.Remove();
+                            throw;
+                        }
                         finally
                         {
                             if (isComponentSettings)
@@ -278,7 +288,6 @@ namespace OpenTap.Plugins
                         }
                     }
 
-                    elem.Add(step);
                 }
             }
             finally

@@ -41,49 +41,6 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
-        public void RunParseTest()
-        {
-            var setVerdict = new OpenTap.Engine.UnitTests.TestTestSteps.VerdictStep();
-            TestPlan plan = new TestPlan();
-            plan.Steps.Add(setVerdict);
-            plan.ExternalParameters.Add(setVerdict, TypeData.GetTypeData(setVerdict).GetMember("VerdictOutput"),"verdict");
-            plan.ExternalParameters.Get("verdict").Value = "Error";
-            plan.Save("verdictPlan.TapPlan");
-            var csv = TapProcessContainer.StartFromArgs("package install -f CSV", TimeSpan.FromMinutes(2));
-            csv.WaitForEnd();
-            Assert.AreEqual(0, csv.TapProcess.ExitCode);
-            var fileName = CreateCsvTestFile(new string[] { "verdict" }, new object[] { "pass" });
-            {
-                string[] passingThings = new[] { "verdict=\"pass\"", "verdict=\"Not Set\"", "verdict=\"not set\"", fileName };
-                passingThings.AsParallel().ForAll(v =>
-                {
-
-                    var args = string.Format("run verdictPlan.TapPlan -e {0}", v);
-                    Log.CreateSource("RunParseTest").Debug("Running tap {0}", args);
-                    var proc = TapProcessContainer.StartFromArgs(string.Format("run verdictPlan.TapPlan -e {0}", v),TimeSpan.FromMinutes(5));
-                    proc.WaitForEnd();
-                    Assert.AreEqual(0, proc.TapProcess.ExitCode);
-                });
-            }
-            plan.ExternalParameters.Get("verdict").Value = "Not Set";
-            plan.Save("verdictPlan.TapPlan");
-            {
-                string[] passingThings = new[] { "fail", "Error" };
-                passingThings.AsParallel().ForAll(v =>
-                {
-                    var args = string.Format("run verdictPlan.TapPlan -e verdict=\"{0}\"", v);
-                    Log.CreateSource("RunParseTest").Debug("Running tap {0}", args);
-                    var proc = TapProcessContainer.StartFromArgs(args, TimeSpan.FromSeconds(120));
-                    proc.WaitForEnd();
-                    if (v == "Error")
-                        Assert.AreEqual((int) ExitStatus.TestPlanError, proc.TapProcess.ExitCode);
-                    else
-                        Assert.AreEqual((int) ExitStatus.TestPlanFail, proc.TapProcess.ExitCode);
-                });
-            }
-        }
-
-        [Test]
         public void SimpleVerdictStepTest()
         {
             var setVerdict = new OpenTap.Engine.UnitTests.TestTestSteps.VerdictStep();
@@ -135,7 +92,7 @@ namespace OpenTap.Engine.UnitTests
             }
             catch(ArgumentNullException ex)
             {
-                Assert.AreEqual($"Value cannot be null.{Environment.NewLine}Parameter name: plan", ex.Message);
+                Assert.IsTrue(ex.Message.Contains("Value cannot be null") && ex.Message.Contains("Parameter") && ex.Message.Contains("plan"));
                 argumentNullExceptionCaught = true;
             }
             

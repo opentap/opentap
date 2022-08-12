@@ -1,10 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Diagnostics;
 using System.Linq;
 using NUnit.Framework;
-using NUnit.Framework.Constraints;
 using OpenTap.Engine.UnitTests;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using OpenTap.Plugins.BasicSteps;
@@ -14,6 +11,29 @@ namespace OpenTap.UnitTests
     [TestFixture]
     public class ScopeParametersTest
     {
+        [Test]
+        public void TestIsParameterized()
+        {
+            var plan = new TestPlan();
+            var diag = new DialogStep() {UseTimeout = true};
+            var diag2 = new DialogStep();
+            var scope = new SequenceStep();
+            plan.ChildTestSteps.Add(scope);
+            string parameterName = "Scope\"" + DisplayAttribute.GroupSeparator + "Title"; // name intentionally weird to mess with the serializer.
+            scope.ChildTestSteps.Add(diag);
+            scope.ChildTestSteps.Add(diag2);
+            var member = TypeData.GetTypeData(diag).GetMember("Title");
+            Assert.IsFalse(DynamicMember.IsParameterized(member, diag));
+            Assert.IsFalse(DynamicMember.IsParameterized(member, diag2));
+            
+            var param = member.Parameterize(scope, diag, parameterName);
+            member.Parameterize(scope, diag2, parameterName);
+            Assert.IsTrue(DynamicMember.IsParameterized(member, diag));
+            Assert.IsTrue(DynamicMember.IsParameterized(member, diag2));
+            plan.ChildTestSteps.Remove(scope);
+            TypeData.GetTypeData(scope).GetMembers();
+            DynamicMember.UnparameterizeMember(param, member, diag);
+        }
 
         [Test]
         public void ScopeStepTest()
@@ -624,6 +644,24 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
+        public void SweepParameterErrorTest()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepParameterStep();
+            plan.ChildTestSteps.Add(sweep);
+            var testStep = new DelayStep();
+            sweep.ChildTestSteps.Add(testStep);
+            TypeData.GetTypeData(testStep).GetMember(nameof(testStep.DelaySecs)).Parameterize(sweep, testStep, "A");
+            sweep.SweepValues.Add(new SweepRow());
+            sweep.SweepValues[0].Values["A"] = -1;
+
+            var result = plan.Execute();
+            result.Start();
+
+            Assert.AreEqual(Verdict.Error, result.Verdict);
+        }
+
+        [Test]
         public void MultiStepParameterize()
         {
             var plan = new TestPlan();
@@ -691,6 +729,49 @@ namespace OpenTap.UnitTests
                 var run = plan.Execute();
                 Assert.AreEqual(Verdict.Pass, run.Verdict);
                 Assert.AreEqual(iterations, step2.Instruments.Count());
+            }
+        }
+
+        [Test]
+        public void DynamicMemberNullTest()
+        {
+            var plan = new TestPlan();
+            
+            var seq = new SequenceStep();
+            plan.ChildTestSteps.Add(seq);
+            var log = new LogStep();
+            seq.ChildTestSteps.Add(log);
+            var seqType1 = TypeData.GetTypeData(seq);
+            var mems1 = seqType1.GetMembers().ToArray();
+            var logType = TypeData.GetTypeData(log);
+            var param = logType.GetMember(nameof(log.LogMessage)).Parameterize(seq, log, "log1");
+            var seqType2 = TypeData.GetTypeData(seq);
+            var mems2 = seqType2.GetMembers().ToArray();
+            logType.GetMember(nameof(log.LogMessage)).Unparameterize(param, log);
+            
+            // previously, this getter threw an exception, since seqType2 had changed compared to seqType1
+            // a coding error inside getDynamicStep caused that.
+            var mems3 = seqType2.GetMembers().ToArray();
+            Assert.IsTrue(mems1.Length == mems2.Length - 1); // mems1 + parameter.
+            Assert.IsTrue(mems1.Length == mems3.Length); // parameter was removed.
+        }
+
+        [Test]
+        public void DynamicMemberNullTest2()
+        {
+            var plan = new TestPlan();
+            var seq = new SequenceStep();
+            plan.ChildTestSteps.Add(seq);
+            var log = new LogStep();
+            seq.ChildTestSteps.Add(log);
+            var logType = TypeData.GetTypeData(log);
+            var param = logType.GetMember(nameof(log.LogMessage)).Parameterize(seq, log, "log1");
+            var param2 = param.Parameterize(plan, seq, "log2");
+            seq.ChildTestSteps.Clear();
+            using (ParameterManager.WithSanityCheckDelayed(true))
+            {
+                var m2 = TypeData.GetTypeData(plan).GetMember(param2.Name);
+                Assert.IsNull(m2);
             }
         }
     }

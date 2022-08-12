@@ -6,15 +6,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Reflection;
 using System.Diagnostics;
 using Tap.Shared;
-using System.Runtime.InteropServices;
-using System.Xml;
-using System.Xml.Linq;
 using System.Xml.Serialization;
-using System.Xml.XPath;
 using OpenTap.Cli;
 
 namespace OpenTap.Package
@@ -26,7 +21,7 @@ namespace OpenTap.Package
         // but usually PackageDefExt does something in addition to what PackageDef does.
         //
 
-        static TraceSource log =  OpenTap.Log.CreateSource("Package");
+        static TraceSource log =  Log.CreateSource("Package");
 
         private static void EnumeratePlugins(PackageDef pkg, List<AssemblyData> searchedAssemblies)
         {
@@ -123,6 +118,23 @@ namespace OpenTap.Package
         /// <returns></returns>
         public static PackageDef FromInputXml(string xmlFilePath, string projectDir)
         {
+            try
+            {
+                var sw = Stopwatch.StartNew();
+                var evaluator = new PackageXmlPreprocessor(xmlFilePath, projectDir);
+                var xmlDoc = evaluator.Evaluate();
+                var evaluated = Path.GetTempFileName();
+                xmlDoc.Save(evaluated);
+                xmlFilePath = evaluated;
+                log.Debug(sw, $"Package preprocessing completed.");
+            }
+            catch (Exception ex)
+            {
+                log.Warning(ex.Message);
+                log.Debug($"Unexpected error while evaluating package xml. Continuing in spite of errors.");
+                log.Debug(ex);
+            }
+
             PackageDef.ValidateXml(xmlFilePath);
             var pkgDef = PackageDef.FromXml(xmlFilePath);
             if(pkgDef.Files.Any(f => f.HasCustomData<UseVersionData>() && f.HasCustomData<SetAssemblyInfoData>()))
@@ -182,10 +194,6 @@ namespace OpenTap.Package
             {
                 EnumeratePlugins(pkgDef, assemblies);
             }
-
-            log.Info("Updating package version.");
-            pkgDef.updateVersion(projectDir);
-            log.Info("Package version is {0}", pkgDef.Version);
 
             pkgDef.findDependencies(excludeAdd, assemblies);
 
@@ -275,118 +283,6 @@ namespace OpenTap.Package
             return newEntries;
         }
 
-        private static string TryReplaceMacro(string text, string ProjectDirectory)
-        {
-            if (string.IsNullOrEmpty(text)) return text;
-
-            // Find macro
-            var match = Regex.Match(text, @"(.*)(?:\$\()(.*)(?:\))(.*)");
-            if (match == null || match.Groups.Count < 2)
-                return text;
-
-            // Replace macro
-            if (match.Groups[2].ToString() == "GitVersion")
-            {
-                using (GitVersionCalulator calc = new GitVersionCalulator(ProjectDirectory))
-                {
-                    SemanticVersion version = calc.GetVersion();
-                    text = match.Groups[1].ToString() + version + match.Groups[3].ToString();
-                }
-            }
-            else
-                throw new NotSupportedException(string.Format("The macro \"{0}\" is not supported.", match.Groups[2].ToString()));
-
-            // Find "pre-processor funcions"
-            match = Regex.Match(text, @"(.*)(?:\$\()(.*?),(.*)(?:\))(.*)"); // With text = "Rolf$(ConvertFourValue,1.0.0.69)Asger", this regex should return 4 matching groups: "Rolf", "ConvertFourValue", "1.0.0.69" and "Asger".
-
-            if (match.Groups.Count < 4 || !match.Groups[2].Success || !match.Groups[3].Success)
-                return text;
-
-            var plugins = PluginManager.GetPlugins<IVersionTryConverter>().Concat(PluginManager.GetPlugins<IVersionConverter>());
-            Type converter = plugins.FirstOrDefault(pt => pt.GetDisplayAttribute().Name == match.Groups[2].Value);
-            SemanticVersion convertedVersion = null;
-            var str = match.Groups[3].Value;
-            if(converter != null)
-            {
-                
-                object conv = Activator.CreateInstance(converter);
-                if (conv is IVersionTryConverter cv2)
-                {
-                    if (cv2.TryConvert(match.Groups[3].Value, out convertedVersion) == false)
-                    {
-                        throw new FormatException("Unable to convert version format: " + str);
-                    }
-                }
-                else if (conv is IVersionConverter cv1)
-                {
-                    convertedVersion = cv1.Convert(str);
-                } 
-            }
-            
-            if (convertedVersion != null)
-            {
-                text = match.Groups[1].Value + convertedVersion + match.Groups[4].Value;
-                log.Warning("The version was converted from {0} to {1} using the converter '{2}'.",
-                    str, convertedVersion, converter.GetDisplayAttribute().Name);
-            }
-            else
-                throw new Exception(string.Format("No IVersionConverter found named \"{0}\". Valid ones are: {1}", match.Groups[2].Value, 
-                    String.Join(", ", plugins.Select(p => $"\"{p.GetDisplayAttribute().Name}\""))));
-            return text;
-        }
-
-        private static void updateVersion(this PackageDef pkg, string ProjectDirectory)
-        {
-            // Replace macro if possible
-            pkg.RawVersion = TryReplaceMacro(pkg.RawVersion, ProjectDirectory);
-
-            foreach (var depPackage in pkg.Dependencies)
-                ReplaceDependencyVersion(ProjectDirectory, depPackage);
-
-            if (pkg.RawVersion == null)
-            {
-                foreach (var file in pkg.Files.Where(file => file.HasCustomData<UseVersionData>()))
-                {
-                    pkg.Version = PluginManager.GetSearcher().Assemblies.FirstOrDefault(a => Path.GetFullPath(a.Location) == Path.GetFullPath(file.FileName)).SemanticVersion;
-                    break;
-                }
-            }
-            else
-            {
-                if (String.IsNullOrWhiteSpace(pkg.RawVersion))
-                    pkg.Version = new SemanticVersion(0, 0, 0, null, null);
-                else if (SemanticVersion.TryParse(pkg.RawVersion, out var semver))
-                {
-                    pkg.Version = semver;
-                }
-                else
-                {
-                    throw new FormatException("The version string in the package is not a valid semantic version.");
-                }
-            }
-        }
-
-        private static void ReplaceDependencyVersion(string ProjectDirectory, PackageDependency depPackage)
-        {
-            if (string.IsNullOrWhiteSpace(depPackage.RawVersion))
-                return;
-
-            string replaced = TryReplaceMacro(depPackage.RawVersion, ProjectDirectory);
-            if (replaced != depPackage.RawVersion)
-                if (VersionSpecifier.TryParse(replaced, out var versionSpecifier))
-                {
-                    if (versionSpecifier.MatchBehavior.HasFlag(VersionMatchBehavior.Exact))
-                        depPackage.Version = versionSpecifier;
-                    else
-                        depPackage.Version = new VersionSpecifier(versionSpecifier.Major,
-                            versionSpecifier.Minor,
-                            versionSpecifier.Patch,
-                            versionSpecifier.PreRelease,
-                            versionSpecifier.BuildMetadata,
-                            VersionMatchBehavior.Compatible | VersionMatchBehavior.AnyPrerelease);
-                }
-        }
-
         internal static IEnumerable<AssemblyData> AssembliesOfferedBy(List<PackageDef> packages, IEnumerable<PackageDependency> refs, bool recursive, PackageAssemblyCache offeredFiles)
         {
             var files = new HashSet<AssemblyData>();
@@ -443,7 +339,7 @@ namespace OpenTap.Package
                         .Where(sf => IsDotNetAssembly(sf.Location)).ToList();
                     if (asms.Count == 0 && (Path.GetExtension(f.FileName).Equals(".dll", StringComparison.OrdinalIgnoreCase) || Path.GetExtension(f.FileName).Equals(".exe", StringComparison.OrdinalIgnoreCase)))
                     {
-                        if (File.Exists(f.FileName))
+                        if (File.Exists(f.FileName) && !PathUtils.DecendsFromOpenTapIgnore(f.FileName))
                         {
                             // If the pluginSearcher found assemblies that are located somewhere not expected by the package definition, the package might appear broken.
                             // But if the file found by the pluginSearcher is the same as the one expected by the package definition we should not count it as broken.
@@ -554,6 +450,10 @@ namespace OpenTap.Package
                             var requiredAsm = dependentAssemblyNames.FirstOrDefault(dep => dep.Name == candidateAsm.Name);
                             if (requiredAsm != null)
                             {
+                                if (candidateAsm.Version == null)
+                                    throw new Exception($"Assembly {candidateAsm} version is null");
+                                if (requiredAsm.Version == null)
+                                    throw new Exception($"Assembly {requiredAsm} version is null");
 							    if(OpenTap.Utils.Compatible(candidateAsm.Version, requiredAsm.Version))
                                 {
                                     log.Info($"Satisfying assembly reference to {requiredAsm.Name} by adding dependency on package {candidatePkg.Name}");
@@ -615,12 +515,15 @@ namespace OpenTap.Package
         private static void AddFileDependencies(PackageDef pkg, AssemblyData dependency, AssemblyData foundAsm)
         {
             var depender = pkg.Files.FirstOrDefault(f => f.DependentAssemblies.Contains(dependency));
+            var destPath = string.Format("Dependencies/{0}.{1}/{2}", Path.GetFileNameWithoutExtension(foundAsm.Location), foundAsm.Version.ToString(), Path.GetFileName(foundAsm.Location));
+            if (pkg.Files.Any(x => x.RelativeDestinationPath == destPath))
+                return;//throw new Exception("File already added to package: " + destPath);
             if (depender == null)
                 log.Warning("Adding dependent assembly '{0}' to package. It was not found in any other packages.", Path.GetFileName(foundAsm.Location));
             else
                 log.Info($"'{Path.GetFileName(depender.FileName)}' depends on '{dependency.Name}' version '{dependency.Version}'. Adding dependency to package, it was not found in any other packages.");
 
-            var destPath = string.Format("Dependencies/{0}.{1}/{2}", Path.GetFileNameWithoutExtension(foundAsm.Location), foundAsm.Version.ToString(), Path.GetFileName(foundAsm.Location));
+
             pkg.Files.Add(new PackageFile { SourcePath = foundAsm.Location, RelativeDestinationPath = destPath, DependentAssemblies = foundAsm.References.ToList() });
 
             // Copy the file to the actual directory so we can rely on it actually existing where we say the package has it.
@@ -634,7 +537,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Creates a *.TapPackage file from the definition in this PackageDef.
         /// </summary>
-        static public void CreatePackage(this PackageDef pkg, FileStream str)
+        public static void CreatePackage(this PackageDef pkg, FileStream str)
         {
             foreach (PackageFile file in pkg.Files)
             {
@@ -685,7 +588,7 @@ namespace OpenTap.Package
                 // Concat license required from all files. But only if the property has not manually been set.
                 if (string.IsNullOrEmpty(pkg.LicenseRequired))
                 {
-                    var licenses = pkg.Files.Select(f => f.LicenseRequired).Where(l => l != null).ToList();
+                    var licenses = pkg.Files.Select(f => f.LicenseRequired).Where(l => string.IsNullOrWhiteSpace(l) == false).ToList();
                     pkg.LicenseRequired = string.Join(", ", licenses.Distinct().Select(l => LicenseBase.FormatFriendly(l, false)).ToList());
                 }
                 
@@ -703,38 +606,36 @@ namespace OpenTap.Package
         {
             [XmlAttribute]
             public string Attributes { get; set; }
+
+            internal string[] Features => Attributes.ToLower()
+                .Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim()).Distinct().ToArray();
         }
 
         private static void UpdateVersionInfo(string tempDir, List<PackageFile> files, SemanticVersion version)
         {
-            var features = files.Where(f => f.HasCustomData<SetAssemblyInfoData>()).SelectMany(f => string.Join(",", f.GetCustomData<SetAssemblyInfoData>().Select(a => a.Attributes)).Split(',').Select(str => str.Trim().ToLower())).Distinct().ToHashSet();
-
-            if (!features.Any())
-                return;
             var timer = Stopwatch.StartNew();
-            SetAsmInfo.UpdateMethod updateMethod;
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                updateMethod = SetAsmInfo.UpdateMethod.ILDasm;
-            else
-                updateMethod = SetAsmInfo.UpdateMethod.Mono;
+
+            var pdbMap = new Dictionary<string, PackageFile>();
+            foreach (var file in files.GroupBy(f => Path.GetFileNameWithoutExtension(f.FileName)))
+            {
+                var symbols = file.ToArray().FirstOrDefault(f => Path.GetExtension(f.FileName).Equals(".pdb", StringComparison.OrdinalIgnoreCase));
+                if (symbols != null) pdbMap[file.Key] = symbols;
+            }
+
             foreach (var file in files)
             {
-                if (!file.HasCustomData<SetAssemblyInfoData>())
-                    continue;
+                var data = file.GetCustomData<SetAssemblyInfoData>().ToArray();
+                if (!data.Any(d => d.Features.Contains("version"))) continue;
 
-                var toSet = string.Join(",", file.GetCustomData<SetAssemblyInfoData>().Select(a => a.Attributes)).Split(',').Select(str => str.Trim().ToLower()).Distinct().ToHashSet();
-
-                if (!toSet.Any())
-                    continue;
-
-                log.Debug("Updating version info for '{0}'", file.FileName);
-
+                log.Debug(timer, "Updating version info for '{0}'", file.FileName);
 
                 // Assume we can't open the file for writing (could be because we are trying to modify TPM or the engine), and copy to the same filename in a subdirectory
                 var versionedOutput = Path.Combine(tempDir, "Versioned");
 
                 var origFilename = Path.GetFileName(file.FileName);
                 var tempName = Path.Combine(versionedOutput, origFilename);
+
                 int i = 1;
                 while (File.Exists(tempName))
                 {
@@ -742,23 +643,34 @@ namespace OpenTap.Package
                     i++;
                 }
 
+
                 Directory.CreateDirectory(Path.GetDirectoryName(tempName));
                 ProgramHelper.FileCopy(file.FileName, tempName);
                 file.SourcePath = tempName;
 
-                SemanticVersion fVersion = null;
-                Version fVersionShort = null;
+                var includePdb = true;
 
-                if (toSet.Contains("version"))
+                var basename = Path.GetFileNameWithoutExtension(file.SourcePath);
+                if (pdbMap.TryGetValue(basename, out var pdbFile) &&
+                    Path.GetFileName(pdbFile.FileName) is string symbolsFile && File.Exists(symbolsFile))
                 {
-                    fVersion = version;
-                    fVersionShort = new Version(version.ToString(3));
+                    var pdbTempName = Path.ChangeExtension(tempName, "pdb");
+                    File.Copy(symbolsFile, pdbTempName);
+                    pdbFile.SourcePath = pdbTempName;
+                }
+                else
+                {
+                    // The pdb file is not part of the package -- don't include it
+                    includePdb = false;
                 }
 
-                SetAsmInfo.SetAsmInfo.SetInfo(file.FileName, fVersionShort, fVersionShort, fVersion, updateMethod);
+                var fVersion = version;
+                var fVersionShort = new Version(version.ToString(3));
+
+                SetAsmInfo.SetAsmInfo.SetInfo(file.FileName, fVersionShort, fVersionShort, fVersion, includePdb);
                 file.RemoveCustomData<SetAssemblyInfoData>();
             }
-            log.Info(timer,"Updated assembly version info using {0} method.", updateMethod);
+            log.Info(timer,"Updated assembly version info using Mono method.");
         }
 
         /// <summary>

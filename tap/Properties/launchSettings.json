@@ -13,7 +13,7 @@
     },
     "tap (create)": {
       "commandName": "Project",
-      "commandLineArgs": "package create ..\\..\\opentap.x64.package.xml -v"
+      "commandLineArgs": "package create ..\\..\\package.xml -v"
     },
     "tap (gitversion)": {
       "commandName": "Project",
@@ -25,6 +25,10 @@
     "tap (run)": {
       "commandName": "Project",
       "commandLineArgs": "run ../../tests/RepeatOutputCompare.TapPlan"
+    },
+    "tap (profile)": {
+      "commandName": "Project",
+      "commandLineArgs": "profile --test OpenTap.UnitTests.ScopeParametersTest.TestIsParameterized"
     }
   }
 }

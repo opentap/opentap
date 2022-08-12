@@ -73,7 +73,7 @@ namespace OpenTap.Package
         internal ActionResult ExecutePackageActionSteps(PackageDef package, bool force, string workingDirectory)
         {
             ActionResult res = ActionResult.NothingToDo;
-            
+
             // if the package is being installed as a system wide package, we'll  want to look in the system-wide
             // package folder for the executable. Additionally, the system-wide install directory will also be used as 
             // the working directory.
@@ -93,7 +93,7 @@ namespace OpenTap.Package
                 if(!file.EndsWith(".exe", StringComparison.InvariantCultureIgnoreCase))
                     yield return Path.Combine(workingDirectory, file + ".exe");
             }
-            
+
             foreach (var step in package.PackageActionExtensions)
             {
                 if (step.ActionName != ActionName)
@@ -201,7 +201,7 @@ namespace OpenTap.Package
 
             return res;
         }
-        
+
         private void RedirectTapLog(string lines, bool IsStandardError)
         {
 
@@ -352,7 +352,7 @@ namespace OpenTap.Package
 
             CustomPackageActionHelper.RunCustomActions(package, PackageActionStage.Install,
                 new CustomPackageActionArgs(null, false));
-            
+
             return package;
         }
 
@@ -387,6 +387,16 @@ namespace OpenTap.Package
         internal static List<string> UnpackPackage(string packagePath, string destinationDir)
         {
             List<string> installedParts = new List<string>();
+            string packageName = null;
+            try
+            {
+                packageName = PackageDef.FromPackage(packagePath).Name;
+            }
+            catch
+            {
+                // This is fine, it could be a bundle. The package name is only required if the package is OpenTAP
+            }
+
             try
             {
                 using (var packageStream = File.OpenRead(packagePath))
@@ -401,6 +411,14 @@ namespace OpenTap.Package
 
                         string path = Uri.UnescapeDataString(part.FullName).Replace('\\', '/');
                         path = Path.Combine(destinationDir, path).Replace('\\', '/');
+
+                        if (OperatingSystem.Current == OperatingSystem.Windows && packageName == "OpenTAP" && Path.GetFileNameWithoutExtension(part.FullName) == "tap")
+                        {
+                            // tap.dll and tap.exe cannot be overwritten because they are in use by this process -- extract them to a temp location so they can be overwritten later
+                            if (File.Exists(path))
+                                path += ".new";
+                        }
+
                         var sw = Stopwatch.StartNew();
 
                         int Retries = 0, MaxRetries = 10;
@@ -409,6 +427,20 @@ namespace OpenTap.Package
                             try
                             {
                                 FileSystemHelper.EnsureDirectory(path);
+                                if (OperatingSystem.Current == OperatingSystem.Windows)
+                                {
+                                    // on windows, hidden files cannot be overwritten.
+                                    // an exception will be thrown in File.Create further down.
+                                    if (Path.GetFileName(path).StartsWith(".") && File.Exists(path))
+                                    {
+                                        var attrs = File.GetAttributes(path);
+                                        var attrs2 = attrs & ~FileAttributes.Hidden;
+                                        if(attrs2 != attrs)
+                                            File.SetAttributes(path, attrs2);
+                                    }
+                                }
+
+
                                 var deflate_stream = part.Open();
                                 using (var fileStream = File.Create(path))
                                 {
@@ -559,9 +591,10 @@ namespace OpenTap.Package
                 result = ActionResult.Error;
             }
 
+            bool ignore(string filename) => filename.ToLower() == "tap" || filename.ToLower() == "tap.exe" || filename.ToLower() == "tap.dll";
             foreach (var file in package.Files)
             {
-                if (file.RelativeDestinationPath == "tap" || file.RelativeDestinationPath.ToLower() == "tap.exe") // ignore tap.exe as it is not meant to be overwritten.
+                if (ignore(file.RelativeDestinationPath)) // ignore tap, tap.dll, and tap.exe as they are not meant to be overwritten.
                     continue;
 
                 string fullPath;
@@ -587,8 +620,15 @@ namespace OpenTap.Package
                 }
                 catch (Exception e)
                 {
-                    log.Debug(e);
-                    result = ActionResult.Error;
+                    if (e is FileNotFoundException || e is DirectoryNotFoundException)
+                    {
+                        log.Debug($"File not found: {file.RelativeDestinationPath}");
+                    }
+                    else
+                    {
+                        log.Debug(e);
+                        result = ActionResult.Error;
+                    }
                 }
 
                 DeleteEmptyDirectory(new FileInfo(fullPath).Directory);
@@ -607,6 +647,12 @@ namespace OpenTap.Package
                 File.Delete(packageFile);
                 DeleteEmptyDirectory(new FileInfo(packageFile).Directory);
             }
+
+            if (package.PackageSource is XmlPackageDefSource f2 && File.Exists(f2.PackageDefFilePath))
+                // in case the package def XML was not in the default package definition directory
+                // it is better to delete it anyway, because otherwise it will seem like it is still installed.
+                File.Delete(f2.PackageDefFilePath);
+
             return result;
         }
 
@@ -614,6 +660,7 @@ namespace OpenTap.Package
         {
             if (dir == null) return;
             if (!dir.Exists) return;
+            if (dir.EnumerateFiles().Any() || dir.EnumerateDirectories().Any()) return;
 
             try
             {

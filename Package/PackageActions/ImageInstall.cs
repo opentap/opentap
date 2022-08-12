@@ -37,33 +37,34 @@ namespace OpenTap.Package
         {
             if (NonInteractive)
                 UserInput.SetInterface(new NonInteractiveUserInputInterface());
-            
-            var imageString = File.ReadAllText(ImagePath);
-            var image = ImageSpecifier.FromString(imageString);
-            if (Merge)
-            {
-                var installation = new Installation(Target);
-                image.OnResolve += args =>
-                {
-                    return installation.GetPackages().FirstOrDefault(p => p.Name == args.PackageSpecifier.Name && args.PackageSpecifier.Version.IsCompatible(p.Version));
-                };
-                image.Packages.AddRange(installation.GetPackages().Select(p => new PackageSpecifier(p)));
-            }
 
-            ImageIdentifier imageIdentifier = null;
+            if (Force)
+                log.Warning($"Using --force does not force an image installation");
+
+            var imageString = File.ReadAllText(ImagePath);
+            var imageSpecifier = ImageSpecifier.FromString(imageString);
+
             try
             {
-                imageIdentifier = image.Resolve(cancellationToken);
+                if (Merge)
+                {
+                    var deploymentInstallation = new Installation(Target);
+                    Installation newInstallation = imageSpecifier.MergeAndDeploy(deploymentInstallation, cancellationToken);
+                }
+                else
+                {
+                    ImageIdentifier imageIdentifier = imageSpecifier.Resolve(cancellationToken);
+                    imageIdentifier.Deploy(Target, cancellationToken);
+                }
+                return 0;
             }
             catch (AggregateException e)
             {
                 foreach (var innerException in e.InnerExceptions)
-                    log.Error(innerException.Message);
-                throw new ExitCodeException((int)PackageExitCodes.PackageDependencyError, "Resulting installation has package dependencies issues. Please fix existing installation and try again.");
+                    log.Error($"- {innerException.Message}");
+                throw new ExitCodeException((int)PackageExitCodes.PackageDependencyError, e.Message);
             }
-            
-            imageIdentifier.Deploy(Target, cancellationToken);
-            return 0;
+
         }
     }
 }

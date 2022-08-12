@@ -14,6 +14,7 @@ using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.Serialization;
+using OpenTap.Cli;
 
 namespace OpenTap.Package
 {
@@ -72,6 +73,8 @@ namespace OpenTap.Package
                             var prop = pkg.GetType().GetProperty(elm.Name.LocalName);
                             if (prop != null)
                                 Serializer.Deserialize(elm, o => prop.SetValue(pkg,o), prop.PropertyType);
+                            else // If the property does not exist on the packagedef type, it is MetaData
+                                pkg.MetaData.Add(elm.Name.LocalName, elm.Value);
                             break;
                     }
                 }
@@ -94,7 +97,9 @@ namespace OpenTap.Package
         }
 
         /// <summary>
-        /// Called as part for the serialization chain. Returns false if it cannot serialize the XML element.  
+        /// Called as part for the serialization chain. Returns false if it cannot serialize the XML element.
+        /// Disables the 'WritePackageDependencies' feature of the <see cref="TestPlanPackageDependencySerializer"/>
+        /// further up the chain when it runs.
         /// </summary>
         public override bool Serialize(XElement node, object obj, ITypeData expectedType)
         {
@@ -127,6 +132,19 @@ namespace OpenTap.Package
                         var ele = XElement.Load(txtReader);
                         node.Add(ele);
                         break;
+                    case nameof(PackageDef.MetaData):
+                        var metadata = val as Dictionary<string, string>;
+                        var packageProperties = typeof(PackageDef).GetProperties();
+                        foreach (var key in metadata.Keys)
+                        {
+                            if (packageProperties.Any(p => p.Name == key))
+                                throw new ExitCodeException((int)PackageExitCodes.PackageCreateError, $"PackageDef property '{key}' cannot be overridden by metadata.");
+                            
+                            var element = new XElement(key, metadata[key]);
+                            SetAllNamespaces(element, ns);
+                            node.Add(element);
+                        }
+                        break;
                     default:
                         var xmlAttr = prop.GetAttributes<XmlAttributeAttribute>().FirstOrDefault();
                         if (xmlAttr != null)
@@ -143,13 +161,7 @@ namespace OpenTap.Package
                             {
                                 Serializer.Serialize(elm, val, expectedType: prop.TypeDescriptor);
                             }
-                            void SetNs(XElement e)
-                            {
-                                e.Name = ns + e.Name.LocalName;
-                                foreach (var n in e.Elements())
-                                    SetNs(n);
-                            }
-                            SetNs(elm);
+                            SetAllNamespaces(elm, ns);
                             node.Add(elm);
                         }
                         break;
@@ -160,11 +172,18 @@ namespace OpenTap.Package
             // ask the TestPlanPackageDependency serializer (the one that writes the 
             // <Package.Dependencies> tag in the bottom of e.g. TestPlan files) to
             // not write the tag for this file.
-            var depSerializer = Serializer.GetSerializer<TestPlanPackageDependency>();
+            var depSerializer = Serializer.GetSerializer<TestPlanPackageDependencySerializer>();
             if (depSerializer != null)
                 depSerializer.WritePackageDependencies = false;
 
             return true;
+        }
+
+        void SetAllNamespaces(XElement e, XNamespace ns)
+        {
+            e.Name = ns + e.Name.LocalName;
+            foreach (var n in e.Elements())
+                SetAllNamespaces(n, ns);
         }
     }
 

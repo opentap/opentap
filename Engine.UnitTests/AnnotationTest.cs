@@ -5,8 +5,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Xml.Serialization;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests;
@@ -57,13 +55,32 @@ namespace OpenTap.UnitTests
                 var outerplan = new TestPlan();
                 var tpr = new TestPlanReference();
                 outerplan.Steps.Add(tpr);
+                {
+                    var annotation = AnnotationCollection.Annotate(tpr);
+                    var loadTestPlanMem = annotation.GetMember("LoadTestPlan");
+                    var enabled = loadTestPlanMem.Get<IEnabledAnnotation>();
+                    Assert.IsFalse(enabled.IsEnabled);
+                    
+                    var filePathMem = annotation.GetMember("Filepath");
+                    var fpEnabled = filePathMem.Get<IEnabledAnnotation>();
+                    Assert.IsTrue(fpEnabled?.IsEnabled ?? true);
+                    var fpString = filePathMem.Get<IStringValueAnnotation>();
+                    fpString.Value = planname;
+                    annotation.Write();
+                    annotation.Read();
+                    Assert.IsTrue(enabled.IsEnabled);
+
+
+                }
+
+
                 tpr.Filepath.Text = planname;
                 tpr.LoadTestPlan();
-
-                var annotation = AnnotationCollection.Annotate(tpr);
-                var members = annotation.Get<IMembersAnnotation>().Members;
-                var delaymem = annotation.GetMember("Time Delay");
-                Assert.IsNotNull(delaymem);
+                {
+                    var annotation = AnnotationCollection.Annotate(tpr);
+                    var delaymem = annotation.GetMember("Time Delay");
+                    Assert.IsNotNull(delaymem);
+                }
             }
             finally
             {
@@ -199,16 +216,52 @@ namespace OpenTap.UnitTests
 
         public class ClassWithListOfString : TestStep
         {
+            public class NestedObject
+            {
+                public bool State { get; set; }
+                public IEnumerable<int> Avail => Enumerable.Range(State ? 5 : 0, 5);
+                [AvailableValues(nameof(Avail))]
+                public int SelectedInt { get; set; }
+            }
+            
             public List<string> List { get; set; } = new List<string>{"A", "B"};
             
             [AvailableValues(nameof(List))]
             public string Selected { get; set; }
+            
+            public List<NestedObject> List2 { get; set; } = new List<NestedObject>{};
 
             public override void Run()
             {
                 
             }
         }
+        
+        [Test]
+        public void ListOfObjectAnnotation()
+        {
+            var obj = new ClassWithListOfString();
+            var a = AnnotationCollection.Annotate(obj);
+            var member = a.GetMember(nameof(ClassWithListOfString.List2));
+            var col = member.Get<ICollectionAnnotation>();
+            var newelem = col.NewElement();
+            col.AnnotatedElements = new[] { newelem };
+            
+            a.Write();
+            a.Read();
+            
+            // if we take the first element here, then previously updates would be lost after the first read. 
+            // - at least if reading from the point of view of an available values proxy.
+            newelem = col.AnnotatedElements.FirstOrDefault();
+            newelem.GetMember("State").Get<IStringValueAnnotation>().Value = "true";
+            a.Write();
+            a.Read();
+            var selected = newelem.GetMember("SelectedInt").Get<IAvailableValuesAnnotationProxy>().SelectedValue; 
+            var vals = newelem.GetMember("SelectedInt").Get<IAvailableValuesAnnotationProxy>().AvailableValues;
+            // verify that the available values corresponds to NestedObject.State = true;
+            Assert.IsTrue(vals.Select(x => x.Source).SequenceEqual(obj.List2[0].Avail.Cast<object>()));
+        }
+
 
         [Test]
         public void ListOfStringAnnotation()
@@ -845,7 +898,56 @@ namespace OpenTap.UnitTests
             parameterizeIcon = icons[IconNames.Unparameterize].First();
             Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
         }
-        
+
+        [Test]
+        public void ParameterizeOnParentTest()
+        {
+            var plan = new TestPlan();
+            var seqStep = new SequenceStep();
+            plan.ChildTestSteps.Add(seqStep);
+            var delayStep = new DelayStep();
+            seqStep.ChildTestSteps.Add(delayStep);
+
+            // Check can parameterize
+            var member = AnnotationCollection.Annotate(delayStep).GetMember(nameof(DelayStep.DelaySecs));
+            var menu = member.Get<MenuAnnotation>();
+            var menuItems = menu.MenuItems;
+            var icons = menuItems.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
+            var parameterizeIcon = icons[IconNames.Parameterize].First();
+            Assert.IsTrue(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+            parameterizeIcon = icons[IconNames.Unparameterize].First();
+            Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+
+            // Parameterize 
+            var delayMember = TypeData.GetTypeData(delayStep).GetMember(nameof(DelayStep.DelaySecs));
+            delayMember.Parameterize(seqStep, delayStep, "Delay");
+
+            // Check can parameterize
+            member = AnnotationCollection.Annotate(delayStep).GetMember(nameof(DelayStep.DelaySecs));
+            menu = member.Get<MenuAnnotation>();
+            menuItems = menu.MenuItems;
+            icons = menuItems.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
+            parameterizeIcon = icons[IconNames.Parameterize].First();
+            Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+            parameterizeIcon = icons[IconNames.Unparameterize].First();
+            Assert.IsTrue(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+            
+            var paramIconAnnotation = member.Get<ISettingReferenceIconAnnotation>();
+            Assert.AreEqual(seqStep.Id, paramIconAnnotation.TestStepReference);
+            Assert.AreEqual("Delay", paramIconAnnotation.MemberName);
+
+            // Set read only
+            delayStep.IsReadOnly = true;
+
+            // Check can parameterize
+            member = AnnotationCollection.Annotate(delayStep).GetMember(nameof(DelayStep.DelaySecs));
+            menu = member.Get<MenuAnnotation>();
+            menuItems = menu.MenuItems;
+            icons = menuItems.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
+            parameterizeIcon = icons[IconNames.Unparameterize].First();
+            Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+        }
+
         /// <summary>
         /// When the test plan is changed, parameters that becomes invalid needs to be removed.
         /// This is done by doing some checks in DynamicMemberTypeDataProvider.
@@ -1129,6 +1231,38 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(elapsed2.TotalSeconds < 3);
             Assert.IsTrue(elapsed3.TotalSeconds < 4);
         }
+
+        [Test]
+        public void MultiSelectList()
+        {
+            var step1 = new ClassWithListOfString();
+            var step2 = new ClassWithListOfString();
+            var a = AnnotationCollection.Annotate(new []{step1, step2});
+            var lst = a.GetMember(nameof(step1.List));
+            var valAnnotation = lst.Get<ICollectionAnnotation>();
+            valAnnotation.AnnotatedElements = valAnnotation.AnnotatedElements.Append(valAnnotation.NewElement()).ToArray();
+            a.Write();
+            Assert.IsTrue(step1.List.Count == 3);
+            Assert.IsTrue(step1.List.SequenceEqual(step2.List));
+            Assert.AreNotSame(step1.List, step2.List);
+        }
+        
+        [Test]
+        public void FixNullList()
+        {
+            var step1 = new ClassWithListOfString { List = null };
+            
+            var a = AnnotationCollection.Annotate(step1);
+            var lst = a.GetMember(nameof(step1.List));
+            var seqAnnotation = lst.Get<ICollectionAnnotation>();
+            var numbers = seqAnnotation.AnnotatedElements.ToArray();
+            seqAnnotation.AnnotatedElements = numbers.Append(seqAnnotation.NewElement());
+            a.Write();
+            // step1.List should not be null as we have just added an element to it.
+            Assert.IsNotNull(step1.List);
+            Assert.AreEqual(1, step1.List.Count);
+        }
+        
 
         [Test]
         public void ParameterInputsTest()
@@ -1581,6 +1715,118 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual(instrument, step.Instrument);
                 Assert.AreEqual(instrument.Name, next);
             }
+        }
+
+
+        class ClassWithNumbers
+        {
+            [Unit("things")]
+            public int[] Values { get; set; } = new int[] {1, 2, 3};
+        }
+        
+        [Test]
+        public void TestNumberSequenceAnnotation()
+        {
+            var obj = new ClassWithNumbers();
+            var annotation = AnnotationCollection.Annotate(obj);
+            var str = annotation.GetMember(nameof(obj.Values)).Get<IStringValueAnnotation>();
+            var err = annotation.GetMember(nameof(obj.Values)).Get<IErrorAnnotation>();
+            // this should not throw.
+            str.Value = "asd";
+            Assert.IsTrue(err.Errors.Count() == 1);
+            str.Value = "1, 2, 3, 4";
+            Assert.IsTrue(err.Errors.Count() == 0);
+            annotation.Write();
+            Assert.IsTrue(obj.Values.SequenceEqual(new int[] {1, 2, 3, 4}));
+        }
+
+        [Test]
+        public void AvailableValuesUpdateTest()
+        {
+            var step = new AvailableValuesUpdateTest();
+            var annotation = AnnotationCollection.Annotate(step);
+            var a = annotation.GetMember(nameof(step.A));
+            var b = annotation.GetMember(nameof(step.B));
+            var a1 = a.Get<IAvailableValuesAnnotationProxy>();
+            var b1 = b.Get<IAvailableValuesAnnotationProxy>();
+
+            bool doTest()
+            {
+                // A available values is not allowed to contain the value of B and vice versa.
+                var test2 = b1.AvailableValues.Select(x => x.Get<IObjectValueAnnotation>().Value).Contains(a1.SelectedValue.Get<IObjectValueAnnotation>().Value);
+                var test1 = a1.AvailableValues.Select(x => x.Get<IObjectValueAnnotation>().Value).Contains(b1.SelectedValue.Get<IObjectValueAnnotation>().Value);
+                var b1val = b1.SelectedValue.Get<IObjectValueAnnotation>().Value;
+                var a1val = a1.SelectedValue.Get<IObjectValueAnnotation>().Value;
+                
+                if (Equals(b1val, a1val))
+                    return false;
+                return !test1 && !test2;
+            }
+
+            for (int i = 0; i < 10; i++)
+            {
+                Assert.IsTrue(doTest());
+                
+                b1.SelectedValue = b1.AvailableValues.FirstOrDefault(x => !Equals(x.Get<IObjectValueAnnotation>().Value,
+                    b1.SelectedValue.Get<IObjectValueAnnotation>().Value));
+                
+                annotation.Write();
+                annotation.Read();
+                Assert.IsTrue(doTest());
+                a1.SelectedValue = a1.AvailableValues.FirstOrDefault(x => !Equals(x.Get<IObjectValueAnnotation>().Value, 
+                    a1.SelectedValue.Get<IObjectValueAnnotation>().Value));
+                
+                annotation.Write();
+                annotation.Read();
+                Assert.IsTrue(doTest());
+            }
+
+            for (int i = 0; i < 5; i++)
+            {
+                var number = annotation.GetMember(nameof(step.FromIncreasingNumber));
+                var number1 = number.Get<IAvailableValuesAnnotationProxy>();
+                var numbers = number1.AvailableValues.Select(x => (int)x.Get<IObjectValueAnnotation>().Value).ToArray();
+                Assert.AreEqual(step.IncreasingNumber, numbers[0]);
+                var numberIncrease = annotation.GetMember(nameof(step.IncreaseNumber)).Get<IMethodAnnotation>();
+                numberIncrease.Invoke();
+                annotation.Read();
+            }
+        }
+
+        public enum Overlapping
+        {
+            A = 0,
+            X = 1,
+            Z = 2, // there is one constraint, which is that the selected name must be the first one. Otherwise Overlapping.Z.ToString() => "Y"
+            [Obsolete]
+            [Browsable(false)]
+            Y = 2,
+            [Browsable(false)]
+            [Obsolete]
+            Y2 = 2,
+            W = 3
+        }
+
+        class ClassWithOverlapping
+        {
+            public Overlapping Overlapping { get; set; } = Overlapping.X;
+        }
+        [Test]
+        public void OverlappingEnumTest()
+        {
+            var o = new ClassWithOverlapping();
+            var a = AnnotationCollection.Annotate(o);
+            var a2 = a.GetMember(nameof(o.Overlapping));
+            var available = a2.Get<IAvailableValuesAnnotation>().AvailableValues.Cast<Overlapping>();
+            CollectionAssert.AreEqual(available, new[] { Overlapping.A, Overlapping.X, Overlapping.Z, Overlapping.W });
+
+            var a3 = a2.Get<IAvailableValuesAnnotationProxy>();
+            var strValues = a3.AvailableValues.Select(x => x.Get<IStringReadOnlyValueAnnotation>().Value).ToArray();
+            CollectionAssert.AreEqual(strValues, new[] { "A", "X", "Z", "W" });
+            a3.SelectedValue = a3.AvailableValues.Skip(2).FirstOrDefault();
+            a.Write();
+            a.Read();
+            Assert.AreEqual(Overlapping.Z, o.Overlapping);
         }
     }
 }

@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace OpenTap.Plugins.BasicSteps
 {
@@ -40,6 +41,10 @@ namespace OpenTap.Plugins.BasicSteps
         
         [Display("Retry", Order:3, Description: "Clear the verdict and try again if break conditions were reached for child steps.")]
         public bool Retry { get; set; }
+        
+        [EnabledIf("Action", RepeatStepAction.While, RepeatStepAction.Until, HideIfDisabled = true)]
+        [Display("Clear Verdict", Order:3, Description: "Clear the verdict before each loop iteration. This can be useful for 'repeat until pass' scenarios.")]
+        public bool ClearVerdict { get; set; }
 
         public Enabled<uint> maxCount = new Enabled<uint> { Value = 3, IsEnabled = false };
 
@@ -82,28 +87,31 @@ namespace OpenTap.Plugins.BasicSteps
         uint iteration;
 
         Verdict getCurrentVerdict() => TargetStep?.Verdict ?? Verdict.NotSet;
+        private bool retried;
 
         Verdict iterate()
         {
             TapThread.Current.AbortToken.ThrowIfCancellationRequested();
-            if (Retry && Verdict == Verdict.Error) // previous break conditions were reached
-                Verdict = Verdict.NotSet; 
+            if (ClearVerdict)
+                Verdict = Verdict.NotSet;
+            if (retried)
+            {
+                Verdict = Verdict.NotSet;
+                retried = false;
+            }
             this.iteration += 1;
             OnPropertyChanged(nameof(IterationInfo));
-            var AdditionalParams = new List<ResultParameter> { new ResultParameter("", "Iteration", this.iteration) };
-            try
+            var additionalParams = new List<ResultParameter> { new ResultParameter("", "Iteration", this.iteration) };
+            var runs = RunChildSteps(additionalParams, BreakLoopRequested, throwOnBreak: false);
+            foreach (var r in runs)
             {
-                var runs = RunChildSteps(AdditionalParams, BreakLoopRequested);
-                foreach (var r in runs)
-                    r.WaitForCompletion();
+                r.WaitForCompletion();
             }
-            catch(OperationCanceledException)
+
+            if (runs.LastOrDefault()?.BreakConditionsSatisfied() == true)
             {
-                // break conditions reached for child steps.
-                // if ClearVerdict is set, retry.
-                
-                if (Retry == false)
-                    throw;
+                if(!Retry) BreakLoop();
+                retried = true;
             }
 
             return getCurrentVerdict();

@@ -17,6 +17,7 @@ using System.Windows;
 using System.Threading;
 using System.Diagnostics;
 using System.Net;
+using OpenTap.Authentication;
 
 namespace OpenTap.Package.UnitTests
 {
@@ -50,6 +51,46 @@ namespace OpenTap.Package.UnitTests
             TestDownload(manager);
         }
 
+        [TestCase("file:///C:/Packages", "file:///C:/Packages", "Windows")]
+        [TestCase("file:///C:/Packages/", "file:///C:/Packages", "Windows")]
+        [TestCase("file:///Packages/", "file:///{Drive}Packages", "Windows")]
+        [TestCase("file:///Packages", "file:///Packages", "Linux")]
+        [TestCase("file:///Packages/", "file:///Packages", "Linux")]
+        [TestCase("/Temp/MyFile2.txt", "file:///Temp", "Linux")]
+        [TestCase("C:/Packages", "file:///C:/Packages", "Windows")]
+        [TestCase("C:/Packages/", "file:///C:/Packages", "Windows")]
+        [TestCase("/Packages", "file:///Packages", "Linux")]
+        [TestCase("/Packages/", "file:///Packages", "Linux")]
+        [TestCase("C:\\Packages/", "file:///C:/Packages", "Windows")]
+        [TestCase("PackageCache", "file:///{CurrentDirectory}/PackageCache")]
+        [TestCase("PackageCache/", "file:///{CurrentDirectory}/PackageCache")]
+        public void FileRepositoryUrls(string input, string expectedUrl, string os = "Windows,Linux")
+        {
+            if (!os.Contains(OperatingSystem.Current.ToString()))
+                return;
+
+            try
+            {
+                expectedUrl = expectedUrl.Replace("{CurrentDirectory}", Directory.GetCurrentDirectory().Replace('\\', '/'));
+                expectedUrl = expectedUrl.Replace("{Drive}", new DriveInfo(Directory.GetCurrentDirectory()).Name).Replace('\\', '/');
+                if (input.Contains("MyFile")) { 
+                    Directory.CreateDirectory(input);
+                    File.Create(input).Dispose();
+                }
+                FilePackageRepository repository = new FilePackageRepository(input);
+                Assert.AreEqual(expectedUrl, repository.Url);
+            }
+            finally
+            {
+                if (input.Contains("MyFile"))
+                {
+                    if (File.Exists(input))
+                        File.Delete(input);
+                }
+
+            }
+        }
+
         [Test]
         public void HttpRepositoryManagerTest()
         {
@@ -61,7 +102,7 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void TestUserId()
         {
-            var idPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTAP", "OpenTapGeneratedId");
+            var idPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTap", "OpenTapGeneratedId");
             string orgId = null;
             if (File.Exists(idPath))
                 orgId = File.ReadAllText(idPath);
@@ -87,18 +128,18 @@ namespace OpenTap.Package.UnitTests
             {
                 // Revert changes
                 if (orgId != null)
-                    File.WriteAllText(idPath, orgId);    
+                    File.WriteAllText(idPath, orgId);
             }
         }
-        
+
         public static void RepositoryManagerReceivePackageList(IPackageRepository manager)
         {
             var tap = new PackageIdentifier("OpenTAP", SemanticVersion.Parse("7.4"), CpuArchitecture.Unspecified, "Windows");
-            
+
             // ReceivePackageList.
             var allPackages = manager.GetPackages(new PackageSpecifier(os: "Windows"), tap);
             Assert.IsTrue(allPackages.Length > 0, "args(7.4)");
-            
+
             #region GetPackages
             log.Info("GetPackages - STARTED");
 
@@ -121,7 +162,7 @@ namespace OpenTap.Package.UnitTests
         public static void TestDownload(IPackageRepository manager)
         {
             var tap = new PackageIdentifier("OpenTAP", SemanticVersion.Parse("7.5.0-Development"), CpuArchitecture.Unspecified, "Windows");
-            
+
             // Download package.
             var bag = manager.GetPackages(new PackageSpecifier(os: "Windows"), tap);
             Assert.IsTrue(bag.Length > 0, "args(7.5.0-Development)");
@@ -148,36 +189,19 @@ namespace OpenTap.Package.UnitTests
             manager.DownloadPackage(package, path, new System.Threading.CancellationToken());
             File.Delete(path);
         }
-
-        [Test]
-        public static void TestHttpRepositoryManagerRedirect()
-        {
-            (string initial, string redirected, string redirected_alt)[] urls = new[] {
-                ($"opentap.io", "https://www.opentap.io/", "https://opentap.io/"), // Redirect to www and https
-                ($"https://www.opentap.io", "https://www.opentap.io/", null), // no redirect
-                ($"packages.opentap.io", "http://packages.opentap.io/", null), // No redirect
-                ($"http://opentap.io", "https://www.opentap.io/", "https://opentap.io/")}; // Redirect to https
-
-            foreach (var url in urls)
-            {
-                var manager = new HttpPackageRepository(url.initial);
-                var redir = new Uri(manager.Url).AbsoluteUri;
-                Assert.IsTrue(Equals(redir, url.redirected) || (Equals(redir, url.redirected_alt) && url.redirected_alt != null));
-            }
-        }
     }
 
 
     [TestFixture]
-    public class RepositoryManagerTests 
+    public class RepositoryManagerTests
     {
-        static TraceSource log =  OpenTap.Log.CreateSource("Test");
+        static TraceSource log =OpenTap.Log.CreateSource("Test");
         [Test]
         public void RepositoryManagerLoadAllPackagesTest()
         {
             log.Info("-----------------------------RepositoryManager LoadAllPackages-----------------------------");
             var tempFolder = "RepositoryManagerTestTempFolder";
-            
+
             try
             {
                 // Empty folder.
@@ -185,14 +209,14 @@ namespace OpenTap.Package.UnitTests
                 var repo = new FilePackageRepository(tempFolder);
                 Assert.IsTrue(repo.GetPackages(new PackageSpecifier()).Any() == false, "Empty");
                 log.Info("Empty folder - SUCCESS");
-    
+
                 // Folder with one plugin.
                 Directory.CreateDirectory("TapPackage");
                 File.Copy("TapPackages/MyPlugin1.TapPackage", tempFolder + "/MyPlugin1.TapPackage",true);
                 repo.Reset();
                 Assert.IsTrue(repo.GetPackages(new PackageSpecifier(os: "Windows")).Count() == 1, "Folder with one package");
                 log.Info("Folder with one plugin - SUCCESS");
-    
+
                 // Folder with several plugins.
                 Directory.GetFiles("TapPackages").ToList().ForEach(f => File.Copy(f, Path.Combine(tempFolder, Path.GetFileName(f)), true));
                 repo.Reset();
@@ -211,7 +235,7 @@ namespace OpenTap.Package.UnitTests
     [TestFixture]
     public class DependencyAnalyzerTests
     {
-        static TraceSource log =  OpenTap.Log.CreateSource("Test");
+        static TraceSource log =OpenTap.Log.CreateSource("Test");
         [Test]
         public void DependencyAnalyzerGetIssuesTest()
         {
@@ -249,7 +273,7 @@ namespace OpenTap.Package.UnitTests
             issues = dependencyAnalyzer.GetIssues(packages.Last());
             Assert.IsTrue(issues.Count == 1, "Dependencies with issues (Tap newer than plugin)");
             log.Info("Dependencies with issues (Tap newer than plugin) - SUCCESS");
-            
+
             // Reset test.
             packages = packages.Take(1).ToList();
 
@@ -314,7 +338,7 @@ namespace OpenTap.Package.UnitTests
                 xmlText.Seek(0, 0);
                 packages.AddRange(PackageDef.ManyFromXml(xmlText));
             }
-            
+
             // Reset test.
             packages.Clear();
 
@@ -356,20 +380,21 @@ namespace OpenTap.Package.UnitTests
             Assert.IsTrue(issues == DependencyChecker.Issue.BrokenPackages, "Dependency on plugin");
             log.Info("Dependency on plugin - SUCCESS");
         }
-        
+
         [Test]
         public void TestDependencyPatchVersion()
         {
             // Verify that the resolver bumps from installed "9.12.0" because "^9.12.1" is required
-            var repo = "packages.opentap.io";
+            var repo = "http://packages.opentap.io";
 
-            var installedOpenTap = new PackageDef() {Version = SemanticVersion.Parse("9.12.0"), Name = "OpenTAP"};
+            var installedOpenTap = new PackageDef() {Version = SemanticVersion.Parse("9.12.0"), Name = "OpenTAP", Architecture = CpuArchitecture.x64 };
 
             var toInstall = new PackageDef()
             {
                 Name = "MockPackage",
                 Dependencies = new List<PackageDependency>()
-                    {new PackageDependency("OpenTAP", VersionSpecifier.Parse("^9.12.1"), "^9.12.1")}
+                    {new PackageDependency("OpenTAP", VersionSpecifier.Parse("^9.12.1"), "^9.12.1")},
+                Architecture = CpuArchitecture.x64
             };
 
             var installedPackages = new Dictionary<string, PackageDef> {{"OpenTAP", installedOpenTap}};
@@ -378,23 +403,22 @@ namespace OpenTap.Package.UnitTests
 
             var resolver = new DependencyResolver(installedPackages, packages, repositories);
 
-            Assert.AreEqual(1, resolver.MissingDependencies.Count);
-            var missing = resolver.MissingDependencies.First();
-            
+            Assert.AreEqual(2, resolver.MissingDependencies.Count);
+            var missing = resolver.MissingDependencies.FirstOrDefault(p => p.Name == "OpenTAP");
+
             Assert.AreEqual("OpenTAP", missing.Name);
-            Assert.LessOrEqual(9, missing.Version.Major);
-            Assert.LessOrEqual(12, missing.Version.Minor);
-            if (missing.Version.Minor == 12)
-                Assert.LessOrEqual(1, missing.Version.Patch);
+            Assert.AreEqual(9, missing.Version.Major);
+            Assert.AreEqual(12, missing.Version.Minor);
+            Assert.AreEqual(1, missing.Version.Patch);
         }
 
         [Test]
         public void TestDependencyNoUpgrade()
         {
             // Verify that the resolver does not try to upgrade installed "9.12.0"
-            var repo = "packages.opentap.io";
+            var repo = "https://packages.opentap.io";
 
-            var installedOpenTap = new PackageDef() {Version = SemanticVersion.Parse("9.12.0"), Name = "OpenTAP"};
+            var installedOpenTap = new PackageDef() { Version = SemanticVersion.Parse("9.12.0"), Name = "OpenTAP" };
 
             var toInstall = new PackageDef()
             {
@@ -409,7 +433,8 @@ namespace OpenTap.Package.UnitTests
 
             var resolver = new DependencyResolver(installedPackages, packages, repositories);
 
-            Assert.AreEqual(0, resolver.MissingDependencies.Count);
+            Assert.AreEqual(1, resolver.MissingDependencies.Count);
+            Assert.AreEqual("MockPackage", resolver.MissingDependencies[0].Name);
         }
     }
 
@@ -420,24 +445,16 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void PackageManagerTestsExecution()
         {
-            log.Info("-----------------------------DependencyChecker CheckDependencies-----------------------------");
-
             if(Directory.Exists("DownloadedPackages"))
                 Directory.Delete("DownloadedPackages", true);
 
             // Test execution
-            GetPackages();
-            DetermineRepositoryType();
-        }
-
-        void GetPackages()
-        {
             var tap = new PackageIdentifier("OpenTAP", SemanticVersion.Parse("9.0.0-Development"), CpuArchitecture.Unspecified, "Windows");
-            
+
             // Development, don't check build version
             var packages = get(tap);
             // MyPlugin1 requires OpenTAP ^9.0.605 which is not compatible with 9.0.0 
-            Assert.IsFalse(packages.Any(p => p.Name == "MyPlugin1")); 
+            Assert.IsFalse(packages.Any(p => p.Name == "MyPlugin1"));
             Assert.IsTrue(packages.Any(p => p.Name == "MyPlugin2"));
             Assert.IsTrue(packages.Any(p => p.Name == "MyPlugin3"));
 
@@ -477,7 +494,7 @@ namespace OpenTap.Package.UnitTests
             Assert.IsFalse(packages.Any(p => p.Name == "MyPlugin2"));
             Assert.IsTrue(packages.Any(p => p.Name == "MyPlugin3"), "GetPackages - No build");
         }
-        
+
         List<PackageDef> get(IPackageIdentifier compatibleWith)
         {
             var packages = PackageRepositoryHelpers.GetPackagesFromAllRepos(
@@ -487,43 +504,106 @@ namespace OpenTap.Package.UnitTests
             return packages;
         }
 
-        void DetermineRepositoryType()
+        [TestCase("", "http://packages.opentap.io", typeof(HttpPackageRepository))]  // Http scheme
+        [TestCase("", "https://packages.opentap.io", typeof(HttpPackageRepository))] // Https scheme
+        [TestCase("", "ftp://packages.opentap.io", typeof(NotSupportedException))]   // Unsupported scheme
+        [TestCase("", "something illigal|", typeof(ArgumentException))]              // Illigal chars
+        [TestCase("", "C:/a", typeof(FilePackageRepository))]                        // Windows absolute path
+        [TestCase("", "/a/b", typeof(FilePackageRepository))]                        // Linux absolute path
+        [TestCase("", "a/b", typeof(FilePackageRepository))]                         // Relative path
+        [TestCase("", @"a\b", typeof(FilePackageRepository))]                        // Relative file path using backslash
+        [TestCase("", "file:///./a", typeof(FilePackageRepository))]                 // Explicit file scheme
+        [TestCase("", "file:///a", typeof(FilePackageRepository))]                   // Explicit file scheme
+        [TestCase("", "file:///C:/a", typeof(FilePackageRepository))]                // Explicit absolute File Path
+        [TestCase("", @"\\a\b", typeof(FilePackageRepository))]                      // UNC path
+        [TestCase("http://opentap.io", "http://packages.opentap.io", typeof(HttpPackageRepository))]  // Http scheme
+        [TestCase("http://opentap.io", "https://packages.opentap.io", typeof(HttpPackageRepository))] // Https scheme
+        [TestCase("http://opentap.io", "C:/a", typeof(FilePackageRepository))]                        // Windows absolute path
+        [TestCase("http://opentap.io", "/a/b", typeof(HttpPackageRepository))]                        // Linux absolute path
+        [TestCase("http://opentap.io", "a/b", typeof(HttpPackageRepository))]                         // Relative path
+        [TestCase("http://opentap.io", @"a\b", typeof(HttpPackageRepository))]                        // Relative file path using backslash
+        [TestCase("http://opentap.io", "file:///./a", typeof(FilePackageRepository))]                 // Explicit file scheme
+        [TestCase("http://opentap.io", "file:///a", typeof(FilePackageRepository))]                   // Explicit file scheme
+        [TestCase("http://opentap.io", "file:///C:/a", typeof(FilePackageRepository))]                // Explicit absolute File Path
+        [TestCase("http://opentap.io", @"\\a\b", typeof(FilePackageRepository))]                      // UNC path
+        //[TestCase("http://opentap.io", @"//a/b", typeof(FilePackageRepository))]                      // UNC path using forward slash (but also scheme relative URL)
+        public void TestRepositoryType(string baseUrl, string url, Type expectedRepositoryType)
         {
-            #region Path
-            // Correct path
-            var result = PackageRepositoryHelpers.DetermineRepositoryType(Path.Combine(Directory.GetCurrentDirectory(), "TapPackages"));
-            Assert.IsTrue(result is FilePackageRepository, "DetermineRepositoryType - Correct path");
+            AuthenticationSettings.Current.BaseAddress = baseUrl;
+            try
+            {
+                var result = PackageRepositoryHelpers.DetermineRepositoryType(url);
+                if (expectedRepositoryType.DescendsTo(typeof(Exception)))
+                    Assert.Fail($"Should have thrown {expectedRepositoryType.ToString()} but returned {result.GetType()}");
+                Assert.AreEqual(expectedRepositoryType, result.GetType());
+            }
+            catch (Exception ex)
+            {
+                if (expectedRepositoryType == ex.GetType())
+                    return;
+                else
+                    throw;
+            }
+        }
 
-            // Correct network path
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"\\Tap\Tap.PackageManager.UnitTests\TapPlugins");
-            Assert.IsTrue(result is FilePackageRepository, "DetermineRepositoryType - Correct network path");
 
-            // Incorrect path
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"Tap\Tap.PackageManager.UnitTests\TapPlugins");
-            Assert.IsFalse(result is FilePackageRepository, "DetermineRepositoryType - Incorrect path");
+        [TestCase("http://localhost", "/api/results", "http://localhost/api/results")]
+        [TestCase("http://localhost", "http://opentap.io/api/results", "http://opentap.io/api/results")]
+        [TestCase("http://localhost", "https://opentap.io/api/results", "https://opentap.io/api/results")]
+        [TestCase("http://localhost/hey", "/api/results", "http://localhost/api/results")]
+        [TestCase("http://localhost/hey/", "api/results", "http://localhost/hey/api/results")]
+        public void TestGetClient(string baseAddress, string getClientAddress, string resultingBaseAddress)
+        {
+            AuthenticationSettings.Current.BaseAddress = baseAddress;
+            var httpClient = AuthenticationSettings.Current.GetClient(baseAddress: getClientAddress);
+            Assert.AreEqual(resultingBaseAddress, httpClient.BaseAddress.ToString());
+        }
 
-            // Path that does not exists
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"C:\Users\steholst\Source\Repos\tap2\TapThatDoesNotExists");
-            Assert.IsTrue(result is FilePackageRepository, "DetermineRepositoryType - Path that does not exists");
+        [Test]
+        [Ignore("For manual debugging")]
+        public void TestIfHttpPackageRepositorySupportsRelativePaths()
+        {
+            AuthenticationSettings.Current.BaseAddress = null;
+            HttpPackageRepository httpPackageRepository = new HttpPackageRepository("packages.opentap.io");
+            var packages = httpPackageRepository.GetPackageNames();
+            Assert.AreEqual($"http://packages.opentap.io", httpPackageRepository.Url); // Url was changed to valid url
+            Assert.IsTrue(packages.Any());
+            var versions = httpPackageRepository.GetPackageVersions(packages.FirstOrDefault());
+            Assert.IsTrue(versions.Any());
+            string query = "query Query {packages(class:\"package\", version:\"any\"){ name version description dependencies{ name version} }}";
+            var resp = httpPackageRepository.QueryGraphQL(query);
+            Assert.IsNotNull(resp);
+            string file = "C:/Temp/Test.TapPackage";
+            try
+            {
+                var p = versions.FirstOrDefault();
+                httpPackageRepository.DownloadPackage(new PackageIdentifier(p.Name, p.Version, p.Architecture, p.OS), file);
+                Assert.IsTrue(File.Exists(file));
+            }
+            finally
+            {
+                if (File.Exists(file))
+                    File.Delete(file);
+            }
+        }
 
-            // Illegal path
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"C:\Users\steholst\Source\Repos\tap2\Tap?");
-            Assert.IsTrue(result is FilePackageRepository, "DetermineRepositoryType - Illegal path");
-
-            // Path with incorrect syntax
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"C::\Users\steholst\Source\Repos\tap2\TapThatDoesNotExists");
-            Assert.IsFalse(result is FilePackageRepository);
-            #endregion
-
-            #region HTTP
-            // Correct http address
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"http://plugindemoapi.azurewebsites.net/");
-            Assert.IsTrue(result is HttpPackageRepository, "DetermineRepositoryType - Correct http address");
-
-            // Correct https address
-            result = PackageRepositoryHelpers.DetermineRepositoryType(@"https://plugindemoapi.azurewebsites.net/");
-            Assert.IsTrue(result is HttpPackageRepository, "DetermineRepositoryType - Correct https address");
-            #endregion
+        [Test]
+        [Ignore("For manual debugging")]
+        public void TestIfHttpPackageRepositorySupportsRelativePaths2()
+        {
+            AuthenticationSettings.Current.BaseAddress = null;
+            HttpPackageRepository httpPackageRepository = new HttpPackageRepository("packages.opentap.io");
+            string file = "C:/Temp/Test.TapPackage";
+            try
+            {
+                httpPackageRepository.DownloadPackage(new PackageIdentifier("OpenTAP", "9.18.4", CpuArchitecture.x64, "Linux,MacOS"), file);
+                Assert.IsTrue(File.Exists(file));
+            }
+            finally
+            {
+                if (File.Exists(file))
+                    File.Delete(file);
+            }
         }
     }
 }

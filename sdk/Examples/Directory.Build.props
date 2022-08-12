@@ -9,7 +9,7 @@
 	<PropertyGroup>
 		<!-- This variable is only defined so we can compile locally without replacing GitVersion. 
 		     It will be removed in the build script. -->
-		<GitVersion>9.14.0</GitVersion>
+		<GitVersion>9.17.0</GitVersion>
 	</PropertyGroup>	
 	<PropertyGroup>
 		<!-- Ensure that all projects in this solution use the same version of OpenTAP -->		
@@ -20,6 +20,7 @@
 		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<OutputPath>$(MSBuildThisFileDirectory)bin\$(Configuration)\</OutputPath>
+        <PlatformTarget>x64</PlatformTarget>
 	</PropertyGroup>
 	
 	<!-- To support building on linux, it is needed to disable some things, like installing Developers System. -->
@@ -30,11 +31,6 @@
 	<PropertyGroup Condition="'$(OS)'=='Windows_NT'">
 		<IsLinux>False</IsLinux>
 		<IsWindows>True</IsWindows>
-	</PropertyGroup>
-	
-	<!-- We are setting TargetFramework in debug configuration, otherwise Visual Studio tries to attach a .NET Core debugger. That will not work, because the program we open is a .NET Framework executable -->
-	<PropertyGroup Condition="'$(OS)'=='Windows_NT' AND '$(Configuration)'=='Debug'">
-		<TargetFramework>net462</TargetFramework>
 	</PropertyGroup>
 
   <ItemGroup>

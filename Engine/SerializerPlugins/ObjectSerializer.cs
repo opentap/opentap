@@ -124,22 +124,23 @@ namespace OpenTap.Plugins
                     if (attr == null) continue;
                     var name = string.IsNullOrWhiteSpace(attr.AttributeName) ? prop.Name : attr.AttributeName;
                     var attr_value = element.Attribute(Serializer.PropertyXmlName(name));
-                    var p = prop as MemberData;
+                    
 
-                    if (p != null && attr_value != null && p.Member is PropertyInfo csprop)
+                    if (attr_value != null)
                     {
                         try
                         {
-                            readContentInternal(csprop.PropertyType, false, () => attr_value.Value, element, out object value);
+                            var typeData = prop.TypeDescriptor.AsTypeData();
+                            readContentInternal(typeData.Type, false, () => attr_value.Value, element, out object value);
                             
-                            p.SetValue(newobj, value);
+                            prop.SetValue(newobj, value);
                             
                         }
                         catch (Exception e)
                         {
                             if (logWarnings)
                             {
-                                Log.Warning(element, "Attribute value '{0}' was not read correctly as a {1}", attr_value.Value, p);
+                                Log.Warning(element, "Attribute value '{0}' was not read correctly as a {1}", attr_value.Value, prop);
                                 Log.Debug(e);
                             }
                         }
@@ -591,7 +592,14 @@ namespace OpenTap.Plugins
             }
             catch(Exception ex)
             {
-                Serializer.PushError(element, $"Object value was not read correctly.", ex);
+                if (ex is TargetInvocationException tarEx)
+                {
+                    Serializer.PushError(element, tarEx.InnerException.Message, tarEx.InnerException);
+                }
+                else
+                {
+                    Serializer.PushError(element, $"Object value was not read correctly.", ex);
+                }
                 return false;
             }
             try
@@ -622,16 +630,14 @@ namespace OpenTap.Plugins
                 
                 if (XmlConvert.IsXmlChar(c))
                     continue;
-                else if(i < len - 1)
+                if(i < len - 1)
                 {
                     char c2 = str[i + 1];
                     if(XmlConvert.IsXmlSurrogatePair(c2, c))
                         continue;
                 }
+                return false;
                 
-                {
-                    return false;
-                }
             }
             return true;
         }
@@ -667,6 +673,10 @@ namespace OpenTap.Plugins
 
             return result;
         }
+
+        // this 'cache' only caches serialized values during this instance of the serialize
+        // this is to avoid a memory leak for e.g GUIDs, which falls into the category of primitives.
+        readonly Dictionary<object, string> enumTable = new Dictionary<object, string>();
 
         /// <summary>
         /// Serializes an object to XML.
@@ -746,15 +756,27 @@ namespace OpenTap.Plugins
                     return true;
                 }
 
-                if (expectedType is TypeData type && (type.Type.IsEnum || type.Type.IsPrimitive || type.Type.IsValueType))
+                if (expectedType is TypeData type)
                 {
-                    if (type.Type == typeof(bool))
+                    if(type.Type.IsEnum || type.Type.IsPrimitive || type.Type.IsValueType)
                     {
-                        elem.Value = (bool)obj ? "true" : "false"; // must be lower case for old XmlSerializer to work
+                        if (type.Type == typeof(bool))
+                        {
+                            elem.Value =
+                                (bool)obj ? "true" : "false"; // must be lower case for old XmlSerializer to work
+                            return true;
+                        }
+
+                        if (enumTable.TryGetValue(obj, out var v))
+                        {
+                            elem.Value = v;
+                            return true;
+                        }
+                        v = Convert.ToString(obj, CultureInfo.InvariantCulture);
+                        enumTable[obj] = v;
+                        elem.Value = v;
                         return true;
                     }
-                    elem.Value = Convert.ToString(obj, CultureInfo.InvariantCulture);
-                    return true;
                 }
 
                 IMemberData xmlTextProp = null;
@@ -824,6 +846,16 @@ namespace OpenTap.Plugins
                                 else
                                 {
                                     XElement elem2 = new XElement(Serializer.PropertyXmlName(subProp.Name));
+                                    
+                                    { // MetaDataAttribute -> save the metadata name in the test plan xml.
+                                        if (subProp.GetAttribute<MetaDataAttribute>() is MetaDataAttribute metaDataAttr)
+                                        {
+                                            string name = metaDataAttr.Name ??
+                                                          subProp.GetDisplayAttribute()?.Name ?? subProp.Name;
+                                            elem2.SetAttributeValue("Metadata", name);
+                                        }
+                                    }
+                                    
                                     SetHasDefaultValueAttribute(subProp, val, elem2);
                                     elem.Add(elem2);
                                     Serializer.Serialize(elem2, val, subProp.TypeDescriptor);
@@ -855,9 +887,10 @@ namespace OpenTap.Plugins
 
         private void SetHasDefaultValueAttribute(IMemberData subProp, object val, XElement elem2)
         {
+            
             var attr = subProp.GetAttribute<DefaultValueAttribute>();
             if (attr != null && !(subProp is IParameterMemberData))
-                elem2.SetAttributeValue(DefaultValue, attr.Value);
+                Serializer.GetSerializer<DefaultValueSerializer>().RegisterDefaultValue(elem2, attr.Value);
         }
     }
 }

@@ -10,7 +10,7 @@ using System.Linq;
 using System.IO;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Threading;
+using System.Xml.Linq;
 
 namespace OpenTap.Cli
 {
@@ -114,8 +114,9 @@ namespace OpenTap.Cli
     /// <summary>
     /// Helper used to execute <see cref="ICliAction"/>s.
     /// </summary>
-    public class CliActionExecutor
+    public static class CliActionExecutor
     {
+        internal static ITypeData SelectedAction = null;
         internal static readonly int LevelPadding = 3;
         private static TraceSource log = Log.CreateSource("tap");
         private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
@@ -142,18 +143,6 @@ namespace OpenTap.Cli
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static int Execute(params string[] args)
         {
-            // Trigger plugin manager before anything else.
-            if (ExecutorClient.IsRunningIsolated)
-            {
-                // TODO: This is not needed right now, but might be again when we fix the TODO in tap.exe
-                //PluginManager.DirectoriesToSearch.Clear();
-                //PluginManager.DirectoriesToSearch.Add(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location));
-                using (var tpmClient = new ExecutorClient())
-                {
-                    tpmClient.MessageServer("delete " + Path.GetDirectoryName(Assembly.GetEntryAssembly().Location));
-                }
-            }
-
             // Set TapMutex to ensure any installers know about running OpenTAP processes.
             ReflectionHelper.SetTapMutex();
             
@@ -197,13 +186,7 @@ namespace OpenTap.Cli
                 bool isPathRooted = Path.IsPathRooted(logpath);
                 if (isPathRooted == false)
                 {
-                    var dir = Path.GetDirectoryName(typeof(SessionLogs).Assembly.Location);
-                    if (ExecutorClient.IsRunningIsolated)
-                    {
-                        // redirect the isolated log path to the non-isolated path.
-                        dir = ExecutorClient.ExeDir;
-                    }
-
+                    var dir = ExecutorClient.ExeDir;
                     logpath = Path.Combine(dir, logpath);
                 }
 
@@ -215,28 +198,29 @@ namespace OpenTap.Cli
                 log.Debug(e);
             }
 
-            ITypeData selectedCommand = null;
-            
             // Find selected command
             var actionTree = new CliActionTree();
             var selectedcmd = actionTree.GetSubCommand(args);
             if (selectedcmd?.Type != null && selectedcmd?.SubCommands.Any() != true)
-                selectedCommand = selectedcmd.Type;
+                SelectedAction = selectedcmd.Type;
 
             // Run check for update
             TapThread.Start(() =>
             {
-                TapThread.Sleep(1000); // don't spend time on update checking for very short running actions (e.g. 'tap package list -i')
-                try
+                TapThread.Sleep(3000); // don't spend time on update checking for very short running actions (e.g. 'tap package list -i')
+                using (CliUserInputInterface.AcquireUserInputLock())
                 {
-                    var checkUpdatesCommands = actionTree.GetSubCommand(new[] {"package", "check-updates"});
-                    var checkUpdateAction = checkUpdatesCommands?.Type?.CreateInstance() as ICliAction;
-                    if (selectedCommand != checkUpdatesCommands?.Type)
-                        checkUpdateAction?.PerformExecute(new []{ "--startup" });
-                }
-                catch (Exception e)
-                {
-                    log.Error(e);
+                    try
+                    {
+                        var checkUpdatesCommands = actionTree.GetSubCommand(new[] {"package", "check-updates"});
+                        var checkUpdateAction = checkUpdatesCommands?.Type?.CreateInstance() as ICliAction;
+                        if (SelectedAction != checkUpdatesCommands?.Type)
+                            checkUpdateAction?.PerformExecute(new[] {"--startup"});
+                    }
+                    catch (Exception e)
+                    {
+                        log.Error(e);
+                    }
                 }
             });
 
@@ -266,9 +250,29 @@ namespace OpenTap.Cli
             }
             
             // Print default info
-            if (selectedCommand == null)
+            if (SelectedAction == null)
             {
-                Console.WriteLine("OpenTAP Command Line Interface ({0})",Assembly.GetExecutingAssembly().GetSemanticVersion().ToString(4));
+                string getVersion()
+                {
+                    // We cannot access the 'OpenTap.Package.Installation.Current' from Engine. Parse the XML instead.
+                    var xmlFile = Path.Combine(ExecutorClient.ExeDir, "Packages", "OpenTAP", "package.xml");
+                    if (File.Exists(xmlFile))
+                    {
+                        try
+                        {
+                            var pkg = XElement.Load(xmlFile);
+                            if (pkg.Attribute("Version") is XAttribute x) return x.Value;
+                        }
+                        catch
+                        {
+                            // This is fine to silently ignore
+                        }
+                    }
+
+                    return TypeData.FromType(typeof(CliActionExecutor)).Assembly.SemanticVersion.ToString(); // OpenTAP is not installed. lets just return this. 
+                }
+
+                Console.WriteLine("OpenTAP Command Line Interface ({0})", getVersion());
                 Console.WriteLine("Usage: tap <command> [<subcommand(s)>] [<args>]\n");
 
                 if (selectedcmd == null)
@@ -294,27 +298,27 @@ namespace OpenTap.Cli
                     return (int)ExitCodes.ArgumentParseError;
             }
 
-            if (selectedCommand != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
+            if (SelectedAction != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
                 CliUserInputInterface.Load();
             
             ICliAction packageAction = null;
             try{
-                packageAction = (ICliAction)selectedCommand.CreateInstance();
+                packageAction = (ICliAction)SelectedAction.CreateInstance();
             }catch(TargetInvocationException e1) when (e1.InnerException is System.ComponentModel.LicenseException e){
-                log.Error("Unable to load CLI Action '{0}'", selectedCommand.GetDisplayAttribute().GetFullName());
+                log.Error("Unable to load CLI Action '{0}'", SelectedAction.GetDisplayAttribute().GetFullName());
                 log.Info("{0}", e.Message);
                 return (int)ExitCodes.UnknownCliAction;
             }
 
             if (packageAction == null)
             {
-                Console.WriteLine("Error instantiating command {0}", selectedCommand.Name);
+                Console.WriteLine("Error instantiating command {0}", SelectedAction.Name);
                 return (int)ExitCodes.UnknownCliAction;
             }
 
             try
             {
-                int skip = selectedCommand.GetDisplayAttribute().Group.Length + 1; // If the selected command has a group, it takes two arguments to use the command. E.g. "package create". If not, it only takes 1 argument, E.g. "restapi".
+                int skip = SelectedAction.GetDisplayAttribute().Group.Length + 1; // If the selected command has a group, it takes two arguments to use the command. E.g. "package create". If not, it only takes 1 argument, E.g. "restapi".
                 return packageAction.Execute(args.Skip(skip).ToArray());
             }
             catch (ExitCodeException ec)
@@ -358,149 +362,4 @@ namespace OpenTap.Cli
             }
         }
     }
-   
-    
-
-#if DEBUG2 && !NETSTANDARD2_0
-    /// <summary>
-    /// Helper class for interacting with the visual studio debugger. Does not build on .NET Core.
-    /// </summary>
-    public static class VisualStudioHelper
-    {
-        /// <summary>
-        /// Attach to the debugger.
-        /// </summary>
-        public static void AttemptDebugAttach()
-        {
-            bool requiresAttach = !Debugger.IsAttached;
-
-            // If I don't have a debugger attached, try to attach 
-            if (requiresAttach)
-            {
-                Stopwatch timer = Stopwatch.StartNew();
-                //log.Debug("Attaching debugger.");
-                int tries = 4;
-                EnvDTE.DTE dte = null;
-                while (tries-- > 0)
-                {
-                    try
-                    {
-                        dte = VisualStudioHelper.GetRunningInstance().FirstOrDefault();
-                        if (dte == null)
-                        {
-                            //log.Debug("Could not attach Visual Studio debugger. No instances found or missing user privileges.");
-                            return;
-                        }
-                        EnvDTE.Debugger debugger = dte.Debugger;
-                        foreach (EnvDTE.Process program in debugger.LocalProcesses)
-                        {
-                            if (program.ProcessID == Process.GetCurrentProcess().Id)
-                            {
-                                program.Attach();
-                                //log.Debug(timer, "Debugger attached.");
-                                return;
-                            }
-                        }
-                    }
-                    catch (System.Runtime.InteropServices.COMException ex)
-                    {
-                        if (ex.ErrorCode == unchecked((int)0x8001010A)) // RPC_E_SERVERCALL_RETRYLATER
-                        {
-                            //log.Debug("Visual Studio was busy while trying to attach. Retrying shortly.");
-                            System.Threading.Thread.Sleep(500);
-                        }
-                        else
-                        {
-                            //log.Debug(ex);
-                            // this probably means someone else was launching at the same time, so you blew up. try again after a brief sleep
-                            System.Threading.Thread.Sleep(50);
-                        }
-                    }
-                    catch
-                    {
-                        //log.Debug(ex);
-                        // this probably means someone else was launching at the same time, so you blew up. try again after a brief sleep
-                        System.Threading.Thread.Sleep(50);
-                    }
-                    finally
-                    {
-                        //Need to release teh com object so other processes get a chance to use it
-                        VisualStudioHelper.ReleaseInstance(dte);
-                    }
-                }
-            }
-            else
-            {
-                //log.Debug("Debugger already attached.");
-            }
-        }
-
-        /// <summary>
-        /// Create binding context.
-        /// </summary>
-        /// <param name="reserved"></param>
-        /// <param name="ppbc"></param>
-        [DllImport("ole32.dll")]
-        private static extern void CreateBindCtx(int reserved, out IBindCtx ppbc);
-
-        /// <summary>
-        /// Get running objects.
-        /// </summary>
-        /// <param name="reserved"></param>
-        /// <param name="prot"></param>
-        /// <returns></returns>
-        [DllImport("ole32.dll")]
-        private static extern int GetRunningObjectTable(int reserved, out IRunningObjectTable prot);
-
-        /// <summary>
-        /// Get interfaces to control currently running Visual Studio instances
-        /// </summary>
-        public static IEnumerable<EnvDTE.DTE> GetRunningInstance()
-        {
-            IRunningObjectTable rot;
-            IEnumMoniker enumMoniker;
-            int retVal = GetRunningObjectTable(0, out rot);
-
-            if (retVal == 0)
-            {
-                rot.EnumRunning(out enumMoniker);
-
-                IntPtr fetched = IntPtr.Zero;
-                IMoniker[] moniker = new IMoniker[1];
-                while (enumMoniker.Next(1, moniker, fetched) == 0)
-                {
-                    IBindCtx bindCtx;
-                    CreateBindCtx(0, out bindCtx);
-                    string displayName;
-                    moniker[0].GetDisplayName(bindCtx, null, out displayName);
-                    bool isVisualStudio = displayName.StartsWith("!VisualStudio");
-                    if (isVisualStudio)
-                    {
-                        object obj;
-                        rot.GetObject(moniker[0], out obj);
-                        var dte = obj as EnvDTE.DTE;
-                        yield return dte;
-                    }
-                }
-            }
-        }
-        /// <summary>
-        /// Releases the devenv instance.
-        /// </summary>
-        /// <param name="instance"></param>
-        public static void ReleaseInstance(EnvDTE.DTE instance)
-        {
-            try
-            {
-                if (instance != null)
-                    System.Runtime.InteropServices.Marshal.ReleaseComObject(instance);
-            }
-            catch (Exception ex)
-            {
-                TraceSource log = Log.CreateSource("VSHelper");
-                log.Debug(ex);
-            }
-        }
-    }
-#endif
 }

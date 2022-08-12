@@ -4,13 +4,15 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using System.Xml.Serialization;
+using Newtonsoft.Json.Linq;
+using OpenTap.Authentication;
 
 namespace OpenTap.Package
 {
@@ -23,7 +25,7 @@ namespace OpenTap.Package
         /// The url of the repository.
         /// </summary>
         string Url { get; }
-        
+
         /// <summary>
         /// Downloads a package from this repository to a file.
         /// </summary>
@@ -71,18 +73,19 @@ namespace OpenTap.Package
     /// <summary>
     /// Represents a version of a package. Objects of this type is returned by<see cref="IPackageRepository.GetPackageVersions"/>.
     /// </summary>
+    [DebuggerDisplay("{Name} : {Version.ToString()}")]
     public class PackageVersion : PackageIdentifier, IEquatable<PackageVersion>
     {
         /// <summary>
         /// Initializes a new instance of a PackageVersion.
         /// </summary>
-        public PackageVersion(string name, SemanticVersion version, string os, CpuArchitecture architechture, DateTime date, List<string> licenses) : base(name,version,architechture,os)
+        public PackageVersion(string name, SemanticVersion version, string os, CpuArchitecture architechture, DateTime date, List<string> licenses) : base(name, version, architechture, os)
         {
             this.Date = date;
             this.Licenses = licenses;
         }
-        
-        internal PackageVersion() 
+
+        internal PackageVersion()
         {
 
         }
@@ -131,6 +134,34 @@ namespace OpenTap.Package
 
         public override bool Serialize(XElement node, object obj, ITypeData expectedType)
         {
+            if (expectedType.IsA(typeof(PackageVersion)) == false)
+                return false;
+
+            // We want to disable dependency writing either if:
+            // 1: we are serializing a single PackageVersion
+            // 2: we are serializing a single collection of PackageVersions
+            // In any other case, we do want to write package dependencies.
+            bool shouldDisableDependencyWriter()
+            {
+                if (node.Parent == null)
+                    return true;
+                if (node.Parent.Name.LocalName == "ArrayOfPackageVersion" ||
+                    node.Parent.Name.LocalName == "ListOfPackageVersion")
+                    return node.Parent.Parent == null;
+                return false;
+            }
+
+            if (shouldDisableDependencyWriter() == false)
+                return false;
+
+            // ask the TestPlanPackageDependency serializer (the one that writes the 
+            // <Package.Dependencies> tag in the bottom of e.g. TestPlan files) to
+            // not write the tag for this file.
+            var depSerializer = Serializer.GetSerializer<TestPlanPackageDependencySerializer>();
+            if (depSerializer != null)
+                depSerializer.WritePackageDependencies = false;
+            
+            // The serialization of this element should be handled by a generic serializer
             return false;
         }
 
@@ -219,107 +250,145 @@ namespace OpenTap.Package
         private static TraceSource log = Log.CreateSource("PackageRepository");
         private static VersionSpecifier RequiredApiVersion = new VersionSpecifier(3, 1, 0, "", "", VersionMatchBehavior.Compatible | VersionMatchBehavior.AnyPrerelease); // Required for GraphQL
 
-        internal static List<PackageDef> GetPackageNameAndVersionFromAllRepos(List<IPackageRepository> repositories, PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
+        static void ParallelTryForEach<TSource>(IEnumerable<TSource> source, Action<TSource> body)
         {
-            var list = new List<PackageDef>();
             try
             {
-                string query = 
-                    @"query Query {
-                            packages(distinctName:true" + (id != null ? $",version:\"{id.Version}\",os:\"{id.OS}\",architecture:\"{id.Architecture}\"" : "") + @") {
+                Parallel.ForEach(source, body);
+            }
+            catch (AggregateException ex)
+            {
+                foreach (var inner in ex.InnerExceptions)
+                {
+                    log.Info(inner.Message);
+                    log.Debug(inner);
+                }
+            }
+        }
+
+        internal static List<PackageDef> GetPackageNameAndVersionFromAllRepos(List<IPackageRepository> repositories,
+            PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
+        {
+            var list = new List<PackageDef>();
+
+            string query =
+                @"query Query {
+                            packages(distinctName:true" +
+                (id != null ? $",version:\"{id.Version}\",os:\"{id.OS}\",architecture:\"{id.Architecture}\"" : "") +
+                @") {
                             name
                             version
                         }
                     }";
 
-                Parallel.ForEach(repositories, repo =>
+            ParallelTryForEach(repositories, repo =>
+            {
+                if (repo is HttpPackageRepository httprepo && httprepo.Version != null &&
+                    RequiredApiVersion.IsCompatible(httprepo.Version))
                 {
-                    if (repo is HttpPackageRepository httprepo && httprepo.Version != null && RequiredApiVersion.IsCompatible(httprepo.Version))
+                    var jsonString = httprepo.QueryGraphQL(query);
+                    var json = JObject.Parse(jsonString);
+                    lock (list)
                     {
-                        var json = httprepo.Query(query);
-                        lock (list)
-                        {
-                            foreach (var item in json["packages"])
-                                list.Add(new PackageDef() { Name = item["name"].ToString(), Version = SemanticVersion.Parse(item["version"].ToString()) });
-                        }
+                        foreach (var item in json["packages"])
+                            list.Add(new PackageDef()
+                            {
+                                Name = item["name"].ToString(),
+                                Version = SemanticVersion.Parse(item["version"].ToString()),
+                                PackageSource = new HttpRepositoryPackageDefSource() { RepositoryUrl = httprepo.Url }
+                            });
                     }
-                    else
-                    {
-                        var packages = repo.GetPackages(id, compatibleWith);
-                        lock (list)
-                        {
-                            list.AddRange(packages);
-                        }
-                    }
-                });
-            }
-            catch (AggregateException ex)
-            {
-                foreach (var inner in ex.InnerExceptions)
-                    log.Error(inner);
-                log.Error(ex);
-            }
-            return list;
-        }
-
-        internal static List<PackageDef> GetPackagesFromAllRepos(List<IPackageRepository> repositories, PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
-        {
-            var list = new List<PackageDef>();
-            try
-            {
-                Parallel.ForEach(repositories, repo =>
+                }
+                else
                 {
                     var packages = repo.GetPackages(id, compatibleWith);
                     lock (list)
                     {
                         list.AddRange(packages);
                     }
-                });
-            }
-            catch (AggregateException ex)
-            {
-                foreach (var inner in ex.InnerExceptions)
-                    log.Error(inner);
-                log.Error(ex);
-            }
+                }
+            });
             return list;
         }
 
-        internal static List<PackageVersion> GetAllVersionsFromAllRepos(List<IPackageRepository> repositories, string packageName, params IPackageIdentifier[] compatibleWith)
+        internal static List<PackageDef> GetPackagesFromAllRepos(List<IPackageRepository> repositories,
+            PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
+        {
+            var list = new List<PackageDef>();
+
+            ParallelTryForEach(repositories, repo =>
+            {
+                var packages = repo.GetPackages(id, compatibleWith);
+                lock (list)
+                {
+                    list.AddRange(packages);
+                }
+            });
+
+            return list;
+        }
+
+        internal static List<PackageVersion> GetAllVersionsFromAllRepos(List<IPackageRepository> repositories,
+            string packageName, params IPackageIdentifier[] compatibleWith)
         {
             var list = new List<PackageVersion>();
-            try
+            ParallelTryForEach(repositories, repo =>
             {
-                Parallel.ForEach(repositories, repo =>
+                var packages = repo.GetPackageVersions(packageName, compatibleWith);
+                lock (list)
                 {
-                    var packages = repo.GetPackageVersions(packageName, compatibleWith);
-                    lock (list)
-                    {
-                        list.AddRange(packages);
-                    }
-                });
-            }
-            catch (AggregateException ex)
-            {
-                foreach (var inner in ex.InnerExceptions)
-                    log.Error(inner);
-                log.Error(ex);
-            }
+                    list.AddRange(packages);
+                }
+            });
             return list;
         }
 
+        /// <summary>
+        /// Returns FilePackageRepository if either of the following is true:
+        /// - Url is explicitly defined with file:/// 
+        /// - The url is relative and directory exists
+        /// - Starts with classic windows absolute path like 'C:/'
+        /// - Starts with '\\'
+        /// Otherwise returns HttpPackageRepository
+        /// </summary>
+        /// <param name="url">url to be determined to be file path or http path</param>
+        /// <returns>Determined repository type</returns>
         internal static IPackageRepository DetermineRepositoryType(string url)
         {
-            if(url.Contains("http://") || url.Contains("https://"))
-                return new HttpPackageRepository(url); // avoid throwing exceptions if it looks a lot like a URL.
-            if (Uri.IsWellFormedUriString(url, UriKind.Relative) && Directory.Exists(url))
-                return new FilePackageRepository(url);
-            if (File.Exists(url))
-                return new FilePackageRepository(Path.GetDirectoryName(url));
-            if (Regex.IsMatch(url ?? "", @"^([A-Z|a-z]:)?(\\|/)"))
-                return new FilePackageRepository(url);
+            if (registeredRepositories.TryGetValue(url, out var repo))
+                return repo;
+            if (Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out Uri uri))
+            {
+                if(uri.IsAbsoluteUri)
+                {
+                    switch(uri.Scheme)
+                    {
+                        case "http":
+                        case "https":
+                            return new HttpPackageRepository(url);
+                        case "file":
+                            return new FilePackageRepository(uri.AbsolutePath);
+                        default:
+                            throw new NotSupportedException($"Scheme {uri.Scheme} is not supported as a package repository ({url}).");
+                    }
+                }
+                else
+                {
+                    if (AuthenticationSettings.Current.BaseAddress != null)
+                        return DetermineRepositoryType(new Uri(new Uri(AuthenticationSettings.Current.BaseAddress), url).AbsoluteUri);
+                    else
+                        return new FilePackageRepository(Path.GetFullPath(url)); // GetFullPath throws ArgumentException if url contains illigal path chars
+                }
+            }
             else
-                return new HttpPackageRepository(url);
+                throw new NotSupportedException($"Unable to determine repository type of '{url}'. Try specifying a scheme using 'http://' or 'file:///'.");
+        }
+
+        static Dictionary<string, IPackageRepository> registeredRepositories = new Dictionary<string, IPackageRepository>();
+
+        internal static void RegisterRepository(IPackageRepository repo)
+        {
+            registeredRepositories[repo.Url] = repo;
         }
     }
 }

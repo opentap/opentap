@@ -50,7 +50,7 @@ namespace MyOpenTAPProject
         public override void Run()
         {
             // ToDo: Add test case code here.
-            RunChildSteps(); //If step has child steps.
+            RunChildSteps(); // If step has child steps, run them.
             UpgradeVerdict(Verdict.Pass);
         }
 
@@ -63,7 +63,8 @@ namespace MyOpenTAPProject
     }
 }
 ```
-## TestStep Hierarchy
+
+## Test Step Hierarchy
 
 Each TestStep object contains a list of TestSteps called *Child Steps*. A hierarchy of test steps can be built with an endless number of levels. The child steps:
 
@@ -301,13 +302,15 @@ ReadOnlyOutputData = new double[]{10, 10, 15, 15, 15, 150};
 Results.PublishTable("Inputs vs. Moving Average", new List<string>() {"Input Values", "Output Values"}, 
      InputData, ReadOnlyOutputData);
 ```
-### Basic Theory
+### Result Tables
 Test step results are represented in a ResultTable object. A ResultTable consists of a name, one to N columns, and one to M rows. Each test step typically publishes one uniquely named table. Less frequently (but possible), a test step will publish K tables with different names, row/column definitions and values. Each ResultTable is passed to the configured ResultListeners for individual handling.
 
-### ResultTable Details
+### Result Table Details
 This graphic shows the ResultTable definition.
 
 ![](./ResultTable.png)
+
+An example of a result table could be a measurement of Power over Frequency. In this case the Result Table name could be "Power over Frequency" and it could contain two Columns, one "Power [W]" column and one "Frequency [Hz]" column. Each column would have the same number of elements, for example 1000, and this would also be the value of the 'Rows' property.
 
 ### ResultSource Object
 A ResultSource object (named Results in the test step base class) and its publish methods push result tables to the configured ResultListeners.
@@ -332,7 +335,42 @@ For different approaches to publishing results, see the examples in:
 
 -	`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\PublishResults`
 
-	
+## Child Test Steps
+
+Test step can have any number of child test steps. Exactly which can be controlled by using `AllowAnyChildAttribute`, and `AllowChildOfType`. 
+
+To execute child test steps within a test step run, the RunChildStep method can be used to run a single child step or RunChildSteps can be used to run all of them.
+
+Depending on the verdict of the child steps, the break condition setting of the parent step, and the way RunChildSteps is called, there are a number of different ways that the control flow will be affected.
+
+The default implementation should look something like this:
+```cs
+    public override void Run()
+    {
+        // Insert here things to do before running child steps 
+        RunChildSteps();
+        // Insert here things to do after running child steps.
+    }
+```
+
+`RunChildSteps` will take care of setting the verdict of the calling test step based on the verdict of the child test steps. The default algorithm here is to take the most severe verdict and use that for the parent test step. 
+For example, if the child test steps have verdicts Pass, Inconclusive and Fail, the parent test step will get the Fail verdict.   
+
+`RunChildSteps` may throw an exception. This happens if the break conditions for the parent test step are satisfied. 
+If the break conditions are satisfied due to an exception being thrown, resulting in an Error verdict, the same exception will be thrown.
+To avoid this behavior, the overload `RunChildSteps(throwOnBreak: false)` can be used, but the exceptions are still available from the returned list of test step runs.
+
+To override a verdict set by `RunChildSteps`, the exception must be caught, or `throwOnBreak` must be set. After this, the `Verdict` property can be set directly.
+```cs
+    public override void Run()
+    {
+        RunChildSteps(throwOnBreak: false);
+        Verdict = Verdict.Pass; // force the verdict to be 'Pass'
+    }
+```
+
+Child test steps can be run in a separate thread. This should be done with the TapThread.Start method. Before returning from the parent step, the child step thread should be waited for, or alternatively this should be done in a Defer operation. A great example of using parallelism can be found in the [Parallel Step](https://github.com/opentap/opentap/blob/main/BasicSteps/ParallelStep.cs).
+
 ## Serialization
 Default values of properties should be defined in the constructor. Upon saving a test plan, the test plan's **OpenTAP.Serializer** adds each step's public property to the test plan's XML file. Upon loading a test plan from a file, the OpenTAP.Serializer first instantiates the class with values from the constructor and then fills the property values from the values found in the test plan file. 
 
@@ -388,5 +426,32 @@ public class HandleInput : TestStep
     }
 }
 ```
+
+## Parameterized Settings
+In some cases multiple test steps requires using the same setting values. This can be a bit cumbersome to configure and error prone under normal circumstances. To better consolidate settings across many test steps, parameterizations can be used. A setting can be parameterized on any parent test step or the test plan itself. The purpose of the parameterization is to group together test step settings, and make it easier to manage setting values across many different test steps.
+
+For example, let's say a `Signal Generator Test Step` and a `Signal Analyzer Test Step` both has a `Frequency` setting, and it is wanted to make sure that the values of the frequencies are always the same. Each `Frequency` setting can then be Parameterized to the parent test step under the same name, and the parent test step will get a single property representing `Frequency` for both test steps.
+
+![Parameterized frequency setting](./Parameterization.png)
+
+<em>Notice the parameterized `Frequency` property in the `Signal Generator` step that is marked as read-only. The setting can be modified on the parent `Sequence` step. </em>
+
+
+In addition, some test steps have special behavior with regards to parameters that are useful to know about.
+
+### Sweeping Parameters
+
+The Parameter Sweep test steps utilizes parameterized settings to make it possible to sweep specific test step settings on specific test steps. When a child test steps setting is parameterized onto the Sweep Parameter test step, that parameter can be swept.  
+
+- Sweep Parameter Test Step: Sweeps a set of parameters across a table of values defined by the user.
+- Sweep Parameter Range Test Step: Sweeps a set of parameters across a range of numeric values. For example, an exponential sweep can be made of values between 1MHz to 1GHz. Or a linear sweep can be done across a number of channels.
+
+### Test Plan Parameters
+If the setting is parameterized on a test plan, it is sometimes referred to as an "External Parameter" or "Test Plan Parameter". A test plan parameter can be configured from the command line when "tap run" is being used, for example by specifying `-e "Frequency=10MHz"`. It can also be configured from a test plan reference, as the referenced test plan parameters are promoted onto the Test Plan Reference test step.
+
+### ExternalParameterAttribute
+
+The ExternalParameterAttribute marks a property that should be an external parameter (Test Plan Parameter) by default. When the test step is inserted into the test plan, these properties will be automatically assigned to test plan parameters. Note that the setting can be unparameterized manually in case the default behavior is not wanted.
+
 ## Exceptions 
 Exceptions from user code are caught by OpenTAP. This could break the control flow, but all resources will always be closed. If the exception gets caught before PostPlanRun, the steps that had PrePlanRun called will also get PostPlanRun called. When a step fails (by setting the Verdict to *Fail* or *Abort*) or throws an exception, execution can be configured to continue (ignoring the error), or to abort execution, by changing the "Abort Run If" property in Engine settings 

@@ -41,6 +41,18 @@ namespace OpenTap
                 return cst.Type == basetype;
             return false;
         }
+        
+        /// <summary> Really fast direct descendant test. This checks for reference equality of the type or a base type, and 'baseType'.
+        /// Given these constraints are met, this can be 6x faster than DescendsTo, but should only be used in special cases. </summary>
+        public static bool DirectInheritsFrom(this ITypeData type, ITypeData baseType)
+        {
+            do
+            {
+                if(ReferenceEquals(type, baseType)) return true;
+                type = type.BaseType;
+            } while (type != null);
+            return false;
+        }
 
         public static TypeData AsTypeData(this ITypeData type)
         {
@@ -167,7 +179,7 @@ namespace OpenTap
         static readonly ConditionalWeakTable<MemberInfo, object[]> attrslookupNoInherit = new ConditionalWeakTable<MemberInfo, object[]>();
         public static object[] GetAllCustomAttributes(this MemberInfo prop, bool inherit)
         {
-            if(inherit)
+            if(!inherit)
                 return attrslookupNoInherit.GetValue(prop, getAttributesNoInherit);
             return GetAllCustomAttributes(prop);
         }
@@ -637,6 +649,11 @@ namespace OpenTap
             return getKey == null ? (MemorizerKey)(object)arg : getKey(arg);
         }
 
+        public virtual ResultT OnCyclicCallDetected(ArgT key)
+        {
+            throw new Exception("Cyclic memorizer invoke detected.");
+        }
+
         public ResultT this[ArgT arg] => Invoke(arg);
 
         public ResultT Invoke(ArgT arg)
@@ -676,7 +693,7 @@ namespace OpenTap
                 {   // Avoid running into a StackOverflowException.
 
                     if (CylicInvokeResponse == CyclicInvokeMode.ThrowException)
-                        throw new Exception("Cyclic memorizer invoke detected."); 
+                        return OnCyclicCallDetected(arg);
                     return default(ResultT);
                 }
                 try
@@ -1131,6 +1148,14 @@ namespace OpenTap
         {
             foreach (var value in values)
                 lst.Add(value);
+        }
+        
+        [Obsolete("Cannot add to array", true)]
+        public static void AddRange<T>(this T[] lst, IEnumerable<T> values)
+        {
+            // This function is intentionally added to avoid adding the arrays.
+            // They also implement IList, so they normally hit the other overload.
+            throw new NotSupportedException();
         }
 
         /// <summary>
@@ -1596,7 +1621,19 @@ namespace OpenTap
     {
         /// <summary> Turns item into a one element array, unless it is null.</summary>
         public static T[] AsSingle<T>(this T item) => item == null ? Array.Empty<T>() : new[] {item};
-        
+
+        /// <summary>
+        /// First or null, which for struct types returns a null value instead of a default(T) that FirstOrDefault does.
+        /// </summary>
+        public static T? FirstOrNull<T>(this IEnumerable<T> items, Func<T, bool> p) where T: struct
+        {
+            foreach (var item in items)
+            {
+                if (p(item))
+                    return item;
+            }
+            return null;
+        }
         
         /// <summary>
         /// Like distinct but keeps the last item. Returns List because we need to iterate until last element anyway.
@@ -1865,7 +1902,7 @@ namespace OpenTap
         uint user;
 
         /// <summary>
-        /// Creates a memory mapepd API.
+        /// Creates a memory mapped API.
         /// </summary>
         /// <param name="name"></param>
         public MemoryMappedApi(string name)
@@ -2152,30 +2189,35 @@ namespace OpenTap
     /// <summary> Invoke an action after a timeout, unless canceled. </summary>
     class TimeoutOperation : IDisposable
     {
+        /// <summary> Estimate of how long it takes for the user to loose patience.</summary>
+        static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);
+        
         TimeoutOperation(TimeSpan timeout, Action action)
         {
             this.timeout = timeout;
             this.action = action;
             tokenSource = new CancellationTokenSource(timeout);
         }
-        Action action;
-        TimeSpan timeout;
-        /// <summary> Estimate of how long it takes for the user to loose patience.</summary>
-        static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);
-
-        CancellationTokenSource tokenSource;
-        bool isCompleted = false;
+        readonly Action action;
+        readonly TimeSpan timeout;
+        readonly CancellationTokenSource tokenSource;
+        
+        bool isCompleted;
         void wait()
         {
             try
             {
-                if (!tokenSource.IsCancellationRequested && WaitHandle.WaitTimeout == WaitHandle.WaitAny(new WaitHandle[] { tokenSource.Token.WaitHandle, TapThread.Current.AbortToken.WaitHandle }, timeout))
+                var token = tokenSource.Token;
+                if (!token.IsCancellationRequested && WaitHandle.WaitTimeout == WaitHandle.WaitAny(new [] { token.WaitHandle, TapThread.Current.AbortToken.WaitHandle }, timeout))
                     action();
             }
             finally
             {
-                tokenSource.Dispose();
-                isCompleted = true;
+                lock (tokenSource)
+                {
+                    tokenSource.Dispose();
+                    isCompleted = true;
+                }
             }
         }
 
@@ -2205,8 +2247,11 @@ namespace OpenTap
         {
             try
             {
-                if (!isCompleted)
-                    tokenSource.Cancel();
+                lock (tokenSource)
+                {
+                    if (!isCompleted)
+                        tokenSource.Cancel();
+                }
             }
             catch (ObjectDisposedException)
             {

@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 namespace OpenTap
 {
@@ -43,12 +44,18 @@ namespace OpenTap
             return res.GetConstProperties().OfType<T>();
         }
 
+        /// <summary>  Const resources are not expected to change for a given resource, so we can optimize this by caching the result. </summary>
+        static readonly ConditionalWeakTable<IResource, IConstResourceProperty[]> constPropertyCache = new ConditionalWeakTable<IResource, IConstResourceProperty[]>();
+
         /// <summary>
         /// Returns all IConstResourceProperty instances on a resource.
         /// </summary>
         /// <param name="res"></param>
         /// <returns></returns>
-        public static IEnumerable<IConstResourceProperty> GetConstProperties(this IResource res)
+        public static IEnumerable<IConstResourceProperty> GetConstProperties(this IResource res) =>
+            constPropertyCache.GetValue(res, r => GetConstPropertiesImpl(r).ToArray());
+        
+        static IEnumerable<IConstResourceProperty> GetConstPropertiesImpl(IResource res)
         {
             foreach (var prop in res.GetType().GetPropertiesTap())
             {
@@ -72,6 +79,5 @@ namespace OpenTap
                 }
             }
         }
-
     }
 }

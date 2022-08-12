@@ -10,6 +10,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -17,6 +18,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.Serialization;
+using OpenTap.Authentication;
 using Tap.Shared;
 
 namespace OpenTap.Package
@@ -26,27 +28,33 @@ namespace OpenTap.Package
     /// </summary>
     public class HttpPackageRepository : IPackageRepository, IPackageDownloadProgress
     {
-#pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
+        // from Stream.cs: pick a value that is the largest multiple of 4096 that is still smaller than the large object heap threshold (85K).
+        private const int _DefaultCopyBufferSize = 81920;
+
         private static TraceSource log = Log.CreateSource("HttpPackageRepository");
         private const string ApiVersion = "3.0";
         private VersionSpecifier MinRepoVersion = new VersionSpecifier(3, 0, 0, "", "", VersionMatchBehavior.AnyPrerelease | VersionMatchBehavior.Compatible);
         private string defaultUrl;
-        private static HttpClient httpClient;
-        private static HttpClient HttpClient
+        private HttpClient client;
+        private HttpClient HttpClient => client ?? (client = GetHttpClient(Url));
+        private static HttpClient GetHttpClient(string url)
         {
-            get
-            {
-                if (httpClient is null)
-                {
-                    httpClient = new HttpClient();
-                    httpClient.DefaultRequestHeaders.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
-                    httpClient.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/xml");
-                }
-                return httpClient;
-            }
+            var httpClient = AuthenticationSettings.Current.GetClient(null, true);
+            httpClient.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/xml");
+            return httpClient;
         }
+
+        /// <summary>
+        /// If true, most warnings will be logged as debug messages
+        /// </summary>
         public bool IsSilent;
         private SemanticVersion _version;
+
+        bool IsInError() => _version == null && nextUpdateAt > DateTime.Now;
+
+        /// <summary>
+        /// Get or set the version of the repository
+        /// </summary>
         public SemanticVersion Version
         {
             get
@@ -62,18 +70,15 @@ namespace OpenTap.Package
             }
         }
 
+        /// <summary>
+        /// Initialize a http repository with the given URL
+        /// </summary>
+        /// <param name="url"></param>
+
         public HttpPackageRepository(string url)
         {
-            url = url.Trim();
-            if (Regex.IsMatch(url, "http(s)?://"))
-                this.Url = url;
-            else
-                this.Url = "http://" + url;
-
-            // Trim end to fix redirection. E.g. 'packages.opentap.io/' redirects to 'packages.opentap.io'.
-            this.Url = this.Url.TrimEnd('/');
+            Url = url.TrimEnd('/');
             defaultUrl = this.Url;
-            this.Url = CheckUrlRedirect(this.Url);
 
             // Get the users Uniquely generated id
             var id = GetUserId();
@@ -81,10 +86,11 @@ namespace OpenTap.Package
             string installDir = ExecutorClient.ExeDir;
             UpdateId = String.Format("{0:X8}{1:X8}", MurMurHash3.Hash(id), MurMurHash3.Hash(installDir));
         }
+
         Action<string, long, long> IPackageDownloadProgress.OnProgressUpdate { get; set; }
         internal static string GetUserId()
         {
-            var idPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTAP", "OpenTapGeneratedId");
+            var idPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTap", "OpenTapGeneratedId");
             string id = default(Guid).ToString(); // 00000000-0000-0000-0000-000000000000
 
             try
@@ -110,30 +116,32 @@ namespace OpenTap.Package
 
         async Task DoDownloadPackage(PackageDef package, FileStream fileStream, CancellationToken cancellationToken)
         {
-            bool finished = false;
+
             try
             {
-                using (HttpClientHandler hch = new HttpClientHandler() { UseProxy = true, Proxy = WebRequest.GetSystemWebProxy() })
-                using (HttpClient hc = new HttpClient(hch) { Timeout = Timeout.InfiniteTimeSpan })
+                var hc = HttpClient;
                 {
                     HttpResponseMessage response = null;
                     hc.DefaultRequestHeaders.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
-                    var retries = 60;
-                    var downloadedBytes = 0;
+
                     var totalSize = -1L;
-
-                    while (retries > 0)
+                    // this retry loop is to robustly to download the package even if the connection is intermittently lost
+                    // to test, try
+                    // - Switching network interface
+                    // - Entering into airplane mode
+                    // - Enabling / disabling a VPN connection
+                    // It should try to continue for a while unless the cancellation token signals to stop.
+                    int maxRetries = 60;
+                    for (int retry = 0; retry < maxRetries; retry++)
                     {
-                        if (retries < 60)
-                            log.Debug($"Retrying {61 - retries}/60");
-
-                        hc.DefaultRequestHeaders.Range = RangeHeaderValue.Parse($"bytes={downloadedBytes}-");
+                        hc.DefaultRequestHeaders.Range = RangeHeaderValue.Parse($"bytes={fileStream.Position}-");
 
                         try
                         {
                             if (package.PackageSource is HttpRepositoryPackageDefSource httpSource && string.IsNullOrEmpty(httpSource.DirectUrl) == false)
                             {
-                                log.Info($"Downloading package directly from: '{httpSource.DirectUrl}'.");
+                                if (retry == 0)
+                                    log.Info($"Downloading package directly from: '{httpSource.DirectUrl}'.");
                                 var message = new HttpRequestMessage(HttpMethod.Get, new Uri(httpSource.DirectUrl));
 
                                 try
@@ -152,11 +160,11 @@ namespace OpenTap.Package
                             else
                             {
                                 var message = new HttpRequestMessage(HttpMethod.Get,
-                                    new Uri(Url + "/" + ApiVersion + "/DownloadPackage" +
+                                    Url + "/" + ApiVersion + "/DownloadPackage" +
                                           $"/{Uri.EscapeDataString(package.Name)}" +
                                           $"?version={Uri.EscapeDataString(package.Version.ToString())}" +
                                           $"&os={Uri.EscapeDataString(package.OS)}" +
-                                          $"&architecture={Uri.EscapeDataString(package.Architecture.ToString())}"));
+                                          $"&architecture={Uri.EscapeDataString(package.Architecture.ToString())}");
                                 response = await hc.SendAsync(message, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
                             }
 
@@ -169,21 +177,8 @@ namespace OpenTap.Package
                                 if (response.IsSuccessStatusCode == false)
                                     throw new HttpRequestException($"The download request failed with {response.StatusCode}.");
 
-                                var buffer = new byte[4096];
-                                int read = 0;
-
-                                var task = Task.Run(() =>
-                                {
-                                    do
-                                    {
-                                        read = responseStream.Read(buffer, 0, 4096);
-                                        fileStream.Write(buffer, 0, read);
-                                        downloadedBytes += read;
-                                    } while (read > 0);
-
-                                    finished = true;
-                                }, cancellationToken);
-                                ConsoleUtils.ReportProgressTillEnd(task, "Downloading",
+                                var task = responseStream.CopyToAsync(fileStream, _DefaultCopyBufferSize, cancellationToken);
+                                await ConsoleUtils.ReportProgressTillEndAsync(task, "Downloading",
                                     () => fileStream.Position,
                                     () => totalSize,
                                     (header, pos, len) =>
@@ -191,20 +186,48 @@ namespace OpenTap.Package
                                         ConsoleUtils.printProgress(header, pos, len);
                                         (this as IPackageDownloadProgress).OnProgressUpdate?.Invoke(header, pos, len);
                                     });
+
                             }
 
-                            if (finished)
-                                break;
+                            break;
                         }
-                        catch (Exception e)
+                        catch (Exception ex)
                         {
-                            response.Dispose();
-                            retries--;
-                            if (retries <= 0 || cancellationToken.IsCancellationRequested)
-                                throw;
-                            log.Debug("Failed to download package.");
-                            log.Debug(e);
-                            Thread.Sleep(TimeSpan.FromSeconds(1));
+                            if (ex is IOException)
+                            {
+                                await Task.Delay(TimeSpan.FromSeconds(1));
+                                continue;
+                            }
+                            if (ex is HttpRequestException)
+                            {
+                                // This occurs if the initial connection cannot be made.
+                                // usually during transitioning to/from VPN connections.
+                                await Task.Delay(TimeSpan.FromSeconds(1));
+                                continue;
+                            }
+
+                            if (response != null)
+                            {
+                                // The connection was broken while a http request was active.
+                                // If the error is transient or we got partial data we can try continuing.
+
+                                var code = response.StatusCode;
+                                bool isError = response.IsSuccessStatusCode == false;
+                                response.Dispose();
+                                response = null;
+
+                                // PartialContent usually happens when 'ex' is IOException.
+
+                                if (code == HttpStatusCode.PartialContent || (isError && HttpUtils.TransientStatusCode(code)))
+                                {
+                                    await Task.Delay(TimeSpan.FromSeconds(1));
+                                    continue;
+                                }
+                            }
+
+                            if (cancellationToken.IsCancellationRequested == false)
+                                log.Error($"Failed to download package {package.Name} from {Url}.");
+                            throw;
                         }
                     }
                 }
@@ -224,23 +247,16 @@ namespace OpenTap.Package
             string xmlText = null;
             try
             {
-                using (WebClient wc = new WebClient())
+                HttpRequestMessage httpRequestMessage = new HttpRequestMessage(HttpMethod.Get, Url + args);
+                httpRequestMessage.Headers.Add("Accept", accept ?? "application/xml");
+                httpRequestMessage.Headers.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
+                if (data != null)
                 {
-                    wc.Proxy = WebRequest.GetSystemWebProxy();
-                    wc.Headers.Add(HttpRequestHeader.Accept, accept ?? "application/xml");
-                    wc.Headers.Add("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
-                    wc.Encoding = Encoding.UTF8;
-
-                    if (data != null)
-                    {
-                        wc.Headers[HttpRequestHeader.ContentType] = contentType ?? "application/x-www-form-urlencoded";
-                        xmlText = wc.UploadString(Url + args, "POST", data);
-                    }
-                    else
-                    {
-                        xmlText = wc.DownloadString(Url + args);
-                    }
+                    httpRequestMessage.Method = HttpMethod.Post;
+                    httpRequestMessage.Content = new StringContent(data);
                 }
+                var response = HttpClient.SendAsync(httpRequestMessage).GetAwaiter().GetResult();
+                xmlText = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -254,108 +270,78 @@ namespace OpenTap.Package
                 else
                     log.Debug(exception);
 
-                throw exception;
+                throw;
             }
             return xmlText;
         }
-        private string CheckUrlRedirect(string url)
-        {
-            try
-            {
-                try
-                {
-                    var versionUrl = $"{url}/{ApiVersion}/version";
-                    var response = HttpClient.GetAsync(versionUrl).Result;
 
-                    // Check for http server redirects
-                    url = checkServerRedirect(url, versionUrl, response);
+        // The value indicates the next time at which the repo should be tried connected to.
+        DateTime nextUpdateAt = DateTime.MinValue;
 
-                    // Check client redirects
-                    var xmlText = response.Content.ReadAsStringAsync().Result;
-                    url = checkClientRedirect(url, xmlText);
-                }
-                catch
-                {
-                    try
-                    {
-                        var xmlText = HttpClient.GetStringAsync(url).Result;
-                        url = checkClientRedirect(url, xmlText);
-                    }
-                    catch
-                    {
-                        return url;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                log.Debug(ex);
-            }
-            return url.TrimEnd('/');
-        }
-
-        private string checkServerRedirect(string url, string versionUrl, HttpResponseMessage response)
-        {
-            var redirectedUrl = response.RequestMessage.RequestUri.ToString();
-            if (versionUrl != redirectedUrl)
-            {
-                redirectedUrl = new HttpClient().GetAsync(url).Result.RequestMessage.RequestUri.ToString();
-                log.Debug($"Redirected from '{url}' to '{redirectedUrl}'.");
-                url = redirectedUrl;
-            }
-
-            return url;
-        }
-
-        private string checkClientRedirect(string url, string xmlText)
-        {
-            try
-            {
-                var match = Regex.Match(xmlText, "<meta.*?http-equiv=\\\"refresh\\\".*?>");
-                if (match.Success)
-                {
-                    log.Debug("Found redirect in repository URL. Redirecting to new URL...");
-                    match = Regex.Match(match.Value, "url=(.*?)(?:\\\"|')");
-                    if (match.Success)
-                        url = CheckUrlRedirect(match.Groups[1].Value);
-                }
-            }
-            catch { }
-
-            return url;
-        }
-
+        static readonly TimeSpan updateRepoVersionHoldOff = TimeSpan.FromSeconds(60);
+        readonly object updateVersionLock = new object();
         private void CheckRepoApiVersion()
         {
             string tryDownload(string url)
             {
-                try { return HttpClient.GetStringAsync(url).Result; }
-                catch { return null; }
+                try
+                {
+                    return HttpClient.GetStringAsync(url).Result;
+                }
+                catch (AggregateException ae)
+                {
+                    throw ae.InnerException;
+                }
             }
 
-            // Check specific version
-            var data = tryDownload($"{Url}/{ApiVersion}/version");
-
-            if (string.IsNullOrEmpty(data))
+            lock (updateVersionLock)
             {
-                // Url does not exists
-                if (tryDownload(Url) == null)
-                    throw new WebException($"Unable to connect to '{defaultUrl}'.");
+                if (IsInError())
+                    return;
 
-                // Check old repo
-                if (tryDownload($"{Url}/2.0/version") != null)
-                    throw new NotSupportedException($"The repository '{defaultUrl}' is only compatible with TAP 8.x or ealier.");
+                try
+                {
+                    // Check specific version
+                    string data = null;
+                    try
+                    {
+                        data = tryDownload($"{Url}/{ApiVersion}/version");
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        log.Debug("HTTP Exception {0}", ex);
+                    }
 
-                throw new NotSupportedException($"'{defaultUrl}' is not a package repository.");
+                    if (string.IsNullOrEmpty(data))
+                    {
+                        // Url does not exists
+                        if (tryDownload(Url) == null)
+                            throw new WebException($"Unable to connect to '{defaultUrl}'.");
+
+                        // Check old repo
+                        if (tryDownload($"{Url}/2.0/version") != null)
+                            throw new NotSupportedException(
+                                $"The repository '{defaultUrl}' is only compatible with TAP 8.x or ealier.");
+                        throw new NotSupportedException($"'{defaultUrl}' is not a package repository.");
+                    }
+
+                    var reader = XmlReader.Create(new StringReader(data));
+                    var serializer = new XmlSerializer(typeof(string));
+                    if (serializer.CanDeserialize(reader) == false)
+                        throw new NotSupportedException($"'{defaultUrl}' is not a package repository.");
+                    var version = serializer.Deserialize(reader) as string;
+                    if (SemanticVersion.TryParse(version, out _version) &&
+                        MinRepoVersion.IsCompatible(_version) == false)
+                        throw new NotSupportedException($"The repository '{defaultUrl}' is not supported.",
+                            new Exception(
+                                $"Repository version '{Version}' is not compatible with min required version '{MinRepoVersion}'."));
+                }
+                catch
+                {
+                    log.Warning("Unable to connect to: {0}", Url);
+                }
+                nextUpdateAt = DateTime.Now + updateRepoVersionHoldOff;
             }
-
-            var reader = XmlReader.Create(new StringReader(data));
-            var serializer = new XmlSerializer(typeof(string));
-            if (serializer.CanDeserialize(reader) == false)
-                throw new NotSupportedException($"'{defaultUrl}' is not a package repository.");
-            var version = serializer.Deserialize(reader) as string;
-            if (SemanticVersion.TryParse(version, out _version) && MinRepoVersion.IsCompatible(_version) == false)
-                throw new NotSupportedException($"The repository '{defaultUrl}' is not supported.", new Exception($"Repository version '{Version}' is not compatible with min required version '{MinRepoVersion}'."));
         }
 
         PackageDef[] packagesFromXml(string xmlText)
@@ -368,11 +354,10 @@ namespace OpenTap.Package
                     var packages = PackageDef.ManyFromXml(stream).ToArray();
                     packages.ForEach(p =>
                     {
-                        if (p.PackageSource == null)
-                            p.PackageSource = new HttpRepositoryPackageDefSource
-                            {
-                                RepositoryUrl = Url
-                            };
+                        p.PackageSource = new HttpRepositoryPackageDefSource
+                        {
+                            RepositoryUrl = Url
+                        };
                     });
 
                     return packages;
@@ -432,11 +417,22 @@ namespace OpenTap.Package
         }
 
         #region IPackageRepository Implementation
+
+        /// <summary>
+        /// Get the URL of the repository
+        /// </summary>
         public string Url { get; set; }
+
+        /// <summary>
+        /// Download a package to a specific destination
+        /// </summary>
+        /// <param name="package"></param>
+        /// <param name="destination"></param>
+        /// <param name="cancellationToken"></param>
         public void DownloadPackage(IPackageIdentifier package, string destination, CancellationToken cancellationToken)
         {
             var tmpPath = destination + "." + Guid.NewGuid().ToString();
-            //Use DeleteOnClose to auto-magically remove the file when the stream or application is closed. 
+            //Use DeleteOnClose to auto-magically remove the file when the stream or application is closed.
             using (var tmpFile = new FileStream(tmpPath, FileMode.Create, FileAccess.ReadWrite,
                 FileShare.Delete | FileShare.Read, 4096, FileOptions.DeleteOnClose))
             {
@@ -460,9 +456,10 @@ namespace OpenTap.Package
                         File.Copy(tmpFile.Name, destination);
                     }
                 }
-                catch
+                catch (Exception)
                 {
-                    log.Warning("Download failed.");
+                    if (cancellationToken.IsCancellationRequested == false)
+                        log.Warning("Download failed.");
                     throw;
                 }
                 finally
@@ -472,8 +469,16 @@ namespace OpenTap.Package
             }
         }
 
+        /// <summary>
+        /// Get the names of the available packages in the repository
+        /// </summary>
+        /// <param name="cancellationToken"></param>
+        /// <param name="compatibleWith"></param>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public string[] GetPackageNames(CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
+            if (IsInError()) return Array.Empty<string>();
             string response;
 
             var arg = string.Format("/{0}/GetPackageNames", ApiVersion);
@@ -513,8 +518,15 @@ namespace OpenTap.Package
                 throw new Exception($"Invalid xml from package repository at '{defaultUrl}'.");
             }
         }
+
+        /// <summary>
+        /// Get the names of the available packages in the repository with the specified class
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="Exception"></exception>
         public string[] GetPackageNames(string @class, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
+            if (IsInError()) return Array.Empty<string>();
             string response;
 
             var arg = string.Format("/{0}/GetPackageNames?class={1}", ApiVersion, Uri.EscapeDataString(@class));
@@ -555,8 +567,18 @@ namespace OpenTap.Package
             }
         }
 
+        /// <summary>
+        /// Get the available versions of packages with name 'packageName' and optionally compatible with a list of packages
+        /// </summary>
+        /// <param name="packageName"></param>
+        /// <param name="cancellationToken"></param>
+        /// <param name="compatibleWith"></param>
+        /// <returns></returns>
         public PackageVersion[] GetPackageVersions(string packageName, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
+            // force update version to check for errors.
+            Version?.ToString();
+            if (IsInError()) return Array.Empty<PackageVersion>();
             string response;
             string arg = string.Format("/{0}/GetPackageVersions/{1}", ApiVersion, Uri.EscapeDataString(packageName));
 
@@ -584,8 +606,16 @@ namespace OpenTap.Package
             return pkgs;
         }
 
+        /// <summary>
+        /// Get the available versions of packages matching 'package' and optionally compatible with a list of packages
+        /// </summary>
+        /// <param name="package"></param>
+        /// <param name="cancellationToken"></param>
+        /// <param name="compatibleWith"></param>
+        /// <returns></returns>
         public PackageDef[] GetPackages(PackageSpecifier package, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
+            if (IsInError()) return Array.Empty<PackageDef>();
             List<string> reqs = new List<string>();
             var endpoint = "/GetPackages";
 
@@ -612,6 +642,9 @@ namespace OpenTap.Package
             return packagesFromXml(downloadPackagesString("/" + ApiVersion + endpoint));
         }
 
+        /// <summary>
+        /// Get Client ID
+        /// </summary>
         public string UpdateId;
 
         private string PackageNameHash(string packageName)
@@ -624,8 +657,15 @@ namespace OpenTap.Package
             }
         }
 
+        /// <summary>
+        /// Query the repository for updated versions of specified packages
+        /// </summary>
+        /// <param name="packages"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         public PackageDef[] CheckForUpdates(IPackageIdentifier[] packages, CancellationToken cancellationToken)
         {
+            if (IsInError()) return Array.Empty<PackageDef>();
             List<PackageDef> latestPackages = new List<PackageDef>();
             bool tempSilent = IsSilent;
             IsSilent = true;
@@ -667,11 +707,25 @@ namespace OpenTap.Package
         }
         #endregion
 
+        /// <summary>
+        /// Send the GraphQL query string to the repository.
+        /// </summary>
+        /// <param name="query">A GraphQL query string</param>
+        /// <returns>A JObject containing the GraphQL response</returns>
+        [Obsolete("Please use SendQuery or SendQueryAsync instead.")]
         public JObject Query(string query)
         {
             var response = downloadPackagesString($"/3.1/query", query, "application/json", "application/json");
             var json = JObject.Parse(response);
             return json;
         }
+
+        /// <summary>
+        /// Send the GraphQL query string to the repository.
+        /// </summary>
+        /// <param name="query">A GraphQL query string</param>
+        /// <returns>A JSON string containing the GraphQL response</returns>
+        public string QueryGraphQL(string query) =>
+            downloadPackagesString($"/3.1/query", query, "application/json", "application/json");
     }
 }

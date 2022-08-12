@@ -9,9 +9,21 @@
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
     <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Version="0.0.0" Id="45f82fc0-8acf-41b2-8472-2c1b9db25f32">
-      <String>
-        <Base64>PFByb2plY3QgU2RrPSJNaWNyb3NvZnQuTkVULlNkayI+DQogIDxQcm9wZXJ0eUdyb3VwPg0KICA8VGFyZ2V0RnJhbWV3b3JrSWRlbnRpZmllcj48L1RhcmdldEZyYW1ld29ya0lkZW50aWZpZXI+DQogICAgPFRhcmdldEZyYW1ld29ya1ZlcnNpb24+PC9UYXJnZXRGcmFtZXdvcmtWZXJzaW9uPg0KICAgIDxUYXJnZXRGcmFtZXdvcms+bmV0c3RhbmRhcmQyLjA8L1RhcmdldEZyYW1ld29yaz4NCiAgICA8QXBwZW5kVGFyZ2V0RnJhbWV3b3JrVG9PdXRwdXRQYXRoPmZhbHNlPC9BcHBlbmRUYXJnZXRGcmFtZXdvcmtUb091dHB1dFBhdGg+DQogICAgPENvcHlMb2NhbExvY2tGaWxlQXNzZW1ibGllcz50cnVlPC9Db3B5TG9jYWxMb2NrRmlsZUFzc2VtYmxpZXM+DQogICA8T3V0cHV0UGF0aD5iaW4vRGVidWc8L091dHB1dFBhdGg+DQogIDwvUHJvcGVydHlHcm91cD4NCiAgPEl0ZW1Hcm91cD4NCiAgICA8UGFja2FnZVJlZmVyZW5jZSBJbmNsdWRlPSJPcGVuVEFQIiBWZXJzaW9uPSI5LjguNSIgLz4NCiAgICA8UGFja2FnZVJlZmVyZW5jZSBJbmNsdWRlPSJTU0guTkVUIiBWZXJzaW9uPSIyMDIwLjAuMC1iZXRhMSIvPg0KICAgIDxPcGVuVGFwUGFja2FnZVJlZmVyZW5jZSBJbmNsdWRlPSJTU0giIFZlcnNpb249IjAuMy4wLWJldGEuOCIgUmVwb3NpdG9yeT0icGFja2FnZXMub3BlbnRhcC5pbyIgLz4NCg0KICA8L0l0ZW1Hcm91cD4NCjwvUHJvamVjdD4=</Base64>
-      </String>
+      <String>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
+                &lt;PropertyGroup&gt;
+                    &lt;TargetFrameworkIdentifier&gt;&lt;/TargetFrameworkIdentifier&gt;
+                    &lt;TargetFrameworkVersion&gt;&lt;/TargetFrameworkVersion&gt;
+                    &lt;TargetFramework&gt;netstandard2.0&lt;/TargetFramework&gt;
+                    &lt;AppendTargetFrameworkToOutputPath&gt;false&lt;/AppendTargetFrameworkToOutputPath&gt;
+                    &lt;CopyLocalLockFileAssemblies&gt;true&lt;/CopyLocalLockFileAssemblies&gt;
+                    &lt;OutputPath&gt;bin/Debug&lt;/OutputPath&gt;
+                &lt;/PropertyGroup&gt;
+                &lt;ItemGroup&gt;
+                    &lt;PackageReference Include="OpenTAP" Version="9.17.0-beta.9" /&gt;
+                    &lt;PackageReference Include="SSH.NET" Version="2020.0.0"/&gt;
+                    &lt;OpenTapPackageReference Include="SSH" Version="0.3.0-beta.8" Repository="packages.opentap.io" /&gt;
+                &lt;/ItemGroup&gt;
+           &lt;/Project&gt;</String>
       <File>../../NewProj/NewProj.csproj</File>
       <Enabled>true</Enabled>
       <Name>Write {File}</Name>
@@ -100,9 +112,9 @@
       </ChildTestSteps>
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
-    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ReplaceInFileStep">
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ReplaceInFileStep" Version="0.0.0" Id="7dba2808-7a59-46fb-b0b3-3f168c7ab560">
       <File>../../NewProj/NewProj.csproj</File>
-      <Search>2020.0.0-beta1</Search>
+      <Search>2020.0.0</Search>
       <Replace>2016.0.0</Replace>
       <Enabled>true</Enabled>
       <Name>Replace In File</Name>
@@ -136,12 +148,12 @@
       <ChildTestSteps />
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
-    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep" Version="0.0.0" Id="83f384d0-fbef-4fcb-8024-282e2304b1c0">
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep" Version="0.0.0" Id="e00535ae-8152-4ee1-ab61-f14ed3f4d12d">
       <ExpectedVerdict>Pass</ExpectedVerdict>
       <Enabled>true</Enabled>
       <Name>Expect {ExpectedVerdict}</Name>
       <ChildTestSteps>
-        <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="f63f9625-b293-4240-b75d-29183ae2b290">
+        <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="68e9af36-4263-4370-bf79-d5671ac8bf5e">
           <Application>tap</Application>
           <Arguments>package create ../../package.xml</Arguments>
           <WorkingDirectory>../../NewProj/bin/Debug</WorkingDirectory>
@@ -171,17 +183,52 @@
       </ChildTestSteps>
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
-    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.RunOnOs">
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep" Version="0.0.0" Id="83f384d0-fbef-4fcb-8024-282e2304b1c0">
+      <ExpectedVerdict>Pass</ExpectedVerdict>
+      <Enabled>true</Enabled>
+      <Name>Expect {ExpectedVerdict}</Name>
+      <ChildTestSteps>
+        <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="f63f9625-b293-4240-b75d-29183ae2b290">
+          <Application>tap</Application>
+          <Arguments>package create ../../package.xml --out ../</Arguments>
+          <WorkingDirectory>../../NewProj/bin/Debug</WorkingDirectory>
+          <WaitForEnd>true</WaitForEnd>
+          <Timeout>0</Timeout>
+          <AddToLog>true</AddToLog>
+          <LogHeader />
+          <CheckExitCode>true</CheckExitCode>
+          <RegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </RegularExpressionPattern>
+          <VerdictOnMatch>Error</VerdictOnMatch>
+          <VerdictOnNoMatch>NotSet</VerdictOnNoMatch>
+          <ResultRegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </ResultRegularExpressionPattern>
+          <ResultName>Regex Result</ResultName>
+          <Behavior>GroupsAsDimensions</Behavior>
+          <DimensionTitles></DimensionTitles>
+          <Enabled>true</Enabled>
+          <Name>Run: {Application} {Command Line Arguments}</Name>
+          <ChildTestSteps />
+          <BreakConditions>Inherit</BreakConditions>
+        </TestStep>
+      </ChildTestSteps>
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.RunOnOs" Version="0.0.0" Id="b4ebd013-9f78-451d-ad84-73faaa5b6afc">
       <OperatingSystem>Windows</OperatingSystem>
       <Enabled>true</Enabled>
       <Name>Run On {OperatingSystem}</Name>
       <ChildTestSteps>
-        <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep">
+        <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep" Version="0.0.0" Id="c035d9b7-fcf5-4841-b95b-5b1313f8eae4">
           <ExpectedVerdict>Fail</ExpectedVerdict>
           <Enabled>true</Enabled>
           <Name>Expect {ExpectedVerdict} (1)</Name>
           <ChildTestSteps>
-            <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.FindFileStep">
+            <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.FindFileStep" Version="0.0.0" Id="e8551fd3-acde-4cda-b11e-e676d2bad73f">
               <SearchDir>%TMP%</SearchDir>
               <Regex>.*opentap_package_tmp.zip</Regex>
               <Enabled>true</Enabled>

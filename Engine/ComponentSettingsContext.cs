@@ -47,6 +47,8 @@ namespace OpenTap
 
         public void SaveAllCurrentSettings()
         {
+            foreach (var cacheType in xmlCache.Keys.ToArray())
+                GetCurrent(cacheType);
             foreach (var comp in objectCache.GetResults().Where(x => x != null))
                 Save(comp);
         }
@@ -82,8 +84,13 @@ namespace OpenTap
             bool isProfile = settingsGroup?.Profile ?? false;
             string groupName = settingsGroup == null ? "" : settingsGroup.GroupName;
 
+            // DisplayAttribute.GetFullName() joins the groups with ' \ ', but adding this space makes the save path invalid.
+            var disp = type.GetDisplayAttribute();
+            var groups = disp.Group.Length == 0 ? new[] { disp.Name } : disp.Group.Append(disp.Name);
+            string fullName = string.Join("\\", groups);
+
             return Path.Combine(GetSettingsDirectory(groupName, isProfile),
-                type.GetDisplayAttribute().GetFullName() + ".xml");
+                fullName + ".xml");
         }
 
         public void Save(ComponentSettings setting)

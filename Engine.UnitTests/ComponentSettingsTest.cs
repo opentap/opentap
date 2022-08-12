@@ -95,5 +95,67 @@ namespace OpenTap.UnitTests
                 Assert.IsTrue(ex.Message.Contains(content));
             }
         }
+
+        [Display("Test Settings", Groups: new []{"Test Settings", "With Groups"})]
+        public class TestSettingsWithGroups : ComponentSettings<TestSettingsWithGroups>
+        {
+            public int Value { get; set; }
+        }
+
+        [Test]
+        public void TestSaveSettingsWithGroup()
+        {
+            var s = ComponentSettings<TestSettingsWithGroups>.Current;
+            s.Value = 0;
+            Assert.AreEqual(0, s.Value);
+            s.Save();
+            var newValue = 123;
+            s.Value = newValue;
+            Assert.AreEqual(newValue, s.Value);
+            s.Save();
+            s.Reload();
+            s.Invalidate();
+            s = ComponentSettings<TestSettingsWithGroups>.Current;
+            Assert.AreEqual(newValue, s.Value);
+        }
+
+        [Test]
+        public void TestPersistenceOfSaveAll()
+        {
+            var instrumentSettingsSavePath = ComponentSettings.GetSaveFilePath(typeof(InstrumentSettings));
+            if (File.Exists(instrumentSettingsSavePath))
+                File.Delete(instrumentSettingsSavePath);
+            var initialInstrumentSettings = InstrumentSettings.Current;
+
+            try
+            {
+                InstrumentSettings instruments = new InstrumentSettings();
+                instruments.Add(new ScpiDummyInstrument());
+                using (MemoryStream memoryStream = new MemoryStream())
+                {
+                    using (var xmlWriter = System.Xml.XmlWriter.Create(memoryStream, new System.Xml.XmlWriterSettings { Indent = true }))
+                    {
+                        var serializer = new TapSerializer();
+                        serializer.Serialize(xmlWriter, instruments);
+                    }
+                    ComponentSettings.SetCurrent(memoryStream);
+                }
+
+                ComponentSettings.SaveAllCurrentSettings(); // Instument has been added and SaveAllCurrentSettings is called
+                Assert.IsTrue(File.Exists(instrumentSettingsSavePath)); // This FAILS!
+            }
+            finally
+            {
+                using (MemoryStream memoryStream = new MemoryStream())
+                {
+                    using (var xmlWriter = System.Xml.XmlWriter.Create(memoryStream, new System.Xml.XmlWriterSettings { Indent = true }))
+                    {
+                        var serializer = new TapSerializer();
+                        serializer.Serialize(xmlWriter, initialInstrumentSettings);
+                    }
+                    ComponentSettings.SetCurrent(memoryStream);
+                }
+            }
+        }
     }
 }

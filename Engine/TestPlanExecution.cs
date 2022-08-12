@@ -95,10 +95,16 @@ namespace OpenTap
 
         internal static void PrintWaitingMessage(IEnumerable<IResource> resources)
         {
-            Log.Info("Waiting for resources to open:");
-            foreach (var resource in resources)
+            // Save disconnected ressources to avoid race conditions.
+            var waitingRessources = resources.Where(r => !r.IsConnected).ToArray();
+            if (waitingRessources.Length == 0)
             {
-                if (resource.IsConnected) continue;
+                return;
+            }
+
+            Log.Info("Waiting for resources to open:");
+            foreach (var resource in waitingRessources)
+            {
                 Log.Info(" - {0}", resource);
             }
         }
@@ -180,7 +186,11 @@ namespace OpenTap
                     var run = step.DoRun(execStage, execStage);
                     if (!run.Skipped)
                         runs.Add(run);
-                    run.CheckBreakCondition();
+                    if (run.BreakConditionsSatisfied())
+                    {
+                        run.LogBreakCondition();
+                        break;
+                    }
 
                     // note: The following is copied inside TestStep.cs
                     if (run.SuggestedNextStep is Guid id)
@@ -544,16 +554,14 @@ namespace OpenTap
 
             if (currentExecutionState != null)
             {
+                currentExecutionState.ResultListenersSealed = false;
                 // load result listeners that are _not_ used in the previous runs.
                 // otherwise they wont get opened later.
                 foreach (var rl in resultListeners)
                 {
-                    if (!currentExecutionState.ResultListeners.Contains(rl))
-                        currentExecutionState.ResultListeners.Add(rl);
+                    currentExecutionState.AddResultListener(rl);
                 }
             }
-
-            var currentListeners = currentExecutionState != null ? currentExecutionState.ResultListeners : resultListeners;
 
             TestPlanRun execStage;
             bool continuedExecutionState = false;
@@ -590,7 +598,7 @@ namespace OpenTap
             {
                 execStage.FailedToStart = true; // Set it here in case OpenInternal throws an exception. Could happen if a step is missing an instrument
 
-                OpenInternal(execStage, continuedExecutionState, currentListeners.Cast<IResource>().ToList(), allEnabledSteps);
+                OpenInternal(execStage, continuedExecutionState, allEnabledSteps);
                     
                 execStage.WaitForSerialization();
                 execStage.ResourceManager.BeginStep(execStage, this, TestPlanExecutionStage.Execute, TapThread.Current.AbortToken);
@@ -711,7 +719,7 @@ namespace OpenTap
                 Stopwatch timer = Stopwatch.StartNew();
                 currentExecutionState = new TestPlanRun(this, listeners.ToList(), DateTime.Now, Stopwatch.GetTimestamp(), true);
                 currentExecutionState.Start();
-                OpenInternal(currentExecutionState, false, listeners.Cast<IResource>().ToList(), allSteps);
+                OpenInternal(currentExecutionState, false, allSteps);
                 try
                 {
                     currentExecutionState.ResourceManager.WaitUntilAllResourcesOpened(TapThread.Current.AbortToken);
@@ -740,7 +748,7 @@ namespace OpenTap
             }
         }
         
-        private void OpenInternal(TestPlanRun run, bool isOpen, List<IResource> resources, List<ITestStep> steps)
+        private void OpenInternal(TestPlanRun run, bool isOpen, List<ITestStep> steps)
         {
             monitors = TestPlanRunMonitors.GetCurrent();
             try
@@ -752,8 +760,8 @@ namespace OpenTap
             finally   // We need to make sure OpenAllAsync is always called (even when CheckResources throws an exception). 
             {         // Otherwise we risk that e.g. ResourceManager.WaitUntilAllResourcesOpened() will hang forever.
                 run.ResourceManager.EnabledSteps = steps;
-                run.ResourceManager.StaticResources = resources;
-
+                run.ResourceManager.StaticResources = run.ResultListeners.ToArray();
+                run.ResultListenersSealed = true;
                 if (!isOpen)
                     run.ResourceManager.BeginStep(run, this, TestPlanExecutionStage.Open, TapThread.Current.AbortToken);
             }

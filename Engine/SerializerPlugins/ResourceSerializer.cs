@@ -158,7 +158,19 @@ namespace OpenTap.Plugins
                 var container = ComponentSettingsList.GetContainer(type);
                 var index = container.IndexOf(obj);
                 if (index == -1)
+                {
+                    if (container is IComponentSettingsList lst)
+                    {
+                        if (lst.GetRemovedAliveResources().Contains(obj))
+                        {  // skip serializing if the referenced instrument has been deleted.
+                            elem.Remove();
+                            return true;
+                        }
+                    }
+                    // serialize it normally / in-place.
                     return false;
+                }
+
                 if (index != -1)
                 {
                     if (obj is Connection con)

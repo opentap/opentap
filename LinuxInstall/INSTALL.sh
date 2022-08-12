@@ -8,9 +8,9 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-NETCORE_INSTALLED="$(dotnet --list-runtimes | grep -E "NETCore\.App.2")"
+NETCORE_INSTALLED="$(dotnet --list-runtimes | grep -E "NETCore\.App.6")"
 if [ -z "$NETCORE_INSTALLED" ]; then
-    printf 'OpenTAP depends on dotnet runtime 2.1 which is not installed.
+    printf 'OpenTAP depends on dotnet core runtime 6.0 which is not installed.
 Please see https://docs.microsoft.com/en-us/dotnet/core/install/runtime for installation instructions
 '
 fi
@@ -44,7 +44,7 @@ echo "Unzipping tap"
 unzip "$(pwd)/*.TapPackage" -d "$DEST_DIR" # *: match OpenTAPLinux and just TAPLinux.
 
 cd "$DEST_DIR" || exit 1
-chmod -R +w .
+chmod -R +rws "$DEST_DIR"
 
 chmod +x tap
 

@@ -10,14 +10,12 @@ using OpenTap.Package;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using Newtonsoft.Json;
 
 namespace OpenTap.Sdk.New
 {
@@ -84,6 +82,11 @@ namespace OpenTap.Sdk.New
 
         public override int Execute(CancellationToken cancellationToken)
         {
+            if (!Validate(name: Name, allowWhiteSpace: false, allowLeadingNumbers: false, allowAlphaNumericOnly: true))
+            {
+                return (int)ExitCodes.ArgumentError;
+            }
+
             var dest = string.IsNullOrWhiteSpace(output) ? new DirectoryInfo(WorkingDirectory) : new DirectoryInfo(output);
             
             if (!dest.Exists)
@@ -172,6 +175,9 @@ namespace OpenTap.Sdk.New
             
             if (dest.Exists)
             {
+                var ignore = dest.EnumerateFiles().FirstOrDefault(x => x.Name == ".OpenTapIgnore");
+                if (ignore != null) return null;
+
                 var file = dest.EnumerateFiles().FirstOrDefault(x => x.Name == "OpenTap.dll");
                 if (file != null)
                 {

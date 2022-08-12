@@ -16,6 +16,9 @@ namespace OpenTap.Package
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
+        [CommandLineArgument("no-cache", Description = CommandLineArgumentNoCacheDescription)]
+        public bool NoCache { get; set; }
+
         [CommandLineArgument("all", Description = "List all versions of <package> even if the OS or the CPU architecture\nare not compatible with the current machine.", ShortName = "a")]
         public bool All { get; set; }
 
@@ -47,7 +50,7 @@ namespace OpenTap.Package
                 switch (Environment.OSVersion.Platform)
                 {
                     case PlatformID.MacOSX:
-                        OS = "OSX";
+                        OS = "MacOS";
                         break;
                     case PlatformID.Unix:
                         OS = "Linux";
@@ -57,15 +60,13 @@ namespace OpenTap.Package
                         break;
                 }
             }
-            
+
+            if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
             List<IPackageRepository> repositories = new List<IPackageRepository>();
 
             if (Installed == false)
             {
-                if (Repository == null)
-                    repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager));
-                else 
-                    repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
+                repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
             }
 
             if (Target == null)

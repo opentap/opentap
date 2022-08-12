@@ -50,7 +50,8 @@ namespace OpenTap
     /// <summary> 
     /// Implements a connection to talk to any SCPI-enabled instrument.
     /// </summary>
-    public abstract class ScpiInstrument : Instrument, IScpiInstrument
+    [Display("Generic SCPI Instrument", Description: "Allows you to configure a VISA based connection to a SCPI instrument.")]
+    public class ScpiInstrument : Instrument, IScpiInstrument
     {
         private readonly IScpiIO2 scpiIO;
         
@@ -261,6 +262,7 @@ namespace OpenTap
         /// <param name="io"> An IO Implementation for doing communication. </param>
         public ScpiInstrument(IScpiIO2 io)
         {
+            Name = "SCPI";
             this.scpiIO = io;
             IoTimeout = 2000;
 
@@ -597,11 +599,21 @@ namespace OpenTap
                     string lengthFieldText = LockRetry(() => ReadString(lengthFieldLength));
                     int length = int.Parse(lengthFieldText);
                     TerminationCharacterEnabled = false;
-                    string text = LockRetry(() => ReadString(length)) + TerminationCharacter;
+                    string text = LockRetry(() => ReadString(length));
+                    if (text.LastOrDefault() == TerminationCharacter)
+                    {
+                        // Do nothing, this is a hack to fix an issue with instruments including the termination
+                        // character as the last character in the block.
+                    }else
+                    {
+                        text += TerminationCharacter;
+                        // Read the terminating character to get it off the output buffer
+                        LockRetry(() => ReadString());    
+                    }
+                    
                     TerminationCharacterEnabled = true;
 
-                    // Read the terminating character to get it of the output buffer
-                    LockRetry(() => ReadString());
+                    
 
                     return text;
                 }

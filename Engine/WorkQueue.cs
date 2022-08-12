@@ -9,44 +9,13 @@ using System.Threading;
 
 namespace OpenTap
 {
-
-    class TimeSpanAverager
-    {
-        int averageCnt = 0;
-        long[] weights = new long[10];
-        int averageIndex = 0;
-
-        public void PushTimeSpan(TimeSpan ts)
-        {
-            var indexOfValue = averageIndex = (averageIndex + 1) % weights.Length;
-            weights[indexOfValue] = ts.Ticks;
-            averageCnt = Math.Min(weights.Length, averageCnt + 1);
-        }
-
-        static TimeSpan defaultSpan = TimeSpan.FromSeconds(0.1);
-
-        public TimeSpan GetAverage()
-        {
-            if (averageCnt == 0) return defaultSpan;
-            long sum = 0;
-            for(int i = 0; i < averageCnt; i++)
-            {
-                sum += weights[i];
-            }
-
-            var avg = TimeSpan.FromTicks(sum / averageCnt);
-            return avg;
-        }
-
-    }
-
     /// <summary> 
     /// Work Queue used for result processing in sequence but asynchronously. It uses the ThreadManager to automatically clean up threads that have been idle for a while.
     /// When the WorkQueue is disposed, the used thread is immediately returned to the ThreadManager.
     /// </summary>
     public class WorkQueue : IDisposable
     {
-        /// <summary> Options for WorkQUeues. </summary>
+        /// <summary> Options for WorkQueues. </summary>
         [Flags]
         public enum Options
         {
@@ -62,10 +31,20 @@ namespace OpenTap
         /// </summary>
         public int Timeout = 5;
         
-        // list of things to do sequenctially.
-        ConcurrentQueue<Action> workItems = new ConcurrentQueue<Action>();
-
-        TimeSpanAverager average;
+        // list of things to do sequentially.
+        readonly ConcurrentQueue<IInvokable> workItems = new ConcurrentQueue<IInvokable>();
+        readonly TimeSpanAverager average;
+        
+        internal object Peek()
+        {
+            if (workItems.TryPeek(out var inv))
+            {
+                if (inv is IWrappedInvokable wrap)
+                    return wrap.InnerInvokable;
+                return inv;
+            }
+            return null;
+        }
 
         /// <summary> The average time spent for each task. Only available if Options.TImeAveraging is enabled. </summary>
         public TimeSpan AverageTimeSpent
@@ -79,24 +58,25 @@ namespace OpenTap
         }
 
         /// <summary> The current number of items in the work queue. If called from the worker thread, this number will be 0 for that last worker. </summary>
-        public int QueueSize { get { return workItems.Count; } }
-        
-        object threadCreationLock = new object();
-        CancellationTokenSource cancel = new CancellationTokenSource();
+        public int QueueSize => workItems.Count;
+
+        readonly object threadCreationLock = new object();
+        readonly CancellationTokenSource cancel = new CancellationTokenSource();
+        readonly TapThread threadContext = null;
 
         //this should always be either 1(thread was started) or 0(thread is not started yet)
         int threadCount = 0;
 
         const int semaphoreMaxCount = 1024 * 1024;
         // the addSemaphore counts the current number of things in the tasklist.
-        SemaphoreSlim addSemaphore = new SemaphoreSlim(0,semaphoreMaxCount); 
+        readonly SemaphoreSlim addSemaphore = new SemaphoreSlim(0,semaphoreMaxCount); 
 
         int countdown = 0;
         
         /// <summary> A name of identifying the work queue. </summary>
         public readonly string Name;
 
-        bool longRunning = false;
+        readonly bool longRunning;
 
         /// <summary> Creates a new instance of WorkQueue.</summary>
         /// <param name="options">Options.</param>
@@ -108,10 +88,23 @@ namespace OpenTap
                 average = new TimeSpanAverager();
             Name = name;
         }
+        
+        /// <summary> Creates a new instance of WorkQueue.</summary>
+        /// <param name="options">Options.</param>
+        /// <param name="name">A name to identify a work queue.</param>
+        /// <param name="threadContext"> The thread context in which to run work jobs. The default value causes the context to be the parent of an enqueuing thread.</param>
+        public WorkQueue(Options options, string name = "", TapThread threadContext = null) :this(options, name)
+        {
+            this.threadContext = threadContext;
+        }
+
 
         /// <summary> Enqueue a new piece of work to be handled in the future. </summary>
-        /// <param name="f"></param>
-        public void EnqueueWork(Action f)
+        public void EnqueueWork(Action a) => EnqueueWork(new ActionInvokable(a));
+        internal void EnqueueWork<T1, T2>(IInvokable<T1, T2> v, T1 a1, T2 a2) =>  EnqueueWork(new WrappedInvokable<T1,T2>(v, a1, a2));
+
+        /// <summary> Enqueue a new piece of work to be handled in the future. </summary>
+        internal void EnqueueWork(IInvokable f)
         {
             void threadGo()
             {
@@ -122,14 +115,14 @@ namespace OpenTap
                     {
                         retry:
                         awaitArray[1] = cancel.Token.WaitHandle;
-                        int thing = 0;
+                        int cancelIndex = 0;
                         if (longRunning)
-                            thing = WaitHandle.WaitAny(awaitArray);
+                            cancelIndex = WaitHandle.WaitAny(awaitArray);
                         else
-                            thing = WaitHandle.WaitAny(awaitArray, Timeout);
-                        if (thing == 0 && !addSemaphore.Wait(0))
+                            cancelIndex = WaitHandle.WaitAny(awaitArray, Timeout);
+                        if (cancelIndex == 0 && !addSemaphore.Wait(0))
                             goto retry;
-                        bool ok = thing == 0;
+                        bool ok = cancelIndex == 0;
 
                         if (!ok)
                         {
@@ -142,21 +135,26 @@ namespace OpenTap
                             }
                         }
 
-
-                        Action run = null;
+                        IInvokable run;
                         while (!workItems.TryDequeue(out run))
                             Thread.Yield();
-                        if (average != null)
+                        try
                         {
-                            var sw = Stopwatch.StartNew();
-                            run();
-                            average.PushTimeSpan(sw.Elapsed);
+                            if (average != null)
+                            {
+                                var sw = Stopwatch.StartNew();
+                                run.Invoke();
+                                average.PushTimeSpan(sw.Elapsed);
+                            }
+                            else
+                            {
+                                run.Invoke();
+                            }
                         }
-                        else
+                        finally
                         {
-                            run();
+                            Interlocked.Decrement(ref countdown);
                         }
-                        Interlocked.Decrement(ref countdown);
                     }
                 }
                 finally
@@ -173,7 +171,7 @@ namespace OpenTap
                 // #4246: this is incredibly rare, but can happen if millions of results are pushed at once.
                 //        the solution is to just slow a bit down when it happens.
                 //        100 ms sleep is OK, because it needs to do around 1M things before it's idle.
-                TapThread.Sleep(100);
+                Thread.Sleep(100);
             }
             Interlocked.Increment(ref countdown);
             workItems.Enqueue(f);
@@ -185,7 +183,7 @@ namespace OpenTap
                 {
                     if (threadCount == 0)
                     {
-                        TapThread.Start(threadGo, Name);
+                        TapThread.Start(threadGo, null, Name, threadContext);
                         threadCount++;
                     }
                 }
@@ -206,6 +204,52 @@ namespace OpenTap
             {
                 Thread.Sleep(5);
             }
+        }
+
+        internal object Dequeue()
+        {
+            if (workItems.TryDequeue(out var inv))
+            {
+                Interlocked.Decrement(ref countdown);
+                if (inv is IWrappedInvokable wrap)
+                    return wrap.InnerInvokable;
+                return inv;
+            }
+            return inv;
+        }
+
+        interface IWrappedInvokable: IInvokable
+        {
+            object InnerInvokable { get; }
+        }
+        
+        /// <summary>  Wraps an Action in an IInvokable. </summary>
+        class ActionInvokable : IWrappedInvokable
+        {
+            readonly Action action;
+            public ActionInvokable(Action inv)
+            {
+                action = inv;
+            }
+
+            public void Invoke() => action();
+            public object InnerInvokable => action;
+        }
+        /// <summary>  Wraps an IInvokable(T,T2) in an IInvokable. </summary>
+        class WrappedInvokable<T, T2> : IWrappedInvokable 
+        {
+            readonly T arg1;
+            readonly T2 arg2;
+            readonly IInvokable<T, T2> wrapped;
+        
+            public WrappedInvokable(IInvokable<T, T2> invokable, T argument1, T2 argument2)
+            {
+                arg1 = argument1;
+                arg2 = argument2;
+                wrapped = invokable;
+            }
+            public void Invoke() => wrapped.Invoke(arg1, arg2);
+            public object InnerInvokable => wrapped;
         }
     }
 }

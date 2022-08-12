@@ -50,6 +50,13 @@ namespace OpenTap
     {
     }
 
+    internal interface IComponentSettingsList : IList
+    {
+        /// <summary> Return the objects which have been removed but still alive (non-GC'd) resources.
+        /// This requires using a list of WeakReferences.</summary>
+        IResource[] GetRemovedAliveResources();
+    }
+
     ///<summary>
     /// Contains some extra functionality for the ComponentSettingsList.
     /// Created so that it is possible to know which (generic) ComponentSettingsList
@@ -164,11 +171,17 @@ namespace OpenTap
     /// </summary>
     /// <typeparam name="DerivedType"></typeparam>
     /// <typeparam name="ContainedType"></typeparam>
-    public abstract class ComponentSettingsList<DerivedType, ContainedType> : ComponentSettings<DerivedType>, INotifyCollectionChanged, IList, IList<ContainedType>
+    public abstract class ComponentSettingsList<DerivedType, ContainedType> : ComponentSettings<DerivedType>, 
+        INotifyCollectionChanged, IList, IList<ContainedType>, IComponentSettingsList
         where DerivedType : ComponentSettingsList<DerivedType, ContainedType>
     {
         readonly ObservableCollection<ContainedType> list;
         readonly IList ilist;
+
+        // Keep track of all the still living, but previously touched objects.
+        // this is only used if ContainedType is a resource type.
+        private readonly WeakHashSet<IResource> touchedResources = new WeakHashSet<IResource>(); 
+
         /// <summary>
         /// Gets the first or default instance in the component settings list.
         /// </summary>
@@ -195,13 +208,19 @@ namespace OpenTap
             ilist = list;
         }
 
+        IResource[] IComponentSettingsList.GetRemovedAliveResources()
+        {
+            return touchedResources.GetElements().Where(x => Contains(x) == false).ToArray();
+        }
+
         void list_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
             if (e.Action == NotifyCollectionChangedAction.Add)
             {
-                var _newItem = e.NewItems.Cast<ContainedType>().First() ;
+                var _newItem = e.NewItems.Cast<ContainedType>().First();
                 if (_newItem is IResource newItem)
                 {
+                    this.touchedResources.Add(newItem);
                     var sameName = this.FirstOrDefault(itm => (itm as IResource).Name == newItem.Name && (itm as IResource) != newItem);
                     int number = 0;
                     while (sameName != null)

@@ -10,6 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using OpenTap.Cli;
+using OpenTap.Package.PackageInstallHelpers;
 
 #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
 namespace OpenTap.Package
@@ -32,6 +33,9 @@ namespace OpenTap.Package
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
+        [CommandLineArgument("no-cache", Description = CommandLineArgumentNoCacheDescription)]
+        public bool NoCache { get; set; }
+
         [CommandLineArgument("version", Description = CommandLineArgumentVersionDescription)]
         public string Version { get; set; }
 
@@ -46,7 +50,7 @@ namespace OpenTap.Package
         /// </summary>
         [UnnamedCommandLineArgument("package(s)", Required = true)]
         public string[] Packages { get; set; }
-        
+
         [CommandLineArgument("check-only", Description = "Checks if the selected package(s) can be installed, but does not install or download them.")]
         public bool CheckOnly { get; set; }
 
@@ -79,7 +83,7 @@ namespace OpenTap.Package
             switch (Environment.OSVersion.Platform)
             {
                 case PlatformID.MacOSX:
-                    OS = "OSX";
+                    OS = "MacOS";
                     break;
                 case PlatformID.Unix:
                     OS = "Linux";
@@ -96,20 +100,16 @@ namespace OpenTap.Package
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
             var targetInstallation = new Installation(Target);
 
-            List<IPackageRepository> repositories = new List<IPackageRepository>();
-            if (Repository == null)
-                repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled)
-                    .Select(s => s.Manager).ToList());
-            else
-                repositories.AddRange(Repository.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
+            if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
+            List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
 
             bool installError = false;
             var installer = new Installer(Target, cancellationToken)
-                {DoSleep = false, ForceInstall = Force, UnpackOnly = UnpackOnly};
+            {DoSleep = false, ForceInstall = Force, UnpackOnly = UnpackOnly};
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;
             installer.Error += ex => installError = true;
-
+            
             try
             {
                 log.Debug("Fetching package information...");
@@ -117,8 +117,7 @@ namespace OpenTap.Package
                 RaiseProgressUpdate(5, "Gathering packages.");
 
                 // If exact version is specified, check if it's already installed
-                if (Version != null && VersionSpecifier.TryParse(Version, out var vs) &&
-                    vs.MatchBehavior == VersionMatchBehavior.Exact && Force == false)
+                if (Version != null && SemanticVersion.TryParse(Version, out var vs) && Force == false)
                 {
                     foreach (var pkg in Packages)
                     {
@@ -126,7 +125,7 @@ namespace OpenTap.Package
                         if (File.Exists(pkg))
                             break;
 
-                        PackageIdentifier pid = new PackageIdentifier(pkg, Version, Architecture, OS);
+                        PackageIdentifier pid = new PackageIdentifier(pkg, vs, Architecture, OS);
                         var installedPackage = targetInstallation.GetPackages().FirstOrDefault(p => p.Name == pid.Name);
                         if (installedPackage != null && pid.Version.Equals(installedPackage.Version))
                         {
@@ -143,6 +142,7 @@ namespace OpenTap.Package
                 List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                     targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
                     InstallDependencies, IgnoreDependencies, askToInstallDependencies, NoDowngrade);
+                
                 if (packagesToInstall?.Any() != true)
                 {
                     if (NoDowngrade)
@@ -152,7 +152,27 @@ namespace OpenTap.Package
                     }
 
                     log.Info("Could not find one or more packages.");
-                    return (int) PackageExitCodes.InvalidPackageName;
+                    return (int) PackageExitCodes.PackageDependencyError;
+                }
+
+                foreach (var pkg in packagesToInstall)
+                {
+                    // print a warning if the selected package is incompatible with the host platform.
+                    // or return an error if the package does not match.
+                    var platformCompatible =  pkg.IsPlatformCompatible( targetInstallation.Architecture, targetInstallation.OS);
+                    if (!platformCompatible)
+                    {
+                        var selectedPlatformCompatible =  pkg.IsPlatformCompatible(Architecture,OS);
+                        var message =
+                            $"Selected package {pkg.Name} for {pkg.OS}, {pkg.Architecture} is incompatible with the host platform {targetInstallation.OS}, {targetInstallation.Architecture}.";
+                        if (selectedPlatformCompatible)
+                            log.Warning(message);
+                        else
+                        {
+                            log.Error(message);
+                            return (int)ExitCodes.ArgumentError;
+                        }
+                    }
                 }
 
                 var installationPackages = targetInstallation.GetPackages();
@@ -169,12 +189,10 @@ namespace OpenTap.Package
                     log.Warning("Overwriting files. (--{0} option specified).", Overwrite ? "overwrite" : "force");
 
                 RaiseProgressUpdate(10, "Gathering dependencies.");
-
-                // Check dependencies
-                bool dependenciesRequired = (!askToInstallDependencies && !IgnoreDependencies && !Force) || CheckOnly;
+                bool checkDependencies = (!IgnoreDependencies && !Force) || CheckOnly;
                 var issue = DependencyChecker.CheckDependencies(installationPackages, packagesToInstall,
-                    dependenciesRequired ? LogEventType.Error : LogEventType.Warning);
-                if (dependenciesRequired)
+                    IgnoreDependencies ? LogEventType.Information : checkDependencies ? LogEventType.Error : LogEventType.Warning);
+                if (checkDependencies)
                 {
                     if (issue == DependencyChecker.Issue.BrokenPackages)
                     {
@@ -190,6 +208,40 @@ namespace OpenTap.Package
                     }
                 }
 
+                // System wide packages require elevated privileges. Install them in a separate elevated process.
+                var systemWide = packagesToInstall.Where(p => p.IsSystemWide()).ToArray();
+
+                // If we are already running as administrator, skip this and install normally
+                if (systemWide.Any() && SubProcessHost.IsAdmin() == false)
+                {
+                    RaiseProgressUpdate(20, "Installing system-wide packages.");
+                    var installStep = new PackageInstallStep()
+                    {
+                        Packages = systemWide,
+                        Repositories = repositories.Select(r => r.Url).ToArray(),
+                        Target = PackageDef.SystemWideInstallationDirectory,
+                        Force = Force
+                    };
+
+                    var processRunner = new SubProcessHost
+                    {
+                        ForwardLogs = true,
+                        MutedSources = { "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan", "UpdateCheck", "Installation" }
+                    };
+
+                    var result = processRunner.Run(installStep, true, cancellationToken);
+                    if (result != Verdict.Pass)
+                    {
+                        var ex = new Exception($"Failed installing system-wide packages. Try running the command as administrator.");
+                        RaiseError(ex);
+                    }
+
+                    var pct = ((double)systemWide.Length / systemWide.Length + packagesToInstall.Count) * 100;
+                    RaiseProgressUpdate((int)pct, "Installed system-wide packages.");
+                    // And remove the system wide packages from the list
+                    packagesToInstall = packagesToInstall.Except(p => p.IsSystemWide()).ToList();
+                }
+
                 // Download the packages
                 // We divide the progress by 2 in the progress update because we assume downloading the packages
                 // accounts for half the installation progress. So when all the packages have finished downloading,
@@ -197,9 +249,15 @@ namespace OpenTap.Package
 
                 var downloadedPackageFiles = PackageActionHelpers.DownloadPackages(
                     PackageCacheHelper.PackageCacheDirectory, packagesToInstall,
-                    progressUpdate: (progress, msg) => RaiseProgressUpdate(10 + progress / 2, msg));
+                    progressUpdate: (progress, msg) => RaiseProgressUpdate(10 + progress / 2, msg),
+                    ignoreCache: NoCache );
 
                 installer.PackagePaths.AddRange(downloadedPackageFiles);
+            }
+            catch (OperationCanceledException e)
+            {
+                log.Info(e.Message);
+                return (int) ExitCodes.UserCancelled;
             }
             catch (Exception e)
             {
@@ -250,7 +308,7 @@ namespace OpenTap.Package
             var installed = installation.GetPackages();
 
             var packages = packagePaths.Select(PackageDef.FromPackage).Select(x => x.Name).ToHashSet();
-            var existingPackages = installed.Where(kvp => packages.Contains(kvp.Name)).Select(x => (x.PackageSource as InstalledPackageDefSource)?.PackageDefFilePath).ToList();
+            var existingPackages = installed.Where(kvp => packages.Contains(kvp.Name)).Select(x => (x.PackageSource as XmlPackageDefSource)?.PackageDefFilePath).ToList();
 
             if (existingPackages.Count == 0) return;
 
@@ -296,14 +354,14 @@ namespace OpenTap.Package
             Cancel = 2,
             [Display("Overwrite Files", Order: 1)]
             OverwriteFile = 1,
-            
+
             [Browsable(false)]
             Success = 0,
         }
         class AskAboutInstallingAnyway
         {
             public string Name { get; } = "Overwrite Files?";
-            
+
             [Browsable(true)]
             [Layout(LayoutMode.FullRow)]
             public string Message { get; private set; }

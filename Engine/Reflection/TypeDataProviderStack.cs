@@ -137,6 +137,12 @@ namespace OpenTap
                     try
                     {
                         var provider = providerType.CreateInstance();
+                        if (provider == null)
+                        {
+                            throw new Exception(
+                                $"Failed to instantiate TypeDataProvider of type '{providerType.Name}'.");
+                        }
+
                         double priority;
 
                         if (provider is IStackedTypeDataProvider p)
@@ -162,7 +168,6 @@ namespace OpenTap
                             isNewError = badProviders.Add(providerType);
                         if (isNewError)
                         {
-                            var log = Log.CreateSource("TypeDataProvider");
                             log.Error("Unable to use TypeDataProvider of type '{0}' due to errors.", providerType.Name);
                             log.Debug("The error was '{0}'", e.Message);
                             log.Debug(e);

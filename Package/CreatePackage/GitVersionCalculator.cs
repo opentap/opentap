@@ -118,30 +118,50 @@ namespace OpenTap.Package
                 return cfg;
             }
         }
-
-        void linuxEnsureLibgit2Present()
+        
+        private const string GIT_HASH = "b7bad55";
+        
+        void ensureLibgit2Present()
         {
-            // on linux, we are not sure which libgit to load at package time.
-            // so at this moment we need to check which version we are on
-            // and move the file to a position that is checked.
-            string libgit2name = "libgit2-4aecb64";
-            var requiredFile = Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.so");
+            string libgit2name;
 
+            if (OperatingSystem.Current == OperatingSystem.Windows)
+                libgit2name = $"git2-{GIT_HASH}.dll";
+            else if (OperatingSystem.Current == OperatingSystem.Linux)
+                libgit2name = $"libgit2-{GIT_HASH}.so";
+            else if (OperatingSystem.Current == OperatingSystem.MacOS)
+                libgit2name = $"libgit2-{GIT_HASH}.dylib";
+            else
+            {
+                log.Error($"Unsupported platform.");
+                return;
+            }
+            
+            var requiredFile = Path.Combine(PathUtils.OpenTapDir, libgit2name);
             if (File.Exists(requiredFile))
                 return;
 
-            string libgitfoldername = "Dependencies/LibGit2Sharp.0.25.0.0/";
-            IEnumerable<FileInfo> libgit2files = new[] {"ubuntu", "redhat", "linux-x64"}
-                .Select(x => Path.Combine(PathUtils.OpenTapDir, libgitfoldername, $"{libgit2name}.so.{x}")).Select(x => new FileInfo(x));
+            string sourceFile = Path.Combine(PathUtils.OpenTapDir, "Dependencies/LibGit2Sharp.0.27.0.0/", libgit2name);
+            if (OperatingSystem.Current == OperatingSystem.Windows)
+                sourceFile += $".{(Environment.Is64BitProcess ? CpuArchitecture.x64 : CpuArchitecture.x86)}";
+            if (OperatingSystem.Current == OperatingSystem.MacOS)
+                sourceFile += $".{MacOsArchitecture.Current.Architecture}";
 
-            var file = libgit2files.FirstOrDefault(x => x.Name.EndsWith(LinuxVariant.Current.Name));
             try
             {
-                file?.CopyTo(requiredFile, true);
+                File.Copy(sourceFile, requiredFile, true);
             }
-            catch
+            catch (Exception e)
             {
-                
+                if (OperatingSystem.Current == OperatingSystem.Windows)
+                {
+                    var opentapArch = Installation.Current.GetOpenTapPackage()?.Architecture;
+                    var processArch = Environment.Is64BitProcess ? CpuArchitecture.x64 : CpuArchitecture.x86;
+                    if (opentapArch != processArch)
+                        throw new PlatformNotSupportedException($"Unable to find the correct 'libgit2-{GIT_HASH}' because the process architecture '{processArch}' does not match the installed OpenTAP architecture '{opentapArch}'", e);
+                }
+
+                throw new PlatformNotSupportedException($"Unable to copy 'libgit2-{GIT_HASH}': {e.Message}.", e);
             }
         }
 
@@ -159,9 +179,7 @@ namespace OpenTap.Package
                     throw new ArgumentException("Directory is not a git repository.", "repositoryDir");
             }
 
-            if (OperatingSystem.Current == OperatingSystem.Linux)
-                linuxEnsureLibgit2Present();
-
+            ensureLibgit2Present();
             repo = new Repository(repositoryDir);
         }
 

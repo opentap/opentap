@@ -75,15 +75,37 @@ namespace OpenTap.UnitTests
             else
             {
                 // break condition reached -> Error verdict.
-                Assert.AreEqual(Verdict.Error, run.Verdict);
+                Assert.AreEqual(Verdict.Fail, run.Verdict);
                 Assert.AreEqual(1, step.Iterations);
             }
+        }
+        
+        [Test]
+        public void RepeatUntilPass2()
+        {
+            var step = new PassThirdTime();
+            var rpt = new RepeatStep
+            {
+                Action =  RepeatStep.RepeatStepAction.Until,
+                TargetStep = step,
+                TargetVerdict = Verdict.Pass,
+                ClearVerdict = true,
+                MaxCount = new Enabled<uint>{IsEnabled = true, Value = 5}
+            };
+            rpt.ChildTestSteps.Add(step);
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(rpt);
+            
+            var run = plan.Execute();
+
+            Assert.AreEqual(Verdict.Pass, run.Verdict);
+            Assert.AreEqual(3, step.Iterations);
         }
         
         
         // These two cases are technically equivalent.
         [Test]
-        [TestCase(Verdict.Error, RepeatStep.RepeatStepAction.While)]
+        [TestCase(Verdict.Fail, RepeatStep.RepeatStepAction.While)]
         [TestCase(Verdict.Pass, RepeatStep.RepeatStepAction.Until)]
         public void RepeatWhileError(Verdict targetVerdict, RepeatStep.RepeatStepAction action)
         {

@@ -387,7 +387,21 @@ namespace OpenTap
         void beginOpenResoureces(List<ResourceNode> resources, CancellationToken cancellationToken)
         {
             lockManager.BeforeOpen(resources, cancellationToken);
-            
+
+            {
+                // check if any resources that has been deleted from InstrumentSettings or DutSettings
+                // are still being referred to.
+                var untouched = new IComponentSettingsList[]{InstrumentSettings.Current, 
+                        DutSettings.Current, ResultSettings.Current}
+                    .SelectMany(x => x.GetRemovedAliveResources())
+                    .ToHashSet();
+                foreach (var res in resources)
+                {
+                    if (untouched.Contains(res.Resource))
+                        throw new Exception($"Deleted resource being used by {res.Depender.DeclaringType}.");
+                }
+            }
+
             // Check null resources
             if (resources.Any(res => res.Resource == null))
             {

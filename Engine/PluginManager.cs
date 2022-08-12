@@ -189,7 +189,10 @@ namespace OpenTap
         {
             PluginSearcher searcher = GetSearcher();
             return searcher.PluginTypes
-                .Where(st => !st.TypeAttributes.HasFlag(TypeAttributes.Interface) && !st.TypeAttributes.HasFlag(TypeAttributes.Abstract))
+                .Where(st =>
+                    !st.TypeAttributes.HasFlag(TypeAttributes.Interface)
+                    && !st.TypeAttributes.HasFlag(TypeAttributes.Abstract)
+                    && st.Status != LoadStatus.FailedToLoad)
                 .ToList().AsReadOnly();
         }
 
@@ -284,31 +287,6 @@ namespace OpenTap
             }
         }
 
-
-        /// <summary>
-        /// This method is required to redirect searches for certain assemblies, in case they are not the same version number.
-        /// Without this runtime errors can occur in strange circumstances, such as when running a program from a shortened path. E.g. C:\progra~1\Keysight\Tap\keysight.tap.gui.exe
-        /// </summary>
-        internal static void RedirectAssembly(string shortName, Version targetVersion)
-        {
-            Assembly handler(object sender, ResolveEventArgs args)
-            {
-                // Use latest strong name & version when trying to load SDK assemblies
-                var requestedAssembly = new AssemblyName(args.Name);
-                if (requestedAssembly.Name != shortName)
-                    return null;
-
-                requestedAssembly.Version = targetVersion;
-
-                AppDomain.CurrentDomain.AssemblyResolve -= handler;
-
-                return Assembly.Load(requestedAssembly);
-            }
-
-            AppDomain.CurrentDomain.AssemblyResolve += handler;
-        }
-
-
         static bool isLoaded = false;
         static object loadLock = new object();
         /// <summary> Sets up the PluginManager assembly resolution systems. Under normal circumstances it is not needed to call this method directly.</summary>
@@ -324,15 +302,13 @@ namespace OpenTap
                 string tapEnginePath = Assembly.GetExecutingAssembly().Location;
                 if(String.IsNullOrEmpty(tapEnginePath))
                 {
-                    // if Tap.Engine was loaded from memory/bytes instead of from a file, it does not have a location.
+                    // if OpenTap.dll was loaded from memory/bytes instead of from a file, it does not have a location.
                     // This is the case if the process was launched through tap.exe. 
                     // In that case just use the location of tap.exe, it is the same
                     tapEnginePath = Assembly.GetEntryAssembly().Location;
                 }
                 DirectoriesToSearch = new List<string> { Path.GetDirectoryName(tapEnginePath) };
                 assemblyResolver = new TapAssemblyResolver(DirectoriesToSearch);
-
-                RedirectAssembly("System.Collections.Immutable", Version.Parse("1.2.1.0"));
 
                 // Custom Assembly resolvers.
                 AppDomain.CurrentDomain.GetAssemblies().ToList().ForEach(assemblyResolver.AddAssembly);
@@ -516,121 +492,7 @@ namespace OpenTap
             lastSearchedDirs = FileFinder.DirectoriesToSearch.ToHashSet();
         }
 
-        private class AssemblyFinder
-        {
-            public void Invalidate()
-            {
-                lastSearch = DateTime.MinValue;
-            }
-
-            public AssemblyFinder()
-            {
-                matching = new Memorizer<string, string[]>(x => allFiles.Where(y => Path.GetFileNameWithoutExtension(y) == x).ToArray());
-            }
-
-            public IEnumerable<string> DirectoriesToSearch = new List<string>();
-
-            DateTime lastSearch = DateTime.MinValue;
-            string[] allFiles = null;
-            string[] allSearchFiles = null;
-            Memorizer<string, string[]> matching;
-            object syncLock = new object();
-            public string[] FindAssemblies(string fileName)
-            {
-                SyncFiles();
-                return matching.Invoke(fileName);
-            }
-
-            static bool StrEq(string a, string b) => string.Equals(a, b, StringComparison.InvariantCultureIgnoreCase);
-
-            public string[] AllAssemblies()
-            {
-                SyncFiles();
-                return allSearchFiles;
-            }
-
-            private struct SearchDir
-            {
-                public DirectoryInfo Info;
-                public bool IgnorePlugins;
-
-                public SearchDir(string dir, bool excludeFromSearch)
-                {
-                    this.Info = new DirectoryInfo(dir);
-                    IgnorePlugins = excludeFromSearch;
-                }
-                public SearchDir(DirectoryInfo dir, bool excludeFromSearch)
-                {
-                    this.Info = dir;
-                    IgnorePlugins = excludeFromSearch;
-                }
-            }
-
-            /// <summary>
-            /// Updates the dll file cache
-            /// </summary>
-            private void SyncFiles()
-            {
-                lock (syncLock)
-                {
-                    if ((DateTime.Now - lastSearch) < TimeSpan.FromSeconds(8))
-                        return;
-
-                    var sw = Stopwatch.StartNew();
-                    var files = new HashSet<string>(new PathUtils.PathComparer());
-                    var searchFiles = new HashSet<string>(new PathUtils.PathComparer());
-                    foreach (var search_dir in DirectoriesToSearch.ToHashSet(new PathUtils.PathComparer()))
-                    {
-                        var dirToSearch = new Queue<SearchDir>();
-                        dirToSearch.Enqueue(new SearchDir(search_dir, false));
-                        while (dirToSearch.Any())
-                        {
-                            var dir = dirToSearch.Dequeue();
-                            try
-                            {
-                                FileInfo[] filesInDir = dir.Info.GetFiles();
-                                if (filesInDir.Any(x => StrEq(x.Name, ".OpenTapIgnore")))  // .OpenTapIgnore means we should ignore this folder and sub folders w.r.t. both Assembly resolution and Plugin searching
-                                    continue;
-
-                                bool ignorePlugins = dir.IgnorePlugins;
-
-                                foreach (var subDir in dir.Info.EnumerateDirectories())
-                                {
-                                    if (StrEq(subDir.Name, "obj"))
-                                        continue; // skip obj subfolder
-                                    var ignorePluginsInSubDir = dir.IgnorePlugins || StrEq(subDir.Name, "Dependencies");
-                                    dirToSearch.Enqueue(new SearchDir(subDir, ignorePluginsInSubDir));
-                                }
-
-                                foreach (var file in filesInDir)
-                                {
-                                    var ext = file.Extension;
-                                    if (false == (StrEq(ext, ".exe") || StrEq(ext, ".dll")))
-                                        continue;
-                                    if (file.Name.Contains(".vshost."))
-                                        continue;
-
-                                    files.Add(file.FullName);
-                                    if (!ignorePlugins)
-                                        searchFiles.Add(file.FullName);
-                                }
-                            }
-                            catch (Exception e)
-                            {
-                                log.Error("Unable to enumerate directory '{0}': '{1}'", search_dir ?? "(null)", e.Message);
-                                log.Debug(e);
-                            }
-                        }
-                    }
-
-                    allFiles = files.ToArray();
-                    allSearchFiles = searchFiles.ToArray();
-                    matching.InvalidateAll();
-                    lastSearch = DateTime.Now;
-                    log.Debug(sw, "Found {0}/{1} assembly files.", searchFiles.Count, files.Count);
-                }
-            }
-        }
+        
 
         public void AddAssembly(string name, string path)
         {
