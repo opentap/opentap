@@ -27,8 +27,6 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual("X Setting", xdoc.Root.Element("X").Attribute("Metadata").Value);
             Assert.AreEqual("Y", xdoc.Root.Element("Y").Attribute("Metadata").Value);
         }
-
-
         public class PackageVersionTestStep : TestStep
         {
             public PackageVersion[] PackageVersion { get; set; }
@@ -37,7 +35,7 @@ namespace OpenTap.Engine.UnitTests
                 
             }
         }
-
+        
         [Test]
         public void TestPackageDependencySerializer()
         {
@@ -45,13 +43,7 @@ namespace OpenTap.Engine.UnitTests
             {
                 ChildTestSteps = { new DelayStep() }
             };
-            var packageVersion = new PackageVersion("pkg", SemanticVersion.Parse("1.0.0"), "Linux",
-                CpuArchitecture.AnyCPU, DateTime.Now,
-                new List<string>()
-                {
-                    "Lic1",
-                    "Lic2"
-                });
+            var packageVersion = new PackageVersion("pkg", SemanticVersion.Parse("1.0.0"), "Linux", CpuArchitecture.AnyCPU, DateTime.Now, new List<string>());
 
             { // verify that a serialized plan has package dependencies
                 var ser = new TapSerializer();
@@ -81,7 +73,6 @@ namespace OpenTap.Engine.UnitTests
 
                 var deserialized = ser.DeserializeFromString(str);
                 Assert.AreEqual(packageVersion, deserialized);
-                CollectionAssert.AreEqual(packageVersion.Licenses, ((deserialized as PackageVersion)!).Licenses);
             }
             { // verify that a serialized list of package versions does not have package dependencies
                 var ser = new TapSerializer();
@@ -96,7 +87,6 @@ namespace OpenTap.Engine.UnitTests
                 {
                     Assert.AreEqual(1, versions2.Count());
                     CollectionAssert.AreEqual(versions, versions2, "Deserialized versions were different from the serialized versions.");
-                    CollectionAssert.AreEqual(versions[0].Licenses, versions2[0].Licenses);
                 }
                 else
                 {

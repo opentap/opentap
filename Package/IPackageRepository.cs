@@ -111,7 +111,7 @@ namespace OpenTap.Package
 
     internal class PackageVersionSerializerPlugin : TapSerializerPlugin
     {
-        public override double Order => 5;
+        public override double Order { get { return 5; } }
 
         public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
         {
@@ -137,10 +137,10 @@ namespace OpenTap.Package
             if (expectedType.IsA(typeof(PackageVersion)) == false)
                 return false;
 
-            // We want to disable either if:
+            // We want to disable dependency writing either if:
             // 1: we are serializing a single PackageVersion
             // 2: we are serializing a single collection of PackageVersions
-            // In any other case, we don't want to disable dependencies
+            // In any other case, we do want to write package dependencies.
             bool shouldDisableDependencyWriter()
             {
                 if (node.Parent == null)
@@ -161,14 +161,27 @@ namespace OpenTap.Package
             if (depSerializer != null)
                 depSerializer.WritePackageDependencies = false;
             
-            // The serialization of this element should be handled by the object serializer
+            // The serialization of this element should be handled by a generic serializer
             return false;
         }
 
         PackageVersion DeserializePackageVersion(XElement node)
         {
             var version = new PackageVersion();
-            
+            var elements = node.Elements().ToList();
+            var attributes = node.Attributes().ToList();
+            foreach (var element in elements)
+            {
+                if (element.IsEmpty) continue;
+                setProp(element.Name.LocalName, element.Value);
+            }
+            foreach (var attribute in attributes)
+            {
+                setProp(attribute.Name.LocalName, attribute.Value);
+            }
+
+            return version;
+
             void setProp(string propertyName, string value)
             {
                 if (propertyName == "CPU") // CPU was removed in OpenTAP 9.0. This is to support packages created by TAP 8x
@@ -178,6 +191,12 @@ namespace OpenTap.Package
                 if (prop == null) return;
                 if (prop.PropertyType.IsEnum)
                     prop.SetValue(version, Enum.Parse(prop.PropertyType, value));
+                else if (prop.PropertyType.HasInterface<IList<string>>())
+                {
+                    var list = new List<string>();
+                    list.Add(value);
+                    prop.SetValue(version, list);
+                }
                 else if (prop.PropertyType == typeof(SemanticVersion))
                 {
                     if (SemanticVersion.TryParse(value, out var semver))
@@ -195,51 +214,6 @@ namespace OpenTap.Package
                     prop.SetValue(version, value);
                 }
             }
-
-            void addProp(string propName, string value)
-            {
-                var prop = typeof(PackageVersion).GetProperty(propName);
-                if (prop == null) return;
-                if (prop.PropertyType.HasInterface<IList<string>>())
-                {
-                    // Instantiate the list if it is not set. Add the element to the list.
-                    var list = prop.GetValue(version);
-                    if (!(list is IList<string> lst))
-                    {
-                        lst = new List<string>();
-                        prop.SetValue(version, lst);
-                    }
-                    // Add the value
-                    lst.Add(value);
-                }
-            }
-
-            var elements = node.Elements().ToList();
-            var attributes = node.Attributes().ToList();
-            foreach (var element in elements)
-            {
-                if (element.IsEmpty) continue;
-                // 'Licenses' is a list and can have multiple values
-                // Add each license element to the license list
-                if (element.Name.LocalName == "Licenses" && element.HasElements)
-                {
-                    foreach (var childEle in element.Elements())
-                    {
-                        addProp(element.Name.LocalName, childEle.Value);
-                    }
-                }
-                // Otherwise try to assign the property
-                else
-                {
-                    setProp(element.Name.LocalName, element.Value);
-                }
-            }
-            foreach (var attribute in attributes)
-            {
-                setProp(attribute.Name.LocalName, attribute.Value);
-            }
-
-            return version;
         }
     }
 
